@@ -33,10 +33,12 @@ final readonly class PapersFigures
         public int $topSpeedKmh,
         /** P.2, optional: the power a Gutachten's kW band is read against (Block D), where the data has none. */
         public ?int $powerKw = null,
+        /** 15.1 and 15.2, optional: the index the papers name, a floor that can only raise (D-242). */
+        public ?PapersIndex $index = null,
     ) {}
 
     /** Null when any figure lies outside its range: no figures rather than a wrong one. */
-    public static function tryFrom(int $axleFrontKg, int $axleRearKg, int $topSpeedKmh, ?int $powerKw = null): ?self
+    public static function tryFrom(int $axleFrontKg, int $axleRearKg, int $topSpeedKmh, ?int $powerKw = null, ?PapersIndex $index = null): ?self
     {
         foreach ([$axleFrontKg, $axleRearKg] as $kg) {
             if ($kg < self::AXLE_MIN_KG || $kg > self::AXLE_MAX_KG) {
@@ -52,7 +54,7 @@ final readonly class PapersFigures
             return null;
         }
 
-        return new self($axleFrontKg, $axleRearKg, $topSpeedKmh, $powerKw);
+        return new self($axleFrontKg, $axleRearKg, $topSpeedKmh, $powerKw, $index);
     }
 
     /**
@@ -93,6 +95,7 @@ final readonly class PapersFigures
             beforePapers: $vehicle,
             bodyFormSource: $vehicle->bodyFormSource,
             driveAxleSource: $vehicle->driveAxleSource,
+            papersIndex: $this->index,
         );
     }
 }

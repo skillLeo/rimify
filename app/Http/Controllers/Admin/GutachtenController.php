@@ -358,6 +358,8 @@ class GutachtenController extends Controller
             'label' => FitmentRows::label($document),
             'kind' => $document->kind->value,
             'kindLabel' => $document->kind->labelDe(),
+            // An example document carries its mark wherever it is shown (decision 6, D-239).
+            'demo' => (bool) $document->getAttribute('is_demo'),
             'kbaNumber' => $document->kba_number ?? '',
             'reportNumber' => $document->report_number ?? '',
             'approvalMark' => $document->approval_mark ?? '',

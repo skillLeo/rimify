@@ -17,6 +17,7 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Payments\Payments;
 use App\Services\Admin\Orders\OrderList;
+use App\Services\Commerce\OrderLinks;
 use App\Services\Storefront\Basket;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
@@ -249,7 +250,7 @@ it('shows a real order only to the browser that placed it or through a signed li
 
     $this->flushSession();
     $this->get('/bestellung/'.$order->order_number)->assertNotFound();
-    $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))->assertOk();
+    $this->get(OrderLinks::link($order))->assertOk();
 });
 
 it('counts order numbers as numbers, so a longer or zero-padded number is never issued twice', function (): void {

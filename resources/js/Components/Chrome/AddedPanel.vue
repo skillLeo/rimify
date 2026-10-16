@@ -87,7 +87,11 @@ function close(): void {
     }
 }
 
-/* Tab and Shift+Tab go round the panel's controls; the panel itself, focused on open, leads to the first or the last. */
+/*
+ * Tab and Shift+Tab go round the panel's controls; the panel itself, focused on open, leads to the first or the last.
+ * Every Tab inside it is the panel's: Safari's own Tab skips links, and went past „Zum Warenkorb“ out of the panel
+ * (the acceptance run on the preview, 16.10.2026).
+ */
 function trap(event: KeyboardEvent): void {
     const card = panel.value
 
@@ -96,22 +100,17 @@ function trap(event: KeyboardEvent): void {
     }
 
     const controls = [...card.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')]
-    const first = controls[0]
-    const last = controls[controls.length - 1]
 
-    if (first === undefined || last === undefined) {
+    if (controls.length === 0) {
         return
     }
 
-    const active = document.activeElement
+    event.preventDefault()
 
-    if (event.shiftKey && (active === first || active === card)) {
-        event.preventDefault()
-        last.focus()
-    } else if (!event.shiftKey && active === last) {
-        event.preventDefault()
-        first.focus()
-    }
+    const at = controls.indexOf(document.activeElement as HTMLElement)
+    const next = event.shiftKey ? (at <= 0 ? controls.length - 1 : at - 1) : at === controls.length - 1 ? 0 : at + 1
+
+    controls[next]?.focus()
 }
 
 /* A press anywhere else closes it — no overlay to dismiss, and the focus goes where the visitor pressed. */

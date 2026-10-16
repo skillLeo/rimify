@@ -122,6 +122,25 @@ it('keeps P.2 where it is given, and refuses one no car has', function (): void 
         ->assertSessionHasErrorsIn('papiere', ['power_kw' => 'Die Leistung liegt zwischen 10 und 1.000 kW. Sieh bitte noch einmal in Feld P.2 nach – die erste Zahl vor dem Schrägstrich.']);
 });
 
+it('keeps 15.1 and 15.2 where both are given, and refuses one alone or one it cannot read, in words', function (): void {
+    $vehicle = Vehicle::factory()->create();
+
+    $kept = papersCookie($this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'index_front' => '225/40 R19 91W', 'index_rear' => '255/35 ZR19 (96Y)']));
+    expect($kept?->getValue())->toBe("{$vehicle->id}.1100.1100.250.p91W.p96Yx");
+
+    $alone = $this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'index_front' => '225/40 R19 91W'])
+        ->assertSessionHasErrorsIn('papiere', ['index_rear' => 'Trag auch Feld 15.2 ein – vorn und hinten gehören zusammen, auch wenn beide gleich sind.']);
+    expect(papersCookie($alone))->toBeNull();
+
+    $unread = $this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'index_front' => '225/40 R19', 'index_rear' => '225/40 R19 91W'])
+        ->assertSessionHasErrorsIn('papiere', ['index_front' => 'Trag aus Feld 15.1 die Reifenangabe so ein, wie sie dort steht – zum Beispiel 225/45 R17 91W. Wir brauchen die Zahl und den Buchstaben am Ende.']);
+    expect(papersCookie($unread))->toBeNull();
+
+    // Neither given: the figures are kept without them, as before.
+    expect(papersCookie($this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'index_front' => '', 'index_rear' => '']))?->getValue())
+        ->toBe("{$vehicle->id}.1100.1100.250");
+});
+
 it('takes no figures for a car the shop no longer offers', function (): void {
     $vehicle = Vehicle::factory()->create();
     $vehicle->delete();
@@ -166,7 +185,7 @@ it('shows the typed figures with the car, and says where the vehicle data asks f
     $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1000, 'max_speed_kmh' => 250, 'power_kw' => 135]);
 
     $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($vehicle->id, true))->encode()])
-        ->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.1050.1100.250")
+        ->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.1050.1100.250.p91W.p95Yx")
         ->get('/felgenrechner')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
@@ -175,6 +194,8 @@ it('shows the typed figures with the car, and says where the vehicle data asks f
             ->where('vehicle.papers.axleFrontKg', 1050)
             ->where('vehicle.papers.axleRearKg', 1100)
             ->where('vehicle.papers.topSpeedKmh', 250)
+            // 15.1 and 15.2 as the papers print them (D-242).
+            ->where('vehicle.papers.index', ['front' => '91W', 'rear' => '(95Y)'])
             ->where('vehicle.papers.notes', [
                 'Für die Vorderachse rechnen wir mit 1.100'.GermanFormat::NBSP.'kg aus unseren Fahrzeugdaten – mehr als deine 1.050'.GermanFormat::NBSP.'kg aus Feld 8.1. So bist du auf der sicheren Seite.',
             ])

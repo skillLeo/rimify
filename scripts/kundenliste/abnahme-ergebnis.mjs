@@ -73,6 +73,8 @@ for (const [nr, list] of tests) {
     items[nr] = {
         // A flaky test passed on a retry: said, and not counted as a pass.
         passed: ran.length > 0 && ran.every((t) => t.status === 'passed'),
+        // How many ran: an item whose every test was skipped was not checked here — not passed, and not failed either.
+        ran: ran.length,
         engines: Object.fromEntries([...new Set(list.map((t) => t.engine))].map((e) => [e, list.filter((t) => t.engine === e).every((t) => t.status === 'passed') ? 'bestanden' : list.filter((t) => t.engine === e).map((t) => t.status).join(', ')])),
         tests: list.length,
         commit,

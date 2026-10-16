@@ -50,6 +50,8 @@ final class ShopRateLimits
         'shop-kontakt' => [5, false],
         // Amazon SNS reporting SES's bounces and complaints (D-182): one server, bursts after a bulk of mail.
         'shop-ses-meldungen' => [120, false],
+        // A fresh link to an order whose link expired (D-240): a mail per request, so as few as the contact form.
+        'shop-bestelllink' => [5, false],
     ];
 
     /**
@@ -59,6 +61,7 @@ final class ShopRateLimits
      */
     public const HOURLY_PER_ADDRESS = [
         'shop-kontakt' => 30,
+        'shop-bestelllink' => 30,
     ];
 
     public static function register(): void

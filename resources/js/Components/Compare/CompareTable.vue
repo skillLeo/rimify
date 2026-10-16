@@ -121,11 +121,10 @@ function lines(list: string[]): Cell {
 }
 
 function documentLine(document: CompareItem['specs']['documents'][number]): string {
-    if (document.kind === 'ABE') {
-        return document.number ? `ABE Nr. ${document.number}` : 'ABE'
-    }
+    const name = document.kind === 'ABE' ? (document.number ? `ABE Nr. ${document.number}` : 'ABE') : document.kind
 
-    return document.kind
+    // An example document is named as one wherever it is shown (D-239).
+    return document.example ? `${name} (Beispiel)` : name
 }
 
 /** Said where the Abnahme or Eintragung depends on the size, rather than one answer for every size. */

@@ -9,6 +9,7 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Who may enter and release a Gutachten — cells of the `approvals` row (R-11).
@@ -46,5 +47,14 @@ final class ApprovalDocumentPolicy
     public function publish(AdminUser $user, ApprovalDocument $document): bool
     {
         return $document->status === DocumentStatus::Draft && $user->may(PermissionModule::Approvals, PermissionAction::Publish);
+    }
+
+    /**
+     * The page an example document opens through (decision 6, D-239), for anyone — a visitor included — and only for a
+     * document born demo that the shop shows. A real document has no such page: it opens as itself.
+     */
+    public function viewExample(?Authenticatable $user, ApprovalDocument $document): bool
+    {
+        return (bool) $document->getAttribute('is_demo') && $document->status === DocumentStatus::Published;
     }
 }

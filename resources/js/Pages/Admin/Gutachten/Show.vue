@@ -323,7 +323,7 @@ const TONE: Record<string, string | null> = {
                 </button>
             </div>
             <dl class="adm-facts gs-facts">
-                <div class="adm-facts__row"><dt>Art</dt><dd>{{ document.kindLabel }}</dd></div>
+                <div class="adm-facts__row"><dt>Art</dt><dd>{{ document.kindLabel }}<span v-if="document.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span></dd></div>
                 <div v-if="document.kbaNumber" class="adm-facts__row"><dt>KBA-Nummer</dt><dd>{{ document.kbaNumber }}</dd></div>
                 <div v-if="document.reportNumber" class="adm-facts__row"><dt>Gutachten-Nummer</dt><dd>{{ document.reportNumber }}</dd></div>
                 <div v-if="document.approvalMark" class="adm-facts__row"><dt>Genehmigungszeichen</dt><dd>{{ document.approvalMark }}</dd></div>

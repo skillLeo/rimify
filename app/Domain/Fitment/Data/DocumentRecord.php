@@ -53,6 +53,12 @@ final readonly class DocumentRecord
          * `complete` lets a car the rows do not name be answered „nicht zulässig“.
          */
         public ?string $completeness = null,
+        /**
+         * An example document, born demo (`approval_documents.is_demo`): it is marked wherever it is shown or opened, and
+         * a verdict resting on it never lands on a real order — refused on production, a born-demo order elsewhere
+         * (decision 6, the operator's brief of 15.10.2026, D-239). Frozen with the verdict where true.
+         */
+        public bool $isDemo = false,
     ) {}
 
     public const COMPLETE = 'complete';
@@ -67,7 +73,7 @@ final readonly class DocumentRecord
      * @return array{
      *     id: string, kind: string, number: string|null, revision: int,
      *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null,
-     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string
+     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string, isDemo?: true
      * }
      */
     public function toArray(): array
@@ -88,6 +94,8 @@ final readonly class DocumentRecord
             ...($this->missingAnnexes === null ? [] : ['missingAnnexes' => $this->missingAnnexes]),
             // Frozen with the verdict: what the answer rested on, as asserted that day.
             ...($this->completeness === null ? [] : ['completeness' => $this->completeness]),
+            // An example document, said where it is true: the snapshot of a demo order keeps it.
+            ...($this->isDemo ? ['isDemo' => true] : []),
         ];
     }
 
@@ -101,7 +109,8 @@ final readonly class DocumentRecord
      * @param array{
      *     id: string|int, kind: string, number: string|null, revision: int,
      *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
-     *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null, completeness?: string|null
+     *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null, completeness?: string|null,
+     *     isDemo?: bool
      * } $data
      */
     public static function fromArray(array $data): self
@@ -121,6 +130,7 @@ final readonly class DocumentRecord
             papersCorrectionRequired: $data['papersCorrectionRequired'] ?? null,
             missingAnnexes: $data['missingAnnexes'] ?? null,
             completeness: $data['completeness'] ?? null,
+            isDemo: ($data['isDemo'] ?? false) === true,
         );
     }
 }

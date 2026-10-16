@@ -59,6 +59,11 @@ final readonly class VehicleRecord
          */
         public ?string $bodyFormSource = null,
         public ?string $driveAxleSource = null,
+        /**
+         * The tyre index the papers name, 15.1 and 15.2, as the customer typed them (D-242): a floor for the tyre minimum
+         * that can only raise it, read only where the car's axle loads and top speed are known (R-03).
+         */
+        public ?PapersIndex $papersIndex = null,
     ) {}
 
     /** This car with its body style and drive as given, and where each came from (VehicleBuild::overlay()). */
@@ -88,6 +93,7 @@ final readonly class VehicleRecord
             beforePapers: $this->beforePapers,
             bodyFormSource: $bodyFormSource,
             driveAxleSource: $driveAxleSource,
+            papersIndex: $this->papersIndex,
         );
     }
 

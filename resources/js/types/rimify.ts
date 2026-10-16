@@ -65,6 +65,8 @@ export interface PapersProp {
     topSpeedKmh: number
     /** P.2, where the customer gave it: a Gutachten's kW band is read against it (Block D). */
     powerKw?: number | null
+    /** 15.1 and 15.2 as typed, `91W` — a floor that can only raise the tyre minimum (D-242). */
+    index?: { front: string; rear: string } | null
     /** Where the vehicle data asks for more than the customer typed, and the answer uses that figure. */
     notes: string[]
 }

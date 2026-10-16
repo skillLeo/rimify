@@ -28,7 +28,13 @@ final readonly class AxleRequirement
 
     public MinSource $minSpeedSource;
 
-    /** @param list<TyreSize> $sizes */
+    /**
+     * `$provenance` says where the figures came from (D-242): `customer` — typed from the papers — or `dataset`, and the
+     * papers' own index where given. Null where the customer typed nothing: then every figure is our vehicle data's.
+     *
+     * @param  list<TyreSize>  $sizes
+     * @param  array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string}|null  $provenance
+     */
     public function __construct(
         public array $sizes,
         public ?int $minLoadIndex,
@@ -36,6 +42,7 @@ final readonly class AxleRequirement
         public MinSource $minSource,
         ?MinSource $minLoadSource = null,
         ?MinSource $minSpeedSource = null,
+        public ?array $provenance = null,
     ) {
         // Defaulted to the combined flag so every existing construction site, and every snapshot
         // written before the halves were recorded, keeps its meaning.
@@ -63,7 +70,8 @@ final readonly class AxleRequirement
      *     minSpeedSymbol: string|null,
      *     minSource: string,
      *     minLoadSource: string,
-     *     minSpeedSource: string
+     *     minSpeedSource: string,
+     *     provenance?: array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string}
      * }
      */
     public function toArray(): array
@@ -75,6 +83,8 @@ final readonly class AxleRequirement
             'minSource' => $this->minSource->value,
             'minLoadSource' => $this->minLoadSource->value,
             'minSpeedSource' => $this->minSpeedSource->value,
+            // Frozen with the answer where the customer's figures took part; absent, every figure was ours (D-242).
+            ...($this->provenance === null ? [] : ['provenance' => $this->provenance]),
         ];
     }
 
@@ -88,7 +98,8 @@ final readonly class AxleRequirement
      *     minSpeedSymbol: string|null,
      *     minSource: string,
      *     minLoadSource?: string,
-     *     minSpeedSource?: string
+     *     minSpeedSource?: string,
+     *     provenance?: array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string}
      * } $data
      */
     public static function fromArray(array $data): self
@@ -101,6 +112,7 @@ final readonly class AxleRequirement
             // A snapshot written before the halves existed reads as the combined flag on both.
             minLoadSource: MinSource::from($data['minLoadSource'] ?? $data['minSource']),
             minSpeedSource: MinSource::from($data['minSpeedSource'] ?? $data['minSource']),
+            provenance: $data['provenance'] ?? null,
         );
     }
 

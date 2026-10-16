@@ -14,13 +14,17 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
+use App\Models\TyreVariant;
 use App\Models\Vehicle;
+use App\Models\WheelConfig;
 use App\Services\Storefront\Basket;
 use App\Support\VehicleName;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Writes an order from the basket, in one transaction: the customer and their addresses, the order
@@ -37,6 +41,9 @@ final class OrderWriter
 {
     /** How often a number refused by the unique index is drawn again before the order fails. */
     public const NUMBER_ATTEMPTS = 3;
+
+    /** The refs of a test purchase off production, born demo with all it writes (D-239): `testkauf:<random>:<part>`. */
+    public const DEMO_PREFIX = 'testkauf:';
 
     public function __construct(private readonly FitmentResolver $resolver, private readonly OrderPayments $payments) {}
 
@@ -67,20 +74,34 @@ final class OrderWriter
             $verdicts[$i] = $verdict;
         }
 
-        return DB::transaction(function () use ($customer, $summary, $vehicle, $verdicts, $paymentMethod, $note, $request): Order {
+        // An example document never stands behind a real order (decision 6, the operator's brief of 15.10.2026, D-239):
+        // on production a verdict resting on one is refused — the last check, after the basket's. Elsewhere the purchase
+        // goes through and the order is born demo with every row it writes, so the test environment's reset takes it
+        // away and no real figure ever counts it.
+        $demoDocument = array_filter($verdicts, static fn (FitmentVerdict $verdict): bool => $verdict->document?->isDemo === true) !== [];
+
+        if ($demoDocument && app()->environment('production')) {
+            throw new OrderRefused(Basket::DEMO_DOCUMENT_REFUSAL);
+        }
+
+        $born = ! app()->environment('production') && ($demoDocument || self::demoGoods($summary['lines']))
+            ? self::DEMO_PREFIX.Str::lower(Str::random(20))
+            : null;
+
+        return DB::transaction(function () use ($customer, $summary, $vehicle, $verdicts, $paymentMethod, $note, $request, $born): Order {
             [$first, $last] = self::split($customer['name']);
-            $person = Customer::query()->create(['email' => $customer['email'], 'firstname' => $first, 'lastname' => $last, 'phone' => $customer['phone']]);
-            $delivery = Address::query()->create([
+            $person = self::row(Customer::class, ['email' => $customer['email'], 'firstname' => $first, 'lastname' => $last, 'phone' => $customer['phone']], $born, 'kunde');
+            $delivery = self::row(Address::class, [
                 'customer_id' => $person->id, 'full_name' => $customer['name'], 'street' => $customer['street'],
                 'house_number' => $customer['houseNumber'], 'zip_code' => $customer['zip'], 'city' => $customer['city'], 'country' => 'DE',
-            ]);
-            $billing = $customer['billingSame'] ? $delivery : Address::query()->create([
+            ], $born, 'lieferadresse');
+            $billing = $customer['billingSame'] ? $delivery : self::row(Address::class, [
                 'customer_id' => $person->id, 'full_name' => (string) ($customer['billingName'] ?? $customer['name']), 'street' => (string) ($customer['billingStreet'] ?? ''),
                 'house_number' => (string) ($customer['billingHouseNumber'] ?? ''), 'zip_code' => (string) ($customer['billingZip'] ?? ''), 'city' => (string) ($customer['billingCity'] ?? ''), 'country' => 'DE',
-            ]);
+            ], $born, 'rechnungsadresse');
 
             $totals = $summary['totals'];
-            $order = self::withNumber(static fn (string $number): Order => Order::query()->create([
+            $order = self::withNumber(static fn (string $number): Order => self::row(Order::class, [
                 'order_number' => $number,
                 'customer_id' => $person->id,
                 'delivery_address_id' => $delivery->id,
@@ -101,7 +122,7 @@ final class OrderWriter
                 'shipping_method' => 'standard',
                 'note' => $note,
                 'placed_at' => now(),
-            ]));
+            ], $born, 'bestellung'));
 
             // A mixed set's two lines move together: one package group for both axles (#20, D-105).
             $groups = [];
@@ -110,7 +131,7 @@ final class OrderWriter
                 $isSet = ($line['isSet'] ?? false) === true;
                 $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
                 $group = $mixed === null ? $i + 1 : ($groups[(string) $mixed['setKey']] ??= $i + 1);
-                $orderLine = OrderLine::query()->create([
+                $orderLine = self::row(OrderLine::class, [
                     'order_id' => $order->id,
                     'kind' => ($isSet ? OrderLineKind::Package : OrderLineKind::Wheel)->value,
                     'wheel_config_id' => (int) $line['wheelConfigId'],
@@ -123,16 +144,16 @@ final class OrderWriter
                     'line_total_cents' => (int) $line['lineTotalCents'],
                     'tax_rate_bp' => (int) $totals['vatRateBp'],
                     'currency' => 'EUR',
-                ]);
+                ], $born, 'position:'.($i + 1));
 
-                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed);
+                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed, $born === null ? null : $born.':nachweis:'.($i + 1));
             }
 
             $tpms = $totals['tpms'] ?? [];
 
             if (is_array($tpms) && ($tpms['choice'] ?? null) === 'ja' && is_int($tpms['unitPriceCents'] ?? null) && (int) ($tpms['quantity'] ?? 0) > 0) {
                 $stored = $request->session()->get(Basket::SESSION_TPMS);
-                OrderLine::query()->create([
+                self::row(OrderLine::class, [
                     'order_id' => $order->id,
                     'kind' => OrderLineKind::Accessory->value,
                     'tpms_sensor_price_id' => is_array($stored) && is_int($stored['priceId'] ?? null) ? $stored['priceId'] : null,
@@ -142,7 +163,7 @@ final class OrderWriter
                     'line_total_cents' => (int) $tpms['totalCents'],
                     'tax_rate_bp' => (int) $totals['vatRateBp'],
                     'currency' => 'EUR',
-                ]);
+                ], $born, 'rdks');
             }
 
             // The goods are taken off the shelf with the order, all or nothing: too few left and the whole order
@@ -159,8 +180,9 @@ final class OrderWriter
      * table entry and page, and what that axle asked for at its load — each axle separately, on its own line.
      *
      * @param  array<string, mixed>|null  $mixed
+     * @param  string|null  $demoRef  the snapshot's own ref where the order is born demo (R-12: fixed at insert)
      */
-    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null): void
+    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null, ?string $demoRef = null): void
     {
         $record = $verdict->toArray();
 
@@ -170,6 +192,7 @@ final class OrderWriter
         }
 
         (new OrderLineFitment)->forceFill([
+            ...($demoRef === null ? [] : ['is_demo' => true, 'demo_ref' => $demoRef]),
             'order_line_id' => $line->id,
             'vehicle_id' => $vehicle->id,
             'wheel_config_id' => $configId,
@@ -183,6 +206,45 @@ final class OrderWriter
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => $verdict->snapshot->computedAt,
         ])->save();
+    }
+
+    /**
+     * A row the order writes — born demo under the order's ref where the order is (R-12: both columns fixed at insert),
+     * so the reset that takes demo data away takes all of it, the snapshot included.
+     *
+     * @template T of Model
+     *
+     * @param  class-string<T>  $class
+     * @param  array<string, mixed>  $attributes
+     * @return T
+     */
+    private static function row(string $class, array $attributes, ?string $born, string $part): Model
+    {
+        $model = new $class;
+        $model->forceFill($born === null ? $attributes : [...$attributes, 'is_demo' => true, 'demo_ref' => $born.':'.$part])->save();
+
+        return $model;
+    }
+
+    /**
+     * Whether the basket holds goods born demo — the acceptance set's wheel or tyre, the only demo goods a checkout
+     * can reach (AcceptanceSet::sellable, off production).
+     *
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private static function demoGoods(array $lines): bool
+    {
+        $configs = array_map(static fn (array $line): int => (int) $line['wheelConfigId'], $lines);
+        $tyres = array_values(array_filter(array_map(
+            static fn (array $line): ?int => is_array($line['tyre'] ?? null) && is_numeric($line['tyre']['id'] ?? null) ? (int) $line['tyre']['id'] : null,
+            $lines,
+        )));
+
+        return WheelConfig::query()->whereIn('wheel_configs.id', $configs)
+            ->join('wheel_models as wm', 'wm.id', '=', 'wheel_configs.wheel_model_id')
+            ->where('wm.is_demo', true)
+            ->exists()
+            || ($tyres !== [] && TyreVariant::query()->whereIn('id', $tyres)->where('is_demo', true)->exists());
     }
 
     /** @param  array<string, mixed>  $line */

@@ -20,9 +20,9 @@ use App\Models\SpeedSymbolEntry;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Commerce\OrderLinks;
 use Database\Seeders\CatalogueSeeder;
 use Database\Seeders\CommerceSeeder;
-use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -58,7 +58,7 @@ it('shows a real order as it is', function (): void {
     $order = Order::query()->where('status', OrderStatus::Shipped->value)->orderBy('id')->firstOrFail();
 
     // A real order opens through its signed link (or for the browser that placed it).
-    $this->get(URL::signedRoute('bestellung.show', ['order' => $order->order_number]))
+    $this->get(OrderLinks::link($order))
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('demo', false)
             ->where('order.trackingCode', $order->tracking_code)

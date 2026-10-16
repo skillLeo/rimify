@@ -373,13 +373,18 @@ const openLead = computed(() =>
                 <Icon name="document" :size="20" />
                 <span class="data">{{ documentLine }}</span>
             </p>
+            <!-- An example document carries its mark wherever it is shown (decision 6, D-239). -->
+            <p v-if="verdict.document?.example" class="fit__example">
+                <span class="tag tag--unknown">Beispieldaten</span>
+                Dieses Gutachten ist bei uns nur als Beispiel hinterlegt – eine Freigabe daraus ist hier kein Nachweis für dein Fahrzeug.
+            </p>
             <!-- What the document itself limits: a Nachtrag without its base, the month a wheel must be made from. -->
             <p v-for="note in verdict.document?.notes ?? []" :key="note" class="fit__note">{{ note }}</p>
             <!-- The document itself, opened where the answer stands: the customer can check it. -->
             <p v-if="verdict.document?.pdf" class="fit__pdf">
                 <!-- A control, not a word in a sentence: `.link`, 44 px tall on touch, as the check's button below. -->
                 <a class="link" :href="verdict.document.pdf.url" target="_blank" rel="noopener">
-                    Gutachten öffnen (PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
+                    Gutachten öffnen (<template v-if="verdict.document.example">Beispiel, </template>PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
                 </a>
             </p>
             <!-- No dead end (finding 117): the wheels that are an answer for this car. -->
@@ -582,5 +587,15 @@ const openLead = computed(() =>
     gap: var(--space-2);
     margin: var(--space-3) 0 0;
     color: var(--ink2);
+}
+
+/* The example document's mark: as loud as the document line itself, never hidden in a tooltip (D-239). */
+.fit__example {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-small);
+}
+
+.fit__example .tag {
+    margin-right: var(--space-2);
 }
 </style>

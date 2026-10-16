@@ -10,6 +10,7 @@ vi.mock('../../composables/useOcr', () => ({
 
 vi.mock('@inertiajs/vue3', () => ({ router: { post: vi.fn(), delete: vi.fn() } }))
 
+import { router } from '@inertiajs/vue3'
 import PapersForm from './PapersForm.vue'
 
 /** Mounted with nothing kept, and opened: the form starts closed behind one button. */
@@ -88,6 +89,34 @@ describe('PapersForm', () => {
         await flushPromises()
         expect((wrapper.find('#pp-axle_front_kg').element as HTMLInputElement).value).toBe('1100')
         wrapper.unmount()
+    })
+
+    it('sends 15.1 and 15.2 only where one was typed, and shows them with the kept figures (D-242)', async () => {
+        const post = vi.mocked(router.post)
+        post.mockClear()
+        const wrapper = await mountOpen(140)
+
+        await wrapper.find('#pp-axle_front_kg').setValue(1100)
+        await wrapper.find('#pp-axle_rear_kg').setValue(1100)
+        await wrapper.find('#pp-top_speed_kmh').setValue(250)
+        await wrapper.find('form').trigger('submit')
+
+        expect(post.mock.calls[0]?.[1]).toEqual({ axle_front_kg: 1100, axle_rear_kg: 1100, top_speed_kmh: 250 })
+
+        // One typed, both sent: the server says the other is missing, in words.
+        await wrapper.find('#pp-index_front').setValue('225/40 R19 91W')
+        await wrapper.find('form').trigger('submit')
+
+        expect(post.mock.calls[1]?.[1]).toEqual({ axle_front_kg: 1100, axle_rear_kg: 1100, top_speed_kmh: 250, index_front: '225/40 R19 91W', index_rear: '' })
+
+        const papers = { axleFrontKg: 1100, axleRearKg: 1180, topSpeedKmh: 250, notes: [], index: { front: '91W', rear: '(95Y)' } }
+        const kept = mount(PapersForm, { props: { vehicleId: 7, papers, powerKw: 140 } })
+
+        expect(kept.find('.pp__summary').text()).toContain('15.1 91W · 15.2 (95Y)')
+
+        await kept.find('#pp-change').trigger('click')
+        await flushPromises()
+        expect((kept.find('#pp-index_rear').element as HTMLInputElement).value).toBe('(95Y)')
     })
 
     it('leaves the fields as they were and says so when nothing could be read', async () => {

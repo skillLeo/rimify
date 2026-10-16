@@ -329,6 +329,8 @@ final readonly class Chrome
             'axleRearKg' => $figures->axleRearKg,
             'topSpeedKmh' => $figures->topSpeedKmh,
             'powerKw' => $figures->powerKw,
+            // 15.1 and 15.2 as typed, `91W` (D-242), where given.
+            ...($figures->index === null ? [] : ['index' => ['front' => $figures->index->labelFor('FRONT'), 'rear' => $figures->index->labelFor('REAR')]]),
             'notes' => $notes,
         ];
     }

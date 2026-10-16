@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Data\PapersFigures;
+use App\Domain\Fitment\Data\PapersIndex;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Storefront\PapersBook;
@@ -42,6 +43,30 @@ it('keeps P.2 as a fifth figure where the customer gave it, and reads an entry w
         // Out of range, the whole entry is dropped, never half kept.
         ->and(PapersBook::decode('9.1100.1100.250.5')->isEmpty())->toBeTrue()
         ->and(PapersFigures::tryFrom(1100, 1100, 250, 1001))->toBeNull();
+});
+
+it('keeps 15.1 and 15.2 where given, reads an entry without them as before, and drops an entry whose index it cannot read', function (): void {
+    $index = PapersIndex::tryFrom(91, 'W', 95, '(Y)');
+    $figures = PapersFigures::tryFrom(1100, 1100, 250, null, $index);
+    $withPower = PapersFigures::tryFrom(1100, 1100, 250, 140, $index);
+
+    expect($figures)->not->toBeNull()->and($withPower)->not->toBeNull();
+
+    $book = (new PapersBook)->with(7, $figures ?? papers())->with(8, $withPower ?? papers())->with(9, papers());
+    $read = PapersBook::decode($book->encode());
+
+    // `(95Y)` travels as `95Yx`: no bracket in the cookie, nothing percent-encoded.
+    expect($book->encode())->toBe('9.1100.1100.250_8.1100.1100.250.140.p91W.p95Yx_7.1100.1100.250.p91W.p95Yx')
+        ->and(rawurlencode($book->encode()))->toBe($book->encode())
+        ->and($read->for(7)?->index?->labelFor('FRONT'))->toBe('91W')
+        ->and($read->for(7)?->index?->forAxle('REAR')['speedSymbol'])->toBe('(Y)')
+        ->and($read->for(8)?->powerKw)->toBe(140)
+        ->and($read->for(8)?->index?->labelFor('REAR'))->toBe('(95Y)')
+        ->and($read->for(9)?->index)->toBeNull()
+        // A symbol no papers print, or an index out of range: the whole entry goes, never the figures without it.
+        ->and(PapersBook::decode('7.1100.1100.250.p91X.p94Y')->isEmpty())->toBeTrue()
+        ->and(PapersBook::decode('7.1100.1100.250.p31W.p94Y')->isEmpty())->toBeTrue()
+        ->and(PapersBook::decode('7.1100.1100.250.p91Wx.p94Y')->isEmpty())->toBeTrue();
 });
 
 it('replaces a car’s figures in place rather than keeping two, and forgets one car without touching the others', function (): void {

@@ -63,6 +63,10 @@ final readonly class Basket
     public const DEMO_REFUSAL = 'In deinem Warenkorb liegen Felgen aus unserem Beispielsortiment. '
         .'Du kannst dir alles ansehen, bestellen kannst du sie noch nicht – es wurde nichts bestellt und nichts berechnet.';
 
+    /** On production: a line whose verdict rests on an example document (decision 6, D-239). */
+    public const DEMO_DOCUMENT_REFUSAL = 'Für eine Felge in deinem Warenkorb ist das Gutachten bei uns nur als Beispiel hinterlegt. '
+        .'Bestellen kannst du sie so nicht – es wurde nichts bestellt und nichts berechnet.';
+
     public const SHIPPING_REFUSAL = 'Die Versandkosten werden noch festgelegt. Solange kannst du noch nicht bestellen – '
         .'dein Warenkorb bleibt gespeichert.';
 
@@ -220,6 +224,17 @@ final readonly class Basket
         foreach ($lines as $line) {
             if (($line['demo'] ?? true) !== false) {
                 return self::DEMO_REFUSAL;
+            }
+        }
+
+        // An example document never stands behind a real order (decision 6, D-239). On production — where none should
+        // exist at all (demo:assert-clean) — a line resting on one is refused; elsewhere it is bought, and the order is
+        // born demo (OrderWriter), so the test environment's own reset takes it away.
+        if (app()->environment('production')) {
+            foreach ($lines as $line) {
+                if (($line['demoDocument'] ?? false) === true) {
+                    return self::DEMO_DOCUMENT_REFUSAL;
+                }
             }
         }
 
@@ -1007,6 +1022,8 @@ final readonly class Basket
             // A seeded demonstration row — the model or, on a Komplettrad, the tyre: it may sit in
             // the basket, it can never be ordered (ACCURACY.md D4) — unless it is the acceptance set's, off production.
             'demo' => $model->refusedAsDemo() || ($tyre !== null && $tyre->refusedAsDemo()),
+            // The verdict rests on an example document (decision 6, D-239): refused on production, a born-demo order elsewhere.
+            'demoDocument' => $verdict?->document?->isDemo === true,
             // A Komplettrad's tyre is chosen: its line says that size's Auflagen and no other's.
             'verdict' => $verdict === null ? null : $this->verdictArray($verdict, $tyre === null ? null : TyreSize::keyOf((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in), $mixed),
             // Mischbereifung (#20): the axle, the pair and what the axle asks for — set by renderMixed().

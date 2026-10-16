@@ -202,12 +202,25 @@ final class Smoke extends Command
 
             $this->check('Gutachten-PDF', function () use (&$pdf): string {
                 $this->expect(is_string($pdf), 'kein PDF-Link auf der Produktseite');
+                $via = '';
+
+                // An example document opens through the page that marks it (D-239): its file is behind that page's link.
+                if (self::isExamplePage((string) $pdf)) {
+                    $example = self::http(20)->get(Str::startsWith((string) $pdf, 'http') ? (string) $pdf : $this->base.$pdf);
+                    $this->expect($example->status() === 200, "Beispielseite: HTTP {$example->status()}");
+                    $html = self::rendered($example->body());
+                    $this->expect(str_contains($html, 'nur als Beispiel hinterlegt'), 'die Beispielseite sagt nicht, dass das Gutachten nur ein Beispiel ist');
+                    $pdf = self::pdfLink($html, 'Das Dokument öffnen');
+                    $this->expect(is_string($pdf), 'kein PDF-Link auf der Beispielseite');
+                    $via = ' über die Beispielseite';
+                }
+
                 $url = (string) preg_replace('/#.*$/', '', (string) $pdf);
                 $response = self::http(20)->get(Str::startsWith($url, 'http') ? $url : $this->base.$url);
                 $this->expect($response->status() === 200, "HTTP {$response->status()}");
                 $this->expect(str_starts_with($response->body(), '%PDF-'), 'die Antwort ist kein PDF');
 
-                return 'öffnet, Seite '.(preg_match('/#page=(\d+)/', (string) $pdf, $page) ? $page[1] : '–');
+                return 'öffnet'.$via.', Seite '.(preg_match('/#page=(\d+)/', (string) $pdf, $page) ? $page[1] : '–');
             });
 
             $step = self::orderStep((bool) $config->wheelModel->is_demo, Payments::sandbox(), (bool) $this->option('testbestellung'));
@@ -504,9 +517,15 @@ final class Smoke extends Command
      * The product page's „Gutachten öffnen“ link, wherever `href` stands among its attributes: since the page's rework it
      * follows `class` (`<a class="link" href="…">`), and the smoke on the preview read that as no link (03.10.2026).
      */
-    public static function pdfLink(string $html): ?string
+    public static function pdfLink(string $html, string $label = 'Gutachten öffnen'): ?string
     {
-        return preg_match('#<a\b[^>]*?\bhref="([^"]+)"[^>]*>\s*Gutachten öffnen#u', $html, $link) === 1 ? html_entity_decode($link[1]) : null;
+        return preg_match('#<a\b[^>]*?\bhref="([^"]+)"[^>]*>\s*'.preg_quote($label, '#').'#u', $html, $link) === 1 ? html_entity_decode($link[1]) : null;
+    }
+
+    /** Whether a „Gutachten öffnen“ link leads to the page that marks an example document first (D-239). */
+    public static function isExamplePage(string $link): bool
+    {
+        return preg_match('#^(?:https?://[^/]+)?/gutachten/\d+/beispiel(?:[?\#]|$)#', $link) === 1;
     }
 
     /** The page as a browser without JavaScript shows it: the page data (JSON) is taken out first. */

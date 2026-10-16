@@ -204,7 +204,8 @@ test('Nur Felgen or Komplettrad: switching keeps the rest, the tyre is picked ri
     await onSize(page, 19, 'Schwarz matt')
 
     // Two clear choices; switching keeps the amount of rims.
-    await expect(page.locator('.pdp__mode .bmc-tile')).toHaveText([/^Nur Felgen/, /^Komplettrad/])
+    // „Kompletträder“ since the copy review (EIGENE-FUNDE 128).
+    await expect(page.locator('.pdp__mode .bmc-tile')).toHaveText([/^Nur Felgen/, /^Komplettr(ad|äder)\b/])
     await amount(page, 2)
     await mode(page, 'Komplettrad')
 

@@ -208,7 +208,7 @@ final readonly class CompareRows
             ->distinct()
             ->orderBy('d.kind')
             ->orderBy('d.id')
-            ->get(['d.id', 'd.kind', 'd.kba_number', 'd.approval_mark', 'd.report_number']);
+            ->get(['d.id', 'd.kind', 'd.kba_number', 'd.approval_mark', 'd.report_number', 'd.is_demo']);
 
         $out = [];
 
@@ -224,7 +224,8 @@ final readonly class CompareRows
                 null => [(string) $row->kind, null],
             };
 
-            $out[] = ['kind' => $label, 'number' => is_string($number) && $number !== '' ? $number : null];
+            // An example document is named as one wherever it is shown (D-239).
+            $out[] = ['kind' => $label, 'number' => is_string($number) && $number !== '' ? $number : null, 'example' => (bool) $row->is_demo];
         }
 
         return $out;

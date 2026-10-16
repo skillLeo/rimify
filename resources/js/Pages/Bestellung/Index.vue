@@ -35,7 +35,7 @@ import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-const props = defineProps<BestellungProps & { demo?: boolean }>()
+const props = defineProps<BestellungProps & { demo?: boolean; testPurchase?: boolean }>()
 
 const VERDICT_LABEL: Record<string, string> = {
     PERMITTED: 'Freigegeben',
@@ -79,11 +79,19 @@ function documentOf(detail: Record<string, unknown>): string | null {
     return typeof number === 'string' && number !== '' ? number : null
 }
 
+/** An example document, as the snapshot froze it (D-239): marked here as wherever else it is shown. */
+function exampleOf(detail: Record<string, unknown>): boolean {
+    const doc = detail.document
+
+    return doc !== null && typeof doc === 'object' && (doc as Record<string, unknown>).isDemo === true
+}
+
 const lines = computed(() =>
     props.lines.map((line) => ({
         ...line,
         conditions: line.verdict ? conditionsOf(line.verdict.detail) : [],
         documentNumber: line.verdict ? documentOf(line.verdict.detail) : null,
+        documentExample: line.verdict ? exampleOf(line.verdict.detail) : false,
     }))
 )
 
@@ -195,6 +203,13 @@ const lead = computed(() => {
         case 'closed':
             return 'Diese Bestellung wurde nicht bezahlt, es wurde nichts abgebucht.'
         default:
+            // A test purchase gets no invoice (D-239): its mail says so, and so does this line.
+            if (props.testPurchase) {
+                return props.payment?.mailed
+                    ? `Deine Testzahlung ist eingegangen. Die Bestätigung mit AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt – ohne Rechnung, denn es ist ein Testkauf.`
+                    : 'Deine Testzahlung ist eingegangen. Ein Testkauf bekommt keine Rechnung.'
+            }
+
             return props.payment?.mailed
                 ? `Deine Zahlung ist eingegangen. Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt. Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.`
                 : 'Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.'
@@ -234,7 +249,7 @@ function openAccount(): void {
 
     <section class="section-dense">
         <div class="wrap">
-            <header v-if="demo" class="ord__head">
+            <header v-if="demo && !testPurchase" class="ord__head">
                 <span class="ord__tick ord__tick--demo"><Icon name="info" :size="24" /></span>
                 <div>
                     <h1 class="t-h1">Beispielbestellung</h1>
@@ -259,6 +274,11 @@ function openAccount(): void {
                     </Link>
                 </div>
             </header>
+            <p v-if="testPurchase" class="ord__lead ord__test-purchase">
+                <span class="tag tag--unknown ord__demo-tag">Demodaten</span>
+                Ein Testkauf mit Beispieldaten: Er bekommt keine Rechnung, zählt in keiner echten Zahl des Shops, und
+                „Zurücksetzen“ nimmt ihn mit allen anderen Beispieldaten wieder heraus.
+            </p>
 
             <dl class="ord__facts">
                 <div>
@@ -311,6 +331,7 @@ function openAccount(): void {
                                     <span class="data">
                                         <template v-if="line.documentNumber">Gutachten {{ line.documentNumber }} · </template>Fassung {{ line.verdict.documentRevision }}
                                     </span>
+                                    <span v-if="line.documentExample" class="tag tag--unknown">Beispieldaten</span>
                                 </p>
                                 <!-- One size needs the Abnahme, another does not: the line names them. A Komplettrad says its tyre's. -->
                                 <p v-if="entryBySize(line.verdict.conditionGroups?.sizes, line.verdict.papersExempt === true)" class="ord__entry">
@@ -467,6 +488,11 @@ function openAccount(): void {
 .ord__demo-tag {
     margin-right: var(--space-2);
     vertical-align: middle;
+}
+
+/* A test purchase says what it is under the payment's own heading (D-239). */
+.ord__test-purchase {
+    margin-top: var(--space-4);
 }
 
 .ord__facts {

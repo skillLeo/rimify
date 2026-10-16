@@ -56,14 +56,17 @@ use App\Http\Controllers\Api\PlzController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\VehicleTreeController;
 use App\Http\Controllers\DesignController;
+use App\Http\Controllers\Storefront\BeispielGutachtenController;
 use App\Http\Controllers\Storefront\BenachrichtigungController;
 use App\Http\Controllers\Storefront\BestellungController;
+use App\Http\Controllers\Storefront\BestellungLinkController;
 use App\Http\Controllers\Storefront\BewertungController;
 use App\Http\Controllers\Storefront\CheckController;
 use App\Http\Controllers\Storefront\FahrzeugAufbauController;
 use App\Http\Controllers\Storefront\FahrzeugController;
 use App\Http\Controllers\Storefront\FahrzeugPapiereController;
 use App\Http\Controllers\Storefront\FaqController;
+use App\Http\Controllers\Storefront\FehlerVorschauController;
 use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
@@ -119,6 +122,8 @@ Route::get('/felgenrechner', [FelgenrechnerController::class, 'index'])->name('f
 Route::get('/felgen-suchen', [FelgenController::class, 'suchen'])->name('felgen.suchen');
 Route::get('/felgen', [FelgenController::class, 'index'])->name('felgen.index');
 Route::get('/felgen/{model}', [FelgenController::class, 'show'])->name('felgen.show');
+// An example document opens through the page that marks it (decision 6, D-239); any other document has none.
+Route::get('/gutachten/{document}/beispiel', [BeispielGutachtenController::class, 'show'])->whereNumber('document')->name('gutachten.beispiel');
 // Up to four wheels side by side; the keys travel in `?f=` so a comparison is a link.
 Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich.index');
 
@@ -164,6 +169,8 @@ Route::post('/kasse/zahlung', [KasseZahlungController::class, 'store'])->middlew
 Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
 Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
 Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+// The way back from an expired order link (D-240): number and address, and a fresh link goes to that address.
+Route::post('/bestellung/link', [BestellungLinkController::class, 'store'])->middleware('throttle:shop-bestelllink')->name('bestellung.link');
 // Mein Konto (Block G §2): offered after a paid order with one click; guest checkout stays the default.
 Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:shop-konto')->name('bestellung.konto');
 Route::middleware('guest:customer')->group(function (): void {
@@ -240,6 +247,10 @@ Route::get('/vorschau/seite/{page}', VorschauController::class)
 if (app()->environment(['local', 'testing'])) {
     Route::get('/__design', DesignController::class)->name('design');
 }
+
+// An error page opened on purpose — the 500 above all, which otherwise takes a real failure to see. Test environments
+// only (ErrorPagePolicy); in the live shop the address is the 404 every unknown one is (D-243).
+Route::get('/__fehlerseite/{status}', FehlerVorschauController::class)->whereNumber('status')->name('fehler.vorschau');
 
 // ── Admin ────────────────────────────────────────────────────────────────────────────────────
 //

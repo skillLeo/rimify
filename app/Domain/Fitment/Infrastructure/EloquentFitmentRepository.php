@@ -392,6 +392,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             papersCorrectionRequired: $document->papersCorrectionRequired(),
             missingAnnexes: $document->missing_annexes === null || trim($document->missing_annexes) === '' ? null : trim($document->missing_annexes),
             completeness: $document->completeness,
+            isDemo: (bool) $document->getAttribute('is_demo'),
         );
     }
 

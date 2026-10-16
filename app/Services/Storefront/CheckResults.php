@@ -45,6 +45,8 @@ final readonly class CheckResults
                 'axleRearKg' => $papers->axleRearKg,
                 'topSpeedKmh' => $papers->topSpeedKmh,
                 'powerKw' => $papers->powerKw,
+                // 15.1 and 15.2 where given — frozen with the answer, as the figures are (D-242).
+                ...($papers->index === null ? [] : ['index' => ['front' => $papers->index->labelFor('FRONT'), 'rear' => $papers->index->labelFor('REAR')]]),
             ],
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => now(),
@@ -104,6 +106,8 @@ final readonly class CheckResults
                 'issuer' => $document->issuer,
                 'revision' => $document->revision,
                 'page' => $document->sourcePage,
+                // An example document, as the frozen answer holds it: marked here as wherever it is shown (D-239).
+                'example' => $document->isDemo,
             ],
             // The frozen answer stands as it was; where the document has changed since, the page says so.
             'documentToday' => match ($today) {

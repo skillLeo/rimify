@@ -31,13 +31,19 @@ final class OrderPaid
             return;
         }
 
-        try {
-            $invoice = $this->invoices->issueFor($order);
-        } catch (Throwable $e) {
-            report($e);
-            AuditTrail::system('System', 'invoice.failed', ['order' => $order->order_number, 'error' => mb_substr($e->getMessage(), 0, 250)], $order);
+        // A demo order — a test purchase in the acceptance set — never counts in a real figure, and an invoice is one:
+        // it would take the next number of the §14 series. The confirmation goes out and says why there is none (D-239).
+        $invoice = null;
 
-            return;
+        if (! $order->isDemo()) {
+            try {
+                $invoice = $this->invoices->issueFor($order);
+            } catch (Throwable $e) {
+                report($e);
+                AuditTrail::system('System', 'invoice.failed', ['order' => $order->order_number, 'error' => mb_substr($e->getMessage(), 0, 250)], $order);
+
+                return;
+            }
         }
 
         $email = $order->customer?->email;
@@ -48,7 +54,7 @@ final class OrderPaid
 
         try {
             Mail::to($email)->send(new OrderConfirmationMail($order, $invoice));
-            AuditTrail::system('System', 'order.confirmation_sent', ['order' => $order->order_number, 'invoice' => $invoice->number], $order);
+            AuditTrail::system('System', 'order.confirmation_sent', ['order' => $order->order_number, 'invoice' => $invoice?->number], $order);
         } catch (Throwable $e) {
             report($e);
             AuditTrail::system('System', 'order.confirmation_failed', ['order' => $order->order_number, 'error' => mb_substr($e->getMessage(), 0, 250)], $order);

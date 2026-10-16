@@ -9,6 +9,7 @@ use App\Domain\Fitment\Verdict\PapersWording;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
+use App\Services\Commerce\OrderLinks;
 use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Content\LegalPdf;
 use App\Services\Content\LegalTexts;
@@ -21,7 +22,6 @@ use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Support\Facades\URL;
 use Throwable;
 
 /**
@@ -37,7 +37,8 @@ class OrderConfirmationMail extends Mailable
     /** The legal pages attached as PDFs, by slug: the file name each goes by. */
     private const LEGAL_PDFS = ['agb' => LegalPdf::AGB, 'widerrufsbelehrung' => LegalPdf::WIDERRUF];
 
-    public function __construct(public Order $order, public Invoice $invoice) {}
+    /** `$invoice` is null for a demo order — a test purchase gets no invoice, and the mail says so (D-239). */
+    public function __construct(public Order $order, public ?Invoice $invoice) {}
 
     public function envelope(): Envelope
     {
@@ -45,7 +46,7 @@ class OrderConfirmationMail extends Mailable
         $contact = (string) config('rimify.contact.email');
 
         return new Envelope(
-            subject: "Deine Bestellung {$this->order->order_number} bei RIMIFY – Bestätigung und Rechnung",
+            subject: "Deine Bestellung {$this->order->order_number} bei RIMIFY – ".($this->invoice === null ? 'Bestätigung des Testkaufs' : 'Bestätigung und Rechnung'),
             replyTo: $contact === '' ? [] : [new Address($contact, 'RIMIFY')],
         );
     }
@@ -125,10 +126,11 @@ class OrderConfirmationMail extends Mailable
                 'deliveryTime' => Shipping::current()->deliveryTime(),
                 // The seller under the signature, as on the invoice (§ 35a GmbHG): only what is given, never a placeholder.
                 'sellerLine' => Seller::current()->documentLine(),
-                'invoiceNumber' => $this->invoice->number,
-                'invoiceUrl' => Invoices::link($this->invoice),
-                // Signed: the page opens on any device the customer reads this mail on, not only where they ordered.
-                'orderUrl' => URL::signedRoute('bestellung.show', ['order' => $order->order_number]),
+                'invoiceNumber' => $this->invoice?->number,
+                'invoiceUrl' => $this->invoice === null ? null : Invoices::link($this->invoice),
+                // Signed: the page opens on any device the customer reads this mail on, not only where they ordered —
+                // for twelve months, then the way back to a fresh link (OrderLinks, D-240).
+                'orderUrl' => OrderLinks::link($order),
                 // While the Kanzlei's text is outstanding, who prepares it — never the seeded marker (LegalTexts::PREPARING).
                 'agb' => $legal->placeholder('agb') ? LegalTexts::PREPARING : $legal->text('agb'),
                 'widerruf' => $legal->placeholder('widerrufsbelehrung') ? LegalTexts::PREPARING : $legal->text('widerrufsbelehrung'),
@@ -143,7 +145,7 @@ class OrderConfirmationMail extends Mailable
     {
         $invoice = $this->invoice;
         $pdf = app(LegalPdf::class);
-        $attachments = [
+        $attachments = $invoice === null ? [] : [
             Attachment::fromData(static fn (): string => app(Invoices::class)->pdf($invoice), $invoice->number.'.pdf')->withMime('application/pdf'),
         ];
 

@@ -9,6 +9,8 @@ export interface DocumentFacts {
     label: string
     kind: string
     kindLabel: string
+    /** Born demo: an example document, marked wherever it is shown (D-239). */
+    demo?: boolean
     kbaNumber: string
     reportNumber: string
     approvalMark: string

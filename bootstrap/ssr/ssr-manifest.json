@@ -44,11 +44,11 @@
   "node_modules/@vue/server-renderer/dist/server-renderer.cjs.prod.js": [],
   "node_modules/@vue/shared/dist/shared.cjs.prod.js": [],
   "node_modules/@vueuse/core/dist/index.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/@vueuse/shared/dist/index.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/aria-hidden/dist/es2015/index.js": [
@@ -415,43 +415,43 @@
     "/build/assets/DropdownMenuTrigger-DR2ieCu7.js"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxAnchor.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxContent.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxContentImpl.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxEmpty.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxGroup.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxInput.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxItem.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxRoot.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/ComboboxViewport.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Combobox/useComboboxContentPositioning.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/ConfigProvider/ConfigProvider.js": [],
@@ -558,23 +558,23 @@
     "/build/assets/Dialog-Brdq1xcT.css"
   ],
   "node_modules/reka-ui/dist/Listbox/ListboxContent.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Listbox/ListboxFilter.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Listbox/ListboxItem.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Listbox/ListboxRoot.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Listbox/utils.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/Menu/MenuAnchor.js": [
@@ -628,39 +628,39 @@
     "/build/assets/Dialog-Brdq1xcT.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuContent.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuContentImpl.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuItem.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuLink.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuList.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuRoot.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuTrigger.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/NavigationMenuViewport.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/NavigationMenu/utils.js": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "node_modules/reka-ui/dist/Popover/PopoverContent.js": [
@@ -806,7 +806,7 @@
     "/build/assets/PopoverTrigger-BMsNH1KE.js"
   ],
   "node_modules/reka-ui/dist/shared/arrays.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/shared/createContext.js": [],
@@ -837,7 +837,7 @@
     "/build/assets/Dialog-Brdq1xcT.css"
   ],
   "node_modules/reka-ui/dist/shared/useComposing.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/shared/useDirection.js": [
@@ -848,7 +848,7 @@
     "/build/assets/Dialog-Brdq1xcT.css"
   ],
   "node_modules/reka-ui/dist/shared/useFilter.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/shared/useFocusGuards.js": [
@@ -887,11 +887,11 @@
     "/build/assets/DropdownMenuTrigger-DR2ieCu7.js"
   ],
   "node_modules/reka-ui/dist/shared/useKbd.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/shared/useNonce.js": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "node_modules/reka-ui/dist/shared/useSingleOrMultipleValue.js": [
@@ -1474,12 +1474,12 @@
     "/build/assets/Icon-58DOAUuC.js"
   ],
   "resources/js/Components/Art/PapersFacsimile.vue": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Art/PapersFacsimile.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Art/Svg.vue": [
     "/build/assets/Svg-BjJf-u_I.js",
@@ -1500,127 +1500,127 @@
     "/build/assets/Wheel-DDaRbt4k.js"
   ],
   "resources/js/Components/Chrome/AddedPanel.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/AddedPanel.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
-  "resources/js/Components/Chrome/AddedPanel.vue?vue&type=style&index=0&scoped=7f7dddc3&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+  "resources/js/Components/Chrome/AddedPanel.vue?vue&type=style&index=0&scoped=ae359fb8&lang.css": [
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CanonicalLink.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CanonicalLink.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CartButton.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CartButton.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CartButton.vue?vue&type=style&index=0&scoped=99850be3&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CommandPalette.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/CommandPalette.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/CommandPalette.vue?vue&type=style&index=0&scoped=8c9aa9d9&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/CommandPalette.vue?vue&type=style&index=1&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/CookieConsent.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CookieConsent.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/CookieConsent.vue?vue&type=style&index=0&scoped=0ef19f9a&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/DemoBadge.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/DemoBadge.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/DemoBadge.vue?vue&type=style&index=0&scoped=f0da4095&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/MainMenu.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/MainMenu.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/MainMenu.vue?vue&type=style&index=0&scoped=834fe2b4&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/MainMenu.vue?vue&type=style&index=1&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/MegaMenu.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/MegaMenu.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/MegaMenu.vue?vue&type=style&index=0&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/PreviewRibbon.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/PreviewRibbon.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/PreviewRibbon.vue?vue&type=style&index=0&scoped=de532814&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/SearchBox.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/SearchBox.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/SearchBox.vue?vue&type=style&index=0&scoped=267c1af1&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/ShopFeedback.vue": [
@@ -1640,43 +1640,43 @@
     "/build/assets/ShopFeedback-IZ7NLexA.css"
   ],
   "resources/js/Components/Chrome/ShortcutsDialog.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/ShortcutsDialog.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/ShortcutsDialog.vue?vue&type=style&index=0&scoped=533b9687&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/SiteFooter.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/SiteFooter.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/SiteFooter.vue?vue&type=style&index=0&scoped=3c5041d2&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Chrome/SiteHeader.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/SiteHeader.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/SiteHeader.vue?vue&type=style&index=0&scoped=b8845667&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/SiteHeader.vue?vue&type=style&index=1&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/Toast.vue": [
@@ -1692,15 +1692,15 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/Components/Chrome/VehicleBar.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/VehicleBar.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/VehicleBar.vue?vue&type=style&index=0&scoped=851043e6&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Components/Chrome/toast.ts": [
@@ -1708,28 +1708,28 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/Components/Compare/CompareTable.vue": [
-    "/build/assets/CompareTable-DOwO6N0l.js",
-    "/build/assets/CompareTable-Boy-a3YZ.css"
+    "/build/assets/CompareTable-CQwNsniW.js",
+    "/build/assets/CompareTable-iRG6U2HT.css"
   ],
   "resources/js/Components/Compare/CompareTable.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/CompareTable-DOwO6N0l.js",
-    "/build/assets/CompareTable-Boy-a3YZ.css"
+    "/build/assets/CompareTable-CQwNsniW.js",
+    "/build/assets/CompareTable-iRG6U2HT.css"
   ],
-  "resources/js/Components/Compare/CompareTable.vue?vue&type=style&index=0&scoped=dc3d416b&lang.css": [
-    "/build/assets/CompareTable-DOwO6N0l.js",
-    "/build/assets/CompareTable-Boy-a3YZ.css"
+  "resources/js/Components/Compare/CompareTable.vue?vue&type=style&index=0&scoped=89f43240&lang.css": [
+    "/build/assets/CompareTable-CQwNsniW.js",
+    "/build/assets/CompareTable-iRG6U2HT.css"
   ],
   "resources/js/Components/Compare/CompareTray.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Compare/CompareTray.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Compare/CompareTray.vue?vue&type=style&index=0&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Fitment/ConditionGroups.vue": [
     "/build/assets/ConditionGroups-DPIzVLfb.js",
@@ -1744,39 +1744,39 @@
     "/build/assets/ConditionGroups-uMKmTUOx.css"
   ],
   "resources/js/Components/Home/BrandWall.vue": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/BrandWall.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/BrandWall.vue?vue&type=style&index=0&scoped=e68f7058&lang.css": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/DocumentScan.vue": [
-    "/build/assets/DocumentScan-Cxq5wkg2.js",
+    "/build/assets/DocumentScan-EZlfPfaB.js",
     "/build/assets/DocumentScan-CFK5RZec.css"
   ],
   "resources/js/Components/Home/DocumentScan.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/DocumentScan-Cxq5wkg2.js",
+    "/build/assets/DocumentScan-EZlfPfaB.js",
     "/build/assets/DocumentScan-CFK5RZec.css"
   ],
   "resources/js/Components/Home/DocumentScan.vue?vue&type=style&index=0&scoped=2f9939aa&lang.css": [
-    "/build/assets/DocumentScan-Cxq5wkg2.js",
+    "/build/assets/DocumentScan-EZlfPfaB.js",
     "/build/assets/DocumentScan-CFK5RZec.css"
   ],
   "resources/js/Components/Home/FindFast.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/FindFast.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/FindFast.vue?vue&type=style&index=0&scoped=c83490c5&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/FitmentCalculator.vue": [
@@ -1804,111 +1804,111 @@
     "/build/assets/useRechner-C-OlmtmO.css"
   ],
   "resources/js/Components/Home/GuidesSection.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/GuidesSection.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/GuidesSection.vue?vue&type=style&index=0&scoped=f7016995&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/GutachtenStory.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/GutachtenStory.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/GutachtenStory.vue?vue&type=style&index=0&scoped=6ec30d68&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/HeroHelp.vue": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/HeroHelp.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/HeroHelp.vue?vue&type=style&index=0&scoped=8c3f250d&lang.css": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/HeroSelector.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/HeroSelector.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/HeroSelector.vue?vue&type=style&index=0&scoped=0662ce1e&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/HomeHero.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/HomeHero.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/HomeHero.vue?vue&type=style&index=0&scoped=64ad5b54&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/KomplettradBand.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/KomplettradBand.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/KomplettradBand.vue?vue&type=style&index=0&scoped=48d94715&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PartnersSection.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PartnersSection.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PartnersSection.vue?vue&type=style&index=0&scoped=96b557e0&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PopularWheels.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PopularWheels.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PopularWheels.vue?vue&type=style&index=0&scoped=3f912e75&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PromiseRow.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PromiseRow.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/PromiseRow.vue?vue&type=style&index=0&scoped=cc4c242f&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/RechnerShare.vue": [
@@ -1924,111 +1924,111 @@
     "/build/assets/useRechner-C-OlmtmO.css"
   ],
   "resources/js/Components/Home/RimCode.vue": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCode.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCode.vue?vue&type=style&index=0&scoped=6ba9539c&lang.css": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodePhoto.vue": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodePhoto.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodePhoto.vue?vue&type=style&index=0&scoped=943745c3&lang.css": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodeSchematic.vue": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodeSchematic.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodeSchematic.vue?vue&type=style&index=0&scoped=d7b84e81&lang.css": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodeSection.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/RimCodeSection.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/RimCodeSection.vue?vue&type=style&index=0&scoped=c3f60a99&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/RimCodeTeaser.vue": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodeTeaser.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/RimCodeTeaser.vue?vue&type=style&index=0&scoped=81a11568&lang.css": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/ServiceFaq.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/ServiceFaq.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/ServiceFaq.vue?vue&type=style&index=0&scoped=14d7abc3&lang.css": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Components/Home/brandWall.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/rimCode.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Home/rimCodeSchematic.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Listing/FilterBar.vue": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Components/Listing/FilterBar.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Components/Listing/FilterBar.vue?vue&type=style&index=0&scoped=c6de1f32&lang.css": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Components/Mobile/AppBar.vue": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Components/Mobile/AppBar.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Components/Mobile/AppBar.vue?vue&type=style&index=0&scoped=9585df08&lang.css": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Components/Mobile/BottomSheet.vue": [
@@ -2044,55 +2044,55 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/Components/Mobile/Home/GutachtenStory.vue": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/GutachtenStory.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/GutachtenStory.vue?vue&type=style&index=0&scoped=a51289fc&lang.css": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/HeroFrame.vue": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/HeroFrame.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/HeroFrame.vue?vue&type=style&index=0&scoped=ea28bc11&lang.css": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/KomplettradWheel.vue": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/KomplettradWheel.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/KomplettradWheel.vue?vue&type=style&index=0&scoped=2135e487&lang.css": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/VehiclePanel.vue": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/VehiclePanel.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/VehiclePanel.vue?vue&type=style&index=0&scoped=f302f2f3&lang.css": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Home/calloutSlots.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Components/Mobile/ListRow.vue": [
@@ -2108,39 +2108,39 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/Components/Mobile/SearchSheet.vue": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Components/Mobile/SearchSheet.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Components/Mobile/SearchSheet.vue?vue&type=style&index=0&lang.css": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Components/Mobile/Shelf.vue": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Shelf.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Mobile/Shelf.vue?vue&type=style&index=0&scoped=1c954006&lang.css": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Components/Product/AmountStepper.vue": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Components/Product/AmountStepper.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Components/Product/AmountStepper.vue?vue&type=style&index=0&scoped=55171959&lang.css": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Components/Product/BuildForm.vue": [
@@ -2156,76 +2156,76 @@
     "/build/assets/BuildForm-aHVYYRqT.css"
   ],
   "resources/js/Components/Product/BuyModeChoice.vue": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/BuyModeChoice.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/BuyModeChoice.vue?vue&type=style&index=0&scoped=b251cd5b&lang.css": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/FitmentDetail.vue": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/FitmentDetail.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/FitmentDetail.vue?vue&type=style&index=0&scoped=1a581694&lang.css": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/FitmentPanel.vue": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/FitmentPanel.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
-  "resources/js/Components/Product/FitmentPanel.vue?vue&type=style&index=0&scoped=9e57ca7c&lang.css": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+  "resources/js/Components/Product/FitmentPanel.vue?vue&type=style&index=0&scoped=aa1ac0ec&lang.css": [
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/KomplettradChoice.vue": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/KomplettradChoice.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/KomplettradChoice.vue?vue&type=style&index=0&scoped=c3a90bc6&lang.css": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/MischbereifungOffer.vue": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Components/Product/MischbereifungOffer.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Components/Product/MischbereifungOffer.vue?vue&type=style&index=0&scoped=b4ccbccc&lang.css": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Components/Product/PapersForm.vue": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/PapersForm.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
-  "resources/js/Components/Product/PapersForm.vue?vue&type=style&index=0&scoped=7702099b&lang.css": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+  "resources/js/Components/Product/PapersForm.vue?vue&type=style&index=0&scoped=c27abeba&lang.css": [
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/Components/Product/ProductPhoto.vue": [
     "/build/assets/ProductPhoto-DEWysAOS.js",
@@ -2312,27 +2312,27 @@
     "/build/assets/Picture-nSgAo0tV.css"
   ],
   "resources/js/Components/Ui/ProductTile.vue": [
-    "/build/assets/ProductTile-BsAAYiGq.js",
+    "/build/assets/ProductTile-HAbtIetK.js",
     "/build/assets/ProductTile-CQEqLHkX.css"
   ],
   "resources/js/Components/Ui/ProductTile.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/ProductTile-BsAAYiGq.js",
+    "/build/assets/ProductTile-HAbtIetK.js",
     "/build/assets/ProductTile-CQEqLHkX.css"
   ],
   "resources/js/Components/Ui/ProductTile.vue?vue&type=style&index=0&scoped=cda3b82e&lang.css": [
-    "/build/assets/ProductTile-BsAAYiGq.js",
+    "/build/assets/ProductTile-HAbtIetK.js",
     "/build/assets/ProductTile-CQEqLHkX.css"
   ],
   "resources/js/Components/Ui/ProductTileSkeleton.vue": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/Components/Ui/ProductTileSkeleton.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/Components/Ui/ProductTileSkeleton.vue?vue&type=style&index=0&scoped=837136ff&lang.css": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/Components/Ui/Skeleton.vue": [
@@ -2384,39 +2384,39 @@
     "/build/assets/VerdictBadge-CH46vZP2.js"
   ],
   "resources/js/Components/Ui/WheelOutline.vue": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Ui/WheelOutline.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Ui/WheelOutline.vue?vue&type=style&index=0&scoped=b8b8afae&lang.css": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/Components/Vehicle/VehicleNotify.vue": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Components/Vehicle/VehicleNotify.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Components/Vehicle/VehicleNotify.vue?vue&type=style&index=0&scoped=5ecc8a2f&lang.css": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Components/Vehicle/VehicleSelector.vue": [
-    "/build/assets/VehicleSelector-Bw1VVYIs.js",
+    "/build/assets/VehicleSelector-HuBQ_Z32.js",
     "/build/assets/VehicleSelector-7eg4og8f.css"
   ],
   "resources/js/Components/Vehicle/VehicleSelector.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/VehicleSelector-Bw1VVYIs.js",
+    "/build/assets/VehicleSelector-HuBQ_Z32.js",
     "/build/assets/VehicleSelector-7eg4og8f.css"
   ],
   "resources/js/Components/Vehicle/VehicleSelector.vue?vue&type=style&index=0&scoped=205b8a22&lang.css": [
-    "/build/assets/VehicleSelector-Bw1VVYIs.js",
+    "/build/assets/VehicleSelector-HuBQ_Z32.js",
     "/build/assets/VehicleSelector-7eg4og8f.css"
   ],
   "resources/js/Layouts/AdminLayout.vue": [
@@ -2428,31 +2428,31 @@
     "/build/assets/AdminPage-CdNN_q1b.css"
   ],
   "resources/js/Layouts/AppLayout.vue": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Layouts/AppLayout.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Layouts/AppLayout.vue?vue&type=style&index=0&scoped=cf8fa01e&lang.css": [
-    "/build/assets/AppLayout-BMD7N3_n.js",
+    "/build/assets/AppLayout-qhvrT7Ox.js",
     "/build/assets/AppLayout-HTGaivX3.css"
   ],
   "resources/js/Layouts/MobileLayout.vue": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Layouts/MobileLayout.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Layouts/MobileLayout.vue?vue&type=style&index=0&scoped=34c26fff&lang.css": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Layouts/MobileLayout.vue?vue&type=style&index=1&lang.css": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/Pages/Admin/Abdeckung/Index.vue": [
@@ -2874,16 +2874,16 @@
     "/build/assets/RowFields-B_M6Jkuw.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Show.vue": [
-    "/build/assets/Show-D1Vv2Ad6.js",
-    "/build/assets/Show-DlSr2gv5.css"
+    "/build/assets/Show-Cn8B5pkR.js",
+    "/build/assets/Show-Bh1TZs6y.css"
   ],
   "resources/js/Pages/Admin/Gutachten/Show.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Show-D1Vv2Ad6.js",
-    "/build/assets/Show-DlSr2gv5.css"
+    "/build/assets/Show-Cn8B5pkR.js",
+    "/build/assets/Show-Bh1TZs6y.css"
   ],
-  "resources/js/Pages/Admin/Gutachten/Show.vue?vue&type=style&index=0&scoped=52e5c66c&lang.css": [
-    "/build/assets/Show-D1Vv2Ad6.js",
-    "/build/assets/Show-DlSr2gv5.css"
+  "resources/js/Pages/Admin/Gutachten/Show.vue?vue&type=style&index=0&scoped=e4468582&lang.css": [
+    "/build/assets/Show-Cn8B5pkR.js",
+    "/build/assets/Show-Bh1TZs6y.css"
   ],
   "resources/js/Pages/Admin/Gutachten/VehicleFromDocument.vue": [
     "/build/assets/VehicleFromDocument-DPKXeWwF.js",
@@ -3241,328 +3241,352 @@
     "/build/assets/Index-g1uKNdnY.js",
     "/build/assets/Index-Cf1imwMv.css"
   ],
+  "resources/js/Pages/Bestellung/Abgelaufen.vue": [
+    "/build/assets/Abgelaufen-BmZfwbpt.js",
+    "/build/assets/Abgelaufen-Cz0eMY8o.css"
+  ],
+  "resources/js/Pages/Bestellung/Abgelaufen.vue?vue&type=script&setup=true&lang.ts": [
+    "/build/assets/Abgelaufen-BmZfwbpt.js",
+    "/build/assets/Abgelaufen-Cz0eMY8o.css"
+  ],
+  "resources/js/Pages/Bestellung/Abgelaufen.vue?vue&type=style&index=0&scoped=989c1c57&lang.css": [
+    "/build/assets/Abgelaufen-BmZfwbpt.js",
+    "/build/assets/Abgelaufen-Cz0eMY8o.css"
+  ],
   "resources/js/Pages/Bestellung/Index.vue": [
-    "/build/assets/Index-BvOhJuee.js",
-    "/build/assets/Index-BQTY5xNI.css"
+    "/build/assets/Index-DFiGhDq2.js",
+    "/build/assets/Index-DhHIJnI1.css"
   ],
   "resources/js/Pages/Bestellung/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-BvOhJuee.js",
-    "/build/assets/Index-BQTY5xNI.css"
+    "/build/assets/Index-DFiGhDq2.js",
+    "/build/assets/Index-DhHIJnI1.css"
   ],
-  "resources/js/Pages/Bestellung/Index.vue?vue&type=style&index=0&scoped=ab8a06dd&lang.css": [
-    "/build/assets/Index-BvOhJuee.js",
-    "/build/assets/Index-BQTY5xNI.css"
+  "resources/js/Pages/Bestellung/Index.vue?vue&type=style&index=0&scoped=9306e9c9&lang.css": [
+    "/build/assets/Index-DFiGhDq2.js",
+    "/build/assets/Index-DhHIJnI1.css"
   ],
   "resources/js/Pages/Bewertung/Index.vue": [
-    "/build/assets/Index-WllURurm.js",
+    "/build/assets/Index-DXK_5pE3.js",
     "/build/assets/Index-CcS-QkvJ.css"
   ],
   "resources/js/Pages/Bewertung/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-WllURurm.js",
+    "/build/assets/Index-DXK_5pE3.js",
     "/build/assets/Index-CcS-QkvJ.css"
   ],
   "resources/js/Pages/Bewertung/Index.vue?vue&type=style&index=0&scoped=4a5f1c5c&lang.css": [
-    "/build/assets/Index-WllURurm.js",
+    "/build/assets/Index-DXK_5pE3.js",
     "/build/assets/Index-CcS-QkvJ.css"
   ],
   "resources/js/Pages/Blog/Desktop.vue": [
-    "/build/assets/Desktop-E1aUqp_-.js",
+    "/build/assets/Desktop-htpZfmJc.js",
     "/build/assets/Desktop-DOr5JllN.css"
   ],
   "resources/js/Pages/Blog/Desktop.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-E1aUqp_-.js",
+    "/build/assets/Desktop-htpZfmJc.js",
     "/build/assets/Desktop-DOr5JllN.css"
   ],
   "resources/js/Pages/Blog/Desktop.vue?vue&type=style&index=0&scoped=316ac113&lang.css": [
-    "/build/assets/Desktop-E1aUqp_-.js",
+    "/build/assets/Desktop-htpZfmJc.js",
     "/build/assets/Desktop-DOr5JllN.css"
   ],
   "resources/js/Pages/Check/Index.vue": [
-    "/build/assets/Index-CBR2maYT.js",
+    "/build/assets/Index-QvwDHxg2.js",
     "/build/assets/Index-Bt3nnvwU.css"
   ],
   "resources/js/Pages/Check/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-CBR2maYT.js",
+    "/build/assets/Index-QvwDHxg2.js",
     "/build/assets/Index-Bt3nnvwU.css"
   ],
   "resources/js/Pages/Check/Index.vue?vue&type=style&index=0&scoped=ec047132&lang.css": [
-    "/build/assets/Index-CBR2maYT.js",
+    "/build/assets/Index-QvwDHxg2.js",
     "/build/assets/Index-Bt3nnvwU.css"
   ],
   "resources/js/Pages/CheckErgebnis/Index.vue": [
-    "/build/assets/Index-DjfkvOGY.js",
-    "/build/assets/Index-jUOExgfP.css"
+    "/build/assets/Index-CWMAIbbp.js",
+    "/build/assets/Index-B1cZtrqp.css"
   ],
   "resources/js/Pages/CheckErgebnis/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DjfkvOGY.js",
-    "/build/assets/Index-jUOExgfP.css"
+    "/build/assets/Index-CWMAIbbp.js",
+    "/build/assets/Index-B1cZtrqp.css"
   ],
-  "resources/js/Pages/CheckErgebnis/Index.vue?vue&type=style&index=0&scoped=8e716d2a&lang.css": [
-    "/build/assets/Index-DjfkvOGY.js",
-    "/build/assets/Index-jUOExgfP.css"
+  "resources/js/Pages/CheckErgebnis/Index.vue?vue&type=style&index=0&scoped=d5eb335b&lang.css": [
+    "/build/assets/Index-CWMAIbbp.js",
+    "/build/assets/Index-B1cZtrqp.css"
   ],
   "resources/js/Pages/Design/Index.vue": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/Pages/Design/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/Pages/Design/Index.vue?vue&type=style&index=0&scoped=2d8f4931&lang.css": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/Pages/Faq/Index.vue": [
-    "/build/assets/Index-DRUciHIm.js",
+    "/build/assets/Index-DBUu6rqA.js",
     "/build/assets/Index-BCzeJYTk.css"
   ],
   "resources/js/Pages/Faq/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DRUciHIm.js",
+    "/build/assets/Index-DBUu6rqA.js",
     "/build/assets/Index-BCzeJYTk.css"
   ],
   "resources/js/Pages/Faq/Index.vue?vue&type=style&index=0&scoped=3cbd127e&lang.css": [
-    "/build/assets/Index-DRUciHIm.js",
+    "/build/assets/Index-DBUu6rqA.js",
     "/build/assets/Index-BCzeJYTk.css"
   ],
   "resources/js/Pages/Fehler/Index.vue": [
-    "/build/assets/Index-Dw01oKaw.js",
+    "/build/assets/Index-BR2PeMg4.js",
     "/build/assets/Index-D7hLOXRY.css"
   ],
   "resources/js/Pages/Fehler/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-Dw01oKaw.js",
+    "/build/assets/Index-BR2PeMg4.js",
     "/build/assets/Index-D7hLOXRY.css"
   ],
   "resources/js/Pages/Fehler/Index.vue?vue&type=style&index=0&scoped=a8e064c9&lang.css": [
-    "/build/assets/Index-Dw01oKaw.js",
+    "/build/assets/Index-BR2PeMg4.js",
     "/build/assets/Index-D7hLOXRY.css"
   ],
   "resources/js/Pages/Felgen/Index.vue": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Pages/Felgen/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Pages/Felgen/Index.vue?vue&type=style&index=0&scoped=c1b575e5&lang.css": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/Pages/FelgenSuchen/Index.vue": [
-    "/build/assets/Index-CDazhaWI.js",
+    "/build/assets/Index-QIgitfz9.js",
     "/build/assets/Index-Ci7INCkA.css"
   ],
   "resources/js/Pages/FelgenSuchen/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-CDazhaWI.js",
+    "/build/assets/Index-QIgitfz9.js",
     "/build/assets/Index-Ci7INCkA.css"
   ],
   "resources/js/Pages/FelgenSuchen/Index.vue?vue&type=style&index=0&scoped=72a5a568&lang.css": [
-    "/build/assets/Index-CDazhaWI.js",
+    "/build/assets/Index-QIgitfz9.js",
     "/build/assets/Index-Ci7INCkA.css"
   ],
   "resources/js/Pages/Felgenrechner/Desktop.vue": [
-    "/build/assets/Desktop-CbsvbrrY.js",
+    "/build/assets/Desktop-DLNg8_-H.js",
     "/build/assets/Desktop-TJAriyLo.css"
   ],
   "resources/js/Pages/Felgenrechner/Desktop.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-CbsvbrrY.js",
+    "/build/assets/Desktop-DLNg8_-H.js",
     "/build/assets/Desktop-TJAriyLo.css"
   ],
   "resources/js/Pages/Felgenrechner/Desktop.vue?vue&type=style&index=0&scoped=4beb330e&lang.css": [
-    "/build/assets/Desktop-CbsvbrrY.js",
+    "/build/assets/Desktop-DLNg8_-H.js",
     "/build/assets/Desktop-TJAriyLo.css"
   ],
   "resources/js/Pages/Felgenrechner/Mobile.vue": [
-    "/build/assets/Mobile-BJQh0sfT.js",
+    "/build/assets/Mobile-3H1e5ooa.js",
     "/build/assets/Mobile-L5XmWodi.css"
   ],
   "resources/js/Pages/Felgenrechner/Mobile.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-BJQh0sfT.js",
+    "/build/assets/Mobile-3H1e5ooa.js",
     "/build/assets/Mobile-L5XmWodi.css"
   ],
   "resources/js/Pages/Felgenrechner/Mobile.vue?vue&type=style&index=0&scoped=1f81a83a&lang.css": [
-    "/build/assets/Mobile-BJQh0sfT.js",
+    "/build/assets/Mobile-3H1e5ooa.js",
     "/build/assets/Mobile-L5XmWodi.css"
   ],
+  "resources/js/Pages/Gutachten/Beispiel.vue": [
+    "/build/assets/Beispiel-8P5QY1d-.js",
+    "/build/assets/Beispiel-wWgHldd7.css"
+  ],
+  "resources/js/Pages/Gutachten/Beispiel.vue?vue&type=script&setup=true&lang.ts": [
+    "/build/assets/Beispiel-8P5QY1d-.js",
+    "/build/assets/Beispiel-wWgHldd7.css"
+  ],
+  "resources/js/Pages/Gutachten/Beispiel.vue?vue&type=style&index=0&scoped=e2fba40f&lang.css": [
+    "/build/assets/Beispiel-8P5QY1d-.js",
+    "/build/assets/Beispiel-wWgHldd7.css"
+  ],
   "resources/js/Pages/Kasse/Index.vue": [
-    "/build/assets/Index-C5N_EUZ5.js",
+    "/build/assets/Index-DoAfegkp.js",
     "/build/assets/Index-Dax4yHjC.css"
   ],
   "resources/js/Pages/Kasse/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-C5N_EUZ5.js",
+    "/build/assets/Index-DoAfegkp.js",
     "/build/assets/Index-Dax4yHjC.css"
   ],
   "resources/js/Pages/Kasse/Index.vue?vue&type=style&index=0&scoped=2f7692ef&lang.css": [
-    "/build/assets/Index-C5N_EUZ5.js",
+    "/build/assets/Index-DoAfegkp.js",
     "/build/assets/Index-Dax4yHjC.css"
   ],
   "resources/js/Pages/Kasse/Testzahlung.vue": [
-    "/build/assets/Testzahlung-D8e9xfYl.js",
+    "/build/assets/Testzahlung-Qo6gyFpv.js",
     "/build/assets/Testzahlung-kyEcm9NJ.css"
   ],
   "resources/js/Pages/Kasse/Testzahlung.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Testzahlung-D8e9xfYl.js",
+    "/build/assets/Testzahlung-Qo6gyFpv.js",
     "/build/assets/Testzahlung-kyEcm9NJ.css"
   ],
   "resources/js/Pages/Kasse/Testzahlung.vue?vue&type=style&index=0&scoped=f6bcb3c4&lang.css": [
-    "/build/assets/Testzahlung-D8e9xfYl.js",
+    "/build/assets/Testzahlung-Qo6gyFpv.js",
     "/build/assets/Testzahlung-kyEcm9NJ.css"
   ],
   "resources/js/Pages/Kontakt/Index.vue": [
-    "/build/assets/Index-Ih_Hbhlu.js",
+    "/build/assets/Index-m5Vv90OZ.js",
     "/build/assets/Index-Byw7HEay.css"
   ],
   "resources/js/Pages/Kontakt/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-Ih_Hbhlu.js",
+    "/build/assets/Index-m5Vv90OZ.js",
     "/build/assets/Index-Byw7HEay.css"
   ],
   "resources/js/Pages/Kontakt/Index.vue?vue&type=style&index=0&scoped=ac5bfe84&lang.css": [
-    "/build/assets/Index-Ih_Hbhlu.js",
+    "/build/assets/Index-m5Vv90OZ.js",
     "/build/assets/Index-Byw7HEay.css"
   ],
   "resources/js/Pages/Konto/Anmelden.vue": [
-    "/build/assets/Anmelden-Z2xBKGYm.js",
+    "/build/assets/Anmelden-D7mWdq-w.js",
     "/build/assets/Anmelden-6ip2jQ1X.css"
   ],
   "resources/js/Pages/Konto/Anmelden.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Anmelden-Z2xBKGYm.js",
+    "/build/assets/Anmelden-D7mWdq-w.js",
     "/build/assets/Anmelden-6ip2jQ1X.css"
   ],
   "resources/js/Pages/Konto/Anmelden.vue?vue&type=style&index=0&scoped=9bede556&lang.css": [
-    "/build/assets/Anmelden-Z2xBKGYm.js",
+    "/build/assets/Anmelden-D7mWdq-w.js",
     "/build/assets/Anmelden-6ip2jQ1X.css"
   ],
   "resources/js/Pages/Konto/Index.vue": [
-    "/build/assets/Index-D2a9oFTy.js",
+    "/build/assets/Index-BTdwAzQE.js",
     "/build/assets/Index-D2Yxa6H9.css"
   ],
   "resources/js/Pages/Konto/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-D2a9oFTy.js",
+    "/build/assets/Index-BTdwAzQE.js",
     "/build/assets/Index-D2Yxa6H9.css"
   ],
   "resources/js/Pages/Konto/Index.vue?vue&type=style&index=0&scoped=9eee2703&lang.css": [
-    "/build/assets/Index-D2a9oFTy.js",
+    "/build/assets/Index-BTdwAzQE.js",
     "/build/assets/Index-D2Yxa6H9.css"
   ],
   "resources/js/Pages/Konto/Passwort.vue": [
-    "/build/assets/Passwort-CEzLHztr.js",
+    "/build/assets/Passwort-nvo7mWlN.js",
     "/build/assets/Passwort-DFiDIVY_.css"
   ],
   "resources/js/Pages/Konto/Passwort.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Passwort-CEzLHztr.js",
+    "/build/assets/Passwort-nvo7mWlN.js",
     "/build/assets/Passwort-DFiDIVY_.css"
   ],
   "resources/js/Pages/Konto/Passwort.vue?vue&type=style&index=0&scoped=0417accd&lang.css": [
-    "/build/assets/Passwort-CEzLHztr.js",
+    "/build/assets/Passwort-nvo7mWlN.js",
     "/build/assets/Passwort-DFiDIVY_.css"
   ],
   "resources/js/Pages/Konto/Vergessen.vue": [
-    "/build/assets/Vergessen-DQ5CygkQ.js",
+    "/build/assets/Vergessen-C2k8_gbY.js",
     "/build/assets/Vergessen-DK3Q6tqQ.css"
   ],
   "resources/js/Pages/Konto/Vergessen.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Vergessen-DQ5CygkQ.js",
+    "/build/assets/Vergessen-C2k8_gbY.js",
     "/build/assets/Vergessen-DK3Q6tqQ.css"
   ],
   "resources/js/Pages/Konto/Vergessen.vue?vue&type=style&index=0&scoped=31172ca3&lang.css": [
-    "/build/assets/Vergessen-DQ5CygkQ.js",
+    "/build/assets/Vergessen-C2k8_gbY.js",
     "/build/assets/Vergessen-DK3Q6tqQ.css"
   ],
   "resources/js/Pages/Produkt/Index.vue": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Pages/Produkt/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Pages/Produkt/Index.vue?vue&type=style&index=0&scoped=b3b6479f&lang.css": [
-    "/build/assets/Index-DVQ9rQ93.js",
+    "/build/assets/Index-BvGbNtKv.js",
     "/build/assets/Index-BiU5P3MI.css"
   ],
   "resources/js/Pages/Ratgeber/Desktop.vue": [
-    "/build/assets/Desktop-G0hWUqOh.js",
+    "/build/assets/Desktop-Bz2dwyIN.js",
     "/build/assets/Desktop-KOHFW1lp.css"
   ],
   "resources/js/Pages/Ratgeber/Desktop.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-G0hWUqOh.js",
+    "/build/assets/Desktop-Bz2dwyIN.js",
     "/build/assets/Desktop-KOHFW1lp.css"
   ],
   "resources/js/Pages/Ratgeber/Desktop.vue?vue&type=style&index=0&scoped=7a5bbdb6&lang.css": [
-    "/build/assets/Desktop-G0hWUqOh.js",
+    "/build/assets/Desktop-Bz2dwyIN.js",
     "/build/assets/Desktop-KOHFW1lp.css"
   ],
   "resources/js/Pages/Rechtliches/Index.vue": [
-    "/build/assets/Index-tBzKxZYb.js",
+    "/build/assets/Index-B1xVd5WG.js",
     "/build/assets/Index-DkWpdYJe.css"
   ],
   "resources/js/Pages/Rechtliches/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-tBzKxZYb.js",
+    "/build/assets/Index-B1xVd5WG.js",
     "/build/assets/Index-DkWpdYJe.css"
   ],
   "resources/js/Pages/Rechtliches/Index.vue?vue&type=style&index=0&scoped=7b16a461&lang.css": [
-    "/build/assets/Index-tBzKxZYb.js",
+    "/build/assets/Index-B1xVd5WG.js",
     "/build/assets/Index-DkWpdYJe.css"
   ],
   "resources/js/Pages/Rechtliches/Widerrufsformular.vue": [
-    "/build/assets/Widerrufsformular-5Oi4ZE7j.js",
+    "/build/assets/Widerrufsformular-DLXJG55X.js",
     "/build/assets/Widerrufsformular-ACx5e9mf.css"
   ],
   "resources/js/Pages/Rechtliches/Widerrufsformular.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Widerrufsformular-5Oi4ZE7j.js",
+    "/build/assets/Widerrufsformular-DLXJG55X.js",
     "/build/assets/Widerrufsformular-ACx5e9mf.css"
   ],
   "resources/js/Pages/Rechtliches/Widerrufsformular.vue?vue&type=style&index=0&scoped=bf3a7878&lang.css": [
-    "/build/assets/Widerrufsformular-5Oi4ZE7j.js",
+    "/build/assets/Widerrufsformular-DLXJG55X.js",
     "/build/assets/Widerrufsformular-ACx5e9mf.css"
   ],
   "resources/js/Pages/Startseite/Desktop.vue": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Pages/Startseite/Desktop.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/Pages/Startseite/Mobile.vue": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Pages/Startseite/Mobile.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Pages/Startseite/Mobile.vue?vue&type=style&index=0&scoped=f7ffd1cc&lang.css": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/Pages/Startseite/meta.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/Pages/Vergleich/Desktop.vue": [
-    "/build/assets/Desktop-B2TmrRUA.js"
+    "/build/assets/Desktop-B6Q7jvvW.js"
   ],
   "resources/js/Pages/Vergleich/Desktop.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Desktop-B2TmrRUA.js"
+    "/build/assets/Desktop-B6Q7jvvW.js"
   ],
   "resources/js/Pages/Vergleich/Mobile.vue": [
-    "/build/assets/Mobile-BG_zKmoJ.js"
+    "/build/assets/Mobile-BrNCTfSs.js"
   ],
   "resources/js/Pages/Vergleich/Mobile.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Mobile-BG_zKmoJ.js"
+    "/build/assets/Mobile-BrNCTfSs.js"
   ],
   "resources/js/Pages/Warenkorb/Index.vue": [
-    "/build/assets/Index-DXt3Dit7.js",
+    "/build/assets/Index-CItvEMdY.js",
     "/build/assets/Index-BXwhvqly.css"
   ],
   "resources/js/Pages/Warenkorb/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DXt3Dit7.js",
+    "/build/assets/Index-CItvEMdY.js",
     "/build/assets/Index-BXwhvqly.css"
   ],
   "resources/js/Pages/Warenkorb/Index.vue?vue&type=style&index=0&scoped=80b3b567&lang.css": [
-    "/build/assets/Index-DXt3Dit7.js",
+    "/build/assets/Index-CItvEMdY.js",
     "/build/assets/Index-BXwhvqly.css"
   ],
   "resources/js/art/banner.ts": [
@@ -3683,7 +3707,7 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/composables/mobile/useNavigationDirection.ts": [
-    "/build/assets/MobileLayout-C9DX8s3l.js",
+    "/build/assets/MobileLayout-DrvQHsx-.js",
     "/build/assets/MobileLayout-CNpzFgFW.css"
   ],
   "resources/js/composables/mobile/useSheetHistory.ts": [
@@ -3691,7 +3715,7 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/composables/mobile/useVehiclePicker.ts": [
-    "/build/assets/Mobile-Bcg1I2vr.js",
+    "/build/assets/Mobile-Pi7g9d2-.js",
     "/build/assets/Mobile-Cdd2B_uY.css"
   ],
   "resources/js/composables/mobile/useVisualViewport.ts": [
@@ -3699,58 +3723,58 @@
     "/build/assets/Toast-N06klA3P.css"
   ],
   "resources/js/composables/useBasket.ts": [
-    "/build/assets/Index-DXt3Dit7.js",
+    "/build/assets/Index-CItvEMdY.js",
     "/build/assets/Index-BXwhvqly.css"
   ],
   "resources/js/composables/useConfigurator.ts": [
-    "/build/assets/KomplettradChoice-CHbTD_xq.js",
-    "/build/assets/KomplettradChoice-AXv1iXp2.css"
+    "/build/assets/KomplettradChoice-BrQwU1gZ.js",
+    "/build/assets/KomplettradChoice-Bl7u5rRn.css"
   ],
   "resources/js/composables/useConsent.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/composables/useFitmentCount.ts": [
-    "/build/assets/Desktop-BcDRPLd7.js",
+    "/build/assets/Desktop-BNIKv6sp.js",
     "/build/assets/Desktop-CWx4eQ6y.css"
   ],
   "resources/js/composables/useListingFilters.ts": [
-    "/build/assets/Index-LGUK82P5.js",
+    "/build/assets/Index-XKkHjtb0.js",
     "/build/assets/Index-V6WueMM7.css"
   ],
   "resources/js/composables/useOcr.ts": [
     "/build/assets/useOcr-B_yIMiO_.js"
   ],
   "resources/js/composables/usePriceTerms.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/composables/useRechner.ts": [
     "/build/assets/useRechner-dnc_iVC1.js",
     "/build/assets/useRechner-C-OlmtmO.css"
   ],
   "resources/js/composables/useRowMarker.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/composables/useSearch.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/composables/useShared.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/composables/useShell.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/composables/useShortcuts.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/composables/useStripe.ts": [
-    "/build/assets/Index-C5N_EUZ5.js",
+    "/build/assets/Index-DoAfegkp.js",
     "/build/assets/Index-Dax4yHjC.css"
   ],
   "resources/js/fitment/auflagen.ts": [
@@ -3771,27 +3795,27 @@
     "/build/assets/Icon-C0qbsQyZ.css"
   ],
   "resources/js/images/hero.json": [
-    "/build/assets/Index-Dg-iK7O9.js",
+    "/build/assets/Index-BI8G5ith.js",
     "/build/assets/Index-CnsiGDP4.css"
   ],
   "resources/js/images/komplettrad-illustration.json": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/legal/cookies.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/lib/bandWheel.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/lib/contact.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/lib/fahrzeugschein.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/lib/felgenGeometry.ts": [
@@ -3817,23 +3841,23 @@
     "/build/assets/useRechner-C-OlmtmO.css"
   ],
   "resources/js/lib/vehicleChange.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/lib/viewState.ts": [
     "/build/assets/ListViews-C4uFVt3v.js",
     "/build/assets/ListViews-AqHYvJm2.css"
   ],
   "resources/js/lib/zeroState.ts": [
-    "/build/assets/meta-Dq7J7kec.js",
+    "/build/assets/meta-BsakTLMg.js",
     "/build/assets/meta-DNz3rqAo.css"
   ],
   "resources/js/root.ts": [],
   "resources/js/ssr.ts": [],
   "resources/js/ssrSocket.ts": [],
   "resources/js/stores/compare.ts": [
-    "/build/assets/useShortcuts-CxTH5cOJ.js",
-    "/build/assets/useShortcuts-D6S03aeI.css"
+    "/build/assets/useShortcuts-BS69Lz6v.js",
+    "/build/assets/useShortcuts-ClF4yu5G.css"
   ],
   "resources/js/types/rimify.ts": [
     "/build/assets/rimify-DyJVZT0A.js"
