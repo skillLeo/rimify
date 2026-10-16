@@ -18,7 +18,7 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import AppBar from '../Components/Mobile/AppBar.vue'
 import BottomSheet from '../Components/Mobile/BottomSheet.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
@@ -33,14 +33,12 @@ import CompareTray from '../Components/Compare/CompareTray.vue'
 import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
 import { useShared } from '../composables/useShared'
+import { useShopFeedback } from '../composables/useShopFeedback'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useVehicleChangeHref } from '../lib/vehicleChange'
 import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
 import { installNavigationDirection, markNext } from '../composables/mobile/useNavigationDirection'
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
-
-/* The review's feedback button, for a signed-in admin only (D-142): loaded when the server says so, never for a visitor. */
-const ShopFeedback = defineAsyncComponent(() => import('../Components/Chrome/ShopFeedback.vue'))
 
 const props = withDefaults(
     defineProps<{
@@ -70,6 +68,8 @@ const ROUTE_TITLES: Record<string, string> = {
 }
 
 const shared = useShared()
+/* The review's feedback button, for a signed-in admin only (D-142): loaded once the page is awake, never for a visitor (D-255). */
+const shopFeedback = useShopFeedback(() => Boolean(shared.value.reviewer))
 const frame = provideShell()
 provideConsent(shared.value.consent ?? null)
 const shell = provideMobileShell()
@@ -203,7 +203,7 @@ function fromVehicleSheet(href: string | undefined): void {
         <SearchSheet />
         <CookieConsent />
         <Toast />
-        <ShopFeedback v-if="shared.reviewer" />
+        <component :is="shopFeedback" v-if="shopFeedback && shared.reviewer" />
     </div>
 </template>
 

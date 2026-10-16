@@ -4,7 +4,8 @@
  * page's address, the window, the browser, the role and a screenshot — for a signed-in admin while the review is on.
  *
  * The server decides it (`reviewer`, HandleInertiaRequests): an ordinary visitor's page carries neither the button
- * nor its code, and the first frame already has it or not (R-08). Bottom right, out of the design's way, above
+ * nor its code. The page loads it once it is awake and the server never draws it (useShopFeedback, D-255): drawn there,
+ * a page left before its code arrived tried to hydrate it and reported a mismatch. Bottom right, out of the design's way, above
  * whatever holds a page's bottom edge — the price bar, the compare tray — and never in its own screenshot
  * (`data-feedback-skip`). On a phone it is the bubble alone, with the same name for assistive technology. While the
  * page is drawn for the screenshot the bubble gives way to the system's spinner; the label stays, so nothing moves.

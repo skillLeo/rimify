@@ -9,7 +9,7 @@
  */
 
 import { Link, router } from '@inertiajs/vue3'
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import CommandPalette from '../Components/Chrome/CommandPalette.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import AddedPanel from '../Components/Chrome/AddedPanel.vue'
@@ -25,14 +25,14 @@ import { provideConsent } from '../composables/useConsent'
 import { provideShell } from '../composables/useShell'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useShared } from '../composables/useShared'
+import { useShopFeedback } from '../composables/useShopFeedback'
 import { useVehicleChangeHref } from '../lib/vehicleChange'
-
-/* The review's feedback button, for a signed-in admin only (D-142): loaded when the server says so, never for a visitor. */
-const ShopFeedback = defineAsyncComponent(() => import('../Components/Chrome/ShopFeedback.vue'))
 
 withDefaults(defineProps<{ title?: string }>(), { title: undefined })
 
 const shared = useShared()
+/* The review's feedback button, for a signed-in admin only (D-142): loaded once the page is awake, never for a visitor (D-255). */
+const shopFeedback = useShopFeedback(() => Boolean(shared.value.reviewer))
 const shell = provideShell()
 const changeHref = useVehicleChangeHref()
 provideConsent(shared.value.consent ?? null)
@@ -114,7 +114,7 @@ function removeVehicle(): void {
         <ShortcutsDialog />
         <CookieConsent />
         <Toast />
-        <ShopFeedback v-if="shared.reviewer" />
+        <component :is="shopFeedback" v-if="shopFeedback && shared.reviewer" />
     </div>
 </template>
 
