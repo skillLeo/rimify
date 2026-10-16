@@ -1,6 +1,6 @@
 import { BASE, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, evidencePage, expect, open, phone, test } from './fixtures'
-import { PRODUCT, box, onSize, pageProps, withCar } from './shop'
+import { PRODUCT, box, onSize, withCar } from './shop'
 
 /*
  * Batch E — the items that are not ours to tick: three solved differently (#9, #19, #23), three that wait on the client's
@@ -197,9 +197,9 @@ test.describe('as the Super-Admin', () => {
 
         // The one write this test makes on the client's preview (the operator's brief of 16.10.2026, §3): one Auflage of a
         // document born demo, set to each level and back where it was — three Protokoll lines about a demo document,
-        // „fine and true“. On any other document it stops before writing.
-        const { document } = await pageProps<{ document: { demo: boolean } }>(page)
-        expect(document.demo, 'a level is set only on a demo document').toBe(true)
+        // „fine and true“. On any other document it stops before writing: the page's own mark says which it is (the
+        // admin encrypts its history, so its props cannot be read back after a visit).
+        await expect(page.locator('.adm-facts .adm-demo'), 'a level is set only on a demo document').toHaveText('Demodaten')
 
         const table = page.locator('.av__table')
         await expect(table).toBeVisible()
