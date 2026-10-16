@@ -45,23 +45,38 @@ async function overflow(browser: Browser, width: number, height: number, paths: 
     return out;
 }
 
-test('no page is wider than its window, from 320 to 1920 px and in short windows @breiten', async ({ browser }, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop-1440', 'it opens its own windows at every size; once is enough');
-    test.setTimeout(240_000);
+/*
+ * One test per page, each at every size: one walk of every page at every width ran past its four minutes on a loaded
+ * machine and died of its own length having found nothing (16.10.2026). Now a slow page cannot take the others with
+ * it, a failure names its page, and the pages run side by side where workers allow (the gate gives this file four).
+ */
+const PAGES = ['/', '/felgen', 'a product page', '/felgen-suchen', '/rimify-check', '/warenkorb', '/kontakt', '/faq'];
 
-    // A product the shop holds, found in its own listing.
-    const probe = await browser.newPage({ baseURL: SHOP });
-    await probe.goto('/felgen');
-    const product = await probe.locator('.tile a[href^="/felgen/"]').first().getAttribute('href');
-    await probe.close();
-    expect(product, 'the listing shows no wheel: nothing to test').not.toBeNull();
+test.describe.configure({ mode: 'parallel' });
 
-    const paths = ['/', '/felgen', product!, '/felgen-suchen', '/rimify-check', '/warenkorb', '/kontakt', '/faq'];
-    const faults: string[] = [];
+for (const page of PAGES) {
+    test(`${page} is no wider than its window, from 320 to 1920 px and in short windows @breiten`, async ({ browser }, testInfo) => {
+        test.skip(testInfo.project.name !== 'desktop-1440', 'it opens its own windows at every size; once is enough');
+        test.setTimeout(120_000);
 
-    for (const [width, height] of SIZES) {
-        faults.push(...(await overflow(browser, width, height, paths)));
-    }
+        let path = page;
 
-    expect(faults, faults.join('\n')).toEqual([]);
-});
+        if (page === 'a product page') {
+            // A product the shop holds, found in its own listing.
+            const probe = await browser.newPage({ baseURL: SHOP });
+            await probe.goto('/felgen');
+            const product = await probe.locator('.tile a[href^="/felgen/"]').first().getAttribute('href');
+            await probe.close();
+            expect(product, 'the listing shows no wheel: nothing to test').not.toBeNull();
+            path = product!;
+        }
+
+        const faults: string[] = [];
+
+        for (const [width, height] of SIZES) {
+            faults.push(...(await overflow(browser, width, height, [path])));
+        }
+
+        expect(faults, faults.join('\n')).toEqual([]);
+    });
+}
