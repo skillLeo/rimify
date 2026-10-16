@@ -56,10 +56,16 @@ test('Gutachten, Auflagen, Fahrzeuge and one order', async ({ page }, info) => {
         await draft.click()
         await page.waitForURL(/\/admin\/gutachten\/\d+$/)
         await waitForApp(page)
-        await expect(page.getByRole('heading', { name: 'Zeilen hinzufügen' })).toBeVisible()
-        // The composer, not the whole page: a real Gutachten's draft (the Borbet Nachtrag, 110 rows) is
-        // taller at 390 px than Chromium can capture in one image.
-        await page.locator('.rc').first().screenshot({ path: `${DIR}/entwurf-${width}.png` })
+
+        // A draft without rows and without its count asks for the count first (ADMIN-GEFUNDEN 511): that card, then.
+        if (await page.locator('#zl-codes').isVisible()) {
+            await page.locator('.zl').first().screenshot({ path: `${DIR}/entwurf-zaehlung-${width}.png` })
+        } else {
+            await expect(page.getByRole('heading', { name: 'Zeilen hinzufügen' })).toBeVisible()
+            // The composer, not the whole page: a real Gutachten's draft (the Borbet Nachtrag, 110 rows) is
+            // taller at 390 px than Chromium can capture in one image.
+            await page.locator('.rc').first().screenshot({ path: `${DIR}/entwurf-${width}.png` })
+        }
     }
 
     await page.goto('/admin/auflagen', { waitUntil: 'networkidle' })

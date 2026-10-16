@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
-use App\Enums\DocumentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,7 +11,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * „Sind alle Anlagen und alle Fahrzeuge erfasst?“ answered for a document already released (D-227) — the same right as
- * the release (`approvals` × publish, R-11), on a released document only: a draft is answered when it is released.
+ * the release (`approvals` × publish, R-11), on a released document only: a draft is answered when it is released
+ * (ApprovalDocumentPolicy::answerCompleteness; ADMIN-GEFUNDEN 513).
  *
  * Route: POST /admin/gutachten/{document}/vollstaendigkeit.
  */
@@ -23,9 +23,7 @@ class ApprovalCompletenessRequest extends FormRequest
         $user = $this->user('admin');
         $document = $this->route('document');
 
-        return $user instanceof AdminUser && $document instanceof ApprovalDocument
-            && $document->status === DocumentStatus::Published
-            && $user->can('publish', $document);
+        return $user instanceof AdminUser && $document instanceof ApprovalDocument && $user->can('answerCompleteness', $document);
     }
 
     /** @return array<string, list<mixed>> */

@@ -44,6 +44,17 @@ use LogicException;
  * @property int|null $completeness_by
  * @property CarbonImmutable|null $completeness_at
  * @property int|null $completeness_revision
+ * @property int|null $counted_codes Auflagen codes its Verwendungsbereich prints for the vehicles entered (ADMIN-GEFUNDEN 511)
+ * @property int|null $counted_codes_page
+ * @property int|null $counted_sizes tyre sizes it names for them
+ * @property int|null $counted_sizes_page
+ * @property int|null $counted_axle_limit_kg the axle-load limit it names; null once counted = none
+ * @property int|null $counted_axle_limit_page
+ * @property string|null $counted_abnahme all | some | none
+ * @property int|null $counted_abnahme_page
+ * @property bool $counted_before_entry the count was taken while the document had no row
+ * @property int|null $counted_by
+ * @property CarbonImmutable|null $counted_at
  */
 class ApprovalDocument extends Model
 {
@@ -88,7 +99,22 @@ class ApprovalDocument extends Model
             'papers_correction_required' => 'boolean',
             'completeness_at' => 'immutable_datetime',
             'completeness_revision' => 'integer',
+            'counted_codes' => 'integer',
+            'counted_codes_page' => 'integer',
+            'counted_sizes' => 'integer',
+            'counted_sizes_page' => 'integer',
+            'counted_axle_limit_kg' => 'integer',
+            'counted_axle_limit_page' => 'integer',
+            'counted_abnahme_page' => 'integer',
+            'counted_before_entry' => 'boolean',
+            'counted_at' => 'immutable_datetime',
         ];
+    }
+
+    /** Whether its Verwendungsbereich has been counted from the PDF (ADMIN-GEFUNDEN 511). */
+    public function isCounted(): bool
+    {
+        return $this->counted_at !== null;
     }
 
     protected static function booted(): void

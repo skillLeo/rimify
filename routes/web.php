@@ -321,6 +321,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
         // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ for a released document (D-227).
         Route::post('/gutachten/{document}/vollstaendigkeit', [GutachtenController::class, 'completeness'])->whereNumber('document')->name('gutachten.vollstaendigkeit');
+        // The count of its Verwendungsbereich, before the rows, each figure with its page (ADMIN-GEFUNDEN 511).
+        Route::post('/gutachten/{document}/zaehlung', [GutachtenController::class, 'count'])->whereNumber('document')->name('gutachten.zaehlung');
+        // The way back into a released document: a draft revision holding all it holds (ADMIN-GEFUNDEN 510).
+        Route::post('/gutachten/{document}/neue-fassung', [GutachtenController::class, 'revise'])->whereNumber('document')->name('gutachten.neue-fassung');
         Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
         // A car exactly as the document names it — no HSN or TSN, none made up (Block C, item 7).
         Route::post('/gutachten/{document}/fahrzeuge', [GutachtenFahrzeugController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1,gutachten-fahrzeuge-store')->name('gutachten.fahrzeuge.store');

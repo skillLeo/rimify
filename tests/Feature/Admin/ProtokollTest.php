@@ -564,6 +564,26 @@ describe('putting every entry into words', function (): void {
                 'Zu „ABE 53841“ wurde festgehalten: teilweise erfasst – es fehlen: Anlagen 1–15.',
                 [],
             ],
+            'approval.counted' => [
+                ['document' => 'Teilegutachten 1810080716', 'count' => ['codes' => 6, 'codesPage' => 3, 'sizes' => 3, 'sizesPage' => 3, 'axleLimitKg' => 1160, 'axleLimitPage' => 3, 'abnahme' => 'all', 'abnahmePage' => 4], 'before' => null, 'rows' => 0],
+                "Zu „Teilegutachten 1810080716“ wurde der Verwendungsbereich gezählt, bevor die erste Zeile stand: 6 Auflagen-Codes (Seite 3) · 3 Reifengrößen (Seite 3) · Achslast höchstens 1.160\u{00A0}kg (Seite 3) · Abnahme bei jeder Kombination (Seite 4).",
+                [],
+            ],
+            'approval.count_changed' => [
+                [
+                    'document' => 'Teilegutachten 1810080716',
+                    'count' => ['codes' => 6, 'codesPage' => 3, 'sizes' => 3, 'sizesPage' => 3, 'axleLimitKg' => null, 'axleLimitPage' => null, 'abnahme' => 'all', 'abnahmePage' => 4],
+                    'before' => ['codes' => 1, 'codesPage' => 3, 'sizes' => 3, 'sizesPage' => 3, 'axleLimitKg' => null, 'axleLimitPage' => null, 'abnahme' => 'none', 'abnahmePage' => null],
+                    'rows' => 2,
+                ],
+                'Die Zählung zu „Teilegutachten 1810080716“ wurde geändert, als schon 2 Zeilen standen.',
+                ['Auflagen-Codes: 1 Auflagen-Code (Seite 3) → 6 Auflagen-Codes (Seite 3)', 'Abnahme: keine Abnahme → Abnahme bei jeder Kombination (Seite 4)'],
+            ],
+            'approval.revision_started' => [
+                ['document' => 'Teilegutachten 1810080716', 'from' => 'Teilegutachten 1810080716', 'revision' => 2, 'rows' => 2],
+                'Zu „Teilegutachten 1810080716“ wurde Fassung 2 als Entwurf angelegt, mit 2 Zeilen.',
+                [],
+            ],
             'approval.entry_overridden' => [
                 ['document' => 'ABE 53810', 'row' => 4, 'override' => 'not_required', 'reason' => 'Der Prüfer verlangt keine Abnahme.'],
                 'In einer Zeile von „ABE 53810“ wurde die Eintragung abweichend von den Codes auf „nicht erforderlich“ gesetzt: „Der Prüfer verlangt keine Abnahme.“.',
@@ -574,8 +594,8 @@ describe('putting every entry into words', function (): void {
             'approval.condition_removed' => [['document' => 'ABE 53810', 'code' => 'A01'], 'Aus dem Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ entfernt.', []],
             'approval.condition_level_set' => [
                 ['document' => 'ABE 55255', 'code' => 'S03', 'old' => 'auflage', 'level' => 'hinweis'],
-                'In „ABE 55255“ erscheint der Code „S03“ im Shop jetzt als „Hinweis – nichts zu tun“.',
-                ['Im Shop: Auflage – etwas ist zu tun oder eingeschränkt → Hinweis – nichts zu tun'],
+                'In „ABE 55255“ hat der Code „S03“ jetzt die Stufe „Hinweis – nichts zu tun“.',
+                ['Stufe: Auflage – etwas ist zu tun oder eingeschränkt → Hinweis – nichts zu tun'],
             ],
             'approval.fastener_added' => [['document' => 'ABE 55255', 'what' => 'S01 · M14x1,25 · Kegelbund 60°'], 'Zu „ABE 55255“ wurde das Befestigungsmittel „S01 · M14x1,25 · Kegelbund 60°“ eingetragen.', []],
             'approval.fastener_removed' => [['document' => 'ABE 55255', 'what' => 'S01 · M14x1,25 · Kegelbund 60°'], 'Aus „ABE 55255“ wurde das Befestigungsmittel „S01 · M14x1,25 · Kegelbund 60°“ entfernt.', []],

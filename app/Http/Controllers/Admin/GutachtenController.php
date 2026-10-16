@@ -17,6 +17,8 @@ use App\Http\Requests\Admin\ApprovalCompletenessRequest;
 use App\Http\Requests\Admin\ApprovalDocumentRequest;
 use App\Http\Requests\Admin\ApprovalReleaseRequest;
 use App\Http\Requests\Admin\ApprovalStepRequest;
+use App\Http\Requests\Admin\DocumentCountRequest;
+use App\Http\Requests\Admin\DocumentRevisionRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
@@ -29,9 +31,11 @@ use App\Models\FitmentTyreSize;
 use App\Models\FitmentTyreSizeCondition;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\Approvals\CountFigures;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
+use App\Services\Admin\Approvals\DocumentRevision;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\Approvals\LoadLimitCheck;
 use App\Services\Admin\AuditTrail;
@@ -179,6 +183,7 @@ class GutachtenController extends Controller
         /** @var array<string, DocumentCondition> $defined */
         $defined = $document->conditions()->get()->keyBy('code')->all();
         $uses = DocumentConditions::usesByCode($document);
+        $started = $document->status === DocumentStatus::Published ? DocumentRevision::startedFor($document) : null;
 
         return Inertia::render('Admin/Gutachten/Show', [
             'document' => self::documentFacts($document),
@@ -230,7 +235,13 @@ class GutachtenController extends Controller
                 'release' => $admin->canQuietly('publish', $document),
                 // How loud each Auflage is in the shop: on a released document too (#23, D-104).
                 'levels' => $admin->canQuietly('setLevels', $document),
+                // The way back into a released document (ADMIN-GEFUNDEN 510).
+                'revise' => $admin->canQuietly('revise', $document),
+                // „Ist alles erfasst?“ for a released document (D-227, ADMIN-GEFUNDEN 513).
+                'answer' => $admin->canQuietly('answerCompleteness', $document),
             ],
+            // A revision of it already started: „Neue Fassung öffnen“ instead of a second copy.
+            'revisionDraft' => $started === null ? null : ['id' => (int) $started->id, 'label' => FitmentRows::label($started), 'revision' => (int) $started->revision],
             'levels' => array_map(static fn (ConditionLevel $l): array => ['value' => $l->value, 'label' => $l->labelDe()], ConditionLevel::cases()),
             'levelFloorSentence' => ConditionLevel::FLOOR_SENTENCE,
         ]);
@@ -286,8 +297,35 @@ class GutachtenController extends Controller
         return back()->with('toast', self::SAVED);
     }
 
+    /** „Neue Fassung anlegen“: a draft revision holding all the released one holds — or the one already started (510). */
+    public function revise(DocumentRevisionRequest $request, ApprovalDocument $document, DocumentRevision $revisions): RedirectResponse
+    {
+        $started = DocumentRevision::startedFor($document) !== null;
+        $draft = $revisions->draftFrom($document, $request->admin());
+
+        return redirect('/admin/gutachten/'.$draft->id)->with('toast', $started
+            ? 'Für dieses Gutachten gibt es schon eine neue Fassung im Entwurf – hier ist sie.'
+            : 'Neue Fassung angelegt, mit allen Zeilen und Codes. Im Shop gilt die bisherige, bis diese freigegeben ist.');
+    }
+
+    /** The count of the Verwendungsbereich, before the rows are entered, each figure with its page (ADMIN-GEFUNDEN 511). */
+    public function count(DocumentCountRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
+    {
+        $counted = $document->isCounted();
+        $release->recordCount($document, $request->admin(), $request->figures());
+
+        return back()->with('toast', $counted ? 'Zählung geändert. Das Protokoll hält fest, was vorher stand.' : 'Zählung gespeichert. Die Freigabe vergleicht die Zeilen mit dieser Zählung.');
+    }
+
     public function release(ApprovalReleaseRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
+        // A draft from before the count was asked first: its count comes with the release, recorded as taken after the entry.
+        $figures = $request->figures();
+
+        if ($figures !== null) {
+            $release->recordCount($document, $request->admin(), $figures);
+        }
+
         $result = $release->release($document, $request->admin(), null, $request->declaration());
         $toast = match ($result['rows']) {
             // A base without rows of its own (DocumentRelease): its facts now reach the shop through its Nachträge.
@@ -310,6 +348,28 @@ class GutachtenController extends Controller
         $release->answerCompleteness($document, $request->admin(), (string) $request->validated('completeness'), $request->validated('missing') === null ? null : (string) $request->validated('missing'));
 
         return back()->with('toast', 'Gespeichert: '.$document->refresh()->completenessDe().'.');
+    }
+
+    /**
+     * The count as the page shows it — its figures for the form, its lines, who counted and when, and whether it was
+     * taken before any row stood (ADMIN-GEFUNDEN 511) — or null where nobody has counted.
+     *
+     * @return array{codes: int, codesPage: int, sizes: int, sizesPage: int, axleLimitKg: int|null, axleLimitPage: int|null, abnahme: string, abnahmePage: int|null, lines: list<string>, by: string|null, at: string, beforeEntry: bool}|null
+     */
+    private static function countFacts(ApprovalDocument $document): ?array
+    {
+        $count = CountFigures::of($document);
+
+        if ($count === null) {
+            return null;
+        }
+
+        return $count->toArray() + [
+            'lines' => $count->linesDe(),
+            'by' => $document->counted_by === null ? null : AdminUser::query()->whereKey($document->counted_by)->value('name'),
+            'at' => GermanFormat::dateTime($document->counted_at),
+            'beforeEntry' => $document->counted_before_entry,
+        ];
     }
 
     /** @return array{path: string, sha256: string} */
@@ -371,6 +431,8 @@ class GutachtenController extends Controller
             'revision' => $document->revision,
             'supersedesId' => $document->supersedes_id,
             'supersedesLabel' => $document->supersedes_id === null ? null : ($document->supersedes === null ? null : FitmentRows::label($document->supersedes)),
+            // What its Verwendungsbereich prints, counted from the PDF before the rows (ADMIN-GEFUNDEN 511), or null.
+            'count' => self::countFacts($document),
             'status' => $document->status->value,
             'statusLabel' => match ($document->status) {
                 DocumentStatus::Draft => 'Entwurf',

@@ -268,6 +268,34 @@ final class DocumentRelease
     }
 
     /**
+     * The count of the Verwendungsbereich, read off the PDF before the rows are entered, each figure with its page
+     * (ADMIN-GEFUNDEN 511). Taken while the document has no row, it is a count nobody could copy off the entry
+     * (`counted_before_entry`); taken or changed later, the page and the Protokoll say so. Every change keeps the figures
+     * before it in the Protokoll — the release compares the entry with the count that stands at release.
+     */
+    public function recordCount(ApprovalDocument $document, AdminUser $admin, CountFigures $figures): void
+    {
+        $before = CountFigures::of($document);
+        $rows = Fitment::query()->where('approval_document_id', $document->id)->whereNot('status', FitmentStatus::Retired->value)->count();
+
+        DB::transaction(static function () use ($document, $admin, $figures, $before, $rows): void {
+            $document->forceFill($figures->columns() + [
+                'counted_before_entry' => $rows === 0,
+                'counted_by' => $admin->id,
+                'counted_at' => now(),
+            ])->save();
+
+            AuditTrail::record($admin, $before === null ? 'approval.counted' : 'approval.count_changed', [
+                'document' => FitmentRows::label($document),
+                'count' => $figures->toArray(),
+                'before' => $before?->toArray(),
+                // How many rows stood when it was counted: none means nobody could have counted the entry.
+                'rows' => $rows,
+            ], $document);
+        });
+    }
+
+    /**
      * The completeness question answered for a document already released (D-227): every document released before the
      * question existed must be answered, and until it is the shop reads it as partial and the go-live check holds live
      * mode. Recorded like the release's own answer — who, when, against which revision — and in the Protokoll.
