@@ -1,4 +1,4 @@
-import { BASE, VISITOR, hasCredentials, statePath } from './instance'
+import { BASE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, evidencePage, expect, open, phone, test } from './fixtures'
 import { PRODUCT, box, onSize, withCar } from './shop'
 
@@ -190,16 +190,20 @@ test.describe('as the Super-Admin', () => {
         test.skip(!hasCredentials('super-admin'), 'no Super-Admin credentials in the environment (RIMIFY_EMAIL, RIMIFY_PASSWORD)')
         test.setTimeout(300_000)
 
+        // The document by its link's address: on a phone the list draws its links twice, one of them hidden, and a click
+        // on the hidden one waits for the test's whole budget (the preview's iPhone pass, 16.10.2026).
         await open(page, '/admin/gutachten')
-        await page.locator('a', { hasText: '55255' }).first().click()
-        await page.waitForLoadState('networkidle')
-        const documentPage = new URL(page.url()).pathname
+        const documentPage = new URL((await page.locator('a', { hasText: 'ABE 55255' }).first().getAttribute('href')) ?? '/', BASE).pathname
+        expect(documentPage, 'ABE 55255 is not in the list').toMatch(/^\/admin\/gutachten\/\d+$/)
+        await open(page, documentPage)
 
         // The one write this test makes on the client's preview (the operator's brief of 16.10.2026, §3): one Auflage of a
         // document born demo, set to each level and back where it was — three Protokoll lines about a demo document,
         // „fine and true“. On any other document it stops before writing: the page's own mark says which it is (the
-        // admin encrypts its history, so its props cannot be read back after a visit).
+        // admin encrypts its history, so its props cannot be read back after a visit). There the desktop pass writes
+        // them; the iPhone pass reads the same page and the shop without writing — six lines would say nothing three do not.
         await expect(page.locator('.adm-facts .adm-demo'), 'a level is set only on a demo document').toHaveText('Demodaten')
+        const writes = !PREVIEW || !phone(info)
 
         const table = page.locator('.av__table')
         await expect(table).toBeVisible()
@@ -217,7 +221,7 @@ test.describe('as the Super-Admin', () => {
         const a14 = table.locator('tbody tr', { has: page.locator('.av__code', { hasText: /^A14$/ }) })
         const select = a14.locator('select.av__level-select')
         const original = (await select.inputValue()) as Level
-        const order = [...(Object.keys(LEVELS) as Level[]).filter((l) => l !== original), original]
+        const order = writes ? [...(Object.keys(LEVELS) as Level[]).filter((l) => l !== original), original] : []
 
         const setLevel = async (level: Level): Promise<void> => {
             if (new URL(page.url()).pathname !== documentPage) {
@@ -230,29 +234,40 @@ test.describe('as the Super-Admin', () => {
             }
         }
 
+        // The shop for the X3: the listing's label and the product page's answer on the 19-inch rim. A level moves the
+        // label only where no Eintragung is needed (D-104); the X3's answer needs one — the Abnahme with 255/40 R19 — so it
+        // reads „Mit Auflagen“ at every level, as the client finds it there.
+        const shopSays = async (): Promise<void> => {
+            await withCar(page, 'x3', '/felgen')
+            const badges = await page.locator('main .tile', { hasText: 'DB8GT2' }).locator('.verdict').all()
+            expect(badges.length, 'the acceptance wheel is not in the X3\'s listing').toBeGreaterThan(0)
+
+            for (const badge of badges) {
+                await expect(badge).toHaveText('Mit Auflagen')
+            }
+
+            await withCar(page, 'x3', PRODUCT)
+            await onSize(page, 19, 'Schwarz matt')
+            await expect(page.locator('.rcheck-panel__vehicle').first()).toHaveText(/^Mit Auflagen freigegeben für /)
+            await expect(page.locator('.fit__entry--verdict').first()).toContainText('Eintragung')
+        }
+
         try {
             for (const level of order) {
                 await setLevel(level)
                 // What the shop does with it, said as it is saved (D-247): the label of an answer, never a colour it does not paint.
                 await expect(page.getByText(`Gespeichert: A14 ist jetzt „${LEVELS[level]}“.`)).toBeVisible()
-
-                // The shop for the X3, after each level: the listing's label and the product page's answer on the 19-inch
-                // rim. A level moves the label only where no Eintragung is needed (D-104); the X3's answer needs one — the
-                // Abnahme with 255/40 R19 — so it reads „Mit Auflagen“ at every level, as the client finds it there.
-                await withCar(page, 'x3', '/felgen')
-                const badges = await page.locator('main .tile', { hasText: 'DB8GT2' }).locator('.verdict').all()
-                expect(badges.length, 'the acceptance wheel is not in the X3\'s listing').toBeGreaterThan(0)
-
-                for (const badge of badges) {
-                    await expect(badge).toHaveText('Mit Auflagen')
-                }
-                await withCar(page, 'x3', PRODUCT)
-                await onSize(page, 19, 'Schwarz matt')
-                await expect(page.locator('.rcheck-panel__vehicle').first()).toHaveText(/^Mit Auflagen freigegeben für /)
-                await expect(page.locator('.fit__entry--verdict').first()).toContainText('Eintragung')
+                await shopSays()
             }
         } finally {
-            await setLevel(original)
+            if (order.length > 0) {
+                await setLevel(original)
+            }
+        }
+
+        // The pass that writes nothing reads the shop at the level that stands.
+        if (order.length === 0) {
+            await shopSays()
         }
 
         await open(page, documentPage)
