@@ -1,42 +1,70 @@
-# #19 — the review importer, scoped (not built)
+# #19 — the reviews the client already has, scoped on three questions (not built)
 
-The operator's brief of 16.10.2026 („THE HERO SAYS (VIELLEICHT)“ §3): scope an importer for reviews the client already
-has, by CSV or pasted from a spreadsheet, with source, date and rating per row, and the source shown beside the average.
-Tell the size of the job and build nothing yet.
+The operator's briefs: 16.10.2026 („THE HERO SAYS (VIELLEICHT)“ §3) — scope an importer for reviews he already has,
+with source, date and rating per row, the source beside the average, build nothing yet; 17.10.2026 (§3) — the three
+questions, the trap inside the third, and the design that follows from its answer. Scoped on that basis; sized below.
+
+## The three questions, ready to send
+
+The third decides the design; the first two decide how the reviews get in and whether there is anything honest to show.
+
+1. **„Wo stehen deine Bewertungen heute – bei Google, bei Trustpilot, in deinem alten Shop oder woanders?“**
+   Decides whether this is a paste, a CSV or an interface, and whether we can link the source.
+2. **„Wie viele sind es, und hat jede ein Datum, eine Sternebewertung und einen Namen?“**
+   Without a date and a rating there is nothing honest to display.
+3. **„Geht es in den Bewertungen um deinen Shop – Beratung, Versand, Service – oder um bestimmte Felgen?“**
+   The trap: a Google rating of his shop is not a review of a wheel. Shown under a wheel as that wheel's rating, it is
+   the § 5 UWG problem we refused to build, in other clothes.
 
 ## What stands today (D-103)
 
 - `reviews` holds only buyers' reviews: every row hangs on an order line (`order_id`, `order_line_id` NOT NULL, unique),
   `verified` is true, the rating is 1–5 (`chk_review_rating`). Nothing in the admin can create one.
-- `ReviewSummary` writes the average and count of the **visible** rows into `wheel_models.rating` / `rating_count`. The
+- `ReviewSummary` writes the average and count of the **visible** rows into `wheel_models.rating` / `rating_count`; the
   tile, the product page and the comparison read only those two columns.
-- The admin (Verkauf › Bewertungen) can hide a review with a reason and answer it.
-- The product page shows no stars until there is a review, and says how reviews are checked (§ 5b Abs. 3 UWG).
-- No structured data (`aggregateRating`) is emitted.
+- The product page shows no stars until there is a review, and says how reviews are checked (§ 5b Abs. 3 UWG):
+  „Alle Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über die
+  Bestellnummer.“ — a sentence that stops being true the day one imported review stands beside it.
+- The shop emits no structured data at all — no JSON-LD, no `aggregateRating`.
 
-## What the importer would be
+## The design, by the answer to question 3
+
+### A — reviews of his shop (Google, Trustpilot): a block of their own, never on a product
+
+| | |
+|---|---|
+| Where | One block about the shop — the homepage's trust area or the footer, and „Über uns“ if it comes — never on a product page, a tile, the listing, the comparison or the basket. Never in a product's `aggregateRating`, now or when structured data is added; at most an `Organization` rating, and only from a source whose terms allow it. |
+| What it says | The average and the count as the source shows them, the date they were taken („Stand: 12.10.2026“), the source named and linked („Bewertungen bei Google ansehen“). Optionally up to three reviews with date, stars and the name as the source prints it. |
+| The checking sentence (§ 5b Abs. 3 UWG) | Beside the block: „Diese Bewertungen stammen aus unserem Google-Profil. Wir prüfen nicht, ob unsere Kundinnen und Kunden sie geschrieben haben.“ — weaker than our own verified-buyer line, and lawful. Our line stays beside our own reviews. |
+| How they get in | **A1 — entered by hand:** the admin types the average, the count, the link and the date, and the excerpts if wanted; one Protokoll entry per change. **A2 — imported:** single reviews by CSV or paste (date, stars, name, text), the block computing its average from them. **A3 — read live from the source's interface:** needs an API key only he can supply, entered in the admin (R-16's rule for credentials), and the source's own display terms. |
+| R-17 | Only what is on record: „laut Google, Stand …“, never „geprüft“, never a claim about reviews we do not hold. |
+
+### B — reviews of the wheels (his old shop): on the product, beside ours, each set with its own sentence
+
+The importer as scoped on 16.10, with the operator's rules: imported per wheel, the source shown beside the average
+(„4,9 · 13 Bewertungen – 9 aus unserem früheren Shop, 4 von Käuferinnen und Käufern bei RIMIFY“), each imported review labelled with its
+source and date and never called a verified purchase. Two checking sentences, each beside its own set — ours as today,
+and for the imported ones „Diese Bewertungen haben wir aus unserem früheren Shop übernommen.
+Ob sie von Käuferinnen und Käufern dieser Felge stammen, haben wir nicht geprüft.“
+Imported reviews stay out of any `aggregateRating`; if structured data comes, only RIMIFY's verified buyers count there.
 
 | Part | What it does |
 |---|---|
-| Schema | `reviews.source` (`rimify` for buyers; `altshop`, `google`, … for imported rows), `source_label` (as printed), `source_ref` (the row's ID or link at the source, unique per source — so a second import of the same file adds nothing), `reviewed_on` (the date the source gives), `author_display` (as the source shows it, optional), `import_id`. `order_id` / `order_line_id` become nullable, with a check that a `rimify` row has its order line and an imported row has none and is never `verified`. |
-| Admin screen | Bewertungen › Importieren: upload a CSV or paste from a spreadsheet (comma, semicolon or tab; German dates and decimals, a BOM, quoted fields). Columns: wheel (slug, name or SKU), source, date, rating, text (optional), author (optional), reference (optional). |
-| Dry run | Each row checked before anything is stored, the way the catalogue import does it (Probelauf): unknown wheel, rating outside 1–5, a date in the future or missing, a duplicate reference, a text over 1.000 characters. Each refused row says why; the rest can be imported. |
-| Import and undo | One import is one batch: stored in one transaction, one Protokoll entry (source, count, who), and the whole batch can be taken back again — the rows of one import, never by date. The averages are recomputed for the wheels it touched. |
-| The product page | The average and the count as today, the sources beside them — e.g. „4,9 · 13 Bewertungen – 9 aus deinem früheren Shop, 4 von Käufern bei RIMIFY“. Each imported review is labelled with its source and date and is never called a verified purchase. The sentence on how reviews are checked names both kinds (§ 5b UWG; R-17: only what is on record — „übernommen aus …“, never „geprüft“). |
-| The list and the tile | The average includes imported reviews; the tile shows it as now. |
-| Structured data | If `aggregateRating` is ever emitted, imported reviews stay out of it (search engines' rules forbid ratings taken from other sites). Noted, nothing to build now. |
-| Rights | Importing and undoing an import: who may edit orders (`orders.edit`), each a Form Request and a Policy check (R-11). |
+| Schema | `reviews.source` (`rimify` for buyers; `altshop` … for imported rows), `source_label` (as printed), `source_ref` (the row's ID or link at the source, unique per source — a second import of the same file adds nothing), `reviewed_on`, `author_display` (optional), `import_id`. `order_id` / `order_line_id` become nullable, with a check that a `rimify` row has its order line and an imported row has none and is never `verified`. |
+| Admin screen | Bewertungen › Importieren: CSV or paste (comma, semicolon or tab; German dates and decimals, a BOM, quoted fields). Columns: wheel (slug, name or SKU), source, date, rating, text and author (optional), reference (optional). |
+| Dry run | Every row checked before anything is stored, as the catalogue import does it: unknown wheel, a rating outside 1–5, a date missing or in the future, a duplicate reference, a text over 1.000 characters — each refusal said in a sentence. |
+| Import and undo | One import is one batch: one transaction, one Protokoll entry (source, count, who), taken back as a batch — never by date. The averages are recomputed for the wheels it touched. |
+| Rights | Importing and undoing: who may edit orders (`orders.edit`); each a Form Request and a Policy check (R-11). |
 
 ## Size
 
-About **three working days**, tests included: schema, model and the summary with sources ½ day · parser, dry run,
-import and undo with its screen 1–1½ days · product page, list and the wording ½ day · Pest (parser, refusals, batch,
-undo, rights, averages), Vitest (the line with sources), one Playwright walk, the on-record ledger for the new
-sentences, and the release ½–1 day.
+| If he answers | What is built | Size |
+|---|---|---|
+| Shop reviews only, entered by hand (A1) | the block, its admin card, the checking sentence, Pest + Vitest, one Playwright look | **1–1½ days** |
+| Shop reviews only, imported (A2) | A1 + the parser, the dry run, import and undo | **about 2½ days** |
+| Shop reviews read live (A3) | A2 without the file, with the interface, its key in the admin and a nightly refresh | **3–4 days**, once he has a key |
+| Wheel reviews only (B) | as scoped on 16.10 | **about 3 days** |
+| Both (A2 + B) | one parser and one dry run serve both | **about 4 days** |
 
-## What the client has to answer first
-
-1. **Which reviews, from where?** Product reviews from his old shop can be matched to a wheel. Google reviews are about
-   the shop, not a wheel — they would need a different place (a shop rating), which is not this job.
-2. **The file itself:** an export from his old shop system (which one?) or a sheet he fills in by hand.
-3. **Names:** show the author as the source shows it, initials only, or not at all.
+Every size includes its tests, the on-record ledger for the new sentences (R-17), the copy editor's reading and the
+release.
