@@ -50,6 +50,18 @@ it('sets how loud an Auflage is on a released Gutachten, and writes it to the Pr
         ->and(AuditLog::query()->where('description', 'approval.condition_level_set')->exists())->toBeTrue();
 });
 
+it('says, once saved, what the level does in the shop — the answer\'s label, never a colour it does not paint @kunde-23', function (string $level, string $said): void {
+    $document = ApprovalDocument::factory()->create();
+    $bolts = DocumentCondition::factory()->kind(ConditionKind::Befestigung, 'Nur mit den Radschrauben des Herstellers.')->create(['approval_document_id' => $document->id, 'code' => 'S03', 'level' => $level === 'hinweis' ? 'auflage' : 'hinweis']);
+
+    $this->actingAs(levelAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/auflagen/{$bolts->id}/stufe", ['level' => $level])
+        ->assertSessionHasNoErrors()->assertSessionHas('toast', $said);
+})->with([
+    'Hinweis' => ['hinweis', 'Gespeichert: S03 ist jetzt „Hinweis – nichts zu tun“. Sind alle Auflagen einer Antwort Hinweise, ist keine Eintragung nötig und sind auch die Reifen ohne Auflagen bestätigt, steht im Shop „Freigegeben“ statt „Mit Auflagen“.'],
+    'Auflage' => ['auflage', 'Gespeichert: S03 ist jetzt „Auflage – etwas ist zu tun oder eingeschränkt“. Bei einer Antwort mit diesem Code wird im Shop aus „Mit Auflagen“ nie „Freigegeben“.'],
+    'Nicht zulässig' => ['nicht_zulaessig', 'Gespeichert: S03 ist jetzt „Nicht zulässig“. Im Shop wirkt das wie eine Auflage: Aus „Mit Auflagen“ wird nie „Freigegeben“, und der Satz bekommt keine eigene Farbe.'],
+]);
+
 it('refuses to make an Abnahme a Hinweis, and says why in one sentence @kunde-23', function (): void {
     $document = ApprovalDocument::factory()->create();
     $abnahme = DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Abnahme durch einen Prüfer.')->create(['approval_document_id' => $document->id, 'code' => 'A01']);
