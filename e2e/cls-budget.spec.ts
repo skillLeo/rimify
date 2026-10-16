@@ -110,25 +110,28 @@ test.beforeEach(({ browserName }) => {
     test.skip(browserName !== 'chromium', 'layout-shift entries are Chromium’s');
 });
 
-test('the storefront stays within 0,02 while the font arrives late, under reduced motion', async ({
-    browser,
-}) => {
-    test.setTimeout(240_000);
-    const options = { ...test.info().project.use, baseURL: SHOP } as BrowserContextOptions;
-    const over: string[] = [];
+/*
+ * One test per page, each at its project's widths: a single test once walked 28 loads in four minutes and could time
+ * out having found nothing (the operator's brief „STOP SLEEPING“ §4, 16.10.2026). Now a slow page cannot take the others
+ * with it, and a failure names its page. Still one after another: a layout shift is a matter of timing.
+ */
+for (const path of STOREFRONT) {
+    test(`${path} stays within 0,02 while the font arrives late, under reduced motion`, async ({ browser }) => {
+        test.setTimeout(120_000);
+        const options = { ...test.info().project.use, baseURL: SHOP } as BrowserContextOptions;
+        const over: string[] = [];
 
-    for (const width of WIDTHS[test.info().project.name] ?? []) {
-        for (const path of STOREFRONT) {
+        for (const width of WIDTHS[test.info().project.name] ?? []) {
             const { cls, shifts } = await measure(browser, options, width, SHOP + path, 'reduce');
 
             if (cls > BUDGET) {
                 over.push(`${width} px ${path}: ${cls.toFixed(4)} — ${shifts.join('; ')}`);
             }
         }
-    }
 
-    expect(over, over.join('\n')).toEqual([]);
-});
+        expect(over, over.join('\n')).toEqual([]);
+    });
+}
 
 /*
  * D-177: with the stylesheets in the document (InlineStyles), nothing else held a desktop page's first paint back, and a
@@ -204,50 +207,45 @@ test('the phone homepage opened part-way down stays within 0,02: a link to a sec
     expect(over, over.join('\n')).toEqual([]);
 });
 
-test('the homepage stays within 0,02 with motion, in the shop and with the catalogue empty', async ({
-    browser,
-}) => {
-    test.setTimeout(180_000);
-    const options = test.info().project.use as BrowserContextOptions;
-    const over: string[] = [];
+for (const [shop, base] of [['in the shop', SHOP], ['with the catalogue empty', EMPTY_SHOP]] as const) {
+    for (const motion of ['no-preference', 'reduce'] as const) {
+        test(`the homepage stays within 0,02 ${motion === 'reduce' ? 'under reduced motion' : 'with motion'}, ${shop}`, async ({ browser }) => {
+            test.setTimeout(120_000);
+            const options = test.info().project.use as BrowserContextOptions;
+            const over: string[] = [];
 
-    for (const width of WIDTHS[test.info().project.name] ?? []) {
-        for (const base of [SHOP, EMPTY_SHOP]) {
-            for (const motion of ['no-preference', 'reduce'] as const) {
+            for (const width of WIDTHS[test.info().project.name] ?? []) {
                 const { cls, shifts } = await measure(browser, options, width, `${base}/`, motion);
 
                 if (cls > BUDGET) {
                     over.push(`${width} px ${base}/ (${motion}): ${cls.toFixed(4)} — ${shifts.join('; ')}`);
                 }
             }
-        }
+
+            expect(over, over.join('\n')).toEqual([]);
+        });
     }
+}
 
-    expect(over, over.join('\n')).toEqual([]);
-});
+for (const path of ADMIN_PAGES) {
+    test(`the admin’s ${path} stays within 0,02 while the font arrives late`, async ({ browser, page }) => {
+        test.setTimeout(120_000);
+        await signIn(page);
+        const options = {
+            ...test.info().project.use,
+            storageState: await page.context().storageState(),
+        } as BrowserContextOptions;
+        const admin = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
+        const over: string[] = [];
 
-test('the admin’s Übersicht and FAQ stay within 0,02 while the font arrives late', async ({
-    browser,
-    page,
-}) => {
-    test.setTimeout(180_000);
-    await signIn(page);
-    const options = {
-        ...test.info().project.use,
-        storageState: await page.context().storageState(),
-    } as BrowserContextOptions;
-    const admin = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:8000';
-    const over: string[] = [];
-
-    for (const width of WIDTHS[test.info().project.name] ?? []) {
-        for (const path of ADMIN_PAGES) {
+        for (const width of WIDTHS[test.info().project.name] ?? []) {
             const { cls, shifts } = await measure(browser, options, width, admin + path, 'reduce');
 
             if (cls > BUDGET) {
                 over.push(`${width} px ${path}: ${cls.toFixed(4)} — ${shifts.join('; ')}`);
             }
         }
-    }
 
-    expect(over, over.join('\n')).toEqual([]);
-});
+        expect(over, over.join('\n')).toEqual([]);
+    });
+}
