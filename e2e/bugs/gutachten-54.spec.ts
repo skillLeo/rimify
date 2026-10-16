@@ -19,6 +19,18 @@ test('GUTACHTEN-54 removing the last row of a draft closes the confirm', async (
     await page.waitForURL(/\/admin\/gutachten\/\d+$/)
     await waitForApp(page)
 
+    // A draft without rows is counted before its rows' form appears (ADMIN-GEFUNDEN 511): counted once here and kept —
+    // the row below carries no code and one tyre size.
+    if (await page.locator('#zl-codes').isVisible()) {
+        await page.locator('#zl-codes').fill('0')
+        await page.locator('#zl-codes-page').fill('1')
+        await page.locator('#zl-sizes').fill('1')
+        await page.locator('#zl-sizes-page').fill('1')
+        await page.locator('input[name="zl-abnahme"][value="none"]').check()
+        await page.getByRole('button', { name: 'Zählung speichern' }).click()
+        await expect(page.locator('#zl-edit')).toBeVisible({ timeout: 20_000 })
+    }
+
     // In the vehicles' own column: the sizes are `.rc-hits` too, and in a full run the size list could answer first —
     // the spec then ticked a size for a car and the button stayed disabled (the suite run of 03.10.2026).
     const vehicles = page.locator('section[aria-labelledby="rc-h-vehicles"]')
