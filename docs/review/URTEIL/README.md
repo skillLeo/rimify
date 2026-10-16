@@ -2,7 +2,9 @@
 
 The three rows of the client's list that wait on his judgement (the operator's brief „Close the public side
 completely“, §4). Each has a before and an after at 1440 × 900 and 390 × 844, named by item:
-`<nr>-vorher-<width>.png` and `<nr>-nachher-<width>.png`. The rows stay „Urteil offen“.
+`<nr>-vorher-<width>.png` and `<nr>-nachher-<width>.png`. The rows stay „Urteil offen“ in the table; in his sheet
+our column reads „SkillLeo Done“ — each passed on the preview — and his own column holds the verdict on the look (the
+operator's brief „THE HERO SAYS (VIELLEICHT)“ §3, 16.10.2026).
 
 | # | His words | What changed | The alternative |
 |---|---|---|---|

@@ -7,7 +7,8 @@
 // (docs/review/kundenliste/ergebnis-<instanz>.json), and this file reads the preview's.
 //
 // The notes are for a shop owner, in the language of his sheet (English): no commit, no test name, none of our words.
-// For #19, #23 and #34 they are the operator's own wording, so the sheet and his message say the same thing.
+// For #19, #23 and #34 they are the operator's own wording, so the sheet and his message say the same thing. The three
+// judgement items say what changed and what the alternative was; their look is his verdict, in his own column.
 
 export const DONE = 'SkillLeo Done'
 export const OPEN = 'Open'
@@ -15,7 +16,7 @@ export const OPEN = 'Open'
 /** The instance a result came from, as recorded with it. */
 export const INSTANCES = { ours: 'eigene-instanz', preview: 'vorschau' }
 
-const WAITING_ON_HIS_VIEW = 'built, waiting on your view.'
+const YOUR_VERDICT = 'Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width.'
 const NOT_ON_PREVIEW_YET = 'Built and tested on our side. Not on your preview yet.'
 const IN_PROGRESS = 'In progress.'
 
@@ -31,7 +32,7 @@ export const NOTES = {
     8: 'The chosen vehicle is part of the address, so a page can be saved and shared; the link shows the same wheels and results in any browser.',
     9: 'Solved differently: the turning wheel is a real wheel from your photos that can be bought in the shop, the BORBET DB8GT2. Not a Motec, because we hold no rights to Motec photos; send us some and we swap it in.',
     10: 'The footer links the Felgenrechner and the Blog; both open, and the Blog lists its articles.',
-    11: WAITING_ON_HIS_VIEW,
+    11: `Done on our side: our own cross-section marks the ET as a measured arrow and the rim width as a dimension, a second view shows the bolt circle and centre bore, and the wheel moves in the arch when the ET changes. The alternative was a photographic wheel like jr-wheels.com, which needs an illustration we hold the rights to. ${YOUR_VERDICT}`,
     12: 'The contact page has a form: name, e-mail, subject, message, your vehicle ticked. Messages are kept in the admin under Verkauf › Nachrichten. Spam protection without a third-party captcha.',
     13: 'On mobile the basket icon sits in the header, left of the menu, with its count.',
     14: 'Prices agree everywhere from the product tile to the invoice, for 1 to 5 wheels: one wheel 229,00 €, four wheels 916,00 €.',
@@ -52,15 +53,16 @@ export const NOTES = {
     29: 'There is one footer now, the same on every page and screen size.',
     30: 'All filters work without a vehicle; one sentence says that results for a specific car need a vehicle.',
     31: 'On mobile, „Filter“ opens a sheet from the bottom with the same filters and counts as on desktop.',
-    32: WAITING_ON_HIS_VIEW,
-    33: WAITING_ON_HIS_VIEW,
+    32: `Done on our side: a pale blue-grey surface alternates with white between the homepage sections; not every section is tinted. The alternative is a clearer light blue on more sections, closer to your words. ${YOUR_VERDICT}`,
+    33: `Done on our side: the icons, the chosen tab, chosen option buttons and the keyboard frame are blue, and blue stays the colour of what can be clicked or chosen. The alternative is blue beyond that, on headings or larger areas. ${YOUR_VERDICT}`,
     34: 'could you finish this sentence and we will build it with the rest.',
 }
 
 /**
  * One row of his sheet.
  *
- * @param {{nr: number, state: string}} item      the item as items.mjs holds it (`state`: what it can become at best)
+ * @param {{nr: number, state: string, tick?: boolean}} item  the item as items.mjs holds it (`state`: what it can become
+ *                                                           at best; `tick`: its column is ours though its state is not)
  * @param {{passed: boolean}|null} ours           its result on our own instance, if it ran there
  * @param {{passed: boolean}|null} preview        its result on the preview, if it ran there
  * @returns {{nr: number, value: string, note: string}}
@@ -68,8 +70,9 @@ export const NOTES = {
 export function sheetRow(item, ours, preview) {
     const note = NOTES[item.nr] ?? ''
 
-    // Judgement, solved differently, or waiting on him: never ours to tick, whatever the tests say.
-    if (item.state !== 'erledigt') {
+    // Solved differently, or waiting on him: not ours to tick, whatever the tests say — unless the operator made the
+    // column ours (`tick`: the judgement items and #23), and then only by a pass on the preview, like every other row.
+    if (item.state !== 'erledigt' && item.tick !== true) {
         return { nr: item.nr, value: OPEN, note }
     }
 

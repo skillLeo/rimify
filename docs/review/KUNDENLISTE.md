@@ -4,7 +4,7 @@ Erzeugt mit `npm run kundenliste` am 16.10.2026, 12:27 Uhr, geprüft auf dem Sta
 
 **27 erledigt · 3 anders gelöst · 3 Urteil offen · 1 Rückfrage · 0 offen**
 
-Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“ (Stand e73553df, 16.10.) – erst das zählt für deine Liste: 27 von 34.
+Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“ (Stand e73553df, 16.10.) – erst das zählt für deine Liste: 30 von 34.
 
 Die Status:
 

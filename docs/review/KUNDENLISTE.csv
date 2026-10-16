@@ -9,7 +9,7 @@ Nr,Skill Leo,Description
 8,SkillLeo Done,"The chosen vehicle is part of the address, so a page can be saved and shared; the link shows the same wheels and results in any browser."
 9,Open,"Solved differently: the turning wheel is a real wheel from your photos that can be bought in the shop, the BORBET DB8GT2. Not a Motec, because we hold no rights to Motec photos; send us some and we swap it in."
 10,SkillLeo Done,"The footer links the Felgenrechner and the Blog; both open, and the Blog lists its articles."
-11,Open,"built, waiting on your view."
+11,SkillLeo Done,"Done on our side: our own cross-section marks the ET as a measured arrow and the rim width as a dimension, a second view shows the bolt circle and centre bore, and the wheel moves in the arch when the ET changes. The alternative was a photographic wheel like jr-wheels.com, which needs an illustration we hold the rights to. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
 12,SkillLeo Done,"The contact page has a form: name, e-mail, subject, message, your vehicle ticked. Messages are kept in the admin under Verkauf › Nachrichten. Spam protection without a third-party captcha."
 13,SkillLeo Done,"On mobile the basket icon sits in the header, left of the menu, with its count."
 14,SkillLeo Done,"Prices agree everywhere from the product tile to the invoice, for 1 to 5 wheels: one wheel 229,00 €, four wheels 916,00 €."
@@ -21,7 +21,7 @@ Nr,Skill Leo,Description
 20,SkillLeo Done,"Different sizes front and rear can be chosen, only in the pairs the Gutachten permits."
 21,SkillLeo Done,"„Eintragung“ now appears once. The Gutachten’s original wording is behind „Originaltext anzeigen“, each sentence under the tyre sizes it applies to."
 22,SkillLeo Done,"On mobile „Vergleichen“ no longer covers the „Mit Auflagen“ label. Long conditions are shown as a count on the tile, with the wording on the product page."
-23,Open,"configurable as you asked, with one floor — a condition needing an inspection cannot be set to green."
+23,Open,Built and tested on our side. Not on your preview yet.
 24,SkillLeo Done,The filter column scrolls cleanly to its last entry.
 25,SkillLeo Done,The button without a function is gone; „Nur Felgen“ or „Komplettrad“ is chosen right by the price.
 26,SkillLeo Done,No button opens an e-mail program any more; all lead to the contact form. The Impressum shows your e-mail address as text once your seller details are entered; on the preview it still reads „noch nicht angegeben“.
@@ -30,6 +30,6 @@ Nr,Skill Leo,Description
 29,SkillLeo Done,"There is one footer now, the same on every page and screen size."
 30,SkillLeo Done,All filters work without a vehicle; one sentence says that results for a specific car need a vehicle.
 31,SkillLeo Done,"On mobile, „Filter“ opens a sheet from the bottom with the same filters and counts as on desktop."
-32,Open,"built, waiting on your view."
-33,Open,"built, waiting on your view."
+32,SkillLeo Done,"Done on our side: a pale blue-grey surface alternates with white between the homepage sections; not every section is tinted. The alternative is a clearer light blue on more sections, closer to your words. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
+33,SkillLeo Done,"Done on our side: the icons, the chosen tab, chosen option buttons and the keyboard frame are blue, and blue stays the colour of what can be clicked or chosen. The alternative is blue beyond that, on headings or larger areas. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
 34,Open,could you finish this sentence and we will build it with the rest.

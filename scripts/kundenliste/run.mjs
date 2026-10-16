@@ -148,7 +148,15 @@ const picture = (nr, width) => {
     return existsSync(full) && statSync(full).mtimeMs >= started - 1000 ? path : null
 }
 
+const OURS_FILE = join(ROOT, 'docs', 'review', 'kundenliste', `ergebnis-${INSTANCES.ours}.json`)
+
 const commit = (() => {
+    // Writing the table again runs nothing: the results are the last run's, and so is the code they were proven on — not
+    // whatever is checked out now.
+    if (report && existsSync(OURS_FILE)) {
+        return JSON.parse(readFileSync(OURS_FILE, 'utf8')).commit ?? 'unbekannt'
+    }
+
     try {
         const sha = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], { cwd: ROOT }).toString().trim()
         // Only what the tests ran against: the shop's code and the tests — not the docs, not this table's own sentences.
