@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import type { Page } from '@playwright/test'
 import { BASE, VISITOR } from './instance'
-import { consent, evidencePage, expect, open, phone, test } from './fixtures'
+import { consent, evidenceAround, evidencePage, expect, open, phone, test } from './fixtures'
 import { PRODUCT, onSize, pageProps, withCar } from './shop'
 
 /*
@@ -38,6 +38,8 @@ async function photograph(page: Page, lines: string[]): Promise<{ name: string; 
 
 test('the 500 page: what a failure shows, inside the shop\'s frame, with three ways on — and the standalone one a failed boot gets', { tag: '@sweep' }, async ({ page, problems }, info) => {
     problems.expected(/^500 .*\/__fehlerseite\/500(\?eigenstaendig=1)?$/, 'the 500 page is opened on purpose (/__fehlerseite/500, D-243)')
+    // The browser writes that document's status to the console too, without its address; any other 500 still shows as a response.
+    problems.expected(/^console: Failed to load resource: the server responded with a status of 500 \(\)$/, 'the 500 page opened on purpose, as the browser logs it')
 
     await open(page, '/__fehlerseite/500')
     await expect(page.locator('h1')).toHaveText('Da ist etwas schiefgelaufen.')
@@ -59,23 +61,45 @@ test('the 500 page: what a failure shows, inside the shop\'s frame, with three w
 test('the Fahrzeugschein photograph: read on the device — the key numbers in the hero, 8.1, 8.2 and T on the product page', { tag: '@sweep' }, async ({ page }, info) => {
     test.setTimeout(240_000)
 
-    // 1 · The hero's scan. Closed where the key numbers are (no vehicle data opens them yet): then it says so, and
-    // the reading is shown on the product page below, where the same engine reads the same photograph.
+    // 1 · The homepage's scan — the desktop hero's third tab, the phone panel's camera button. Closed where the key
+    // numbers are (no vehicle data opens them yet): then it says so, and the reading is shown on the product page below,
+    // where the same engine reads the same photograph.
     await open(page, '/')
-    const hero = page.getByRole('region', { name: 'Felgen, die an dein Auto dürfen.' })
-    await hero.getByRole('tab', { name: 'Fahrzeugschein scannen' }).click()
-    const scan = hero.getByLabel('Foto der Zulassungsbescheinigung Teil I')
+    const keys = await photograph(page, ['Zulassungsbescheinigung Teil I', '2.1   0005', '2.2   582AAB12345'])
 
-    if ((await scan.count()) > 0) {
-        await scan.setInputFiles(await photograph(page, ['Zulassungsbescheinigung Teil I', '2.1   0005', '2.2   582AAB12345']))
-        await expect(hero.getByText('Stimmt das?')).toBeVisible({ timeout: 90_000 })
-        await expect(hero.getByLabel('HSN (Feld 2.1)')).toHaveValue('0005')
-        await expect(hero.getByLabel('TSN (Feld 2.2)')).toHaveValue('582')
-        info.annotations.push({ type: 'hero', description: 'HSN 0005 und TSN 582 aus dem Foto gelesen; nicht übernommen (keine Suche, nichts gespeichert).' })
-        await evidencePage(page, 0, info, `sweep-foto-hero-${phone(info) ? 'webkit' : 'chromium'}`)
+    if (phone(info)) {
+        const panel = page.locator('.vpanel').first()
+
+        if ((await panel.getByRole('button', { name: 'Fahrzeugschein scannen' }).count()) > 0) {
+            await panel.locator('input[type="file"]').setInputFiles(keys)
+            await expect(panel.getByLabel('HSN (Feld 2.1)')).toHaveValue('0005', { timeout: 90_000 })
+            await expect(panel.getByLabel('TSN (Feld 2.2)')).toHaveValue('582')
+            info.annotations.push({ type: 'hero', description: 'HSN 0005 und TSN 582 aus dem Foto gelesen; nicht übernommen (keine Suche, nichts gespeichert).' })
+            await evidenceAround(page, [panel], 0, info, 16, 'sweep-foto-hero-webkit')
+        } else {
+            // The camera waits with the key numbers; the HSN/TSN tab says why.
+            await panel.getByRole('tab', { name: 'HSN/TSN' }).click()
+            await expect(panel.locator('.vpanel__closed')).toBeVisible()
+            info.annotations.push({ type: 'hero', description: `Scan geschlossen: „${(await panel.locator('.vpanel__closed p').textContent())?.trim()}“` })
+        }
     } else {
-        await expect(hero.locator('.sel__closed')).toBeVisible()
-        info.annotations.push({ type: 'hero', description: `Scan geschlossen: „${(await hero.locator('.sel__closed p').textContent())?.trim()}“` })
+        const hero = page.getByRole('region', { name: 'Felgen, die an dein Auto dürfen.' })
+        await hero.getByRole('tab', { name: 'Fahrzeugschein scannen' }).click()
+        const scan = hero.getByLabel('Foto der Zulassungsbescheinigung Teil I')
+
+        if ((await scan.count()) > 0) {
+            await scan.setInputFiles(keys)
+            await expect(hero.getByText('Stimmt das?')).toBeVisible({ timeout: 90_000 })
+            await expect(hero.getByLabel('HSN (Feld 2.1)')).toHaveValue('0005')
+            await expect(hero.getByLabel('TSN (Feld 2.2)')).toHaveValue('582')
+            info.annotations.push({ type: 'hero', description: 'HSN 0005 und TSN 582 aus dem Foto gelesen; nicht übernommen (keine Suche, nichts gespeichert).' })
+            await evidencePage(page, 0, info, 'sweep-foto-hero-chromium')
+        } else {
+            // The scan tab's own notice; the HSN/TSN tab carries one of its own, hidden while its tab is not chosen.
+            const closed = hero.locator('.sel__closed:visible')
+            await expect(closed).toBeVisible()
+            info.annotations.push({ type: 'hero', description: `Scan geschlossen: „${(await closed.locator('p').first().textContent())?.trim()}“` })
+        }
     }
 
     // 2 · The product page's papers: 8.1, 8.2 and T from the same kind of photograph, into the fields — kept only on
@@ -89,7 +113,7 @@ test('the Fahrzeugschein photograph: read on the device — the key numbers in t
     await expect(page.locator('#pp-axle_rear_kg')).toHaveValue('1180')
     await expect(page.locator('#pp-top_speed_kmh')).toHaveValue('250')
 
-    await evidencePage(page, 0, info, `sweep-foto-${phone(info) ? 'webkit' : 'chromium'}`)
+    await evidenceAround(page, [page.locator('.pp').first()], 0, info, 16, `sweep-foto-${phone(info) ? 'webkit' : 'chromium'}`)
 })
 
 test('the Gutachten PDF opens at its page: the link names the page, the file is a PDF that has it', { tag: '@sweep' }, async ({ page, request }, info) => {
