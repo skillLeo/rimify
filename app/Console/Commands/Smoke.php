@@ -225,17 +225,18 @@ final class Smoke extends Command
 
             $step = self::orderStep((bool) $config->wheelModel->is_demo, Payments::sandbox(), (bool) $this->option('testbestellung'));
 
-            if ($step === 'demo') {
-                // The acceptance set's wheel (AcceptanceSet): a paid order would get an invoice, and an invoice is never
-                // deleted — the set could then only go with all the shop's data, not in the one press it is promised.
-                $this->rows[] = ['Testbestellung', 'übersprungen', 'Im Shop sind nur die Demodaten der Abnahme: Eine bezahlte Testbestellung bekäme eine Rechnung, die nie gelöscht wird, und „Demodaten entfernen“ ginge dann nicht mehr in einem Schritt.'];
-            } elseif ($step === 'order') {
+            if ($step === 'order') {
                 $this->check('Testbestellung (Sandbox)', fn (): string => $this->order($config));
-            } elseif ($step === 'before') {
-                $this->check('Warenkorb und Kasse (ohne Bestellung)', fn (): string => $this->toThePointBeforeOrdering($config));
-                $this->rows[] = ['Testbestellung', 'übersprungen', 'Nur auf Wunsch (--testbestellung): Eine bezahlte Bestellung bleibt für immer im Shop. Geprüft ist der Weg bis vor „Zahlungspflichtig bestellen“.'];
             } else {
-                $this->rows[] = ['Testbestellung', 'übersprungen', 'Keine Testzahlung in dieser Umgebung (im Live-Shop immer aus).'];
+                if (self::walksToCheckout($step)) {
+                    $this->check('Warenkorb und Kasse (ohne Bestellung)', fn (): string => $this->toThePointBeforeOrdering($config));
+                }
+
+                $this->rows[] = ['Testbestellung', 'übersprungen', match ($step) {
+                    'demo' => 'Die Felge der Abnahme wird nie bestellt, auch nicht auf Wunsch. Geprüft ist der Weg bis vor „Zahlungspflichtig bestellen“.',
+                    'before' => 'Nur auf Wunsch (--testbestellung): Eine bezahlte Bestellung bleibt für immer im Shop. Geprüft ist der Weg bis vor „Zahlungspflichtig bestellen“.',
+                    default => 'Keine Testzahlung in dieser Umgebung (im Live-Shop immer aus).',
+                }];
             }
         }
 
@@ -334,7 +335,8 @@ final class Smoke extends Command
     /**
      * What the smoke does about an order: `order` — place and pay one — only where it was asked for by name, payments are
      * in test mode and the wheel is the shop's own; otherwise `before` (the way to the purchase, read and not pressed),
-     * `demo` (the acceptance set: nothing that would leave an invoice) or `none` (no test payment here).
+     * `demo` (the acceptance set's wheel: the same way, and never an order, asked or not — nobody buys it on the preview)
+     * or `none` (no test payment here).
      *
      * An order's frozen approval is never deleted (R-12). Until 13.10.2026 the smoke ordered whenever it could, and a
      * release left a paid test order in the shop the client works in (RMF-2026-0003). It never orders by itself now.
@@ -344,11 +346,21 @@ final class Smoke extends Command
     public static function orderStep(bool $demoWheel, bool $sandbox, bool $asked): string
     {
         return match (true) {
-            $demoWheel => 'demo',
             ! $sandbox => 'none',
+            $demoWheel => 'demo',
             $asked => 'order',
             default => 'before',
         };
+    }
+
+    /**
+     * Whether the step walks to the point before ordering (the checkout row, D-224): every step with a test payment that
+     * places no order — the acceptance set's wheel too, which once the client's own entries were taken back (16.10.2026)
+     * is the only released wheel on the preview. The walk writes no row of the shop's.
+     */
+    public static function walksToCheckout(string $step): bool
+    {
+        return in_array($step, ['before', 'demo'], true);
     }
 
     /**
