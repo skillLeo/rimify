@@ -208,7 +208,11 @@ const day = (iso) => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '
 const onPreview = (nr) => {
     const result = preview?.items?.[nr]
 
-    return result === undefined ? 'noch nicht geprüft' : result.passed ? `bestanden (${day(preview.at)})` : 'nicht bestanden'
+    if (result === undefined) return 'noch nicht geprüft'
+    if (result.passed) return `bestanden (${day(preview.at)})`
+
+    // Every test of the item skipped there (#23: it would sign in to the client's admin and write to his Protokoll).
+    return result.ran === 0 ? `nicht geprüft (${day(preview.at)})` : 'nicht bestanden'
 }
 
 const sheet = rows.map((r) => sheetRow(r.item, { passed: r.missing.length === 0 }, preview?.items?.[r.item.nr] ?? null))
