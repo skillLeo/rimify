@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Fitment\Verdict\VerdictReason;
 use Tests\Support\OnRecord;
+use Tests\Support\OnRecordTable;
 
 /*
  * R-17 — say only what is on record. The shop may state what RIMIFY has recorded and what follows from it; it may never
@@ -48,6 +49,12 @@ it('keeps no verdict for a sentence that is no longer written anywhere', functio
     ));
 
     expect($stale)->toBe([]);
+});
+
+it('keeps docs/review/ON-RECORD.md the list as it stands — kept by hand it drifted from the ledger', function (): void {
+    $written = str_replace("\r\n", "\n", (string) file_get_contents(dirname(__DIR__, 2).'/'.OnRecordTable::FILE));
+
+    expect($written)->toBe(OnRecordTable::render(onRecordLedger(), OnRecord::claims()), 'ON-RECORD.md is not the ledger as it stands: php scripts/review/on-record.php writes it.');
 });
 
 it('gives every listed sentence a verdict and a reason, and every open one its finding', function (): void {
