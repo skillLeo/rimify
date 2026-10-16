@@ -109,6 +109,8 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
 })
 
 test('no button opens a mail program: every „Schreib uns“ leads to the form, and the Impressum gives the address as text', { tag: '@kunde-26' }, async ({ page, problems }, info) => {
+    // Fifteen pages, each opened whole: more than the default minute on the preview from here, at the pace a person watches.
+    test.setTimeout(240_000)
     problems.expected(/^404 .*\/gibt-es-nicht$/, 'the 404 page is opened on purpose, to see that it has no mail link either')
     // Chromium also writes the 404 document to the console, without its address; any other 404 still shows as a response.
     problems.expected(/^console: Failed to load resource: the server responded with a status of 404 \(\)$/, 'the 404 page opened on purpose, as Chromium logs it')
@@ -124,8 +126,10 @@ test('no button opens a mail program: every „Schreib uns“ leads to the form,
     expect(legal.length, 'the footer links no legal page').toBeGreaterThan(0)
 
     for (const path of ['/', '/felgen', PRODUCT, '/warenkorb', '/kontakt', '/faq', '/felgenrechner', '/rimify-check', ...new Set(legal), '/gibt-es-nicht']) {
-        // Each page whole before the next: left mid-load, WebKit reports the module scripts it was still fetching as crashes.
-        await page.goto(path, { waitUntil: 'load' })
+        // Each page whole before the next — its component imported and mounted, not just loaded: `load` comes before the
+        // page's own chunks, and a page left then has WebKit cancel them and report „Importing a module script failed“
+        // from the page being left (reproduced on the preview, 16.10.2026).
+        await open(page, path)
         expect(await page.locator('a[href^="mailto:"], [formaction^="mailto:"]').count(), `${path} has a mail link`).toBe(0)
     }
 

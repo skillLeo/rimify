@@ -14,6 +14,12 @@ class WheelConfigFactory extends Factory
 {
     protected $model = WheelConfig::class;
 
+    /**
+     * The ET of the next configuration made: 25 to 45 in turn. Drawn at random, two sizes of one finish were the same size
+     * once in 420 pairs, and `uq_wheel_config` refused the second — a test red by chance (the look-back, 16.10.2026).
+     */
+    private static int $etTurn = 0;
+
     /** @return array<string, mixed> */
     public function definition(): array
     {
@@ -22,7 +28,7 @@ class WheelConfigFactory extends Factory
             'wheel_finish_id' => WheelFinishFactory::new(),
             'diameter_in' => $this->faker->randomElement([17.0, 18.0, 19.0, 20.0]),
             'width_in' => $this->faker->randomElement([7.5, 8.0, 8.5, 9.0, 9.5]),
-            'et_mm' => $this->faker->numberBetween(25, 45),
+            'et_mm' => 25 + (self::$etTurn++ % 21),
             'bolt_holes' => 5,
             'bolt_circle_mm' => 112.0,
             'centre_bore_mm' => 66.60,

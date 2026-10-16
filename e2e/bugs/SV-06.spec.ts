@@ -52,5 +52,7 @@ test('SV-06 after Back the list keeps the column just ticked on', async ({ page 
     await expect(page).not.toHaveURL(/sort=/)
     await page.screenshot({ path: `${SHOTS}/sv-06-columns-after-back.png` })
 
-    await expect.poll(headings, { message: 'after Back the column ticked on is gone again', timeout: 3000 }).toContain('Fahrzeug')
+    // The page asks the account for its columns after Back — a round trip, so the suite's own wait, not three seconds:
+    // under the release gate's load three seconds ran out in two gates in a row (16.10.2026); alone it passed each time.
+    await expect.poll(headings, { message: 'after Back the column ticked on is gone again' }).toContain('Fahrzeug')
 })

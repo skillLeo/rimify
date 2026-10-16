@@ -16,6 +16,13 @@ const LONGEST_SIDE_PX = 1600
 const CONTRAST = 1.5
 const TIMEOUT_MS = 45_000
 
+/*
+ * Tesseract prints its diagnostics to stderr, and in the browser stderr is the console's error channel: every photograph
+ * — a canvas carries no resolution — logged „Estimating resolution as 588“ as an error (EIGENE-FUNDE 136). They go to
+ * /dev/null in the engine's own file system instead; recognition never reads `debug_file`, so the reading is unchanged.
+ */
+export const OCR_PARAMETERS = { debug_file: '/dev/null' } as const
+
 interface Drawable {
     source: CanvasImageSource
     width: number
@@ -116,7 +123,7 @@ export function useOcr(): { read: (file: File) => Promise<string>; dispose: () =
                 gzip: true,
                 errorHandler: () => {},
             })
-            await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO })
+            await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO, ...OCR_PARAMETERS })
         }
 
         const { data } = await worker.recognize(canvas)

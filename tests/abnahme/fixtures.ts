@@ -172,11 +172,13 @@ async function bars(target: Locator): Promise<{ top: number; bottom: number }> {
 
 /**
  * The item's picture around several elements at once — a heading and the line under it, a row and the note about it —
- * taken inside the window, just under the bars that stay put, the window made taller first where it does not fit.
+ * taken inside the window, just under the bars that stay put, the window made taller first where it does not fit. A
+ * name gives it a file of its own, as evidencePage's does: a whole phone page is no picture at the iPhone's three device
+ * pixels per point — past 32 767 pixels, the most a browser draws in one.
  */
-export async function evidenceAround(page: Page, targets: Locator[], nr: number, info: TestInfo, pad = 16): Promise<void> {
+export async function evidenceAround(page: Page, targets: Locator[], nr: number, info: TestInfo, pad = 16, name?: string): Promise<void> {
     const dir = `docs/qa/shots/abnahme/${INSTANCE}`
-    const path = `${dir}/${String(nr).padStart(2, '0')}-${engine(info)}.png`
+    const path = `${dir}/${name ?? `${String(nr).padStart(2, '0')}-${engine(info)}`}.png`
     const view = page.viewportSize() ?? { width: 1440, height: 900 }
     const first = targets[0]
 
@@ -228,7 +230,7 @@ export async function evidenceAround(page: Page, targets: Locator[], nr: number,
         await page.setViewportSize(view)
     }
 
-    await info.attach(`kunde-${String(nr).padStart(2, '0')}`, { path, contentType: 'image/png' })
+    await info.attach(name ?? `kunde-${String(nr).padStart(2, '0')}`, { path, contentType: 'image/png' })
 }
 
 /** The whole page as a visitor who has scrolled through it sees it — or a second picture of it under its own name. */
