@@ -86,11 +86,11 @@ test('filters kept as a view open again from the bar, marked as where one is', a
 })
 
 test('a changed view is saved over, or set back', async ({ page }) => {
-    // Red in two release gates in a row on a loaded machine, each time differently: the save dialog still open after
-    // ten seconds (gate 3), then „Verwerfen“ leading to the bare list instead of the saved view (16.10.2026); alone it
-    // passed. An admin test, not a verdict, price, condition or append-only one, and the admin round is closed: set
-    // aside with this reason and recorded in docs/review/ADMIN-GEFUNDEN.md (508), to be reproduced and fixed there.
-    test.fixme(true, 'ADMIN-GEFUNDEN 508: „Verwerfen“ once led to the bare list under load — reproduce in the admin round')
+    // ADMIN-GEFUNDEN 508, reproduced under load (17.10.2026: two of fifteen, eight CPU burners, 4×): not the app.
+    // Sign-in, cleanup, the save and four visits at 3–4 s each outgrew the minute; the timeout's afterEach then opened
+    // the bare list, and the still-polling check read that page — „Verwerfen“ itself had asked for the view as saved
+    // (the trace). Three minutes, every check as it was (D-263).
+    test.slow()
     await page.goto('/admin/bestellungen?status=offen', { waitUntil: 'networkidle' })
     await saveView(page, `${PREFIX}Ändern`)
 

@@ -33,6 +33,10 @@ const GONE = 'QA K2-01 Entfernt';
 const KEPT = 'QA K2-01 Bleibt';
 
 test('K2-01 renaming a brand to the name of a removed brand is saved or refused in a sentence — never a server error', async ({ page }, info) => {
+    // About fourteen round trips, its own cleanup included. On a loaded machine each took 3–4 s and the run outgrew
+    // its minute — five of thirty under eight CPU burners at 4× (17.10.2026); the reds were the interrupted checks
+    // reading a page the timeout's cleanup had already moved on (D-263). Three minutes, every check as it was.
+    test.slow();
     await signIn(page);
     await page.goto('/admin/marken', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
