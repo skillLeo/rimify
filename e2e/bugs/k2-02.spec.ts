@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { expect, test } from '../fixtures';
-import { SHOTS, brandMenu, brandRow, createBrand, removeBrand, settled, signIn, waitForApp } from './k2-support';
+import { SHOTS, brandMenu, brandRow, createBrand, dropBrands, settled, signIn, waitForApp } from './k2-support';
 
 /*
  * K2-02 (S2) — Katalog › Marken takes a logo that paints a solid block on the homepage's brand wall
@@ -17,10 +17,15 @@ import { SHOTS, brandMenu, brandRow, createBrand, removeBrand, settled, signIn, 
  * Expected: the opaque file refused in its row with BrandLogoStore::OPAQUE, as an RGB PNG already is.
  *
  * Writes: one brand of its own („QA K2-02 …", not on the brand wall). If the logo is stored, it is taken off
- * again („Logo entfernen" deletes the file), then the brand is removed (soft-deleted, R-04).
+ * again („Logo entfernen" deletes the file), then the brand is removed (soft-deleted, R-04) — in the afterEach,
+ * by request, never through the page (e2e/teardown.ts, D-263).
  */
 
 const NAME = 'QA K2-02 Weisser Grund';
+
+test.afterEach(async ({ context }) => {
+    await dropBrands(context, [NAME]);
+});
 
 /** A 400 × 100 logo on a white ground, saved as RGBA — every pixel opaque. */
 async function opaqueRgbaPng(): Promise<Buffer> {
@@ -36,64 +41,49 @@ test('K2-02 a PNG whose every pixel is opaque is refused like an RGB one — on 
     expect(png[25], 'the test file is not an RGBA PNG').toBe(6);
 
     await signIn(page);
+
+    // A run that stopped half-way left its brand: it goes first, by request, so this run starts clean.
+    await dropBrands(page.context(), [NAME]);
+
     await page.goto('/admin/marken', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
 
-    await removeBrand(page, NAME);
     await createBrand(page, NAME);
 
     const row = brandRow(page, NAME);
-    let refusal: string;
-    let stored: boolean;
 
-    try {
-        await Promise.all([
-            page.waitForResponse((r) => r.request().method() === 'POST' && /^\/admin\/marken\/\d+\/logo$/.test(new URL(r.url()).pathname)),
-            row.locator('input[type="file"]').setInputFiles({ name: 'logo-weisser-grund.png', mimeType: 'image/png', buffer: png }),
-        ]);
-        // The answer is read once the page has finished the upload's round trip and put the keyboard back on
-        // the row's „⋯" (K2-37) — not at a fixed time after the POST, which a loaded machine outruns (as K2-01's
-        // did, 30.09.2026).
-        await settled(page, brandMenu(page, NAME));
+    await Promise.all([
+        page.waitForResponse((r) => r.request().method() === 'POST' && /^\/admin\/marken\/\d+\/logo$/.test(new URL(r.url()).pathname)),
+        row.locator('input[type="file"]').setInputFiles({ name: 'logo-weisser-grund.png', mimeType: 'image/png', buffer: png }),
+    ]);
+    // The answer is read once the page has finished the upload's round trip and put the keyboard back on
+    // the row's „⋯" (K2-37) — not at a fixed time after the POST, which a loaded machine outruns (as K2-01's
+    // did, 30.09.2026).
+    await settled(page, brandMenu(page, NAME));
 
-        const alert = row.getByRole('alert');
+    const alert = row.getByRole('alert');
+    const refusal = (await alert.count()) > 0 ? ((await alert.textContent()) ?? '').trim() : '';
+    const stored = (await row.getByRole('img', { name: `Logo ${NAME}` }).count()) > 0;
 
-        refusal = (await alert.count()) > 0 ? ((await alert.textContent()) ?? '').trim() : '';
-        stored = (await row.getByRole('img', { name: `Logo ${NAME}` }).count()) > 0;
+    await row.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${SHOTS}/k2-02-opaque-png-row-${info.project.name}.png` });
 
-        await row.scrollIntoViewIfNeeded();
-        await page.screenshot({ path: `${SHOTS}/k2-02-opaque-png-row-${info.project.name}.png` });
+    if (stored) {
+        // Evidence of what the wall does with it: the same file as the wall's mask, filled with ink.
+        const url = (await row.getByRole('img', { name: `Logo ${NAME}` }).getAttribute('src')) ?? '';
 
-        if (stored) {
-            // Evidence of what the wall does with it: the same file as the wall's mask, filled with ink.
-            const url = (await row.getByRole('img', { name: `Logo ${NAME}` }).getAttribute('src')) ?? '';
+        await page.evaluate((src) => {
+            const frame = document.createElement('div');
+            const mark = document.createElement('div');
 
-            await page.evaluate((src) => {
-                const frame = document.createElement('div');
-                const mark = document.createElement('div');
-
-                frame.id = 'qa-k2-02-wall';
-                frame.style.cssText = 'position:fixed;left:16px;top:16px;z-index:2147483647;padding:16px;background:#fff;border:1px solid #ccc';
-                mark.style.cssText = `width:240px;height:60px;background:#1f2328;-webkit-mask:url("${src}") center / contain no-repeat;mask:url("${src}") center / contain no-repeat`;
-                frame.append(mark);
-                document.body.append(frame);
-            }, url);
-            await page.waitForTimeout(500);
-            await page.locator('#qa-k2-02-wall').screenshot({ path: `${SHOTS}/k2-02-opaque-png-as-wall-mask-${info.project.name}.png` });
-            await page.evaluate(() => document.getElementById('qa-k2-02-wall')?.remove());
-        }
-    } finally {
-        // A stored logo is taken off first: „Logo entfernen" deletes its file (BrandLogoStore::forget).
-        if ((await row.getByRole('img', { name: `Logo ${NAME}` }).count()) > 0) {
-            await expect(brandMenu(page, NAME)).toBeEnabled();
-            await brandMenu(page, NAME).click();
-            await page.getByRole('menuitem', { name: 'Logo entfernen', exact: true }).click();
-            await expect(row.getByText('kein Logo')).toBeVisible();
-            await settled(page, brandMenu(page, NAME));
-        }
-
-        await expect(brandMenu(page, NAME)).toBeEnabled();
-        await removeBrand(page, NAME);
+            frame.id = 'qa-k2-02-wall';
+            frame.style.cssText = 'position:fixed;left:16px;top:16px;z-index:2147483647;padding:16px;background:#fff;border:1px solid #ccc';
+            mark.style.cssText = `width:240px;height:60px;background:#1f2328;-webkit-mask:url("${src}") center / contain no-repeat;mask:url("${src}") center / contain no-repeat`;
+            frame.append(mark);
+            document.body.append(frame);
+        }, url);
+        await page.waitForTimeout(500);
+        await page.locator('#qa-k2-02-wall').screenshot({ path: `${SHOTS}/k2-02-opaque-png-as-wall-mask-${info.project.name}.png` });
     }
 
     expect(

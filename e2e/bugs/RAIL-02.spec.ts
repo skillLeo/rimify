@@ -26,9 +26,10 @@ test.beforeEach(async ({ page }) => {
     await openAdmin(page, 1440);
 });
 
-test.afterEach(async ({ page, isMobile }) => {
+// By request, never through the page (e2e/teardown.ts): cleanup never navigates.
+test.afterEach(async ({ context, isMobile }) => {
     if (!isMobile) {
-        await resetRail(page);
+        await resetRail(context);
     }
 });
 

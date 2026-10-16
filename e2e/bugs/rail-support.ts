@@ -1,5 +1,6 @@
-import { type Page } from '@playwright/test';
+import { type BrowserContext, type Page } from '@playwright/test';
 import { maxFit } from '../../resources/js/composables/admin/railResize';
+import { send } from '../teardown';
 import { signIn, waitForApp } from './faq-support';
 
 /*
@@ -7,8 +8,8 @@ import { signIn, waitForApp } from './faq-support';
  *
  * The rail's width and state are stored on the signed-in account (PATCH /admin/ansicht). Every test
  * starts from the default — 260 px, open — and its afterEach puts that back, through the same
- * endpoint the handle uses (as resetRail in e2e/admin-rail-resize.spec.ts does). Nothing else is
- * written.
+ * endpoint the handle uses, by request over the test's own session: never through the page, which a
+ * teardown must not touch (e2e/teardown.ts, D-263). Nothing else is written.
  */
 
 /** Where the RAIL tests leave their evidence. Relative to the project root, where Playwright runs. */
@@ -32,38 +33,22 @@ export async function room(page: Page): Promise<number> {
     return maxFit(await page.evaluate(() => document.querySelector<HTMLElement>('.adm')?.clientWidth ?? 0));
 }
 
-/** Stores a rail on the account through the handle's own endpoint. Returns the HTTP status. */
-export async function storeRail(page: Page, state: { rail: 'open' | 'collapsed'; width: number }): Promise<number> {
-    return page.evaluate(async (body) => {
-        const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '');
-        const response = await fetch('/admin/ansicht', {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-XSRF-TOKEN': token,
-            },
-            body: JSON.stringify(body),
-        });
-
-        return response.status;
-    }, state);
+/** Stores a rail on the account through the handle's own endpoint, by request over the session. Returns the HTTP status. */
+export async function storeRail(context: BrowserContext, state: { rail: 'open' | 'collapsed'; width: number }): Promise<number> {
+    return send(context, 'PATCH', '/admin/ansicht', state);
 }
 
 /** The account back to the default rail: 260 px, open. */
-export async function resetRail(page: Page): Promise<void> {
-    await storeRail(page, { rail: 'open', width: 260 });
+export async function resetRail(context: BrowserContext): Promise<void> {
+    await storeRail(context, { rail: 'open', width: 260 });
 }
 
 /** Signed in, on the Übersicht at `width` × 900, with the account's rail at the default. */
 export async function openAdmin(page: Page, width = 1440): Promise<void> {
     await page.setViewportSize({ width, height: 900 });
     await signIn(page);
+    await resetRail(page.context());
     await page.goto('/admin', { waitUntil: 'networkidle' });
-    await resetRail(page);
-    await page.reload({ waitUntil: 'networkidle' });
     await waitForApp(page);
 }
 

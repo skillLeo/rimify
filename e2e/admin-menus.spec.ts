@@ -128,9 +128,10 @@ test.beforeEach(async ({ page }) => {
     await signIn(page)
 })
 
-test.afterEach(async ({ page, isMobile }) => {
-    if (!isMobile && !page.isClosed()) {
-        await resetRail(page)
+// By request, never through the page (e2e/teardown.ts): cleanup never navigates.
+test.afterEach(async ({ context, isMobile }) => {
+    if (!isMobile) {
+        await resetRail(context)
     }
 })
 
@@ -138,7 +139,7 @@ for (const rail of [232, 260, 400]) {
     test(`every menu opens fully inside the window with the rail at ${rail} px`, async ({ page }) => {
         test.setTimeout(240_000)
         await visit(page, '/admin')
-        expect(await storeRail(page, { rail: 'open', width: rail }), 'rig: the width is stored').toBeLessThan(300)
+        expect(await storeRail(page.context(), { rail: 'open', width: rail }), 'rig: the width is stored').toBeLessThan(300)
 
         for (const stop of STOPS) {
             await stop.open(page)

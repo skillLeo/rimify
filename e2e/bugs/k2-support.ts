@@ -1,4 +1,5 @@
-import { expect, type APIResponse, type Locator, type Page, type Request, type Route } from '@playwright/test';
+import { expect, type APIResponse, type BrowserContext, type Locator, type Page, type Request, type Route } from '@playwright/test';
+import { propsOf, send } from '../teardown';
 import { focusFell, focused, guardWrites, inertiaHeaders, isInertiaGet, pageInsteadOf, signIn, waitForApp } from './katalog-support';
 
 /*
@@ -13,11 +14,12 @@ import { focusFell, focused, guardWrites, inertiaHeaders, isInertiaGet, pageInst
  *     Inertia headers), changed in the browser the way the server's answer would have been. The brand
  *     and the photos they act on exist only in the test's browser.
  *   - K2-01 and K2-02 must reach the server (the defect is the server's answer). They work only on their
- *     own brands, named „QA K2-…", never ticked for the brand wall, and take them off again in a
- *     `finally`. A removed brand is soft-deleted (R-04): the next run's „Marke anlegen" with the same name
- *     brings that row back instead of adding one (MarkenController::store), so the table holds at most
- *     three such rows, all removed — K2-01 renames its kept brand back before removing it, since its rename
- *     is saved. K2-02 takes its logo off before removing its brand, so no file is left.
+ *     own brands, named „QA K2-…", never ticked for the brand wall, and take them off again in their
+ *     afterEach — by request, never through the page (`takeBackBrands`, `dropBrands`; e2e/teardown.ts, D-263).
+ *     A removed brand is soft-deleted (R-04): the next run's „Marke anlegen" with the same name brings that
+ *     row back instead of adding one (MarkenController::store), so the table holds at most three such rows,
+ *     all removed — K2-01's kept brand gets its own name back before it goes, since its rename is saved.
+ *     K2-02's logo is taken off before its brand, so no file is left.
  *   - Every write waits for the page to settle before the next step (`settled`).
  *   - Nothing is imported into the catalogue, no Felge is saved, no photo is uploaded.
  */
@@ -187,6 +189,43 @@ export async function createBrand(page: Page, name: string): Promise<void> {
     await expect(brandRow(page, name), `„${name}" was not created`).toHaveCount(1);
     // Created: the keyboard is back in Name (MarkenController's page, `submit` → onFinish).
     await settled(page, page.locator('#mk-name'));
+}
+
+/**
+ * A test's own brands taken back by request — never through the page (e2e/teardown.ts: cleanup never navigates, D-263).
+ * A live brand that now carries `gone` — `kept`, renamed by a saved rename — gets `kept` back first, so the next run's
+ * „Marke anlegen" restores these rows instead of adding a third; then every live brand of either name is removed
+ * (soft-deleted, R-04). Without a session it finds no list and writes nothing.
+ */
+export async function takeBackBrands(context: BrowserContext, kept: string, gone: string): Promise<void> {
+    const before = await liveBrands(context);
+
+    for (const brand of before.filter((b) => b.name === gone)) {
+        if (!before.some((b) => b.name === kept)) {
+            await send(context, 'PUT', `/admin/marken/${brand.id}`, { name: kept, isWheelBrand: brand.isWheelBrand, sortOrder: brand.sortOrder });
+        }
+    }
+
+    await dropBrands(context, [kept, gone]);
+}
+
+/**
+ * Every live brand of these names removed by request: a stored logo first („Logo entfernen" deletes its file,
+ * BrandLogoStore::forget), then the brand (soft-deleted, R-04) — never through the page (e2e/teardown.ts, D-263).
+ */
+export async function dropBrands(context: BrowserContext, names: string[]): Promise<void> {
+    for (const brand of (await liveBrands(context)).filter((b) => names.includes(b.name))) {
+        if (brand.logo !== null) {
+            await send(context, 'DELETE', `/admin/marken/${brand.id}/logo`);
+        }
+
+        await send(context, 'DELETE', `/admin/marken/${brand.id}`);
+    }
+}
+
+/** The live brands as Katalog › Marken lists them, read over the session — empty without one. */
+async function liveBrands(context: BrowserContext): Promise<BrandRow[]> {
+    return (await propsOf<{ brands: BrandRow[] }>(context, '/admin/marken'))?.brands ?? [];
 }
 
 /** Takes the brand `name` off (its menu's „Entfernen", then the dialog's), if it is listed; waits for the page to settle. */

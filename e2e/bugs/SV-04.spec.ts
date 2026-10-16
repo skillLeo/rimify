@@ -19,10 +19,9 @@ test.beforeEach(async ({ page }) => {
     await start(page, 390, 844)
 })
 
-test.afterEach(async ({ page }) => {
-    if (!page.isClosed()) {
-        await cleanUp(page)
-    }
+// By request, never through the page (e2e/teardown.ts): cleanup never navigates.
+test.afterEach(async ({ context }) => {
+    await cleanUp(context)
 })
 
 test('SV-04 the open view\'s „Aktionen" button is a 44 px target on a phone', async ({ page }) => {

@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from './fixtures'
 import { maxFit } from '../resources/js/composables/admin/railResize'
 import { signIn } from './bugs/faq-support'
+import { resetRail } from './bugs/rail-support'
 import { openUebersicht, patchCharts } from './bugs/ueb-support'
 
 /*
@@ -31,20 +32,6 @@ async function railWidth(page: Page): Promise<number> {
     return Math.round((await page.locator('.adm-rail').boundingBox())?.width ?? 0)
 }
 
-/** The account back to the default rail, through the same endpoint the handle uses. */
-async function resetRail(page: Page): Promise<void> {
-    await page.evaluate(async () => {
-        const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '')
-
-        await fetch('/admin/ansicht', {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': token },
-            body: JSON.stringify({ rail: 'open', width: 260 }),
-        })
-    })
-}
-
 /** Drags the handle to `x` px from the window's left edge, in steps, returning the widest page overflow seen. */
 async function dragTo(page: Page, x: number, steps = 12): Promise<number> {
     const box = await handle(page).boundingBox()
@@ -71,22 +58,21 @@ async function dragTo(page: Page, x: number, steps = 12): Promise<number> {
     return overflow
 }
 
+// The account back to the default rail through the handle's own endpoint — by request over the session, before and
+// after, never through the page (e2e/teardown.ts: cleanup never navigates). A test that closed its tab is reset the same
+// way: the session outlives the page.
 test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await signIn(page)
+    await resetRail(page.context())
     await page.goto('/admin', { waitUntil: 'networkidle' })
-    await resetRail(page)
-    await page.reload({ waitUntil: 'networkidle' })
 })
 
-test.afterEach(async ({ page, isMobile }) => {
-    // A skipped test still runs this hook, on a blank page with no cookie to read; a test that closed
-    // its page resets through the page it opened instead.
-    if (isMobile || page.isClosed()) {
-        return
+test.afterEach(async ({ context, isMobile }) => {
+    // A skipped test still runs this hook, with no session: it writes nothing.
+    if (!isMobile) {
+        await resetRail(context)
     }
-
-    await resetRail(page)
 })
 
 test('a drag snaps to 320, and the width is still there after a reload', async ({ page }) => {
@@ -210,8 +196,6 @@ test('the last width survives the tab closing within the second', async ({ page,
 
         return railWidth(next)
     }).toBe(292)
-
-    await resetRail(next)
 })
 
 test('a magnet holds the rail until the pointer is 12 px past it', async ({ page }) => {

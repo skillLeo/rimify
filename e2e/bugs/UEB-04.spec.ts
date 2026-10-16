@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures';
+import { get } from '../teardown';
 import { SHOTS, isPhone, signIn, waitForApp } from './ueb-support';
 
 /*
@@ -13,46 +14,46 @@ import { SHOTS, isPhone, signIn, waitForApp } from './ueb-support';
  * The test types what the keypad the field asks for can produce: digits only for numeric / decimal /
  * tel, the dotted date otherwise. Expected: the range is applied (`?zeitraum=eigen&von=2026-08-01…`).
  *
- * The Zeitraum is remembered on the account: the test puts 30 days back whatever happens.
+ * The Zeitraum is remembered on the account: the afterEach puts 30 days back whatever happens — by
+ * request over the session, never through the page (e2e/teardown.ts: cleanup never navigates, D-263).
  */
+
+test.afterEach(async ({ context }) => {
+    await get(context, '/admin?zeitraum=30');
+});
 
 test('UEB-04 an own Zeitraum can be typed with the keypad its fields ask for', async ({ page }, info) => {
     test.skip(!isPhone(info.project.name), 'The phone keypad.');
 
     await signIn(page);
+    await page.goto('/admin?zeitraum=30', { waitUntil: 'networkidle' });
+    await waitForApp(page);
 
-    try {
-        await page.goto('/admin?zeitraum=30', { waitUntil: 'networkidle' });
-        await waitForApp(page);
+    await page.locator('.period__custom').click();
 
-        await page.locator('.period__custom').click();
+    const von = page.locator('#period-von');
+    const bis = page.locator('#period-bis');
 
-        const von = page.locator('#period-von');
-        const bis = page.locator('#period-bis');
+    await expect(von).toBeVisible();
 
-        await expect(von).toBeVisible();
+    const mode = (await von.getAttribute('inputmode')) ?? 'text';
+    const digitsOnly = ['numeric', 'decimal', 'tel'].includes(mode);
 
-        const mode = (await von.getAttribute('inputmode')) ?? 'text';
-        const digitsOnly = ['numeric', 'decimal', 'tel'].includes(mode);
+    await von.fill(digitsOnly ? '01082026' : '01.08.2026');
+    await bis.fill(digitsOnly ? '31082026' : '31.08.2026');
+    await page.getByRole('button', { name: 'Anwenden' }).click();
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${SHOTS}/ueb-04-own-range-${info.project.name}.png` });
 
-        await von.fill(digitsOnly ? '01082026' : '01.08.2026');
-        await bis.fill(digitsOnly ? '31082026' : '31.08.2026');
-        await page.getByRole('button', { name: 'Anwenden' }).click();
-        await page.waitForTimeout(800);
-        await page.screenshot({ path: `${SHOTS}/ueb-04-own-range-${info.project.name}.png` });
+    // The server answers with its query in its own order (Laravel sorts it): each part is checked.
+    await expect
+        .poll(
+            () => {
+                const query = new URL(page.url()).searchParams;
 
-        // The server answers with its query in its own order (Laravel sorts it): each part is checked.
-        await expect
-            .poll(
-                () => {
-                    const query = new URL(page.url()).searchParams;
-
-                    return `${query.get('zeitraum')} ${query.get('von')} ${query.get('bis')}`;
-                },
-                { message: `inputmode="${mode}" brings up a keypad without a full stop, yet only TT.MM.JJJJ is accepted` },
-            )
-            .toBe('eigen 2026-08-01 2026-08-31');
-    } finally {
-        await page.goto('/admin?zeitraum=30', { waitUntil: 'networkidle' });
-    }
+                return `${query.get('zeitraum')} ${query.get('von')} ${query.get('bis')}`;
+            },
+            { message: `inputmode="${mode}" brings up a keypad without a full stop, yet only TT.MM.JJJJ is accepted` },
+        )
+        .toBe('eigen 2026-08-01 2026-08-31');
 });

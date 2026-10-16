@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
+import { propsOf, send as sendAs } from '../teardown'
 import { signIn, waitForApp } from './faq-support'
 
 /*
@@ -87,20 +88,25 @@ export async function createViews(page: Page, views: { name: string; query: Reco
     })
 }
 
-/** Deletes every „QA-…" view of this person and puts the list's own columns back. */
-export async function cleanUp(page: Page): Promise<void> {
-    for (const view of await myViews(page)) {
-        await send(page, 'DELETE', `/admin/ansichten/${view.id}`)
+/**
+ * Deletes every „QA-…" view of this person and puts the list's own columns back — by request, never through the page
+ * (e2e/teardown.ts: cleanup never navigates). The views are read from the list's HTML over the same session.
+ */
+export async function cleanUp(context: BrowserContext): Promise<void> {
+    const props = await propsOf<{ views?: { items: ViewItem[] } }>(context, LIST)
+
+    for (const view of (props?.views?.items ?? []).filter((v) => v.mine && v.name.startsWith(PREFIX))) {
+        await sendAs(context, 'DELETE', `/admin/ansichten/${view.id}`)
     }
 
-    await send(page, 'PATCH', '/admin/ansicht', { list: 'bestellungen', columns: DEFAULT_COLUMNS })
+    await sendAs(context, 'PATCH', '/admin/ansicht', { list: 'bestellungen', columns: DEFAULT_COLUMNS })
 }
 
 /** Signed in, at `width` × `height`, with no „QA-…" views and the default columns. */
 export async function start(page: Page, width: number, height = 900): Promise<void> {
     await page.setViewportSize({ width, height })
     await signIn(page)
-    await cleanUp(page)
+    await cleanUp(page.context())
 }
 
 export async function open(page: Page, href: string): Promise<void> {

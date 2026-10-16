@@ -1,3 +1,4 @@
+import { propsOf, send } from '../../e2e/teardown'
 import { BASE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, evidencePage, expect, open, phone, test } from './fixtures'
 import { PRODUCT, box, onSize, withCar } from './shop'
@@ -186,6 +187,28 @@ test.describe('as the Super-Admin', () => {
     const LEVELS = { hinweis: 'Hinweis – nichts zu tun', auflage: 'Auflage – etwas ist zu tun oder eingeschränkt', nicht_zulaessig: 'Nicht zulässig' } as const
     type Level = keyof typeof LEVELS
 
+    /*
+     * Where #23 wrote, and the level to put back if the run stops half-way. The run itself ends on the level it found; this
+     * is the net under it — by request over the session, never through the page (e2e/teardown.ts, D-263): as a `finally`
+     * that clicked the level back, it ran on a page the timeout was already closing. It writes only where the run left
+     * the level otherwise, so the client's Protokoll keeps its three lines and gains no fourth.
+     */
+    let restore: { path: string; level: Level } | null = null
+
+    test.afterEach(async ({ context }) => {
+        if (restore === null) {
+            return
+        }
+
+        const { path, level } = restore
+        restore = null
+        const a14 = (await propsOf<{ conditions: { id: number; code: string; level: string }[] }>(context, path))?.conditions.find((c) => c.code === 'A14')
+
+        if (a14 !== undefined && a14.level !== level) {
+            await send(context, 'PUT', `${path}/auflagen/${a14.id}/stufe`, { level })
+        }
+    })
+
     test('solved differently: each of the three levels set on a demo Gutachten\'s Auflage and the shop\'s label read after each — an Abnahme can never be a mere Hinweis, the form says why', { tag: '@kunde-23' }, async ({ page }, info) => {
         test.skip(!hasCredentials('super-admin'), 'no Super-Admin credentials in the environment (RIMIFY_EMAIL, RIMIFY_PASSWORD)')
         test.setTimeout(300_000)
@@ -252,17 +275,14 @@ test.describe('as the Super-Admin', () => {
             await expect(page.locator('.fit__entry--verdict').first()).toContainText('Eintragung')
         }
 
-        try {
-            for (const level of order) {
-                await setLevel(level)
-                // What the shop does with it, said as it is saved (D-247): the label of an answer, never a colour it does not paint.
-                await expect(page.getByText(`Gespeichert: A14 ist jetzt „${LEVELS[level]}“.`)).toBeVisible()
-                await shopSays()
-            }
-        } finally {
-            if (order.length > 0) {
-                await setLevel(original)
-            }
+        // The level it found, put back by the afterEach should the run stop before its last step does it.
+        restore = order.length > 0 ? { path: documentPage, level: original } : null
+
+        for (const level of order) {
+            await setLevel(level)
+            // What the shop does with it, said as it is saved (D-247): the label of an answer, never a colour it does not paint.
+            await expect(page.getByText(`Gespeichert: A14 ist jetzt „${LEVELS[level]}“.`)).toBeVisible()
+            await shopSays()
         }
 
         // The pass that writes nothing reads the shop at the level that stands.
