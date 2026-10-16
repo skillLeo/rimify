@@ -156,7 +156,8 @@ class HandleInertiaRequests extends Middleware
         if (! $user instanceof AdminUser
             || ! $user->canSignIn()
             || EnsureAdminSessionValid::revoked($user, $request->session()->get(EnsureAdminSessionValid::SESSION_KEY))
-            || ! $user->can('create', ReviewFeedback::class)) {
+            // Whether to draw the button: asked on every shop page, and a „no“ refuses nobody (ADMIN-GEFUNDEN 509).
+            || ! $user->canQuietly('create', ReviewFeedback::class)) {
             return [];
         }
 

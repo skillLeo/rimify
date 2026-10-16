@@ -46,7 +46,7 @@ class BewertungenController extends Controller
             'total' => Review::query()->count(),
             'filter' => $filter,
             'filters' => collect(self::FILTERS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),
-            'canModerate' => $admin instanceof AdminUser && $admin->can('moderate', new Review),
+            'canModerate' => $admin instanceof AdminUser && $admin->canQuietly('moderate', new Review),
         ]);
     }
 

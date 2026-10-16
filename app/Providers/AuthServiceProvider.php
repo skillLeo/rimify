@@ -46,6 +46,7 @@ use App\Policies\TpmsSensorPricePolicy;
 use App\Policies\VehiclePolicy;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
+use App\Services\Admin\PermissionProbe;
 use App\Services\Demo\DemoTables;
 use App\Services\GoLive\GoLiveChecks;
 use App\Services\Reset\TestEnvironment;
@@ -124,9 +125,12 @@ final class AuthServiceProvider extends ServiceProvider
          *
          * `$result` is `mixed` rather than `?bool`: a Policy may answer with an Access\Response
          * (`Response::deny()`), and a denial in that shape is a denial all the same.
+         *
+         * Only attempts: a screen asking which buttons to draw (`AdminUser::canQuietly`) refused
+         * nobody, and its „no“ is not written (ADMIN-GEFUNDEN 509).
          */
         Gate::after(function (mixed $user, string $ability, mixed $result): void {
-            if (! $user instanceof AdminUser || ! $this->denied($result)) {
+            if (! $user instanceof AdminUser || ! $this->denied($result) || PermissionProbe::asking()) {
                 return;
             }
 

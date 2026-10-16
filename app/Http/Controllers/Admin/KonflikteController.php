@@ -32,7 +32,7 @@ class KonflikteController extends Controller
         return Inertia::render('Admin/Konflikte/Index', [
             'open' => $this->conflicts->open(),
             'decided' => $this->conflicts->decided(),
-            'can' => ['decide' => $admin instanceof AdminUser && $admin->can('decide', FitmentConflict::class)],
+            'can' => ['decide' => $admin instanceof AdminUser && $admin->canQuietly('decide', FitmentConflict::class)],
         ]);
     }
 
