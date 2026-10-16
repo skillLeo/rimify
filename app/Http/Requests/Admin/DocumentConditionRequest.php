@@ -47,8 +47,9 @@ class DocumentConditionRequest extends FormRequest
         $text = $this->input('text_de');
 
         $this->merge([
-            // A space copied from a PDF may be a no-break space: one plain space between the words.
-            'code' => is_string($code) ? trim((string) preg_replace('/\s+/u', ' ', $code)) : $code,
+            // A space copied from a PDF may be a no-break space: one plain space between the words; a printed
+            // closing bracket (`16a)`) is not part of the code (DocumentConditions::normaliseCode).
+            'code' => DocumentConditions::normaliseCode($code),
             'text_de' => is_string($text) ? trim((string) preg_replace('/\s+/u', ' ', $text)) : $text,
         ]);
     }

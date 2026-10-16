@@ -47,6 +47,12 @@ describe('reading codes as the document prints them', () => {
         expect(codesText(['A01', 'Pkw geschlossen'])).toBe('A01 „Pkw geschlossen“')
     })
 
+    it('takes a code with the closing bracket the document prints after it, as the code without (the client\'s item 8)', () => {
+        // BBS's Teilegutachten, Anlage BMW15: „vorn 225/40 R 18 - XX* 0) R) 13) 16a) 18) 35)“.
+        expect(parseCodes('0) R) 13) 16a) 18) 35)')).toEqual(['0', 'R', '13', '16a', '18', '35'])
+        expect(badCodes('0) R) 16a)')).toEqual([])
+    })
+
     it('names a typed code the server will not take', () => {
         // Letters (umlauts too), digits, words joined by a space or a hyphen, at most 32 characters.
         expect(badCodes('A01 Kombilimousine 4-türig -A12 K1c/2 A01.')).toEqual(['-A12', 'K1c/2', 'A01.'])

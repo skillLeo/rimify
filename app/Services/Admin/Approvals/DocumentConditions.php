@@ -42,7 +42,24 @@ final class DocumentConditions
     public const CODE = '/^[\p{L}\p{N}](?:[\p{L}\p{N} \-]{0,30}[\p{L}\p{N}])?$/u';
 
     /** The sentence a refused code is answered with, wherever a code is typed. */
-    public const CODE_MESSAGE = 'Einen Code bitte so, wie das Gutachten ihn druckt: Buchstaben und Ziffern, höchstens 32 Zeichen – zum Beispiel A01 oder „Nicht 330D“.';
+    public const CODE_MESSAGE = 'Einen Code bitte so, wie das Gutachten ihn druckt: Buchstaben und Ziffern, höchstens 32 Zeichen – zum Beispiel A01, 16a) oder „Nicht 330D“.';
+
+    /**
+     * A code as typed, made the code it is, wherever one is typed: one plain space between words, whatever space a PDF's
+     * copied text carried, and the closing bracket some documents print after a code dropped — BBS's Teilegutachten
+     * lists `0)`, `R)`, `13)`, `16a)` (the client's item 8, ADMIN-GEFUNDEN 514). The form tells him to type a code as
+     * the document prints it; typed so, it is the same code as without the bracket, and his rows find their legend.
+     */
+    public static function normaliseCode(mixed $code): mixed
+    {
+        if (! is_string($code)) {
+            return $code;
+        }
+
+        $code = trim((string) preg_replace('/\s+/u', ' ', $code));
+
+        return preg_replace('/\s*\)$/u', '', $code) ?? $code;
+    }
 
     public const IN_USE = 'Dieser Code steht noch in Zeilen des Verwendungsbereichs. Nimm ihn dort zuerst heraus.';
 

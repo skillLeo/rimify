@@ -85,14 +85,15 @@ export const CODE = /^[\p{L}\p{N}](?:[\p{L}\p{N} -]{0,30}[\p{L}\p{N}])?$/u
 /**
  * The codes typed for a row or a size, as the document prints them: split at spaces, commas and
  * semicolons, each kept exactly as typed (`K1c` is not `K1C`), each once, in the order typed. A code of
- * several words stands in quotes: `„Nicht 330D“ 57F 68T`.
+ * several words stands in quotes: `„Nicht 330D“ 57F 68T`. A closing bracket the document prints after a code —
+ * `0) R) 13) 16a)` — is dropped, as the server drops it (DocumentConditions::normaliseCode; the client's item 8).
  */
 export function parseCodes(text: string): string[] {
     const seen = new Set<string>()
 
     // `\s` takes the no-break spaces a PDF's copied text carries, too.
     for (const match of text.matchAll(/„([^“”]*)[“”]|"([^"]*)"|[^\s,;„“”"]+/g)) {
-        const code = (match[1] ?? match[2] ?? match[0]).replace(/\s+/g, ' ').trim()
+        const code = (match[1] ?? match[2] ?? match[0]).replace(/\s+/g, ' ').trim().replace(/\s*\)$/, '')
 
         if (code !== '') {
             seen.add(code)

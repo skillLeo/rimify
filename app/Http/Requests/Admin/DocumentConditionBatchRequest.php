@@ -41,7 +41,7 @@ class DocumentConditionBatchRequest extends FormRequest
                 continue;
             }
 
-            $entry['code'] = is_string($entry['code'] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $entry['code'])) : ($entry['code'] ?? null);
+            $entry['code'] = DocumentConditions::normaliseCode($entry['code'] ?? null);
             $entry['text_de'] = is_string($entry['text_de'] ?? null) ? trim((string) preg_replace('/\s+/u', ' ', $entry['text_de'])) : ($entry['text_de'] ?? null);
             $entries[] = $entry;
         }

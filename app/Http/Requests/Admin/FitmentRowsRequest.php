@@ -58,10 +58,10 @@ class FitmentRowsRequest extends FormRequest
         return $this->route('fitment') === null;
     }
 
-    /** A code of several words keeps one plain space between them, whatever space a PDF's copied text carried. */
+    /** Each code as the code it is: one plain space between its words, a printed closing bracket dropped (normaliseCode). */
     protected function prepareForValidation(): void
     {
-        $words = static fn (mixed $code): mixed => is_string($code) ? trim((string) preg_replace('/\s+/u', ' ', $code)) : $code;
+        $words = static fn (mixed $code): mixed => DocumentConditions::normaliseCode($code);
         $sizes = $this->input('tyre_sizes');
         $conditions = $this->input('conditions');
 
