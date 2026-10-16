@@ -240,7 +240,12 @@ test.describe('as the Super-Admin', () => {
                 // rim. A level moves the label only where no Eintragung is needed (D-104); the X3's answer needs one — the
                 // Abnahme with 255/40 R19 — so it reads „Mit Auflagen“ at every level, as the client finds it there.
                 await withCar(page, 'x3', '/felgen')
-                await expect(page.locator('main .tile', { hasText: 'DB8GT2' }).locator('.verdict')).toHaveText('Mit Auflagen')
+                const badges = await page.locator('main .tile', { hasText: 'DB8GT2' }).locator('.verdict').all()
+                expect(badges.length, 'the acceptance wheel is not in the X3\'s listing').toBeGreaterThan(0)
+
+                for (const badge of badges) {
+                    await expect(badge).toHaveText('Mit Auflagen')
+                }
                 await withCar(page, 'x3', PRODUCT)
                 await onSize(page, 19, 'Schwarz matt')
                 await expect(page.locator('.rcheck-panel__vehicle').first()).toHaveText(/^Mit Auflagen freigegeben für /)
