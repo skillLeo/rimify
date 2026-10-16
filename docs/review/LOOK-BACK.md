@@ -9,8 +9,10 @@ about that setting, or about what the setting switches on or off by design — o
 pinned value by accident. Every leak is fixed (D-232); expected ones stay and are named here. 55 settings, 5 groups and
 the last group (the five infrastructure pins) key by key, finished 14.10.2026 18:18 local.
 
-**Result.** 26 settings change something (1 to 771 tests), 28 change nothing, and with 1 the suite does not finish
-(`CACHE_STORE=database`, below). **14 tests leaned on a pinned value by accident, from 9 causes — all fixed.**
+**Result.** 26 settings change something (1 to 771 tests), 29 change nothing, and the suite finishes with every one —
+`CACHE_STORE=database` too, which on 14.10. seemed to stop it (closed 16.10.2026, below). **14 tests leaned on a pinned
+value by accident, from 9 causes — all fixed.** One more failed by chance under a flip, not because of it: the wheel-size
+factory's random sizes (fixed, below).
 
 ## The changes, setting by setting
 
@@ -39,16 +41,42 @@ the last group (the five infrastructure pins) key by key, finished 14.10.2026 18
 | `RIMIFY_SLOW_QUERY_MS` → 1 | 2 | **2 leaks** | `ThrottleKeysTest` spies on the log, and every statement wrote a slow-query warning into it — **fixed**: switches slow logging off for itself, which now works because the listener reads its threshold per statement instead of once at boot. `SlowQueriesTest`: next row. |
 | `RIMIFY_DELIVERY_TIME`, `…SHIPPING_COST_CENTS`, `…FREE_FROM_CENTS`, `…TPMS…`, `…MOUNTING…`, `…REVIEWS_INVITE_AFTER_DAYS`, `…REVIEWS_LINK_DAYS` | `SlowQueriesTest` in each | **leak** (order and load) | Not about any of them: it failed with an empty log under seven unrelated flips and passes alone and in every gate. Under load a statement is slow while the app boots, the log channel is built with its default path before the test points it at its own folder, and the test reads an empty folder. **Fixed**: the test rebuilds the channel after configuring it. Not yet proven by three clean full flip runs — labelled until then. |
 
-## Left open
+## The database cache — closed 16.10.2026
 
-**`CACHE_STORE` → database: the suite does not finish.** Killed after 45 minutes with nothing reported (the group run of
-all five infrastructure pins sat 2,5 hours with twelve idle workers — waiting, not working). One file run alone with it
-passes (`ThrottleKeysTest`, 9 of 9, 90 s), so it is one test or a family, not the store as such. A single-process run
-streaming every test's start and end is under way to name it. **Not a risk to the shop**: the preview runs
-`CACHE_STORE=file` (read 14.10.2026); the live shop is set up the same way (GO-LIVE §2).
+**What 14.10. saw.** With `CACHE_STORE=database` the parallel run was killed after 45 minutes with nothing reported, and
+a run in one process stopped at test 1.583 (DemoDataTest, „changes nothing when run twice …“) and stood there for 36
+minutes until it was stopped.
+
+**What ran today.** Every test file, in one process, on the MySQL 8.4 copy with the database cache, in the suite's own
+order — in three parts, because each part had a time limit (2.020 tests, then 540, then 85) — with MySQL watched every
+15 seconds: the sessions, pending metadata locks, InnoDB lock waits, and the PHP process's CPU. **Nothing ever waited.**
+The test of 14.10. took 93 s in the run and 41 s alone.
+
+**In parallel it still does not finish** — and that is the test harness, not a test. Eight workers ran the 595 unit
+tests in six minutes; then each worker's first `migrate:fresh` began again before it ended, over and over (watched
+12:53–12:54: worker 3's database at 83 of 86 migrations, then gone, then at 3, 7; worker 6 the same). The same
+`migrate:fresh`, eight at once on eight databases with the database cache but outside the test harness, completes in
+4 min 17 s, every migration done. So it is Laravel's parallel test setup meeting a database cache, which no test asks
+for; how exactly was not traced further. The tests' verdicts above come from the run in one process.
+
+**Why it seemed to stop on 14.10.** That hunt ran at below-normal priority, beside a release gate's PHP stage that held
+every core the whole hour (one stage ended 21:57, the next 22:29). Its tests ran 2–6 times slower than today's
+(„the fence …“ 124 s against 59 s, „stamps each snapshot …“ 78 s against 13 s), and the heaviest — four demo sets written
+and purged — barely moved. Starved, not stuck.
+
+**What changed under the flip** — two tests, neither about the cache:
+
+| Test | Verdict | Why, and what was done |
+|---|---|---|
+| `PinnedEnvironmentTest` („runs only on the committed list …“) | expected | It refuses a `tests/env.php` that differs from its fingerprint — the guard written after a machine went down mid-look-back. Any flip changes that file, so it fails under every flip; the run itself goes ahead with `TEST_LOOKBACK=1`, and says so. |
+| `UebersichtVariantsTest` („`Katalog` → it counts stock …“) | **chance** — fixed | The unique key of a wheel size refused a second size of the same finish: the factory drew diameter, width and ET at random, so two sizes of one finish were the same size once in 420 pairs — in any test, on any store. **Fixed in the factory** (`4c3e284c`): the ET steps through 25–45 in turn. The other composite keys were checked: the Auflagen codes are unique by Faker, the tyre sizes fixed. |
+
+**Not a risk to the shop either way**: the preview runs `CACHE_STORE=file` (read 14.10.2026); the live shop is set up the
+same way (GO-LIVE §2).
 
 Unchanged by their flip: `APP_DEBUG`, `APP_KEY`, `BCRYPT_ROUNDS`, `STRIPE_KEY`, `STRIPE_MODE`, `AWS_DEFAULT_REGION`,
 `DEBUGBAR_ENABLED`, `TELESCOPE_ENABLED`, `INERTIA_SSR_ENABLED`, `RIMIFY_SSR_SOCKET`, `SESSION_SECURE_COOKIE`,
 `SESSION_SAME_SITE`, `SESSION_ENCRYPT`, `SESSION_DRIVER`, `BROADCAST_CONNECTION`, `RIMIFY_FEATURE_NOTIFY_BY_MAIL`,
 `RIMIFY_PAYMENTS`, `RIMIFY_PHOTOGRAPHY`, `RIMIFY_S3_PATH_STYLE`, `DEMO_DATA`, `RIMIFY_ENGINE_VERSION`, the six
-address fields `RIMIFY_SELLER_*`, `RIMIFY_OPERATOR_NAME` — 28.
+address fields `RIMIFY_SELLER_*`, `RIMIFY_OPERATOR_NAME`, and `CACHE_STORE` (its two failures are not about it, above)
+— 29.
