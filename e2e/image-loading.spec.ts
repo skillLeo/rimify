@@ -95,13 +95,16 @@ test.use({ baseURL: SHOP });
  * time on a loaded machine before it had found anything, and a failure now names its page. The pages that always show
  * a photograph on their first screen also prove the test tests something.
  */
-const PAGES: Array<[string, boolean]> = [
-    ['/', true], ['/felgen', true], ['/felgen?zoll=18', false], ['a product page', true], ['/vergleich', false],
+// Which first screens always show a photograph: the listing's and the product page's on every device, the homepage's
+// on the desktop only — on the phone its first screen is the vehicle panel (the run of 16.10.2026 found that out).
+const PAGES: Array<[string, 'everywhere' | 'desktop' | false]> = [
+    ['/', 'desktop'], ['/felgen', 'everywhere'], ['/felgen?zoll=18', false], ['a product page', 'everywhere'], ['/vergleich', false],
     ['/check', false], ['/felgen-suchen', false], ['/warenkorb', false], ['/kontakt', false],
 ];
 
-for (const [name, pictured] of PAGES) {
+for (const [name, shows] of PAGES) {
     test(`${name}: no picture on the first screen loads lazily, and none outside it is preloaded @bild-regel`, async ({ page }, testInfo) => {
+        const pictured = shows === 'everywhere' || (shows === 'desktop' && testInfo.project.name === 'desktop-1440');
         let path = name;
 
         if (name === 'a product page') {
