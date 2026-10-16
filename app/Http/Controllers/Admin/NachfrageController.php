@@ -36,7 +36,7 @@ class NachfrageController extends Controller
         $admin = $request->admin();
         ['period' => $period] = $request->choice();
         $state = $request->state();
-        $canMark = $admin->can('mark', DemandMark::class);
+        $canMark = $admin->canQuietly('mark', DemandMark::class);
 
         return Inertia::render('Admin/Nachfrage/Index', [
             'period' => [...$period->toArray(), 'compare' => false],

@@ -8,6 +8,7 @@ use App\Enums\AdminUserStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Services\Admin\PermissionMatrix;
+use App\Services\Admin\PermissionProbe;
 use Carbon\CarbonImmutable;
 use Database\Factories\AdminUserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -240,6 +241,18 @@ class AdminUser extends Authenticatable
     public function may(PermissionModule $module, PermissionAction $action): bool
     {
         return app(PermissionMatrix::class)->allows($this, $module, $action);
+    }
+
+    /**
+     * Whether a screen should offer the action: the same Policy as `can()`, asked as a question — a „no“ is a button not
+     * drawn, never a refusal in the Protokoll (ADMIN-GEFUNDEN 509). The attempt itself still asks `can()` in its Form
+     * Request, where a refusal is written.
+     *
+     * @param  iterable<mixed>|string  $abilities
+     */
+    public function canQuietly(iterable|string $abilities, mixed $arguments = []): bool
+    {
+        return PermissionProbe::quietly(fn (): bool => $this->can($abilities, $arguments));
     }
 
     /**

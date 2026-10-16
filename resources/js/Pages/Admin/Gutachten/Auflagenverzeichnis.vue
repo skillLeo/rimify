@@ -429,10 +429,12 @@ function confirmLimit(condition: DocumentConditionView): void {
         </div>
         <p v-else class="adm-note">Noch kein Code. Trag die Auflagen so ein, wie das Gutachten sie druckt – einzeln oder als ganze Legende.</p>
 
-        <!-- „Im Shop“ (#23, D-104): what each level means, and the one rule that cannot be chosen away. -->
+        <!-- „Im Shop“ (#23, D-104): what each level does there — the label of the answer, no colour of a sentence (D-247) —
+             and the one rule that cannot be chosen away. -->
         <p v-if="levels && conditions.length" class="adm-note av__levels-note">
-            „Im Shop“ bestimmt, wie eine Auflage erscheint: Ein Hinweis steht ruhig in Schwarz, eine Auflage gelb. Sind alle Auflagen
-            einer Felge Hinweise, steht „Freigegeben“ statt „Mit Auflagen“. Am Urteil des Gutachtens ändert das nichts.
+            „Im Shop“ entscheidet über das Etikett der Antwort: Sind alle ihre Auflagen Hinweise, ist keine Eintragung nötig und sind
+            auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“. Schon ein Code auf „Auflage“ oder
+            „Nicht zulässig“ verhindert den Wechsel. Am Urteil des Gutachtens ändert das nichts.
             <template v-if="conditions.some((c) => c.levelFloor === 'auflage')"> {{ levelFloorSentence }}</template>
         </p>
         <p v-if="levelError" class="adm-alert" role="alert">{{ levelError }}</p>

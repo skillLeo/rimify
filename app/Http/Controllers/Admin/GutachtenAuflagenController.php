@@ -60,12 +60,13 @@ class GutachtenAuflagenController extends Controller
         return back()->with('toast', self::CHANGED);
     }
 
-    /** How loud the Auflage is in the shop (#23, D-104) — on a released document too. */
+    /** How loud the Auflage is in the shop (#23, D-104) — on a released document too — and what that does there. */
     public function level(ConditionLevelRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
     {
-        $this->conditions->setLevel($condition, $request->level(), $request->admin());
+        $level = $request->level();
+        $this->conditions->setLevel($condition, $level, $request->admin());
 
-        return back()->with('toast', 'Gespeichert. Der Shop zeigt die Auflage jetzt als „'.$request->level()->labelDe().'“.');
+        return back()->with('toast', 'Gespeichert: '.$condition->code.' ist jetzt „'.$level->labelDe().'“. '.$level->shopEffectDe());
     }
 
     public function destroy(DocumentConditionRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse

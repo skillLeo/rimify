@@ -73,7 +73,7 @@ class MarkenController extends Controller
             // A new brand joins the wall at its end, as the Felge form and the import place one (K2-12).
             'nextSortOrder' => (int) Brand::query()->max('sort_order') + 10,
             'can' => [
-                'create' => $admin->can('create', Brand::class),
+                'create' => $admin->canQuietly('create', Brand::class),
                 'update' => $admin->may(PermissionModule::Catalogue, PermissionAction::Edit),
                 'delete' => $admin->may(PermissionModule::Catalogue, PermissionAction::Delete),
             ],

@@ -90,28 +90,42 @@ function broken(where: string, found: Found): string[] {
 
 test.use({ baseURL: SHOP });
 
-test('no picture on the first screen loads lazily, and none outside it is preloaded @bild-regel', async ({ page }, testInfo) => {
-    test.setTimeout(120_000);
-    const faults: string[] = [];
-    let seen = 0;
+/*
+ * One test per page (the operator's brief „STOP SLEEPING“ §4, 16.10.2026): one walk of nine pages could run out of its
+ * time on a loaded machine before it had found anything, and a failure now names its page. The pages that always show
+ * a photograph on their first screen also prove the test tests something.
+ */
+// Which first screens always show a photograph: the listing's and the product page's on every device, the homepage's
+// on the desktop only — on the phone its first screen is the vehicle panel (the run of 16.10.2026 found that out).
+const PAGES: Array<[string, 'everywhere' | 'desktop' | false]> = [
+    ['/', 'desktop'], ['/felgen', 'everywhere'], ['/felgen?zoll=18', false], ['a product page', 'everywhere'], ['/vergleich', false],
+    ['/check', false], ['/felgen-suchen', false], ['/warenkorb', false], ['/kontakt', false],
+];
 
-    // The product page of the listing's first wheel: found, not written down, so a reseeded shop is still tested.
-    await page.goto('/felgen');
-    const product = await page.locator('.tile a[href^="/felgen/"]').first().getAttribute('href');
-    expect(product, 'the listing shows no wheel: nothing to test').not.toBeNull();
+for (const [name, shows] of PAGES) {
+    test(`${name}: no picture on the first screen loads lazily, and none outside it is preloaded @bild-regel`, async ({ page }, testInfo) => {
+        const pictured = shows === 'everywhere' || (shows === 'desktop' && testInfo.project.name === 'desktop-1440');
+        let path = name;
 
-    for (const path of ['/', '/felgen', '/felgen?zoll=18', product!, '/vergleich', '/check', '/felgen-suchen', '/warenkorb', '/kontakt']) {
+        if (name === 'a product page') {
+            // The product page of the listing's first wheel: found, not written down, so a reseeded shop is still tested.
+            await page.goto('/felgen');
+            const product = await page.locator('.tile a[href^="/felgen/"]').first().getAttribute('href');
+            expect(product, 'the listing shows no wheel: nothing to test').not.toBeNull();
+            path = product!;
+        }
+
         await page.goto(path);
         const found = await read(page);
+        const faults = broken(`${testInfo.project.name} ${path}`, found);
 
-        seen += found.pictures.filter((p) => p.inView >= SLIVER).length;
-        faults.push(...broken(`${testInfo.project.name} ${path}`, found));
-    }
+        if (pictured) {
+            expect(found.pictures.filter((p) => p.inView >= SLIVER).length, `no picture stood on the first screen of ${path}`).toBeGreaterThan(0);
+        }
 
-    // The test tests something: pictures stood on first screens.
-    expect(seen, 'no picture stood on any first screen').toBeGreaterThan(3);
-    expect(faults, faults.join('\n')).toEqual([]);
-});
+        expect(faults, faults.join('\n')).toEqual([]);
+    });
+}
 
 test('the listing loads its first screen at once and everything after it lazily @bild-regel', async ({ page }) => {
     await page.goto('/felgen');

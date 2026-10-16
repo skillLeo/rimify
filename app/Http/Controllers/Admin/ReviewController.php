@@ -88,7 +88,7 @@ class ReviewController extends Controller
             'statuses' => array_map(static fn (string $value, string $label): array => ['value' => $value, 'label' => $label], array_keys(ReviewFeedback::STATUSES), ReviewFeedback::STATUSES),
             'screens' => ReviewBoard::screens(),
             'team' => AdminUser::query()->orderBy('name')->get(['id', 'name'])->map(static fn (AdminUser $u): array => ['value' => (int) $u->id, 'label' => $u->name])->values()->all(),
-            'can' => ['answer' => $request->admin()->can('update', ReviewFeedback::class)],
+            'can' => ['answer' => $request->admin()->canQuietly('update', ReviewFeedback::class)],
         ]);
     }
 

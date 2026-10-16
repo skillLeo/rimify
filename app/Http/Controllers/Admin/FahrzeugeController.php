@@ -135,7 +135,7 @@ class FahrzeugeController extends Controller
                 'requiresEntry' => $f->requires_entry,
                 'conditions' => (int) $f->getAttribute('condition_codes_count'),
             ])->values()->all(),
-            'can' => ['edit' => $request->admin()->can('update', $vehicle)],
+            'can' => ['edit' => $request->admin()->canQuietly('update', $vehicle)],
         ]);
     }
 

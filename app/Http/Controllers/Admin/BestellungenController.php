@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BestellungenExportRequest;
 use App\Http\Requests\Admin\BestellungenFilterRequest;
 use App\Http\Requests\Admin\OrderViewRequest;
+use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Order;
 use App\Services\Admin\AdminNavigation;
@@ -116,8 +117,8 @@ class BestellungenController extends Controller
 
         // The Prüfnachweis links its Gutachten only for a reader who may open it (Verkauf may not); „Versendet“ and
         // „Zugestellt“ only for a reader who may change orders (OrderPolicy::update, D-103).
-        return Inertia::render('Admin/Bestellungen/Show', $detail->for($order, $admin?->can('viewAny', ApprovalDocument::class) === true) + [
-            'canFulfil' => $admin?->can('update', $order) === true,
+        return Inertia::render('Admin/Bestellungen/Show', $detail->for($order, $admin instanceof AdminUser && $admin->canQuietly('viewAny', ApprovalDocument::class)) + [
+            'canFulfil' => $admin instanceof AdminUser && $admin->canQuietly('update', $order),
         ]);
     }
 

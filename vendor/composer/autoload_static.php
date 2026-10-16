@@ -1301,6 +1301,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Services\\Admin\\Orders\\OrderList' => __DIR__ . '/../..' . '/app/Services/Admin/Orders/OrderList.php',
         'App\\Services\\Admin\\PaymentSettingsWriter' => __DIR__ . '/../..' . '/app/Services/Admin/PaymentSettingsWriter.php',
         'App\\Services\\Admin\\PermissionMatrix' => __DIR__ . '/../..' . '/app/Services/Admin/PermissionMatrix.php',
+        'App\\Services\\Admin\\PermissionProbe' => __DIR__ . '/../..' . '/app/Services/Admin/PermissionProbe.php',
         'App\\Services\\Admin\\QuickActions' => __DIR__ . '/../..' . '/app/Services/Admin/QuickActions.php',
         'App\\Services\\Admin\\Review\\ReviewBoard' => __DIR__ . '/../..' . '/app/Services/Admin/Review/ReviewBoard.php',
         'App\\Services\\Admin\\Reviews\\ReviewModeration' => __DIR__ . '/../..' . '/app/Services/Admin/Reviews/ReviewModeration.php',

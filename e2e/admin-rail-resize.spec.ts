@@ -104,8 +104,10 @@ test('a drag snaps to 320, and the width is still there after a reload', async (
     await expect(handle(page)).toHaveAttribute('aria-valuenow', '320')
     expect(await railWidth(page)).toBe(320)
 
-    await page.reload({ waitUntil: 'networkidle' })
-    expect(await railWidth(page)).toBe(320)
+    // `load`, then the width itself: „networkidle“ — half a second without any request — never came on a loaded run,
+    // and the reload stalled the test out of its minute twice (16.10.2026, the trace ends in that wait).
+    await page.reload({ waitUntil: 'load' })
+    await expect.poll(() => railWidth(page)).toBe(320)
     await expect(page.locator('.adm')).toHaveAttribute('style', /--rail-w:\s*320px/)
 })
 

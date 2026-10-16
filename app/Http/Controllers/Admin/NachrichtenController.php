@@ -45,7 +45,7 @@ class NachrichtenController extends Controller
             'total' => ContactMessage::query()->count(),
             'filter' => $filter,
             'filters' => collect(self::FILTERS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),
-            'canMarkRead' => $admin instanceof AdminUser && $admin->can('markRead', new ContactMessage),
+            'canMarkRead' => $admin instanceof AdminUser && $admin->canQuietly('markRead', new ContactMessage),
             'keepMonths' => ContactMessage::KEEP_MONTHS,
         ]);
     }

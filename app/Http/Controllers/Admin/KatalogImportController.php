@@ -54,7 +54,7 @@ class KatalogImportController extends Controller
             'imports' => $imports,
             // The page lists the latest 20; its context counts them all.
             'total' => CatalogueImport::query()->count(),
-            'can' => ['preview' => $request->admin()->can('preview', CatalogueImport::class)],
+            'can' => ['preview' => $request->admin()->canQuietly('preview', CatalogueImport::class)],
         ]);
     }
 
@@ -112,9 +112,9 @@ class KatalogImportController extends Controller
             'rows' => array_slice($listed, 0, self::SHOWN_ROWS),
             'hiddenRows' => max(0, count($listed) - self::SHOWN_ROWS),
             'can' => [
-                'remap' => $import->status === CatalogueImport::PREVIEWED && $admin->can('preview', CatalogueImport::class),
-                'apply' => $admin->can('apply', $import),
-                'rollback' => $admin->can('rollback', $import),
+                'remap' => $import->status === CatalogueImport::PREVIEWED && $admin->canQuietly('preview', CatalogueImport::class),
+                'apply' => $admin->canQuietly('apply', $import),
+                'rollback' => $admin->canQuietly('rollback', $import),
             ],
         ]);
     }

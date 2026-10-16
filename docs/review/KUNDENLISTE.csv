@@ -6,30 +6,30 @@ Nr,Skill Leo,Description
 5,SkillLeo Done,"The row is now „Meistgekaufte Felgen“, sorted by paid orders of the last 90 days. Before the first sale it reads „Neu im Shop“; with fewer than four wheels in the shop it is hidden."
 6,SkillLeo Done,"The highlight in „Wir lesen das Gutachten“ sits on the right row at every screen size we checked, low windows included."
 7,SkillLeo Done,Switching between the three vehicle tabs no longer makes the hero jump.
-8,Open,Built and tested on our side. Not on your preview yet.
-9,Open,Built and tested on our side. Not on your preview yet.
-10,Open,Built and tested on our side. Not on your preview yet.
-11,Open,"built, waiting on your view."
-12,Open,Built and tested on our side. Not on your preview yet.
-13,Open,Built and tested on our side. Not on your preview yet.
-14,Open,Built and tested on our side. Not on your preview yet.
-15,Open,Built and tested on our side. Not on your preview yet.
-16,Open,Built and tested on our side. Not on your preview yet.
-17,Open,Built and tested on our side. Not on your preview yet.
-18,Open,Built and tested on our side. Not on your preview yet.
+8,SkillLeo Done,"The chosen vehicle is part of the address, so a page can be saved and shared; the link shows the same wheels and results in any browser."
+9,Open,"Solved differently: the turning wheel is a real wheel from your photos that can be bought in the shop, the BORBET DB8GT2. Not a Motec, because we hold no rights to Motec photos; send us some and we swap it in."
+10,SkillLeo Done,"The footer links the Felgenrechner and the Blog; both open, and the Blog lists its articles."
+11,SkillLeo Done,"Done on our side: our own cross-section marks the ET as a measured arrow and the rim width as a dimension, a second view shows the bolt circle and centre bore, and the wheel moves in the arch when the ET changes. The alternative was a photographic wheel like jr-wheels.com, which needs an illustration we hold the rights to. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
+12,SkillLeo Done,"The contact page has a form: name, e-mail, subject, message, your vehicle ticked. Messages are kept in the admin under Verkauf › Nachrichten. Spam protection without a third-party captcha."
+13,SkillLeo Done,"On mobile the basket icon sits in the header, left of the menu, with its count."
+14,SkillLeo Done,"Prices agree everywhere from the product tile to the invoice, for 1 to 5 wheels: one wheel 229,00 €, four wheels 916,00 €."
+15,SkillLeo Done,"With „Komplettrad“, balance weights and TPMS sensors are separate lines with their own prices; with „Nur Felgen“ none of them appear. Valves are not offered on their own yet: we still need your answer on which valves you fit without sensors."
+16,SkillLeo Done,"After adding to the basket a small window shows the item and the total, with „Weiter einkaufen“ and „Zum Warenkorb“."
+17,SkillLeo Done,"Next to the price you choose 1 to 8 wheels, 4 preselected, never more than in stock; the line reads e.g. „4 × 229,00 € = 916,00 €“."
+18,SkillLeo Done,"You choose „Nur Felgen“ or „Komplettrad“ without losing size, colour or quantity, and add matching tyres directly. The check then shows what the Gutachten requires for exactly that tyre size."
 19,Open,"built as verified reviews, see our note — manual star ratings would be a legal risk for you. Real reviews from Google or your old shop can be imported with the source named."
-20,Open,Built and tested on our side. Not on your preview yet.
-21,Open,Built and tested on our side. Not on your preview yet.
-22,Open,Built and tested on our side. Not on your preview yet.
-23,Open,"configurable as you asked, with one floor — a condition needing an inspection cannot be set to green."
-24,Open,Built and tested on our side. Not on your preview yet.
-25,Open,Built and tested on our side. Not on your preview yet.
-26,Open,Built and tested on our side. Not on your preview yet.
-27,Open,Built and tested on our side. Not on your preview yet.
-28,Open,Built and tested on our side. Not on your preview yet.
-29,Open,Built and tested on our side. Not on your preview yet.
-30,Open,Built and tested on our side. Not on your preview yet.
-31,Open,Built and tested on our side. Not on your preview yet.
-32,Open,"built, waiting on your view."
-33,Open,"built, waiting on your view."
+20,SkillLeo Done,"Different sizes front and rear can be chosen, only in the pairs the Gutachten permits."
+21,SkillLeo Done,"„Eintragung“ now appears once. The Gutachten’s original wording is behind „Originaltext anzeigen“, each sentence under the tyre sizes it applies to."
+22,SkillLeo Done,"On mobile „Vergleichen“ no longer covers the „Mit Auflagen“ label. Long conditions are shown as a count on the tile, with the wording on the product page."
+23,Open,Built and tested on our side. Not on your preview yet.
+24,SkillLeo Done,The filter column scrolls cleanly to its last entry.
+25,SkillLeo Done,The button without a function is gone; „Nur Felgen“ or „Komplettrad“ is chosen right by the price.
+26,SkillLeo Done,No button opens an e-mail program any more; all lead to the contact form. The Impressum shows your e-mail address as text once your seller details are entered; on the preview it still reads „noch nicht angegeben“.
+27,SkillLeo Done,A size or brand chosen first is kept when the vehicle is chosen afterwards.
+28,SkillLeo Done,"RIMIFY-Check: choose a vehicle and a wheel, get one answer for that pair with its conditions and the page of the Gutachten, then buy directly. If the pair is not approved there is no buy button."
+29,SkillLeo Done,"There is one footer now, the same on every page and screen size."
+30,SkillLeo Done,All filters work without a vehicle; one sentence says that results for a specific car need a vehicle.
+31,SkillLeo Done,"On mobile, „Filter“ opens a sheet from the bottom with the same filters and counts as on desktop."
+32,SkillLeo Done,"Done on our side: a pale blue-grey surface alternates with white between the homepage sections; not every section is tinted. The alternative is a clearer light blue on more sections, closer to your words. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
+33,SkillLeo Done,"Done on our side: the icons, the chosen tab, chosen option buttons and the keyboard frame are blue, and blue stays the colour of what can be clicked or chosen. The alternative is blue beyond that, on headings or larger areas. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
 34,Open,could you finish this sentence and we will build it with the rest.

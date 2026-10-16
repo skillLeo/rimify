@@ -148,7 +148,15 @@ const picture = (nr, width) => {
     return existsSync(full) && statSync(full).mtimeMs >= started - 1000 ? path : null
 }
 
+const OURS_FILE = join(ROOT, 'docs', 'review', 'kundenliste', `ergebnis-${INSTANCES.ours}.json`)
+
 const commit = (() => {
+    // Writing the table again runs nothing: the results are the last run's, and so is the code they were proven on — not
+    // whatever is checked out now.
+    if (report && existsSync(OURS_FILE)) {
+        return JSON.parse(readFileSync(OURS_FILE, 'utf8')).commit ?? 'unbekannt'
+    }
+
     try {
         const sha = execFileSync('git', ['rev-parse', '--short=8', 'HEAD'], { cwd: ROOT }).toString().trim()
         // Only what the tests ran against: the shop's code and the tests — not the docs, not this table's own sentences.
@@ -205,15 +213,21 @@ writeFileSync(
 
 const preview = readResult(INSTANCES.preview)
 const day = (iso) => new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }).format(new Date(iso))
+// Each item with the day and the release it was proven on there: a run of one item records only that item (#23 on a
+// later release than the rest), so one date and one release for the whole column would be true of most rows, not all.
 const onPreview = (nr) => {
     const result = preview?.items?.[nr]
 
     if (result === undefined) return 'noch nicht geprüft'
-    if (result.passed) return `bestanden (${day(preview.at)})`
 
-    // Every test of the item skipped there (#23: it would sign in to the client's admin and write to his Protokoll).
-    return result.ran === 0 ? `nicht geprüft (${day(preview.at)})` : 'nicht bestanden'
+    const when = `${day(result.at ?? preview.at)}${result.commit ? `, ${result.commit}` : ''}`
+
+    if (result.passed) return `bestanden (${when})`
+
+    // Every test of the item skipped there (a role without credentials in the environment).
+    return result.ran === 0 ? `nicht geprüft (${when})` : 'nicht bestanden'
 }
+const previewReleases = [...new Set(Object.values(preview?.items ?? {}).map((i) => i.commit).filter(Boolean))]
 
 const sheet = rows.map((r) => sheetRow(r.item, { passed: r.missing.length === 0 }, preview?.items?.[r.item.nr] ?? null))
 writeFileSync(join(ROOT, 'docs', 'review', 'KUNDENLISTE.csv'), toCsv(sheet))
@@ -233,7 +247,7 @@ const lines = [
     '',
     `**${count('erledigt')} erledigt · ${count('anders gelöst')} anders gelöst · ${count('Urteil offen')} Urteil offen · ${count('Rückfrage')} Rückfrage · ${count('offen')} offen**`,
     '',
-    `Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“${preview ? ` (Stand ${preview.commit}, ${day(preview.at)})` : ''} – erst das zählt für deine Liste: ${sheet.filter((r) => r.value === DONE).length} von 34.`,
+    `Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“${preview ? ` (Stand ${previewReleases.join(' und ') || preview.commit}, je Punkt mit Tag und Stand)` : ''} – erst das zählt für deine Liste: ${sheet.filter((r) => r.value === DONE).length} von 34.`,
     '',
     'Die Status:',
     '',

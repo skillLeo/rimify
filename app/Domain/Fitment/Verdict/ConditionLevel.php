@@ -53,6 +53,22 @@ enum ConditionLevel: string
         };
     }
 
+    /**
+     * What the shop does with it, said to whoever sets it — only what the shop really does: the level can turn an
+     * answer's „Mit Auflagen“ into „Freigegeben“ (`FitmentVerdict::notesOnly`: every Auflage a Hinweis, no Eintragung,
+     * the tyres confirmed without Auflagen), it colours no sentence, and it never makes an answer „Mit Auflagen“ that the
+     * kinds of its Auflagen leave free — so „Nicht zulässig“ reads there as an Auflage does. The toast said „Der Shop zeigt die
+     * Auflage jetzt als ‚Nicht zulässig‘“ until 16.10.2026, which nothing in the shop did (#23, D-247).
+     */
+    public function shopEffectDe(): string
+    {
+        return match ($this) {
+            self::Hinweis => 'Sind alle Auflagen einer Antwort Hinweise, ist keine Eintragung nötig und sind auch die Reifen ohne Auflagen bestätigt, steht im Shop „Freigegeben“ statt „Mit Auflagen“.',
+            self::Auflage => 'Bei einer Antwort mit diesem Code wird im Shop aus „Mit Auflagen“ nie „Freigegeben“.',
+            self::NichtZulaessig => 'Im Shop wirkt das wie eine Auflage: Aus „Mit Auflagen“ wird nie „Freigegeben“, und der Satz bekommt keine eigene Farbe.',
+        };
+    }
+
     /** The lowest level an Auflage of this kind may have. */
     public static function floorFor(?ConditionKind $kind): self
     {

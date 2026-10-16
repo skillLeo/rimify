@@ -224,11 +224,12 @@ class GutachtenController extends Controller
             'derating' => self::deratingView($document),
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
                 ->whereIn('candidate_fitment_id', $rows->pluck('id'))->count(),
+            // Which buttons to draw: asked, not attempted — a released document's „no“ is no refusal (ADMIN-GEFUNDEN 509).
             'can' => [
-                'edit' => $admin->can('update', $document),
-                'release' => $admin->can('publish', $document),
+                'edit' => $admin->canQuietly('update', $document),
+                'release' => $admin->canQuietly('publish', $document),
                 // How loud each Auflage is in the shop: on a released document too (#23, D-104).
-                'levels' => $admin->can('setLevels', $document),
+                'levels' => $admin->canQuietly('setLevels', $document),
             ],
             'levels' => array_map(static fn (ConditionLevel $l): array => ['value' => $l->value, 'label' => $l->labelDe()], ConditionLevel::cases()),
             'levelFloorSentence' => ConditionLevel::FLOOR_SENTENCE,

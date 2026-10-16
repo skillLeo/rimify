@@ -3,6 +3,10 @@
 // run.mjs). Three are judgement (#11, #32, #33: „Urteil offen“, never „erledigt“), three are solved differently with the
 // reason (#9, #19, #23), one waits for his answer (#34). The states are the operator's (the briefs „THE 34“ §5 and „CLOSE
 // THE PUBLIC SIDE“ §3, §5).
+//
+// `tick`: a row whose state stays what it is, but whose own column in his sheet is ours to tick once its test has passed
+// on the preview — the three judgement items, done on our side with his verdict in his column, and #23, tested there by
+// setting a demo document's levels (the operator's brief „THE HERO SAYS (VIELLEICHT)“ §3, 16.10.2026; sheet.mjs).
 
 export const STATES = {
     erledigt: 'umgesetzt; der Test dazu besteht, und die Bilder zeigen es',
@@ -89,6 +93,7 @@ export const ITEMS = [
         wish: 'Bessere Illustration im Felgenrechner (wie bei jr-wheels.com)',
         now: 'Eine eigene Schnittzeichnung zeigt Einpresstiefe, Felgenbreite und Lochkreis; ändert man die ET, wandert das Rad sichtbar im Radhaus.',
         state: 'Urteil offen',
+        tick: true,
         commits: ['9056fa1f'],
     },
     {
@@ -173,9 +178,10 @@ export const ITEMS = [
     {
         nr: 23,
         wish: '„Mit Auflagen“ nur gelb bei echten Auflagen (z. B. Bördeln), im Backend einstellbar',
-        now: 'Jede Auflage eines Gutachtens hat im Admin eine Stufe – Hinweis, Auflage oder Nicht zulässig –, und „Mit Auflagen“ steht nur, wo eine echte Auflage gilt.',
+        now: 'Jede Auflage eines Gutachtens hat im Admin eine Stufe – Hinweis, Auflage oder Nicht zulässig. Sind alle Auflagen einer Antwort Hinweise, ist keine Eintragung nötig und sind auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“; „Nicht zulässig“ wirkt im Shop wie eine Auflage. Auf deiner Vorschau braucht jede Demo-Antwort, die „Mit Auflagen“ zeigt, eine Eintragung – dort bleibt es dabei, welche Stufe du auch wählst.',
         reason: 'Einen freien Grün/Gelb-Schalter gibt es nicht: Abnahme und Arbeiten an der Karosserie bleiben immer Auflagen, sonst könnte jemand kaufen, ohne zu wissen, dass ein Prüfer nötig ist.',
         state: 'anders gelöst',
+        tick: true,
         commits: ['db7cd97d'],
     },
     {
@@ -239,6 +245,7 @@ export const ITEMS = [
         wish: 'Seite etwas farbiger, z. B. hellblaue Abschnitte',
         now: 'Eine helle blaugraue Flächenfarbe wechselt sich mit Weiß ab, nicht jeder Abschnitt ist getönt. Vorher und nachher nebeneinander: 32-vorher-1440.png und 32-1440.png, ebenso für 390.',
         state: 'Urteil offen',
+        tick: true,
         commits: ['0087968c', 'a7f10e91', 'ce0cde0c'],
     },
     {
@@ -246,6 +253,7 @@ export const ITEMS = [
         wish: 'Startseite: mehr Blau, z. B. Symbole und der gewählte Reiter',
         now: 'Blau sind die Symbole, der gewählte Reiter, gewählte Auswahlknöpfe und der Tastatur-Rahmen; Blau bleibt die Farbe für alles, was man anklicken kann.',
         state: 'Urteil offen',
+        tick: true,
         commits: ['3cf44843'],
     },
     {

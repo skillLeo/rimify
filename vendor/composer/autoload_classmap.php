@@ -530,6 +530,7 @@ return array(
     'App\\Services\\Admin\\Orders\\OrderList' => $baseDir . '/app/Services/Admin/Orders/OrderList.php',
     'App\\Services\\Admin\\PaymentSettingsWriter' => $baseDir . '/app/Services/Admin/PaymentSettingsWriter.php',
     'App\\Services\\Admin\\PermissionMatrix' => $baseDir . '/app/Services/Admin/PermissionMatrix.php',
+    'App\\Services\\Admin\\PermissionProbe' => $baseDir . '/app/Services/Admin/PermissionProbe.php',
     'App\\Services\\Admin\\QuickActions' => $baseDir . '/app/Services/Admin/QuickActions.php',
     'App\\Services\\Admin\\Review\\ReviewBoard' => $baseDir . '/app/Services/Admin/Review/ReviewBoard.php',
     'App\\Services\\Admin\\Reviews\\ReviewModeration' => $baseDir . '/app/Services/Admin/Reviews/ReviewModeration.php',
