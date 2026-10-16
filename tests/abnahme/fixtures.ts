@@ -50,8 +50,9 @@ export const test = base.extend<{ problems: Problems }>({
             })
             page.on('pageerror', (e) => seen.push(`JS crash: ${e.message}`))
             page.on('requestfailed', (r) => {
-                // A request the browser itself gave up because the page moved on is not a failure of the site.
-                if (r.failure()?.errorText !== 'net::ERR_ABORTED') {
+                // A request the browser itself gave up because the page moved on is not a failure of the site: Chromium
+                // names it net::ERR_ABORTED, WebKit „Load request cancelled“.
+                if (!/^net::ERR_ABORTED$|^Load request cancelled$/.test(r.failure()?.errorText ?? '')) {
                     seen.push(`failed: ${r.url()} (${r.failure()?.errorText ?? '?'})`)
                 }
             })
@@ -122,6 +123,132 @@ export async function evidence(target: Page | Locator, nr: number, info: TestInf
     }
 
     await info.attach(`kunde-${String(nr).padStart(2, '0')}`, { path, contentType: 'image/png' })
+}
+
+/** The bars that stay put while the page scrolls — header and vehicle bar on top, a price bar below: how far each reaches. */
+async function bars(target: Locator): Promise<{ top: number; bottom: number }> {
+    return target.evaluate((el) => {
+        const edge = (e: Element): 'top' | 'bottom' | null => {
+            if (!['fixed', 'sticky'].includes(getComputedStyle(e).position)) {
+                return null
+            }
+
+            const r = e.getBoundingClientRect()
+
+            return r.top <= 5 ? 'top' : r.bottom >= window.innerHeight - 5 ? 'bottom' : null
+        }
+        const own = new Set<string>()
+
+        for (let e: Element | null = el; e !== null; e = e.parentElement) {
+            const at = edge(e)
+
+            if (at !== null) {
+                own.add(at)
+            }
+        }
+
+        let top = 0
+        let bottom = 0
+
+        for (const e of document.querySelectorAll('body *')) {
+            const r = e.getBoundingClientRect()
+
+            if (r.height === 0 || r.height >= window.innerHeight / 2 || r.bottom <= 0 || r.top >= window.innerHeight) {
+                continue
+            }
+
+            const at = edge(e)
+
+            if (at === 'top' && !own.has('top')) {
+                top = Math.max(top, r.bottom)
+            } else if (at === 'bottom' && !own.has('bottom')) {
+                bottom = Math.max(bottom, window.innerHeight - r.top)
+            }
+        }
+
+        return { top, bottom }
+    })
+}
+
+/**
+ * The item's picture around several elements at once — a heading and the line under it, a row and the note about it —
+ * taken inside the window, just under the bars that stay put, the window made taller first where it does not fit.
+ */
+export async function evidenceAround(page: Page, targets: Locator[], nr: number, info: TestInfo, pad = 16): Promise<void> {
+    const dir = `docs/qa/shots/abnahme/${INSTANCE}`
+    const path = `${dir}/${String(nr).padStart(2, '0')}-${engine(info)}.png`
+    const view = page.viewportSize() ?? { width: 1440, height: 900 }
+    const first = targets[0]
+
+    if (first === undefined) {
+        throw new Error('a picture of nothing')
+    }
+
+    const union = async (): Promise<{ x: number; y: number; width: number; height: number }> => {
+        const boxes = await Promise.all(targets.map(async (t) => (await t.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 }))
+        const x = Math.min(...boxes.map((b) => b.x))
+        const y = Math.min(...boxes.map((b) => b.y))
+
+        return { x, y, width: Math.max(...boxes.map((b) => b.x + b.width)) - x, height: Math.max(...boxes.map((b) => b.y + b.height)) - y }
+    }
+
+    await first.scrollIntoViewIfNeeded()
+    let chrome = await bars(first)
+    let area = await union()
+    const needed = Math.ceil(area.height + 2 * pad + chrome.top + Math.max(chrome.bottom, 160))
+    const taller = needed > view.height
+
+    if (taller) {
+        await page.setViewportSize({ width: view.width, height: needed })
+        await page.waitForTimeout(200)
+        area = await union()
+    }
+
+    await page.evaluate((by) => window.scrollBy(0, by), area.y - chrome.top - pad)
+    await page.waitForTimeout(150)
+    area = await union()
+    chrome = await bars(first)
+
+    const height = (page.viewportSize() ?? view).height
+    const x = Math.max(0, area.x - pad)
+    const y = Math.max(chrome.top, area.y - pad)
+    const clip = { x, y, width: Math.min(view.width, area.x + area.width + pad) - x, height: Math.min(height - chrome.bottom, area.y + area.height + pad) - y }
+
+    mkdirSync(dir, { recursive: true })
+    shooting.add(page)
+
+    try {
+        await page.screenshot({ path, animations: 'disabled', clip })
+        await page.waitForTimeout(250)
+    } finally {
+        shooting.delete(page)
+    }
+
+    if (taller) {
+        await page.setViewportSize(view)
+    }
+
+    await info.attach(`kunde-${String(nr).padStart(2, '0')}`, { path, contentType: 'image/png' })
+}
+
+/** The whole page as a visitor who has scrolled through it sees it — or a second picture of it under its own name. */
+export async function evidencePage(page: Page, nr: number, info: TestInfo, name?: string): Promise<string> {
+    const dir = `docs/qa/shots/abnahme/${INSTANCE}`
+    const path = `${dir}/${name ?? `${String(nr).padStart(2, '0')}-${engine(info)}`}.png`
+
+    mkdirSync(dir, { recursive: true })
+    shooting.add(page)
+
+    try {
+        await page.screenshot({ path, animations: 'disabled', fullPage: true })
+        await page.waitForTimeout(250)
+    } finally {
+        shooting.delete(page)
+    }
+
+    await info.attach(name ?? `kunde-${String(nr).padStart(2, '0')}`, { path, contentType: 'image/png' })
+
+    return path
 }
 
 /** WCAG contrast of an element's text on its own background. */

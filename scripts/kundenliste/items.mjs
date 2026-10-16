@@ -195,7 +195,7 @@ export const ITEMS = [
     {
         nr: 26,
         wish: 'Alle E-Mail-Knöpfe sollen zum Kontaktformular führen',
-        now: 'Kein Knopf öffnet mehr das E-Mail-Programm; jeder führt zum Kontaktformular, und das Impressum nennt die Adresse als Text.',
+        now: 'Kein Knopf öffnet mehr das E-Mail-Programm; jeder führt zum Kontaktformular. Das Impressum nennt die Adresse als Text, sobald deine Verkäuferdaten eingetragen sind – auf der Vorschau steht dort noch „noch nicht angegeben“.',
         state: 'erledigt',
         commits: ['31ce9834', '3951e65e'],
     },

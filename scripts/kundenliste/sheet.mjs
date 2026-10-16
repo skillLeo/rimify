@@ -46,7 +46,7 @@ export const NOTES = {
     23: 'configurable as you asked, with one floor — a condition needing an inspection cannot be set to green.',
     24: 'The filter column scrolls cleanly to its last entry.',
     25: 'The button without a function is gone; „Nur Felgen“ or „Komplettrad“ is chosen right by the price.',
-    26: 'No button opens an e-mail program any more; all lead to the contact form. The Impressum still shows the address as text.',
+    26: 'No button opens an e-mail program any more; all lead to the contact form. The Impressum shows your e-mail address as text once your seller details are entered; on the preview it still reads „noch nicht angegeben“.',
     27: 'A size or brand chosen first is kept when the vehicle is chosen afterwards.',
     28: 'RIMIFY-Check: choose a vehicle and a wheel, get one answer for that pair with its conditions and the page of the Gutachten, then buy directly. If the pair is not approved there is no buy button.',
     29: 'There is one footer now, the same on every page and screen size.',
