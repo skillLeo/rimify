@@ -32,6 +32,10 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
  * where the released Gutachten's own table (`reifen_kombination`, ABE 55255's V19) lists it and the car's row lists
  * both sizes on their axle; each axle's tyres are measured against that axle's own load.
  *
+ * A document's own list of „Bereifungskombinationen“, where one is entered (D-256), is closed: the wheel is approved
+ * only with those (BBS's Anlage BMW15, „in Verbindung mit“ four combinations). A mixed pair is offered only where it
+ * names the pair, and four tyres of one size only where it names that size on both axles (rules 4b and 7b).
+ *
  * @phpstan-import-type AxleMinimum from MixedPair
  */
 final readonly class TyreEligibility
@@ -81,8 +85,9 @@ final readonly class TyreEligibility
         }
 
         // Rule 3a has already held, so both axles list the same sizes. The intersection is taken
-        // anyway: the catalogue must never be asked for a size only one axle permits.
-        $sizes = TyreSize::intersect($verdict->front->sizes, $verdict->rear->sizes);
+        // anyway: the catalogue must never be asked for a size only one axle permits. Where the document
+        // lists its combinations, only the sizes it names on both axles — rule 4b has left at least one.
+        $sizes = $this->sameSizes($verdict);
         $tyres = [];
 
         // One wheel's worth is the least a Komplettrad needs. With the stock filter off the offer
@@ -128,8 +133,9 @@ final readonly class TyreEligibility
     {
         [$table, $refusal, $source] = $this->mixedGate($verdict);
 
+        // A list of combinations that pairs no two different sizes says nothing about Mischbereifung (D-256).
         if ($refusal !== null) {
-            return MixedOffer::refused($refusal, $table->isRead());
+            return MixedOffer::refused($refusal, $table->hasMixedPair());
         }
 
         $pairs = [];
@@ -180,10 +186,12 @@ final readonly class TyreEligibility
         }
 
         if ($pairs === []) {
-            return MixedOffer::refused(KomplettradRefusal::NoMixedPairing, true);
+            return MixedOffer::refused(KomplettradRefusal::NoMixedPairing, $table->hasMixedPair());
         }
 
-        return new MixedOffer($pairs, null, true, $table->rulesDe, $source?->code, $source?->sourcePage);
+        // The pairs' page is that of their numbering — a recorded list's, or the Auflage's whose sentence prints the
+        // table; the rules come from that sentence alone, and carry its page.
+        return new MixedOffer($pairs, null, true, $table->rulesDe, $source?->code, $table->sourcePage, $table->rulesDe === null ? null : $source?->sourcePage);
     }
 
     /**
@@ -275,6 +283,12 @@ final readonly class TyreEligibility
             return KomplettradRefusal::NoPermittedSizes;
         }
 
+        // Rule 4b — the document's own list of combinations (D-256): four of a kind only in a size it names on both
+        // axles. Before rule 5: there is no point asking for the axle loads of a set the list does not hold.
+        if ($this->combinations($verdict) !== null && $this->sameSizes($verdict) === []) {
+            return KomplettradRefusal::NoSameSizeCombination;
+        }
+
         // Rule 5 — a null minimum is not "no minimum" (R-03).
         if (! $verdict->front->hasUsableMinimum() || ! $verdict->rear->hasUsableMinimum()) {
             return KomplettradRefusal::NoUsableMinimum;
@@ -357,6 +371,11 @@ final readonly class TyreEligibility
             if ($refusal !== null) {
                 return $refusal;
             }
+        }
+
+        // Rule 7b — the document's own list of combinations (D-256) names this size on both axles.
+        if ($this->combinations($verdict)?->listsSame($tyre->size()) === false) {
+            return KomplettradRefusal::SizeNotACombination;
         }
 
         // Rule 9
@@ -566,14 +585,15 @@ final readonly class TyreEligibility
     }
 
     /**
-     * The table the verdict's `reifen_kombination` Auflagen print, read strictly — where two print one, only the pairs
-     * both permit — and the Auflage it came from, for its code and page.
+     * The pairs the documents permit: their own lists of combinations, where any is entered (D-256), and the tables
+     * their `reifen_kombination` Auflagen print, read strictly — where several speak, only the pairs all of them permit,
+     * numbered as the first. With it the Auflage a printed table came from, for its code, its rules and its page.
      *
      * @return array{0: TyrePairingTable, 1: Condition|null}
      */
     private function pairingTable(FitmentVerdict $verdict): array
     {
-        $table = null;
+        $table = $this->combinations($verdict);
         $source = null;
         $seen = [];
 
@@ -583,7 +603,7 @@ final readonly class TyreEligibility
             }
 
             $seen[$condition->code."\u{0}".$condition->textDe] = true;
-            $read = TyrePairingTable::parse($condition->textDe);
+            $read = TyrePairingTable::parse($condition->textDe)->onPage($condition->sourcePage);
 
             if (! $read->isRead()) {
                 return [TyrePairingTable::none(), $condition];
@@ -594,6 +614,37 @@ final readonly class TyreEligibility
         }
 
         return [$table ?? TyrePairingTable::none(), $source];
+    }
+
+    /**
+     * The documents' own lists of tyre combinations (D-256), where any is entered: only the pairs every one of them names
+     * — read together, toward caution. Null where none is.
+     */
+    private function combinations(FitmentVerdict $verdict): ?TyrePairingTable
+    {
+        $table = null;
+
+        foreach ($verdict->documents !== [] ? $verdict->documents : array_filter([$verdict->document]) as $document) {
+            if ($document->tyreCombinations !== null) {
+                $table = $table === null ? $document->tyreCombinations : $table->intersect($document->tyreCombinations);
+            }
+        }
+
+        return $table;
+    }
+
+    /**
+     * The sizes four of a kind may come in: those both axles list — and, where the documents list their combinations,
+     * that a combination names on both axles.
+     *
+     * @return list<TyreSize>
+     */
+    private function sameSizes(FitmentVerdict $verdict): array
+    {
+        $sizes = TyreSize::intersect($verdict->front->sizes, $verdict->rear->sizes);
+        $combinations = $this->combinations($verdict);
+
+        return $combinations === null ? $sizes : array_values(array_filter($sizes, static fn (TyreSize $size): bool => $combinations->listsSame($size)));
     }
 
     /**

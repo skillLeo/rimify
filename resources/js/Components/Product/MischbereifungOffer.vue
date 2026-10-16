@@ -43,6 +43,9 @@ watch(
 
 const chosen = computed(() => props.offer.pairs.find((pair) => pair.key === chosenKey.value) ?? null)
 
+/* The rules' own page: the Auflage's, which beside a recorded list of combinations is not the pairs' page (D-256). */
+const rulesPage = computed(() => (props.offer.rulesPage === undefined ? props.offer.sourcePage : props.offer.rulesPage))
+
 const form = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
@@ -169,7 +172,7 @@ function add(key: string, frontId: number, rearId: number): void {
 
             <!-- The table's own conditions, quoted: what the customer must keep in the car. -->
             <figure v-if="offer.rules" class="mix__rules">
-                <figcaption class="micro">Dazu verlangt das Gutachten<template v-if="offer.sourcePage"> (Seite&nbsp;{{ offer.sourcePage }})</template></figcaption>
+                <figcaption class="micro">Dazu verlangt das Gutachten<template v-if="rulesPage"> (Seite&nbsp;{{ rulesPage }})</template></figcaption>
                 <blockquote class="mix__quote">{{ offer.rules }}</blockquote>
             </figure>
         </template>

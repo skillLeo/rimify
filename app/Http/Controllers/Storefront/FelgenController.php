@@ -611,6 +611,7 @@ class FelgenController extends Controller
             'perAxle' => TyreEligibility::MIXED_PER_AXLE,
             'rules' => $offer->rulesDe,
             'sourcePage' => $offer->sourcePage,
+            'rulesPage' => $offer->rulesPage,
             'priceOpen' => false,
             'pairs' => [],
         ];
@@ -702,6 +703,7 @@ class FelgenController extends Controller
             'perAxle' => TyreEligibility::MIXED_PER_AXLE,
             'rules' => $offer->rulesDe,
             'sourcePage' => $offer->sourcePage,
+            'rulesPage' => $offer->rulesPage,
             'priceOpen' => $priceOpen,
             'pairs' => $pairs,
         ];

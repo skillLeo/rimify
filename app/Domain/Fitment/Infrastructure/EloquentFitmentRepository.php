@@ -13,6 +13,8 @@ use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Support\BuildWindow;
+use App\Domain\Fitment\Tyres\TyrePairing;
+use App\Domain\Fitment\Tyres\TyrePairingTable;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Enums\ConflictStatus;
@@ -94,7 +96,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes'])
             ->where('fitments.vehicle_id', $vehicleId)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->tap($this->visible(...))
@@ -139,7 +141,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.speedDeratings', 'approvalDocument.supplementTo'])
+            ->with(['approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations', 'approvalDocument.supplementTo'])
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             // Incomplete until a person asserted otherwise (EIGENE-FUNDE 119, D-227): unanswered reads as partial.
             ->whereHas('approvalDocument', static fn (Builder $q) => $q->where(static fn (Builder $w) => $w->whereNull('completeness')->orWhere('completeness', '<>', ApprovalDocument::COMPLETE)))
@@ -393,7 +395,26 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             missingAnnexes: $document->missing_annexes === null || trim($document->missing_annexes) === '' ? null : trim($document->missing_annexes),
             completeness: $document->completeness,
             isDemo: (bool) $document->getAttribute('is_demo'),
+            tyreCombinations: self::tyreCombinations($document),
         );
+    }
+
+    /** The document's own list of tyre combinations, as the engine reads it (D-256); null when none is entered. */
+    private static function tyreCombinations(ApprovalDocument $document): ?TyrePairingTable
+    {
+        $pairs = [];
+        $page = null;
+
+        foreach ($document->tyreCombinations as $combination) {
+            $pairs[] = new TyrePairing(
+                $combination->number,
+                new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in),
+                new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in),
+            );
+            $page ??= $combination->source_page;
+        }
+
+        return $pairs === [] ? null : TyrePairingTable::recorded($pairs, $page);
     }
 
     /**

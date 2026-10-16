@@ -562,6 +562,8 @@ export type KomplettradRefusalCode =
     | 'BELOW_MINIMUM'
     | 'OUT_OF_STOCK'
     | 'NO_TYRE_AVAILABLE'
+    | 'NO_SAME_SIZE_COMBINATION'
+    | 'SIZE_NOT_A_COMBINATION'
     | 'NO_WEIGHT_COLOUR'
 
 /** One tyre the verdict permits on the chosen configuration, priced per wheel on the server. */
@@ -651,7 +653,10 @@ export interface MischbereifungProp {
     perAxle: number
     /** The document's own words beyond the table: one maker, one profile per axle, the confirmation in the car. */
     rules: string | null
+    /** The page of the pairs' numbering: the Auflage printing the table, or the document's own list of combinations (D-256). */
     sourcePage: number | null
+    /** The page of the sentence `rules` comes from; absent from a payload rendered before D-256. */
+    rulesPage?: number | null
     priceOpen: boolean
     pairs: MischbereifungPairProp[]
 }

@@ -21,6 +21,7 @@ import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import CountCard from './CountCard.vue'
+import CombinationsCard from './CombinationsCard.vue'
 import DeratingTable from './DeratingTable.vue'
 import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
@@ -433,6 +434,14 @@ const TONE: Record<string, string | null> = {
                 <span v-if="derating.seededFrom" class="adm-tag adm-tag--neutral">Demodaten</span>
             </div>
             <DeratingTable :document-id="document.id" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" />
+        </section>
+
+        <!-- ── Its own „Bereifungskombinationen“ (D-256) ──────────────── -->
+        <section class="adm-section" aria-labelledby="gs-combinations-h">
+            <div class="adm-section__head">
+                <h2 id="gs-combinations-h" class="adm-section__title">Bereifungskombinationen</h2>
+            </div>
+            <CombinationsCard :document-id="document.id" :combinations="combinations" :editable="can.edit && draft" :page-count="document.pageCount" />
         </section>
 
         <!-- ── Verwendungsbereich ────────────────────────────────────── -->

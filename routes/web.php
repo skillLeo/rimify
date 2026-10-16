@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenFahrzeugController;
+use App\Http\Controllers\Admin\GutachtenKombinationenController;
 use App\Http\Controllers\Admin\GutachtenTabelleController;
 use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
@@ -348,6 +349,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/gutachten/{document}/nacharbeit/{rework}', [GutachtenAngabenController::class, 'destroyRework'])->whereNumber(['document', 'rework'])->name('gutachten.nacharbeit.entfernen');
         // Its own table of tyre load at speed (ABE 55255, p. 6), saved whole.
         Route::put('/gutachten/{document}/tragfaehigkeitstabelle', [GutachtenTabelleController::class, 'update'])->whereNumber('document')->name('gutachten.tabelle.update');
+        // Its own „Bereifungskombinationen“ (D-256), saved whole.
+        Route::put('/gutachten/{document}/bereifungskombinationen', [GutachtenKombinationenController::class, 'update'])->whereNumber('document')->name('gutachten.kombinationen.update');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on

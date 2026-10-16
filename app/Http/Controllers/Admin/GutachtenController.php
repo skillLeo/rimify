@@ -25,6 +25,7 @@ use App\Models\DocumentCondition;
 use App\Models\DocumentConditionRework;
 use App\Models\DocumentFastener;
 use App\Models\DocumentNotice;
+use App\Models\DocumentTyreCombination;
 use App\Models\Fitment;
 use App\Models\FitmentCondition;
 use App\Models\FitmentTyreSize;
@@ -227,6 +228,8 @@ class GutachtenController extends Controller
                 ])->values()->all(),
             // Its own table of tyre load at speed (ABE 55255, p. 6): rows of speeds, columns of symbols.
             'derating' => self::deratingView($document),
+            // Its own „Bereifungskombinationen“ (D-256): once there are any, the only tyres the shop offers on it.
+            'combinations' => self::combinationsView($document),
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
                 ->whereIn('candidate_fitment_id', $rows->pluck('id'))->count(),
             // Which buttons to draw: asked, not attempted — a released document's „no“ is no refusal (ADMIN-GEFUNDEN 509).
@@ -271,6 +274,25 @@ class GutachtenController extends Controller
             'seededFrom' => $cells->first()?->seeded_from,
             'symbols' => array_keys($symbols),
             'rows' => array_map(static fn (int $speed, array $row): array => ['speed' => $speed, 'cells' => $row], array_keys($rows), $rows),
+        ];
+    }
+
+    /**
+     * The document's own list of tyre combinations as the card shows it: in its numbering, each size as printed.
+     *
+     * @return array{sourcePage: int|null, entries: list<array{number: int, front: string, rear: string}>}
+     */
+    private static function combinationsView(ApprovalDocument $document): array
+    {
+        $combinations = $document->tyreCombinations()->get();
+
+        return [
+            'sourcePage' => $combinations->first()?->source_page,
+            'entries' => $combinations->map(static fn (DocumentTyreCombination $c): array => [
+                'number' => $c->number,
+                'front' => GermanFormat::tyreSize($c->front_width_mm, $c->front_aspect, $c->front_diameter_in),
+                'rear' => GermanFormat::tyreSize($c->rear_width_mm, $c->rear_aspect, $c->rear_diameter_in),
+            ])->values()->all(),
         ];
     }
 

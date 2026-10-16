@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fitment\Data;
 
+use App\Domain\Fitment\Tyres\TyrePairingTable;
 use DateTimeImmutable;
 
 /**
@@ -59,6 +60,14 @@ final readonly class DocumentRecord
          * (decision 6, the operator's brief of 15.10.2026, D-239). Frozen with the verdict where true.
          */
         public bool $isDemo = false,
+        /**
+         * The document's own list of tyre combinations, front against rear, as entered (`document_tyre_combinations`,
+         * D-256); null where none is entered. Entered, it is closed: the document approves the wheel only with these —
+         * BBS's Anlage BMW15, „in Verbindung mit“ four combinations — so four tyres of one size are offered only where a
+         * combination names that size on both axles, and a mixed set only where it names the pair. Not frozen onto a
+         * snapshot, like the derating table: TyreEligibility answers live verdicts only.
+         */
+        public ?TyrePairingTable $tyreCombinations = null,
     ) {}
 
     public const COMPLETE = 'complete';

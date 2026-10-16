@@ -57,6 +57,9 @@ function releasedWithEverything(): ApprovalDocument
     DocumentFastener::query()->create(['approval_document_id' => $document->id, 'number' => 'S01', 'thread' => 'M14x1,25', 'seat' => 'Kegelbund 60°', 'torque_nm' => 120, 'source_page' => 5]);
     DocumentNotice::query()->create(['approval_document_id' => $document->id, 'text_de' => 'Radschrauben nach 50 km nachziehen.', 'source_page' => 5, 'sort_order' => 1]);
     DocumentSpeedDerating::query()->create(['approval_document_id' => $document->id, 'speed_kmh' => 240, 'symbol' => 'V', 'percent' => '91', 'source_page' => 6]);
+    test()->actingAs(revisionAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/bereifungskombinationen", [
+        'source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => '225/40 R18']],
+    ])->assertSessionHasNoErrors();
 
     $model = WheelModel::factory()->draft()->create(['is_demo' => false, 'name' => 'LeMans']);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
@@ -85,6 +88,7 @@ function holdings(int $id): array
         'document_fasteners' => DB::table('document_fasteners')->where('approval_document_id', $id)->count(),
         'document_notices' => DB::table('document_notices')->where('approval_document_id', $id)->count(),
         'document_speed_deratings' => DB::table('document_speed_deratings')->where('approval_document_id', $id)->count(),
+        'document_tyre_combinations' => DB::table('document_tyre_combinations')->where('approval_document_id', $id)->count(),
         'fitments' => $rows->count(),
         'fitment_conditions' => DB::table('fitment_conditions')->whereIn('fitment_id', $rows)->count(),
         'fitment_tyre_sizes' => $sizes->count(),
@@ -100,7 +104,7 @@ it('starts a new revision as a draft holding all the released one holds — the 
     $response->assertRedirect('/admin/gutachten/'.$draft->id);
 
     expect(holdings($draft->id))->toBe(holdings($released->id))
-        ->and(array_sum(holdings($draft->id)))->toBeGreaterThan(9)
+        ->and(array_sum(holdings($draft->id)))->toBeGreaterThan(10)
         ->and($draft->status->value)->toBe('draft')
         ->and($draft->revision)->toBe($released->revision + 1)
         ->and($draft->completeness)->toBeNull()
