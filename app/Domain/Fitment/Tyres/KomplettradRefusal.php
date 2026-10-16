@@ -40,6 +40,10 @@ enum KomplettradRefusal: string
     case MixedPairNotListed = 'MIXED_PAIR_NOT_LISTED';
     /** Mischbereifung: front and rear are not one maker's one tyre line, as the table's own sentence asks. */
     case MixedNotOneMaker = 'MIXED_NOT_ONE_MAKER';
+    /** Four of a kind: the document's own list of combinations (D-256) names none of this row's sizes on both axles. */
+    case NoSameSizeCombination = 'NO_SAME_SIZE_COMBINATION';
+    /** Four of a kind: that list does not name this tyre's size on both axles. */
+    case SizeNotACombination = 'SIZE_NOT_A_COMBINATION';
 
     public function sentenceDe(): string
     {
@@ -64,6 +68,8 @@ enum KomplettradRefusal: string
             self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten sind für dein Fahrzeug mit dieser Felge nicht hinterlegt.',
             self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten sind für dein Fahrzeug nicht als Kombination hinterlegt.',
             self::MixedNotOneMaker => 'Vorne und hinten müssen Reifen desselben Herstellers und derselben Profilreihe sein – so verlangt es das Gutachten.',
+            self::NoSameSizeCombination => 'Vier gleiche Reifen sind für dein Fahrzeug mit dieser Felge nicht als Kombination hinterlegt. Die Felge allein kannst du sofort bestellen.',
+            self::SizeNotACombination => 'Vier Reifen dieser Größe sind für dein Fahrzeug mit dieser Felge nicht als Kombination hinterlegt.',
         };
     }
 

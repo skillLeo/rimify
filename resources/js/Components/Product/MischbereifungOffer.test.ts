@@ -107,6 +107,13 @@ describe('MischbereifungOffer', () => {
         expect(mountOffer().find('.mix__quote').text()).toBe(RULES)
     })
 
+    it('names each its own page where a recorded list stands beside an Auflage’s table (D-256): the pairs the list’s, the rules the Auflage’s', () => {
+        const wrapper = mountOffer({ offer: offer({ sourcePage: 4, rulesPage: 12, pairs: [pair({ number: 2 })] }) })
+
+        expect(wrapper.text()).toContain('Kombination Nr. 2 im Gutachten, Seite 4')
+        expect(wrapper.find('.mix__rules figcaption').text()).toBe('Dazu verlangt das Gutachten (Seite 12)')
+    })
+
     it('posts the front and the rear tyre with the wheels per axle', async () => {
         await mountOffer().find('.mix-card__add').trigger('click')
 

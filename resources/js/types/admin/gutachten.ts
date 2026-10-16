@@ -248,6 +248,13 @@ export interface DeratingView {
     rows: { speed: number; cells: Record<string, string> }[]
 }
 
+/** The document's own „Bereifungskombinationen“ (D-256), in its numbering: once there are any, the only tyres the shop offers on it. */
+export interface CombinationsView {
+    sourcePage: number | null
+    /** `225/40 R18` front and rear, as the card shows them. */
+    entries: { number: number; front: string; rear: string }[]
+}
+
 export interface AdminGutachtenShowProps {
     document: DocumentFacts
     rows: FitmentRowView[]
@@ -269,6 +276,7 @@ export interface AdminGutachtenShowProps {
     reworks: ReworkView[]
     /** The document's own table of tyre load at speed; `rows` empty when it has none. */
     derating: DeratingView
+    combinations: CombinationsView
     openConflicts: number
     /** `levels`: may set how loud each Auflage is in the shop (#23, D-104) — on a released document too. */
     /** `revise`: may start a new revision of this released document (ADMIN-GEFUNDEN 510). */

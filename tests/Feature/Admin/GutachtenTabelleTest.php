@@ -85,6 +85,12 @@ it('saves the table as typed — a share, a „–“ as not permitted, an empty
         ->assertSessionHas('toast', 'Tabelle entfernt.');
 
     expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->count())->toBe(0);
+
+    // Nothing over nothing: no change, and no Protokoll line claiming one (ADMIN-GEFUNDEN 509's class, found beside D-256).
+    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", ['symbols' => ['V', 'W', 'Y'], 'rows' => []])
+        ->assertSessionHas('toast', 'Es war keine Tabelle eingetragen.');
+
+    expect(AuditLog::query()->where('description', 'approval.derating_removed')->count())->toBe(1);
 });
 
 it('says on the record when a table came from the demo seed, and forgets that once a person types it from the PDF', function (): void {

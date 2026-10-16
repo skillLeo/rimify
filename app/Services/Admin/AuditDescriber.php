@@ -163,6 +163,8 @@ final class AuditDescriber
         'approval.rework_removed' => 'gutachten',
         'approval.derating_saved' => 'gutachten',
         'approval.derating_removed' => 'gutachten',
+        'approval.combinations_saved' => 'gutachten',
+        'approval.combinations_removed' => 'gutachten',
         'approval.limit_confirmed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
@@ -509,6 +511,8 @@ final class AuditDescriber
             'approval.derating_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert ('.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').').', []],
             'approval.limit_confirmed' => ['In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Achslast bei '.self::q(self::text($p, 'code') ?? '–').' so bestätigt, wie das Gutachten sie druckt: '.self::q(self::text($p, 'reason') ?? '–').'.', []],
             'approval.derating_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
+            'approval.combinations_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Bereifungskombinationen gespeichert ('.self::count((int) (self::text($p, 'combinations') ?? 0), 'Kombination', 'Kombinationen').').', []],
+            'approval.combinations_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Bereifungskombinationen entfernt.', []],
             'conflict.decided' => [
                 'Der Konflikt zu '.self::q(trim((self::text($p, 'vehicle') ?? 'einem Fahrzeug').' · '.(self::text($p, 'wheel') ?? 'einer Felge'))).' wurde entschieden: '
                     .(($p['mode'] ?? null) === 'only'

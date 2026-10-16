@@ -605,6 +605,8 @@ describe('putting every entry into words', function (): void {
             'approval.rework_removed' => [['document' => 'ABE 55255', 'what' => 'K42 · 3C · von 15 bis 30 mm'], 'Aus „ABE 55255“ wurde das Maß der Nacharbeit „K42 · 3C · von 15 bis 30 mm“ entfernt.', []],
             'approval.derating_saved' => [['document' => 'ABE 55255', 'rows' => 10], 'Für „ABE 55255“ wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert (10 Zeilen).', []],
             'approval.derating_removed' => [['document' => 'ABE 55255'], 'Aus „ABE 55255“ wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
+            'approval.combinations_saved' => [['document' => 'TG 1810080716', 'combinations' => 4, 'before' => 0], 'Für „TG 1810080716“ wurden die Bereifungskombinationen gespeichert (4 Kombinationen).', []],
+            'approval.combinations_removed' => [['document' => 'TG 1810080716', 'combinations' => 0, 'before' => 4], 'Aus „TG 1810080716“ wurden die Bereifungskombinationen entfernt.', []],
             'approval.limit_confirmed' => [
                 ['document' => 'ABE 55255', 'code' => 'T88', 'reason' => 'Seite 7 druckt 1.125 kg.'],
                 'In „ABE 55255“ wurde die Achslast bei „T88“ so bestätigt, wie das Gutachten sie druckt: „Seite 7 druckt 1.125 kg.“.',

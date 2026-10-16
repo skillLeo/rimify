@@ -85,6 +85,7 @@ final class ResetTables
         'document_fasteners',
         'document_notices',
         'document_speed_deratings',
+        'document_tyre_combinations',
         'fitments',
         'fitment_conditions',
         'fitment_conflicts',

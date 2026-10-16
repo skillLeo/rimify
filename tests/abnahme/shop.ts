@@ -21,7 +21,7 @@ export const RIM = 22_900
 
 /** `1.145,00 €` — as the shop writes money (R-10), the narrow no-break space before the sign. */
 export function euro(cents: number): string {
-    return `${new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)} €`
+    return `${new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)}\u202F€`
 }
 
 /** The page with the car chosen through its address: the server takes it and keeps it. */

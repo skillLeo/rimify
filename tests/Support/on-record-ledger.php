@@ -93,6 +93,8 @@ return [
     'und das Gutachten nicht freigebbar, bis der Code dort steht' => ['ours', 'a rule of the release'],
     'Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern' => ['ours', 'R-12\'s neighbour: a released record is not edited; a correction is a new revision (D-250)'],
     'Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten' => ['ours', 'a rule of the record: a revision is started from the released one (D-250)'],
+    'Dann bietet der Shop zu diesem Gutachten nur diese an' => ['ours', 'what the shop does with the entered list: `document_tyre_combinations`, closed (D-256)'],
+    'Die Liste gilt für alle Fahrzeuge dieses Gutachtens' => ['ours', 'the scope of the entered list: one list per document, every row of it (D-256)'],
     'Für keine Lücke wurde bisher ein Gutachten angefordert' => ['ours', 'the state of our requests'],
 
     // ── The second pattern: a document word beside „wörtlich“, „vollständig“, „alle“, „immer“ (D-236) ─────────────────

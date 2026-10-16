@@ -21,7 +21,7 @@ Nr,Skill Leo,Description
 20,SkillLeo Done,"Different sizes front and rear can be chosen, only in the pairs the Gutachten permits."
 21,SkillLeo Done,"„Eintragung“ now appears once. The Gutachten’s original wording is behind „Originaltext anzeigen“, each sentence under the tyre sizes it applies to."
 22,SkillLeo Done,"On mobile „Vergleichen“ no longer covers the „Mit Auflagen“ label. Long conditions are shown as a count on the tile, with the wording on the product page."
-23,Open,Built and tested on our side. Not on your preview yet.
+23,SkillLeo Done,"configurable as you asked, with one floor — a condition needing an inspection cannot be set to green."
 24,SkillLeo Done,The filter column scrolls cleanly to its last entry.
 25,SkillLeo Done,The button without a function is gone; „Nur Felgen“ or „Komplettrad“ is chosen right by the price.
 26,SkillLeo Done,No button opens an e-mail program any more; all lead to the contact form. The Impressum shows your e-mail address as text once your seller details are entered; on the preview it still reads „noch nicht angegeben“.

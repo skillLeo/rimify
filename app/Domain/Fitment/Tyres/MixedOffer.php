@@ -22,9 +22,14 @@ final readonly class MixedOffer
         public bool $hasTable,
         /** What the document says beyond the table, in its own words: one maker, one profile per axle, … */
         public ?string $rulesDe = null,
-        /** The Auflage the table stands in (`V19`) and its page — so the customer can find it in the PDF. */
+        /**
+         * The Auflage a printed table stands in (`V19`), and the page of the pairs' numbering — that Auflage's, or that of
+         * the document's own list of combinations (D-256) — so the customer can find „Kombination Nr. 2“ in the PDF.
+         */
         public ?string $code = null,
         public ?int $sourcePage = null,
+        /** The page of the sentence `rulesDe` comes from: the Auflage's, never the list's. */
+        public ?int $rulesPage = null,
     ) {}
 
     public static function refused(KomplettradRefusal $refusal, bool $hasTable = false): self

@@ -1,8 +1,8 @@
 {
   "instance": "vorschau",
   "where": "https://rimify.skillleo.com",
-  "commit": "e73553df",
-  "at": "2026-10-16T14:08:09.877Z",
+  "commit": "666cb4a1",
+  "at": "2026-10-16T18:38:30.084Z",
   "items": {
     "1": {
       "passed": true,
@@ -247,15 +247,15 @@
       "at": "2026-10-16T14:08:09.877Z"
     },
     "23": {
-      "passed": false,
-      "ran": 0,
+      "passed": true,
+      "ran": 2,
       "engines": {
-        "chromium 1440×900": "skipped",
-        "webkit 390×844": "skipped"
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
       },
       "tests": 2,
-      "commit": "e73553df",
-      "at": "2026-10-16T14:08:09.877Z"
+      "commit": "666cb4a1",
+      "at": "2026-10-16T18:38:30.084Z"
     },
     "24": {
       "passed": true,

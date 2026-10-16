@@ -234,6 +234,17 @@ class ApprovalDocument extends Model
     }
 
     /**
+     * The document's own „Bereifungskombinationen“, in its numbering (D-256): where there are any, the only tyres the shop
+     * offers on it.
+     *
+     * @return HasMany<DocumentTyreCombination, $this>
+     */
+    public function tyreCombinations(): HasMany
+    {
+        return $this->hasMany(DocumentTyreCombination::class)->orderBy('number')->orderBy('id');
+    }
+
+    /**
      * The sentence for a Nachtrag whose base we do not hold (the corrections memo §4) — said on the
      * record, in the Abdeckung and to the customer; null for any other document.
      */

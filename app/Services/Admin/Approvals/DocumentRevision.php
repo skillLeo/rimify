@@ -18,8 +18,8 @@ use LogicException;
  * revision that supersedes it once it is released itself (DocumentRelease). Until then the shop reads the released one.
  *
  * The new revision starts as a draft holding everything its predecessor holds — its facts and PDF, its count, its
- * Auflagenverzeichnis with the levels, the reworks, fasteners and notices, its table of tyre load at speed, and every
- * row with its codes and tyre sizes — so a correction is a correction, not a second entry. What the release asks it
+ * Auflagenverzeichnis with the levels, the reworks, fasteners and notices, its table of tyre load at speed, its list of
+ * tyre combinations, and every row with its codes and tyre sizes — so a correction is a correction, not a second entry. What the release asks it
  * asks again: the completeness answer is not carried over. A demo document's revision is born demo too, and goes with
  * the demo set.
  */
@@ -28,7 +28,8 @@ final class DocumentRevision
     /** The tables a revision copies, child after parent. */
     public const TABLES = [
         'approval_documents', 'document_conditions', 'document_condition_reworks', 'document_fasteners', 'document_notices',
-        'document_speed_deratings', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes', 'fitment_tyre_size_conditions',
+        'document_speed_deratings', 'document_tyre_combinations', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes',
+        'fitment_tyre_size_conditions',
     ];
 
     /** Columns the database computes itself, never written (`DocumentRevisionTest` holds this list to the schema). */
@@ -69,7 +70,7 @@ final class DocumentRevision
                 self::copyChildren('document_condition_reworks', 'document_condition_id', $from, $to);
             }
 
-            foreach (['document_fasteners', 'document_notices', 'document_speed_deratings'] as $table) {
+            foreach (['document_fasteners', 'document_notices', 'document_speed_deratings', 'document_tyre_combinations'] as $table) {
                 self::copyChildren($table, 'approval_document_id', $released->id, $id);
             }
 

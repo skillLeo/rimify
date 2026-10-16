@@ -18,6 +18,10 @@ use App\Domain\Fitment\Data\TyreSize;
  * numbered 1, 2, 3 … without a gap, and every entry exactly one front size, a dash and one or more rear sizes.
  * Anything else reads as no table, and no pair is offered (fails closed, CLAUDE.md §2): a table read half
  * right could put a rear size on the front axle.
+ *
+ * A document's own list of „Bereifungskombinationen“, entered as such (`document_tyre_combinations`, D-256), is the
+ * same table built from its rows instead of a sentence (recorded()): every pair as printed, the same size on both
+ * axles included.
  */
 final readonly class TyrePairingTable
 {
@@ -30,7 +34,20 @@ final readonly class TyrePairingTable
         public array $pairs,
         /** What the document says after the table — the conditions every pair carries, in its own words. */
         public ?string $rulesDe,
+        /** The page the pairs stand on, where it is recorded with them — a recorded list's; a sentence's page is its Auflage's. */
+        public ?int $sourcePage = null,
     ) {}
+
+    /**
+     * A document's list of combinations as entered (D-256), in its own numbering — `Kombination 2: vorn 225/40 R18,
+     * hinten 245/35 R18` — on its page.
+     *
+     * @param  list<TyrePairing>  $pairs
+     */
+    public static function recorded(array $pairs, ?int $sourcePage): self
+    {
+        return new self($pairs, null, $sourcePage);
+    }
 
     public static function parse(string $text): self
     {
@@ -70,10 +87,40 @@ final readonly class TyrePairingTable
         return new self($pairs, $rest === '' ? null : $rest);
     }
 
+    /** The same table, on the page of the Auflage whose sentence prints it. */
+    public function onPage(?int $page): self
+    {
+        return new self($this->pairs, $this->rulesDe, $page);
+    }
+
     /** Whether a table was read at all. */
     public function isRead(): bool
     {
         return $this->pairs !== [];
+    }
+
+    /** Whether it pairs any two different sizes — something to say about Mischbereifung at all. */
+    public function hasMixedPair(): bool
+    {
+        foreach ($this->pairs as $pair) {
+            if (! $pair->front->matches($pair->rear)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Whether it lists this size on both axles: four of the same tyre. */
+    public function listsSame(TyreSize $size): bool
+    {
+        foreach ($this->pairs as $pair) {
+            if ($pair->front->matches($size) && $pair->rear->matches($size)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** The entry permitting this front size with this rear size, or null: the document's order only. */
@@ -89,7 +136,8 @@ final readonly class TyrePairingTable
     }
 
     /**
-     * The pairs both tables permit — where two Auflagen print a table, only what each allows is offered.
+     * The pairs both tables permit — where two Auflagen print a table, only what each allows is offered. The pairs keep
+     * this table's numbers, and so its page.
      */
     public function intersect(self $other): self
     {
@@ -98,6 +146,7 @@ final readonly class TyrePairingTable
         return new self(
             array_values(array_filter($this->pairs, static fn (TyrePairing $p): bool => in_array($p->key(), $keys, true))),
             trim(implode(' ', array_unique(array_filter([$this->rulesDe, $other->rulesDe])))) ?: null,
+            $this->sourcePage,
         );
     }
 
