@@ -193,7 +193,7 @@ test.describe('as the Super-Admin', () => {
         // The document by its link's address: on a phone the list draws its links twice, one of them hidden, and a click
         // on the hidden one waits for the test's whole budget (the preview's iPhone pass, 16.10.2026).
         await open(page, '/admin/gutachten')
-        const documentPage = new URL((await page.locator('a', { hasText: 'ABE 55255' }).first().getAttribute('href')) ?? '/', BASE).pathname
+        const documentPage = new URL((await page.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })) ?? '/', BASE).pathname
         expect(documentPage, 'ABE 55255 is not in the list').toMatch(/^\/admin\/gutachten\/\d+$/)
         await open(page, documentPage)
 
