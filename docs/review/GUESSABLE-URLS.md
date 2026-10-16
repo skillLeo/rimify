@@ -44,5 +44,15 @@ number. **No personal data was disclosed; this is not an Article 33 question.**
 | `/warenkorb/{Zeile}` | line id in the session | only the session that holds the basket |
 
 Changed since this check: who may open an order is decided by where it came from, never by what it contains — the
-first line of the table (EIGENE-FUNDE 131, D-238). The mail's link is to expire after twelve months, an expired one
-leading to a page that sends a fresh link to the address the order went to (your answer of 15.10.2026; not built yet).
+first line of the table (EIGENE-FUNDE 131, D-238). The mail's link expires after twelve months; an expired one — and
+one from before links expired — leads to a page that sends a fresh link to the address the order went to, with the same
+answer whatever is typed (your answer of 15.10.2026, D-240). Opened by its link alone, the page shows the address the
+mail went to shortened (`e…@beispiel.de`).
+
+Three addresses came with this run:
+
+| Address | Shape | Who can open it |
+|---|---|---|
+| `/__fehlerseite/{Status}` | one of 403, 404, 419, 429, 500, 503 | anyone, in a test environment only — the shop's own error page for that status, opened on purpose; in the live shop the 404 every unknown address gets (D-243) |
+| `/gutachten/{id}/beispiel` | numeric document id | anyone, for an example document the shop shows (born demo, released); for any other id the same 404 as one that does not exist (D-239) |
+| `/bestellung/link` (POST) | no parameter in the address | anyone; it sends a fresh link only to the address the named order went to, and answers the same either way; 5 a minute, 30 an hour per address |
