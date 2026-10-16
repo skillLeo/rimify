@@ -85,6 +85,31 @@ final readonly class VerdictReason
     }
 
     /**
+     * BODY_OR_DRIVE_EXCLUDED with the Auflagen that keep the car out, in their own words: a total refusal names its
+     * condition in the verdict's reason (the operator's brief of 17.10.2026 §1, 512a) — the cause, never a decoration.
+     * Without a recorded sentence, the plain one.
+     *
+     * @param  list<string|null>  $sentences
+     */
+    public static function excludedBy(array $sentences): self
+    {
+        $plain = self::sentenceFor(self::BODY_OR_DRIVE_EXCLUDED);
+        $named = array_values(array_unique(array_filter(array_map(static fn (?string $s): string => trim((string) $s), $sentences), static fn (string $s): bool => $s !== '')));
+
+        if ($named === []) {
+            return new self(self::BODY_OR_DRIVE_EXCLUDED, $plain);
+        }
+
+        $quoted = array_map(static fn (string $s): string => '„'.$s.'“', $named);
+        $last = array_pop($quoted);
+        $list = $quoted === [] ? $last : implode(', ', $quoted).' und '.$last;
+        // A sentence quoted as printed keeps its own stop; one recorded without it gets the reason's own, after the quote.
+        $stop = preg_match('/[.!?]$/u', (string) end($named)) === 1 ? '' : '.';
+
+        return new self(self::BODY_OR_DRIVE_EXCLUDED, $plain.' '.(count($named) === 1 ? 'Das liegt an der Auflage: ' : 'Das liegt an den Auflagen: ').$list.$stop);
+    }
+
+    /**
      * Deliberately plain, and deliberately never apologetic. "We do not know" is a legitimate
      * answer here and is stated as one — it is not framed as a refusal or as a fault.
      */

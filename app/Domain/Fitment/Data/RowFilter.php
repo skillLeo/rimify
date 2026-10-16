@@ -31,6 +31,7 @@ final readonly class RowFilter
     /**
      * @param  list<string>  $bodyForms  for BODY_FORM: the body styles permitted
      * @param  string|null  $driveMode  for DRIVE: `only` or `not`
+     * @param  string|null  $textDe  the code's sentence as its document prints it — named in the answer when the code keeps a car out (512a)
      */
     public function __construct(
         public string $code,
@@ -38,6 +39,7 @@ final readonly class RowFilter
         public array $bodyForms = [],
         public ?string $driveMode = null,
         public ?string $drive = null,
+        public ?string $textDe = null,
     ) {}
 
     /** True: the vehicle is covered. False: excluded. Null: we cannot tell. */
@@ -135,6 +137,39 @@ final readonly class RowFilter
         }
 
         return in_array(null, $decisions, true) ? null : true;
+    }
+
+    /**
+     * The codes that keep this vehicle out, so the answer can name them (the operator's brief of 17.10.2026 §1: a total
+     * refusal names its condition in the verdict's reason): the body-style codes together, where its body style is none
+     * of theirs; the „nicht mit“ code of its drive, or else the „nur mit“ codes that leave its drive out. Empty where
+     * these codes do not exclude it.
+     *
+     * @param  list<self>  $filters
+     * @return list<self>
+     */
+    public static function refusing(array $filters, VehicleRecord $vehicle): array
+    {
+        if (self::admitAll($filters, $vehicle) !== false) {
+            return [];
+        }
+
+        $bodies = array_values(array_filter($filters, static fn (self $f): bool => $f->kind === self::BODY_FORM));
+        $drives = array_values(array_filter($filters, static fn (self $f): bool => $f->kind === self::DRIVE));
+        $out = [];
+
+        if ($bodies !== [] && self::admitAll($bodies, $vehicle) === false) {
+            $out = $bodies;
+        }
+
+        if ($drives !== [] && self::admitAll($drives, $vehicle) === false) {
+            $drive = self::known($vehicle->driveAxle);
+            $not = array_values(array_filter($drives, static fn (self $f): bool => $f->driveMode === 'not' && $f->drive !== null && self::normalise($f->drive) === $drive));
+
+            $out = [...$out, ...($not !== [] ? $not : array_values(array_filter($drives, static fn (self $f): bool => $f->driveMode === 'only')))];
+        }
+
+        return $out;
     }
 
     /**
