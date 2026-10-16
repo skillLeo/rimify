@@ -66,30 +66,29 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     await write()
     await shot(form, 12, info)
 
-    // Sent in the moment after the page came: no person writes that fast — said, and the words stay. The page is asked
-    // for anew, so its ticket is fresh, and the send follows at once. The browser's clock starts before the server hands
-    // the form out, so it never reads less than the ticket's age: under 1,5 s here leaves the send as long again to
-    // arrive. A page that came slower is asked for once more — never passed over, or the refusal would go unshown.
-    let refused = false
+    // Sent in the moment the form was handed out: no person writes that fast — said, and the words stay. The send carries
+    // a ticket the server sealed a moment before it, taken from the same page (its props, as Inertia asks for them) — so
+    // the send is too quick whatever the machine's pace. Waiting for a page to come and fill within 1,5 s could not be
+    // done on a loaded machine, and the refusal went unshown (16.10.2026, twice).
+    const version = await page.evaluate(() => (window.history.state as { page?: { version?: string } } | null)?.page?.version ?? '')
+    await page.route('**/kontakt', async (route) => {
+        const body = route.request().postDataJSON() as Record<string, unknown> | null
 
-    for (let attempt = 0; attempt < 3 && !refused; attempt++) {
-        await page.reload({ waitUntil: 'domcontentloaded' })
-        await page.waitForFunction(() => (document.querySelector('#app') as (Element & { __vue_app__?: unknown }) | null)?.__vue_app__ !== undefined)
-        await write()
-
-        if ((await page.evaluate(() => performance.now())) > 1_500) {
-            continue
+        if (route.request().method() !== 'POST' || body === null) {
+            return route.continue()
         }
 
-        await form.getByRole('button', { name: 'Nachricht senden' }).click()
-        await expect(form.getByRole('alert')).toHaveText('Das ging zu schnell. Bitte schick deine Nachricht noch einmal ab.')
-        await expect(form.locator('#kon-message')).toHaveValue('Passt die Felge auch mit Winterreifen auf mein Auto?')
-        refused = true
-    }
+        const fresh = await page.request.get('/kontakt', { headers: { 'X-Inertia': 'true', 'X-Inertia-Version': version, Accept: 'text/html, application/xhtml+xml' } })
+        const ticket = ((await fresh.json()) as { props: { ticket?: string } }).props.ticket
 
-    expect(refused, 'the form never came within 1,5 s in three tries — the refusal of a quick send could not be shown').toBe(true)
+        return route.continue({ postData: JSON.stringify({ ...body, ticket }) })
+    })
+    await form.getByRole('button', { name: 'Nachricht senden' }).click()
+    await expect(form.getByRole('alert')).toHaveText('Das ging zu schnell. Bitte schick deine Nachricht noch einmal ab.')
+    await expect(form.locator('#kon-message')).toHaveValue('Passt die Felge auch mit Winterreifen auf mein Auto?')
+    await page.unroute('**/kontakt')
 
-    // A moment later the same form goes through, and is kept for the team.
+    // A moment later the same form goes through — with the ticket it was handed — and is kept for the team.
     await page.waitForTimeout(3_200)
     await form.getByRole('button', { name: 'Nachricht senden' }).click()
     await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist angekommen')
