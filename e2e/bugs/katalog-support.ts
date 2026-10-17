@@ -113,9 +113,24 @@ export async function fillSize(page: Page, index: number, size: Partial<Record<'
     }
 }
 
-/** Strg+S, the form's own shortcut (useDirtyForm), pressed with the focus inside the page. */
+/**
+ * Strg+S, the form's own shortcut (useDirtyForm), pressed with the focus inside the page — and where it sends the form
+ * (POST /admin/felgen, PUT /admin/felgen/{id}), its answer as a step of its own: a refusal is the server's to give, so
+ * the page's sign of it is checked after the answer, not within a wait that also held the round trip (D-266). An answer
+ * a guard stopped, or one held in the browser, ends the step as well; a save the page never sends is not waited for.
+ */
 export async function pressSave(page: Page): Promise<void> {
+    const sent = page
+        .waitForRequest((request) => ['POST', 'PUT'].includes(request.method()) && /^\/admin\/felgen(\/\d+)?$/.test(new URL(request.url()).pathname), { timeout: 3_000 })
+        .catch(() => null);
+
     await page.keyboard.press('Control+s');
+
+    const request = await sent;
+
+    if (request !== null) {
+        await request.response();
+    }
 }
 
 /**
