@@ -81,11 +81,13 @@
     @foreach (\App\Support\PageStyles::for($page['component'] ?? '') as $href)
         <link rel="stylesheet" href="{{ $href }}" @disabled(\App\Support\InlineStyles::has($href))>
     @endforeach
-    {{-- A desktop storefront page paints once its footer is parsed (SiteFooter's last element). With the stylesheets in
-         the document nothing else held the first paint back, and a footer painted half-built at the foot of a short
-         page grew upwards as its last rows arrived: CLS 0,024 at 1440 (D-177). The phone's first paint is its LCP and
-         keeps its head start. --}}
-    @if (! ($page['props']['isMobile'] ?? false) && ! str_starts_with($page['component'] ?? '', 'Admin/'))
+    {{-- A desktop page paints once its last element is parsed: SiteFooter's in the shop, AdminLayout's in the admin. With
+         the stylesheets in the document nothing else held the first paint back: a footer painted half-built at the foot
+         of a short page grew upwards as its last rows arrived, CLS 0,024 at 1440 (D-177); the Übersicht was painted with
+         its header half-parsed — the Zeitraum's three buttons beside the title — and rearranged when the rest arrived,
+         0,039 at 768 on a loaded machine (D-274). A page without the element (the admin's sign-in and invitation pages)
+         paints when its parse ends. The phone's first paint is its LCP and keeps its head start. --}}
+    @if (! ($page['props']['isMobile'] ?? false))
         <link rel="expect" href="#seitenende" blocking="render">
     @endif
     @if (($page['component'] ?? '') === 'Startseite/Mobile')

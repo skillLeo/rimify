@@ -495,4 +495,8 @@ onBeforeUnmount(() => {
 
     <!-- The confirmation a mutation flashed (`flash.toast`), announced once per response. -->
     <Toast />
+
+    <!-- The document's last word: a desktop admin page paints once this is parsed (app.blade.php, `rel="expect"`), so a
+         header is never painted half-parsed and then rearranged as the rest arrives (D-274). -->
+    <span id="seitenende" hidden />
 </template>
