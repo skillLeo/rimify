@@ -36,6 +36,20 @@ interface Found {
 async function read(page: Page): Promise<Found> {
     await page.waitForLoadState('load');
     await page.evaluate(() => document.fonts.ready);
+    // Pictures are read where they come to rest: the hero's wheels roll in after the load, the second a beat after the
+    // first and standing off the screen until then. The first full run on release 13 — a quick one — read the Bronze
+    // wheel during that beat and called its preload wrong. Every animation that ends is waited for, five seconds at most.
+    await page.evaluate(() =>
+        Promise.race([
+            Promise.all(
+                document
+                    .getAnimations()
+                    .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+                    .map((animation) => animation.finished.catch(() => undefined)),
+            ),
+            new Promise((resolve) => setTimeout(resolve, 5_000)),
+        ]),
+    );
 
     return page.evaluate(() => {
         const stem = (address: string): string => (address.split('/').pop() ?? '').replace(/-\d+\.[a-z0-9]+$/i, '');
