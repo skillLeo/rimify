@@ -199,6 +199,7 @@ await send('PUT', `/admin/gutachten/${id}`, {
     valid_from_production: doc.valid_from_production ?? '',
     papers_correction: doc.papers_correction ?? '',
     missing_annexes: doc.missing_annexes ?? '',
+    tyre_index_source: doc.tyre_index_source ?? '',
 })
 log(`  Angaben der ersten Seite gespeichert.${base ? ` Mit dem Grundgutachten #${base.id} verknüpft.` : ''}`)
 

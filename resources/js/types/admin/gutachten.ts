@@ -130,6 +130,8 @@ export interface RecordShape {
     papers_correction: '' | 'not_required' | 'required'
     /** The Anlagen of its Verwendungsbereich we do not hold, as printed: „1–15“. */
     missing_annexes: string
+    /** How it gives its tyres' load index and speed symbol (D-277); '' while not answered — asked before release. */
+    tyre_index_source: '' | 'document' | 'papers' | 'table'
 }
 
 export interface TyreSizeRow {

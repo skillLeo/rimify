@@ -6,6 +6,7 @@ namespace App\Services\Admin\Approvals;
 
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
+use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -25,7 +26,8 @@ use Illuminate\Validation\ValidationException;
  * Freigeben: a Gutachten and all of its rows become what the shop reads, at once — never row by row.
  *
  * What stops a release is said in sentences (check): no PDF, no rows, a row without a tyre size (the
- * shop could not say which tyre goes on it), a row on a vehicle that was removed or has no authoritative
+ * shop could not say which tyre goes on it), no answer to how the document gives its tyres' index — or an
+ * answer the entry does not bear out (D-277) —, a row on a vehicle that was removed or has no authoritative
  * source (VehicleSource), a code the document does not define. Conflicts with other documents do not
  * stop it: they are recorded (ConflictDetector), and the shop answers UNKNOWN where the documents
  * disagree until the team decides on the Konflikte page. A revision replaces the one it supersedes on the same day; the old one stays
@@ -80,6 +82,8 @@ final class DocumentRelease
                 : "{$sizeless} Zeilen haben keine Reifengröße. Ohne sie kann der Shop keinen Reifen nennen.";
         }
 
+        array_push($blockers, ...self::tyreIndexBlockers($document, $rows));
+
         $gone = (clone $rows)->whereHas('vehicle', static fn ($q) => $q->onlyTrashed())->count()
             + (clone $rows)->whereDoesntHave('vehicle')->count();
 
@@ -107,6 +111,40 @@ final class DocumentRelease
         }
 
         return $blockers;
+    }
+
+    /**
+     * How the document gives its tyres' load index and speed symbol (D-277) — answered, and borne out by the entry: a
+     * table it prints is entered, a symbol it prints beside every size is entered at every size. Without the answer the
+     * shop reads it the safe way and needs the car's top speed; the question is asked all the same, because the answer
+     * decides whether a car without one can be answered at all.
+     *
+     * @param  Builder<Fitment>  $rows  the rows to be released
+     * @return list<string>
+     */
+    private static function tyreIndexBlockers(ApprovalDocument $document, Builder $rows): array
+    {
+        $source = $document->tyre_index_source;
+
+        if ($source === null) {
+            return ['Wähl unter „Angaben“, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.'];
+        }
+
+        // Transcribed from this document, not the demo seed's example table.
+        if ($source === TyreIndexSource::Table && ! $document->speedDeratings()->whereNull('seeded_from')->exists()) {
+            return ['Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, erfasst ist sie nicht. Trag sie ein oder ändere die Angabe.'];
+        }
+
+        if ($source === TyreIndexSource::Document) {
+            $open = DB::table('fitment_tyre_sizes')->whereIn('fitment_id', (clone $rows)->select('id'))->whereNull('min_speed_symbol')->count();
+
+            if ($open > 0) {
+                return [($open === 1 ? 'Bei einer Reifengröße fehlt' : "Bei {$open} Reifengrößen fehlt")
+                    .' das Geschwindigkeitssymbol, obwohl das Gutachten es laut den Angaben bei jeder Größe nennt. Trag es nach oder ändere die Angabe.'];
+            }
+        }
+
+        return [];
     }
 
     /**

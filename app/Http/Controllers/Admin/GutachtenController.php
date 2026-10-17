@@ -544,6 +544,7 @@ class GutachtenController extends Controller
                     null => '',
                 },
                 'missing_annexes' => (string) ($document->missing_annexes ?? ''),
+                'tyre_index_source' => $document->tyre_index_source->value ?? '',
             ],
             // … and as the record shows them: only what is filled.
             'header' => array_values(array_filter([
@@ -557,6 +558,8 @@ class GutachtenController extends Controller
                 ['label' => 'Gültig ab Fertigungsdatum', 'value' => $document->valid_from_production?->format('m/Y') ?? ''],
                 // § 15 FZV as this document says it, or as its base does for a Nachtrag (point 10 of ABE 53841).
                 ['label' => 'Berichtigung der Fahrzeugpapiere', 'value' => self::papersLabel($document)],
+                // Where the tyres' index comes from, as read off the document (D-277).
+                ['label' => 'Lastindex und Geschwindigkeitssymbol', 'value' => $document->tyre_index_source?->labelDe() ?? ''],
             ], static fn (array $entry): bool => $entry['value'] !== '')),
             'supplementTo' => $document->kind !== ApprovalKind::Nachtrag ? null : ($document->supplementTo !== null
                 ? ['label' => FitmentRows::label($document->supplementTo), 'href' => '/admin/gutachten/'.$document->supplementTo->id]
