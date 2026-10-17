@@ -84,7 +84,8 @@ final class TranscriptionEntry
         /** @var array<string, mixed> $doc */
         $doc = $t['document'];
         $key = 'pending/'.Str::lower((string) Str::ulid()).'.pdf';
-        Storage::disk('docs_private')->put($key, "%PDF-1.4\n% Abschrift für den Test\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+        // A file of its own per document, as the real ones are: the same file twice is refused (ADMIN-GEFUNDEN 503).
+        Storage::disk('docs_private')->put($key, "%PDF-1.4\n% Abschrift für den Test {$key}\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
 
         $this->test->actingAs($this->admin, 'admin')->post('/admin/gutachten', [...$doc, ...$link, 'upload_key' => $key])->assertSessionHasNoErrors();
         $id = (int) ApprovalDocument::query()->latest('id')->value('id');

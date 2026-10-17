@@ -67,6 +67,7 @@ return [
     'Ein Nachtrag ergänzt ein Gutachten, keinen anderen Nachtrag' => ['ours', 'a rule of the record'],
     'Ersetzt werden kann nur ein freigegebenes Dokument' => ['ours', 'a rule of the record'],
     'Ein Dokument kann sich nicht selbst ersetzen' => ['ours', 'a rule of the record'],
+    'Ein Gutachten wird nur einmal angelegt' => ['ours', 'a rule of the record: one document per file, known by its SHA-256 (ADMIN-GEFUNDEN 503)'],
     'Ein Nachtrag kann sich nicht selbst ergänzen' => ['ours', 'a rule of the record'],
     'Das Gutachten hat nur ' => ['backed', 'approval_documents.page_count, read from the uploaded PDF'],
     'Dieses Gutachten gehört nicht zu dem Konflikt' => ['ours', 'a relation between two of our records'],

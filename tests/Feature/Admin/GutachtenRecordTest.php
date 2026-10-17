@@ -46,10 +46,11 @@ function recordAdmin(string $role = 'super-admin'): AdminUser
     return AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
 }
 
+/** A file of its own each time, as two real Gutachten are: the same file twice is refused (ADMIN-GEFUNDEN 503). */
 function recordPdf(): string
 {
     $key = 'pending/'.Str::lower((string) Str::ulid()).'.pdf';
-    Storage::disk('docs_private')->put($key, "%PDF-1.4\n% Beispiel\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+    Storage::disk('docs_private')->put($key, "%PDF-1.4\n% Beispiel {$key}\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
 
     return $key;
 }

@@ -39,6 +39,7 @@ use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\DocumentRevision;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\Approvals\LoadLimitCheck;
+use App\Services\Admin\Approvals\SamePdf;
 use App\Services\Admin\AuditTrail;
 use App\Services\Storage\DocumentFiles;
 use App\Services\Storage\PdfUpload;
@@ -145,6 +146,7 @@ class GutachtenController extends Controller
         $facts = $request->facts();
         $admin = $request->admin();
         $pdf = $this->confirmPdf($uploads, (string) $request->uploadKey());
+        $this->refuseKnownFile($pdf, null, is_int($facts['supersedes_id']) ? $facts['supersedes_id'] : null);
 
         $document = DB::transaction(function () use ($facts, $admin, $pdf): ApprovalDocument {
             $revision = $facts['supersedes_id'] === null ? 1 : (int) ApprovalDocument::query()->whereKey($facts['supersedes_id'])->value('revision') + 1;
@@ -303,6 +305,10 @@ class GutachtenController extends Controller
         $key = $request->uploadKey();
         $pdf = $key === null ? null : $this->confirmPdf($uploads, $key);
 
+        if ($pdf !== null) {
+            $this->refuseKnownFile($pdf, $document, is_int($facts['supersedes_id']) ? $facts['supersedes_id'] : null);
+        }
+
         DB::transaction(function () use ($document, $facts, $admin, $pdf): void {
             $revision = $facts['supersedes_id'] === null ? 1 : (int) ApprovalDocument::query()->whereKey($facts['supersedes_id'])->value('revision') + 1;
             $document->fill($facts + ['revision' => $revision]);
@@ -421,6 +427,47 @@ class GutachtenController extends Controller
         return ['path' => $stored['path'], 'sha256' => $sha];
     }
 
+    /**
+     * A file a real document already carries is not entered a second time under another name (ADMIN-GEFUNDEN 503): the
+     * copy just confirmed is removed again, and the sentence names the document that has it. An example document's
+     * file never stands in the way of a real one — the page of each says that they share it (`samePdf`).
+     *
+     * @param  array{path: string, sha256: string}  $pdf
+     */
+    private function refuseKnownFile(array $pdf, ?ApprovalDocument $document, ?int $supersedesId): void
+    {
+        $twin = SamePdf::twins($pdf['sha256'], $document, $supersedesId)
+            ->first(static fn (ApprovalDocument $d): bool => ! (bool) $d->getAttribute('is_demo'));
+
+        if ($twin === null) {
+            return;
+        }
+
+        try {
+            Storage::disk(self::DISK)->delete($pdf['path']);
+        } catch (Throwable) {
+            // Left unreferenced: no row points at this copy.
+        }
+
+        throw ValidationException::withMessages(['upload_key' => self::knownFile($twin)]);
+    }
+
+    public static function knownFile(ApprovalDocument $twin): string
+    {
+        return 'Diese PDF-Datei liegt schon bei „'.FitmentRows::label($twin).'“ ('.self::statusLabel($twin->status)
+            .'). Ein Gutachten wird nur einmal angelegt – öffne es dort, oder lad die richtige Datei hoch.';
+    }
+
+    private static function statusLabel(DocumentStatus $status): string
+    {
+        return match ($status) {
+            DocumentStatus::Draft => 'Entwurf',
+            DocumentStatus::Published => 'Freigegeben',
+            DocumentStatus::Superseded => 'Ersetzt',
+            DocumentStatus::Withdrawn => 'Zurückgezogen',
+        };
+    }
+
     /** @return array<string, mixed> */
     public static function documentFacts(ApprovalDocument $document): array
     {
@@ -456,12 +503,7 @@ class GutachtenController extends Controller
             // What its Verwendungsbereich prints, counted from the PDF before the rows (ADMIN-GEFUNDEN 511), or null.
             'count' => self::countFacts($document),
             'status' => $document->status->value,
-            'statusLabel' => match ($document->status) {
-                DocumentStatus::Draft => 'Entwurf',
-                DocumentStatus::Published => 'Freigegeben',
-                DocumentStatus::Superseded => 'Ersetzt',
-                DocumentStatus::Withdrawn => 'Zurückgezogen',
-            },
+            'statusLabel' => self::statusLabel($document->status),
             'validFrom' => GermanFormat::date($document->valid_from),
             'validTo' => GermanFormat::date($document->valid_to),
             // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ (D-227): the answer, who gave it and when — or that nobody has.
@@ -473,6 +515,13 @@ class GutachtenController extends Controller
             'pdfUrl' => $url,
             'hasPdf' => $document->pdf_key !== null,
             'pdfMissing' => $missing,
+            // The same file under another name (ADMIN-GEFUNDEN 503): said, so a file typed under the wrong number shows it.
+            'samePdf' => SamePdf::twins($document->pdf_sha256, $document)->map(static fn (ApprovalDocument $d): array => [
+                'label' => FitmentRows::label($d),
+                'href' => '/admin/gutachten/'.$d->id,
+                'status' => self::statusLabel($d->status),
+                'demo' => (bool) $d->getAttribute('is_demo'),
+            ])->values()->all(),
             // Page 1's header and a Nachtrag's base (the corrections memo §4): as the forms type them …
             'shape' => [
                 'supplement_to_id' => $document->supplement_to_id,
