@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from './fixtures'
 import { maxFit } from '../resources/js/composables/admin/railResize'
 import { signIn } from './bugs/faq-support'
-import { resetRail } from './bugs/rail-support'
+import { resetRail, storeRail } from './bugs/rail-support'
 import { openUebersicht, patchCharts } from './bugs/ueb-support'
 
 /*
@@ -143,16 +143,7 @@ test('at 1280 px the content never drops below 960, and the page never scrolls s
 })
 
 test('where the stored width does not fit, the toggle says so and opens at the widest that does', async ({ page }) => {
-    await page.evaluate(async () => {
-        const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '')
-
-        await fetch('/admin/ansicht', {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': token },
-            body: JSON.stringify({ rail: 'collapsed', width: 400 }),
-        })
-    })
+    expect(await storeRail(page.context(), { rail: 'collapsed', width: 400 }), 'rig: the width is stored').toBeLessThan(300)
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.reload({ waitUntil: 'networkidle' })
 

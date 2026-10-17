@@ -45,30 +45,12 @@ export async function myViews(page: Page): Promise<ViewItem[]> {
 }
 
 /**
- * A request sent the way the app's own background saves are (preferences.ts): same origin, the
- * XSRF header, JSON. A redirect is not followed and comes back as 302; a refusal is Laravel's 422.
+ * A request sent the way the app's own background saves are (preferences.ts): the session's cookies, the XSRF header,
+ * JSON — over the context's request, not from inside the page, so it works before the test has opened one (signing in
+ * leaves the page blank, D-266). A redirect is not followed and comes back as 302; a refusal is Laravel's 422.
  */
 export async function send(page: Page, method: 'POST' | 'PATCH' | 'DELETE', url: string, body?: unknown): Promise<number> {
-    return page.evaluate(
-        async ({ method, url, body }) => {
-            const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '')
-            const response = await fetch(url, {
-                method,
-                credentials: 'same-origin',
-                redirect: 'manual',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-XSRF-TOKEN': token,
-                },
-                body: body === undefined ? undefined : JSON.stringify(body),
-            })
-
-            return response.type === 'opaqueredirect' ? 302 : response.status
-        },
-        { method, url, body }
-    )
+    return sendAs(page.context(), method, url, body)
 }
 
 /** Saves views exactly as the dialog does (POST /admin/ansichten) and returns them as the list shows them. */
