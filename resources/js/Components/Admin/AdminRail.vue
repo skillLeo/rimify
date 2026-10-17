@@ -24,6 +24,7 @@ import AdminRailTooltip from './AdminRailTooltip.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
+import { useWhenIdle } from '../../composables/useWhenIdle'
 import type { AdminNavGroup, AdminNavPage } from '../../types/admin'
 
 const admin = useAdmin()
@@ -62,15 +63,15 @@ function onMedia(): void {
     narrow.value = media?.matches ?? false
 }
 
-/* The items' tooltips from hydration on: before it none could open, and the server renders the rail without them
-   (AdminRailTooltip, D-272). */
-const hydrated = ref(false)
+/* The items' tooltips once the browser is idle after hydration: before it none could open, the server renders the rail
+   without them (AdminRailTooltip, D-272), and set up inside the task that hydrates the page they cost it about 150 ms
+   (D-276). */
+const hydrated = useWhenIdle()
 
 onMounted(() => {
     media = window.matchMedia('(min-width: 768px) and (max-width: 1023px)')
     onMedia()
     media.addEventListener('change', onMedia)
-    hydrated.value = true
 })
 
 onBeforeUnmount(() => media?.removeEventListener('change', onMedia))
