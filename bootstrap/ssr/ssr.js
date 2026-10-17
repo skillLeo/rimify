@@ -40254,7 +40254,7 @@ var render = (page) => createInertiaApp({
 	resolve: (name) => resolvePageComponent(`./Pages/${name}.vue`, /* #__PURE__ */ Object.assign({
 		"./Pages/Admin/Abdeckung/Index.vue": () => import("./assets/Index-DYgxkSR_.js"),
 		"./Pages/Admin/Anfragen/Index.vue": () => import("./assets/Index-D_tK-nkG.js"),
-		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-F1ew0nHf.js"),
+		"./Pages/Admin/Anmelden/Index.vue": () => import("./assets/Index-Bpr-IQ9E.js"),
 		"./Pages/Admin/Auflagen/Index.vue": () => import("./assets/Index-BK_wttvP.js"),
 		"./Pages/Admin/Benachrichtigungen/Index.vue": () => import("./assets/Index-le1NL9zU.js"),
 		"./Pages/Admin/Benutzer/Index.vue": () => import("./assets/Index-CQg1Lehw.js"),
@@ -40263,7 +40263,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Bestellungen/Index.vue": () => import("./assets/Index-CGcwaywn.js"),
 		"./Pages/Admin/Bestellungen/Show.vue": () => import("./assets/Show-DNVzUtnr.js"),
 		"./Pages/Admin/Bewertungen/Index.vue": () => import("./assets/Index-mPVNMbQ8.js"),
-		"./Pages/Admin/Einladung/Index.vue": () => import("./assets/Index-CxJGRKcT.js"),
+		"./Pages/Admin/Einladung/Index.vue": () => import("./assets/Index-xRhKXf-G.js"),
 		"./Pages/Admin/Einstellungen/Email.vue": () => import("./assets/Email-iyKUVx2q.js"),
 		"./Pages/Admin/Einstellungen/Speicher.vue": () => import("./assets/Speicher-Cnb-0Ema.js"),
 		"./Pages/Admin/Einstellungen/VerkaeuferVersand.vue": () => import("./assets/VerkaeuferVersand-Cg_yN7F4.js"),
