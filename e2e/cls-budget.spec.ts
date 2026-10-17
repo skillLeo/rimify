@@ -148,6 +148,21 @@ test('a desktop page waits for its footer’s last element before it paints', as
 });
 
 /*
+ * D-274: the admin the same way. On a loaded machine the Übersicht was painted with its header half-parsed — the
+ * Zeitraum's three buttons beside the title, nothing after them — and rearranged when the rest arrived: the whole
+ * switcher, too wide to stand there, beneath the title, 0,039 at 768 (17.10.2026, its trace's frames). Quiet, the parse
+ * outran the first paint and nothing showed. The admin's last element closes the layout.
+ */
+test('a desktop admin page waits for its layout’s last element before it paints', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'the phone paints at once, as in the shop');
+    await signIn(page);
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('head link[rel="expect"][blocking="render"]')).toHaveAttribute('href', '#seitenende');
+    await expect(page.locator('#app > #seitenende:last-child'), 'the element the first paint waits for is not the admin layout’s last').toHaveCount(1);
+});
+
+/*
  * D-178: the phone homepage lets the sections below the fold skip their layout until they scroll near (its taps stay
  * quick), except on a page view that opens part-way down: met skipped where the browser put the scroll, they counted
  * as jumping — a link to /#h5 0,68, a reload mid-page up to 0,91 (06.10.2026).
