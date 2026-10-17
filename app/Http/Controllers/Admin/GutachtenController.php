@@ -78,12 +78,16 @@ class GutachtenController extends Controller
 
     public function index(Request $request): Response
     {
+        // Each document's rows counted first, then joined: grouping every joined row by the document's eleven columns took
+        // 55–80 ms for 13 documents and 4 000 rows, and grew with every row entered; counted first, 20 ms (D-271).
+        $counts = DB::table('fitments')
+            ->select('approval_document_id')
+            ->selectRaw('COUNT(*) as fitment_count')
+            ->selectRaw("SUM(status = 'published') as published_count")
+            ->groupBy('approval_document_id');
+
         $documents = DB::table('approval_documents as ad')
-            ->leftJoin('fitments as f', 'f.approval_document_id', '=', 'ad.id')
-            ->groupBy(
-                'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
-                'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count', 'ad.is_demo',
-            )
+            ->leftJoinSub($counts, 'f', 'f.approval_document_id', '=', 'ad.id')
             // Drafts first — the documents being worked on — then the newest; a document without its
             // date is not buried at the bottom (MySQL sorts NULL last in a descending order).
             ->orderByRaw("ad.status = 'draft' DESC")
@@ -93,8 +97,8 @@ class GutachtenController extends Controller
             ->get([
                 'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
                 'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count', 'ad.is_demo',
-                DB::raw('COUNT(f.id) as fitment_count'),
-                DB::raw('SUM(f.status = \'published\') as published_count'),
+                DB::raw('COALESCE(f.fitment_count, 0) as fitment_count'),
+                DB::raw('COALESCE(f.published_count, 0) as published_count'),
             ]);
 
         $rows = [];

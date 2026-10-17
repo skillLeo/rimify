@@ -38,19 +38,24 @@ const STEP = 240;
  * (4 of 4 at ≈ 41 s, the machine idle too), and nothing of the page's is involved: the loop is the browser's own
  * scrolling and frames. Every step is therefore given 15 s; one that takes longer is a stalled browser, not a page that
  * jumped: it is said in the run's output and the whole sequence starts again on a fresh page, twice at most. A jump
- * still fails the test, and so does a browser that stalls every time — with that sentence, not a timeout.
+ * still fails the test. A browser that stalls every time measured nothing: it ends the test with that sentence, as a
+ * `rig:` — not a timeout, and not a fail (the operator's three states, his brief of 17.10.2026 §5). Every call into the
+ * page goes through the guard, the first load of the homepage too: on 17.10.2026 that load took 11½ minutes, WebKit drew
+ * nothing, and not even the test's own 5 minutes could end it (its trace). A load is given a minute — on a loaded
+ * machine the server alone may take seconds — and a stalled one starts again on a fresh page like a stalled step.
  */
 const STALL_MS = 15_000;
+const LOAD_MS = 60_000;
 
 class Stalled extends Error {}
 
-function withinStall<T>(work: Promise<T>, what: string): Promise<T> {
+function withinStall<T>(work: Promise<T>, what: string, ms: number = STALL_MS): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     return Promise.race([
         work,
         new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Stalled(`WebKit drew no frame for ${STALL_MS / 1000} s (${what})`)), STALL_MS);
+            timer = setTimeout(() => reject(new Stalled(`rig: WebKit drew no frame for ${ms / 1000} s (${what})`)), ms);
         }),
     ]).finally(() => clearTimeout(timer));
 }
@@ -63,7 +68,7 @@ async function settle(page: Page): Promise<void> {
 async function flingDownThenUp(page: Page, phase: string): Promise<string[]> {
     const jumps: string[] = [];
 
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await withinStall(page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)), `${phase}, the fling to the bottom`);
     await settle(page);
 
     for (let i = 0; i < 120; i++) {
@@ -147,11 +152,6 @@ test('EF-05 the phone homepage does not jump while scrolling back up after the p
     test.setTimeout(300_000);
 
     await consentGiven(context, SHOP);
-    await open(page, '/');
-
-    const contentVisibility = await page.evaluate(() => CSS.supports('content-visibility', 'auto'));
-
-    test.skip(!contentVisibility, 'this WebKit build has no content-visibility: the placeholders never apply');
 
     let current = page;
     let jumps: string[] | null = null;
@@ -160,6 +160,12 @@ test('EF-05 the phone homepage does not jump while scrolling back up after the p
     try {
         for (let attempt = 1; jumps === null; attempt++) {
             try {
+                await withinStall(open(current, '/'), 'loading the homepage', LOAD_MS);
+
+                const contentVisibility = await withinStall(current.evaluate(() => CSS.supports('content-visibility', 'auto')), 'asking for content-visibility');
+
+                test.skip(!contentVisibility, 'this WebKit build has no content-visibility: the placeholders never apply');
+
                 jumps = await measure(current);
             } catch (error) {
                 if (!(error instanceof Stalled) || attempt === 3) {
@@ -174,7 +180,6 @@ test('EF-05 the phone homepage does not jump while scrolling back up after the p
                 fresh.push(next);
                 await consentGiven(next, SHOP);
                 current = await next.newPage();
-                await open(current, '/');
             }
         }
     } finally {

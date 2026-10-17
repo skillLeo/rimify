@@ -172,6 +172,18 @@ export async function consent(context: BrowserContext, baseURL: string): Promise
     ])
 }
 
+/**
+ * A new visitor in the same window: off the page first, then the cookies gone and the consent given again. A page's
+ * answer still on its way would otherwise set its session cookie again after the cookies were cleared — the basket or
+ * the car of the round before comes back (review-roles, 17.10.2026: the next sign-in landed in the account before).
+ * Leaving the page ends every request it had.
+ */
+export async function newVisitor(page: Page, context: BrowserContext): Promise<void> {
+    await page.goto('about:blank')
+    await context.clearCookies()
+    await consent(context, ABNAHME)
+}
+
 /** Open a page and wait until the client has taken over the server's frame and the fonts are in. */
 export async function open(page: Page, path: string): Promise<void> {
     await page.goto(path, { waitUntil: 'networkidle' })

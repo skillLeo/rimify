@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '../fixtures'
 import { SHOP } from '../shop'
-import { ABNAHME, CARS, box, consent, isPhone, onSize, open, shot, shotAround, withCar } from './support'
+import { ABNAHME, CARS, box, consent, isPhone, newVisitor, onSize, open, shot, shotAround, withCar } from './support'
 
 /*
  * The client's list on the listing: the car in the address (#8, with #27's filters), the compare control beside the
@@ -103,8 +103,7 @@ test('a size or a brand chosen first stays chosen when the car is chosen after i
 
         await expect(page).toHaveURL(expected)
         await expect(page).toHaveURL(new RegExp(`fahrzeug=${CARS.e90.key}`))
-        await context.clearCookies()
-        await consent(context, ABNAHME)
+        await newVisitor(page, context)
     }
 
     await withCar(page, 'e90', '/felgen?zoll=19')

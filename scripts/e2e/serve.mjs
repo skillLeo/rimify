@@ -22,7 +22,8 @@
  * spec of a run read that copy (01.10.2026: PAY-01 failed on a column the stale copy lacked).
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
 import net from 'node:net'
@@ -43,10 +44,41 @@ const SHOP_PORT = 8010
 const env =
     port === SHOP_PORT
         ? { ...process.env, DB_DATABASE: process.env.DB_DATABASE ?? 'rimify_wf_e2e', DB_PORT: process.env.DB_PORT ?? process.env.E2E_SHOP_DB_PORT ?? '3308' }
-        : process.env
+        : { ...process.env }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const router = path.join(root, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')
 const php = process.env.PHP_BINARY ?? 'php'
+
+/*
+ * The configuration, the routes and the events, cached as `artisan optimize` caches them on the preview and in
+ * production — each server its own copy, made from its own environment (its database, its port, its switches), under
+ * storage/framework/cache/e2e-<port>/ and never in bootstrap/cache, where the Pest suites would read it. Uncached, every
+ * request read some sixty config files, registered every route and discovered every listener again: `/up` took 83 ms
+ * against 37 ms cached (D-270). Made afresh at every start, so it matches the code being tested — a change to a route or
+ * a config file while a server runs needs a restart. `--no-cache` serves uncached, as before.
+ */
+if (!process.argv.includes('--no-cache')) {
+    const dir = `storage/framework/cache/e2e-${port}`
+    fs.mkdirSync(path.join(root, dir), { recursive: true })
+    // Relative to the project, which Laravel resolves against its base path (a drive-letter path it would not).
+    Object.assign(env, {
+        APP_CONFIG_CACHE: `${dir}/config.php`,
+        APP_ROUTES_CACHE: `${dir}/routes-v7.php`,
+        APP_EVENTS_CACHE: `${dir}/events.php`,
+    })
+
+    for (const command of ['config:cache', 'route:cache', 'event:cache']) {
+        const run = spawnSync(php, ['artisan', command], { cwd: root, env, encoding: 'utf8', windowsHide: true })
+
+        if (run.status !== 0) {
+            console.error(`e2e server: php artisan ${command} failed (${run.status}), serving uncached\n${(run.stderr || run.stdout || '').slice(0, 600)}`)
+            delete env.APP_CONFIG_CACHE
+            delete env.APP_ROUTES_CACHE
+            delete env.APP_EVENTS_CACHE
+            break
+        }
+    }
+}
 
 /** `n` ports nothing listens on, from the operating system: all held at once, so no two are the same, then let go. */
 async function freePorts(n) {
@@ -67,8 +99,23 @@ async function freePorts(n) {
     return ports
 }
 
+/*
+ * The workers' own compiled-code cache. On Windows every built-in PHP server of one user shares a single opcache unless
+ * it names its own (`opcache.cache_id`): this machine's — both RIMIFY trees and other projects' servers in 128 MB — was
+ * full, nothing new was cached, and every request compiled again what did not fit: 640 ms for `/up`, a route that does
+ * nothing, and 0,9–1,1 s for a page that takes 0,2–0,35 s with a cache of its own (D-270). One cache per checkout,
+ * shared by all its servers; four pages alone filled 92 MB and 22 MB of interned strings, where PHP's default buffer for
+ * those is 8 MB. Elsewhere the setting is ignored and each server has its own cache anyway.
+ */
+const opcache = [
+    '-d', `opcache.cache_id=rimify-e2e-${createHash('sha1').update(root.toLowerCase()).digest('hex').slice(0, 8)}`,
+    '-d', 'opcache.memory_consumption=512',
+    '-d', 'opcache.interned_strings_buffer=64',
+    '-d', 'opcache.max_accelerated_files=60000',
+]
+
 const backends = (await freePorts(count)).map((backendPort) => {
-    const child = spawn(php, ['-S', `127.0.0.1:${backendPort}`, router], { cwd: path.join(root, 'public'), env, stdio: 'ignore', windowsHide: true })
+    const child = spawn(php, [...opcache, '-S', `127.0.0.1:${backendPort}`, router], { cwd: path.join(root, 'public'), env, stdio: 'ignore', windowsHide: true })
 
     return { port: backendPort, child, busy: 0 }
 })
@@ -198,5 +245,5 @@ http.createServer((request, response) => {
     response.on('close', release)
     request.pipe(upstream)
 }).listen(port, '127.0.0.1', () => {
-    console.log(`e2e server on http://127.0.0.1:${port}, ${count} PHP workers (${backends.map((b) => b.port).join(', ')})`)
+    console.log(`e2e server on http://127.0.0.1:${port}, ${count} PHP workers (${backends.map((b) => b.port).join(', ')}), ${env.APP_CONFIG_CACHE ? 'config, routes and events cached' : 'uncached'}`)
 })
