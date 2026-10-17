@@ -23,6 +23,7 @@
  */
 
 import { spawn } from 'node:child_process'
+import fs from 'node:fs'
 import http from 'node:http'
 import net from 'node:net'
 import path from 'node:path'
@@ -104,7 +105,70 @@ function ready(backend, timeout) {
 
 await Promise.all(backends.map((backend) => ready(backend, 60_000)))
 
+/*
+ * A file under public/ is served here, not by a PHP worker (D-267). PHP's built-in server serves a request for an
+ * existing file itself, in the worker the request reached: an admin page's thirty scripts held all four workers, and
+ * the page's own requests — a save, a sign-out — queued behind them; on a loaded machine past a test's wait. In
+ * production LiteSpeed and the CDN serve these files; PHP never sees them. Same files as before (Laravel's server.php
+ * hands over any existing file), except that a .php file or a dotfile still goes to PHP, as does every directory.
+ */
+const PUBLIC = path.join(root, 'public')
+const TYPES = {
+    '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.map': 'application/json',
+    '.webmanifest': 'application/manifest+json', '.html': 'text/html', '.txt': 'text/plain', '.xml': 'text/xml', '.csv': 'text/csv',
+    '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp',
+    '.avif': 'image/avif', '.ico': 'image/vnd.microsoft.icon', '.ktx2': 'image/ktx2', '.woff2': 'font/woff2', '.woff': 'font/woff',
+    '.ttf': 'font/ttf', '.otf': 'font/otf', '.pdf': 'application/pdf', '.wasm': 'application/wasm', '.mp4': 'video/mp4',
+    '.webm': 'video/webm', '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.zip': 'application/zip',
+}
+
+/** The file under public/ a GET or HEAD names, as PHP's built-in server would hand it out itself — or null for the app. */
+function publicFile(request) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return null
+    }
+
+    let pathname
+
+    try {
+        pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://127.0.0.1').pathname)
+    } catch {
+        return null
+    }
+
+    const file = path.join(PUBLIC, pathname)
+    const name = path.basename(file)
+
+    if (pathname === '/' || pathname.includes('\0') || !file.startsWith(PUBLIC + path.sep) || name.startsWith('.') || path.extname(name).toLowerCase() === '.php') {
+        return null
+    }
+
+    try {
+        const stat = fs.statSync(file)
+
+        return stat.isFile() ? { file, size: stat.size, type: TYPES[path.extname(name).toLowerCase()] ?? 'application/octet-stream' } : null
+    } catch {
+        return null
+    }
+}
+
 http.createServer((request, response) => {
+    const asset = publicFile(request)
+
+    if (asset !== null) {
+        response.writeHead(200, { 'content-type': asset.type, 'content-length': asset.size })
+
+        if (request.method === 'HEAD') {
+            response.end()
+
+            return
+        }
+
+        fs.createReadStream(asset.file).on('error', () => response.destroy()).pipe(response)
+
+        return
+    }
+
     const backend = backends.reduce((least, candidate) => (candidate.busy < least.busy ? candidate : least))
     let released = false
     const release = () => {
