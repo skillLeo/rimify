@@ -15,6 +15,7 @@ use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Storefront\ProductCards;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\MinimalPdf;
 
 /*
  * 512b, the operator's line (brief of 17.10.2026 §2): „A level may change what the customer reads. It may never change
@@ -41,7 +42,7 @@ function levelsAcceptanceSet(): void
     foreach ($data['documents'] as $key => $document) {
         $path = $dir.'/'.$document['pdf']['source'];
         is_dir(dirname($path)) || mkdir(dirname($path), 0777, true);
-        file_put_contents($path, "%PDF-1.4\n% stand-in for {$key}\n");
+        file_put_contents($path, MinimalPdf::make(["stand-in for {$key}"]));
         $data['documents'][$key]['pdf']['sha256'] = hash_file('sha256', $path);
     }
 

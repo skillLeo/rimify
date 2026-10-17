@@ -460,6 +460,11 @@ describe('putting every entry into words', function (): void {
                 'Das Entfernen der Demodaten wurde abgelehnt; es hat sich nichts geändert. Grund: 20 Bestellungen, die nicht als Demodaten angelegt wurden, enthalten Beispielfelgen oder Beispielreifen.',
                 [],
             ],
+            'demo.example_pdfs' => [
+                ['documents' => [['document' => 'ABE 55255', 'from' => '0a9010a95341', 'to' => 'b258d215653d'], ['document' => '366-0350-21-WIRD/N1', 'from' => 'fd5dfae9aadd', 'to' => '4423c2a2d662']], 'environment' => 'staging'],
+                '2 Gutachten des Abnahme-Satzes haben jetzt je eine eigene, als Beispiel gekennzeichnete Kopie ihrer PDF-Datei; die alten Kopien sind entfernt.',
+                ['ABE 55255: PDF-Datei 0a9010a95341 → Beispielkopie b258d215653d', '366-0350-21-WIRD/N1: PDF-Datei fd5dfae9aadd → Beispielkopie 4423c2a2d662'],
+            ],
             'system.reset' => [
                 ['id' => '20261004-120000-shop', 'level' => 'shop', 'counts' => [['label' => 'Felgen', 'count' => 12], ['label' => 'Bilder', 'count' => 61]], 'environment' => 'staging'],
                 "Die Testumgebung wurde zurückgesetzt („Shopdaten“). Entfernt: 12\u{00A0}Felgen, 61\u{00A0}Bilder. Benutzer, Rollen, Einstellungen und das Protokoll sind geblieben.",

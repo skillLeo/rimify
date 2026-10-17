@@ -6,13 +6,16 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VehicleKey;
+use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Services\Demo\AcceptanceSeeder;
+use App\Services\Demo\AcceptanceSet;
 use App\Services\Demo\DemoPurge;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
@@ -21,7 +24,9 @@ use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\MinimalPdf;
 
 /*
  * The acceptance set (`rimify:demo --abnahme`, the operator's brief „THE 34“ §1.3): the BORBET DB8GT2 on its two real
@@ -37,8 +42,11 @@ beforeEach(function (): void {
 /**
  * The set as the command writes it — with stand-in PDFs: the client's documents stay out of the repository, so the test
  * gives each a file of its own and the data that file's SHA-256, and the seeder checks it as it checks the real one.
+ *
+ * @return array{documents: array<string, array<string, mixed>>, fitments: list<array<string, mixed>>, templates: array<string, array<string, mixed>>}
+ *                                                                                                                                                     the data it was written from
  */
-function seedAcceptanceSet(): void
+function seedAcceptanceSet(): array
 {
     $dir = sys_get_temp_dir().'/rimify-abnahme-pdfs';
     $data = require database_path('seeders/content/abnahme/gutachten.php');
@@ -46,11 +54,13 @@ function seedAcceptanceSet(): void
     foreach ($data['documents'] as $key => $document) {
         $path = $dir.'/'.$document['pdf']['source'];
         is_dir(dirname($path)) || mkdir(dirname($path), 0777, true);
-        file_put_contents($path, "%PDF-1.4\n% stand-in for {$key}\n");
+        file_put_contents($path, MinimalPdf::make(["stand-in for {$key}"]));
         $data['documents'][$key]['pdf']['sha256'] = hash_file('sha256', $path);
     }
 
     (new AcceptanceSeeder($dir, $data))->seed();
+
+    return $data;
 }
 
 function acceptanceCar(string $key): Vehicle
@@ -199,7 +209,7 @@ it('refuses to double a Gutachten the shop holds under another name: the same PD
     foreach ($data['documents'] as $key => $document) {
         $path = $dir.'/'.$document['pdf']['source'];
         is_dir(dirname($path)) || mkdir(dirname($path), 0777, true);
-        file_put_contents($path, "%PDF-1.4\n% stand-in for {$key}\n");
+        file_put_contents($path, MinimalPdf::make(["stand-in for {$key}"]));
         $data['documents'][$key]['pdf']['sha256'] = hash_file('sha256', $path);
     }
 
@@ -222,6 +232,73 @@ it('refuses to double a Gutachten the shop holds under another name: the same PD
         ->and(DB::table('approval_documents')->where('is_demo', true)->count())->toBe(2)
         ->and($real->fresh()?->getAttributes())->toBe($real->getAttributes())
         ->and(DB::table('wheel_models')->where('is_demo', false)->count())->toBe(0);
+});
+
+it('stores each Gutachten as its own marked example copy, never the very file a real document may carry (decision 6, D-268)', function (): void {
+    seedAcceptanceSet();
+    $disk = Storage::disk(GutachtenController::DISK);
+    $documents = DB::table('approval_documents')->where('is_demo', true)->get();
+
+    expect($documents)->toHaveCount(2);
+
+    foreach ($documents as $document) {
+        $key = substr((string) $document->demo_ref, strlen(AcceptanceSet::PREFIX.'doc:'));
+        $file = (string) $disk->get((string) $document->pdf_key);
+
+        expect($document->pdf_key)->toBe(AcceptanceSeeder::exampleKey($key))
+            ->and(hash('sha256', $file))->toBe($document->pdf_sha256)
+            // The document byte for byte, and the mark laid over it.
+            ->and(str_starts_with($file, MinimalPdf::make(["stand-in for {$key}"])))->toBeTrue()
+            ->and($file)->toContain('(BEISPIEL) Tj')
+            ->and($document->pdf_sha256)->not->toBe(hash('sha256', MinimalPdf::make(["stand-in for {$key}"])));
+    }
+});
+
+it('gives a set written the old way its example copies in place, once — and never touches a real document\'s file', function (): void {
+    $data = seedAcceptanceSet();
+    $disk = Storage::disk(GutachtenController::DISK);
+    $originals = [];
+
+    // As the set was written before 17.10.2026: the very file under the set's own key, with the original's fingerprint.
+    foreach (DB::table('approval_documents')->where('is_demo', true)->get() as $document) {
+        $key = substr((string) $document->demo_ref, strlen(AcceptanceSet::PREFIX.'doc:'));
+        $originals[$key] = MinimalPdf::make(["stand-in for {$key}"]);
+        $disk->delete((string) $document->pdf_key);
+        $disk->put("gutachten/abnahme-{$key}.pdf", $originals[$key]);
+        DB::table('approval_documents')->where('id', $document->id)->update(['pdf_key' => "gutachten/abnahme-{$key}.pdf", 'pdf_sha256' => hash('sha256', $originals[$key])]);
+    }
+
+    // As on the client's preview: his own document carries the very bytes of the set's Nachtrag, under a key of its own.
+    $disk->put('gutachten/01realabe53841.pdf', $originals['nachtrag-366-0350-21']);
+    $real = ApprovalDocument::factory()->draft()->create(['kind' => 'ABE', 'kba_number' => '53841', 'report_number' => null,
+        'pdf_key' => 'gutachten/01realabe53841.pdf', 'pdf_sha256' => hash('sha256', $originals['nachtrag-366-0350-21'])])->fresh();
+
+    $notes = (new AcceptanceSeeder(null, $data))->giveExampleCopies();
+
+    foreach ($originals as $key => $original) {
+        $row = DB::table('approval_documents')->where('demo_ref', AcceptanceSet::PREFIX.'doc:'.$key)->sole();
+        $file = (string) $disk->get((string) $row->pdf_key);
+
+        expect($row->pdf_key)->toBe(AcceptanceSeeder::exampleKey($key))
+            ->and(hash('sha256', $file))->toBe($row->pdf_sha256)
+            ->and(str_starts_with($file, $original))->toBeTrue()
+            ->and($disk->exists("gutachten/abnahme-{$key}.pdf"))->toBeFalse();
+    }
+
+    $entry = AuditLog::query()->where('description', 'demo.example_pdfs')->sole();
+
+    expect($notes)->toHaveCount(2)
+        ->and($notes[0])->toStartWith('„ABE 55255“ hat jetzt die Beispielkopie gutachten/abnahme-abe-55255-beispiel.pdf')
+        // His document and his file, exactly as they were.
+        ->and($real->fresh()?->getAttributes())->toBe($real->getAttributes())
+        ->and($disk->get('gutachten/01realabe53841.pdf'))->toBe($originals['nachtrag-366-0350-21'])
+        // One line in the Protokoll, not demo: it stays and says which fingerprints moved.
+        ->and($entry->getAttribute('is_demo'))->toBeFalsy()
+        ->and($entry->properties['documents'])->toHaveCount(2);
+
+    // Once: a second run finds every document with a file of its own and writes nothing.
+    expect((new AcceptanceSeeder(null, $data))->giveExampleCopies())->each->toEndWith('hat schon eine eigene Datei: nichts zu tun.')
+        ->and(AuditLog::query()->where('description', 'demo.example_pdfs')->count())->toBe(1);
 });
 
 it('goes in one press, the shop\'s own accessories untouched, the cars hidden and never deleted (R-04)', function (): void {

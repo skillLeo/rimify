@@ -93,6 +93,7 @@ final class AuditDescriber
         'review.reply_removed' => 'verkauf',
         'demo.purged' => 'protokoll',
         'demo.purge_refused' => 'protokoll',
+        'demo.example_pdfs' => 'gutachten',
         'system.reset' => 'protokoll',
         'system.reset_undone' => 'protokoll',
         'system.reset_failed' => 'protokoll',
@@ -367,6 +368,8 @@ final class AuditDescriber
             ],
             'audit_log.exported' => [self::exported($p), []],
             'demo.purged' => self::demoPurged($p),
+            // The acceptance set's documents given their own, marked copies of their PDFs (decision 6, D-268).
+            'demo.example_pdfs' => self::examplePdfs($p),
             // The strip's „Demodaten entfernen“ refused as a whole: recorded, so a press that changed nothing is still seen.
             'demo.purge_refused' => [
                 'Das Entfernen der Demodaten wurde abgelehnt; es hat sich nichts geändert.'.(self::list($p, 'reasons') === [] ? '' : ' Grund: '.self::list($p, 'reasons')[0]),
@@ -636,6 +639,33 @@ final class AuditDescriber
         }
 
         return $start.($parts === [] ? '.' : ': '.implode(', ', $parts).'.');
+    }
+
+    /**
+     * „2 Gutachten des Abnahme-Satzes haben jetzt je eine eigene, als Beispiel gekennzeichnete Kopie …" — and per document
+     * the fingerprint it had and the one it has (decision 6, D-268).
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function examplePdfs(array $p): array
+    {
+        $changes = [];
+
+        foreach (self::map($p, 'documents') as $document) {
+            if (is_array($document) && is_string($document['document'] ?? null)) {
+                $changes[] = self::change((string) $document['document'], 'PDF-Datei '.self::text($document, 'from'), 'Beispielkopie '.self::text($document, 'to'));
+            }
+        }
+
+        $count = count($changes);
+
+        return [
+            $count === 1
+                ? 'Ein Gutachten des Abnahme-Satzes hat jetzt eine eigene, als Beispiel gekennzeichnete Kopie seiner PDF-Datei; die alte Kopie ist entfernt.'
+                : GermanFormat::decimal($count, 0).' Gutachten des Abnahme-Satzes haben jetzt je eine eigene, als Beispiel gekennzeichnete Kopie ihrer PDF-Datei; die alten Kopien sind entfernt.',
+            $changes,
+        ];
     }
 
     /**
