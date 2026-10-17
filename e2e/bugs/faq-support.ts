@@ -1,4 +1,5 @@
 import { expect, type APIResponse, type Page, type Request, type Route } from '@playwright/test';
+import { send } from '../teardown';
 
 /*
  * Shared steps of the Inhalte › FAQ bug tests (docs/qa/BUGS.md, FAQ-xx).
@@ -31,18 +32,23 @@ export interface FaqProps {
 }
 
 /**
- * Signs in and waits for the admin to be ready to use — its app mounted — not for every image and font
- * of the Übersicht to arrive (\load\): that wait measured the server's queue, not the page, and timed out
- * in long runs (the launch release §3).
+ * Signs in as the super-admin by request, over the page's own context — the form's address once for the session's
+ * cookies, then the sign-in itself — and leaves the page where it is: the test opens what it tests (D-266).
+ *
+ * Typed into the form, every test paid the form's page, the POST and the Übersicht it lands on before it began: on a
+ * loaded machine 15–35 s of its minute, and in release 9's run six tests ran out of it there. A fresh session each time,
+ * as before — nothing one test does to its session reaches the next. The form itself is still typed into where it is
+ * the subject: the role reviews and the admin sweeps sign in through it.
  */
 export async function signIn(page: Page): Promise<void> {
-    await page.goto('/admin/anmelden', { waitUntil: 'domcontentloaded' });
-    await waitForApp(page);
-    await page.fill('#lg-mail', SUPER_ADMIN.email);
-    await page.fill('#lg-pass', SUPER_ADMIN.password);
-    await page.locator('button[type=submit]').first().click();
-    await page.waitForURL(/\/admin$/, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await waitForApp(page);
+    const context = page.context();
+
+    // Asked as Inertia asks, the form's address answers without drawing a page (409, a version it does not know) —
+    // and sets the session and XSRF cookies like any other answer.
+    await context.request.get('/admin/anmelden', { headers: { 'X-Inertia': 'true', 'X-Requested-With': 'XMLHttpRequest' }, maxRedirects: 0 });
+    const status = await send(context, 'POST', '/admin/anmelden', { email: SUPER_ADMIN.email, password: SUPER_ADMIN.password });
+
+    expect(status, 'rig: the super-admin is signed in — a good password is answered with a redirect').toBe(302);
 }
 
 export async function waitForApp(page: Page): Promise<void> {

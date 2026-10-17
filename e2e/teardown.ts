@@ -9,6 +9,8 @@ import { type APIRequestContext, type BrowserContext } from '@playwright/test'
  * So a teardown resets the server's state over requests — the context's own (`context.request`: the same session and
  * cookies as the page, never the page itself) or the plain `request` fixture — and never receives the page. The browser
  * side needs no cleanup: Playwright throws the context away after every test. `E2eTeardownTest` holds every suite to it.
+ *
+ * `send` is also how the admin tests sign in (faq-support's `signIn`, D-266): a request over the context, not the form.
  */
 
 type Writer = BrowserContext | APIRequestContext

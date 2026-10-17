@@ -119,11 +119,11 @@ test.describe('the Übersicht', () => {
         expect(overflow).toBeLessThanOrEqual(0)
     })
 
-    test('fits the tablet, the laptop and the wide screen, with its two pages beneath', async ({ page }, info) => {
-        test.skip(!desktop(info.project.name), 'The widths of a desktop browser.')
-        await signIn(page)
-
-        for (const width of [768, 1280, 1920]) {
+    // One test per width: three pages each, not nine in one minute (D-266).
+    for (const [screen, width] of [['the tablet', 768], ['the laptop', 1280], ['the wide screen', 1920]] as const) {
+        test(`fits ${screen} (${width} px), with its two pages beneath`, async ({ page }, info) => {
+            test.skip(!desktop(info.project.name), 'The widths of a desktop browser.')
+            await signIn(page)
             await page.setViewportSize({ width, height: 1000 })
 
             for (const path of ['/admin?zeitraum=30', '/admin/nachfrage', '/admin/abdeckung?marke=BMW&zoll=19']) {
@@ -132,6 +132,6 @@ test.describe('the Übersicht', () => {
 
                 expect(overflow, `${path} at ${width} px`).toBeLessThanOrEqual(0)
             }
-        }
-    })
+        })
+    }
 })
