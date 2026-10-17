@@ -48,17 +48,18 @@ class UebersichtController extends Controller
 
         // One layout, the figures of what this role opens the admin for (Variant).
         $variant = Variant::for($admin);
-        $sold = in_array($variant, [Variant::Verkauf, Variant::Support], true) ? $sales->for($period, $compare) : null;
 
-        $kpis = match ($variant) {
-            Variant::Verkauf => $this->allowed($admin, $sold['tiles'] ?? []),
-            Variant::Katalog => $roles->catalogue(),
-            Variant::Gutachten => $roles->compliance($admin, $period),
-            // The customers waiting and asking, then the order figures — without money.
-            Variant::Support => [...$roles->support($period, $compare), ...$this->allowed($admin, $sold['tiles'] ?? [])],
-            Variant::Keine => [],
+        // Every figure is computed when it is asked for. The charts come in a request of their own (deferred, below), and
+        // that request asks for the charts alone: it no longer computes every figure of the page again only to drop them
+        // (D-280). The sales figures two props share are computed once.
+        $soldOnce = null;
+        $sold = static function () use (&$soldOnce, $variant, $sales, $period, $compare): ?array {
+            if (! in_array($variant, [Variant::Verkauf, Variant::Support], true)) {
+                return null;
+            }
+
+            return $soldOnce ??= $sales->for($period, $compare);
         };
-        $demo = $variant === Variant::Verkauf && ($sold['demo'] ?? false);
 
         $approvals = $admin->may(PermissionModule::Approvals, PermissionAction::View);
         $reports = $admin->may(PermissionModule::Reports, PermissionAction::View);
@@ -78,18 +79,25 @@ class UebersichtController extends Controller
             'asOf' => GermanFormat::dateTime(now()),
             'period' => [...$period->toArray(), 'compare' => $compare],
             'variant' => $variant->value,
-            'kpis' => $kpis,
-            'demo' => $demo,
+            'kpis' => fn (): array => match ($variant) {
+                Variant::Verkauf => $this->allowed($admin, $sold()['tiles'] ?? []),
+                Variant::Katalog => $roles->catalogue(),
+                Variant::Gutachten => $roles->compliance($admin, $period),
+                // The customers waiting and asking, then the order figures — without money.
+                Variant::Support => [...$roles->support($period, $compare), ...$this->allowed($admin, $sold()['tiles'] ?? [])],
+                Variant::Keine => [],
+            },
+            'demo' => fn (): bool => $variant === Variant::Verkauf && ($sold()['demo'] ?? false),
             // Katalog: what is missing from the Felgen in the shop, beside the to-dos.
-            'quality' => $variant === Variant::Katalog ? $roles->incomplete() : null,
+            'quality' => fn () => $variant === Variant::Katalog ? $roles->incomplete() : null,
             // Lists, each only for a role that may open what its rows lead to.
-            'recentOrders' => $admin->may(PermissionModule::Orders, PermissionAction::View) ? $lists->recentOrders() : null,
-            'todo' => $lists->todo($admin),
-            'today' => $lists->today($admin),
-            'activity' => $admin->may(PermissionModule::AuditLog, PermissionAction::View) ? $lists->activity() : null,
+            'recentOrders' => fn () => $admin->may(PermissionModule::Orders, PermissionAction::View) ? $lists->recentOrders() : null,
+            'todo' => fn () => $lists->todo($admin),
+            'today' => fn () => $lists->today($admin),
+            'activity' => fn () => $admin->may(PermissionModule::AuditLog, PermissionAction::View) ? $lists->activity() : null,
             // Top-Felgen with the page, not deferred: one short query, and a ranking whose names wrap
             // has no skeleton that could match it — so the card is never a skeleton (M1-06).
-            'topWheels' => $admin->may(PermissionModule::Orders, PermissionAction::View) || $reports ? $charts->topWheels($period) : null,
+            'topWheels' => fn () => $admin->may(PermissionModule::Orders, PermissionAction::View) || $reports ? $charts->topWheels($period) : null,
             // The charts come a moment after the figures, each in its own skeleton meanwhile: the
             // page is never held up by its heaviest query. Which charts this role gets is known at
             // once (`chartKeys`), so the first frame already has the right boxes in the right places.
@@ -97,7 +105,7 @@ class UebersichtController extends Controller
             'charts' => Inertia::defer(fn (): array => self::each($plan), 'default', true),
             // The matrix's size before it arrives: one row per make, so its skeleton is exactly as tall
             // as the matrix that replaces it and nothing under it moves (a count, not the matrix).
-            'coverageRows' => $approvals ? DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make') : 0,
+            'coverageRows' => fn (): int => $approvals ? DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make') : 0,
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),
             ],

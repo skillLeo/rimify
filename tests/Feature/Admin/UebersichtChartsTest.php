@@ -205,6 +205,29 @@ describe('on the page', function (): void {
             ->assertInertia(fn (AssertableInertia $page) => $page->where('chartKeys', []));
     });
 
+    it('computes the charts alone when they arrive — not every figure of the page again (D-280)', function (): void {
+        chartOrder(10_000, '2026-09-24 10:00:00', WheelConfig::factory()->create());
+
+        // Every query, by the request that ran it: the page's, then the charts' own.
+        $phase = 'page';
+        $ran = ['page' => [], 'charts' => []];
+        DB::listen(function ($query) use (&$phase, &$ran): void {
+            $ran[$phase][] = $query->sql;
+        });
+        // Two of the page's own figures: Top-Felgen (ChartData::topWheels) and the work lists (WorkLists).
+        $figures = static fn (array $sql): array => array_values(array_filter($sql, static fn (string $s): bool => str_contains($s, 'from `order_lines`') || str_contains($s, 'COALESCE(paid_at, placed_at) asc')));
+
+        $this->actingAs(chartsAdmin(), 'admin')->get('/admin?zeitraum=7')
+            ->assertInertia(function (AssertableInertia $page) use (&$phase): AssertableInertia {
+                $phase = 'charts';
+
+                return $page->loadDeferredProps(fn (AssertableInertia $reload) => $reload->has('charts.revenue.points', 7)->has('charts.coverage.rows'));
+            });
+
+        expect($figures($ran['page']))->not->toBe([])
+            ->and($figures($ran['charts']))->toBe([]);
+    });
+
     it('lets one chart fail on its own: it is named, the others still arrive, the page stays', function (): void {
         chartOrder(10_000, '2026-09-24 10:00:00');
 
