@@ -3,6 +3,7 @@ import { expect, test, type Page } from './fixtures'
 import { maxFit } from '../resources/js/composables/admin/railResize'
 import { signIn } from './bugs/faq-support'
 import { resetRail, storeRail } from './bugs/rail-support'
+import { propsOf } from './teardown'
 import { openUebersicht, patchCharts } from './bugs/ueb-support'
 
 /*
@@ -177,16 +178,25 @@ test('the last width survives the tab closing within the second', async ({ page,
     await handle(page).focus()
     await page.keyboard.press('ArrowRight') // 276, sent at once
     await page.keyboard.press('ArrowRight') // 292, still waiting for its second
-    await page.close({ runBeforeUnload: true })
+    await expect(handle(page)).toHaveAttribute('aria-valuenow', '292')
 
+    // Closed for real — its pagehide sends the beacon — before anything reads the account: with runBeforeUnload the
+    // close returns at once, and a whole Übersicht loaded per look left a loaded machine one or two looks (D-266).
+    const closed = page.waitForEvent('close')
+    await page.close({ runBeforeUnload: true })
+    await closed
+
+    // The account, read over a light page's props, until the beacon has landed.
+    await expect
+        .poll(async () => (await propsOf<{ admin?: { preferences?: { railWidth?: number } } }>(context, '/admin/profil'))?.admin?.preferences?.railWidth)
+        .toBe(292)
+
+    // And the rail a fresh tab draws.
     const next = await context.newPage()
 
     await next.setViewportSize({ width: 1440, height: 900 })
-    await expect.poll(async () => {
-        await next.goto('/admin', { waitUntil: 'networkidle' })
-
-        return railWidth(next)
-    }).toBe(292)
+    await next.goto('/admin', { waitUntil: 'networkidle' })
+    expect(await railWidth(next)).toBe(292)
 })
 
 test('a magnet holds the rail until the pointer is 12 px past it', async ({ page }) => {
