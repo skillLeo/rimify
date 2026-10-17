@@ -4,8 +4,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
  * Shared steps of the Inhalte › Seiten bug tests (docs/qa/BUGS.md, SEI-xx).
  *
  * Nothing here writes to the database: every test leaves its change unsaved, or its request never
- * reaches the application (aborted, or refused by the CSRF check). Running the suite leaves the
- * local content exactly as it found it.
+ * reaches a controller (aborted, or refused before one runs — since SEI-02's fix by the sign-in, 401).
+ * Running the suite leaves the local content exactly as it found it; SEI-02 says so when it did not.
  */
 
 export const SUPER_ADMIN = { email: 'super-admin@rimify.test', password: 'rimify-dev-2026' };

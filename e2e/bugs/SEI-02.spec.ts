@@ -6,11 +6,12 @@ import { SHOTS, openEditor, signIn, traffic } from './seiten-support';
  * shop's own error page (storefront header, no admin rail) replaces it, the address bar shows the
  * PUT-only URL /admin/seiten/{id}/entwurf, and everything typed is gone (docs/qa/BUGS.md).
  *
- * The case run here is the everyday one: the session ran out while the person was writing. The
- * browser still holds its XSRF cookie, so the CSRF check answers 419. AdminErrorPage::handles()
- * only takes a failure when the admin guard still has somebody — after an expiry it has nobody —
- * so ErrorPage renders the shop's Inertia page "Fehler/Index", and Inertia swaps it in because
- * the response carries X-Inertia. A 500, and a 403 after a role change, take the same road.
+ * The case run here is the everyday one: the session ran out while the person was writing. When
+ * found, the CSRF check answered 419, AdminErrorPage::handles() only took a failure when the admin
+ * guard still had somebody — after an expiry it has nobody — so ErrorPage rendered the shop's
+ * Inertia page "Fehler/Index", and Inertia swapped it in. A 500, and a 403 after a role change, took
+ * the same road. Since the fix a same-origin save passes the CSRF check and the sign-in refuses it:
+ * 401, answered with one sentence while the page stays (bootstrap/app.php, AdminErrorPage::formFailure).
  *
  * AdminErrorPage's own promise for exactly this: "the person goes back to the form they were
  * filling, what they typed kept, with one sentence saying what happened". admin-shell.md §9.4:
@@ -49,12 +50,13 @@ test('SEI-02 Speichern after the session ran out keeps the editor and the words'
     await page.locator('.adm-savebar__save').click();
 
     const response = await answer;
-    // The session had run out: the save refused as an expired page (419), or the visitor sent to sign in. A save that
-    // went through means the expiry was never staged — nothing measured, and a draft written.
+    // The session had run out: the save refused by the sign-in (401, the answer since the fix), as an expired page (419),
+    // or the visitor sent to sign in. A save that went through means the expiry was never staged — nothing measured, and
+    // a draft written.
     const location = response.headers()['location'] ?? '';
 
     expect(
-        response.status() === 419 || location.includes('/admin/anmelden'),
+        [401, 419].includes(response.status()) || location.includes('/admin/anmelden'),
         `rig: the session had run out when Speichern was pressed — the server answered ${response.status()}${location ? ` → ${location}` : ''}`,
     ).toBe(true);
 
