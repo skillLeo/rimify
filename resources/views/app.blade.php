@@ -85,8 +85,8 @@
          the stylesheets in the document nothing else held the first paint back: a footer painted half-built at the foot
          of a short page grew upwards as its last rows arrived, CLS 0,024 at 1440 (D-177); the Übersicht was painted with
          its header half-parsed — the Zeitraum's three buttons beside the title — and rearranged when the rest arrived,
-         0,039 at 768 on a loaded machine (D-274). A page without the element (the admin's sign-in and invitation pages)
-         paints when its parse ends. The phone's first paint is its LCP and keeps its head start. --}}
+         0,039 at 768 on a loaded machine (D-274). The admin's sign-in and invitation pages have no layout and carry
+         the element themselves: a page without it would paint only when its parse ends, and Chrome warns of it. The phone's first paint is its LCP and keeps its head start. --}}
     @if (! ($page['props']['isMobile'] ?? false))
         <link rel="expect" href="#seitenende" blocking="render">
     @endif

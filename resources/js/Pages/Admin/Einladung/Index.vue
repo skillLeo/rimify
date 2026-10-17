@@ -166,6 +166,10 @@ function submit(): void {
                 </template>
             </div>
         </div>
+
+        <!-- The page's last word: a desktop page paints once this is parsed (app.blade.php, `rel="expect"`, D-274) —
+             without it Chrome warns that the element it waited for never came. -->
+        <span id="seitenende" hidden />
     </main>
 </template>
 
