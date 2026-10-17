@@ -1284,6 +1284,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Services\\Admin\\Approvals\\FitmentRows' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/FitmentRows.php',
         'App\\Services\\Admin\\Approvals\\LoadLimitCheck' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/LoadLimitCheck.php',
         'App\\Services\\Admin\\Approvals\\ReleaseDeclaration' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/ReleaseDeclaration.php',
+        'App\\Services\\Admin\\Approvals\\SamePdf' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/SamePdf.php',
         'App\\Services\\Admin\\AuditDescriber' => __DIR__ . '/../..' . '/app/Services/Admin/AuditDescriber.php',
         'App\\Services\\Admin\\AuditTrail' => __DIR__ . '/../..' . '/app/Services/Admin/AuditTrail.php',
         'App\\Services\\Admin\\Catalogue\\BrandLogoStore' => __DIR__ . '/../..' . '/app/Services/Admin/Catalogue/BrandLogoStore.php',

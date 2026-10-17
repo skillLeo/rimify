@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**78 sentences: 1 open, 22 backed by a recorded field, 53 about the shop itself, 2 not sentences.**
+**79 sentences: 1 open, 22 backed by a recorded field, 54 about the shop itself, 2 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -75,6 +75,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Ein Nachtrag ergänzt ein Gutachten, keinen anderen Nachtrag.“ | admin | `Http/Requests/Admin/ApprovalDocumentRequest.php` | a rule of the record |
 | „Ersetzt werden kann nur ein freigegebenes Dokument.“ | admin | `Http/Requests/Admin/ApprovalDocumentRequest.php` | a rule of the record |
 | „Ein Dokument kann sich nicht selbst ersetzen.“ | admin | `Http/Requests/Admin/ApprovalDocumentRequest.php` | a rule of the record |
+| „Ein Gutachten wird nur einmal angelegt – öffne es dort, oder lad die richtige Datei hoch.“ | admin | `Http/Controllers/Admin/GutachtenController.php` | a rule of the record: one document per file, known by its SHA-256 (ADMIN-GEFUNDEN 503) |
 | „Ein Nachtrag kann sich nicht selbst ergänzen.“ | admin | `Http/Requests/Admin/ApprovalDocumentRequest.php` | a rule of the record |
 | „Dieses Gutachten gehört nicht zu dem Konflikt.“ | admin | `Http/Requests/Admin/KonfliktDecisionRequest.php` | a relation between two of our records |
 | „Einen Code bitte so, wie das Gutachten ihn druckt: Buchstaben und Ziffern, höchstens 32 Zeichen – zum Beispiel A01, 16a) oder „Nicht 330D“.“ | admin | `Services/Admin/Approvals/DocumentConditions.php` | an instruction for entering a code |

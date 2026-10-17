@@ -105,6 +105,8 @@ test('BELL-03a Enter on an unread alert keeps the keyboard in the list', async (
     const state: State = { read: new Set(), allRead: false };
 
     await signIn(page);
+    // The bell is on every admin page; the Übersicht is where signing in used to land (D-266).
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
     await holdCentre(page, state);
     await openCentreFromBell(page);
@@ -130,6 +132,8 @@ test('BELL-03b Enter on „Alle als gelesen markieren" keeps the keyboard on the
     const state: State = { read: new Set(), allRead: false };
 
     await signIn(page);
+    // The bell is on every admin page; the Übersicht is where signing in used to land (D-266).
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
     await holdCentre(page, state);
     await openCentreFromBell(page);

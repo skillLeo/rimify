@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '../fixtures';
+import { expect, test, type APIRequestContext } from '../fixtures';
 import { SHOP } from '../shop';
 import { consentGiven, open } from '../support';
 import { SHOTS } from './ef-support';
@@ -30,20 +30,22 @@ const QUERIES = ['BBS CH-R 8,5x19 ET35', 'Borbet DB8 19 Zoll', 'Kraftfahrzeug-Zu
 /** A customer typing at about 65 words a minute: every keystroke more than the 120 ms debounce apart. */
 const KEY_DELAY_MS = 180;
 
-async function apiStatus(page: Page): Promise<number> {
-    return (await page.request.get('/api/v1/vehicles/models?marke=BMW', { headers: { Accept: 'application/json' } })).status();
+async function apiStatus(request: APIRequestContext): Promise<number> {
+    return (await request.get('/api/v1/vehicles/models?marke=BMW', { headers: { Accept: 'application/json' } })).status();
 }
 
-test.afterEach(async ({ page, isMobile }) => {
-    if (isMobile || page.isClosed()) {
+// By request, never through the page (e2e/teardown.ts): the limiter's counter is the visitor's IP, which any request
+// from this machine shares.
+test.afterEach(async ({ request, isMobile }) => {
+    if (isMobile) {
         return;
     }
 
     // The window is a minute from its first request; a refused request does not extend it.
     const until = Date.now() + 70_000;
 
-    while (Date.now() < until && (await apiStatus(page)) === 429) {
-        await page.waitForTimeout(5_000);
+    while (Date.now() < until && (await apiStatus(request)) === 429) {
+        await new Promise((done) => setTimeout(done, 5_000));
     }
 });
 

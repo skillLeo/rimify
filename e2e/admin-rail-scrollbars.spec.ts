@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './fixtures'
 import { maxFit } from '../resources/js/composables/admin/railResize'
 import { signIn } from './bugs/faq-support'
+import { resetRail } from './bugs/rail-support'
 
 /*
  * The rail with classic scrollbars — the ones Windows draws, which take width. Playwright hides every
@@ -24,6 +25,13 @@ async function edge(page: Page, selector: string): Promise<number> {
 test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1100 })
     await signIn(page)
+})
+
+// The default back for the next test — by request, and after a red test too (e2e/teardown.ts: cleanup never navigates).
+test.afterEach(async ({ context, isMobile }) => {
+    if (!isMobile) {
+        await resetRail(context)
+    }
 })
 
 test('nothing in the rail moves when the navigation starts to scroll', async ({ page }) => {
@@ -66,17 +74,6 @@ test('the shell the layout measures never changes width with the rail — no loo
     seen.add(await shell())
 
     expect([...seen]).toEqual([before])
-
-    // Back to the default for the next test.
-    await page.evaluate(async () => {
-        const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '')
-        await fetch('/admin/ansicht', {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': token },
-            body: JSON.stringify({ rail: 'open', width: 260 }),
-        })
-    })
 })
 
 test('beside a page scrollbar the content keeps 960 px, and the rail gives way before it', async ({ page }) => {

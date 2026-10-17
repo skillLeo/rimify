@@ -38,6 +38,8 @@ export interface DocumentFacts {
     hasPdf: boolean
     /** A key is stored, the file is not in the storage. */
     pdfMissing?: boolean
+    /** The other documents carrying the very same file, outside its own revision line (ADMIN-GEFUNDEN 503). */
+    samePdf?: { label: string; href: string; status: string; demo: boolean }[]
     /** Page 1's header and a Nachtrag's base, as the forms type them. */
     shape: RecordShape
     /** Page 1's header, as the record shows it: label → value, only what is filled. */

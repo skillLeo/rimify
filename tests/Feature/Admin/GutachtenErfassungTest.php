@@ -7,6 +7,7 @@ use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Enums\ConflictKind;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
+use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
@@ -21,6 +22,7 @@ use App\Models\WheelModel;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
+use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -51,11 +53,17 @@ function erfassung(string $role = 'super-admin'): AdminUser
     return AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
 }
 
-/** A PDF waiting where the browser's upload leaves it. */
+/** A PDF waiting where the browser's upload leaves it — a file of its own each time, as two real Gutachten are. */
 function pendingPdf(): string
 {
+    return uploadOf("%PDF-1.4\n% Beispiel ".Str::ulid()."\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+}
+
+/** These bytes, waiting where the browser's upload leaves them. */
+function uploadOf(string $bytes): string
+{
     $key = 'pending/'.Str::lower((string) Str::ulid()).'.pdf';
-    Storage::disk('docs_private')->put($key, "%PDF-1.4\n% Beispiel\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n");
+    Storage::disk('docs_private')->put($key, $bytes);
 
     return $key;
 }
@@ -112,6 +120,70 @@ it('asks each kind for its own number, and refuses a file that is not a PDF', fu
         ->assertSessionHasErrors(['upload_key' => 'Das ist keine PDF-Datei. Ein Gutachten wird nur im PDF-Format angenommen.']);
 
     expect(ApprovalDocument::query()->count())->toBe(0);
+});
+
+describe('a PDF is known by its file, not by the number typed beside it (ADMIN-GEFUNDEN 503)', function (): void {
+    it('refuses a real document’s file under another name, names the document that has it, and keeps no copy', function (): void {
+        $nachtrag = "%PDF-1.4\n% Nachtrag 366-0350-21-WIRD/N1\n%%EOF\n";
+        $this->actingAs(erfassung(), 'admin')->post('/admin/gutachten', ['upload_key' => uploadOf($nachtrag), 'kind' => 'NACHTRAG', 'report_number' => '366-0350-21-WIRD/N1', 'supplement_to_number' => 'ABE 53841'])
+            ->assertSessionHasNoErrors();
+        $first = ApprovalDocument::query()->sole();
+
+        // The client's case on his preview (D-210): the Nachtrag's file, typed as the base approval it belongs to.
+        $this->actingAs(erfassung(), 'admin')->post('/admin/gutachten', ['upload_key' => uploadOf($nachtrag), 'kind' => 'ABE', 'kba_number' => '53841'])
+            ->assertSessionHasErrors(['upload_key' => GutachtenController::knownFile($first)]);
+
+        expect(GutachtenController::knownFile($first))->toBe('Diese PDF-Datei liegt schon bei „Nachtrag 366-0350-21-WIRD/N1“ (Entwurf). Ein Gutachten wird nur einmal angelegt – öffne es dort, oder lad die richtige Datei hoch.')
+            ->and(ApprovalDocument::query()->count())->toBe(1)
+            ->and(Storage::disk('docs_public')->files('gutachten'))->toBe([$first->pdf_key]);
+        Storage::disk('docs_private')->assertDirectoryEmpty('pending');
+
+        // Its own file goes in; swapping a draft's file for the Nachtrag's is refused the same way, and the draft keeps its own.
+        $this->actingAs(erfassung(), 'admin')->post('/admin/gutachten', ['upload_key' => uploadOf("%PDF-1.4\n% ABE 53841\n%%EOF\n"), 'kind' => 'ABE', 'kba_number' => '53841'])
+            ->assertSessionHasNoErrors();
+        $abe = ApprovalDocument::query()->where('kba_number', '53841')->sole();
+        $own = $abe->pdf_sha256;
+
+        $this->actingAs(erfassung(), 'admin')->put('/admin/gutachten/'.$abe->id, ['upload_key' => uploadOf($nachtrag), 'kind' => 'ABE', 'kba_number' => '53841'])
+            ->assertSessionHasErrors(['upload_key' => GutachtenController::knownFile($first)]);
+
+        expect($abe->refresh()->pdf_sha256)->toBe($own)
+            ->and(Storage::disk('docs_public')->files('gutachten'))->toHaveCount(2);
+    });
+
+    it('lets a new Fassung carry its predecessor’s file, and lists neither on the other’s page', function (): void {
+        $bytes = "%PDF-1.4\n% ABE 70000\n%%EOF\n";
+        $released = ApprovalDocument::factory()->abe()->create(['kba_number' => '70000', 'pdf_sha256' => hash('sha256', $bytes)]);
+
+        $this->actingAs(erfassung(), 'admin')->post('/admin/gutachten', ['upload_key' => uploadOf($bytes), 'kind' => 'ABE', 'kba_number' => '70000', 'supersedes_id' => $released->id])
+            ->assertSessionHasNoErrors();
+        $revision = ApprovalDocument::query()->where('supersedes_id', $released->id)->sole();
+
+        expect($revision->pdf_sha256)->toBe($released->pdf_sha256);
+
+        foreach ([$released, $revision] as $document) {
+            $this->actingAs(erfassung(), 'admin')->get('/admin/gutachten/'.$document->id)
+                ->assertInertia(fn (AssertableInertia $page) => $page->where('document.samePdf', []));
+        }
+    });
+
+    it('lets a real document carry an example document’s file, and says on both pages that they share it', function (): void {
+        $bytes = "%PDF-1.4\n% der Nachtrag des Abnahme-Satzes\n%%EOF\n";
+        $example = ApprovalDocument::factory()->create(['is_demo' => true, 'demo_ref' => 'abnahme:doc:gleiche-pdf', 'pdf_sha256' => hash('sha256', $bytes)]);
+
+        $this->actingAs(erfassung(), 'admin')->post('/admin/gutachten', ['upload_key' => uploadOf($bytes), 'kind' => 'ABE', 'kba_number' => '53841'])
+            ->assertSessionHasNoErrors();
+        $real = ApprovalDocument::query()->where('is_demo', false)->sole();
+
+        $this->actingAs(erfassung(), 'admin')->get('/admin/gutachten/'.$real->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('document.samePdf', [
+                ['label' => FitmentRows::label($example), 'href' => '/admin/gutachten/'.$example->id, 'status' => 'Freigegeben', 'demo' => true],
+            ]));
+        $this->actingAs(erfassung(), 'admin')->get('/admin/gutachten/'.$example->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('document.samePdf', [
+                ['label' => 'ABE 53841', 'href' => '/admin/gutachten/'.$real->id, 'status' => 'Entwurf', 'demo' => false],
+            ]));
+    });
 });
 
 it('adds a row for every vehicle and size chosen, with tyre sizes and Auflagen, and leaves a row already there', function (): void {

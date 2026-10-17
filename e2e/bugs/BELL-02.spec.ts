@@ -21,6 +21,8 @@ const UNREAD = 3;
 
 test('BELL-02 Back after „Alle als gelesen markieren" does not bring the old count back', async ({ page }) => {
     await signIn(page);
+    // The bell is on every admin page; the Übersicht is where signing in used to land (D-266).
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
 
     let allRead = false;

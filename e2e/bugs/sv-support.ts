@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
+import { propsOf, send as sendAs } from '../teardown'
 import { signIn, waitForApp } from './faq-support'
 
 /*
@@ -44,30 +45,12 @@ export async function myViews(page: Page): Promise<ViewItem[]> {
 }
 
 /**
- * A request sent the way the app's own background saves are (preferences.ts): same origin, the
- * XSRF header, JSON. A redirect is not followed and comes back as 302; a refusal is Laravel's 422.
+ * A request sent the way the app's own background saves are (preferences.ts): the session's cookies, the XSRF header,
+ * JSON — over the context's request, not from inside the page, so it works before the test has opened one (signing in
+ * leaves the page blank, D-266). A redirect is not followed and comes back as 302; a refusal is Laravel's 422.
  */
 export async function send(page: Page, method: 'POST' | 'PATCH' | 'DELETE', url: string, body?: unknown): Promise<number> {
-    return page.evaluate(
-        async ({ method, url, body }) => {
-            const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '')
-            const response = await fetch(url, {
-                method,
-                credentials: 'same-origin',
-                redirect: 'manual',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-XSRF-TOKEN': token,
-                },
-                body: body === undefined ? undefined : JSON.stringify(body),
-            })
-
-            return response.type === 'opaqueredirect' ? 302 : response.status
-        },
-        { method, url, body }
-    )
+    return sendAs(page.context(), method, url, body)
 }
 
 /** Saves views exactly as the dialog does (POST /admin/ansichten) and returns them as the list shows them. */
@@ -87,20 +70,25 @@ export async function createViews(page: Page, views: { name: string; query: Reco
     })
 }
 
-/** Deletes every „QA-…" view of this person and puts the list's own columns back. */
-export async function cleanUp(page: Page): Promise<void> {
-    for (const view of await myViews(page)) {
-        await send(page, 'DELETE', `/admin/ansichten/${view.id}`)
+/**
+ * Deletes every „QA-…" view of this person and puts the list's own columns back — by request, never through the page
+ * (e2e/teardown.ts: cleanup never navigates). The views are read from the list's HTML over the same session.
+ */
+export async function cleanUp(context: BrowserContext): Promise<void> {
+    const props = await propsOf<{ views?: { items: ViewItem[] } }>(context, LIST)
+
+    for (const view of (props?.views?.items ?? []).filter((v) => v.mine && v.name.startsWith(PREFIX))) {
+        await sendAs(context, 'DELETE', `/admin/ansichten/${view.id}`)
     }
 
-    await send(page, 'PATCH', '/admin/ansicht', { list: 'bestellungen', columns: DEFAULT_COLUMNS })
+    await sendAs(context, 'PATCH', '/admin/ansicht', { list: 'bestellungen', columns: DEFAULT_COLUMNS })
 }
 
 /** Signed in, at `width` × `height`, with no „QA-…" views and the default columns. */
 export async function start(page: Page, width: number, height = 900): Promise<void> {
     await page.setViewportSize({ width, height })
     await signIn(page)
-    await cleanUp(page)
+    await cleanUp(page.context())
 }
 
 export async function open(page: Page, href: string): Promise<void> {

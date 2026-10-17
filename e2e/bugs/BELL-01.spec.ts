@@ -19,6 +19,8 @@ import { SHOTS, bell, focused, holdLatest, signIn, waitForApp } from './bell-sup
  */
 test('BELL-01 Enter on the bell focuses the newest alert, ↓ the next, Esc returns to the bell', async ({ page }) => {
     await signIn(page);
+    // The bell is on every admin page; the Übersicht is where signing in used to land (D-266).
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
     await holdLatest(page, 400);
 

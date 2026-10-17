@@ -386,6 +386,9 @@ const TONE: Record<string, string | null> = {
                         <a v-if="document.pdfUrl" :href="document.pdfUrl" target="_blank" rel="noopener">PDF öffnen</a>
                         <template v-else-if="document.pdfMissing">Die Datei fehlt im Speicher. Lad das PDF über „Ändern“ neu hoch.</template>
                         <template v-else>Kein PDF hinterlegt</template>
+                        <span v-for="twin in document.samePdf ?? []" :key="twin.href" class="gs-sub gs-same-pdf">
+                            Dieselbe Datei liegt auch bei <a :href="twin.href">{{ twin.label }}</a> ({{ twin.status }}<template v-if="twin.demo">, Demodaten</template>).
+                        </span>
                     </dd>
                 </div>
             </dl>

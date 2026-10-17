@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
+import { cleanUp } from './bugs/sv-support'
 
 /*
  * Verkauf › Bestellungen, Gespeicherte Ansichten and the Spaltenwahl (docs/admin/rest-build-plan.md,
@@ -15,40 +16,19 @@ test.skip(({ isMobile }) => isMobile, 'Views are saved at a desk; a phone uses t
 
 const PREFIX = 'QA-'
 
-/** Everything this spec may have left behind: its views, and a changed column choice. */
-async function cleanUp(page: Page): Promise<void> {
-    await page.goto('/admin/bestellungen', { waitUntil: 'networkidle' })
-    await page.evaluate(async (prefix) => {
-        // Inertia's first page: a JSON script beside the app (or, older, the app's data-page).
-        const data = document.querySelector('script[data-page="app"]')?.textContent ?? document.querySelector<HTMLElement>('#app')?.dataset.page
-        const views = data ? ((JSON.parse(data) as { props: { views?: { items: { id: number; name: string; mine: boolean }[] } } }).props.views?.items ?? []) : []
-        const token = decodeURIComponent(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/.exec(document.cookie)?.[1] ?? '')
-        const headers = { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': token }
-
-        for (const view of views.filter((v) => v.mine && v.name.startsWith(prefix))) {
-            await fetch(`/admin/ansichten/${view.id}`, { method: 'DELETE', credentials: 'same-origin', headers })
-        }
-
-        await fetch('/admin/ansicht', {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers,
-            body: JSON.stringify({ list: 'bestellungen', columns: ['nummer', 'datum', 'kunde', 'summe', 'zahlung', 'versand'] }),
-        })
-    }, PREFIX)
-}
-
 const bar = (page: Page) => page.getByRole('navigation', { name: 'Ansichten' })
 
+// Everything this spec may leave behind — its „QA-…" views and a changed column choice — taken back by request, before
+// and after: cleanup never navigates (e2e/teardown.ts, D-263).
 test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await signIn(page)
-    await cleanUp(page)
+    await cleanUp(page.context())
 })
 
-test.afterEach(async ({ page, isMobile }) => {
-    if (!isMobile && !page.isClosed()) {
-        await cleanUp(page)
+test.afterEach(async ({ context, isMobile }) => {
+    if (!isMobile) {
+        await cleanUp(context)
     }
 })
 
@@ -86,11 +66,10 @@ test('filters kept as a view open again from the bar, marked as where one is', a
 })
 
 test('a changed view is saved over, or set back', async ({ page }) => {
-    // Red in two release gates in a row on a loaded machine, each time differently: the save dialog still open after
-    // ten seconds (gate 3), then „Verwerfen“ leading to the bare list instead of the saved view (16.10.2026); alone it
-    // passed. An admin test, not a verdict, price, condition or append-only one, and the admin round is closed: set
-    // aside with this reason and recorded in docs/review/ADMIN-GEFUNDEN.md (508), to be reproduced and fixed there.
-    test.fixme(true, 'ADMIN-GEFUNDEN 508: „Verwerfen“ once led to the bare list under load — reproduce in the admin round')
+    // ADMIN-GEFUNDEN 508, reproduced under load (17.10.2026: two of fifteen, eight CPU burners, 4×): not the app. The run
+    // outgrew its minute, the timeout's afterEach then opened the bare list, and the still-polling check read that page
+    // — „Verwerfen“ itself had asked for the view as saved (the trace). Fixed as a class: the cleanup goes by request
+    // and never touches the page (D-263); the minute stays — a slow run fails as slow, on its own step.
     await page.goto('/admin/bestellungen?status=offen', { waitUntil: 'networkidle' })
     await saveView(page, `${PREFIX}Ändern`)
 

@@ -37,10 +37,9 @@ test.beforeEach(async ({ page, isMobile }) => {
     await start(page, isMobile ? 390 : 1440, isMobile ? 844 : 900)
 })
 
-test.afterEach(async ({ page }) => {
-    if (!page.isClosed()) {
-        await cleanUp(page)
-    }
+// By request, never through the page (e2e/teardown.ts): cleanup never navigates.
+test.afterEach(async ({ context }) => {
+    await cleanUp(context)
 })
 
 async function currentTabInSight(page: Page, view: ViewItem, shot: string): Promise<void> {

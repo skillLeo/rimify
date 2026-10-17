@@ -24,10 +24,9 @@ test.beforeEach(async ({ page }) => {
     await start(page, 1440)
 })
 
-test.afterEach(async ({ page }) => {
-    if (!page.isClosed()) {
-        await cleanUp(page)
-    }
+// By request, never through the page (e2e/teardown.ts): cleanup never navigates.
+test.afterEach(async ({ context }) => {
+    await cleanUp(context)
 })
 
 test('SV-06 after Back the list keeps the column just ticked on', async ({ page }) => {

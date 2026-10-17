@@ -513,6 +513,7 @@ return array(
     'App\\Services\\Admin\\Approvals\\FitmentRows' => $baseDir . '/app/Services/Admin/Approvals/FitmentRows.php',
     'App\\Services\\Admin\\Approvals\\LoadLimitCheck' => $baseDir . '/app/Services/Admin/Approvals/LoadLimitCheck.php',
     'App\\Services\\Admin\\Approvals\\ReleaseDeclaration' => $baseDir . '/app/Services/Admin/Approvals/ReleaseDeclaration.php',
+    'App\\Services\\Admin\\Approvals\\SamePdf' => $baseDir . '/app/Services/Admin/Approvals/SamePdf.php',
     'App\\Services\\Admin\\AuditDescriber' => $baseDir . '/app/Services/Admin/AuditDescriber.php',
     'App\\Services\\Admin\\AuditTrail' => $baseDir . '/app/Services/Admin/AuditTrail.php',
     'App\\Services\\Admin\\Catalogue\\BrandLogoStore' => $baseDir . '/app/Services/Admin/Catalogue/BrandLogoStore.php',
