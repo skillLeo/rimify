@@ -173,7 +173,11 @@ class HandleInertiaRequests extends Middleware
      * On the sign-in screen — an `admin.*` route with nobody signed in yet — `account` is null and
      * `nav` empty: no rail is drawn there, and a name would be a lie.
      *
-     * @return array{admin?: array<string, mixed>}
+     * The shell is resolved with the response, not here: a partial reload — the Übersicht's charts, a Gutachten's
+     * preview — asks for its own props and never carries this one, and no longer computes the rail, its counts and the
+     * account for nothing (D-281).
+     *
+     * @return array{admin?: Closure(): array<string, mixed>}
      */
     private function admin(Request $request): array
     {
@@ -192,6 +196,12 @@ class HandleInertiaRequests extends Middleware
         // Back after Abmelden asks the server again instead of showing the last page it had.
         Inertia::encryptHistory();
 
+        return ['admin' => fn (): array => $this->shell($request)];
+    }
+
+    /** @return array<string, mixed> */
+    private function shell(Request $request): array
+    {
         $user = $request->user('admin');
         $signedIn = $user instanceof AdminUser;
         $can = [];
@@ -205,7 +215,7 @@ class HandleInertiaRequests extends Middleware
         // briefly wrong or briefly absent.
         $nav = $signedIn ? $navigation->for($user) : [];
 
-        return ['admin' => [
+        return [
             'can' => $can,
             'account' => $signedIn ? [
                 'name' => $user->name,
@@ -258,7 +268,7 @@ class HandleInertiaRequests extends Middleware
             'review' => $signedIn && (bool) config('rimify.review.enabled', false),
             // Stripe in Testmodus: a strip on every admin page says that no money moves (Block G).
             'paymentsTestMode' => fn (): bool => $signedIn && Payments::stripeTestMode(),
-        ]];
+        ];
     }
 
     /**
