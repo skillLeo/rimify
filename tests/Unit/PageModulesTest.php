@@ -29,13 +29,14 @@ it('names the page’s chunk first, then each chunk it imports once — never th
     ]);
 });
 
-it('preloads on the admin’s pages, on the desk and on the phone — not yet on the shop’s, whose LCP is a picture', function (): void {
-    expect(PageModules::wanted('Admin/Uebersicht/Index'))->toBeTrue()
-        ->and(PageModules::wanted('Admin/Gutachten/Show'))->toBeTrue()
-        ->and(PageModules::wanted('Startseite/Index'))->toBeFalse()
-        ->and(PageModules::wanted('Startseite/Mobile'))->toBeFalse()
-        ->and(PageModules::wanted('Felgen/Index'))->toBeFalse()
-        ->and(PageModules::for('Startseite/Index'))->toBe([]);
+it('preloads on every page on the desk and on the admin’s on the phone — never on the shop’s on the phone', function (): void {
+    expect(PageModules::wanted('Admin/Uebersicht/Index', phone: false))->toBeTrue()
+        ->and(PageModules::wanted('Admin/Uebersicht/Index', phone: true))->toBeTrue()
+        ->and(PageModules::wanted('Startseite/Desktop', phone: false))->toBeTrue()
+        ->and(PageModules::wanted('Felgen/Index', phone: false))->toBeTrue()
+        ->and(PageModules::wanted('Startseite/Mobile', phone: true))->toBeFalse()
+        ->and(PageModules::wanted('Felgen/Index', phone: true))->toBeFalse()
+        ->and(PageModules::for('Startseite/Mobile', phone: true))->toBe([]);
 });
 
 it('names nothing for a page the build does not hold', function (): void {

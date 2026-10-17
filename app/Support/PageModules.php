@@ -19,9 +19,9 @@ namespace App\Support;
 final class PageModules
 {
     /** @return list<string> absolute URLs, the page's own chunk first */
-    public static function for(string $component): array
+    public static function for(string $component, bool $phone = false): array
     {
-        if (! self::wanted($component)) {
+        if (! self::wanted($component, $phone)) {
             return [];
         }
 
@@ -29,15 +29,17 @@ final class PageModules
     }
 
     /**
-     * The admin's pages, on the desk and on the phone: their first paint is text, and what the person waits for is the
-     * page answering — at 100 ms and 20 Mbit/s the Übersicht hydrated 0,6 s sooner, on a throttled phone 4,2 s, and the first
-     * paint never came later beyond the noise. Not the shop's yet: there the first paint's picture is the LCP, and on this
-     * machine's HTTP/1.1 server, six connections deep, the chunks queued ahead of it — /felgen's LCP 0,2–0,6 s later, the
-     * phone homepage's 0,9 s. Whether HTTP/2 lifts that is measured on the preview first (D-279).
+     * Every page on the desk, and the admin's on the phone too; never the shop's on the phone.
+     *
+     * The admin's first paint is text, and what the person waits for is the page answering: at 100 ms and 20 Mbit/s the
+     * Übersicht hydrated 0,6 s sooner, on a throttled phone 4,2 s, the first paint no later (D-279). The shop's desk pages,
+     * measured on the preview over its HTTP/2: the homepage hydrated 0,44 s sooner and /felgen 0,55 s, the LCP no later
+     * (D-282) — the cost this machine's HTTP/1.1 server showed was its six connections queueing. On the phone the shop's
+     * homepage gained nothing (6,8 s either way) while its LCP, the phone's first measure, moved by noise or worse.
      */
-    public static function wanted(string $component): bool
+    public static function wanted(string $component, bool $phone): bool
     {
-        return str_starts_with($component, 'Admin/');
+        return ! $phone || str_starts_with($component, 'Admin/');
     }
 
     /** @return list<string> paths under public/build, the page's own chunk first */

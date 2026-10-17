@@ -81,10 +81,11 @@
     @foreach (\App\Support\PageStyles::for($page['component'] ?? '') as $href)
         <link rel="stylesheet" href="{{ $href }}" @disabled(\App\Support\InlineStyles::has($href))>
     @endforeach
-    {{-- An admin page's own script chunks fetched beside the entry, not after it has run: fetched and compiled, never run
-         here — the page's import runs them (App\Support\PageModules, D-279, which also says why not yet the shop's). At
-         the scripts' low priority, so they never take the stylesheets' bandwidth (AppServiceProvider). --}}
-    @foreach (\App\Support\PageModules::for($page['component'] ?? '') as $href)
+    {{-- The page's own script chunks fetched beside the entry, not after it has run: fetched and compiled, never run
+         here — the page's import runs them. Every page on the desk, the admin's on the phone too, never the shop's on the
+         phone (App\Support\PageModules, D-279, D-282). At the scripts' low priority, so they never take the stylesheets'
+         bandwidth (AppServiceProvider). --}}
+    @foreach (\App\Support\PageModules::for($page['component'] ?? '', (bool) ($page['props']['isMobile'] ?? false)) as $href)
         <link rel="modulepreload" href="{{ $href }}" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}" fetchpriority="low" data-page-chunk>
     @endforeach
     {{-- A desktop page paints once its last element is parsed: SiteFooter's in the shop, AdminLayout's in the admin. With
