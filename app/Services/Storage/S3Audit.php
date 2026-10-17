@@ -25,6 +25,8 @@ use Throwable;
  */
 final class S3Audit
 {
+    private const NO_LIFECYCLE_RULE = 'Keine Regel räumt unvollständige Uploads auf – abgebrochene Teile bleiben liegen und kosten.';
+
     /** @var list<string> probe keys written and not yet confirmed gone */
     private array $probes = [];
 
@@ -56,7 +58,7 @@ final class S3Audit
                 $visible = array_map(static fn (array $b): string => (string) $b['Name'], (array) $s3->listBuckets()->get('Buckets'));
                 $rows[] = self::row(1, 'Zugangsdaten', 'ok', "{$arn} sieht: ".($visible === [] ? 'keinen Bucket' : implode(', ', $visible)));
             } catch (AwsException $e) {
-                $rows[] = self::row(1, 'Zugangsdaten', 'ok', "{$arn} · Buckets auflisten nicht erlaubt (".self::aws($e).')');
+                $rows[] = self::row(1, 'Zugangsdaten', 'ok', "{$arn} · Liste der Buckets: ".self::unreadable($e, 's3:ListAllMyBuckets'));
             }
         } catch (Throwable $e) {
             $rows[] = self::row(1, 'Zugangsdaten', 'fail', self::aws($e));
@@ -82,7 +84,7 @@ final class S3Audit
                 ? self::row(3, 'Region', 'ok', $location)
                 : self::row(3, 'Region', 'fail', "Der Bucket liegt in {$location}, eingestellt ist {$set->region} – AWS antwortet dann mit 301, das wie ein Rechteproblem aussieht.");
         } catch (Throwable $e) {
-            $rows[] = self::row(3, 'Region', 'warn', 'Nicht abfragbar: '.self::aws($e));
+            $rows[] = self::row(3, 'Region', 'warn', self::unreadable($e, 's3:GetBucketLocation'));
         }
 
         $prefixes = [];
@@ -157,7 +159,7 @@ final class S3Audit
                 ? self::row(6, 'Versionierung', 'ok', 'Enabled')
                 : self::row(6, 'Versionierung', 'warn', "{$status} – eine überschriebene oder gelöschte Datei ist dann endgültig weg.");
         } catch (Throwable $e) {
-            $rows[] = self::row(6, 'Versionierung', 'warn', 'Nicht abfragbar: '.self::aws($e));
+            $rows[] = self::row(6, 'Versionierung', 'warn', self::unreadable($e, 's3:GetBucketVersioning'));
         }
 
         // 7 · CORS: PUT and POST from our origins.
@@ -182,9 +184,11 @@ final class S3Audit
         } catch (Throwable $e) {
             // A key that may not READ the rule says nothing about the rule (ADMIN-GEFUNDEN 502): then the browser's own
             // question decides — the Gutachten upload is a POST with progress, so the browser asks first, every time.
-            $rows[] = $e instanceof AwsException && $e->getAwsErrorCode() === 'NoSuchCORSConfiguration'
+            $rows[] = self::awsCode($e) === 'NoSuchCORSConfiguration'
                 ? self::row(7, 'CORS', 'fail', 'Keine CORS-Regel ('.self::aws($e)."). Nötig: PUT und POST für {$origin} – für das direkte Hochladen der Gutachten.")
-                : self::preflightRow($set, $origin, self::aws($e));
+                : self::preflightRow($set, $origin, self::denied($e)
+                    ? 'Die Regel selbst darf der Schlüssel nicht lesen – ihm fehlt die Berechtigung s3:GetBucketCORS ('.self::aws($e).')'
+                    : 'Die Regel selbst ließ sich nicht lesen ('.self::aws($e).')');
         }
 
         // 8 · Lifecycle: incomplete multipart uploads cleaned up.
@@ -193,9 +197,12 @@ final class S3Audit
             $clears = array_filter($rules, static fn (array $r): bool => ($r['Status'] ?? '') === 'Enabled' && isset($r['AbortIncompleteMultipartUpload']));
             $rows[] = $clears !== []
                 ? self::row(8, 'Lebenszyklus', 'ok', 'Unvollständige Uploads werden aufgeräumt')
-                : self::row(8, 'Lebenszyklus', 'warn', 'Keine Regel räumt unvollständige Uploads auf – abgebrochene Teile bleiben liegen und kosten.');
+                : self::row(8, 'Lebenszyklus', 'warn', self::NO_LIFECYCLE_RULE);
         } catch (Throwable $e) {
-            $rows[] = self::row(8, 'Lebenszyklus', 'warn', 'Keine Regel ('.self::aws($e).')');
+            // „Keine Regel“ only where AWS says there is none — a rule the key may not read is not a missing rule.
+            $rows[] = self::awsCode($e) === 'NoSuchLifecycleConfiguration'
+                ? self::row(8, 'Lebenszyklus', 'warn', self::NO_LIFECYCLE_RULE)
+                : self::row(8, 'Lebenszyklus', 'warn', self::unreadable($e, 's3:GetLifecycleConfiguration'));
         }
 
         // 9 · Encryption at rest.
@@ -203,7 +210,9 @@ final class S3Audit
             $sse = (array) $s3->getBucketEncryption(['Bucket' => $bucket])->search('ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault');
             $rows[] = self::row(9, 'Verschlüsselung', 'info', (string) ($sse['SSEAlgorithm'] ?? 'unbekannt'));
         } catch (Throwable $e) {
-            $rows[] = self::row(9, 'Verschlüsselung', 'info', 'Nicht abfragbar: '.self::aws($e));
+            $rows[] = self::awsCode($e) === 'ServerSideEncryptionConfigurationNotFoundError'
+                ? self::row(9, 'Verschlüsselung', 'info', 'Keine Standardverschlüsselung eingestellt')
+                : self::row(9, 'Verschlüsselung', 'info', self::unreadable($e, 's3:GetEncryptionConfiguration'));
         }
 
         // 10 · Nothing left behind.
@@ -230,6 +239,7 @@ final class S3Audit
     /**
      * Row 7 asked as a browser asks: an OPTIONS request from our origin for PUT and for POST, without credentials. The
      * bucket answers it from its CORS rule whatever the key may read — 200 with our origin allowed, or 403.
+     * `$unreadable` says why the rule itself could not be read.
      *
      * @return Row
      */
@@ -253,7 +263,7 @@ final class S3Audit
             }
         }
 
-        $unread = "Die Regel selbst darf der Schlüssel nicht lesen ({$unreadable}); gefragt wurde wie der Browser fragt.";
+        $unread = "{$unreadable}. Deshalb wurde wie ein Browser gefragt.";
 
         return $refused === []
             ? self::row(7, 'CORS', 'ok', "PUT und POST von {$origin} erlaubt. {$unread}")
@@ -301,5 +311,33 @@ final class S3Audit
     private static function aws(Throwable $e): string
     {
         return StorageTester::reason($e);
+    }
+
+    /**
+     * A setting the key may not read says nothing about the setting (ADMIN-GEFUNDEN 502): the row names what is
+     * unknown, why, and what would make it known — the permission the key lacks. Any other failure is reported as is.
+     */
+    private static function unreadable(Throwable $e, string $permission): string
+    {
+        return self::denied($e)
+            ? "Nicht lesbar – dem Schlüssel fehlt die Berechtigung {$permission} (".self::aws($e).')'
+            : 'Abfrage fehlgeschlagen: '.self::aws($e);
+    }
+
+    /** Whether AWS refused the key the question, rather than failing to answer it. */
+    private static function denied(Throwable $e): bool
+    {
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause instanceof AwsException) {
+                return in_array($cause->getAwsErrorCode(), ['AccessDenied', 'AllAccessDisabled'], true) || $cause->getStatusCode() === 403;
+            }
+        }
+
+        return false;
+    }
+
+    private static function awsCode(Throwable $e): ?string
+    {
+        return $e instanceof AwsException ? $e->getAwsErrorCode() : null;
     }
 }

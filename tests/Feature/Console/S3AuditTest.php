@@ -138,6 +138,37 @@ it('fails the CORS row when the browser would be refused, though the key cannot 
         ->and($row['detail'])->toContain('Der Browser darf von https://rimify.test nicht direkt in den Bucket hochladen (PUT: HTTP 403, POST: HTTP 403)');
 });
 
+it('names the permission the key lacks where it may not read a setting, and says „keine Regel“ only where AWS does (ADMIN-GEFUNDEN 502)', function (): void {
+    auditHttpWithCors('https://rimify.test');
+
+    foreach (['ListBuckets', 'GetBucketLocation', 'GetBucketVersioning', 'GetBucketCors', 'GetBucketLifecycleConfiguration', 'GetBucketEncryption'] as $command) {
+        $this->bucket->refuse[$command] = 'AccessDenied';
+    }
+
+    $rows = auditRows();
+
+    expect($rows[1]['detail'])->toContain('Liste der Buckets: Nicht lesbar – dem Schlüssel fehlt die Berechtigung s3:ListAllMyBuckets (AccessDenied')
+        ->and($rows[3]['detail'])->toStartWith('Nicht lesbar – dem Schlüssel fehlt die Berechtigung s3:GetBucketLocation (AccessDenied')
+        ->and($rows[6]['detail'])->toStartWith('Nicht lesbar – dem Schlüssel fehlt die Berechtigung s3:GetBucketVersioning (AccessDenied')
+        ->and($rows[7]['detail'])->toContain('Die Regel selbst darf der Schlüssel nicht lesen – ihm fehlt die Berechtigung s3:GetBucketCORS (AccessDenied')
+        ->and($rows[8]['detail'])->toStartWith('Nicht lesbar – dem Schlüssel fehlt die Berechtigung s3:GetLifecycleConfiguration (AccessDenied')
+        ->and($rows[9]['detail'])->toStartWith('Nicht lesbar – dem Schlüssel fehlt die Berechtigung s3:GetEncryptionConfiguration (AccessDenied')
+        ->and(array_column($rows, 'status', 'n'))->toMatchArray([3 => 'warn', 6 => 'warn', 7 => 'ok', 8 => 'warn', 9 => 'info'])
+        ->and(implode(' ', array_column($rows, 'detail')))->not->toContain('Keine Regel');
+
+    // Where AWS says there is none, the row says so.
+    $this->bucket->refuse = ['GetBucketLifecycleConfiguration' => 'NoSuchLifecycleConfiguration', 'GetBucketEncryption' => 'ServerSideEncryptionConfigurationNotFoundError'];
+    $rows = auditRows();
+
+    expect($rows[8]['detail'])->toStartWith('Keine Regel räumt unvollständige Uploads auf')
+        ->and($rows[9]['detail'])->toBe('Keine Standardverschlüsselung eingestellt');
+
+    // A failure that is not a refusal claims no permission.
+    $this->bucket->refuse = ['GetBucketVersioning' => 'InternalError'];
+
+    expect(auditRows()[6]['detail'])->toStartWith('Abfrage fehlgeschlagen: InternalError');
+});
+
 it('is one row of the preflight', function (): void {
     auditHttp();
 
