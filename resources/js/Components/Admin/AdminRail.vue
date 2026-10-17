@@ -20,6 +20,7 @@ import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTri
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import Icon from './AdminIcon.vue'
 import AdminRailFoot from './AdminRailFoot.vue'
+import AdminRailTooltip from './AdminRailTooltip.vue'
 import EnvironmentBadge from './EnvironmentBadge.vue'
 import { isCurrentPage } from '../../composables/admin/currentPage'
 import { useAdmin, useAdminShell } from '../../composables/admin/useAdmin'
@@ -61,10 +62,15 @@ function onMedia(): void {
     narrow.value = media?.matches ?? false
 }
 
+/* The items' tooltips from hydration on: before it none could open, and the server renders the rail without them
+   (AdminRailTooltip, D-272). */
+const hydrated = ref(false)
+
 onMounted(() => {
     media = window.matchMedia('(min-width: 768px) and (max-width: 1023px)')
     onMedia()
     media.addEventListener('change', onMedia)
+    hydrated.value = true
 })
 
 onBeforeUnmount(() => media?.removeEventListener('change', onMedia))
@@ -142,40 +148,36 @@ function measure(event: Event, item: AdminNavPage): void {
                     </p>
                     <ul class="adm-rail__list">
                         <li v-for="item in group.pages" :key="item.href">
-                            <TooltipRoot :disabled="!collapsed && !cut.has(item.href)">
-                                <TooltipTrigger as-child>
-                                    <Link
-                                        :href="item.href"
-                                        class="adm-rail__item"
-                                        :aria-current="current(item) ? 'page' : undefined"
-                                        :aria-label="item.count ? `${item.label}, ${countName(item)}` : undefined"
-                                        @pointerenter="measure($event, item)"
-                                        @focus="measure($event, item)"
+                            <AdminRailTooltip :enabled="hydrated" :disabled="!collapsed && !cut.has(item.href)">
+                                <Link
+                                    :href="item.href"
+                                    class="adm-rail__item"
+                                    :aria-current="current(item) ? 'page' : undefined"
+                                    :aria-label="item.count ? `${item.label}, ${countName(item)}` : undefined"
+                                    @pointerenter="measure($event, item)"
+                                    @focus="measure($event, item)"
+                                >
+                                    <Icon :name="item.icon" :size="20" />
+                                    <span class="adm-rail__text">{{ item.label }}</span>
+                                    <span
+                                        v-if="item.count"
+                                        class="adm-rail__count"
+                                        :class="{ 'adm-rail__count--bad': item.countTone === 'bad' }"
+                                        aria-hidden="true"
                                     >
-                                        <Icon :name="item.icon" :size="20" />
-                                        <span class="adm-rail__text">{{ item.label }}</span>
-                                        <span
-                                            v-if="item.count"
-                                            class="adm-rail__count"
-                                            :class="{ 'adm-rail__count--bad': item.countTone === 'bad' }"
-                                            aria-hidden="true"
-                                        >
-                                            {{ item.count > 99 ? '99+' : item.count }}
-                                        </span>
-                                        <span
-                                            v-if="item.count"
-                                            class="adm-rail__dot"
-                                            :class="{ 'adm-rail__dot--bad': item.countTone === 'bad' }"
-                                            aria-hidden="true"
-                                        />
-                                    </Link>
-                                </TooltipTrigger>
-                                <TooltipPortal>
-                                    <TooltipContent class="adm-tooltip" side="right" :side-offset="8">
-                                        {{ item.label }}<template v-if="item.count"> · {{ countName(item) }}</template>
-                                    </TooltipContent>
-                                </TooltipPortal>
-                            </TooltipRoot>
+                                        {{ item.count > 99 ? '99+' : item.count }}
+                                    </span>
+                                    <span
+                                        v-if="item.count"
+                                        class="adm-rail__dot"
+                                        :class="{ 'adm-rail__dot--bad': item.countTone === 'bad' }"
+                                        aria-hidden="true"
+                                    />
+                                </Link>
+                                <template #content>
+                                    {{ item.label }}<template v-if="item.count"> · {{ countName(item) }}</template>
+                                </template>
+                            </AdminRailTooltip>
                         </li>
                     </ul>
                 </section>
