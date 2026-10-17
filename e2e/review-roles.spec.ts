@@ -33,6 +33,11 @@ test('three accounts, three different admins', async ({ page, context }) => {
     const seen: Record<string, { rail: string[]; tiles: string[] }> = {}
 
     for (const account of ACCOUNTS) {
+        // Off the page before the cookies go: the Übersicht asks for its deferred data right after it loads, and an
+        // answer still on its way sets the session cookie again — after clearCookies(), so the next sign-in page
+        // redirected into the account before (17.10.2026: „lager“ found „verkauf“ signed in; its trace). Leaving the
+        // page ends every request it had. `networkidle` cannot see it: that event had fired once already.
+        await page.goto('about:blank')
         await context.clearCookies()
         await signInAs(page, account.email)
         await expect(page.locator('#adm-nav')).toBeVisible({ timeout: 20_000 })

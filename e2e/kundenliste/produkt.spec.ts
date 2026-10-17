@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '../fixtures'
-import { ABNAHME, PRODUCT, box, consent, onSize, open, pageProps, shot, shotAround, withCar } from './support'
+import { ABNAHME, PRODUCT, box, consent, newVisitor, onSize, open, pageProps, shot, shotAround, withCar } from './support'
 
 /*
  * The client's list on the product page, against the acceptance shop (rimify:demo --abnahme): the BORBET DB8GT2 at 18
@@ -120,8 +120,7 @@ test('one rim 229,00 €, the amount\'s total everywhere else: page, panel, bask
 
     // Four last, so the picture is the client's own example.
     for (const n of [1, 2, 3, 5, 4]) {
-        await context.clearCookies()
-        await consent(context, ABNAHME)
+        await newVisitor(page, context)
         await open(page, PRODUCT)
         await onSize(page, 18, 'Schwarz matt')
         await amount(page, n)
@@ -291,8 +290,7 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await shot(page.locator('.cart'), 15, info)
 
     // The rims alone: no Reifen, no Wuchtgewichte, no sensors.
-    await context.clearCookies()
-    await consent(context, ABNAHME)
+    await newVisitor(page, context)
     await withCar(page, 'x3', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await expect(page.locator('.kc')).toHaveCount(0)
