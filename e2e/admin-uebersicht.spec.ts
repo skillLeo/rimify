@@ -102,7 +102,11 @@ test.describe('the Übersicht', () => {
         await expect(menu).toBeVisible()
         await expect(menu.getByRole('menuitem', { name: 'Profil' })).toBeVisible()
 
+        // The server's answer as a step of its own, then the page: on a loaded machine the sign-out and the sign-in page
+        // after it took longer between them than the URL's own wait (D-266).
+        const signedOut = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/admin/abmelden')
         await menu.getByRole('menuitem', { name: 'Abmelden' }).click()
+        expect((await signedOut).status(), 'the sign-out is answered').toBeLessThan(400)
         await expect(page).toHaveURL(/\/admin\/anmelden/)
     })
 

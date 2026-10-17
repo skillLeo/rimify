@@ -44,7 +44,11 @@ async function saveView(page: Page, name: string, withColumns = false): Promise<
         await dialog.getByLabel('Spalten mitspeichern').check()
     }
 
+    // The server's answer first, as a step of its own: the dialog closes on the list the save leads to, and on a loaded
+    // machine the save and that list took 10 s between them — the dialog's whole wait (D-266).
+    const saved = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/admin/ansichten')
     await dialog.getByRole('button', { name: 'Speichern' }).click()
+    expect((await saved).status(), 'the view is saved').toBeLessThan(400)
     await expect(dialog).toBeHidden()
 }
 
