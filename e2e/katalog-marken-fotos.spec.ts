@@ -1,15 +1,51 @@
 import sharp from 'sharp'
-import { expect, test } from './fixtures'
+import { expect, test, type BrowserContext, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
+import { dropBrands } from './bugs/k2-support'
+import { propsOf, send } from './teardown'
 
 /*
  * The three Katalog pieces of the corrections memo (§7): Katalog › Marken with a logo upload, several
  * photos per colour in an order a person sets (COMPLIANCE row 23), and the importer's supplier (row 25).
- * Each test cleans up what it wrote on the development database: the brand is removed again, the photos
- * are taken off. Shots go to docs/qa/shots/katalog-2/ for the review.
+ * Each test takes off what it wrote on the development database — the brand is removed again, the photos
+ * come off — through the page, because that removal is part of what it shows; and should it stop before
+ * then, the afterEach takes the rest back by request (e2e/teardown.ts: cleanup never navigates, D-263).
+ * Shots go to docs/qa/shots/katalog-2/ for the review.
  */
 
 const DIR = 'docs/qa/shots/katalog-2'
+
+/** What a test of this file left on the database, for the afterEach: a brand's name, the Felge its photos are on. */
+let leftBrand: string | null = null
+let leftPhotosOn: number | null = null
+
+test.afterEach(async ({ context }) => {
+    if (leftBrand !== null) {
+        await dropBrands(context, [leftBrand])
+        leftBrand = null
+    }
+
+    if (leftPhotosOn !== null) {
+        await dropTestPhotos(context, leftPhotosOn)
+        leftPhotosOn = null
+    }
+})
+
+/** Every „E2E-Foto …“ on the Felge `model` taken off by request, colour by colour. */
+async function dropTestPhotos(context: BrowserContext, model: number): Promise<void> {
+    const props = await propsOf<{ finishes?: { id: number; photos: { id: number; alt: string }[] }[] }>(context, `/admin/felgen/${model}`)
+
+    for (const finish of props?.finishes ?? []) {
+        for (const photo of finish.photos.filter((p) => p.alt.startsWith('E2E-Foto'))) {
+            await send(context, 'DELETE', `/admin/felgen/${model}/ausfuehrungen/${finish.id}/fotos/${photo.id}`)
+        }
+    }
+}
+
+/** The answer to the next request of this method to an address matching `path`, as a step of its own (D-266). */
+function answerTo(page: Page, method: string, path: RegExp) {
+    return page.waitForResponse((r) => r.request().method() === method && path.test(new URL(r.url()).pathname))
+}
 
 const LOGO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50"><path d="M0 0h40v50H0zM60 0h40v50H60zM120 0h80v50h-80z"/></svg>'
 
@@ -38,29 +74,24 @@ test('Marken: a brand is created, gets an SVG logo drawn on the page, and is rem
     const errors = collectErrors(page)
 
     await signIn(page)
+    // A run that stopped half-way may have left its brand: taken back by request first, so this run starts clean.
+    await dropBrands(page.context(), [name])
     await page.goto('/admin/marken', { waitUntil: 'networkidle' })
     await waitForApp(page)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Marken')
 
     const row = page.locator('tr', { hasText: name })
 
-    async function removeBrand(): Promise<void> {
-        await row.getByRole('button', { name: `Aktionen für ${name}` }).click()
-        await page.getByRole('menuitem', { name: 'Entfernen', exact: true }).click()
-        await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
-        await expect(row).toHaveCount(0)
-    }
-
-    // A run that stopped half-way left its brand: it goes first, so this run starts clean.
-    if ((await row.count()) > 0) {
-        await removeBrand()
-    }
-
+    leftBrand = name
     await page.fill('#mk-name', name)
+    const created = answerTo(page, 'POST', /^\/admin\/marken$/)
     await page.getByRole('button', { name: 'Marke anlegen' }).click()
+    expect((await created).status(), 'the brand is created').toBeLessThan(400)
     await expect(row).toBeVisible()
 
+    const stored = answerTo(page, 'POST', /^\/admin\/marken\/\d+\/logo$/)
     await row.locator('input[type="file"]').setInputFiles({ name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(LOGO) })
+    expect((await stored).status(), 'the logo is stored').toBeLessThan(400)
     await expect(row.getByRole('img', { name: `Logo ${name}` })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Marke anlegen' })).toBeEnabled()
     await row.scrollIntoViewIfNeeded()
@@ -73,7 +104,14 @@ test('Marken: a brand is created, gets an SVG logo drawn on the page, and is rem
     await page.screenshot({ path: `${DIR}/marken-${width}-menu.png` })
     await page.keyboard.press('Escape')
 
-    await removeBrand()
+    // Removed again through the page — part of what this test shows.
+    await row.getByRole('button', { name: `Aktionen für ${name}` }).click()
+    await page.getByRole('menuitem', { name: 'Entfernen', exact: true }).click()
+    const removed = answerTo(page, 'DELETE', /^\/admin\/marken\/\d+$/)
+    await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
+    expect((await removed).status(), 'the brand is removed').toBeLessThan(400)
+    await expect(row).toHaveCount(0)
+    leftBrand = null
 
     expect(errors).toEqual([])
 })
@@ -87,6 +125,12 @@ test('Fotos: two photos on a colour, reordered by the arrows, the new first one 
     await waitForApp(page)
     await page.locator('.fg-name').first().click()
     await page.waitForURL(/\/admin\/felgen\/\d+$/)
+
+    // A run that stopped half-way may have left its photos on this Felge: taken back by request, then the page afresh.
+    const model = Number(new URL(page.url()).pathname.split('/').pop())
+    await dropTestPhotos(page.context(), model)
+    leftPhotosOn = model
+    await page.reload({ waitUntil: 'networkidle' })
     await waitForApp(page)
 
     const photos = page.locator('.fe-photos').first()
@@ -96,7 +140,10 @@ test('Fotos: two photos on a colour, reordered by the arrows, the new first one 
         await photos.getByRole('button', { name: 'Foto hinzufügen' }).click()
         await photos.locator('input[type="file"]').setInputFiles({ name: `foto-${i}.jpg`, mimeType: 'image/jpeg', buffer: await photo(i * 40) })
         await photos.getByLabel('Was zeigt das Foto?').fill(alt)
+        // The photo is stored and its sizes made on the server: that answer first, then the page (D-266).
+        const uploaded = answerTo(page, 'POST', /^\/admin\/felgen\/\d+\/ausfuehrungen\/\d+\/foto$/)
         await photos.getByRole('button', { name: 'Hochladen' }).click()
+        expect((await uploaded).status(), `„${alt}“ is uploaded`).toBeLessThan(400)
         await expect(photos.getByText(alt)).toBeVisible()
     }
 
@@ -106,6 +153,8 @@ test('Fotos: two photos on a colour, reordered by the arrows, the new first one 
     await page.screenshot({ path: `${DIR}/fotos-${width}.png` })
 
     // The arrows step aside below 768 px; the menu always has the same move. Both from the keyboard.
+    const reordered = answerTo(page, 'PUT', /\/fotos\/reihenfolge$/)
+
     if (width >= 768) {
         await photos.getByRole('button', { name: 'Foto 1 nach unten' }).focus()
         await page.screenshot({ path: `${DIR}/fotos-${width}-focus.png` })
@@ -120,19 +169,23 @@ test('Fotos: two photos on a colour, reordered by the arrows, the new first one 
         await page.getByRole('menuitem', { name: 'Nach unten' }).click()
     }
 
+    expect((await reordered).status(), 'the new order is saved').toBeLessThan(400)
     await expect(items.first()).toContainText('E2E-Foto, schräg von der Seite')
     await expect(items.first()).toContainText('Titelbild')
     await expect(photos.getByText('Die Reihenfolge änderst du im Menü eines Fotos.')).toBeVisible({ visible: width < 768 })
     await page.screenshot({ path: `${DIR}/fotos-${width}-reordered.png` })
 
-    // Taken off again, so the development catalogue is as it was.
+    // Taken off again through the page, so the development catalogue is as it was.
     for (let left = 2; left > 0; left--) {
         await photos.getByRole('button', { name: 'Aktionen für Foto 1' }).click()
         await page.getByRole('menuitem', { name: 'Entfernen', exact: true }).click()
+        const removed = answerTo(page, 'DELETE', /\/fotos\/\d+$/)
         await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
+        expect((await removed).status(), 'the photo is removed').toBeLessThan(400)
         await expect(items).toHaveCount(left - 1)
     }
 
+    leftPhotosOn = null
     expect(errors).toEqual([])
 })
 

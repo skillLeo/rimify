@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures'
 import { signIn } from './bugs/faq-support'
+import { get } from './teardown'
 
 /*
  * The Übersicht as a person uses it (docs/admin/rest-build-plan.md, „Übersicht und Shell“ step H):
@@ -7,10 +8,20 @@ import { signIn } from './bugs/faq-support'
  * variants it counts, and the rail's foot — health, Neu, the account — is reachable from the keyboard
  * and signs out. On a phone the foot lives in „Mehr“.
  *
- * The Zeitraum is remembered on the account, so every test that changes it puts 30 days back.
+ * The Zeitraum is remembered on the account: a test that changes it says so, and the afterEach puts 30 days
+ * back by request — after a red test too (e2e/teardown.ts: cleanup never navigates).
  */
 
 const desktop = (name: string): boolean => !name.startsWith('mobile')
+
+let changedPeriod = false
+
+test.afterEach(async ({ context }) => {
+    if (changedPeriod) {
+        changedPeriod = false
+        await get(context, '/admin?zeitraum=30')
+    }
+})
 
 async function open(page: Page, query = '?zeitraum=30'): Promise<void> {
     await signIn(page)
@@ -30,6 +41,7 @@ test.describe('the Übersicht', () => {
         await open(page)
         await expect(page.locator('.dash__period-name')).toHaveText('Letzte 30 Tage')
 
+        changedPeriod = true
         await page.getByRole('group', { name: 'Zeitraum' }).getByText('7 Tage', { exact: true }).click()
         await expect(page).toHaveURL(/zeitraum=7/)
         await expect(page.locator('.dash__period-name')).toHaveText('Letzte 7 Tage')
@@ -44,9 +56,6 @@ test.describe('the Übersicht', () => {
         // Remembered: the Übersicht opens on it without asking.
         await page.goto('/admin', { waitUntil: 'networkidle' })
         await expect(page.locator('.dash__period-name')).toHaveText('Letzte 7 Tage')
-
-        await page.goto('/admin?zeitraum=30', { waitUntil: 'networkidle' })
-        await expect(page.locator('.dash__period-name')).toHaveText('Letzte 30 Tage')
     })
 
     test('a figure opens the list it counts', async ({ page }) => {
@@ -93,7 +102,11 @@ test.describe('the Übersicht', () => {
         await expect(menu).toBeVisible()
         await expect(menu.getByRole('menuitem', { name: 'Profil' })).toBeVisible()
 
+        // The server's answer as a step of its own, then the page: on a loaded machine the sign-out and the sign-in page
+        // after it took longer between them than the URL's own wait (D-266).
+        const signedOut = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/admin/abmelden')
         await menu.getByRole('menuitem', { name: 'Abmelden' }).click()
+        expect((await signedOut).status(), 'the sign-out is answered').toBeLessThan(400)
         await expect(page).toHaveURL(/\/admin\/anmelden/)
     })
 

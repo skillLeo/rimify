@@ -109,7 +109,8 @@ it('marks the client\'s own session as trials, says each change in words, and le
         ->and($out)->toContain('! Versuch? Seit 5 Tagen nicht veröffentlicht.')
         ->and($out)->toContain('! Versuch? Der Titel „test“ nennt keinen Inhalt.')
         ->and($out)->toContain('Versprechen 1 · Symbol')
-        ->and($out)->toContain('Erst klären, dann einladen.');
+        // Counted in the plural („Stellen sehen“): the preview printed „4 Stellen sieht“ on 17.10.2026.
+        ->and($out)->toContain('5 Stellen sehen nach einem Versuch aus. Erst klären, dann einladen.');
 });
 
 it('says so when nothing reads as a trial, and counts from the release stamp by default', function (): void {

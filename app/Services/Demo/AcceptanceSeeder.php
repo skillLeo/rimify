@@ -7,6 +7,7 @@ namespace App\Services\Demo;
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\ApprovalDocument;
+use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
 use App\Models\TpmsSensorPrice;
 use App\Models\Vehicle;
@@ -119,6 +120,90 @@ final class AcceptanceSeeder
     public static function present(): bool
     {
         return WheelModel::query()->where('demo_ref', self::WHEEL_REF)->exists();
+    }
+
+    /** Where the set keeps its example copy of a document: a key of its own, never a real document's file. */
+    public static function exampleKey(string $document): string
+    {
+        return "gutachten/abnahme-{$document}-beispiel.pdf";
+    }
+
+    /**
+     * A set written before 17.10.2026 stored each Gutachten as the very file — on the client's preview the same bytes as
+     * his own „ABE 53841“. Here each such document gets its example copy instead (decision 6, the operator's brief of
+     * 17.10.2026 §6): read from where it is, checked by its fingerprint, stamped, written under the set's own key and
+     * read back; then the row names the copy, and the old file — the set's own (`abnahme-…`) and named by no row any
+     * more — is removed. A document that already carries a copy of its own is left as it is. One Protokoll line says
+     * which fingerprints moved. Nothing outside the set is read or written.
+     *
+     * @return list<string> what was done, said
+     *
+     * @throws RuntimeException where demo data may not be written, or a document's file is not the one on record
+     */
+    public function giveExampleCopies(): array
+    {
+        DemoGuard::ensure();
+
+        /** @var array{documents: array<string, array<string, mixed>>} $data */
+        $data = $this->data ?? require database_path('seeders/content/abnahme/gutachten.php');
+        $disk = Storage::disk(GutachtenController::DISK);
+        $notes = [];
+        $moved = [];
+
+        foreach ($data['documents'] as $key => $document) {
+            $name = self::documentName($document['row']);
+            $row = DB::table('approval_documents')->where('is_demo', true)->where('demo_ref', AcceptanceSet::PREFIX.'doc:'.$key)->first(['id', 'pdf_key', 'pdf_sha256']);
+
+            if ($row === null) {
+                $notes[] = "„{$name}“ ist nicht im Shop: nichts zu tun.";
+
+                continue;
+            }
+
+            if ($row->pdf_sha256 !== $document['pdf']['sha256']) {
+                $notes[] = "„{$name}“ hat schon eine eigene Datei: nichts zu tun.";
+
+                continue;
+            }
+
+            $original = is_string($row->pdf_key) ? $disk->get($row->pdf_key) : null;
+
+            if (! is_string($original) || hash('sha256', $original) !== $document['pdf']['sha256']) {
+                throw new RuntimeException("Die Datei von „{$name}“ ({$row->pdf_key}) ist nicht die, deren Fingerabdruck der Datensatz nennt: nichts geändert.");
+            }
+
+            $copy = ExamplePdf::stamp($original);
+            $sha = hash('sha256', $copy);
+            $copyKey = self::exampleKey((string) $key);
+            $disk->put($copyKey, $copy);
+
+            if (hash('sha256', (string) $disk->get($copyKey)) !== $sha) {
+                throw new RuntimeException("Die Beispielkopie von „{$name}“ ließ sich nicht unverändert zurücklesen: der Datensatz nennt weiter die alte Datei.");
+            }
+
+            DB::table('approval_documents')->where('id', $row->id)->update(['pdf_key' => $copyKey, 'pdf_sha256' => $sha, 'updated_at' => now()]);
+
+            if ($row->pdf_key !== $copyKey && str_starts_with(basename((string) $row->pdf_key), 'abnahme-')
+                && DB::table('approval_documents')->where('pdf_key', $row->pdf_key)->doesntExist()) {
+                $disk->delete((string) $row->pdf_key);
+            }
+
+            $moved[] = ['document' => $name, 'from' => substr((string) $row->pdf_sha256, 0, 12), 'to' => substr($sha, 0, 12)];
+            $notes[] = "„{$name}“ hat jetzt die Beispielkopie {$copyKey} (".substr($sha, 0, 12).'…); die alte Kopie ist entfernt.';
+        }
+
+        if ($moved !== []) {
+            activity('admin')
+                ->withProperties(['documents' => $moved, 'environment' => (string) app()->environment()])
+                ->tap(static function (AuditLog $entry): void {
+                    $entry->forceFill(['actor_email' => 'Konsole (rimify:demo --beispiel-pdfs)']);
+                })
+                ->log('demo.example_pdfs');
+        }
+
+        DemoTables::forget();
+
+        return $notes;
     }
 
     /**
@@ -354,14 +439,16 @@ final class AcceptanceSeeder
         foreach ($documents as $key => $document) {
             /** @var array<string, mixed> $row */
             $row = $document['row'];
-            // Checked before anything was written (refuseWithoutPdfs): the very file, under a key of the set's own.
-            $pdfKey = "gutachten/abnahme-{$key}.pdf";
-            $disk->put($pdfKey, (string) file_get_contents($this->pdfPath((string) $document['pdf']['source'])));
+            // The very file, checked before anything was written (refuseWithoutPdfs), stored as the set's own example
+            // copy: marked on every page, and never the same file as a real document's (decision 6, D-268).
+            $copy = ExamplePdf::stamp((string) file_get_contents($this->pdfPath((string) $document['pdf']['source'])));
+            $pdfKey = self::exampleKey((string) $key);
+            $disk->put($pdfKey, $copy);
 
             $ids[$key] = (int) DB::table('approval_documents')->insertGetId([
                 ...$row,
                 'pdf_key' => $pdfKey,
-                'pdf_sha256' => $document['pdf']['sha256'],
+                'pdf_sha256' => hash('sha256', $copy),
                 'status' => 'published',
                 // The set enters three cars of each real document, never the whole Verwendungsbereich: every other car
                 // is „noch nicht bestätigt“, never refused on its silence (D-227).

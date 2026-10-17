@@ -61,7 +61,9 @@ class ReviewReady extends Command
         $this->newLine();
 
         if ($trials > 0) {
-            $this->warn("{$trials} Stelle".($trials === 1 ? '' : 'n').' sieht nach einem Versuch aus. Erst klären, dann einladen.');
+            $this->warn($trials === 1
+                ? '1 Stelle sieht nach einem Versuch aus. Erst klären, dann einladen.'
+                : "{$trials} Stellen sehen nach einem Versuch aus. Erst klären, dann einladen.");
 
             return self::FAILURE;
         }

@@ -35,7 +35,9 @@ test.afterEach(async ({ context, isMobile }) => {
 
 test('RAIL-02 keys, then a page visit within the second: the rail keeps its width, and that width is saved', async ({ page }) => {
     const saves = recordSaves(page);
-    const firstSave = page.waitForResponse((response) => isRailSave(response.request().method(), response.url()));
+    // The first save as it LEFT, not as it was answered: on a loaded server the answers come back in any order — in
+    // release 9's run the first answer to arrive carried 308 (D-266). The request is what the first key sent.
+    const firstSave = page.waitForRequest((request) => isRailSave(request.method(), request.url()));
 
     await handle(page).focus();
     const started = Date.now();
@@ -46,7 +48,7 @@ test('RAIL-02 keys, then a page visit within the second: the rail keeps its widt
     await expect(handle(page)).toHaveAttribute('aria-valuenow', '308');
 
     const first = await firstSave;
-    expect(first.request().postData() ?? '', 'rig: the first key is saved at once').toContain('"width":276');
+    expect(first.postData() ?? '', 'rig: the first key is saved at once').toContain('"width":276');
     // The held-back save — the next one after the first — answered before the reload reads the account: a fixed wait
     // only knew it had left, and a reload's GET can be served before it is stored (admin-rail-resize, 03.10.2026).
     const heldSave = page.waitForResponse((response) => isRailSave(response.request().method(), response.url()));

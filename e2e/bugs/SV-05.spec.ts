@@ -35,7 +35,10 @@ test('SV-05a after saving a new view from the keyboard the focus is in the bar',
     const dialog = page.getByRole('dialog', { name: 'Als Ansicht speichern' })
     await dialog.getByLabel('Name').fill('QA-SV-05 Offen')
     await dialog.getByRole('button', { name: 'Speichern' }).focus()
+    // The server's answer as a step of its own, then the page (D-266).
+    const saved = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/admin/ansichten')
     await page.keyboard.press('Enter')
+    expect((await saved).status(), 'the view is saved').toBeLessThan(400)
 
     await expect(dialog).toBeHidden()
     await expect(page).toHaveURL(/[?&]ansicht=\d+/)

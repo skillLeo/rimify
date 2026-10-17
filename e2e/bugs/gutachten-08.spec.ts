@@ -150,7 +150,10 @@ test('GUTACHTEN-08c removing a code of the Auflagenverzeichnis from the keyboard
     const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'));
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Entfernen', exact: true }).focus();
+    // Its answer — the busiest document's page, fetched for it — as a step of its own, then the dialog (D-266).
+    const answered = page.waitForResponse((r) => r.request().method() === 'DELETE' && new RegExp(`^/admin/gutachten/${id}/auflagen/\\d+$`).test(new URL(r.url()).pathname));
     await page.keyboard.press('Enter');
+    await answered;
     await expect(dialog).toBeHidden();
     await page.waitForTimeout(400);
 
