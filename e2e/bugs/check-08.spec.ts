@@ -37,7 +37,10 @@ test('CHECK-08 a refused add keeps its refusal and the choice it was made with o
         },
     );
 
+    // The add's answer — the redirect back with the refusal — as a step of its own, then the page (D-266).
+    const answered = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/warenkorb');
     await page.locator('button.chk__go').click();
+    await answered;
     await expect(page.locator('.chk__error'), 'the refusal of the add is not shown — or was cleared by the answer that brought it').toContainText('99');
     await page.screenshot({ path: `${SHOTS}/check-08-after-refusal-${info.project.name}.png`, fullPage: true });
 

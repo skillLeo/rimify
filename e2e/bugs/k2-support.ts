@@ -185,7 +185,11 @@ export async function createBrand(page: Page, name: string): Promise<void> {
         await wall.uncheck();
     }
 
+    // The create's answer as a step of its own, then the row (D-266): in release 10's first run the row's 10 s also had
+    // to hold the round trip.
+    const created = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/admin/marken');
     await page.getByRole('button', { name: 'Marke anlegen' }).click();
+    expect((await created).status(), `„${name}" was not created`).toBeLessThan(400);
     await expect(brandRow(page, name), `„${name}" was not created`).toHaveCount(1);
     // Created: the keyboard is back in Name (MarkenController's page, `submit` → onFinish).
     await settled(page, page.locator('#mk-name'));
