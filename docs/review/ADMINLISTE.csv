@@ -1,7 +1,7 @@
 Nr,Skill Leo,Description
-201,Open,"Not built yet — next, together with 203: a form for a vehicle with everything the approval check needs."
-202,Open,"Not built yet — next: an import that first does a test run and shows the numbers and never overwrites a vehicle taken from a Gutachten. The bolt circle is not needed: whether a wheel may go on a car is decided by the Gutachten, not by geometry."
-203,Open,Not built yet — comes with 201.
+201,Open,Built and tested on our side. Not on your preview yet.
+202,Open,"Your demo file is not with us, so the import reads any CSV or Excel file: you map its columns the first time, and it remembers the mapping per source. A dry run shows the counts first (new, changed, refused); only then do you import. A car is recognised by HSN, TSN and variant; cars typed by hand or from a Gutachten are never overwritten. No bolt circle needed. Please send us your demo file so we can check the mapping against it."
+203,Open,Built and tested on our side. Not on your preview yet.
 204,Open,"Not built yet: the field becomes required for new wheels, and a list shows the existing wheels where it is still missing."
 205,Open,Not built yet — comes with 204.
 206,Open,Not built yet — comes with 204.

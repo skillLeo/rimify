@@ -17,20 +17,20 @@ export const ITEMS = [
     {
         nr: 201,
         wish: 'Fahrzeug von Hand anlegen',
-        now: 'Noch nicht gebaut – kommt als Nächstes, zusammen mit 203: ein Formular für ein Fahrzeug mit allem, was die Prüfung braucht.',
-        state: 'offen',
+        now: 'Unter Fahrzeuge › „Neues Fahrzeug“ legst du ein Fahrzeug aus seiner Zulassungsbescheinigung Teil I an; es gilt als von Hand geprüft und steht sofort in der Fahrzeugauswahl. Fehlen die Achslasten, sagt das Formular vor dem Speichern, was das bedeutet, und das Fahrzeug steht unter „Zur Prüfung“, bis du sie einträgst.',
+        state: 'erledigt',
     },
     {
         nr: 202,
         wish: 'Import der Fahrzeugdaten, aufgebaut auf euren Demodaten; ohne Lochkreis – das Feld bleibt leer',
-        now: 'Noch nicht gebaut – kommt als Nächstes: ein Import, der zuerst einen Probelauf mit Zahlen zeigt und kein Fahrzeug überschreibt, das aus einem Gutachten stammt. Den Lochkreis braucht die Prüfung nicht: Ob eine Felge an ein Auto darf, sagt das Gutachten, nicht die Geometrie.',
-        state: 'offen',
+        now: 'Eure Demodatei liegt uns nicht vor, deshalb liest der Import jede CSV- oder Excel-Datei: Beim ersten Mal ordnest du ihre Spalten zu, danach merkt er sich die Zuordnung je Quelle. Unter Fahrzeuge › Import zeigt der Probelauf zuerst mit Zahlen, was neu ist, was sich ändert und was abgelehnt wird; erst dann importierst du. Ein Fahrzeug erkennt der Import an HSN, TSN und Variante, und von Hand angelegte Fahrzeuge und solche aus einem Gutachten überschreibt er nie. Einen Lochkreis braucht er nicht.',
+        state: 'anders gelöst',
     },
     {
         nr: 203,
         wish: 'Beim Anlegen von Hand HSN, TSN und die weiteren Fahrzeugdaten eintragen',
-        now: 'Noch nicht gebaut – kommt mit 201.',
-        state: 'offen',
+        now: 'Mit 201: HSN (2.1), TSN (2.2), Hersteller (D.1), Modell (D.3), Variante, Fahrzeugtyp (D.2), EG-Typgenehmigungsnummer (K), Leistung (P.2), Bauzeit, Karosserie, Antrieb, Achslasten (8.1, 8.2) und Höchstgeschwindigkeit (T) – jedes Feld mit seiner Nummer aus den Papieren.',
+        state: 'erledigt',
     },
     {
         nr: 204,
@@ -131,9 +131,9 @@ export const ITEMS = [
 
 /** What each item does now, for his sheet's Description cell — in the language of his sheet (English), for a shop owner. */
 export const NOTES = {
-    201: 'Not built yet — next, together with 203: a form for a vehicle with everything the approval check needs.',
-    202: 'Not built yet — next: an import that first does a test run and shows the numbers and never overwrites a vehicle taken from a Gutachten. The bolt circle is not needed: whether a wheel may go on a car is decided by the Gutachten, not by geometry.',
-    203: 'Not built yet — comes with 201.',
+    201: 'Vehicles › „Neues Fahrzeug“: a car typed from its registration certificate, stored as checked by hand and in the vehicle selector at once. Without the axle loads the form says what that means before saving, and the car waits under „Zur Prüfung“ until they are entered.',
+    202: 'Your demo file is not with us, so the import reads any CSV or Excel file: you map its columns the first time, and it remembers the mapping per source. A dry run shows the counts first (new, changed, refused); only then do you import. A car is recognised by HSN, TSN and variant; cars typed by hand or from a Gutachten are never overwritten. No bolt circle needed. Please send us your demo file so we can check the mapping against it.',
+    203: 'With 201: every field of your list, each labelled with its number in the papers (2.1, 2.2, D.1, D.3, D.2, K, P.2, 8.1, 8.2, T).',
     204: 'Not built yet: the field becomes required for new wheels, and a list shows the existing wheels where it is still missing.',
     205: 'Not built yet — comes with 204.',
     206: 'Not built yet — comes with 204.',
