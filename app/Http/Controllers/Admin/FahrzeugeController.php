@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\FitmentStatus;
+use App\Enums\TyreIndexSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\VehicleRequest;
+use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Services\Admin\AdminNavigation;
@@ -108,6 +110,8 @@ class FahrzeugeController extends Controller
             ->limit(500)
             ->get();
 
+        $speed = self::topSpeed($vehicle);
+
         return Inertia::render('Admin/Fahrzeuge/Show', [
             'vehicle' => [
                 'id' => (int) $vehicle->id,
@@ -123,6 +127,13 @@ class FahrzeugeController extends Controller
                 'maxSpeed' => $vehicle->max_speed_kmh,
                 'needsReview' => $vehicle->needs_review,
                 'complete' => $vehicle->hasCompleteLegalData(),
+            ],
+            // Field T is asked only where a released Gutachten naming this car needs it for the tyres, and the page says
+            // which and why (D-287); what the shop waits for, as its answer names it to the customer (D-286).
+            'topSpeed' => $speed,
+            'owed' => [
+                ...($vehicle->axle_load_front_kg === null || $vehicle->axle_load_rear_kg === null ? ['8.1', '8.2'] : []),
+                ...($vehicle->max_speed_kmh === null && $speed['needed'] ? ['T'] : []),
             ],
             'rows' => $rows->map(static fn (Fitment $f): array => [
                 'id' => (int) $f->id,
@@ -158,12 +169,48 @@ class FahrzeugeController extends Controller
             ], $vehicle);
         });
 
+        // Only the top speed missing, and no released Gutachten for this car needs it: still under review (R-03), but the
+        // shop answers the tyres without it (D-284) — said, so nobody hunts for a figure nothing asks for (D-287).
+        $speedOnly = $data['max_speed_kmh'] === null && $data['axle_load_front_kg'] !== null && $data['axle_load_rear_kg'] !== null;
+
         $toast = match (true) {
             ! in_array(null, $data, true) => 'Gespeichert. Das Fahrzeug ist vollständig.',
             $wasComplete => 'Gespeichert. Jetzt fehlt mindestens eine Angabe – das Fahrzeug steht wieder unter „Zur Prüfung“.',
+            $speedOnly && ! self::topSpeed($vehicle)['needed'] => 'Gespeichert. Die Höchstgeschwindigkeit fehlt noch – das Fahrzeug bleibt unter „Zur Prüfung“. Für die Reifen braucht der Shop sie bei diesem Fahrzeug nicht.',
             default => 'Gespeichert. Es fehlen noch Angaben – das Fahrzeug bleibt unter „Zur Prüfung“.',
         };
 
         return back()->with('toast', $toast);
+    }
+
+    /**
+     * Whether a released Gutachten naming this car needs its top speed for the tyres (D-284, D-287): every one that does
+     * not give load index and symbol beside every size, an unanswered one included — and why, as recorded with each
+     * (D-277), never more than that (R-17). Released as the shop reads it: a published row of a published, valid document.
+     *
+     * @return array{needed: bool, released: int, documents: list<array{id: int, label: string, href: string, why: string}>}
+     */
+    private static function topSpeed(Vehicle $vehicle): array
+    {
+        $released = ApprovalDocument::query()
+            ->whereIn('id', Fitment::query()->visibleToCustomers()->where('vehicle_id', $vehicle->id)->select('approval_document_id'))
+            ->orderBy('id')
+            ->get();
+        $needing = $released->reject(static fn (ApprovalDocument $d): bool => $d->tyre_index_source === TyreIndexSource::Document);
+
+        return [
+            'needed' => $needing->isNotEmpty(),
+            'released' => $released->count(),
+            'documents' => $needing->map(static fn (ApprovalDocument $d): array => [
+                'id' => (int) $d->id,
+                'label' => FitmentRows::label($d),
+                'href' => '/admin/gutachten/'.$d->id,
+                'why' => match ($d->tyre_index_source) {
+                    TyreIndexSource::Papers => 'Laut den Angaben verweist das Gutachten für Lastindex und Geschwindigkeitssymbol auf die Fahrzeugpapiere.',
+                    TyreIndexSource::Table => 'Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.',
+                    default => 'Wie das Gutachten Lastindex und Geschwindigkeitssymbol angibt, ist unter „Angaben“ noch nicht erfasst.',
+                },
+            ])->values()->all(),
+        ];
     }
 }

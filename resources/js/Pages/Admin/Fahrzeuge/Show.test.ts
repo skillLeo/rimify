@@ -1,0 +1,103 @@
+import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+
+const sent: string[] = []
+
+vi.mock('@inertiajs/vue3', async () => {
+    const { defineComponent, h, reactive } = await import('vue')
+
+    return {
+        Link: defineComponent({ props: { href: { type: String, required: true } }, setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()) }),
+        useForm: (initial: Record<string, unknown>) => {
+            const form = reactive({
+                ...initial,
+                errors: {},
+                processing: false,
+                isDirty: true,
+                put(url: string) {
+                    sent.push(url)
+                },
+            })
+
+            return form
+        },
+    }
+})
+
+vi.mock('../../../Layouts/AdminLayout.vue', () => ({ default: {} }))
+
+const { default: Show } = await import('./Show.vue')
+
+type Props = InstanceType<typeof Show>['$props']
+
+const vehicle = {
+    id: 9, name: 'BMW 1er 187', keys: '0005 · 123', vsn: null, typeDesignation: '187', window: '09/2004 – 08/2011', power: '100 kW',
+    bodyForm: null, axleFront: 1100, axleRear: 1100, maxSpeed: null, needsReview: true, complete: false,
+}
+
+function page(overrides: Partial<Props> = {}) {
+    return mount(Show, {
+        props: { vehicle, rows: [], topSpeed: { needed: false, released: 0, documents: [] }, owed: [], can: { edit: true }, ...overrides } as Props,
+        global: { stubs: { AdminPage: { template: '<div><slot /></div>' }, AdminConfirm: { props: ['open'], template: '<div v-if="open" data-confirm />' } } },
+    })
+}
+
+/*
+ * D-287 (the operator's answers of 18.10.2026): field T is asked only where a released Gutachten for this car needs it,
+ * and the page names each with what is recorded; elsewhere it is optional, and the page says why.
+ */
+describe('Fahrzeuge › Show', () => {
+    it('asks for T where a released Gutachten needs it, naming each and why, and says what the shop waits for', () => {
+        const wrapper = page({
+            topSpeed: {
+                needed: true,
+                released: 2,
+                documents: [{ id: 4, label: 'ABE 55255', href: '/admin/gutachten/4', why: 'Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.' }],
+            },
+            owed: ['T'],
+        })
+
+        expect(wrapper.find('label[for="fs-speed"]').text()).toBe('Höchstgeschwindigkeit in km/h (Feld T)')
+        expect(wrapper.find('[data-speed-why] p').text()).toBe('Für die Reifen nötig:')
+        expect(wrapper.find('[data-speed-why] li').text()).toBe('ABE 55255: Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.')
+        expect(wrapper.find('[data-speed-why] a').attributes('href')).toBe('/admin/gutachten/4')
+        expect(wrapper.find('#fs-speed').attributes('aria-describedby')).toBe('fs-speed-why fs-speed-err')
+        expect(wrapper.find('.fs-warn').text()).toBe(
+            'Diesem Fahrzeug fehlt die Höchstgeschwindigkeit (Feld T). Solange sie fehlt, bestätigt der Shop die Reifen nur für Kunden, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.'
+        )
+    })
+
+    it('says why T is not needed where nothing needs it — no warning over a figure nothing asks for', () => {
+        const wrapper = page({ topSpeed: { needed: false, released: 1, documents: [] } })
+
+        expect(wrapper.find('label[for="fs-speed"]').text()).toBe('Höchstgeschwindigkeit in km/h (Feld T)')
+        expect(wrapper.find('[data-speed-why]').text()).toContain('Für die Reifen nicht nötig')
+        expect(wrapper.find('.fs-warn').exists()).toBe(false)
+
+        const none = page()
+
+        expect(none.find('[data-speed-why]').text()).toContain('Bei uns ist noch kein Gutachten zu diesem Fahrzeug freigegeben.')
+        // Read only, without the edit right: never „fehlt“ beside a top speed nothing needs.
+        expect(page({ topSpeed: { needed: false, released: 1, documents: [] }, can: { edit: false } }).text()).toContain('nicht eingetragen – für die Reifen nicht nötig')
+    })
+
+    it('asks first before taking away a value the shop’s answers rest on — and not for a top speed nothing needs', async () => {
+        const complete = { ...vehicle, maxSpeed: 250, needsReview: false, complete: true }
+        const optional = page({ vehicle: complete, topSpeed: { needed: false, released: 1, documents: [] } })
+
+        await optional.find('#fs-speed').setValue('')
+        await optional.find('form').trigger('submit')
+
+        expect(optional.find('[data-confirm]').exists()).toBe(false)
+        expect(sent.at(-1)).toBe('/admin/fahrzeuge/9')
+
+        const needed = page({ vehicle: complete, topSpeed: { needed: true, released: 1, documents: [] } })
+        const before = sent.length
+
+        await needed.find('#fs-speed').setValue('')
+        await needed.find('form').trigger('submit')
+
+        expect(needed.find('[data-confirm]').exists()).toBe(true)
+        expect(sent).toHaveLength(before)
+    })
+})
