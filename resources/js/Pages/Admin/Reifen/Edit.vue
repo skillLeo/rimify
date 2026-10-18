@@ -84,6 +84,8 @@ watch(
 const demo = computed(() => props.tyre?.demo === true)
 const editable = computed(() => !demo.value && (props.tyre ? props.can.edit : props.can.create))
 const readonly = computed(() => !editable.value)
+/* A tyre that was ordered keeps the size it was sold in: the order names its Auflagen by that size. */
+const sizeLocked = computed(() => readonly.value || props.tyre?.sold === true)
 
 const errors = computed(() => form.errors as Record<string, string | undefined>)
 
@@ -178,7 +180,8 @@ const more = computed<AdminPageAction[]>(() => {
 </script>
 
 <template>
-    <AdminPage :title="title" :context="context" :more="more" :read-only="readonly">
+    <!-- A demonstration tyre says why it cannot be changed in its own box; „ansehen, aber nicht ändern“ is about rights. -->
+    <AdminPage :title="title" :context="context" :more="more" :read-only="readonly && !demo">
         <!-- What the shop does with this tyre now, read from the saved row (D-301, D-303). -->
         <section v-if="tyre" class="rf-state" :class="{ 'rf-state--off': !tyre.offered && !tyre.demo }" aria-labelledby="rf-state-h">
             <h2 id="rf-state-h" class="rf-state__title">
@@ -262,33 +265,37 @@ const more = computed<AdminPageAction[]>(() => {
                     <p v-if="sizeLabel" class="rf-size-preview" aria-live="polite">{{ sizeLabel }}</p>
                 </div>
                 <div class="adm-fields">
+                    <p v-if="tyre?.sold && !readonly" class="adm-note">
+                        Dieser Reifen wurde schon bestellt. Größe, Lastindex und Geschwindigkeitssymbol lassen sich deshalb nicht mehr ändern.
+                        Für andere Werte leg über „Weitere Größe anlegen“ im Menü einen neuen Reifen an.
+                    </p>
                     <!-- As the tyre's wall prints it, side by side: 225 / 45 R 18 · 95 Y. -->
                     <div class="rf-row">
                         <div class="form-field">
                             <label class="form-field__label" for="rf-width">Breite in mm</label>
-                            <input id="rf-width" v-model="form.width_mm" class="input num" type="text" inputmode="numeric" maxlength="3" placeholder="225" :readonly="readonly" :aria-invalid="err('width_mm') ? 'true' : undefined" aria-describedby="rf-width-err">
+                            <input id="rf-width" v-model="form.width_mm" class="input num" type="text" inputmode="numeric" maxlength="3" placeholder="225" :readonly="sizeLocked" :aria-invalid="err('width_mm') ? 'true' : undefined" aria-describedby="rf-width-err">
                             <p id="rf-width-err" class="form-field__error">{{ err('width_mm') }}</p>
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="rf-aspect">Querschnitt in %</label>
-                            <input id="rf-aspect" v-model="form.aspect" class="input num" type="text" inputmode="numeric" maxlength="2" placeholder="45" :readonly="readonly" :aria-invalid="err('aspect') ? 'true' : undefined" aria-describedby="rf-aspect-err">
+                            <input id="rf-aspect" v-model="form.aspect" class="input num" type="text" inputmode="numeric" maxlength="2" placeholder="45" :readonly="sizeLocked" :aria-invalid="err('aspect') ? 'true' : undefined" aria-describedby="rf-aspect-err">
                             <p id="rf-aspect-err" class="form-field__error">{{ err('aspect') }}</p>
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="rf-diameter">Durchmesser in Zoll</label>
-                            <input id="rf-diameter" v-model="form.diameter_in" class="input num" type="text" inputmode="numeric" maxlength="2" placeholder="18" :readonly="readonly" :aria-invalid="err('diameter_in') ? 'true' : undefined" aria-describedby="rf-diameter-err">
+                            <input id="rf-diameter" v-model="form.diameter_in" class="input num" type="text" inputmode="numeric" maxlength="2" placeholder="18" :readonly="sizeLocked" :aria-invalid="err('diameter_in') ? 'true' : undefined" aria-describedby="rf-diameter-err">
                             <p id="rf-diameter-err" class="form-field__error">{{ err('diameter_in') }}</p>
                         </div>
                     </div>
                     <div class="rf-row">
                         <div class="form-field">
                             <label class="form-field__label" for="rf-load">Lastindex</label>
-                            <input id="rf-load" v-model="form.load_index" class="input num" type="text" inputmode="numeric" maxlength="3" placeholder="95" :readonly="readonly" :aria-invalid="err('load_index') ? 'true' : undefined" aria-describedby="rf-load-err">
+                            <input id="rf-load" v-model="form.load_index" class="input num" type="text" inputmode="numeric" maxlength="3" placeholder="95" :readonly="sizeLocked" :aria-invalid="err('load_index') ? 'true' : undefined" aria-describedby="rf-load-err">
                             <p id="rf-load-err" class="form-field__error">{{ err('load_index') }}</p>
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="rf-speed">Geschwindigkeitssymbol</label>
-                            <select id="rf-speed" v-model="form.speed_symbol" class="input" :disabled="readonly" :aria-invalid="err('speed_symbol') ? 'true' : undefined" aria-describedby="rf-speed-err">
+                            <select id="rf-speed" v-model="form.speed_symbol" class="input" :disabled="sizeLocked" :aria-invalid="err('speed_symbol') ? 'true' : undefined" aria-describedby="rf-speed-err">
                                 <option value="" disabled>Symbol wählen</option>
                                 <option v-for="symbol in options.speedSymbols" :key="symbol" :value="symbol">{{ symbol }}</option>
                             </select>
@@ -436,8 +443,8 @@ const more = computed<AdminPageAction[]>(() => {
 }
 
 /* Where the page body already spaces its parts (a form with its save bar), the box adds no second gap. */
-:global(.adm-page__body:has(> .adm-savebar)) > .rf-state,
-:global(.adm-page__body:has(> .adm-savebar)) > .rf-first {
+:global(.adm-page__body:has(> .adm-savebar) > .rf-state),
+:global(.adm-page__body:has(> .adm-savebar) > .rf-first) {
     margin-bottom: 0;
 }
 

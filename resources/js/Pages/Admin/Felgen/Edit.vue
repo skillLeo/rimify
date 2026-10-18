@@ -227,6 +227,12 @@ const diverges = computed(() => titleDiverges(brandName.value, form.name, form.t
 /** Saved before the rule (D-298): a Felge without its Radtypenbezeichnung saves, the list names it, and it is not published (D-300). Read from the saved record, not the field being typed. */
 const designationMissing = computed(() => props.model !== null && props.model.typeDesignation.trim() === '')
 
+/* The button leaves with the difference it names; the keyboard lands in the field it emptied, not on the page. */
+function useComposedTitle(): void {
+    form.title = ''
+    document.getElementById('fe-title')?.focus()
+}
+
 const seoTitlePreview = computed(() => form.seo_title || inShop.value || 'Titel der Felge')
 const seoDescriptionPreview = computed(() => form.seo_description || form.description.slice(0, 160) || 'Beschreibung der Felge für Suchmaschinen.')
 
@@ -404,7 +410,7 @@ const more = computed<AdminPageAction[]>(() => {
                         </p>
                         <div v-if="diverges" class="fe-title-diverges" role="status">
                             <p class="adm-note">Dieser Titel weicht vom zusammengesetzten ab: <span class="fe-title-composed">„{{ composed }}“</span>.</p>
-                            <button v-if="!readonly" class="btn btn--ghost btn--sm fe-title-use" type="button" @click="form.title = ''">Zusammengesetzten Titel verwenden</button>
+                            <button v-if="!readonly" class="btn btn--ghost btn--sm fe-title-use" type="button" @click="useComposedTitle">Zusammengesetzten Titel verwenden</button>
                         </div>
                         <p id="fe-title-err" class="form-field__error">{{ err('title') }}</p>
                     </div>
@@ -651,7 +657,7 @@ const more = computed<AdminPageAction[]>(() => {
 }
 
 /* Where the page body already spaces its parts (a form with its save bar), the check adds no second gap. */
-:global(.adm-page__body:has(> .adm-savebar)) > .fe-check {
+:global(.adm-page__body:has(> .adm-savebar) > .fe-check) {
     margin-bottom: 0;
 }
 

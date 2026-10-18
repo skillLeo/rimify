@@ -58,6 +58,8 @@ export interface TyreRecordProp {
     price: string
     available: boolean
     demo: boolean
+    /** On an order: its size, load index and speed symbol stay as sold. */
+    sold: boolean
     fullTitle: string
     offered: boolean
     missingLabel: string[]

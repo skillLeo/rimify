@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\TyreVariantRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Brand;
+use App\Models\Order;
+use App\Models\OrderLine;
 use App\Models\TyreVariant;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -159,11 +161,54 @@ it('refuses one tyre twice, and one EPREL number on two tyres @admin-210', funct
     $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload(['brand_new' => 'prüfreifen', 'eprel_id' => '999999']))
         ->assertSessionHasErrors(['name' => TyreVariantRequest::DUPLICATE]);
 
-    // Another size, the first one's EPREL number: refused.
+    // Another size, the first one's EPREL number: refused, naming the tyre that has it — the list's search finds it.
     $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload(['width_mm' => '245']))
-        ->assertSessionHasErrors(['eprel_id' => TyreVariantRequest::EPREL_TAKEN]);
+        ->assertSessionHasErrors(['eprel_id' => sprintf(TyreVariantRequest::EPREL_TAKEN, 'Prüfreifen Grip 7 225/45 R18 95Y')]);
 
     expect(TyreVariant::query()->count())->toBe(1);
+});
+
+it('finds a tyre by its EPREL number, though the number starts like a size @admin-210', function (): void {
+    $labelled = TyreVariant::factory()->size(225, 45, 18.0)->create(['eprel_id' => '381090']);
+    $sized = TyreVariant::factory()->size(381, 40, 19.0)->create(['eprel_id' => '555555']);
+
+    $ids = fn (string $query): array => collect(
+        $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen'.$query)->assertOk()->viewData('page')['props']['tyres']
+    )->pluck('id')->sort()->values()->all();
+
+    // `381090` read as a size is 381/09 and finds nothing; as an EPREL number it finds its tyre. `381` finds both.
+    expect($ids('?q=381090'))->toBe([$labelled->id])
+        ->and($ids('?q=381'))->toBe([$labelled->id, $sized->id])
+        ->and($ids('?q=225/45'))->toBe([$labelled->id]);
+});
+
+it('says every refusal of a save in one round: a wrong width does not hide a price of 0,00 @admin-210', function (): void {
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload(['width_mm' => '22x', 'price' => '0,00']))
+        ->assertSessionHasErrors(['width_mm', 'price']);
+});
+
+it('keeps a sold tyre’s size, load index and symbol as sold — the order names its Auflagen by that size @admin-210', function (): void {
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload())->assertSessionHasNoErrors();
+    $tyre = TyreVariant::query()->sole();
+    $order = Order::factory()->create();
+    OrderLine::factory()->create(['order_id' => $order->id, 'wheel_config_id' => null, 'tyre_variant_id' => $tyre->id, 'quantity' => 4]);
+    $kept = ['brand_id' => $tyre->brand_id, 'brand_new' => ''];
+
+    $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen/'.$tyre->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('tyre.sold', true));
+
+    foreach (['width_mm' => '235', 'aspect' => '40', 'diameter_in' => '19', 'load_index' => '96', 'speed_symbol' => 'W'] as $field => $value) {
+        $this->actingAs(reifenAdmin(), 'admin')->put('/admin/reifen/'.$tyre->id, reifenPayload($kept + [$field => $value]))
+            ->assertSessionHasErrors([$field => TyreVariantRequest::SOLD]);
+    }
+
+    expect($tyre->refresh()->label())->toBe('225/45 R18 95Y');
+
+    // The rest is the shop's to change: the price, the label, whether it is available.
+    $this->actingAs(reifenAdmin(), 'admin')->put('/admin/reifen/'.$tyre->id, reifenPayload($kept + ['price' => '139,00', 'eu_noise_db' => '70']))
+        ->assertSessionHasNoErrors();
+
+    expect($tyre->refresh()->price_cents)->toBe(13_900);
 });
 
 it('changes a tyre, names what changed in the Protokoll, and stops offering one marked not available @admin-210', function (): void {

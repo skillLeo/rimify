@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Http\Controllers\Storefront\FelgenController;
 use App\Models\BalanceWeightColour;
 use App\Services\Storefront\Basket;
 use App\Support\GermanFormat;
@@ -422,5 +423,18 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
 
     expect($offer['refusalCode'])->toBe(KomplettradRefusal::NoVehicle->value)
         ->and($offer['refusal'])->toBe(KomplettradRefusal::NoVehicle->sentenceDe())
+        ->and($offer['tyres'])->toBe([]);
+});
+
+it('offers no Komplettrad on a size marked not available, and never the rim alone in its place (D-304)', function (): void {
+    $set = KomplettradFixture::permitted();
+    $set->tyre();
+    $set->config->update(['available' => false]);
+
+    $offer = pdpConfig($this->withCookies($set->cookies())->get('/felgen/'.$set->config->wheelModel->slug)->assertOk()->viewData('page'), $set->config->id)['komplettrad'];
+
+    expect($offer['refusalCode'])->toBe(FelgenController::RIM_NOT_AVAILABLE)
+        ->and($offer['refusal'])->toBe(FelgenController::RIM_NOT_AVAILABLE_SENTENCE)
+        ->and($offer['refusal'])->not->toContain('Felge allein')
         ->and($offer['tyres'])->toBe([]);
 });

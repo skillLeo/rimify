@@ -42,7 +42,7 @@ import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
 import ValueText from '../../Components/Ui/ValueText.vue'
-import { useConfigurator } from '../../composables/useConfigurator'
+import { sellable, useConfigurator } from '../../composables/useConfigurator'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import { claimBottomEdge } from '../../composables/useShell'
@@ -330,7 +330,10 @@ const stockLabel = computed(() => {
     return inStock ? 'Verfügbar' : 'Nicht verfügbar'
 })
 
-/* A size not available: the way on, in one sentence under its tag — another size or colour, where one can be bought (D-304). */
+/*
+ * A size not available: the way on, in one sentence under its tag — another size or colour, where one can be bought
+ * (D-304). With a car chosen, only one the shop sells for that car counts: a struck size is no way on.
+ */
 const unavailableHint = computed(() => {
     const current = selected.value
 
@@ -338,7 +341,13 @@ const unavailableHint = computed(() => {
         return ''
     }
 
-    return props.configs.some((c) => c.id !== current.id && c.inStock) ? 'Wähl eine andere Größe oder Farbe.' : 'Diese Felge ist zurzeit in keiner Größe verfügbar.'
+    if (props.configs.some((c) => c.id !== current.id && c.inStock && sellable(c))) {
+        return 'Wähl eine andere Größe oder Farbe.'
+    }
+
+    return current.verdict === null
+        ? 'Diese Felge ist zurzeit in keiner Größe oder Farbe verfügbar.'
+        : 'Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.'
 })
 
 const stockTone = computed(() => {

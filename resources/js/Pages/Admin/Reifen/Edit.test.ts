@@ -41,7 +41,7 @@ function saved(over: Partial<TyreRecordProp> = {}): TyreRecordProp {
     return {
         id: 7, brandId: 3, name: 'Grip 7', season: 'sommer', width: '225', aspect: '45', diameter: '18', loadIndex: '95', speedSymbol: 'Y',
         fuel: 'B', wet: 'A', noiseDb: '71', noiseClass: 'B', snow: false, ice: false, eprelId: '381090', price: '129,00', available: true,
-        demo: false, fullTitle: 'Prüfreifen Grip 7 225/45 R18 95Y', offered: true, missingLabel: [], updated: '19.10.2026, 01:10', ...over,
+        demo: false, sold: false, fullTitle: 'Prüfreifen Grip 7 225/45 R18 95Y', offered: true, missingLabel: [], updated: '19.10.2026, 01:10', ...over,
     }
 }
 
@@ -134,6 +134,19 @@ describe('Katalog › Reifen › one tyre', () => {
         expect(wrapper.find('[data-savebar]').exists()).toBe(false)
         expect(wrapper.find('.rf-state__verdict').text()).toBe('Aus den Demodaten')
         expect(wrapper.find<HTMLInputElement>('#rf-name').element.readOnly).toBe(true)
+    })
+
+    // D-307: the order names its Auflagen by the size sold, so a sold tyre's size stays; the rest is the shop's to change.
+    it('locks a sold tyre’s size, load index and symbol, says why, and leaves the rest open @admin-210', () => {
+        const wrapper = page({ tyre: saved({ sold: true }) })
+
+        for (const id of ['#rf-width', '#rf-aspect', '#rf-diameter', '#rf-load']) {
+            expect(wrapper.find<HTMLInputElement>(id).element.readOnly).toBe(true)
+        }
+
+        expect(wrapper.find<HTMLSelectElement>('#rf-speed').element.disabled).toBe(true)
+        expect(wrapper.find<HTMLInputElement>('#rf-price').element.readOnly).toBe(false)
+        expect(wrapper.text()).toContain('Dieser Reifen wurde schon bestellt.')
     })
 
     it('starts „Weitere Größe“ from the brand, profile and season it was given @admin-210', () => {

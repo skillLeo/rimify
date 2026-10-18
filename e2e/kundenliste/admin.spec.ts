@@ -352,7 +352,7 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     await page.goto(`${ABNAHME}/felgen/${slug}`, { waitUntil: 'networkidle' })
     await expect(page.locator('.pdp__stock')).toHaveText('Nicht verfügbar')
     // The way on under the tag; the button keeps its words and is switched off.
-    await expect(page.locator('.pdp__unavailable')).toHaveText('Diese Felge ist zurzeit in keiner Größe verfügbar.')
+    await expect(page.locator('.pdp__unavailable')).toHaveText('Diese Felge ist zurzeit in keiner Größe oder Farbe verfügbar.')
     await expect(page.locator('button.pdp__add')).toHaveText('In den Warenkorb')
     await expect(page.locator('button.pdp__add')).toBeDisabled()
     await shotAround(page, [page.locator('.pdp__each'), page.locator('.pdp__stock'), page.locator('.pdp__unavailable'), page.locator('button.pdp__add')], 207, info)

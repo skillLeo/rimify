@@ -33,7 +33,14 @@ class TyreVariantRequest extends FormRequest
 
     public const DUPLICATE = 'Diesen Reifen gibt es schon: gleiche Marke, gleiches Profil, gleiche Größe, gleicher Lastindex, gleiches Geschwindigkeitssymbol.';
 
-    public const EPREL_TAKEN = 'Diese EPREL-Nummer ist schon bei einem anderen Reifen eingetragen. Prüf die Nummer auf der EPREL-Seite dieses Reifens.';
+    /** `%s` is the other tyre, as the list names it: the search finds it by the same number. */
+    public const EPREL_TAKEN = 'Diese EPREL-Nummer ist schon beim Reifen „%s“ eingetragen. Prüf auf der EPREL-Seite, zu welchem der beiden Reifen sie gehört.';
+
+    /** A tyre that was ordered keeps the size it was sold in: the order names its Auflagen by that size (PackageTyreSizes). */
+    public const SOLD = 'Dieser Reifen wurde schon bestellt. Größe, Lastindex und Geschwindigkeitssymbol lassen sich deshalb nicht mehr ändern. Für andere Werte leg über „Weitere Größe anlegen“ im Menü einen neuen Reifen an.';
+
+    /** What a sold tyre keeps, by the form's names. */
+    public const SOLD_FIELDS = ['width_mm', 'aspect', 'diameter_in', 'load_index', 'speed_symbol'];
 
     public function authorize(): bool
     {
@@ -113,7 +120,7 @@ class TyreVariantRequest extends FormRequest
             'diameter_in.required' => 'Bitte gib den Durchmesser in Zoll an, zum Beispiel 18.',
             'diameter_in.*' => 'Den Durchmesser bitte in ganzen Zoll, zwischen 13 und 24.',
             'load_index.required' => 'Bitte gib den Lastindex an, zum Beispiel 95.',
-            'load_index.*' => 'Der Shop rechnet nur mit Lastindizes von 70 bis 109. Prüf die Zahl auf der Reifenflanke – liegt sie außerhalb, lässt sich der Reifen hier nicht anlegen.',
+            'load_index.*' => 'Der Shop kennt bisher die Lastindizes 70 bis 109. Prüf die Zahl auf der Reifenflanke. Reifen mit höherem Lastindex lassen sich erst anlegen, wenn die Tragfähigkeiten über 109 freigegeben sind.',
             'speed_symbol.*' => 'Bitte wähl das Geschwindigkeitssymbol aus der Liste.',
             'eu_fuel_class.*' => 'Die Kraftstoffeffizienz hat eine Klasse von A bis E.',
             'eu_wet_grip_class.*' => 'Die Nasshaftung hat eine Klasse von A bis E.',
@@ -131,28 +138,70 @@ class TyreVariantRequest extends FormRequest
     public function after(): array
     {
         return [
+            // Every check whose own fields read, in one round: a wrong width does not hide a price of 0,00.
             function (Validator $validator): void {
-                if ($validator->errors()->isNotEmpty()) {
-                    return;
+                $errors = $validator->errors();
+
+                if (! $errors->has('price')) {
+                    $price = Money::fromGerman((string) $this->input('price'));
+
+                    if ($price === null || $price <= 0) {
+                        $errors->add('price', 'Den Preis können wir nicht lesen, oder er ist 0,00. Schreib ihn bitte so: 129,00.');
+                    }
                 }
 
-                $price = Money::fromGerman((string) $this->input('price'));
+                $sold = $this->soldSizeChanged();
 
-                if ($price === null || $price <= 0) {
-                    $validator->errors()->add('price', 'Den Preis können wir nicht lesen, oder er ist 0,00. Schreib ihn bitte so: 129,00.');
+                if ($sold !== null && ! $errors->has($sold)) {
+                    $errors->add($sold, self::SOLD);
                 }
 
-                if ($this->tyreTwice()) {
-                    $validator->errors()->add('name', self::DUPLICATE);
+                if (! $errors->hasAny(['brand_id', 'brand_new', 'name', ...self::SOLD_FIELDS]) && $this->tyreTwice()) {
+                    $errors->add('name', self::DUPLICATE);
                 }
 
                 $eprel = $this->input('eprel_id');
 
-                if (is_string($eprel) && $eprel !== '' && TyreVariant::query()->where('eprel_id', $eprel)->whereKeyNot($this->tyre()->id ?? 0)->exists()) {
-                    $validator->errors()->add('eprel_id', self::EPREL_TAKEN);
+                if (! $errors->has('eprel_id') && is_string($eprel) && $eprel !== '') {
+                    $other = TyreVariant::query()->with('brand')->where('eprel_id', $eprel)->whereKeyNot($this->tyre()->id ?? 0)->first();
+
+                    if ($other !== null) {
+                        $errors->add('eprel_id', sprintf(self::EPREL_TAKEN, trim(($other->brand->name ?? '').' '.$other->name.' '.$other->label())));
+                    }
                 }
             },
         ];
+    }
+
+    /**
+     * The first of a sold tyre's size fields this save would change, or null. Compared as the columns store them, so a
+     * form that sends `18` for a diameter kept as 18.0 changes nothing.
+     */
+    private function soldSizeChanged(): ?string
+    {
+        $tyre = $this->tyre();
+
+        if ($tyre === null || ! $tyre->wasOrdered()) {
+            return null;
+        }
+
+        $stored = [
+            'width_mm' => (string) (int) $tyre->width_mm,
+            'aspect' => (string) (int) $tyre->aspect,
+            'diameter_in' => (string) (int) $tyre->diameter_in,
+            'load_index' => (string) (int) $tyre->load_index,
+            'speed_symbol' => (string) $tyre->speed_symbol,
+        ];
+
+        foreach (self::SOLD_FIELDS as $field) {
+            $given = $this->input($field);
+
+            if (! is_scalar($given) || trim((string) $given) !== $stored[$field]) {
+                return $field;
+            }
+        }
+
+        return null;
     }
 
     /** The same brand, profile, size, load index and symbol as another live tyre: one tyre twice in the shop. */

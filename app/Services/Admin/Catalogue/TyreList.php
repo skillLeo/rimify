@@ -66,15 +66,26 @@ final class TyreList
         if ($term !== null) {
             // A size as a tyre's wall prints it — `225/45`, `225/45 R18`, `22545` — or words: brand, profile, EPREL number.
             if (preg_match('#^(\d{3})\s*/?\s*(\d{2})?\s*(?:Z?R\s*(\d{2}))?#i', $term, $size) === 1) {
-                $query->where('tyre_variants.width_mm', (int) $size[1]);
+                // Digits alone may as well be an EPREL number (`381090`): both are looked for.
+                $eprel = ctype_digit($term) ? '%'.$term.'%' : null;
 
-                if (($size[2] ?? '') !== '') {
-                    $query->where('tyre_variants.aspect', (int) $size[2]);
-                }
+                $query->where(static function (Builder $where) use ($size, $eprel): void {
+                    $where->where(static function (Builder $match) use ($size): void {
+                        $match->where('tyre_variants.width_mm', (int) $size[1]);
 
-                if (($size[3] ?? '') !== '') {
-                    $query->where('tyre_variants.diameter_in', (int) $size[3]);
-                }
+                        if (($size[2] ?? '') !== '') {
+                            $match->where('tyre_variants.aspect', (int) $size[2]);
+                        }
+
+                        if (($size[3] ?? '') !== '') {
+                            $match->where('tyre_variants.diameter_in', (int) $size[3]);
+                        }
+                    });
+
+                    if ($eprel !== null) {
+                        $where->orWhere('tyre_variants.eprel_id', 'like', $eprel);
+                    }
+                });
             } else {
                 $like = '%'.addcslashes($term, '%_\\').'%';
 

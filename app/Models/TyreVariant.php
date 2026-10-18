@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A sellable tyre.
@@ -119,6 +120,12 @@ class TyreVariant extends Model
     public function offered(): bool
     {
         return $this->available && ($this->is_demo || $this->missingLabel() === []);
+    }
+
+    /** On an order line: its size is then the size sold, and stays (TyreVariantRequest::SOLD). */
+    public function wasOrdered(): bool
+    {
+        return DB::table('order_lines')->where('tyre_variant_id', $this->id)->exists();
     }
 
     /**

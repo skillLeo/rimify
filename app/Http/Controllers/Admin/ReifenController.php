@@ -195,6 +195,8 @@ class ReifenController extends Controller
                 'price' => Money::fromMinor((int) $tyre->price_cents)->toGerman(),
                 'available' => (bool) $tyre->available,
                 'demo' => (bool) $tyre->is_demo,
+                // Ordered once: its size stays the size sold (TyreVariantRequest::SOLD).
+                'sold' => $tyre->wasOrdered(),
                 'fullTitle' => self::nameOf($tyre, $tyre->brand),
                 // What the shop does with it now, read from the saved row (D-301, D-303).
                 'offered' => $tyre->offered(),

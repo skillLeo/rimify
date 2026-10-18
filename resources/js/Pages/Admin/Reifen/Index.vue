@@ -6,7 +6,7 @@
  * backfill, one click away.
  */
 
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed, reactive } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
@@ -28,6 +28,23 @@ const context = computed(() => {
     const text = `${decimal(props.pagination.total, 0)} Reifen`
 
     return props.filtered ? `${text} · gefiltert` : text
+})
+
+/* A link whose filter does not read opens the list without it — and says so, as the Felgen list does. */
+const FILTER_KEYS = ['q', 'marke', 'saison', 'zoll', 'stand', 'seite']
+const page = usePage()
+
+const refusals = computed<string[]>(() => {
+    const raw: unknown = page.props.errors
+
+    if (raw === null || typeof raw !== 'object') {
+        return []
+    }
+
+    return Object.entries(raw as Record<string, unknown>)
+        .filter(([key]) => FILTER_KEYS.includes(key))
+        .map(([, message]) => message)
+        .filter((m): m is string => typeof m === 'string' && m !== '')
 })
 
 function query(): Record<string, string> {
@@ -73,6 +90,10 @@ function labelLine(row: TyreRow): string {
             Größe für das Fahrzeug des Kunden freigibt. Dafür muss er verfügbar und sein EU-Reifenlabel vollständig
             eingetragen sein.
         </p>
+
+        <div v-if="refusals.length" class="adm-alert" role="alert">
+            <p v-for="message in refusals" :key="message">{{ message }}</p>
+        </div>
 
         <!-- The backfill (D-303): real tyres whose label is not complete on record are kept, and not offered until it is. -->
         <p v-if="missingLabels > 0 && filters.stand !== 'label-fehlt'" class="adm-note rf-backfill">

@@ -47,7 +47,7 @@ class TyreFilterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'q.*' => 'Der Suchbegriff ist zu lang. Such bitte nach Marke, Profil oder Größe.',
+            'q.*' => 'Der Suchbegriff ist zu lang. Such bitte nach Marke, Profil, Größe oder EPREL-Nummer.',
             'marke.*' => 'Diese Marke gibt es nicht. Wähl bitte eine aus der Liste.',
             'saison.*' => 'Diese Saison gibt es nicht. Wähl bitte eine aus der Liste.',
             'zoll.*' => 'Diesen Durchmesser gibt es nicht. Wähl bitte einen aus der Liste.',

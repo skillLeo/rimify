@@ -600,6 +600,16 @@ describe('name and availability', function (): void {
         expect($old->refresh()->status)->toBe(CatalogueStatus::Published);
     });
 
+    it('names the missing Radtypenbezeichnung when a bulk step leaves a Felge out @admin-204', function (): void {
+        $old = felgeWith(model: ['type_designation' => null]);
+        $old->loadMissing('brand');
+
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen/sammelaktion', ['action' => 'publish', 'ids' => [$old->id]])
+            ->assertSessionHas('toast', 'Keine Felge veröffentlicht. Nicht veröffentlicht: '.$old->brand->name.' '.$old->name.' (Radtypenbezeichnung fehlt).');
+
+        expect($old->refresh()->status)->toBe(CatalogueStatus::Draft);
+    });
+
     it('keeps a Radtypenbezeichnung once entered: an existing Felge cannot be saved without it again @admin-204', function (): void {
         $wheel = felgeWith();
 

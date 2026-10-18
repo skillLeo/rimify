@@ -206,8 +206,11 @@ class FelgenController extends Controller
                     continue;
                 }
 
-                if ($check->for($model)['blockers'] !== []) {
-                    $skipped[] = $name.' (Prüfung vor dem Veröffentlichen)';
+                $blockers = $check->for($model)['blockers'];
+
+                if ($blockers !== []) {
+                    // The commonest stop by its name (D-300); any other is in the Felge's own check.
+                    $skipped[] = $name.(in_array(PublishCheck::DESIGNATION_MISSING, $blockers, true) ? ' (Radtypenbezeichnung fehlt)' : ' (Prüfung vor dem Veröffentlichen)');
 
                     continue;
                 }
@@ -232,7 +235,11 @@ class FelgenController extends Controller
             'archive' => 'archiviert',
             default => 'zurückgezogen',
         };
-        $toast = ($done === 1 ? 'Eine Felge ' : GermanFormat::integer($done).' Felgen ').$verb.'.';
+        $toast = match ($done) {
+            0 => 'Keine Felge ',
+            1 => 'Eine Felge ',
+            default => GermanFormat::integer($done).' Felgen ',
+        }.$verb.'.';
 
         if ($skipped !== []) {
             $toast .= ' Nicht '.$verb.': '.implode(', ', $skipped).'.';

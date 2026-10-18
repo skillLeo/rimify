@@ -64,6 +64,11 @@ class FelgenController extends Controller
     /** What one click on `Als Komplettrad in den Warenkorb` adds: a set of four. */
     private const SET_OF = 4;
 
+    /** The Komplettrad of a size marked „Nicht verfügbar“ (D-304): not the refusals that offer the rim alone. */
+    public const RIM_NOT_AVAILABLE = 'RIM_NOT_AVAILABLE';
+
+    public const RIM_NOT_AVAILABLE_SENTENCE = 'Diese Größe ist zurzeit nicht verfügbar, auch nicht als Komplettrad.';
+
     /** The amounts the product page offers beside the price, four preselected (#17); each priced by LinePrice. */
     public const AMOUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -500,6 +505,11 @@ class FelgenController extends Controller
      */
     private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): array
     {
+        // A size not available is not one as a Komplettrad either; the refusals below would offer the rim alone (D-304).
+        if (! $config->available) {
+            return $this->komplettradRefused(self::RIM_NOT_AVAILABLE, self::RIM_NOT_AVAILABLE_SENTENCE, null);
+        }
+
         // Without a vehicle there is no verdict, so there is no permitted-size list (D-033).
         if ($verdict === null) {
             return $this->komplettradRefused(KomplettradRefusal::NoVehicle->value, KomplettradRefusal::NoVehicle->sentenceDe(), null);

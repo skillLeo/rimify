@@ -289,8 +289,31 @@ describe('Produkt page', () => {
         const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] })
         expect(gone.text()).toBe('In den Warenkorb')
         expect(gone.attributes('disabled')).toBeDefined()
-        expect(goneWrapper.find('.pdp__unavailable').text()).toBe('Diese Felge ist zurzeit in keiner Größe verfügbar.')
+        expect(goneWrapper.find('.pdp__unavailable').text()).toBe('Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.')
         expect(goneWrapper.find('button.pdp__add').attributes('aria-describedby')).toBe('pdp-unavailable')
+    })
+
+    // The interaction review of Groups D/E: „Wähl eine andere Größe“ only where another size sells for the car — a size
+    // struck through for it, however available, is no way on.
+    it('sends to another size only where one sells for the chosen car @admin-207', async () => {
+        const refused = verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false, reason: 'Nicht freigegeben.' })
+        const gone = config({ id: 11, inStock: false, verdict: verdict() })
+        const struck = config({ id: 12, diameterIn: 20, inStock: true, verdict: refused })
+        const open = config({ id: 13, diameterIn: 18, inStock: true, verdict: verdict() })
+
+        const onlyStruck = mountPage({ hasVehicle: true, configs: [gone, struck] })
+        expect(onlyStruck.find('.pdp__unavailable').text()).toBe('Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.')
+
+        const withOpen = mountPage({ hasVehicle: true, configs: [gone, struck, open] })
+        // The page opens on the size that sells; the unavailable one, chosen, points to it.
+        expect(withOpen.find('.pdp__unavailable').exists()).toBe(false)
+
+        const nineteen = withOpen.findAll('.pdp__chips .chip').find((chip) => chip.text().trim() === '19')
+        await nineteen!.trigger('click')
+        expect(withOpen.find('.pdp__unavailable').text()).toBe('Wähl eine andere Größe oder Farbe.')
+
+        const noCar = mountPage({ configs: [config({ inStock: false, verdict: null }), config({ id: 14, diameterIn: 20, inStock: true, verdict: null })] })
+        expect(noCar.find('.pdp__unavailable').exists()).toBe(false)
     })
 
     // D-289: where the document does not itself limit the axle load, the rim alone sells while the tyres wait for the
