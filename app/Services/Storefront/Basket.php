@@ -370,6 +370,11 @@ final readonly class Basket
         $vehicleId = $this->vehicleId($request);
         $verdict = $vehicleId === null ? null : $this->resolver->resolve($vehicleId, $config->id);
 
+        // The rim alone, where it sells while the tyres wait for the papers (D-289): its own answer.
+        if ($verdict !== null && $tyreVariantId === null) {
+            $verdict = $verdict->forRimAlone() ?? $verdict;
+        }
+
         // Selected on the status, never through one "not sellable" branch (R-07): only
         // NOT_PERMITTED means "we checked and your car may not have this".
         if ($verdict !== null && ! $verdict->isSellable()) {
@@ -905,6 +910,11 @@ final readonly class Basket
         // superseded since this line was added, and the basket is the last place that can say so
         // before money changes hands.
         $verdict = $vehicleId === null ? null : $this->resolver->resolve($vehicleId, $config->id);
+
+        // A rim alone carries the rim's own answer where it sells while the tyres wait for the papers (D-289).
+        if ($verdict !== null && ! $isSet) {
+            $verdict = $verdict->forRimAlone() ?? $verdict;
+        }
 
         if ($rearId !== null) {
             return $this->renderMixed($config, $tyreId, $rearId, $tyre, $colour, $quantity, $verdict, $colours, $held);

@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Support\Carbon;
 
 /**
  * One printable RIMIFY-Check: the answer for one car and one wheel, frozen whole under a token (the
  * operator's decision of 29.09.2026). Written once; the database refuses every change.
+ *
+ * Kept twelve months, then deleted with the figures from the papers it holds (D-292): they are stored only to print
+ * this check, so they expire with it — a stored figure with no expiry is a decision nobody made (the operator).
  *
  * @property int $id
  * @property string $token
@@ -19,13 +24,19 @@ use Illuminate\Support\Carbon;
  * @property int|null $document_revision
  * @property string $verdict_status
  * @property array<string, mixed> $verdict
- * @property array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, powerKw?: int|null}|null $papers
+ * @property array{axleFrontKg: int|null, axleRearKg: int|null, topSpeedKmh: int|null, powerKw?: int|null}|null $papers
  * @property string $engine_version
  * @property Carbon $computed_at
+ * @property Carbon|null $created_at
  */
 class CheckResult extends Model
 {
+    use Prunable;
+
     public const UPDATED_AT = null;
+
+    /** How long a check is kept, in months — the year the papers cookie lasts (PapersBook::LIFETIME_MINUTES). */
+    public const KEEP_MONTHS = 12;
 
     protected $fillable = [
         'token', 'vehicle_id', 'wheel_config_id', 'approval_document_id', 'document_revision',
@@ -44,5 +55,17 @@ class CheckResult extends Model
             'papers' => 'array',
             'computed_at' => 'datetime',
         ];
+    }
+
+    /** @return Builder<static> */
+    public function prunable(): Builder
+    {
+        return static::query()->where('computed_at', '<', now()->subMonths(self::KEEP_MONTHS));
+    }
+
+    /** The last day the link still opens this check. */
+    public function keptUntil(): Carbon
+    {
+        return $this->computed_at->copy()->addMonths(self::KEEP_MONTHS);
     }
 }

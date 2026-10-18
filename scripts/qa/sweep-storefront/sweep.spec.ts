@@ -1013,7 +1013,7 @@ test('13 Fehlerseiten: 404, 419, an expired RIMIFY-Check link', async ({ page },
 
     const expired = norm(await page.locator('h1').first().innerText().catch(() => ''));
 
-    check(s, /nicht mehr verfügbar|nicht gefunden/.test(expired), { severity: 'S2', page: '/rimify-check/ergebnis/{unbekannt}', what: `„${expired}“`, expected: '„Dieses Ergebnis ist nicht mehr verfügbar.“ and a way on', shot: await s.shot('check-expired') });
+    check(s, /nicht anzeigen|nicht mehr verfügbar|nicht gefunden/.test(expired), { severity: 'S2', page: '/rimify-check/ergebnis/{unbekannt}', what: `„${expired}“`, expected: '„Dieses Ergebnis können wir nicht anzeigen.“ and a way on', shot: await s.shot('check-expired') });
     await s.probe('/rimify-check/ergebnis/{unbekannt}', { allow: /404|ergebnis/ });
 });
 

@@ -187,7 +187,8 @@ function revealAnswer(): void {
 /* ── The answer and the purchase ─────────────────────────────────────────────── */
 
 const config = computed(() => props.answer?.config ?? null)
-const sellable = computed(() => config.value?.verdict?.sellable === true)
+/* The rim alone sells while the tyres wait for the car's papers, where the wheel's approval does not (D-289). */
+const sellable = computed(() => config.value?.verdict?.sellable === true || config.value?.verdict?.rimSellable === true)
 
 const mode = ref<'felgen' | 'komplettrad'>('felgen')
 const isSet = computed(() => mode.value === 'komplettrad')

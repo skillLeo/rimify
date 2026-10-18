@@ -108,6 +108,47 @@ it('drops, entry by entry, whatever is malformed or out of range, and never gues
         ->and(PapersBook::decode(str_repeat('1.1100.1100.250_', 40))->isEmpty())->toBeTrue();
 });
 
+// D-291: the form asks for what is missing, so an entry may hold T alone, or one axle where the data knows the other.
+it('keeps only the figures the customer gave, a figure not given as „-“, and reads the full form as before', function (): void {
+    $speedOnly = PapersFigures::tryFrom(null, null, 250);
+    $rearOnly = PapersFigures::tryFrom(null, 1180, null, 140);
+
+    expect($speedOnly)->not->toBeNull()->and($rearOnly)->not->toBeNull();
+
+    $book = (new PapersBook)->with(7, $speedOnly ?? papers())->with(8, $rearOnly ?? papers())->with(9, papers());
+    $read = PapersBook::decode($book->encode());
+
+    expect($book->encode())->toBe('9.1100.1100.250_8.-.1180.-.140_7.-.-.250')
+        ->and(rawurlencode($book->encode()))->toBe($book->encode())
+        ->and($read->for(7)?->axleFrontKg)->toBeNull()
+        ->and($read->for(7)?->topSpeedKmh)->toBe(250)
+        ->and($read->for(8)?->axleRearKg)->toBe(1180)
+        ->and($read->for(8)?->powerKw)->toBe(140)
+        ->and($read->for(9)?->axleFrontKg)->toBe(1100)
+        // Nothing at all is no entry; a figure out of range drops the entry as before.
+        ->and(PapersFigures::tryFrom(null, null, null))->toBeNull()
+        ->and(PapersBook::decode('7.-.-.-')->isEmpty())->toBeTrue()
+        ->and(PapersBook::decode('7.-.-.9')->isEmpty())->toBeTrue();
+
+    // Laid over the car: what the customer did not give stays the data's, and the car waits while one is missing (R-03).
+    $car = new VehicleRecord(
+        id: 7, hsn: '0005', tsn: 'CDA', vsn: null, make: 'BMW', model: '4er', variant: '420i Coupé', typeDesignation: '3C',
+        buildWindow: BuildWindow::fromDates(new DateTimeImmutable('2020-01-01'), null),
+        axleLoadFrontKg: 1100, axleLoadRearKg: null, maxSpeedKmh: null, needsReview: true,
+    );
+
+    $withSpeed = ($speedOnly ?? papers())->applyTo($car);
+    expect($withSpeed->axleLoadFrontKg)->toBe(1100)
+        ->and($withSpeed->axleLoadRearKg)->toBeNull()
+        ->and($withSpeed->maxSpeedKmh)->toBe(250)
+        ->and($withSpeed->needsReview)->toBeTrue();
+
+    $complete = (PapersFigures::tryFrom(null, 1180, 250) ?? papers())->applyTo($car);
+    expect($complete->axleLoadRearKg)->toBe(1180)
+        ->and($complete->needsReview)->toBeFalse()
+        ->and($complete->hasCompleteLegalData())->toBeTrue();
+});
+
 it('refuses figures no road car has', function (): void {
     expect(PapersFigures::tryFrom(99_999, 1100, 250))->toBeNull()
         ->and(PapersFigures::tryFrom(1100, 299, 250))->toBeNull()

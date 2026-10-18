@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createPinia } from 'pinia';
 import { installPopstateGuard } from './composables/admin/popstateGuard';
+import { installNumberWheelGuard } from './lib/numberWheelGuard';
 import { installPreloadErrorGuard } from './lib/preloadErrors';
 import { installVehicleMemory, vehicleVisitOptions } from './lib/vehicleMemory';
 import { root } from './root';
@@ -20,6 +21,11 @@ installVehicleMemory();
 
 // A chunk's stylesheet cancelled because the page moved on is no crash (preloadErrors.ts).
 installPreloadErrorGuard();
+
+// No number field changes under the mouse wheel: 1160 typed into 8.1 never becomes 1180 on a scroll (D-290).
+if (typeof document !== 'undefined') {
+    installNumberWheelGuard();
+}
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),

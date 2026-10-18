@@ -249,6 +249,13 @@ final readonly class Chrome
             // 8.1, 8.2 and T as the customer typed them for this car (Block C, item 10), and the power a
             // photographed P.2 is checked against — the wheel answer rests on the variant.
             'papers' => self::papers($request, $vehicle),
+            // 8.1, 8.2 and T as the vehicle data holds them: the papers form shows a known one with where it came from
+            // and asks only for what the answer is missing (D-291).
+            'figures' => [
+                'axleFrontKg' => $vehicle->axle_load_front_kg,
+                'axleRearKg' => $vehicle->axle_load_rear_kg,
+                'topSpeedKmh' => $vehicle->max_speed_kmh,
+            ],
             'powerKw' => $vehicle->power_kw,
             // Body style and drive as the answers read them, and where each came from (§1.1): shown where the
             // owner gave or may correct them — a derived one with „stimmt das?“.
@@ -289,9 +296,10 @@ final readonly class Chrome
     /**
      * The figures the customer typed for this car, and where the vehicle data asks for more. Every answer
      * is computed for the larger figure (PapersFigures::applyTo()), and the customer is told which one
-     * was used rather than left to wonder why the sum shows a number they did not type.
+     * was used rather than left to wonder why the sum shows a number they did not type. A figure they were
+     * not asked for and did not give is null (D-291).
      *
-     * @return array{axleFrontKg: int, axleRearKg: int, topSpeedKmh: int, powerKw: int|null, notes: list<string>}|null
+     * @return array{axleFrontKg: int|null, axleRearKg: int|null, topSpeedKmh: int|null, powerKw: int|null, notes: list<string>}|null
      */
     private static function papers(Request $request, Vehicle $vehicle): ?array
     {
@@ -305,7 +313,7 @@ final readonly class Chrome
         $notes = [];
 
         foreach ([['Vorderachse', '8.1', $figures->axleFrontKg, $vehicle->axle_load_front_kg], ['Hinterachse', '8.2', $figures->axleRearKg, $vehicle->axle_load_rear_kg]] as [$axle, $field, $theirs, $data]) {
-            if ($data !== null && $data > $theirs) {
+            if ($theirs !== null && $data !== null && $data > $theirs) {
                 $notes[] = sprintf(
                     'Für die %s rechnen wir mit %s aus unseren Fahrzeugdaten – mehr als deine %s aus Feld %s. So bist du auf der sicheren Seite.',
                     $axle,
@@ -316,7 +324,7 @@ final readonly class Chrome
             }
         }
 
-        if ($vehicle->max_speed_kmh !== null && $vehicle->max_speed_kmh > $figures->topSpeedKmh) {
+        if ($figures->topSpeedKmh !== null && $vehicle->max_speed_kmh !== null && $vehicle->max_speed_kmh > $figures->topSpeedKmh) {
             $notes[] = sprintf(
                 'Als Höchstgeschwindigkeit rechnen wir mit %s aus unseren Fahrzeugdaten – mehr als deine %s aus Feld T. So bist du auf der sicheren Seite.',
                 GermanFormat::integer($vehicle->max_speed_kmh).GermanFormat::NBSP.'km/h',

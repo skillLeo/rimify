@@ -5,6 +5,11 @@
  * it lacks them the wheel answer stands and the tyres are „Noch nicht bestätigt“ until they are in (D-286) — then
  * this form is the way on. With them the tyre answer is definite and shows its sum.
  *
+ * It asks for what is missing, never for all three (D-291): a field the answer waits for is asked, a figure we already
+ * know stands beside it with where it came from — our vehicle data, or the customer's own earlier entry —, and what
+ * neither knows nor needs is not asked at all. The fields are text fields that take only digits (`inputmode`), so a
+ * mouse wheel turning over them never changes a figure (D-290).
+ *
  * A drawing rings where the fields stand, on the certificate issued since 2005 and on the older
  * Fahrzeugschein. The figures are kept with THIS car in the browser (a cookie keyed by the vehicle, so two
  * saved cars never overwrite each other) until customer accounts exist, and the server reads them for every
@@ -24,11 +29,13 @@ import { withUnit } from '../../format'
 import { parsePapers } from '../../lib/fahrzeugschein'
 import { formatNumber } from '../../lib/num'
 import { OFFLINE, refusal } from '../../lib/visitRefusal'
-import type { PapersProp } from '../../types/rimify'
+import type { PapersProp, VehicleFigures } from '../../types/rimify'
 
 const props = defineProps<{
     vehicleId: number
     papers: PapersProp | null
+    /** 8.1, 8.2 and T as our vehicle data holds them: shown, never asked again (D-291). */
+    known?: VehicleFigures | null
     /** The chosen variant's power (kW), for the P.2 check; null when the vehicle data has none. */
     powerKw?: number | null
     /**
@@ -44,9 +51,9 @@ const props = defineProps<{
 const variant = ref<'neu' | 'alt'>('neu')
 /* Closed until asked for: the fields are optional, and open by default they pushed the price and „In den
    Warenkorb“ below the first screen of the product page. Where the answer waits for them nothing is in the basket's
-   way — there is no purchase until they are in —, and the form opens by itself (D-286). */
+   way — there is no purchase until they are in —, and the form opens by itself (D-286), whatever was given before. */
 const askedFields = computed(() => props.asked ?? [])
-const waits = computed(() => askedFields.value.length > 0 && props.papers === null)
+const waits = computed(() => askedFields.value.length > 0)
 const open = ref(!props.startClosed && waits.value)
 
 /* Where the answer comes to wait for the figures — another size, the figures deleted —, the form is the way on again. */
@@ -64,9 +71,6 @@ const errors = ref<Record<string, string>>({})
 /* Offline, an expired page, too many tries, a fault: said at the form, the page and what was typed kept (G-05). */
 const failure = ref('')
 
-/* 15.1 and 15.2 are optional: folded, open where they were given or refused. */
-const moreOpen = ref(Boolean(props.papers?.index))
-
 /* The keyboard to the first of these that stands on the page: a form that closed must not drop it to the page's end. */
 function focusFirst(...selectors: string[]): void {
     void nextTick(() => {
@@ -82,25 +86,87 @@ function focusFirst(...selectors: string[]): void {
     })
 }
 
-type FieldKey = 'axle_front_kg' | 'axle_rear_kg' | 'top_speed_kmh' | 'power_kw'
+type FigureKey = 'axle_front_kg' | 'axle_rear_kg' | 'top_speed_kmh'
+type FieldKey = FigureKey | 'power_kw'
+
+/* The three figures, each with the field of the papers it stands in and the prop that carries it. */
+const FIGURES: { key: FigureKey; field: string; prop: keyof VehicleFigures; label: string; unit: string }[] = [
+    { key: 'axle_front_kg', field: '8.1', prop: 'axleFrontKg', label: '8.1 · zulässige Achslast vorn', unit: 'kg' },
+    { key: 'axle_rear_kg', field: '8.2', prop: 'axleRearKg', label: '8.2 · zulässige Achslast hinten', unit: 'kg' },
+    { key: 'top_speed_kmh', field: 'T', prop: 'topSpeedKmh', label: 'T · Höchstgeschwindigkeit', unit: 'km/h' },
+]
+
+/* Where a figure we show came from. */
+const FROM_DATA = 'aus unseren Fahrzeugdaten'
+const FROM_THEM = 'von dir eingetragen'
+
+type Row =
+    | { kind: 'input'; key: FieldKey; label: string; unit: string; required: boolean }
+    | { kind: 'known'; key: FigureKey; label: string; shown: string; source: string }
+
+/* `1.160 kg`, `250 km/h`: a figure and its unit through the one helper (R-10). */
+const figure = (n: number, unit: string): string => withUnit(formatNumber(n), unit)
 
 /*
- * The unit sits in the field's frame; the label keeps it for a screen reader. P.2 is asked only where the
- * vehicle data has no power — a car typed from a Gutachten — because a size's kW band is read against it
- * (Block D). Optional, like the rest.
+ * Each figure one of three things (D-291). Asked: the answer waits for it — a field, required. Known and not asked: shown
+ * with where it came from — our data, or what the customer gave before —, never asked again. Neither: while the answer
+ * asks for something, not shown at all; otherwise a field, voluntary. The customer's own figures stay theirs to change
+ * where nothing is asked. P.2 is asked only where the vehicle data has no power — a car typed from a Gutachten —,
+ * because a size's kW band is read against it (Block D); voluntary, like the rest. The unit sits in the field's frame;
+ * the label keeps it for a screen reader.
  */
-const FIELDS = computed<{ key: FieldKey; label: string; unit: string; min: number; max: number }[]>(() => [
-    { key: 'axle_front_kg', label: '8.1 · zulässige Achslast vorn', unit: 'kg', min: 300, max: 4000 },
-    { key: 'axle_rear_kg', label: '8.2 · zulässige Achslast hinten', unit: 'kg', min: 300, max: 4000 },
-    { key: 'top_speed_kmh', label: 'T · Höchstgeschwindigkeit', unit: 'km/h', min: 60, max: 420 },
-    ...(props.powerKw == null ? [{ key: 'power_kw' as const, label: 'P.2 · Leistung (erste Zahl)', unit: 'kW', min: 10, max: 1000 }] : []),
-])
+const rows = computed<Row[]>(() => {
+    const asking = askedFields.value.length > 0
+    const out: Row[] = []
 
-const form = reactive<Record<FieldKey, number | ''>>({
-    axle_front_kg: (props.papers?.axleFrontKg ?? '') as number | '',
-    axle_rear_kg: (props.papers?.axleRearKg ?? '') as number | '',
-    top_speed_kmh: (props.papers?.topSpeedKmh ?? '') as number | '',
-    power_kw: (props.papers?.powerKw ?? '') as number | '',
+    for (const f of FIGURES) {
+        const ours = props.known?.[f.prop] ?? null
+        const theirs = props.papers?.[f.prop] ?? null
+
+        if (askedFields.value.includes(f.field)) {
+            out.push({ kind: 'input', key: f.key, label: f.label, unit: f.unit, required: true })
+        } else if (theirs !== null && asking) {
+            out.push({ kind: 'known', key: f.key, label: f.label, shown: figure(theirs, f.unit), source: FROM_THEM })
+        } else if (theirs === null && ours !== null) {
+            out.push({ kind: 'known', key: f.key, label: f.label, shown: figure(ours, f.unit), source: FROM_DATA })
+        } else if (!asking) {
+            out.push({ kind: 'input', key: f.key, label: f.label, unit: f.unit, required: false })
+        }
+    }
+
+    if (props.powerKw == null) {
+        out.push({ kind: 'input', key: 'power_kw', label: 'P.2 · Leistung (erste Zahl)', unit: 'kW', required: false })
+    }
+
+    return out
+})
+
+/* The fields this form shows: what it sends, and so sets; what it does not show stays as it was (D-291). */
+const fieldKeys = computed(() => rows.value.flatMap((row) => (row.kind === 'input' ? [row.key] : [])))
+/* Whether any of the three is a field: where all are known, only 15.1 and 15.2 are left to give. */
+const asksFigures = computed(() => fieldKeys.value.some((key) => key !== 'power_kw'))
+
+/* 15.1 and 15.2 are optional: folded, open where they were given or refused — or where they are all that is left. */
+const moreOpen = ref(Boolean(props.papers?.index) || !asksFigures.value)
+
+/* „Wir konnten 8.1, 8.2 und T nicht lesen.“ — the fields the form asks, by their names in the papers. */
+const FIELD_NAMES: Record<FieldKey, string> = { axle_front_kg: '8.1', axle_rear_kg: '8.2', top_speed_kmh: 'T', power_kw: 'P.2' }
+const unread = computed(() => {
+    const names = fieldKeys.value.map((key) => FIELD_NAMES[key])
+    const last = names.pop() ?? ''
+    const list = names.length ? `${names.join(', ')} und ${last}` : last
+
+    return names.length ? `Wir konnten ${list} nicht lesen. Trag sie bitte von Hand ein.` : `Wir konnten ${list} nicht lesen. Trag den Wert bitte von Hand ein.`
+})
+
+/* Digits as typed; the server reads `1.160` as the thousands it is (D-290). */
+const typed = (n: number | null | undefined): string => (n == null ? '' : String(n))
+
+const form = reactive<Record<FieldKey, string>>({
+    axle_front_kg: typed(props.papers?.axleFrontKg),
+    axle_rear_kg: typed(props.papers?.axleRearKg),
+    top_speed_kmh: typed(props.papers?.topSpeedKmh),
+    power_kw: typed(props.papers?.powerKw),
 })
 
 /*
@@ -121,12 +187,29 @@ const index = reactive<Record<IndexKey, string>>({
 
 const entered = computed(() => props.papers !== null)
 
+/* „Nach deinen Angaben: …“ — what the customer gave, and only that: asked for T alone, T alone (D-291). */
+const summary = computed(() => {
+    const p = props.papers
+
+    if (p === null) {
+        return ''
+    }
+
+    return [
+        p.axleFrontKg == null ? null : `8.1 ${figure(p.axleFrontKg, 'kg')}`,
+        p.axleRearKg == null ? null : `8.2 ${figure(p.axleRearKg, 'kg')}`,
+        p.topSpeedKmh == null ? null : `T ${figure(p.topSpeedKmh, 'km/h')}`,
+        p.powerKw ? `P.2 ${figure(p.powerKw, 'kW')}` : null,
+        p.index ? `15.1 ${p.index.front} · 15.2 ${p.index.rear}` : null,
+    ].filter((part): part is string => part !== null).join(' · ')
+})
+
 /** The form as the kept figures say, nothing typed since — for „Ändern“ and „Abbrechen“. */
 function fromPapers(): void {
-    form.axle_front_kg = props.papers?.axleFrontKg ?? ''
-    form.axle_rear_kg = props.papers?.axleRearKg ?? ''
-    form.top_speed_kmh = props.papers?.topSpeedKmh ?? ''
-    form.power_kw = props.papers?.powerKw ?? ''
+    form.axle_front_kg = typed(props.papers?.axleFrontKg)
+    form.axle_rear_kg = typed(props.papers?.axleRearKg)
+    form.top_speed_kmh = typed(props.papers?.topSpeedKmh)
+    form.power_kw = typed(props.papers?.powerKw)
     index.index_front = props.papers?.index?.front ?? ''
     index.index_rear = props.papers?.index?.rear ?? ''
     errors.value = {}
@@ -146,7 +229,13 @@ watch(
 function change(): void {
     fromPapers()
     open.value = true
-    void nextTick(() => document.getElementById('pp-axle_front_kg')?.focus())
+
+    // Where our data holds every figure, 15.1 and 15.2 are what is left to give: unfolded, the keyboard in them (D-291).
+    if (!asksFigures.value) {
+        moreOpen.value = true
+    }
+
+    focusFirst('[data-pp-field]', '#pp-index_front')
 }
 
 /** „Abbrechen“: back to the summary, nothing kept of what was typed (C-06). Not while the figures are on their way. */
@@ -158,7 +247,7 @@ function cancel(): void {
     fromPapers()
     failure.value = ''
     open.value = false
-    focusFirst(props.papers ? '#pp-change' : '#pp-open')
+    focusFirst('#pp-change', '#pp-open')
 }
 
 /* What a visit that never reached an answer says, the typed figures kept and the keyboard on the button it came from. */
@@ -177,9 +266,6 @@ const unreached = {
     },
 }
 
-/* `1.160 kg`: a figure and its unit through the one helper (R-10). */
-const kg = (n: number): string => withUnit(formatNumber(n), 'kg')
-
 function save(): void {
     // One send at a time: a second press while the first is on its way does nothing.
     if (busy.value) {
@@ -188,13 +274,13 @@ function save(): void {
 
     busy.value = true
     failure.value = ''
-    // P.2 goes only where it was asked; empty, it is not sent. 15.1 and 15.2 go where either was typed.
-    const { power_kw: power, ...figures } = form
-    const typed = index.index_front.trim() !== '' || index.index_rear.trim() !== ''
+    // Every field the form shows, emptied or not, and what the answer asked for: the server sets what is sent and keeps
+    // what is not — a figure we know is never sent as the customer's (D-291). 15.1 and 15.2 always: emptied, they go.
     router.post(`/fahrzeug/${props.vehicleId}/papiere`, {
-        ...figures,
-        ...(props.powerKw == null && power !== '' ? { power_kw: power } : {}),
-        ...(typed ? { index_front: index.index_front, index_rear: index.index_rear } : {}),
+        asked: askedFields.value,
+        ...Object.fromEntries(fieldKeys.value.map((key) => [key, form[key].trim()])),
+        index_front: index.index_front,
+        index_rear: index.index_rear,
     }, {
         preserveScroll: true,
         errorBag: 'papiere',
@@ -244,26 +330,32 @@ async function onPhoto(event: Event): Promise<void> {
 
     try {
         const found = parsePapers(await ocr.read(file))
+        // Only the fields the form shows: a figure we know is not replaced by a reading (D-291).
+        const read: Partial<Record<FieldKey, number | null>> = {
+            axle_front_kg: found.axleFrontKg,
+            axle_rear_kg: found.axleRearKg,
+            top_speed_kmh: found.topSpeedKmh,
+            power_kw: found.powerKw,
+        }
+        const filled = fieldKeys.value.filter((key) => read[key] != null)
 
-        if (found.axleFrontKg === null && found.axleRearKg === null && found.topSpeedKmh === null) {
+        // P.2 is checked against the variant where the data knows it, whatever else was read.
+        readPowerKw.value = found.powerKw
+
+        if (filled.length === 0) {
             scan.value = 'failed'
             ocr.dispose()
 
             return
         }
 
-        // Only what was read replaces what is in a field; nothing is kept until "Werte übernehmen".
-        form.axle_front_kg = found.axleFrontKg ?? form.axle_front_kg
-        form.axle_rear_kg = found.axleRearKg ?? form.axle_rear_kg
-        form.top_speed_kmh = found.topSpeedKmh ?? form.top_speed_kmh
-        // P.2 fills its field where it is asked, and is checked against the variant where the data knows it.
-        if (props.powerKw == null) {
-            form.power_kw = found.powerKw ?? form.power_kw
+        // Only what was read replaces what is in a field; nothing is kept until "Werte übernehmen". P.2 fills its field
+        // where it is asked.
+        for (const key of fieldKeys.value) {
+            form[key] = typed(read[key]) || form[key]
         }
-        readPowerKw.value = found.powerKw
         scan.value = 'read'
-        await nextTick()
-        document.getElementById('pp-axle_front_kg')?.focus()
+        focusFirst('[data-pp-field]')
     } catch {
         scan.value = 'failed'
         ocr.dispose()
@@ -293,7 +385,7 @@ function clear(): void {
             // Where the answer now waits for them, the form stays the way on (D-286); else its button comes back. Where
             // the whole block goes with them (the listing), the keyboard goes to the page's heading, never its end.
             open.value = waits.value && !props.startClosed
-            focusFirst('#pp-axle_front_kg', '#pp-open', '[data-focus-after-papers]')
+            focusFirst('[data-pp-field]', '#pp-open', '[data-focus-after-papers]')
         },
         onFinish: () => {
             busy.value = false
@@ -304,15 +396,16 @@ function clear(): void {
 
 <template>
     <div class="pp">
-        <template v-if="papers && !open">
+        <!-- Given, and nothing more asked: what was given, one press from changing. Asked for more, the form says both. -->
+        <template v-if="papers && !open && !askedFields.length">
             <p class="pp__summary">
-                <span>Nach deinen Angaben: 8.1 {{ kg(papers.axleFrontKg) }} · 8.2 {{ kg(papers.axleRearKg) }} · T {{ withUnit(papers.topSpeedKmh, 'km/h') }}<template v-if="papers.powerKw"> · P.2 {{ withUnit(papers.powerKw, 'kW') }}</template><template v-if="papers.index"> · 15.1 {{ papers.index.front }} · 15.2 {{ papers.index.rear }}</template></span>
+                <span>Nach deinen Angaben: {{ summary }}</span>
                 <button id="pp-change" class="btn btn--ghost btn--sm" type="button" @click="change">Ändern</button>
             </p>
             <p v-for="note in papers.notes" :key="note" class="pp__help">{{ note }}</p>
         </template>
 
-        <!-- Nothing typed yet: one button, the form opens in place. -->
+        <!-- Nothing typed yet, or more asked for: one button, the form opens in place. -->
         <button v-else-if="!open" id="pp-open" class="btn btn--secondary btn--sm pp__open" type="button" @click="change">
             Werte aus der Zulassungsbescheinigung eintragen
         </button>
@@ -322,31 +415,46 @@ function clear(): void {
                 <p id="pp-h" class="pp__title">Werte aus deiner Zulassungsbescheinigung</p>
                 <!-- Asked for: which fields, the page says above the form (the tyre lines, the listing's banner, D-286). -->
                 <p v-if="askedFields.length" class="pp__help" data-asked>{{ KEPT }}</p>
-                <p v-else class="pp__help">
+                <p v-else-if="asksFigures" class="pp__help">
                     Freiwillig: Mit den zulässigen Achslasten und der Höchstgeschwindigkeit zeigen wir dir, welche Reifen du fahren darfst. {{ KEPT }}
                 </p>
+                <p v-else class="pp__help">
+                    Die Achslasten und die Höchstgeschwindigkeit stehen schon in unseren Fahrzeugdaten. Die Reifen aus den Feldern 15.1 und 15.2 kannst du freiwillig ergänzen. {{ KEPT }}
+                </p>
+                <p v-for="note in papers?.notes ?? []" :key="note" class="pp__help">{{ note }}</p>
             </div>
 
-            <!-- The three figures first: what the answer waits for. -->
-            <div class="pp__grid">
-                <div v-for="field in FIELDS" :key="field.key" class="form-field">
-                    <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}<span class="visually-hidden"> ({{ field.unit }})</span></label>
-                    <div class="input-group">
-                        <input
-                            :id="`pp-${field.key}`"
-                            v-model.number="form[field.key]"
-                            class="input"
-                            type="number"
-                            :min="field.min"
-                            :max="field.max"
-                            inputmode="numeric"
-                            :aria-invalid="errors[field.key] ? 'true' : undefined"
-                            :aria-describedby="`pp-${field.key}-err`"
-                        >
-                        <span class="input-group__suffix" aria-hidden="true" translate="no">{{ field.unit }}</span>
+            <!-- The three figures first: what the answer waits for, and beside it what we know, with where it came from. -->
+            <div v-if="rows.length" class="pp__grid">
+                <template v-for="row in rows" :key="row.key">
+                    <div v-if="row.kind === 'input'" class="form-field">
+                        <label class="form-field__label" :for="`pp-${row.key}`">{{ row.label }}<span class="visually-hidden"> ({{ row.unit }})</span></label>
+                        <div class="input-group">
+                            <!-- Text, digits only: a mouse wheel over it never changes the figure (D-290). -->
+                            <input
+                                :id="`pp-${row.key}`"
+                                v-model="form[row.key]"
+                                class="input"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                spellcheck="false"
+                                data-pp-field
+                                :aria-required="row.required ? 'true' : undefined"
+                                :aria-invalid="errors[row.key] ? 'true' : undefined"
+                                :aria-describedby="`pp-${row.key}-err`"
+                            >
+                            <span class="input-group__suffix" aria-hidden="true" translate="no">{{ row.unit }}</span>
+                        </div>
+                        <p :id="`pp-${row.key}-err`" class="form-field__error">{{ errors[row.key] }}</p>
                     </div>
-                    <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
-                </div>
+                    <!-- Known: shown, never asked again — with where it came from (D-291). -->
+                    <div v-else class="form-field pp__known" :data-pp-known="row.key">
+                        <span class="form-field__label">{{ row.label }}</span>
+                        <span class="pp__value">{{ row.shown }}</span>
+                        <span class="pp__source">{{ row.source }}</span>
+                    </div>
+                </template>
             </div>
 
             <!-- Where they stand in the papers, one press away: open, the drawing made the form taller than the panel's answer. -->
@@ -368,7 +476,8 @@ function clear(): void {
                 </figure>
             </details>
 
-            <div class="pp__scan">
+            <!-- The photo fills the fields the form asks; where it asks none of them, there is nothing for it to fill. -->
+            <div v-if="fieldKeys.length" class="pp__scan">
                 <label for="pp-photo" class="visually-hidden">Foto der Zulassungsbescheinigung Teil I</label>
                 <input id="pp-photo" ref="fileInput" class="visually-hidden" type="file" accept="image/*" capture="environment" tabindex="-1" @change="onPhoto">
                 <button class="btn btn--secondary btn--sm" type="button" :disabled="scan === 'busy'" :aria-busy="scan === 'busy' ? 'true' : undefined" @click="fileInput?.click()">
@@ -380,7 +489,7 @@ function clear(): void {
                 <p v-else-if="scan === 'read'" class="pp__help" role="status">Aus dem Foto gelesen. Prüf die Werte, bevor du sie übernimmst.</p>
                 <p v-else-if="scan === 'failed'" class="notice notice--warn" role="alert">
                     <Icon name="warning" :size="20" />
-                    <span>Wir konnten 8.1, 8.2 und T nicht lesen. Trag sie bitte von Hand ein.</span>
+                    <span>{{ unread }}</span>
                 </p>
                 <p v-if="powerMismatch" class="notice notice--warn" role="alert">
                     <Icon name="warning" :size="20" />
@@ -534,6 +643,23 @@ function clear(): void {
 
 .pp .input-group .input {
     padding-right: var(--sp-48);
+}
+
+/* A figure we know: the field's height and type, drawn flat on the band — shown, not asked (D-291). */
+.pp__value {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--sp-12);
+    border-radius: var(--r-control);
+    background: var(--c-band);
+    font-variant-numeric: tabular-nums;
+}
+
+.pp__source {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
 }
 
 .pp__index {

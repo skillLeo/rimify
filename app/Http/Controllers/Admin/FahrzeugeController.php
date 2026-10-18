@@ -131,8 +131,10 @@ class FahrzeugeController extends Controller
             // Field T is asked only where a released Gutachten naming this car needs it for the tyres, and the page says
             // which and why (D-287); what the shop waits for, as its answer names it to the customer (D-286).
             'topSpeed' => $speed,
+            // Each axle on its own, as the shop asks the customer (D-291).
             'owed' => [
-                ...($vehicle->axle_load_front_kg === null || $vehicle->axle_load_rear_kg === null ? ['8.1', '8.2'] : []),
+                ...($vehicle->axle_load_front_kg === null ? ['8.1'] : []),
+                ...($vehicle->axle_load_rear_kg === null ? ['8.2'] : []),
                 ...($vehicle->max_speed_kmh === null && $speed['needed'] ? ['T'] : []),
             ],
             'rows' => $rows->map(static fn (Fitment $f): array => [

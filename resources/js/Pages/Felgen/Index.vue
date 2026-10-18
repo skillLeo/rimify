@@ -58,15 +58,26 @@ const buildGiven = computed(() => {
 })
 
 /*
- * The tyres wait for the car's papers (D-286): one sentence for the whole page, the form under it. All three are asked
- * either way — they stand side by side in the papers and are kept together.
+ * The tyres wait for the car's papers (D-286): one sentence for the whole page, the form under it. Only what is missing
+ * is asked for (D-291) — the form shows what we know beside it, with where it came from.
  */
 const owedLead = computed(() => {
     const owed = props.owed ?? []
+    const front = owed.includes('8.1')
+    const rear = owed.includes('8.2')
+    const axles = front && rear
+        ? 'die zulässigen Achslasten aus den Feldern 8.1 und 8.2'
+        : front ? 'die zulässige Achslast vorn aus Feld 8.1' : rear ? 'die zulässige Achslast hinten aus Feld 8.2' : null
+    const parts = [axles, owed.includes('T') ? 'die Höchstgeschwindigkeit aus Feld T' : null].filter((part): part is string => part !== null)
+    const then = 'Trag sie einmal ein, dann prüfen wir damit die Reifen zu jeder Felge.'
 
-    return owed.length === 1 && owed[0] === 'T'
-        ? 'Für die Reifen fehlt uns die Höchstgeschwindigkeit aus Feld T deiner Zulassungsbescheinigung Teil I. Trag sie zusammen mit den Achslasten aus den Feldern 8.1 und 8.2 einmal ein, dann prüfen wir damit die Reifen zu jeder Felge.'
-        : 'Für die Reifen fehlen uns Werte aus deiner Zulassungsbescheinigung Teil I: die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T. Trag sie einmal ein, dann prüfen wir damit die Reifen zu jeder Felge.'
+    if (parts.length === 0) {
+        return ''
+    }
+
+    return parts.length === 1
+        ? `Für die Reifen ${front && rear ? 'fehlen' : 'fehlt'} uns ${parts[0]} deiner Zulassungsbescheinigung Teil I. ${then}`
+        : `Für die Reifen fehlen uns Werte aus deiner Zulassungsbescheinigung Teil I: ${parts.join(' und ')}. ${then}`
 })
 
 const appliedCount = computed(
@@ -193,7 +204,7 @@ onBeforeUnmount(() => {
                     <Icon name="info" :size="20" />
                     <span>{{ owedLead }}</span>
                 </p>
-                <PapersForm :key="`papers-${vehicle.id}`" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed ?? []" start-closed />
+                <PapersForm :key="`papers-${vehicle.id}`" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :known="vehicle.figures ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed ?? []" start-closed />
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->

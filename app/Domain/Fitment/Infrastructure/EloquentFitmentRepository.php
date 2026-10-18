@@ -399,6 +399,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             isDemo: (bool) $document->getAttribute('is_demo'),
             tyreCombinations: self::tyreCombinations($document),
             tyreIndexSource: $document->tyre_index_source?->value,
+            // „nur für Fahrzeuge mit maximaler Achslast 1160 kg“, as declared at release: the wheel's approval rests on it (D-289).
+            axleLimitKg: $document->counted_axle_limit_kg,
         );
     }
 

@@ -77,6 +77,43 @@ it('keeps the figures from the customer’s papers the answer used', function ()
     expect(CheckResult::query()->sole()->papers)->toEqual(['axleFrontKg' => 1100, 'axleRearKg' => 1100, 'topSpeedKmh' => 200, 'powerKw' => null]);
 });
 
+it('keeps only the figures the customer gave, where the form asked for T alone (D-291)', function (): void {
+    $fixture = KomplettradFixture::permitted();
+
+    $this->withCookies($fixture->cookies())
+        ->withUnencryptedCookie(PapersBook::COOKIE, "{$fixture->vehicle->id}.-.-.200")
+        ->post('/rimify-check/ergebnis', ['wheelConfigId' => $fixture->config->id]);
+
+    expect(CheckResult::query()->sole()->papers)->toEqual(['axleFrontKg' => null, 'axleRearKg' => null, 'topSpeedKmh' => 200, 'powerKw' => null]);
+});
+
+it('is kept twelve months, then deleted with the figures in it — and the page says until when (D-292)', function (): void {
+    $fixture = KomplettradFixture::permitted();
+    $this->withCookies($fixture->cookies())
+        ->withUnencryptedCookie(PapersBook::COOKIE, "{$fixture->vehicle->id}.1100.1100.200")
+        ->post('/rimify-check/ergebnis', ['wheelConfigId' => $fixture->config->id]);
+    $result = CheckResult::query()->sole();
+
+    $this->get('/rimify-check/ergebnis/'.$result->token)
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('result.keptUntil', $result->computed_at->copy()->addMonths(CheckResult::KEEP_MONTHS)->timezone('Europe/Berlin')->format('d.m.Y'))
+            ->where('keepMonths', CheckResult::KEEP_MONTHS));
+
+    // A day short of the twelve months it stays; past them, the nightly prune takes it, figures and all.
+    $this->travel(CheckResult::KEEP_MONTHS)->months();
+    $this->travel(-1)->days();
+    $this->artisan('model:prune', ['--model' => [CheckResult::class]])->assertSuccessful();
+    expect(CheckResult::query()->count())->toBe(1);
+
+    $this->travel(2)->days();
+    $this->artisan('model:prune', ['--model' => [CheckResult::class]])->assertSuccessful();
+    expect(CheckResult::query()->count())->toBe(0);
+
+    $this->get('/rimify-check/ergebnis/'.$result->token)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('result', null));
+});
+
 it('is written once: the database refuses every change', function (): void {
     $fixture = KomplettradFixture::permitted();
     $this->withCookies($fixture->cookies())->post('/rimify-check/ergebnis', ['wheelConfigId' => $fixture->config->id]);

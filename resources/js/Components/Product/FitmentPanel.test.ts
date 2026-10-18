@@ -153,6 +153,28 @@ describe('FitmentPanel', () => {
         expect(all.find('.fit__elsewhere').exists()).toBe(false)
     })
 
+    // D-289: where the rim sells alone, the panel says so, and the form waits behind its button — open, it pushed the price
+    // and „In den Warenkorb“ off the first screen.
+    it('says the rim alone can be ordered where it sells while the tyres wait, the form closed behind its button', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, rimSellable: true,
+                    wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben',
+                    tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, owed: ['8.1', '8.2', 'T'] },
+                }),
+            },
+            global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } },
+        })
+
+        expect(wrapper.find('[data-open="tyre"]').text()).toBe(
+            'Die Felge selbst ist für BMW 3er Coupe freigegeben – nur mit einer der zulässigen Reifengrößen. Die Reifen dazu können wir noch nicht bestätigen. Die Felge allein kannst du schon bestellen.'
+        )
+        expect(wrapper.find('.pp__form').exists()).toBe(false)
+        expect(wrapper.find('#pp-open').exists()).toBe(true)
+    })
+
     it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
         const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
         const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })

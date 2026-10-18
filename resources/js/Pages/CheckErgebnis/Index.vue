@@ -94,14 +94,30 @@ const copy = computed<Copy>(() => {
                 primary: { href: askHref.value, label: 'Bei uns nachfragen' },
             }
         default:
+            // A result is kept KEEP_MONTHS, then deleted with the figures in it (D-292); a document changed since does not
+            // remove one — the page then says so beside the frozen answer (documentToday).
+            // „können wir nicht anzeigen“: a mistyped link never was, a deleted one leaves no trace — no history is claimed.
             return {
                 tag: null,
                 label: null,
-                title: 'Dieses Ergebnis ist nicht mehr verfügbar.',
-                body: 'Ergebnis-Links verfallen, wenn sich die zugrunde liegende Freigabe geändert hat. Führe die Prüfung erneut durch, damit du den aktuellen Stand erhältst.',
+                title: 'Dieses Ergebnis können wir nicht anzeigen.',
+                body: `Ein Ergebnis-Link gilt ${props.keepMonths === 12 ? 'zwölf' : props.keepMonths} Monate, danach löschen wir das Ergebnis mit deinen Angaben. Prüf, ob der Link vollständig ist, oder starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.`,
                 primary: { href: '/rimify-check', label: 'Neue Prüfung starten' },
             }
     }
+})
+
+/* The figures as the customer gave them: asked only for what the answer was missing, they may be fewer than three (D-291). */
+const papersLine = computed<string | null>(() => {
+    const papers = props.result?.papers
+    if (!papers) return null
+    const parts = [
+        papers.axleFrontKg == null ? null : `8.1 ${formatNumber(papers.axleFrontKg)}\u00a0kg`,
+        papers.axleRearKg == null ? null : `8.2 ${formatNumber(papers.axleRearKg)}\u00a0kg`,
+        papers.topSpeedKmh == null ? null : `T ${papers.topSpeedKmh}\u00a0km/h`,
+    ].filter((part): part is string => part !== null)
+
+    return parts.length ? parts.join(' · ') : null
 })
 </script>
 
@@ -140,9 +156,9 @@ const copy = computed<Copy>(() => {
                             <template v-if="result.document.example"> · <span class="tag tag--unknown">Beispieldaten</span></template>
                         </dd>
                     </div>
-                    <div v-if="result.papers">
+                    <div v-if="papersLine">
                         <dt>Deine Angaben</dt>
-                        <dd>8.1 {{ formatNumber(result.papers.axleFrontKg) }}&nbsp;kg · 8.2 {{ formatNumber(result.papers.axleRearKg) }}&nbsp;kg · T {{ result.papers.topSpeedKmh }}&nbsp;km/h</dd>
+                        <dd>{{ papersLine }}</dd>
                     </div>
                     <!-- What the answer assumed that our vehicle data does not hold: printed with where it came from,
                          so the workshop or the Prüfer can catch a wrong one (G-02). -->
@@ -200,6 +216,10 @@ const copy = computed<Copy>(() => {
                 <div v-if="result?.issuedAt">
                     <dt class="micro">Geprüft am</dt>
                     <dd class="data">{{ result.issuedAt }}</dd>
+                </div>
+                <div v-if="result?.keptUntil">
+                    <dt class="micro">Link gültig bis</dt>
+                    <dd class="data">{{ result.keptUntil }}</dd>
                 </div>
             </dl>
         </div>

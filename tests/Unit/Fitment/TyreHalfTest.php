@@ -75,12 +75,13 @@ function tCode(int $index, int $kg): Condition
  * @param  list<Condition>  $conditions
  * @param  list<TyreSize>|null  $sizes
  */
-function decideFor(VehicleRecord $vehicle, array $conditions = [], ?WheelConfigRecord $wheel = null, ?SpeedDeratingTable $table = null, bool $withTable = true, ?array $sizes = null): FitmentVerdict
+function decideFor(VehicleRecord $vehicle, array $conditions = [], ?WheelConfigRecord $wheel = null, ?SpeedDeratingTable $table = null, bool $withTable = true, ?array $sizes = null, ?int $axleLimitKg = null): FitmentVerdict
 {
     $tables = FitmentFixtures::tables();
     $document = new DocumentRecord(
         id: 57, kind: 'ABE', number: '55255', revision: 1, sourcePage: 4,
         speedDerating: $withTable ? ($table ?? FitmentFixtures::deratingTable()) : null,
+        axleLimitKg: $axleLimitKg,
     );
     $row = FitmentFixtures::row(vehicleId: $vehicle->id, sizes: $sizes ?? [new TyreSize(225, 40, 19.0)], conditions: $conditions, document: $document);
 
@@ -130,9 +131,60 @@ it('asks only for what is missing: the axle loads where only they are, the top s
         // The axle loads are on record: no threshold to compare by hand, only the one field and the way on.
         ->and($speed->lines ?? [])->toBe([
             'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).',
-            // One way on: the papers' form takes all three figures together.
+            // One way on: the papers' form, which asks for what is missing (D-291).
             'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.',
         ]);
+
+    // Each axle on its own (D-291): where the data knows 8.1, only 8.2 is asked for — with T, where T is missing too.
+    $rear = decideFor(bmw4er3C(front: 1100, speed: 250))->tyre;
+    $rearAndSpeed = decideFor(bmw4er3C(front: 1100))->tyre;
+
+    expect($rear?->papersOwed)->toBe(['8.2'])
+        ->and($rear->lines[0] ?? null)->toBe('Für die Reifen fehlt uns die zulässige Achslast hinten deines Fahrzeugs (Feld 8.2).')
+        ->and($rearAndSpeed?->papersOwed)->toBe(['8.2', 'T'])
+        ->and($rearAndSpeed->lines[0] ?? null)->toBe('Für die Reifen fehlen uns die zulässige Achslast hinten (Feld 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.');
+});
+
+/*
+ * D-289 (the operator's brief of 18.10.2026, §1): the axle loads decide the tyres' load index, not whether the wheel is
+ * approved — unless the document itself limits by axle load, declared at release or as an Auflage that names a load and
+ * no index. Gated as the top speed is (D-284): on whether the document's own approval depends on the missing figure.
+ */
+it('sells the rim alone while only the tyres wait for the papers — never where the document itself limits the axle load', function (): void {
+    // A load-index Auflage is the tyres' rule: the rim still sells alone, with the sizes it may only be fitted with.
+    $free = decideFor(bmw4er3C(), [tCode(88, 1120)]);
+    $rim = $free->forRimAlone();
+
+    expect($free->sellsAlone)->toBeTrue()
+        ->and($free->isSellable())->toBeFalse()
+        ->and($rim?->status)->toBe(VerdictStatus::Conditional)
+        ->and($rim?->wheelStatus)->toBe(VerdictStatus::Permitted)
+        ->and($rim?->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($rim?->rimAlone)->toBeTrue()
+        ->and(collect($rim->conditions ?? [])->firstWhere('code', FitmentVerdict::RIM_ALONE)?->sentenceDe())
+        ->toBe('Die Felge ist für dein Fahrzeug nur mit Reifen der Größe 225/40 R19 zulässig. Welche Reifen dein Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung fehlten uns die Felder 8.1, 8.2 und T deiner Zulassungsbescheinigung Teil I.');
+
+    // Frozen and read back as it was.
+    $restored = FitmentVerdict::fromArray($rim?->toArray() ?? []);
+    expect($restored->rimAlone)->toBeTrue()->and($restored->status)->toBe(VerdictStatus::Conditional);
+
+    // The document limits the axle load — declared at release, or an Auflage naming a load and no index: nothing sells.
+    $declared = decideFor(bmw4er3C(), [tCode(88, 1120)], axleLimitKg: 1160);
+    $note = decideFor(bmw4er3C(), [Condition::ofKind('140', ConditionKind::ReifenTragfaehigkeit, 'Das Sonderrad ist in Verbindung mit dieser Reifengröße nur bis zu einer zulässigen Achslast von 1.400 kg zulässig.', null, 7, 1400)]);
+
+    expect($declared->sellsAlone)->toBeFalse()
+        ->and($declared->forRimAlone())->toBeNull()
+        ->and($note->sellsAlone)->toBeFalse()
+        ->and($note->forRimAlone())->toBeNull();
+
+    // The axle loads known, T owed: the wheel's approval does not wait for T, whatever the document limits.
+    $speedOnly = decideFor(bmw4er3C(1100, 1100), [tCode(88, 1120)], axleLimitKg: 1160);
+
+    expect($speedOnly->tyre?->papersOwed)->toBe(['T'])
+        ->and($speedOnly->sellsAlone)->toBeTrue();
+
+    // With every figure in, the answer itself sells: nothing is sold „alone“ then.
+    expect(decideFor(bmw4er3C(1100, 1100, 200), [tCode(88, 1120)])->sellsAlone)->toBeFalse();
 });
 
 it('is never PERMITTED while the tyre half is CONDITIONAL or UNKNOWN', function (): void {

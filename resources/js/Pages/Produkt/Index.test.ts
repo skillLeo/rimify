@@ -281,6 +281,26 @@ describe('Produkt page', () => {
         expect(gone.attributes('disabled')).toBeDefined()
     })
 
+    // D-289: where the document does not itself limit the axle load, the rim alone sells while the tyres wait for the
+    // papers — „In den Warenkorb“ adds it; only the Komplettrad waits for them.
+    it('adds the rim alone where it sells while the tyres wait for the papers', async () => {
+        focusPapers.mockClear()
+        post.mockClear()
+        const rim = verdict({
+            status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, rimSellable: true, wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben',
+            tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, owed: ['8.1', '8.2', 'T'] },
+        })
+        const button = mountPage({ hasVehicle: true, configs: [config({ verdict: rim })] }).find('button.pdp__add')
+
+        expect(button.text()).toBe('In den Warenkorb')
+        expect(button.attributes('disabled')).toBeUndefined()
+
+        await button.trigger('click')
+
+        expect(post).toHaveBeenCalledTimes(1)
+        expect(focusPapers).not.toHaveBeenCalled()
+    })
+
     it('shows a demo model as Beispielbestand, says it cannot be ordered yet, and keeps the basket usable', async () => {
         const wrapper = mountPage({ demo: true })
 

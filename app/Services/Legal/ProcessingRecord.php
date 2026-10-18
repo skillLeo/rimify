@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Legal;
 
+use App\Domain\Storefront\PapersBook;
 use App\Models\AdminInvitation;
+use App\Models\CheckResult;
 use App\Models\ContactMessage;
 use App\Models\CustomerAccount;
 use App\Payments\PaymentConfig;
@@ -110,6 +112,16 @@ final class ProcessingRecord
 
         foreach (self::cookies() as $cookie) {
             $lines[] = '| `'.$cookie['name'].'` | '.$cookie['stores'].' | '.$cookie['lifetime'].' |';
+        }
+
+        $lines[] = '';
+        $lines[] = '### 2.2 · Werte aus der Zulassungsbescheinigung';
+        $lines[] = '';
+        $lines[] = '| | |';
+        $lines[] = '|---|---|';
+
+        foreach (self::papers() as [$label, $text]) {
+            $lines[] = "| {$label} | {$text} |";
         }
 
         $lines[] = '';
@@ -288,6 +300,7 @@ final class ProcessingRecord
 
         return [
             ['Kontaktanfragen', ContactMessage::KEEP_MONTHS.' Monate', '`model:prune` täglich um 03:30'.GermanFormat::NBSP.'Uhr (`ContactMessage::KEEP_MONTHS`)'],
+            ['Ausdruckbarer RIMIFY-Check, mit den Werten aus der Zulassungsbescheinigung (2.2)', CheckResult::KEEP_MONTHS.' Monate', '`model:prune` täglich um 03:30'.GermanFormat::NBSP.'Uhr (`CheckResult::KEEP_MONTHS`)'],
             ['Unbezahlte Bestellungen', 'verfallen nach '.OrderPayments::HOURS_TO_PAY.' Stunden; der Bestand geht zurück, der Datensatz bleibt', '`orders:expire` alle zehn Minuten (`OrderPayments::HOURS_TO_PAY`) – eine Löschung ist **nicht umgesetzt** (3)'],
             // No period named here: which one applies to invoices since 2025 is the Kanzlei's to say (client-questions 36).
             ['Bestellungen, Rechnungen, Gutschriften', 'unbefristet; Rechnungen unveränderlich', 'Datenbank-Trigger; eine Löschung nach Ablauf der Aufbewahrungspflicht (§ 147 AO, § 14b UStG – die Frist bestätigt die Kanzlei) ist **nicht umgesetzt** (3)'],
@@ -320,7 +333,32 @@ final class ProcessingRecord
             self::serverLogUnrotated() ? 'Das Server-Log ist eine einzige Datei, die nicht rotiert wird (`LOG_STACK=single`): auf `daily` umstellen, dann gilt die Frist aus `max_files`.' : null,
             'Das Log des Server-Renderings wird nicht rotiert (es enthält Seitenpfade, keine Kundendaten).',
             'Verträge zur Auftragsverarbeitung für den Live-Shop nachweisen: Hostinger (1.1), Postfach (1.5); bei AWS und Stripe sind sie Teil der Vertragsbedingungen.',
+            'Werte aus der Zulassungsbescheinigung (2.2): ob sie ohne Namen, Kennzeichen und Fahrgestellnummer personenbezogen sind, ob die Rechtsgrundlage stimmt und ob die Fristen (Cookie '.self::papersCookieDays().' Tage, RIMIFY-Check '.CheckResult::KEEP_MONTHS.' Monate) passen.',
         ]));
+    }
+
+    /**
+     * The figures a customer types from their papers (the operator's brief of 18.10.2026, §4): what they are, why the
+     * shop asks, on which basis, and where each copy is kept for how long — read from the constants that keep them.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private static function papers(): array
+    {
+        return [
+            ['Daten', 'Die Werte, die ein Kunde aus seiner Zulassungsbescheinigung Teil'.GermanFormat::NBSP.'I einträgt: die zulässigen Achslasten (8.1, 8.2) und die Höchstgeschwindigkeit (T), wenn er will auch die Leistung (P.2) sowie Tragfähigkeits- und Geschwindigkeitsindex der Reifen (15.1, 15.2). Name, Kennzeichen und Fahrgestellnummer fragt der Shop dazu nicht ab.'],
+            ['Zweck', 'Die Antwort, welche Reifen zu einer Felge an diesem Fahrzeug zulässig sind – Tragfähigkeit und Geschwindigkeit (CLAUDE.md R-03). Gefragt wird nur nach den Werten, die dem Shop für diese Antwort fehlen.'],
+            ['Rechtsgrundlage', 'Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme auf Anfrage des Kunden); für das Cookie § 25 Abs. 2 Nr. 2 TDDDG (unbedingt erforderlich für einen vom Kunden ausdrücklich gewünschten Dienst). Beides bestätigt die Kanzlei (3).'],
+            ['Im Browser des Kunden', 'Cookie `rmf_papiere`: '.self::papersCookieDays().' Tage ab dem letzten Eintrag (`PapersBook::LIFETIME_MINUTES`). Der Kunde löscht die Werte mit „Werte löschen“ oder mit seinen Cookies.'],
+            ['Im ausdruckbaren RIMIFY-Check', 'Wenn der Kunde einen Check druckt, mit dessen Ergebnis in der Datenbank (`check_results`). Gespeichert nur für diesen Check, deshalb mit ihm gelöscht: nach '.CheckResult::KEEP_MONTHS.' Monaten, `model:prune` täglich um 03:30'.GermanFormat::NBSP.'Uhr (`CheckResult::KEEP_MONTHS`, D-292).'],
+            ['In einer Bestellung', 'Wenn der Kunde bestellt, die Achslasten und die Höchstgeschwindigkeit, mit denen das Ergebnis gerechnet wurde, im Prüfnachweis der Bestellposition (`order_line_fitments`): unveränderlich (CLAUDE.md R-12) und so lange wie die Bestellung (2).'],
+        ];
+    }
+
+    /** The papers cookie's lifetime in days. */
+    private static function papersCookieDays(): int
+    {
+        return intdiv(PapersBook::LIFETIME_MINUTES, 60 * 24);
     }
 
     /** @return list<array{name: string, stores: string, lifetime: string}> */

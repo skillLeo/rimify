@@ -164,6 +164,8 @@ class CheckController extends Controller
         return Inertia::render('CheckErgebnis/Index', [
             'token' => $token,
             'result' => $result === null ? null : $results->present($result),
+            // A link outlives its result: the page says how long one is kept (D-292).
+            'keepMonths' => CheckResult::KEEP_MONTHS,
         ]);
     }
 }

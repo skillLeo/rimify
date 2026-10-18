@@ -117,6 +117,8 @@ final readonly class CheckResults
                 default => 'Das Gutachten hat sich seitdem geändert. Prüf die Felge erneut, bevor du kaufst.',
             },
             'issuedAt' => GermanFormat::dateTime($result->created_at ?? $result->computed_at),
+            // Then it is deleted with the figures in it (D-292): the customer who sends the link on knows how long it works.
+            'keptUntil' => GermanFormat::date($result->keptUntil()),
         ];
     }
 }

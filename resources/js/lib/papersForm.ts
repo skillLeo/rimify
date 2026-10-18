@@ -4,7 +4,8 @@
  * that offers it — the product page's button, the Komplettrad's refusal, the RIMIFY-Check.
  */
 export function focusPapersForm(): void {
-    const field = document.getElementById('pp-axle_front_kg')
+    // The first field the form asks — 8.1, or T where only T is missing (D-291).
+    const field = document.querySelector<HTMLElement>('[data-pp-field]')
 
     if (field !== null) {
         const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
@@ -16,7 +17,7 @@ export function focusPapersForm(): void {
     }
 
     // Closed: its button opens it, and the form puts the keyboard in its first field itself (PapersForm `change`).
-    document.getElementById('pp-open')?.click()
+    ;(document.getElementById('pp-open') ?? document.getElementById('pp-change'))?.click()
 }
 
 /** Whether a verdict's tyres wait for fields of the car's papers (`tyre.owed`, D-286). */

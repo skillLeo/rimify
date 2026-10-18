@@ -463,6 +463,11 @@ export interface ConfigVerdict {
     /** Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. Additive. */
     notesOnly?: boolean
     sellable: boolean
+    /**
+     * The rim alone sells while the tyres wait for the car's papers, where the wheel's own approval does not (D-289) —
+     * never a Komplettrad. Additive.
+     */
+    rimSellable?: boolean
     requiresEntry: boolean
     /** The document frees the papers from correction (§ 15 FZV): its own line (resources/js/fitment/papers.ts). Additive. */
     papersExempt?: boolean
@@ -719,18 +724,23 @@ export interface CheckResultView {
     front: string[]
     rear: string[]
     tyre: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; stricterByPapers: boolean } | null
-    papers: { axleFrontKg: number; axleRearKg: number; topSpeedKmh: number; powerKw?: number | null } | null
+    /** The figures the customer typed; one they were not asked for and did not give is null (D-291). */
+    papers: { axleFrontKg: number | null; axleRearKg: number | null; topSpeedKmh: number | null; powerKw?: number | null } | null
     /** What the answer assumed that the vehicle data does not hold, and from where (G-02). Additive. */
     build?: { fact: string; value: string; source: string }[]
     document: { label: string; issuer: string | null; revision: number; page: number | null; example?: boolean } | null
     /** Said only when the document has changed since the result was issued. */
     documentToday: string | null
     issuedAt: string | null
+    /** The last day the link opens this result; then it is deleted with the figures in it (D-292). Additive. */
+    keptUntil?: string | null
 }
 
 export interface CheckErgebnisProps {
     token: string
     result: CheckResultView | null
+    /** How long a result is kept, in months (CheckResult::KEEP_MONTHS, D-292). */
+    keepMonths: number
 }
 
 export interface BasketProps {

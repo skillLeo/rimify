@@ -373,15 +373,19 @@ const canBuy = computed(() => {
     }
 
     // With no vehicle the wheel can still be bought — RIMIFY simply makes no claim about it. With a
-    // vehicle, an unsellable verdict is a hard stop.
-    return current.verdict === null || current.verdict.sellable
+    // vehicle, an unsellable verdict is a hard stop — save the rim alone, where it sells while the tyres wait for the
+    // car's papers and the wheel's approval does not (D-289).
+    return current.verdict === null || current.verdict.sellable || current.verdict.rimSellable === true
 })
 
 /*
  * Where the tyres wait for the car's papers (D-286) the button is the way on, not a dead disabled one: it reads
- * „Werte eintragen“ and takes the keyboard to the papers form in the panel. Nothing is added until they are in.
+ * „Werte eintragen“ and takes the keyboard to the papers form in the panel. Nothing is added until they are in — but
+ * the rim alone, where it sells (D-289): then only the Komplettrad waits for them.
  */
-const papersFirst = computed(() => selected.value !== null && selected.value.inStock && waitsForPapers(selected.value.verdict))
+const papersFirst = computed(
+    () => selected.value !== null && selected.value.inStock && waitsForPapers(selected.value.verdict) && (isSet.value || selected.value.verdict?.rimSellable !== true)
+)
 
 const buyLabel = computed(() => {
     if (basket.processing) {

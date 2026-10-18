@@ -51,7 +51,7 @@ export const COOKIES: CookieEntry[] = [
         name: 'rmf_papiere',
         category: 'Funktional',
         stores:
-            'Die Werte, die du aus deiner Zulassungsbescheinigung einträgst – Achslasten (8.1, 8.2) und Höchstgeschwindigkeit (T) – sowie Karosserieform und Antriebsart, wenn wir danach fragen; für bis zu fünf Fahrzeuge, ohne Namen, Kennzeichen oder Fahrgestellnummer.',
+            'Die Werte, die du aus deiner Zulassungsbescheinigung einträgst – Achslasten (8.1, 8.2), Höchstgeschwindigkeit (T) und, wenn du sie angibst, Leistung (P.2) sowie Tragfähigkeits- und Geschwindigkeitsindex der Reifen (15.1, 15.2) –, dazu Karosserieform und Antriebsart, wenn wir danach fragen; für bis zu fünf Fahrzeuge, ohne Namen, Kennzeichen oder Fahrgestellnummer.',
         lifetime: '1 Jahr',
         clear: `Beim Fahrzeug auf „Werte löschen“ tippen. ${BROWSER}`,
     },
