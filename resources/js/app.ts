@@ -7,7 +7,8 @@ import { createPinia } from 'pinia';
 import { installPopstateGuard } from './composables/admin/popstateGuard';
 import { installNumberWheelGuard } from './lib/numberWheelGuard';
 import { installPreloadErrorGuard } from './lib/preloadErrors';
-import { installVehicleMemory, vehicleVisitOptions } from './lib/vehicleMemory';
+import { installRestoredPages } from './lib/restoredPages';
+import { vehicleVisitOptions } from './lib/vehicleMemory';
 import { root } from './root';
 
 // `||`, not `??`: an empty VITE_APP_NAME would otherwise leave every tab title ending in " ·".
@@ -16,8 +17,9 @@ const appName = import.meta.env.VITE_APP_NAME || 'RIMIFY';
 // Before the app starts, so its listener runs ahead of Inertia's on Back (popstateGuard.ts).
 installPopstateGuard();
 
-// Back and Forward tell the server which car the restored page is about (the client's #8, vehicleMemory.ts).
-installVehicleMemory();
+// Back and Forward tell the server which car the restored page is about (the client's #8), and a page whose car, papers
+// or catalogue moved on while it lay in history is asked again whole (his admin item 16, D-294; restoredPages.ts).
+installRestoredPages();
 
 // A chunk's stylesheet cancelled because the page moved on is no crash (preloadErrors.ts).
 installPreloadErrorGuard();
@@ -29,8 +31,13 @@ if (typeof document !== 'undefined') {
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),
-    // A visit from a car's page to another of its pages carries the car in its address (the client's #8).
-    defaults: { visitOptions: (href, options) => vehicleVisitOptions(href, options) },
+    defaults: {
+        // A visit from a car's page to another of its pages carries the car in its address (the client's #8).
+        visitOptions: (href, options) => vehicleVisitOptions(href, options),
+        // A page fetched ahead on hover or press is used for five seconds, not Inertia's thirty: enough for the click
+        // that follows, and no page kept ready after a Gutachten was corrected (his admin item 16, D-294).
+        prefetch: { cacheFor: 5_000 },
+    },
     resolve: (name) =>
         resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob<DefineComponent>('./Pages/**/*.vue')),
     setup({ el, App, props, plugin }) {

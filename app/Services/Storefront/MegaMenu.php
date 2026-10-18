@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Storefront;
 
 use App\Enums\CatalogueStatus;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  * to a real listing, and a brand or size with nothing behind it is not listed — a menu that leads
  * to an empty page reads as a broken site.
  *
- * Cached: it changes when the catalogue changes and at no other time.
+ * Cached: it changes when the catalogue changes and at no other time — so under the catalogue's version
+ * (CatalogueVersion, D-294), which every such change renews.
  */
 final readonly class MegaMenu
 {
@@ -41,7 +43,7 @@ final readonly class MegaMenu
     public function share(): array
     {
         /** @var array{brands: list<array{label: string, href: string}>, sizes: list<array{label: string, count: int, href: string}>, makes: list<array{label: string, href: string}>, popular: list<array{label: string, sub: string, href: string}>} $menu */
-        $menu = Cache::remember(self::CACHE_KEY, self::TTL, fn (): array => [
+        $menu = Cache::remember(CatalogueVersion::key(self::CACHE_KEY), self::TTL, fn (): array => [
             'brands' => $this->brands(),
             'sizes' => $this->sizes(),
             'makes' => array_map(
@@ -139,6 +141,6 @@ final readonly class MegaMenu
 
     public static function forget(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        Cache::forget(CatalogueVersion::key(self::CACHE_KEY));
     }
 }

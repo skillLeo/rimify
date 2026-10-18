@@ -12,6 +12,7 @@ use App\Models\BalanceWeightColour;
 use App\Models\TpmsSensorPrice;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
+use App\Support\CatalogueVersion;
 use App\Support\MakeName;
 use Database\Seeders\CatalogueSeeder;
 use Illuminate\Support\Facades\DB;
@@ -202,6 +203,7 @@ final class AcceptanceSeeder
         }
 
         DemoTables::forget();
+        CatalogueVersion::changed();
 
         return $notes;
     }
@@ -241,6 +243,8 @@ final class AcceptanceSeeder
         // `wheels:process-images`. Without them the page draws the wheel and says so (PublishCheck).
         CatalogueSeeder::attachMappedPhotographs();
         DemoTables::forget();
+        // Much of the set went in past the models: the catalogue's new version (D-294).
+        CatalogueVersion::changed();
 
         return ['counts' => $counts, 'notes' => $notes];
     }

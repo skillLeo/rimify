@@ -9,17 +9,12 @@
  * - every visit from a page whose address names a car to another of the car's pages carries that car in its own
  *   address (`vehicleVisitOptions`, Inertia's `visitOptions` default) — the URL wins on the server, whatever the cookie
  *   says, and no request can overtake another;
- * - a page restored that way tells the server once more (`installVehicleMemory`): a partial reload of the same address,
- *   which VehicleFromUrl reads like any other, so the basket and the other pages without a car in their address follow.
- *
- * What a page shows is not touched by either: the answer is computed from the Gutachten on every request. But a page
- * restored from history carries the answers of when it was left — and where the car's papers or build changed since
- * (the figures entered on another page, D-286), or the car itself where the address names none, they are another car's
- * answers: then the page is asked again whole.
+ * - a page restored that way tells the server once more (restoredPages.ts): a partial reload of the same address,
+ *   which VehicleFromUrl reads like any other, so the basket and the other pages without a car in their address follow
+ *   — and the page is asked again whole where the car, its papers or the catalogue moved on while it lay in history.
  */
 
 import type { VisitOptions } from '@inertiajs/core'
-import { router } from '@inertiajs/vue3'
 
 export const VEHICLE_PARAM = 'fahrzeug'
 
@@ -59,57 +54,4 @@ export function vehicleVisitOptions(href: string, options: VisitOptions, here: s
     }
 
     return { data: { ...data, [VEHICLE_PARAM]: car } }
-}
-
-/** What every answer about the car on a page rests on besides its documents: which car, its papers, its build. */
-function restsOn(props: Record<string, unknown> | undefined): string | null {
-    const vehicle = props?.vehicle as { id?: unknown; papers?: unknown; build?: unknown } | null | undefined
-
-    return vehicle ? JSON.stringify([vehicle.id ?? null, vehicle.papers ?? null, vehicle.build ?? null]) : null
-}
-
-let installed = false
-
-export function installVehicleMemory(): void {
-    if (installed || typeof window === 'undefined') {
-        return
-    }
-
-    installed = true
-
-    // Set by Back or Forward, used by the navigation that restores the page; any visit of its own clears it.
-    let restoring = false
-
-    window.addEventListener('popstate', () => {
-        restoring = true
-    })
-
-    router.on('before', () => {
-        restoring = false
-    })
-
-    router.on('navigate', (event) => {
-        if (!restoring) {
-            return
-        }
-
-        restoring = false
-
-        const page = event.detail.page
-        const before = restsOn(page.props)
-
-        if (!namesVehicle(page.url) && before === null) {
-            return
-        }
-
-        router.reload({
-            only: ['vehicle'],
-            // The car's papers or build changed while the page lay in history, or the car itself: asked again whole.
-            onSuccess: (fresh) => {
-                if (before !== null && restsOn(fresh.props) !== before) {
-                    router.reload()
-                }
-            },
-        })
-    })
 }

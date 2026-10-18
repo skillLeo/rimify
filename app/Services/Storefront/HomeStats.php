@@ -6,13 +6,15 @@ namespace App\Services\Storefront;
 
 use App\Enums\CatalogueStatus;
 use App\Enums\DocumentStatus;
+use App\Support\CatalogueVersion;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
  * The store's real figures: how many documents are live, how many vehicle variants they cover,
  * how many wheels have at least one, and how many brands. Shown only where they are true — a
- * number here is a count, never a claim. Cached for an hour and forgotten on every publish.
+ * number here is a count, never a claim. Cached for an hour under the catalogue's version (CatalogueVersion, D-294),
+ * which every write to the catalogue renews.
  */
 final readonly class HomeStats
 {
@@ -26,7 +28,7 @@ final readonly class HomeStats
     public function counts(): array
     {
         /** @var array{gutachten: int, variants: int, wheels: int, brands: int} $counts */
-        $counts = Cache::remember(self::CACHE_KEY, self::TTL, function (): array {
+        $counts = Cache::remember(CatalogueVersion::key(self::CACHE_KEY), self::TTL, function (): array {
             $live = DB::table('fitments as f')
                 ->join('approval_documents as ad', 'ad.id', '=', 'f.approval_document_id')
                 ->join('wheel_configs as wc', 'wc.id', '=', 'f.wheel_config_id')
@@ -86,6 +88,6 @@ final readonly class HomeStats
 
     public static function forget(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        Cache::forget(CatalogueVersion::key(self::CACHE_KEY));
     }
 }

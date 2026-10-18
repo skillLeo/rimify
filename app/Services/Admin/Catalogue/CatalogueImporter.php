@@ -14,6 +14,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\AuditTrail;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use App\Support\GermanNumber;
 use App\Support\Money;
@@ -329,6 +330,9 @@ final class CatalogueImporter
                 'summary' => $import->summary,
             ], $import);
 
+            // One new version for the whole file, once it commits (D-294).
+            CatalogueVersion::changed();
+
             return $import;
         });
     }
@@ -406,6 +410,9 @@ final class CatalogueImporter
                     'file' => $import->file_name,
                     'summary' => $import->summary,
                 ], $import);
+
+                // The rows above went in bulk, past their models: a new version once it commits (D-294).
+                CatalogueVersion::changed();
 
                 return $import;
             });

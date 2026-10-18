@@ -20,6 +20,7 @@ use App\Services\Admin\QuickActions;
 use App\Services\Admin\SystemHealth;
 use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
+use App\Support\CatalogueVersion;
 use App\Support\KeyNumberSearch;
 use App\Support\PreviewRibbon;
 use App\Support\ReleaseStamp;
@@ -117,6 +118,9 @@ class HandleInertiaRequests extends Middleware
             'previewRibbon' => PreviewRibbon::shown($request),
             // Which build this test environment serves, at the foot of every page (ReleaseStamp); null in the live shop.
             'release' => ReleaseStamp::label(),
+            // The catalogue's version the page was computed from (CatalogueVersion, D-294): a page brought back by Back or
+            // Forward asks for it alone and is asked again whole where it moved on (restoredPages.ts).
+            'catalogue' => static fn (): string => CatalogueVersion::current(),
             'flash' => [
                 'toast' => $request->session()->get('toast'),
                 // What was just put in the basket, for the panel after an add (#16): the line, the count and the total.

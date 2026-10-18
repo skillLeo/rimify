@@ -179,6 +179,8 @@ export interface SharedProps {
     previewRibbon?: boolean
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
+    /** The catalogue's version the page was computed from (App\Support\CatalogueVersion, D-294; restoredPages.ts). */
+    catalogue?: string
     flash: { toast: string | null; added?: AddedToBasket | null }
     /**
      * The search by key numbers — HSN/TSN and the Fahrzeugschein scan — while no vehicle dataset is loaded: the one

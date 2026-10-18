@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Commerce\Reviews;
 
+use App\Support\CatalogueVersion;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,6 +31,9 @@ final class ReviewSummary
             'rating' => $count === 0 ? null : self::oneDecimal($total, $count),
             'rating_count' => $count,
         ]);
+
+        // Past the model: the page that shows the stars is another one now (D-294).
+        CatalogueVersion::changed();
     }
 
     /** `$total / $count` to one decimal, half away from zero, without a float until the end: 97 / 20 → 4.9. */

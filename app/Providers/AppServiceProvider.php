@@ -12,6 +12,7 @@ use App\Mail\LiteralMarkdown;
 use App\Payments\StripeKeys;
 use App\Services\Content\PageContent;
 use App\Services\Mail\MailSettings;
+use App\Support\CatalogueVersion;
 use App\Support\DatabaseEngine;
 use App\Support\InlineStyles;
 use App\Support\SlowQueries;
@@ -130,6 +131,14 @@ class AppServiceProvider extends ServiceProvider
 
         // The shop's own slow query log (storage/logs/slow-queries-*.log): the host keeps none.
         SlowQueries::listen();
+
+        // Every write the shop's answers rest on gives the catalogue a new version (his admin item 16, D-294): the shop's
+        // caches are kept under it and a page brought back by Back compares it. Saved covers created, updated, touched and
+        // restored; deleted covers a soft and a hard delete.
+        foreach (CatalogueVersion::MODELS as $model) {
+            $model::saved(static fn () => CatalogueVersion::changed());
+            $model::deleted(static fn () => CatalogueVersion::changed());
+        }
 
         // The scripts come after what paints: every page is server-rendered, so the first paint needs the stylesheets
         // and nothing else, and the bundle only hydrates what is already there. Fetched at low priority it no longer

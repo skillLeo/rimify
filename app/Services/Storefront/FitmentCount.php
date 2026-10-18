@@ -8,6 +8,7 @@ use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Enums\CatalogueStatus;
+use App\Support\CatalogueVersion;
 use App\Support\VehicleName;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,8 @@ final readonly class FitmentCount
     public function forVehicle(VehicleRecord $vehicle): array
     {
         /** @var array{count: int, permitted: int, conditional: int} $counts */
-        $counts = Cache::remember('fitment.count.'.$vehicle->id, self::TTL, function () use ($vehicle): array {
+        // Under the catalogue's version (D-294): a wheel published or a Gutachten released counts at once.
+        $counts = Cache::remember(CatalogueVersion::key('fitment.count.'.$vehicle->id), self::TTL, function () use ($vehicle): array {
             $total = $this->listing->total($vehicle->id);
             $facets = $this->listing->facets($vehicle->id);
             $withoutEntry = (int) ($facets['ohne_eintragung'][0]['count'] ?? 0);
@@ -81,7 +83,7 @@ final readonly class FitmentCount
 
     public static function forget(int $vehicleId): void
     {
-        Cache::forget('fitment.count.'.$vehicleId);
+        Cache::forget(CatalogueVersion::key('fitment.count.'.$vehicleId));
     }
 
     /** No wheel published at all: a test environment reset to an empty shop, or a shop before its first wheel. */

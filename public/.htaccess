@@ -50,6 +50,15 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # Every address the application answers is computed for its request from the catalogue as it is now — a verdict, a
+    # price, the basket: the host's page cache never keeps one (the client's admin item 16, D-294). The answers say the
+    # same themselves (X-LiteSpeed-Cache-Control, CacheHeaders); files that exist are not the application's and keep
+    # their own rules above.
+    <IfModule LiteSpeed>
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteRule .* - [E=Cache-Control:no-cache]
+    </IfModule>
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
