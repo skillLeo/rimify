@@ -52,14 +52,15 @@ final class RoleFigures
         $incomplete = $this->incompleteQuery()->count();
 
         return [
-            self::state('bestand', 'Verfügbar', 'Ausführungen im Shop, die man kaufen kann — Stand jetzt.',
-                $available, 'keine Ausführung verfügbar', null,
-                $variants > 0 ? 'von '.GermanFormat::integer($variants).($variants === 1 ? ' Ausführung' : ' Ausführungen') : null),
-            self::state('ausverkauft', 'Nicht verfügbar', 'Ausführungen im Shop, die als nicht verfügbar markiert sind.',
-                $soldOut, 'jede Ausführung verfügbar', null),
-            self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.',
+            // Größen, as the Felge form names a size — „Ausführung“ there is the finish.
+            self::state('bestand', 'Verfügbar', 'Größen im Shop, die man kaufen kann – Stand jetzt.',
+                $available, 'keine Größe verfügbar', null,
+                $variants > 0 ? 'von '.GermanFormat::integer($variants).($variants === 1 ? ' Größe' : ' Größen') : null),
+            self::state('ausverkauft', 'Nicht verfügbar', 'Größen im Shop, die als nicht verfügbar markiert sind.',
+                $soldOut, 'jede Größe verfügbar', null),
+            self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.',
                 $unapproved, 'jede mit einer Freigabe', null),
-            self::state('unvollstaendig', 'Unvollständige Daten', 'Ausführungen im Shop ohne Preis, Foto, Gewicht oder Traglast.',
+            self::state('unvollstaendig', 'Unvollständige Daten', 'Größen im Shop ohne Preis, Foto, Gewicht oder Traglast.',
                 $incomplete, 'alle Daten gepflegt', null),
         ];
     }

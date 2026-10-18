@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  * The Freigabe-Check: what stands between a Felge and the shop, read from its rows.
  *
  * Two kinds of finding. A **blocker** stops publishing: a demo model, no size, a size without a
- * price — a page that could sell nothing or sell at zero. A **hint** does not: a finish without a
+ * price — a page that could sell nothing or sell at zero —, and a Felge without its Radtypenbezeichnung, the name a
+ * customer finds it by in the Gutachten (D-300). A **hint** does not: a finish without a
  * photograph shows the outline drawing, and a size without an approval is simply never shown as
  * fitting any car (the storefront fails closed). The team may publish with hints, and sees them first.
  *
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class PublishCheck
 {
+    public const DESIGNATION_MISSING = 'Die Radtypenbezeichnung fehlt. Ohne sie veröffentlicht der Shop keine Felge. Trag sie so ein, wie das Gutachten sie druckt.';
+
     /**
      * @return array{blockers: list<string>, hints: list<string>, sizes: array<int, list<array{id: int, label: string, fitments: int}>>}
      */
@@ -48,6 +51,12 @@ final class PublishCheck
             $blockers[] = $unpriced === 1 ? 'Eine Größe hat keinen Preis.' : "{$unpriced} Größen haben keinen Preis.";
         }
 
+        // Required for every Felge that goes into the shop from now on (D-300): one saved before the rule, or made by the
+        // supplier import without the column, keeps saving — and is published once it is entered (D-298's backfill).
+        if (trim((string) $model->type_designation) === '') {
+            $blockers[] = self::DESIGNATION_MISSING;
+        }
+
         $sizes = $this->documents($configs->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all());
         $uncovered = $configs->filter(static fn ($c): bool => ! isset($sizes[(int) $c->id]))->count();
 
@@ -67,12 +76,7 @@ final class PublishCheck
 
         // Available or not, never a count (his admin item 7, D-299).
         if ($configs->isNotEmpty() && $configs->every(static fn ($c): bool => ! (bool) $c->available)) {
-            $hints[] = 'Keine Größe ist verfügbar. Im Shop steht dann bei jeder „Nicht verfügbar“, und sie lässt sich nicht kaufen.';
-        }
-
-        // Saved before it was required (D-298): no stop, but said — it belongs in the Felge's name.
-        if (trim((string) $model->type_designation) === '') {
-            $hints[] = 'Die Radtypenbezeichnung fehlt noch. Sie gehört in den Namen der Felge.';
+            $hints[] = 'Keine Größe ist verfügbar. Im Shop steht dann bei jeder Größe „Nicht verfügbar“, und die Felge lässt sich nicht kaufen.';
         }
 
         if ($model->description_de === null || trim($model->description_de) === '') {

@@ -441,7 +441,7 @@ describe('RIMIFY-Check', () => {
     it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {
         shared.vehicle = VEHICLE
         const wrapper = mountCheck({ answer: answer() })
-        ;(forms[0]?.errors as Record<string, string>).wheelConfigId = 'Diese Größe ist derzeit ausverkauft.'
+        ;(forms[0]?.errors as Record<string, string>).wheelConfigId = 'Diese Größe ist zurzeit nicht verfügbar.'
         await flushPromises()
         expect(wrapper.find('.chk__error').exists()).toBe(true)
 

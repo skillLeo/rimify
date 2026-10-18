@@ -75,7 +75,7 @@ function describedBy(index: number): string | undefined {
                     <th scope="col">MLB mm</th>
                     <th scope="col">SKU</th>
                     <th scope="col" class="num">Preis €</th>
-                    <th scope="col">Verfügbar</th>
+                    <th scope="col">Verfügbarkeit</th>
                     <th scope="col">Freigaben</th>
                     <th v-if="!readonly" scope="col"><span class="visually-hidden">Entfernen</span></th>
                 </tr>
@@ -142,10 +142,10 @@ function describedBy(index: number): string | undefined {
                         </template>
                     </td>
                     <!-- Available or not, never a count (his admin item 7, D-299). -->
-                    <td data-label="Verfügbar">
+                    <td data-label="Verfügbarkeit">
                         <template v-if="readonly"><span class="fe-fixed">{{ size.available ? 'Verfügbar' : 'Nicht verfügbar' }}</span></template>
                         <template v-else>
-                            <label class="visually-hidden" :for="id(index, 'available')">Verfügbar, Zeile {{ index + 1 }}</label>
+                            <label class="visually-hidden" :for="id(index, 'available')">Verfügbarkeit, Zeile {{ index + 1 }}</label>
                             <select :id="id(index, 'available')" v-model="size.available" class="input fe-in fe-in--available" :aria-invalid="err(index, 'available') ? 'true' : undefined" :aria-describedby="describedBy(index)">
                                 <option :value="true">Verfügbar</option>
                                 <option :value="false">Nicht verfügbar</option>

@@ -85,7 +85,7 @@ describe('Katalog', function (): void {
 
         expect(array_keys($kpis))->toBe(['bestand', 'ausverkauft', 'ohne-freigabe', 'unvollstaendig'])
             ->and($kpis['bestand']['value'])->toBe(2)
-            ->and($kpis['bestand']['sub']['text'])->toBe('von 3 Ausführungen')
+            ->and($kpis['bestand']['sub']['text'])->toBe('von 3 Größen')
             ->and($kpis['ausverkauft']['value'])->toBe(1)
             ->and($kpis['ohne-freigabe']['value'])->toBe(2)
             ->and($kpis['unvollstaendig']['value'])->toBe(1);
@@ -102,7 +102,7 @@ describe('Katalog', function (): void {
         $kpis = variantKpis('catalogue-manager');
 
         expect($kpis['bestand']['value'])->toBe(0)
-            ->and($kpis['bestand']['sub']['text'])->toBe('keine Ausführung verfügbar')
+            ->and($kpis['bestand']['sub']['text'])->toBe('keine Größe verfügbar')
             ->and($kpis['unvollstaendig']['sub']['text'])->toBe('alle Daten gepflegt');
     });
 });

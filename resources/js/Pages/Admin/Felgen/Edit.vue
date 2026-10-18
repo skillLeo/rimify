@@ -224,8 +224,8 @@ const composed = computed(() => composedTitle(brandName.value, form.name, form.t
 const inShop = computed(() => shopTitle(brandName.value, form.name, form.type_designation, form.title))
 /** A typed title the parts no longer make: said, and the composition offered — never overwritten unasked. */
 const diverges = computed(() => titleDiverges(brandName.value, form.name, form.type_designation, form.title))
-/** Saved before the rule (D-298): a Felge without its Radtypenbezeichnung saves, and the list names it. */
-const designationMissing = computed(() => props.model !== null && form.type_designation.trim() === '')
+/** Saved before the rule (D-298): a Felge without its Radtypenbezeichnung saves, the list names it, and it is not published (D-300). Read from the saved record, not the field being typed. */
+const designationMissing = computed(() => props.model !== null && props.model.typeDesignation.trim() === '')
 
 const seoTitlePreview = computed(() => form.seo_title || inShop.value || 'Titel der Felge')
 const seoDescriptionPreview = computed(() => form.seo_description || form.description.slice(0, 160) || 'Beschreibung der Felge für Suchmaschinen.')
@@ -391,8 +391,8 @@ const more = computed<AdminPageAction[]>(() => {
                         <label class="form-field__label" for="fe-type">Radtypenbezeichnung</label>
                         <input id="fe-type" v-model="form.type_designation" class="input" type="text" maxlength="80" spellcheck="false" :readonly="readonly" :aria-invalid="err('type_designation') ? 'true' : undefined" aria-describedby="fe-type-help fe-type-err">
                         <p id="fe-type-help" class="form-field__help">
-                            So, wie das Gutachten sie druckt. Sie steht im Namen der Felge – so findet ein Kunde die Felge im Gutachten wieder.
-                            <template v-if="designationMissing"> Diese Felge ist noch ohne Radtypenbezeichnung gespeichert. Trag sie nach, sobald du das Gutachten zur Hand hast.</template>
+                            So, wie das Gutachten sie druckt. Ohne eigenen Titel im Shop steht sie im Namen der Felge – so findet ein Kunde die Felge im Gutachten wieder.
+                            <template v-if="designationMissing"> Diese Felge ist noch ohne Radtypenbezeichnung gespeichert und lässt sich so nicht veröffentlichen. Trag sie nach, sobald du das Gutachten zur Hand hast.</template>
                         </p>
                         <p id="fe-type-err" class="form-field__error">{{ err('type_designation') }}</p>
                     </div>
@@ -400,10 +400,10 @@ const more = computed<AdminPageAction[]>(() => {
                         <label class="form-field__label" for="fe-title">Titel im Shop <span class="fe-optional">(optional)</span></label>
                         <input id="fe-title" v-model="form.title" class="input" type="text" maxlength="160" :placeholder="composed" :readonly="readonly" :aria-invalid="err('title') ? 'true' : undefined" aria-describedby="fe-title-help fe-title-err">
                         <p id="fe-title-help" class="form-field__help">
-                            Leer setzt der Shop ihn aus Marke, Modell und Radtypenbezeichnung zusammen. Die Marke steht immer vorn. Im Shop: „{{ inShop || '–' }}“.
+                            Bleibt das Feld leer, setzt der Shop den Titel aus Marke, Modell und Radtypenbezeichnung zusammen. Die Marke steht immer vorn. Im Shop: „{{ inShop || '–' }}“.
                         </p>
                         <p v-if="diverges" class="adm-note fe-title-diverges" role="status">
-                            Weicht vom zusammengesetzten Titel ab: „{{ composed }}“.
+                            Dieser Titel weicht vom zusammengesetzten ab: „{{ composed }}“.
                             <button v-if="!readonly" class="btn btn--ghost btn--sm" type="button" @click="form.title = ''">Zusammengesetzten Titel verwenden</button>
                         </p>
                         <p id="fe-title-err" class="form-field__error">{{ err('title') }}</p>

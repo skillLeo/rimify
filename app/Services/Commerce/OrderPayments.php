@@ -35,7 +35,8 @@ final class OrderPayments
 
     public const OUT_OF_STOCK = 'Ein Artikel in deinem Warenkorb ist nicht mehr in dieser Menge auf Lager. Es wurde nichts bestellt und nichts berechnet.';
 
-    public const NOT_AVAILABLE = 'Eine Felge in deinem Warenkorb ist nicht mehr verfügbar. Es wurde nichts bestellt und nichts berechnet.';
+    public const NOT_AVAILABLE = 'Eine Felge in deinem Warenkorb ist nicht mehr verfügbar. Es wurde nichts bestellt und nichts berechnet. '
+        .'Im Warenkorb ist sie als „Nicht mehr verfügbar“ markiert – nimm sie heraus, dann kannst du bestellen.';
 
     /**
      * Holds the order's goods, all or nothing. Call inside the transaction that writes the order.

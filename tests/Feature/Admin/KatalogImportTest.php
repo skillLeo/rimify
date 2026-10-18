@@ -123,7 +123,7 @@ it('changes a known size’s price and availability, and shows before and after 
         // Compared as sets of keys: the JSON column keeps its own key order.
         ->and(collect($run->plan)->firstWhere('action', 'update')['changes'])->toEqual([
             ['field' => 'Preis', 'from' => GermanFormat::money(18_900), 'to' => GermanFormat::money(19_900)],
-            ['field' => 'Verfügbar', 'from' => 'Verfügbar', 'to' => 'Nicht verfügbar'],
+            ['field' => 'Verfügbarkeit', 'from' => 'Verfügbar', 'to' => 'Nicht verfügbar'],
         ]);
 
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/importieren");

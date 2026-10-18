@@ -34,6 +34,8 @@ class WheelModelRequest extends FormRequest
 
     public const ART_FINISHES = ['graphite' => 'Graphit', 'silver' => 'Silber', 'black' => 'Schwarz', 'bronze' => 'Bronze', 'polished' => 'Poliert'];
 
+    public const DESIGNATION_REQUIRED = 'Bitte gib die Radtypenbezeichnung ein, so wie das Gutachten sie druckt.';
+
     /** What real wheels measure: a figure outside is a typo, not a product. */
     private const RANGES = [
         'diameter' => [12, 26, 1, 'Zoll'],
@@ -79,9 +81,9 @@ class WheelModelRequest extends FormRequest
             // Missing both is said once, under the brand select (brand_id), not twice.
             'brand_new' => ['nullable', 'string', 'max:60'],
             'name' => ['required', 'string', 'max:80'],
-            // The Radtypenbezeichnung (D-298): required for a new Felge; one saved before the rule keeps saving without it,
-            // and the list shows where it is missing.
-            'type_designation' => [$this->wheelModel() === null ? 'required' : 'nullable', 'string', 'max:80'],
+            // The Radtypenbezeichnung (D-298): required for a new Felge and kept once entered; one saved before the rule
+            // keeps saving without it, and the list shows where it is missing. Publishing asks for it (D-300).
+            'type_designation' => [$this->designationRequired() ? 'required' : 'nullable', 'string', 'max:80'],
             'title' => ['nullable', 'string', 'max:160'],
             'spoke_count' => ['required', 'integer', Rule::in(self::SPOKES)],
             'description' => ['nullable', 'string', 'max:4000'],
@@ -125,7 +127,7 @@ class WheelModelRequest extends FormRequest
             'brand_new.max' => 'Der Markenname darf höchstens 60 Zeichen lang sein.',
             'name.required' => 'Bitte gib den Namen des Modells ein.',
             'name.max' => 'Der Name darf höchstens 80 Zeichen lang sein.',
-            'type_designation.required' => 'Trag die Radtypenbezeichnung ein, so wie das Gutachten sie druckt. Sie steht im Namen der Felge.',
+            'type_designation.required' => self::DESIGNATION_REQUIRED,
             'type_designation.max' => 'Die Radtypenbezeichnung darf höchstens 80 Zeichen lang sein.',
             'title.max' => 'Der Titel darf höchstens 160 Zeichen lang sein.',
             'spoke_count.*' => 'Bitte wähl die Zahl der Speichen: 5, 6, 7, 10 oder 20.',
@@ -163,6 +165,14 @@ class WheelModelRequest extends FormRequest
             'configs.*.available.*' => 'Bitte wähl, ob diese Größe verfügbar ist.',
             'configs.*.weight_g.*' => 'Das Gewicht bitte in Gramm, zwischen 1.000 und 40.000.',
         ];
+    }
+
+    /** Required for a new Felge, and kept once entered: only one saved before the rule saves without it (D-298, D-300). */
+    private function designationRequired(): bool
+    {
+        $model = $this->wheelModel();
+
+        return $model === null || trim((string) $model->type_designation) !== '';
     }
 
     /** @return list<callable(Validator): void> */

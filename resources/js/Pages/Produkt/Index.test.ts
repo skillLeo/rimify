@@ -7,7 +7,7 @@ import type { AmountPrice, ConfigVerdict, KomplettradOfferProp, ProduktConfig, P
 
 /*
  * The product page's own states (ACCURACY.md D4, finding #48/#59): a demo model shows
- * "Beispielbestand" and says it cannot be ordered yet, while its basket button stays usable; a
+ * "Beispielsortiment" and says it cannot be ordered yet, while its basket button stays usable; a
  * verified load rating adds a "Traglast" row; the main photograph opens large in a dialog that
  * Escape closes; and the selected size is offered as a Komplettrad — the tyres the server sent,
  * or one sentence with a route forward (docs/specs/komplettrad.md §9.3).
@@ -308,10 +308,10 @@ describe('Produkt page', () => {
         expect(focusPapers).not.toHaveBeenCalled()
     })
 
-    it('shows a demo model as Beispielbestand, says it cannot be ordered yet, and keeps the basket usable', async () => {
+    it('shows a demo model as Beispielsortiment, says it cannot be ordered yet, and keeps the basket usable', async () => {
         const wrapper = mountPage({ demo: true })
 
-        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielbestand')
+        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielsortiment')
         expect(wrapper.find('.pdp__stock').classes()).not.toContain('tag--ok')
         expect(wrapper.find('.pdp__stock').text()).not.toContain('Verfügbar')
         expect(wrapper.find('.pdp__demo').text()).toContain('Beispielsortiment')
@@ -369,7 +369,7 @@ describe('Produkt page', () => {
     it('never shows demo stock as sold-out stock in the positive colour', () => {
         const wrapper = mountPage({ demo: true, configs: [config({ inStock: false })] })
 
-        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielbestand · nicht verfügbar')
+        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielsortiment · nicht verfügbar')
         expect(wrapper.find('.pdp__stock').classes()).toContain('tag--unknown')
     })
 

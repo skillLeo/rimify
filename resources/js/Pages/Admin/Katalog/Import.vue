@@ -120,7 +120,7 @@ const optional = props.fields.filter((field) => !field.required)
                     <dd>{{ optional.map((f) => f.label).join(', ') }}</dd>
                 </div>
             </dl>
-            <p class="adm-note im-rules">Der Import erkennt die Spalten an ihrem Namen; im nächsten Schritt kannst du sie auch selbst zuordnen. Eine bekannte SKU ändert nur Preis, Bestand, EAN, KBA-Nummer und Gewicht. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
+            <p class="adm-note im-rules">Der Import erkennt die Spalten an ihrem Namen; im nächsten Schritt kannst du sie auch selbst zuordnen. Bei einer bekannten SKU ändert der Import nur Preis, Verfügbarkeit, EAN, KBA-Nummer und Gewicht; die Radtypenbezeichnung übernimmt er nur für neue Felgen. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
 
             <p class="visually-hidden" aria-live="assertive">{{ upload.errors.file ?? upload.errors.lieferant ?? '' }}</p>
 

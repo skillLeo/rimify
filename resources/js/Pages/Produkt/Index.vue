@@ -20,7 +20,7 @@
  * On a phone the price and the button follow the customer down the page once the main button has
  * scrolled away — the one persistent bar the storefront uses, because it is the page's next action.
  *
- * A seeded demonstration model (`demo`) shows "Beispielbestand" rather than "Auf Lager" and says it
+ * A seeded demonstration model (`demo`) shows "Beispielsortiment" rather than "Auf Lager" and says it
  * cannot be ordered yet. Its basket button stays usable, so the flow can be reviewed; the server
  * refuses the order at the checkout (ACCURACY.md D4).
  *
@@ -324,7 +324,7 @@ const stockLabel = computed(() => {
     const inStock = selected.value?.inStock === true
 
     if (props.demo === true) {
-        return inStock ? 'Beispielbestand' : 'Beispielbestand · nicht verfügbar'
+        return inStock ? 'Beispielsortiment' : 'Beispielsortiment · nicht verfügbar'
     }
 
     return inStock ? 'Verfügbar' : 'Nicht verfügbar'

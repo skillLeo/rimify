@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CatalogueStatus;
+use App\Http\Requests\Admin\WheelModelRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Brand;
@@ -13,6 +14,7 @@ use App\Models\WheelFinishImage;
 use App\Models\WheelModel;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\Catalogue\FinishImages;
+use App\Services\Admin\Catalogue\PublishCheck;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -564,7 +566,7 @@ describe('several photographs of one colour (COMPLIANCE row 23)', function (): v
 describe('name and availability', function (): void {
     it('refuses a new Felge without its Radtypenbezeichnung, under its own field @admin-204', function (): void {
         $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', newFelgePayload(['type_designation' => '']))
-            ->assertSessionHasErrors(['type_designation' => 'Trag die Radtypenbezeichnung ein, so wie das Gutachten sie druckt. Sie steht im Namen der Felge.']);
+            ->assertSessionHasErrors(['type_designation' => WheelModelRequest::DESIGNATION_REQUIRED]);
 
         expect(WheelModel::query()->count())->toBe(0);
     });
@@ -581,6 +583,30 @@ describe('name and availability', function (): void {
                 ->where('wheels.0.designationMissing', true)
                 ->where('filters.radtyp', 'fehlt')
                 ->where('missingDesignation', 1));
+    });
+
+    it('publishes no Felge without its Radtypenbezeichnung, and publishes it once entered (D-300) @admin-204', function (): void {
+        $old = felgeWith(model: ['type_designation' => null]);
+
+        $this->actingAs(felgenAdmin(), 'admin')->post("/admin/felgen/{$old->id}/veroeffentlichen")
+            ->assertSessionHasErrors(['publish' => 'Noch nicht veröffentlichbar: '.PublishCheck::DESIGNATION_MISSING]);
+
+        expect($old->refresh()->status)->toBe(CatalogueStatus::Draft);
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$old->id, [...felgePayload($old), 'type_designation' => 'KT85'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs(felgenAdmin(), 'admin')->post("/admin/felgen/{$old->id}/veroeffentlichen")->assertSessionHasNoErrors();
+
+        expect($old->refresh()->status)->toBe(CatalogueStatus::Published);
+    });
+
+    it('keeps a Radtypenbezeichnung once entered: an existing Felge cannot be saved without it again @admin-204', function (): void {
+        $wheel = felgeWith();
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, [...felgePayload($wheel), 'type_designation' => ''])
+            ->assertSessionHasErrors(['type_designation' => WheelModelRequest::DESIGNATION_REQUIRED]);
+
+        expect($wheel->refresh()->type_designation)->not->toBe('');
     });
 
     it('composes the title from brand, model and Radtypenbezeichnung, and keeps a typed one without overwriting it @admin-205 @admin-206 @admin-213', function (): void {

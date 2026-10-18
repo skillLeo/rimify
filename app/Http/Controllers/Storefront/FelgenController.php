@@ -406,7 +406,7 @@ class FelgenController extends Controller
             'finishes' => $finishes,
             'configs' => $configs,
             'hasVehicle' => $vehicleId !== null,
-            // A seeded demonstration model: the page shows "Beispielbestand" rather than "Auf
+            // A seeded demonstration model: the page shows "Beispielsortiment" rather than "Auf
             // Lager" and says it cannot be ordered yet. The basket stays walkable; the checkout
             // refuses the order on the server (ACCURACY.md D4). The acceptance set's is sold with the test payment,
             // off production, and says that it is demo data (`acceptance`).

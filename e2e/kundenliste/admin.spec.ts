@@ -300,7 +300,7 @@ test('a new Felge: its Radtypenbezeichnung required and in its name, a title typ
 
     // Without it, refused under its own field.
     await save.click()
-    await expect(page.locator('#fe-type-err')).toContainText('Trag die Radtypenbezeichnung ein')
+    await expect(page.locator('#fe-type-err')).toContainText('Bitte gib die Radtypenbezeichnung ein')
     await shotAround(page, [page.locator('#fe-type').locator('..')], 204, info)
 
     // With it, the name in the shop composes itself: brand, model, Radtypenbezeichnung.

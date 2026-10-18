@@ -121,7 +121,7 @@ function add(): void {
                     <input id="fe-m-price" v-model="input.price" class="input" type="text" inputmode="decimal" placeholder="189,00">
                 </div>
                 <div class="form-field">
-                    <label class="form-field__label" for="fe-m-available">Verfügbar</label>
+                    <label class="form-field__label" for="fe-m-available">Verfügbarkeit</label>
                     <select id="fe-m-available" v-model="input.available" class="input">
                         <option :value="true">Verfügbar</option>
                         <option :value="false">Nicht verfügbar</option>

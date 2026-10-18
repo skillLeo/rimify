@@ -304,10 +304,10 @@ function runBulk(): void {
             <p v-for="message in refusals" :key="message" class="fg-refusal">{{ message }}</p>
         </div>
 
-        <!-- The backfill (D-298): the Felgen saved before the Radtypenbezeichnung was required, one click away. -->
+        <!-- The backfill (D-298): the Felgen without their Radtypenbezeichnung, one click away — none is published without (D-300). -->
         <p v-if="missingDesignation > 0 && filters.radtyp !== 'fehlt'" class="adm-note fg-backfill">
-            {{ felgen(missingDesignation) }} ohne Radtypenbezeichnung. Neue Felgen brauchen sie, und sie gehört in den Namen jeder Felge.
-            <Link href="/admin/felgen?radtyp=fehlt">Anzeigen</Link>
+            {{ felgen(missingDesignation) }} ohne Radtypenbezeichnung. Sie gehört in den Namen der Felge im Shop, und ohne sie wird keine Felge veröffentlicht.
+            <Link href="/admin/felgen?radtyp=fehlt">Nur diese anzeigen</Link>
         </p>
 
         <form class="fg-search" role="search" :action="BASE" method="get" @submit.prevent="apply">
@@ -507,7 +507,7 @@ function runBulk(): void {
                                 </span>
                             </td>
                             <td v-if="has('preis')" data-label="Preis ab" class="num">{{ wheel.fromCents === null ? '–' : formatMoney(wheel.fromCents) }}</td>
-                            <td v-if="has('bestand')" data-label="Verfügbar">{{ wheel.sizes === 0 ? '–' : `${decimal(wheel.available, 0)} von ${decimal(wheel.sizes, 0)}` }}</td>
+                            <td v-if="has('bestand')" data-label="Verfügbar">{{ wheel.sizes === 0 ? '–' : `${decimal(wheel.available, 0)} von ${decimal(wheel.sizes, 0)} ${wheel.sizes === 1 ? 'Größe' : 'Größen'}` }}</td>
                             <td v-if="has('freigaben')" data-label="Freigaben">
                                 <span v-if="tagClass(wheel.coverage)" class="fg-coverage" :class="tagClass(wheel.coverage)">{{ wheel.coverage.label }}</span>
                                 <span v-else class="fg-covered" :class="{ 'fg-covered--partial': wheel.covered < wheel.sizes }">{{ wheel.coverage.label }}</span>

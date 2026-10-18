@@ -69,7 +69,7 @@ final class CatalogueImporter
         'preis' => ['label' => 'Preis je Felge (€)', 'required' => true, 'headers' => ['preis', 'price', 'vk', 'verkaufspreis', 'vkpreis']],
         // Available or not, never a count (his admin item 7, D-299): „ja“ or „nein“, or a supplier's count — above nought
         // is available. The field keeps its key, as the suppliers' remembered mappings name it.
-        'bestand' => ['label' => 'Verfügbar (oder Bestand)', 'required' => false, 'headers' => ['verfuegbar', 'verfuegbarkeit', 'lieferbar', 'available', 'availability', 'bestand', 'lager', 'lagerbestand', 'stock', 'qty', 'menge']],
+        'bestand' => ['label' => 'Verfügbarkeit (ja/nein oder Stückzahl)', 'required' => false, 'headers' => ['verfuegbar', 'verfuegbarkeit', 'lieferbar', 'available', 'availability', 'bestand', 'lager', 'lagerbestand', 'stock', 'qty', 'menge']],
         'ean' => ['label' => 'EAN', 'required' => false, 'headers' => ['ean', 'gtin', 'barcode']],
         'kba' => ['label' => 'KBA-Nummer', 'required' => false, 'headers' => ['kba', 'kbanummer', 'kbanr']],
         'gewicht' => ['label' => 'Gewicht (g)', 'required' => false, 'headers' => ['gewicht', 'weight', 'gewichtg']],
@@ -79,7 +79,7 @@ final class CatalogueImporter
     /** What a known size may have changed by an import, with how each value reads. */
     private const UPDATABLE = [
         'price_cents' => 'Preis',
-        'available' => 'Verfügbar',
+        'available' => 'Verfügbarkeit',
         'ean' => 'EAN',
         'kba_number' => 'KBA-Nummer',
         'weight_g' => 'Gewicht',
@@ -718,7 +718,7 @@ final class CatalogueImporter
                 ($n = GermanNumber::integer($r)) !== null && $n >= 0 => $n > 0,
                 default => null,
             };
-        }, 'Ob die Größe verfügbar ist, können wir nicht lesen: „ja“ oder „nein“, oder eine Zahl ab 0.');
+        }, 'Die Verfügbarkeit können wir nicht lesen. Erlaubt sind „ja“, „nein“ oder eine Zahl ab 0.');
         $designation = $optional('radtyp', static fn (string $r): ?string => mb_strlen($r) <= 80 ? $r : null, 'Die Radtypenbezeichnung ist länger als 80 Zeichen.');
         $ean = $optional('ean', static fn (string $r): ?string => preg_match('/^\d{8,14}$/', $r) === 1 ? $r : null, 'Die EAN besteht aus 8 bis 14 Ziffern.');
         $kba = $optional('kba', static fn (string $r): ?string => mb_strlen($r) <= 32 ? $r : null, 'Die KBA-Nummer ist länger als 32 Zeichen.');

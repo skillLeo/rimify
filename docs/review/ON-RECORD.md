@@ -64,7 +64,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Entferne sie dort zuerst; ein echtes Gutachten verliert keine Zeile als Nebenwirkung.“ | customer / operator | `Services/Demo/DemoCatalogue.php` | R-05, said to whoever removes demo data |
 | „Platzhalter – kein echtes Gutachten“ | customer / operator | `Services/Demo/PlaceholderTables.php` | the issuer name of a demo document: says what our row is |
 | „Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the state of the record, on the go-live check |
-| „Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php`, `Services/GoLive/GoLiveChecks.php` | counts wheels and versions without a row in a released document |
+| „Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php`, `Services/GoLive/GoLiveChecks.php` | counts wheels and versions without a row in a released document |
 | „Kein Entwicklungsfahrzeug in einem freigegebenen Gutachten“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the name of a go-live check on our rows |
 | „Noch nennt kein freigegebenes Gutachten ein Fahrzeug.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the state of the record, on the go-live check |
 | „Keine der {$pairs} in freigegebenen Gutachten steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | counted from the engine's answers on our rows (D-217) |
@@ -81,7 +81,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Einen Code bitte so, wie das Gutachten ihn druckt: Buchstaben und Ziffern, höchstens 32 Zeichen – zum Beispiel A01, 16a) oder „Nicht 330D“.“ | admin | `Services/Admin/Approvals/DocumentConditions.php` | an instruction for entering a code |
 | „Im Shop wird die Felge bei keinem Fahrzeug als passend gezeigt, bis ein Gutachten für sie freigegeben ist.“ | admin | `Services/Admin/Catalogue/PublishCheck.php` | what the shop does until a release |
 | „steht in einem Gutachten und kann nicht entfernt werden.“ | admin | `Services/Admin/Catalogue/WheelEditor.php` | R-05, said to whoever edits a wheel |
-| „Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | admin | `Services/Admin/Dashboard/RoleFigures.php` | counts versions without a row in a released document |
+| „Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | admin | `Services/Admin/Dashboard/RoleFigures.php` | counts versions without a row in a released document |
 | „Das Dokument ist nicht mehr auffindbar.“ | admin | `Services/Admin/Orders/OrderDetail.php` | a file of ours that is gone |
 | „Gutachten-PDF nicht gefunden“ | customer / operator | `Services/Storage/DocumentFiles.php` | a log line: our file was looked for on both disks and is on neither (DocumentFiles::locate) |
 | „Entfernt nur die Beispieldaten, nicht deine eigenen Felgen, Gutachten und Bestellungen.“ | admin | `composables/admin/useDemoStrip.ts` | what the button removes |
