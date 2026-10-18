@@ -8,6 +8,7 @@ use App\Enums\CatalogueStatus;
 use App\Enums\FitmentStatus;
 use App\Models\WheelModel;
 use App\Support\GermanFormat;
+use App\Support\WheelTitle;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -16,13 +17,13 @@ use Illuminate\Support\Facades\DB;
  * Katalog › Felgen: the one query behind the list (the review release §4.2).
  *
  * A row is a model — the thing the team names and publishes — with what its sizes add up to: how
- * many, from which price, how many in stock, and how many of them an approval document already
- * covers. That last figure is counted from published fitment rows, never from a flag, so a model
+ * many, from which price, how many can be bought (D-299), and how many of them an approval document
+ * already covers. That last figure is counted from published fitment rows, never from a flag, so a model
  * whose Gutachten has not been entered says so: „Freigaben noch nicht hinterlegt“.
  *
  * Parameter binding only (R-14).
  *
- * @phpstan-type Filters array{q: string|null, status: string|null, marke: int|null, freigaben: string|null, demo: string|null, sort: string, richtung: string}
+ * @phpstan-type Filters array{q: string|null, status: string|null, marke: int|null, freigaben: string|null, demo: string|null, radtyp?: string|null, sort: string, richtung: string}
  */
 final class WheelList
 {
@@ -43,9 +44,9 @@ final class WheelList
             ->select('wheel_models.*')
             ->join('brands', 'brands.id', '=', 'wheel_models.brand_id')
             ->addSelect('brands.name as brand_name')
-            ->withCount(['configs as sizes', 'finishes'])
+            // Available or not, never a count (his admin item 7, D-299): how many of its sizes can be bought.
+            ->withCount(['configs as sizes', 'finishes', 'configs as available_sizes' => static fn (Builder $q) => $q->where('available', true)])
             ->withMin('configs as from_cents', 'price_cents')
-            ->withSum('configs as stock', 'stock_qty')
             ->withMin('configs as smallest', 'diameter_in')
             ->withMax('configs as largest', 'diameter_in')
             ->addSelect(['covered' => self::coveredSizes()])
@@ -116,6 +117,11 @@ final class WheelList
             $query->where('wheel_models.is_demo', false);
         }
 
+        // Saved before the Radtypenbezeichnung was required (D-298): the list it is filled in from.
+        if (($filters['radtyp'] ?? null) === 'fehlt') {
+            $query->where(static fn (Builder $missing) => $missing->whereNull('wheel_models.type_designation')->orWhere('wheel_models.type_designation', ''));
+        }
+
         $coverage = $filters['freigaben'];
 
         if ($coverage !== null) {
@@ -177,7 +183,11 @@ final class WheelList
             'diameters' => $smallest === null ? null : self::diameters((float) $smallest, (float) $largest),
             // Minor units: the page writes the amount (num.ts formatMoney).
             'fromCents' => $model->getAttribute('from_cents') === null ? null : (int) $model->getAttribute('from_cents'),
-            'stock' => (int) $model->getAttribute('stock'),
+            // How many of its sizes can be bought (D-299).
+            'available' => (int) $model->getAttribute('available_sizes'),
+            // The Radtypenbezeichnung still to fill in, and a typed title its parts no longer make (D-298).
+            'designationMissing' => trim((string) $model->type_designation) === '',
+            'titleDiverges' => WheelTitle::divergesFor((string) $model->getAttribute('brand_name'), $model->name, $model->type_designation, $model->title),
             'covered' => $covered,
             'coverage' => self::coverage($covered, $sizes),
             'image' => $finish === null ? null : ['manifest' => $finish->image_manifest, 'alt' => $finish->image_alt_de ?? $model->name],

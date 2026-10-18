@@ -16,7 +16,7 @@ const input: MatrixInput = {
     bolt_circle: '112',
     bore: '66,6',
     price: '189,00',
-    stock: 4,
+    available: true,
 }
 
 function at<T>(list: T[], index: number): T {
@@ -64,7 +64,7 @@ describe('making the matrix', () => {
         expect(rows).toHaveLength(4)
         expect(planned(input)).toBe(4)
         expect(rows.map((r) => `${r.diameter}/${r.width}`)).toEqual(['18/8', '18/8,5', '19/8', '19/8,5'])
-        expect(at(rows, 0)).toMatchObject({ finish: 'f1', et: '35', bolt_holes: 5, bolt_circle: '112', bore: '66,6', price: '189,00', stock: 4, id: null })
+        expect(at(rows, 0)).toMatchObject({ finish: 'f1', et: '35', bolt_holes: 5, bolt_circle: '112', bore: '66,6', price: '189,00', available: true, id: null })
     })
 
     it('leaves out a size the table already holds', () => {

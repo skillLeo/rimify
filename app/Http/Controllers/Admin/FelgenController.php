@@ -35,6 +35,7 @@ use App\Services\Storage\ImageUpload;
 use App\Services\Storage\UploadRejected;
 use App\Support\GermanFormat;
 use App\Support\Money;
+use App\Support\WheelTitle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -100,10 +101,14 @@ class FelgenController extends Controller
                 'marke' => $canonical['marke'] ?? '',
                 'freigaben' => $canonical['freigaben'] ?? '',
                 'demo' => $canonical['demo'] ?? '',
+                'radtyp' => $canonical['radtyp'] ?? '',
                 'sort' => $filters['sort'],
                 'richtung' => $filters['richtung'],
             ],
             'options' => $this->list->options(),
+            // The Felgen saved before the Radtypenbezeichnung was required, still without it (D-298): the backfill.
+            'missingDesignation' => WheelModel::query()->where('status', '<>', CatalogueStatus::Archived->value)
+                ->where(static fn ($q) => $q->whereNull('type_designation')->orWhere('type_designation', ''))->count(),
             'filtered' => $filtered,
             'totalAll' => $filtered ? WheelModel::query()->where('status', '<>', CatalogueStatus::Archived->value)->count() : $page->total(),
             'pagination' => [
@@ -137,7 +142,7 @@ class FelgenController extends Controller
     {
         $model->loadMissing('brand');
         // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
-        request()->attributes->set(AdminNavigation::RECORD, $model->brand->name.' '.$model->name);
+        request()->attributes->set(AdminNavigation::RECORD, WheelTitle::full($model));
 
         return Inertia::render('Admin/Felgen/Edit', $this->props($model, $request->admin()));
     }
@@ -370,6 +375,9 @@ class FelgenController extends Controller
                 'brand' => $model->brand->name,
                 'name' => $model->name,
                 'typeDesignation' => $model->type_designation ?? '',
+                // The title as typed — empty: the shop composes it from brand, model and Radtypenbezeichnung (D-298).
+                'title' => $model->title ?? '',
+                'fullTitle' => WheelTitle::full($model),
                 'spokeCount' => $model->spoke_count,
                 'description' => $model->description_de ?? '',
                 'seoTitle' => $model->seo_title ?? '',
@@ -415,7 +423,7 @@ class FelgenController extends Controller
                 'ean' => (string) ($c->getAttribute('ean') ?? ''),
                 'kba' => (string) ($c->kba_number ?? ''),
                 'price' => Money::fromMinor((int) $c->price_cents)->toGerman(),
-                'stock' => $c->stock_qty,
+                'available' => $c->available,
                 'weight_g' => $c->weight_g,
                 'locked' => in_array((int) $c->id, $locked, true),
             ])->values()->all(),

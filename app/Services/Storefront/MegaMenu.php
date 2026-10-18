@@ -99,7 +99,8 @@ final readonly class MegaMenu
             ->whereNull('wm.deleted_at')
             ->whereNull('wc.deleted_at')
             ->where('wm.status', 'published')
-            ->where('wc.stock_qty', '>', 0)
+            // A brand with a size that can be bought (D-299: available or not, never a count).
+            ->where('wc.available', true)
             ->groupBy('br.id', 'br.name')
             ->orderBy('br.sort_order')
             ->get(['br.name']);

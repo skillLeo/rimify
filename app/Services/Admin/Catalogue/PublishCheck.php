@@ -28,7 +28,7 @@ final class PublishCheck
      */
     public function for(WheelModel $model): array
     {
-        $configs = $model->configs()->get(['id', 'price_cents', 'stock_qty', 'wheel_finish_id']);
+        $configs = $model->configs()->get(['id', 'price_cents', 'available', 'wheel_finish_id']);
         $finishes = $model->finishes()->get(['id', 'name_de', 'image_manifest']);
         $blockers = [];
         $hints = [];
@@ -65,8 +65,14 @@ final class PublishCheck
             }
         }
 
-        if ($configs->isNotEmpty() && $configs->every(static fn ($c): bool => (int) $c->stock_qty === 0)) {
-            $hints[] = 'Keine Größe ist auf Lager. Im Shop steht dann bei jeder „Ausverkauft“.';
+        // Available or not, never a count (his admin item 7, D-299).
+        if ($configs->isNotEmpty() && $configs->every(static fn ($c): bool => ! (bool) $c->available)) {
+            $hints[] = 'Keine Größe ist verfügbar. Im Shop steht dann bei jeder „Nicht verfügbar“, und sie lässt sich nicht kaufen.';
+        }
+
+        // Saved before it was required (D-298): no stop, but said — it belongs in the Felge's name.
+        if (trim((string) $model->type_designation) === '') {
+            $hints[] = 'Die Radtypenbezeichnung fehlt noch. Sie gehört in den Namen der Felge.';
         }
 
         if ($model->description_de === null || trim($model->description_de) === '') {

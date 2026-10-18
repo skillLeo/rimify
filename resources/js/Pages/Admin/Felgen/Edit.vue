@@ -17,6 +17,7 @@ import AdminPage, { type AdminPageAction } from '../../../Components/Admin/Admin
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { composedTitle, shopTitle, titleDiverges } from '../../../lib/wheelTitle'
 import type { AdminFelgeProps, FinishForm, SizeForm, WheelForm } from '../../../types/admin/felgen'
 import FinishPhotos from './FinishPhotos.vue'
 import MatrixPanel from './MatrixPanel.vue'
@@ -37,6 +38,7 @@ function fromProps(): WheelForm {
         brand_new: '',
         name: model?.name ?? '',
         type_designation: model?.typeDesignation ?? '',
+        title: model?.title ?? '',
         spoke_count: model?.spokeCount ?? 5,
         description: model?.description ?? '',
         seo_title: model?.seoTitle ?? '',
@@ -86,7 +88,7 @@ const editable = computed(() => (props.model ? props.can.edit : props.can.create
 const readonly = computed(() => !editable.value)
 const locked = computed(() => props.configs.flatMap((c) => (c.locked && c.id !== null ? [c.id] : [])))
 
-const title = computed(() => (props.model ? `${props.model.brand} ${props.model.name}` : 'Neue Felge'))
+const title = computed(() => (props.model ? props.model.fullTitle : 'Neue Felge'))
 const context = computed(() => {
     if (!props.model) {
         return 'Entwurf, noch nicht gespeichert'
@@ -188,7 +190,7 @@ function addSize(): void {
         ean: '',
         kba: '',
         price: last?.price ?? '',
-        stock: 0,
+        available: true,
         weight_g: null,
     }
 
@@ -214,7 +216,18 @@ function removeSize(index: number): void {
 
 /* ── Search engines ─────────────────────────────────────────────────────────── */
 
-const seoTitlePreview = computed(() => form.seo_title || `${brandName.value} ${form.name}`.trim() || 'Titel der Felge')
+/* ── The title in the shop (D-298) ──────────────────────────────────────────── */
+
+/** What brand, model and Radtypenbezeichnung make — the title while none is typed. */
+const composed = computed(() => composedTitle(brandName.value, form.name, form.type_designation))
+/** What the shop will show: the brand, then the typed title's rest or the composition's. */
+const inShop = computed(() => shopTitle(brandName.value, form.name, form.type_designation, form.title))
+/** A typed title the parts no longer make: said, and the composition offered — never overwritten unasked. */
+const diverges = computed(() => titleDiverges(brandName.value, form.name, form.type_designation, form.title))
+/** Saved before the rule (D-298): a Felge without its Radtypenbezeichnung saves, and the list names it. */
+const designationMissing = computed(() => props.model !== null && form.type_designation.trim() === '')
+
+const seoTitlePreview = computed(() => form.seo_title || inShop.value || 'Titel der Felge')
 const seoDescriptionPreview = computed(() => form.seo_description || form.description.slice(0, 160) || 'Beschreibung der Felge für Suchmaschinen.')
 
 /* ── Into the shop and out of it ───────────────────────────────────────────── */
@@ -375,10 +388,25 @@ const more = computed<AdminPageAction[]>(() => {
                         <p id="fe-name-err" class="form-field__error">{{ err('name') }}</p>
                     </div>
                     <div class="form-field">
-                        <label class="form-field__label" for="fe-type">Typbezeichnung <span class="fe-optional">(optional)</span></label>
-                        <input id="fe-type" v-model="form.type_designation" class="input" type="text" maxlength="80" :readonly="readonly" aria-describedby="fe-type-help fe-type-err">
-                        <p id="fe-type-help" class="form-field__help">So, wie sie im Gutachten steht.</p>
+                        <label class="form-field__label" for="fe-type">Radtypenbezeichnung</label>
+                        <input id="fe-type" v-model="form.type_designation" class="input" type="text" maxlength="80" spellcheck="false" :readonly="readonly" :aria-invalid="err('type_designation') ? 'true' : undefined" aria-describedby="fe-type-help fe-type-err">
+                        <p id="fe-type-help" class="form-field__help">
+                            So, wie das Gutachten sie druckt. Sie steht im Namen der Felge – so findet ein Kunde die Felge im Gutachten wieder.
+                            <template v-if="designationMissing"> Diese Felge ist noch ohne Radtypenbezeichnung gespeichert. Trag sie nach, sobald du das Gutachten zur Hand hast.</template>
+                        </p>
                         <p id="fe-type-err" class="form-field__error">{{ err('type_designation') }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-field__label" for="fe-title">Titel im Shop <span class="fe-optional">(optional)</span></label>
+                        <input id="fe-title" v-model="form.title" class="input" type="text" maxlength="160" :placeholder="composed" :readonly="readonly" :aria-invalid="err('title') ? 'true' : undefined" aria-describedby="fe-title-help fe-title-err">
+                        <p id="fe-title-help" class="form-field__help">
+                            Leer setzt der Shop ihn aus Marke, Modell und Radtypenbezeichnung zusammen. Die Marke steht immer vorn. Im Shop: „{{ inShop || '–' }}“.
+                        </p>
+                        <p v-if="diverges" class="adm-note fe-title-diverges" role="status">
+                            Weicht vom zusammengesetzten Titel ab: „{{ composed }}“.
+                            <button v-if="!readonly" class="btn btn--ghost btn--sm" type="button" @click="form.title = ''">Zusammengesetzten Titel verwenden</button>
+                        </p>
+                        <p id="fe-title-err" class="form-field__error">{{ err('title') }}</p>
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="fe-spokes">Speichen</label>

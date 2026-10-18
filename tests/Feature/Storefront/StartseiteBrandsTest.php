@@ -109,7 +109,7 @@ it('lists every researched wheel brand in order, with its logo, whether or not i
     }
 });
 
-it('counts and links a wheel brand only once it has a published wheel in stock', function (): void {
+it('counts and links a wheel brand only once it has a published wheel that can be bought', function (): void {
     BrandLogoFixtures::svg($this->logos, 'bbs', 400.0, 100.0);
     BrandLogoFixtures::svg($this->logos, 'borbet', 240.4, 32.1);
     $this->seed(BrandLogoSeeder::class);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * „Größen erzeugen“: the sizes of a model from lists — finishes × diameters × widths × ETs — sharing
- * one bolt pattern, bore, price and stock (matrix.ts). What it adds lands in the table as unsaved rows;
+ * one bolt pattern, bore, price and availability (matrix.ts). What it adds lands in the table as unsaved rows;
  * nothing is stored until the form is saved, and a size the table already holds is left out.
  */
 
@@ -27,7 +27,7 @@ const input = ref<MatrixInput>({
     bolt_circle: props.start.bolt_circle,
     bore: props.start.bore,
     price: '',
-    stock: 0,
+    available: true,
 })
 
 /*
@@ -121,8 +121,11 @@ function add(): void {
                     <input id="fe-m-price" v-model="input.price" class="input" type="text" inputmode="decimal" placeholder="189,00">
                 </div>
                 <div class="form-field">
-                    <label class="form-field__label" for="fe-m-stock">Bestand je Größe</label>
-                    <input id="fe-m-stock" v-model.number="input.stock" class="input" type="number" min="0" step="1">
+                    <label class="form-field__label" for="fe-m-available">Verfügbar</label>
+                    <select id="fe-m-available" v-model="input.available" class="input">
+                        <option :value="true">Verfügbar</option>
+                        <option :value="false">Nicht verfügbar</option>
+                    </select>
                 </div>
             </div>
 

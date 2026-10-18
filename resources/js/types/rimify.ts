@@ -231,8 +231,8 @@ export interface ProductCardProp {
     ratingLabel: string | null
     fromPriceCents: number
     fromPrice: string
+    /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
-    stockQty: number
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
     /**

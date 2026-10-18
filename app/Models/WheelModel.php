@@ -21,7 +21,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $brand_id
  * @property string $name
  * @property string $slug
- * @property string|null $type_designation
+ * @property string|null $type_designation the Radtypenbezeichnung, as the Gutachten print it (D-298)
+ * @property string|null $title the name in the shop where a person typed one; null: brand, model and Radtypenbezeichnung (WheelTitle)
  * @property string|null $description_de
  * @property string|null $seo_title
  * @property string|null $seo_description
@@ -45,7 +46,7 @@ class WheelModel extends Model
      * alone (D-103) — no form, import or seeder can type a rating nobody gave (§ 5 UWG).
      */
     protected $fillable = [
-        'brand_id', 'name', 'type_designation', 'slug', 'description_de', 'seo_title', 'seo_description', 'internal_note', 'status',
+        'brand_id', 'name', 'type_designation', 'title', 'slug', 'description_de', 'seo_title', 'seo_description', 'internal_note', 'status',
         'spoke_count', 'is_demo', 'demo_ref',
     ];
 

@@ -418,7 +418,7 @@ export interface ProduktConfig {
     priceForFour?: string
     /** The price of each amount the page offers (1–8), from LinePrice on the server (D-102): the browser only picks. */
     amounts?: AmountPrice[]
-    stockQty: number
+    /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
     kbaNumber: string | null
     weightG: number | null

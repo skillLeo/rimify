@@ -10,10 +10,9 @@ use Database\Seeders\KomplettradOptionsSeeder;
 use Tests\Support\Storefront\KomplettradFixture;
 
 /*
- * PDP-08: the shelf is counted against the basket and the add together. Four rims three times with twelve in stock fit;
- * the fourth add is refused at the click — with the stock and what the basket already holds — not confirmed and then
- * marked unorderable in the basket. A Komplettrad of the same rim counts against the same shelf, and its tyres against
- * theirs.
+ * His admin item 7 (D-299): a rim is available or not — the shop counts none, so no add of rims is held against a shelf,
+ * and a size marked „nicht verfügbar“ is refused at the click. The tyres still count (PDP-08): a Komplettrad's tyres
+ * against their shelf, the basket's own lines included.
  */
 
 beforeEach(function (): void {
@@ -24,42 +23,35 @@ function heldStockSet(int $rims): KomplettradFixture
 {
     $set = KomplettradFixture::permitted();
     WheelModel::query()->whereKey($set->config->wheel_model_id)->update(['is_demo' => false]);
-    $set->config->forceFill(['stock_qty' => $rims])->save();
+    $set->config->forceFill(['stock_qty' => $rims, 'available' => true])->save();
 
     return $set;
 }
 
-it('refuses the add that would take more rims than the shelf holds, counting what the basket already has', function (): void {
+it('takes any number of an available rim, and refuses a size marked „nicht verfügbar“ @admin-207', function (): void {
+    // A count of twelve, from before (the column is kept and no longer read): a fourth add of four still goes in.
     $set = heldStockSet(12);
     $add = fn () => $this->withCookies($set->cookies())->from('/felgen')
         ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, 'quantity' => 4]);
 
-    $add()->assertSessionHasNoErrors();
-    $add()->assertSessionHasNoErrors();
-    $add()->assertSessionHasNoErrors();
+    foreach (range(1, 4) as $_) {
+        $add()->assertSessionHasNoErrors();
+    }
 
-    $add()->assertSessionHasErrors([
-        'wheelConfigId' => sprintf(Basket::WHEEL_HELD, GermanFormat::integer(12), GermanFormat::integer(12)),
-    ]);
+    expect(collect(session(Basket::SESSION_KEY, []))->sum('quantity'))->toBe(16);
 
-    expect(collect(session(Basket::SESSION_KEY, []))->sum('quantity'))->toBe(12);
+    $set->config->forceFill(['available' => false])->save();
+
+    $add()->assertSessionHasErrors(['wheelConfigId' => Basket::WHEEL_SOLD_OUT]);
 });
 
-it('counts a Komplettrad of the same rim against the same shelf, and its tyres against theirs', function (): void {
-    $set = heldStockSet(6);
+it('counts a Komplettrad’s tyres against their shelf, never its rims', function (): void {
+    $set = heldStockSet(0);
     $tyre = $set->tyre(['stock_qty' => 6]);
     $post = fn (array $line) => $this->withCookies($set->cookies())->from('/felgen')
         ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, ...$line]);
 
     $post(['quantity' => 4])->assertSessionHasNoErrors();
-
-    // Four rims held, six on the shelf: a set of four more does not fit (said under the tyre, as every set's refusal is).
-    $post(['tyreVariantId' => $tyre->id, 'quantity' => 4])->assertSessionHasErrors([
-        'tyreVariantId' => sprintf(Basket::WHEEL_HELD, GermanFormat::integer(6), GermanFormat::integer(4)),
-    ]);
-
-    // The rims made room for: twelve on the shelf, four tyres held of six.
-    $set->config->forceFill(['stock_qty' => 12])->save();
     $post(['tyreVariantId' => $tyre->id, 'quantity' => 4])->assertSessionHasNoErrors();
 
     $post(['tyreVariantId' => $tyre->id, 'quantity' => 4])->assertSessionHasErrors([

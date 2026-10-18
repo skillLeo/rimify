@@ -165,7 +165,7 @@ it('holds an order in „Zahlung läuft“ while SEPA or Klarna settle, and pays
     expect($order->fresh()->status)->toBe(OrderStatus::Paid);
 });
 
-it('records a declined payment and keeps the stock for the retry; a cancelled one gives it back', function (): void {
+it('records a declined payment and keeps the order for the retry; a cancelled one lets go — no rim counted (D-299)', function (): void {
     $order = stripeOrder();
     $config = WheelConfig::query()->findOrFail($order->lines()->value('wheel_config_id'));
     $stock = $config->stock_qty;
@@ -178,8 +178,9 @@ it('records a declined payment and keeps the stock for the retry; a cancelled on
 
     deliver('payment_intent.canceled', intent($order, ['status' => 'canceled']))->assertOk();
 
+    // A rim was never counted down, so nothing is counted back: the old figure stays as it was.
     expect($order->fresh()->status)->toBe(OrderStatus::Cancelled)
-        ->and($config->fresh()->stock_qty)->toBe($stock + 4)
+        ->and($config->fresh()->stock_qty)->toBe($stock)
         ->and($order->fresh()->stock_reserved)->toBeFalse();
 });
 

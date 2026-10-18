@@ -20,8 +20,9 @@ use Illuminate\Support\Facades\Log;
  * What money does to an order — provider-neutral: the checkout, the webhook's job, the sandbox, the expiry run
  * and the refund all go through here.
  *
- * - Stock is reserved when the order is written (reserve, inside OrderWriter's transaction) and released when it
- *   dies unpaid — storniert, abgelaufen.
+ * - Tyres are reserved when the order is written (reserve, inside OrderWriter's transaction) and released when it
+ *   dies unpaid — storniert, abgelaufen. A rim is available or not and is never counted (his admin item 7, D-299):
+ *   one that is no longer available stops the order, nothing is taken off a shelf.
  * - An order moves only where OrderStatus::next() allows; a late event that would move it backwards (a
  *   `processing` after `succeeded`) is recorded and ignored. Every move is audited with the event that caused it.
  * - Paid means the provider's signed event said so, for the order's own total: an amount that does not match
@@ -34,9 +35,13 @@ final class OrderPayments
 
     public const OUT_OF_STOCK = 'Ein Artikel in deinem Warenkorb ist nicht mehr in dieser Menge auf Lager. Es wurde nichts bestellt und nichts berechnet.';
 
+    public const NOT_AVAILABLE = 'Eine Felge in deinem Warenkorb ist nicht mehr verfügbar. Es wurde nichts bestellt und nichts berechnet.';
+
     /**
-     * Takes the order's goods off the shelf, all or nothing: each decrement only where enough is left. Call inside
-     * the transaction that writes the order.
+     * Holds the order's goods, all or nothing. Call inside the transaction that writes the order.
+     *
+     * A rim is read under a lock and must still be available — nothing is counted down (D-299); a tyre is taken off its
+     * shelf, each decrement only where enough is left.
      *
      * @throws OrderRefused
      */
@@ -44,26 +49,22 @@ final class OrderPayments
     {
         foreach ($order->lines()->get() as $line) {
             $quantity = (int) $line->getAttribute('quantity');
+            $config = $line->getAttribute('wheel_config_id');
+            $tyre = $line->getAttribute('tyre_variant_id');
 
-            foreach ([[WheelConfig::class, 'wheel_config_id'], [TyreVariant::class, 'tyre_variant_id']] as [$model, $column]) {
-                $id = $line->getAttribute($column);
+            if ($config !== null && ! (bool) WheelConfig::query()->whereKey($config)->lockForUpdate()->value('available')) {
+                throw new OrderRefused(self::NOT_AVAILABLE);
+            }
 
-                if ($id === null) {
-                    continue;
-                }
-
-                $taken = $model::query()->whereKey($id)->where('stock_qty', '>=', $quantity)->decrement('stock_qty', $quantity);
-
-                if ($taken !== 1) {
-                    throw new OrderRefused(self::OUT_OF_STOCK);
-                }
+            if ($tyre !== null && TyreVariant::query()->whereKey($tyre)->where('stock_qty', '>=', $quantity)->decrement('stock_qty', $quantity) !== 1) {
+                throw new OrderRefused(self::OUT_OF_STOCK);
             }
         }
 
         $order->forceFill(['stock_reserved' => true, 'expires_at' => ($order->placed_at ?? now())->addHours(self::HOURS_TO_PAY)])->save();
     }
 
-    /** Puts a dead order's goods back on the shelf, once. */
+    /** Puts a dead order's tyres back on the shelf, once — a rim was never taken off one (D-299). */
     public function release(Order $order): void
     {
         if (! $order->stock_reserved) {
@@ -72,10 +73,6 @@ final class OrderPayments
 
         foreach ($order->lines()->get() as $line) {
             $quantity = (int) $line->getAttribute('quantity');
-
-            if ($line->getAttribute('wheel_config_id') !== null) {
-                WheelConfig::query()->whereKey($line->getAttribute('wheel_config_id'))->increment('stock_qty', $quantity);
-            }
 
             if ($line->getAttribute('tyre_variant_id') !== null) {
                 TyreVariant::query()->whereKey($line->getAttribute('tyre_variant_id'))->increment('stock_qty', $quantity);

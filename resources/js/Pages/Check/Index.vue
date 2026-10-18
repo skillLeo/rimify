@@ -239,8 +239,8 @@ const setPrice = computed(() => {
     return current === null ? null : current.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: current.perWheel, forFour: current.forFour }
 })
 
-/* The rims of a car: four, or what is on the shelf where fewer are — priced by the server for that amount. */
-const rimAmount = computed(() => Math.max(1, Math.min(4, config.value?.stockQty ?? 4)))
+/* The rims of a car: four — a size is available or not, never counted (his admin item 7, D-299) — priced by the server. */
+const rimAmount = computed(() => 4)
 const rimPrice = computed(() => config.value?.amounts?.find((a) => a.quantity === rimAmount.value) ?? null)
 
 const shownPrice = computed(() => (isSet.value ? setPrice.value?.forFour ?? null : rimPrice.value?.text ?? config.value?.price ?? null))
@@ -279,7 +279,7 @@ const canBuy = computed(() => {
         return false
     }
 
-    return isSet.value ? tyre.value !== null && current.stockQty >= (offer.value?.quantity ?? 4) : true
+    return isSet.value ? tyre.value !== null : true
 })
 
 /*
@@ -298,28 +298,18 @@ const buyLabel = computed(() => {
     }
 
     if (config.value !== null && !config.value.inStock) {
-        return 'Ausverkauft'
+        return 'Nicht verfügbar'
     }
 
     if (setAwaitsPapers.value) {
         return 'Werte eintragen'
     }
 
-    if (isSet.value && (tyre.value === null || setShort.value !== null)) {
+    if (isSet.value && tyre.value === null) {
         return 'Komplettrad gerade nicht möglich'
     }
 
     return 'Jetzt kaufen'
-})
-
-/* A set needs as many rims as it has wheels: fewer on the shelf, and the button says why it cannot (#28 review). */
-const setShort = computed(() => {
-    const current = config.value
-    const needed = offer.value?.quantity ?? 4
-
-    return isSet.value && current !== null && current.inStock && current.stockQty < needed
-        ? `Von dieser Felge haben wir nur noch ${current.stockQty} Stück auf Lager – für einen Satz Kompletträder brauchen wir ${needed}.`
-        : null
 })
 
 /* Without a connection the add never reached us: said under the button, nothing in the basket (CHECK-09). */
@@ -619,7 +609,6 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                             >
                                 {{ buyLabel }}
                             </button>
-                            <p v-if="setShort" class="price-note chk__why">{{ setShort }}</p>
                             <p v-if="addError" class="notice notice--bad chk__error" role="alert">
                                 <Icon name="warning" :size="20" />
                                 <span>{{ addError }}</span>
@@ -826,14 +815,8 @@ const STATES: { status: VerdictStatus; text: string }[] = [
 
 .chk__error,
 .chk__ask,
-.chk__why,
 .chk__lost {
     margin: 0;
-}
-
-/* The reason sits with the button it explains. */
-.chk__why {
-    margin-top: calc(-1 * var(--sp-16));
 }
 
 .chk__ask {

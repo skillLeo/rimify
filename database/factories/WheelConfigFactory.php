@@ -40,9 +40,10 @@ class WheelConfigFactory extends Factory
         ];
     }
 
+    /** A size marked „nicht verfügbar“ (D-299): what the shop reads; the old count with it, nought. */
     public function outOfStock(): static
     {
-        return $this->state(fn (): array => ['stock_qty' => 0]);
+        return $this->state(fn (): array => ['stock_qty' => 0, 'available' => false]);
     }
 
     /** `8,5J × 18 · ET 35` — the size the spec's worked example uses throughout. */

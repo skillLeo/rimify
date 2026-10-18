@@ -267,3 +267,89 @@ test('a vehicle dataset: the Probelauf counts before anything is written, then t
     await page.getByRole('dialog').getByRole('button', { name: 'Importieren' }).click()
     await expect(page.locator('.fr-state')).toContainText('Importiert am')
 })
+
+/**
+ * An example Felge on our acceptance shop, typed into the form up to its sizes: the brand plainly an example, the model
+ * with the run's stamp, so the two widths and every run make their own. Saved only by the test that wants it.
+ */
+async function exampleFelge(page: Page, info: { project: { name: string } }): Promise<{ model: string; slug: string }> {
+    const { stamp } = runKeys(info)
+    const model = `Muster ${stamp.slice(-4)}`
+
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/felgen/neu`, { waitUntil: 'networkidle' })
+    await page.selectOption('#fe-brand', '-1')
+    await page.fill('#fe-brand-new', 'Beispielmarke')
+    await page.fill('#fe-name', model)
+    await page.fill('#fe-f-0-name', 'Silber')
+    await page.click('#fe-add-size')
+    await page.fill('#fe-size-0-diameter', '18')
+    await page.fill('#fe-size-0-width', '8')
+    await page.fill('#fe-size-0-et', '35')
+    await page.fill('#fe-size-0-bolt_circle', '112')
+    await page.fill('#fe-size-0-bore', '66,6')
+    await page.fill('#fe-size-0-sku', `BSP-${stamp}`)
+    await page.fill('#fe-size-0-price', '189')
+
+    return { model, slug: `beispielmarke-${model.toLowerCase().replace(/\s+/g, '-')}` }
+}
+
+test('a new Felge: its Radtypenbezeichnung required and in its name, a title typed otherwise flagged @admin-204 @admin-205 @admin-213', async ({ page }, info) => {
+    const { model } = await exampleFelge(page, info)
+    const save = page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' })
+
+    // Without it, refused under its own field.
+    await save.click()
+    await expect(page.locator('#fe-type-err')).toContainText('Trag die Radtypenbezeichnung ein')
+    await shotAround(page, [page.locator('#fe-type').locator('..')], 204, info)
+
+    // With it, the name in the shop composes itself: brand, model, Radtypenbezeichnung.
+    await page.fill('#fe-type', 'BM 18')
+    await expect(page.locator('#fe-title-help')).toContainText(`Beispielmarke ${model} BM 18`)
+
+    // A title typed otherwise stays — and is said to differ, with the composed one a click away.
+    await page.fill('#fe-title', `${model} Sonderedition`)
+    await expect(page.locator('.fe-title-diverges')).toContainText(`Beispielmarke ${model} BM 18`)
+    await shotAround(page, [page.locator('#fe-title').locator('..')], 213, info)
+
+    await page.getByRole('button', { name: 'Zusammengesetzten Titel verwenden' }).click()
+    await expect(page.locator('#fe-title')).toHaveValue('')
+    await save.click()
+    await page.waitForURL(/\/admin\/felgen\/\d+$/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(`Beispielmarke ${model} BM 18`)
+
+    // Saved: the field under its new name, and the title composed from it — the picture without the refusal above.
+    await expect(page.locator('#fe-title-help')).toContainText(`Beispielmarke ${model} BM 18`)
+    await shotAround(page, [page.locator('#fe-type').locator('..'), page.locator('#fe-title').locator('..')], 205, info)
+})
+
+test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, and a size marked not available says so @admin-206 @admin-207', async ({ page }, info) => {
+    const { model, slug } = await exampleFelge(page, info)
+    await page.fill('#fe-type', 'BM 18')
+    await page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' }).click()
+    await page.waitForURL(/\/admin\/felgen\/\d+$/)
+    const felge = page.url()
+
+    // Into the shop: an example Felge on our own acceptance shop, published there and nowhere else.
+    await page.locator('.adm-page__actions').getByRole('button', { name: 'Veröffentlichen' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Veröffentlichen' }).click()
+    await expect(page.locator('.fe-check__verdict')).toHaveText('Im Shop')
+
+    await page.goto(`${ABNAHME}/felgen/${slug}`, { waitUntil: 'networkidle' })
+    const heading = page.getByRole('heading', { level: 1 })
+    await expect(heading).toHaveText(`Beispielmarke ${model} BM 18`)
+    await expect(page.locator('.pdp__stock')).toHaveText('Verfügbar')
+    await shotAround(page, [heading, page.locator('.pdp__type')], 206, info)
+
+    // Not available: the size says so in the shop, and cannot be bought — no count anywhere.
+    await page.goto(felge, { waitUntil: 'networkidle' })
+    await page.selectOption('#fe-size-0-available', 'false')
+    await page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' }).click()
+    await expect(page.locator('.adm-savebar')).toContainText('Keine Änderungen')
+
+    await page.goto(`${ABNAHME}/felgen/${slug}`, { waitUntil: 'networkidle' })
+    await expect(page.locator('.pdp__stock')).toHaveText('Nicht verfügbar')
+    await expect(page.locator('button.pdp__add')).toHaveText('Nicht verfügbar')
+    await expect(page.locator('button.pdp__add')).toBeDisabled()
+    await shotAround(page, [page.locator('.pdp__stock'), page.locator('button.pdp__add')], 207, info)
+})

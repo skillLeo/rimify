@@ -229,7 +229,7 @@ function onCompareLabelClick(event: MouseEvent): void {
         <p v-if="verdict && verdict.notesOnly" class="tile__vary">Mit Hinweisen aus dem Gutachten – auf der Produktseite.</p>
         <p v-if="verdict && verdict.tyresOpen" class="tile__vary" data-tyres="open">{{ verdict.tyresOpen }}</p>
 
-        <span v-if="!card.inStock" class="stock stock--out">Ausverkauft</span>
+        <span v-if="!card.inStock" class="stock stock--out">Nicht verfügbar</span>
 
         <div class="tile__actions">
             <Link :href="href" class="tile__cta btn btn--primary btn--sm" :aria-label="`${fullName}: Details ansehen`" prefetch>Details ansehen</Link>

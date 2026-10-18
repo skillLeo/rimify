@@ -44,6 +44,7 @@ use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
 use App\Support\ShopPath;
+use App\Support\WheelTitle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -336,8 +337,8 @@ class FelgenController extends Controller
             'priceForFour' => LinePrice::total($this->rimPrice($config), self::SET_OF)->format(),
             // The figure for every amount the page offers, so the browser only picks one (D-102).
             'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
-            'stockQty' => (int) $config->stock_qty,
-            'inStock' => $config->stock_qty > 0,
+            // Available or not (his admin item 7, D-299): no count, so the amount a customer picks is never capped by one.
+            'inStock' => $config->available,
             'kbaNumber' => $config->kba_number,
             'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
             // The load rating per wheel, from the approval document; null when nobody has
@@ -377,7 +378,8 @@ class FelgenController extends Controller
             'product' => [
                 'modelId' => $wheel->id,
                 'slug' => $wheel->slug,
-                'modelName' => $wheel->name,
+                // What follows the brand in the wheel's name: model and Radtypenbezeichnung, or the title typed (D-298).
+                'modelName' => WheelTitle::name($wheel),
                 'brandName' => $wheel->brand->name,
                 'typeDesignation' => $wheel->type_designation,
                 'descriptionDe' => $wheel->description_de,

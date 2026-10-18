@@ -3,7 +3,7 @@
  * The sizes of one Felge as a table of fields: one row per size, typed the German way (`8,5`, `66,6`,
  * `189,00`). A size an approval document names keeps its measurements and its finish — they are what
  * the Gutachten approves — so those are shown as plain figures, not fields, and the row cannot be
- * removed; price, stock and SKU stay open (WheelEditor).
+ * removed; price, availability and SKU stay open (WheelEditor).
  *
  * A row's refusals are listed under the table, each field pointing at its row's sentence. Below 768 px
  * each row is a card of labelled fields (the admin table's own pattern).
@@ -26,7 +26,7 @@ const sizes = defineModel<SizeForm[]>('sizes', { required: true })
 
 const emit = defineEmits<{ remove: [index: number] }>()
 
-const FIELDS = ['finish', 'diameter', 'width', 'et', 'bolt_holes', 'bolt_circle', 'bore', 'sku', 'ean', 'kba', 'price', 'stock', 'weight_g']
+const FIELDS = ['finish', 'diameter', 'width', 'et', 'bolt_holes', 'bolt_circle', 'bore', 'sku', 'ean', 'kba', 'price', 'available', 'weight_g']
 
 function isLocked(size: SizeForm): boolean {
     return size.id !== null && props.locked.includes(size.id)
@@ -75,7 +75,7 @@ function describedBy(index: number): string | undefined {
                     <th scope="col">MLB mm</th>
                     <th scope="col">SKU</th>
                     <th scope="col" class="num">Preis €</th>
-                    <th scope="col" class="num">Bestand</th>
+                    <th scope="col">Verfügbar</th>
                     <th scope="col">Freigaben</th>
                     <th v-if="!readonly" scope="col"><span class="visually-hidden">Entfernen</span></th>
                 </tr>
@@ -141,11 +141,15 @@ function describedBy(index: number): string | undefined {
                             <input :id="id(index, 'price')" v-model="size.price" class="input fe-in fe-in--s num" type="text" inputmode="decimal" :aria-invalid="err(index, 'price') ? 'true' : undefined" :aria-describedby="describedBy(index)">
                         </template>
                     </td>
-                    <td data-label="Bestand" class="num">
-                        <template v-if="readonly"><span class="fe-fixed">{{ size.stock }}</span></template>
+                    <!-- Available or not, never a count (his admin item 7, D-299). -->
+                    <td data-label="Verfügbar">
+                        <template v-if="readonly"><span class="fe-fixed">{{ size.available ? 'Verfügbar' : 'Nicht verfügbar' }}</span></template>
                         <template v-else>
-                            <label class="visually-hidden" :for="id(index, 'stock')">Bestand, Zeile {{ index + 1 }}</label>
-                            <input :id="id(index, 'stock')" v-model.number="size.stock" class="input fe-in fe-in--xs num" type="number" min="0" step="1" :aria-invalid="err(index, 'stock') ? 'true' : undefined" :aria-describedby="describedBy(index)">
+                            <label class="visually-hidden" :for="id(index, 'available')">Verfügbar, Zeile {{ index + 1 }}</label>
+                            <select :id="id(index, 'available')" v-model="size.available" class="input fe-in fe-in--available" :aria-invalid="err(index, 'available') ? 'true' : undefined" :aria-describedby="describedBy(index)">
+                                <option :value="true">Verfügbar</option>
+                                <option :value="false">Nicht verfügbar</option>
+                            </select>
                         </template>
                     </td>
                     <td data-label="Freigaben" class="fe-sizes__docs">
@@ -200,6 +204,11 @@ function describedBy(index: number): string | undefined {
 
 .fe-in--sku {
     width: 22ch;
+}
+
+/* „Nicht verfügbar“ whole, with the select's arrow. */
+.fe-in--available {
+    width: calc(18 * var(--ch-text));
 }
 
 .fe-in.num {
@@ -271,7 +280,8 @@ function describedBy(index: number): string | undefined {
     .fe-in--xs,
     .fe-in--s,
     .fe-in--finish,
-    .fe-in--sku {
+    .fe-in--sku,
+    .fe-in--available {
         width: 100%;
         height: var(--adm-control-h-lg);
     }

@@ -525,7 +525,8 @@ class StartseiteController extends Controller
             ->whereNull('wm.deleted_at')
             ->whereNull('wc.deleted_at')
             ->where('wm.status', CatalogueStatus::Published->value)
-            ->where('wc.stock_qty', '>', 0)
+            // Available or not, never a count (D-299).
+            ->where('wc.available', true)
             ->groupBy('wm.brand_id')
             ->select(['wm.brand_id', DB::raw('COUNT(DISTINCT wm.id) as models')]);
 

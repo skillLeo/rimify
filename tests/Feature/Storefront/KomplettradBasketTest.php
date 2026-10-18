@@ -296,16 +296,19 @@ it('refuses four Kompletträder against one tyre in stock at the click, not at t
     expect(session(Basket::SESSION_KEY))->toHaveCount(1);
 });
 
-it('refuses more wheels than are in stock for a Felgen-only line too', function (): void {
+it('refuses a Felgen-only line of a size marked „nicht verfügbar“ — and never one for a count (D-299) @admin-207', function (): void {
     $set = KomplettradFixture::permitted();
+    // A count of three, from before: it is no longer read, so four go in.
     $set->config->update(['stock_qty' => 3]);
 
-    $this->withCookies($set->cookies())
-        ->from('/felgen/x')
-        ->post('/warenkorb', komplettradPost($set->config->id, null, 4))
-        ->assertSessionHasErrors(['wheelConfigId' => Basket::WHEEL_SOLD_OUT]);
+    $this->withCookies($set->cookies())->from('/felgen/x')->post('/warenkorb', komplettradPost($set->config->id, null, 4))
+        ->assertSessionHasNoErrors();
 
-    expect(session(Basket::SESSION_KEY))->toBeNull();
+    $set->config->update(['available' => false]);
+    session()->forget(Basket::SESSION_KEY);
+
+    $this->withCookies($set->cookies())->from('/felgen/x')->post('/warenkorb', komplettradPost($set->config->id, null, 4))
+        ->assertSessionHasErrors(['wheelConfigId' => Basket::WHEEL_SOLD_OUT]);
 });
 
 it('refuses a colour that is not active, and any Komplettrad while no colour is active at all', function (): void {

@@ -119,6 +119,56 @@ async function bars(target: Locator): Promise<{ top: number; bottom: number }> {
 }
 
 /**
+ * Whether the target sits in a panel that sticks while the page scrolls but is no bar at an edge — the product page's
+ * purchase panel at 1440. Such a panel does not move with a scroll the way the page does, and once it is pushed past the
+ * top it reads as the target's own bar there, so the header was left out of the reckoning and covered the target (207).
+ */
+async function inStickyPanel(target: Locator): Promise<boolean> {
+    return target.evaluate((el) => {
+        for (let e: Element | null = el.parentElement; e !== null; e = e.parentElement) {
+            const style = getComputedStyle(e)
+
+            // Sticking to the top (a save bar sticks to the bottom), and not standing at the edge as a bar does.
+            if (style.position === 'sticky' && style.top !== 'auto' && Math.abs(e.getBoundingClientRect().top) > 5) {
+                return true
+            }
+        }
+
+        return false
+    })
+}
+
+/** A target in a sticky panel, pictured where the page lays it out unscrolled: from the top, the window as tall as needed. */
+async function shotFromTop(page: Page, targets: Locator[], path: string, view: { width: number; height: number }, pad: number, reserve: number): Promise<void> {
+    const toTop = async (): Promise<void> => {
+        await page.evaluate(() => window.scrollTo(0, 0))
+        await page.waitForTimeout(150)
+    }
+
+    await toTop()
+    let area = await union(targets)
+    const needed = Math.ceil(area.y + area.height + pad + reserve)
+    const taller = needed > view.height
+
+    if (taller) {
+        await page.setViewportSize({ width: view.width, height: needed })
+        await page.waitForTimeout(200)
+        await toTop()
+        area = await union(targets)
+    }
+
+    const x = Math.max(0, area.x - pad)
+    const y = Math.max(0, area.y - pad)
+    const height = (page.viewportSize() ?? view).height
+
+    await page.screenshot({ path, animations: 'disabled', clip: { x, y, width: Math.min(view.width, area.x + area.width + pad) - x, height: Math.min(height, area.y + area.height + pad) - y } })
+
+    if (taller) {
+        await page.setViewportSize(view)
+    }
+}
+
+/**
  * The item's picture around one element or several at once — a heading and the line under it, a row and the note about
  * it — `pad` pixels round them, taken inside the window: scrolled to stand just under the header and the vehicle bar
  * (which would otherwise cover its top), and the window made taller first where it does not fit. A full-page capture is
@@ -134,11 +184,19 @@ export async function shotAround(page: Page, targets: Locator[], nr: number, inf
         throw new Error('a picture of nothing')
     }
 
+    // Room for a price bar that appears only once the page has scrolled (the product page's, on a phone).
+    const reserve = 160
+
+    if (await inStickyPanel(first)) {
+        await shotFromTop(page, targets, path, view, pad, reserve)
+        await info.attach(`${shotsFor(nr).name}-${breite(info)}`, { path, contentType: 'image/png' })
+
+        return
+    }
+
     await first.scrollIntoViewIfNeeded()
     let chrome = await bars(first)
     let area = await union(targets)
-    // Room for a price bar that appears only once the page has scrolled (the product page's, on a phone).
-    const reserve = 160
     const needed = Math.ceil(area.height + 2 * pad + chrome.top + Math.max(chrome.bottom, reserve))
     const taller = needed > view.height
 

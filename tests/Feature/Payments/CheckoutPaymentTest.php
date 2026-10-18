@@ -17,6 +17,7 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Services\Commerce\CheckoutShown;
 use App\Services\Commerce\OrderPayments;
+use App\Services\Commerce\OrderRefused;
 use App\Services\Content\LegalPdf;
 use App\Services\Content\LegalTexts;
 use App\Services\GoLive\GoLiveChecks;
@@ -144,7 +145,7 @@ it('admits Stripe.js on the checkout alone, and lets its frames ask for Apple Pa
         ->and((string) $home->headers->get('Permissions-Policy'))->toContain('payment=(self)');
 });
 
-it('writes the order, reserves its stock and answers with the client secret of an intent at the order total', function (): void {
+it('writes the order — no rim counted down (D-299) — and answers with the client secret of an intent at the order total @admin-207', function (): void {
     $stock = (int) $this->config->stock_qty;
 
     $response = checkoutPay($this)->assertOk()->assertJsonStructure(['order', 'clientSecret', 'returnUrl']);
@@ -154,7 +155,7 @@ it('writes the order, reserves its stock and answers with the client secret of a
     expect($order->status)->toBe(OrderStatus::PendingPayment)
         ->and($order->payment_method)->toBe('stripe')
         ->and($order->total_cents)->toBe((int) $this->config->price_cents * 4)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - 4)
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock)
         ->and($created)->toHaveCount(1)
         ->and((int) $created[0]['params']['amount'])->toBe($order->total_cents)
         ->and($created[0]['params']['currency'])->toBe('eur')
@@ -187,7 +188,7 @@ it('cancels the unpaid order and writes a new one when the address changed betwe
     expect($second->json('order'))->not->toBe($first->json('order'))
         ->and($old->status)->toBe(OrderStatus::Cancelled)
         ->and($this->stripe->intents[$old->stripe_payment_intent_id]['status'])->toBe('canceled')
-        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - 4);
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock);
 });
 
 it('stops the payment with its own sentence when a verdict or a price changed since the page was shown', function (string $which, string $sentence): void {
@@ -449,39 +450,34 @@ it('keeps the order and the typed data after a declined card, and takes the same
         ->and(session(Basket::SESSION_KEY))->not->toBe([]);
 });
 
-it('takes the last wheels through reserve, decline, retry and payment: one order, one reservation, paid (PAY-01)', function (): void {
-    // Reserve: the order takes the only four on the shelf.
+it('takes an order through decline, retry and payment: one order, paid, no rim counted (PAY-01, D-299) @admin-207', function (): void {
+    // A count from before (kept, no longer read): four on it, and an order of four leaves it as it is.
     $this->config->forceFill(['stock_qty' => 4])->save();
     $shown = checkoutShown($this);
     $number = checkoutPay($this, [], $shown)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
     $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe(0)
-        ->and($order->stock_reserved)->toBeTrue();
+    expect((int) $this->config->fresh()->stock_qty)->toBe(4);
 
-    // Decline: the order fails, and keeps holding the wheels for this customer — they are not handed back to the shelf.
+    // Decline: the order fails and stays this customer's — the Kasse is still open to them.
     [$payload, $signature] = FakeStripe::event('payment_intent.payment_failed', ['status' => 'requires_payment_method'] + $intent, CHECKOUT_WEBHOOK_SECRET);
     $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
 
-    expect($order->fresh()->status)->toBe(OrderStatus::Failed)
-        ->and($order->fresh()->stock_reserved)->toBeTrue()
-        ->and((int) $this->config->fresh()->stock_qty)->toBe(0);
+    expect($order->fresh()->status)->toBe(OrderStatus::Failed);
 
-    // The goods the declined order holds are the customer's own: the Kasse is still open to them …
     $this->withCookies(checkoutCookies($this->vehicle))->get('/kasse')->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.inStock', true)->where('orderRefusal', null));
 
-    // Retry: the same order and the same PaymentIntent — no second order, no second reservation.
+    // Retry: the same order and the same PaymentIntent — no second order.
     $this->withCookies(checkoutCookies($this->vehicle))->withCredentials()->postJson('/kasse/zahlung', checkoutForm() + ['shown' => $shown])
         ->assertOk()->assertJson(['order' => $number, 'clientSecret' => $order->stripe_payment_intent_id.'_secret_fake']);
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe(0)
-        ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1)
+    expect(Order::query()->where('payment_method', 'stripe')->count())->toBe(1)
         ->and($this->stripe->to('POST', '/v1/payment_intents'))->toHaveCount(1);
 
-    // Succeed: the signed webhook pays it. The four stay sold — neither released nor taken twice — the basket
-    // empties, the invoice is issued at the order's total and the confirmation goes out.
+    // Succeed: the signed webhook pays it — the basket empties, the invoice is issued at the order's total and the
+    // confirmation goes out; the count is untouched throughout, and so it stays after the expiry run.
     [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent, CHECKOUT_WEBHOOK_SECRET);
     $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
     $this->getJson('/bestellung/'.$number.'/status')->assertOk()->assertJson(['state' => 'paid']);
@@ -489,19 +485,35 @@ it('takes the last wheels through reserve, decline, retry and payment: one order
     $paid = $order->fresh();
 
     expect($paid->status)->toBe(OrderStatus::Paid)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe(0)
         ->and(Order::query()->where('payment_method', 'stripe')->count())->toBe(1)
         ->and(session(Basket::SESSION_KEY, []))->toBe([])
         ->and(session(KasseZahlungController::SESSION_PENDING))->toBeNull()
         ->and(Invoice::query()->where('order_id', $paid->id)->sole()->gross_cents)->toBe($paid->total_cents);
     Mail::assertSent(OrderConfirmationMail::class, 1);
 
-    // Nothing is left for the expiry to hand back: the paid order's wheels stay sold.
     $this->travel(25)->hours();
     $this->artisan('orders:expire')->assertSuccessful();
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe(0)
+    expect((int) $this->config->fresh()->stock_qty)->toBe(4)
         ->and($paid->fresh()->status)->toBe(OrderStatus::Paid);
+});
+
+it('refuses at the checkout a rim marked „nicht verfügbar“ since the page was shown, and writes no order @admin-207', function (): void {
+    $shown = checkoutShown($this);
+    $this->config->forceFill(['available' => false])->save();
+
+    checkoutPay($this, [], $shown)->assertStatus(409);
+
+    expect(Order::query()->where('payment_method', 'stripe')->count())->toBe(0)
+        ->and($this->stripe->to('POST', '/v1/payment_intents'))->toBe([]);
+});
+
+it('refuses an order whose rim is no longer available when it is written, whatever came before (D-299) @admin-207', function (): void {
+    $order = Order::factory()->pendingPayment()->create(['payment_method' => 'stripe']);
+    $order->lines()->create(['kind' => 'WHEEL', 'wheel_config_id' => $this->config->id, 'label' => 'Testfelge', 'quantity' => 4, 'unit_price_cents' => 39_900, 'line_total_cents' => 159_600, 'tax_rate_bp' => 1900, 'currency' => 'EUR']);
+    $this->config->forceFill(['available' => false])->save();
+
+    expect(fn () => app(OrderPayments::class)->reserve($order))->toThrow(OrderRefused::class, OrderPayments::NOT_AVAILABLE);
 });
 
 it('prices a Kleinunternehmer’s order without VAT on the page, the order, the invoice and the mail — and a standard one with it', function (bool $smallBusiness): void {

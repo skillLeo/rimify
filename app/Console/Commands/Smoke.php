@@ -309,7 +309,7 @@ final class Smoke extends Command
         $rows = Fitment::query()
             ->with(['wheelConfig.wheelModel', 'vehicle'])
             ->where('status', FitmentStatus::Published->value)
-            ->whereHas('wheelConfig', static fn ($q) => $q->where('stock_qty', '>', 0))
+            ->whereHas('wheelConfig', static fn ($q) => $q->where('available', true))
             ->whereHas('wheelConfig.wheelModel', static fn ($q) => $q->onSale()
                 ->when(is_string($slug) && $slug !== '', static fn ($q) => $q->where('slug', $slug)))
             ->whereHas('vehicle', static fn ($q) => $q->when(is_string($hsn) && $hsn !== '', static fn ($q) => $q->where('hsn', $hsn))
@@ -421,9 +421,9 @@ final class Smoke extends Command
 
     /**
      * A test order's goods back on the shelf (D-146). A paid order keeps its stock by design — money returned puts no
-     * wheel back — so every release's smoke took a wheel from the stock the client reviews: nine in two days on the
-     * preview. Only an order paid with the test payment that still holds its stock, so never twice; written to the
-     * Protokoll. Returns the pieces put back.
+     * piece back — so every release's smoke took stock the client reviews: nine wheels in two days on the preview. Since
+     * D-299 a rim is never counted, so what goes back is a Komplettrad's tyres. Only an order paid with the test payment
+     * that still holds its stock, so never twice; written to the Protokoll where a piece went back. Returns the pieces.
      */
     public static function returnTestStock(string $number, string $by = 'Smoke-Test', ?string $reason = null): int
     {
@@ -433,9 +433,13 @@ final class Smoke extends Command
             return 0;
         }
 
-        $pieces = (int) $order->lines()->where(static fn ($q) => $q->whereNotNull('wheel_config_id')->orWhereNotNull('tyre_variant_id'))->sum('quantity');
+        // The tyres alone: a rim is available or not and was never counted down (his admin item 7, D-299).
+        $pieces = (int) $order->lines()->whereNotNull('tyre_variant_id')->sum('quantity');
         app(OrderPayments::class)->release($order);
-        AuditTrail::system($by, 'order.test_stock_returned', array_filter(['order' => $number, 'quantity' => $pieces, 'reason' => $reason]), $order);
+
+        if ($pieces > 0) {
+            AuditTrail::system($by, 'order.test_stock_returned', array_filter(['order' => $number, 'quantity' => $pieces, 'reason' => $reason]), $order);
+        }
 
         return $pieces;
     }

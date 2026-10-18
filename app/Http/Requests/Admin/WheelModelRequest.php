@@ -24,7 +24,7 @@ use Illuminate\Validation\Validator;
  * the sentence under the cell it is about.
  *
  * @phpstan-type FinishInput array{key: string, id: int|null, name: string, hex: string|null, art_finish: string}
- * @phpstan-type ConfigInput array{id: int|null, finish: string, diameter_in: string, width_in: string, et_mm: int, bolt_holes: int, bolt_circle_mm: string, centre_bore_mm: string, sku: string, ean: string|null, kba_number: string|null, price_cents: int, stock_qty: int, weight_g: int|null}
+ * @phpstan-type ConfigInput array{id: int|null, finish: string, diameter_in: string, width_in: string, et_mm: int, bolt_holes: int, bolt_circle_mm: string, centre_bore_mm: string, sku: string, ean: string|null, kba_number: string|null, price_cents: int, available: bool, weight_g: int|null}
  */
 class WheelModelRequest extends FormRequest
 {
@@ -63,6 +63,7 @@ class WheelModelRequest extends FormRequest
             'name' => $trim($this->input('name')),
             'brand_new' => $trim($this->input('brand_new')),
             'type_designation' => $trim($this->input('type_designation')),
+            'title' => $trim($this->input('title')),
             'description' => is_string($this->input('description')) ? trim(str_replace(["\r\n", "\r"], "\n", (string) $this->input('description'))) : $this->input('description'),
             'seo_title' => $trim($this->input('seo_title')),
             'seo_description' => $trim($this->input('seo_description')),
@@ -78,7 +79,10 @@ class WheelModelRequest extends FormRequest
             // Missing both is said once, under the brand select (brand_id), not twice.
             'brand_new' => ['nullable', 'string', 'max:60'],
             'name' => ['required', 'string', 'max:80'],
-            'type_designation' => ['nullable', 'string', 'max:80'],
+            // The Radtypenbezeichnung (D-298): required for a new Felge; one saved before the rule keeps saving without it,
+            // and the list shows where it is missing.
+            'type_designation' => [$this->wheelModel() === null ? 'required' : 'nullable', 'string', 'max:80'],
+            'title' => ['nullable', 'string', 'max:160'],
             'spoke_count' => ['required', 'integer', Rule::in(self::SPOKES)],
             'description' => ['nullable', 'string', 'max:4000'],
             'seo_title' => ['nullable', 'string', 'max:70'],
@@ -105,7 +109,8 @@ class WheelModelRequest extends FormRequest
             'configs.*.ean' => ['nullable', 'string', 'regex:/^\d{8,14}$/'],
             'configs.*.kba' => ['nullable', 'string', 'max:32'],
             'configs.*.price' => ['required', 'string', 'max:24'],
-            'configs.*.stock' => ['required', 'integer', 'min:0', 'max:100000'],
+            // Available or not, never a count (his admin item 7, D-299).
+            'configs.*.available' => ['required', 'boolean'],
             'configs.*.weight_g' => ['nullable', 'integer', 'min:1000', 'max:40000'],
         ];
     }
@@ -120,7 +125,9 @@ class WheelModelRequest extends FormRequest
             'brand_new.max' => 'Der Markenname darf höchstens 60 Zeichen lang sein.',
             'name.required' => 'Bitte gib den Namen des Modells ein.',
             'name.max' => 'Der Name darf höchstens 80 Zeichen lang sein.',
-            'type_designation.max' => 'Die Typbezeichnung darf höchstens 80 Zeichen lang sein.',
+            'type_designation.required' => 'Trag die Radtypenbezeichnung ein, so wie das Gutachten sie druckt. Sie steht im Namen der Felge.',
+            'type_designation.max' => 'Die Radtypenbezeichnung darf höchstens 80 Zeichen lang sein.',
+            'title.max' => 'Der Titel darf höchstens 160 Zeichen lang sein.',
             'spoke_count.*' => 'Bitte wähl die Zahl der Speichen: 5, 6, 7, 10 oder 20.',
             'description.max' => 'Die Beschreibung darf höchstens 4.000 Zeichen lang sein.',
             'seo_title.max' => 'Der Titel für Suchmaschinen darf höchstens 70 Zeichen lang sein.',
@@ -153,7 +160,7 @@ class WheelModelRequest extends FormRequest
             'configs.*.ean.regex' => 'Die EAN besteht aus 8 bis 14 Ziffern.',
             'configs.*.kba.max' => 'Die KBA-Nummer darf höchstens 32 Zeichen lang sein.',
             'configs.*.price.required' => 'Bitte gib den Preis je Felge an.',
-            'configs.*.stock.*' => 'Den Bestand bitte als ganze Zahl ab 0.',
+            'configs.*.available.*' => 'Bitte wähl, ob diese Größe verfügbar ist.',
             'configs.*.weight_g.*' => 'Das Gewicht bitte in Gramm, zwischen 1.000 und 40.000.',
         ];
     }
@@ -274,7 +281,7 @@ class WheelModelRequest extends FormRequest
     /**
      * The model's own fields, ready for the table.
      *
-     * @return array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note: string|null}
+     * @return array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, title?: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note: string|null}
      */
     public function modelAttributes(): array
     {
@@ -285,6 +292,8 @@ class WheelModelRequest extends FormRequest
             'brand_new' => $text('brand_new'),
             'name' => (string) $this->validated('name'),
             'type_designation' => $text('type_designation'),
+            // Only when the form sent one: a save without the field never clears a typed title.
+            ...($this->has('title') ? ['title' => $text('title')] : []),
             'spoke_count' => (int) $this->validated('spoke_count'),
             'description_de' => $text('description'),
             'seo_title' => $text('seo_title'),
@@ -330,7 +339,7 @@ class WheelModelRequest extends FormRequest
                 'ean' => isset($config['ean']) && $config['ean'] !== '' ? (string) $config['ean'] : null,
                 'kba_number' => isset($config['kba']) && trim((string) $config['kba']) !== '' ? trim((string) $config['kba']) : null,
                 'price_cents' => (int) Money::fromGerman((string) $config['price']),
-                'stock_qty' => (int) $config['stock'],
+                'available' => (bool) $config['available'],
                 'weight_g' => isset($config['weight_g']) ? (int) $config['weight_g'] : null,
             ];
         }

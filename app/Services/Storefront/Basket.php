@@ -31,6 +31,7 @@ use App\Support\MakeName;
 use App\Support\Money;
 use App\Support\Seller;
 use App\Support\Shipping;
+use App\Support\WheelTitle;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -108,13 +109,11 @@ final readonly class Basket
 
     public const TYRES_NOT_PERMITTED = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Deshalb verkaufen wir dir die Felge nicht.';
 
-    public const WHEEL_SOLD_OUT = 'Diese Größe ist derzeit ausverkauft.';
+    public const WHEEL_SOLD_OUT = 'Diese Größe ist zurzeit nicht verfügbar.';
 
     public const TYRE_GONE = 'Diesen Reifen gibt es nicht mehr.';
 
     /** The shelf holds fewer than the basket and this add together (PDP-08): the stock, then what the basket holds. */
-    public const WHEEL_HELD = 'Von dieser Felge haben wir %s Stück auf Lager, davon hast du schon %s im Warenkorb.';
-
     public const TYRE_HELD = 'Von diesem Reifen haben wir %s Stück auf Lager, davon hast du schon %s im Warenkorb.';
 
     public const NO_WEIGHT_COLOUR_REFUSAL = 'Kompletträder können wir gerade nicht zusammenstellen. Die Felge allein kannst du bestellen.';
@@ -381,26 +380,18 @@ final readonly class Basket
             return $refusal;
         }
 
-        // Mischbereifung: `quantity` wheels on each of the two axles, all on this one rim size.
-        $wheels = $rearTyreVariantId === null ? $quantity : $quantity + $quantity;
-
-        if ($config->stock_qty < $wheels) {
+        // Available or not, never a count (his admin item 7, D-299): a size marked „nicht verfügbar“ is refused, and no
+        // number of rims is held against a shelf — the basket's own lines included.
+        if (! $config->available) {
             return self::WHEEL_SOLD_OUT;
         }
 
-        // The basket's own lines of this rim count against the same shelf — rims alone, Kompletträder and mixed sets
-        // alike — so the fourth add of four with twelve in stock is refused here, not discovered in the basket (PDP-08).
-        // Said after every reason about the car, the tyre and the document: what may not go on the car is the answer
-        // that matters, the shelf comes last.
-        [$rimsHeld, $tyresHeld] = $this->held($request);
-        $held = $rimsHeld[$config->id] ?? 0;
-        $rimShort = $held > 0 && $config->stock_qty < $held + $wheels
-            ? self::heldSentence(self::WHEEL_HELD, (int) $config->stock_qty, $held)
-            : null;
+        // The tyres still count (PDP-08): the basket's own lines of a tyre against its shelf.
+        [, $tyresHeld] = $this->held($request);
 
         // Everything below is Komplettrad-only.
         if ($tyreVariantId === null) {
-            return $rimShort;
+            return null;
         }
 
         if ($verdict === null) {
@@ -424,11 +415,7 @@ final readonly class Basket
             return $refusal->sentenceDe();
         }
 
-        if ($rimShort !== null) {
-            return $rimShort;
-        }
-
-        // The same for the tyres: the engine compared the shelf with this add alone (PDP-08).
+        // The tyres: the engine compared the shelf with this add alone (PDP-08).
         foreach ([$tyre, $rear] as $one) {
             $tyreHeld = $one === null ? 0 : ($tyresHeld[$one->id] ?? 0);
 
@@ -1010,7 +997,8 @@ final readonly class Basket
             'wheelConfigId' => $config->id,
             'slug' => $model->slug,
             'brandName' => $model->brand->name,
-            'title' => $model->name,
+            // What follows the brand: model and Radtypenbezeichnung, or the title typed (D-298).
+            'title' => WheelTitle::name($model),
             'subtitle' => $config->wheelFinish->name_de,
             'sizeLabel' => GermanFormat::wheelSize(
                 (float) $config->width_in,
@@ -1027,8 +1015,8 @@ final readonly class Basket
             'unitPrice' => $unit->format(),
             'lineTotalCents' => $lineTotal->toMinor(),
             'lineTotal' => $lineTotal->format(),
-            // The rims of the whole entry: a mixed set's two lines stand on one rim size, so each needs both axles' worth.
-            'inStock' => $config->stock_qty + ($held['configs'][$config->id] ?? 0) >= $wheels
+            // The rim available or not (D-299) — no count; the tyre against its shelf, the basket's own lines included.
+            'inStock' => $config->available
                 && ($tyre === null || $tyre->stock_qty + ($held['tyres'][$tyre->id] ?? 0) >= $quantity),
             // A seeded demonstration row — the model or, on a Komplettrad, the tyre: it may sit in
             // the basket, it can never be ordered (ACCURACY.md D4) — unless it is the acceptance set's, off production.
