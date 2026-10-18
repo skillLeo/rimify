@@ -2,16 +2,16 @@ Nr,Skill Leo,Description
 201,Open,Built and tested on our side. Not on your preview yet.
 202,Open,"Your demo file is not with us, so the import reads any CSV or Excel file: you map its columns the first time, and it remembers the mapping per source. A dry run shows the counts first (new, changed, refused); only then do you import. A car is recognised by HSN, TSN and variant; cars typed by hand or from a Gutachten are never overwritten. No bolt circle needed. Please send us your demo file so we can check the mapping against it."
 203,Open,Built and tested on our side. Not on your preview yet.
-204,Open,"Not built yet: the field becomes required for new wheels, and a list shows the existing wheels where it is still missing."
-205,Open,Not built yet — comes with 204.
-206,Open,Not built yet — comes with 204.
-207,Open,"Not built yet: the stock figure goes, „nicht verfügbar“ blocks the purchase and says so, and the quantity selector no longer follows the stock."
+204,Open,Built and tested on our side. Not on your preview yet.
+205,Open,Built and tested on our side. Not on your preview yet.
+206,Open,Built and tested on our side. Not on your preview yet.
+207,Open,Built and tested on our side. Not on your preview yet.
 208,Open,Built and tested on our side. Not on your preview yet.
 209,Open,Built and tested on our side. Not on your preview yet.
 210,Open,Not built yet — with the EU tyre label fields from the start.
 211,Open,"Not built yet: an editor with building blocks — a table with header cells, an image with required alt text, a quote — instead of free HTML, which could put someone else's code on the site."
 212,Open,Built and tested on our side. Not on your preview yet.
-213,Open,Not built yet — comes with 204.
+213,Open,Built and tested on our side. Not on your preview yet.
 214,Open,Not built yet. Ratings only where real reviews exist; shipping and returns once your details for them are in.
 215,Open,"Solved differently: the table now appears only on a Gutachten that, according to the details entered, prints one — there the release requires it. Everywhere else it is folded to one line, „Keine Tabelle hinterlegt“. We did not remove it: on a document that prints one, like ABE 55255, it decides which tyres are permitted on cars with a top speed above 210 km/h."
 216,Open,Built and tested on our side. Not on your preview yet.
