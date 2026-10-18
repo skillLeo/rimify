@@ -336,6 +336,8 @@ export interface FelgenProps {
     acceptance?: boolean
     /** What of the chosen car the page's answers wait for — `bodyForm`, `driveAxle` (§1.1). Additive. */
     missing?: string[]
+    /** The fields of the car's papers its tyres wait for — `8.1`, `8.2`, `T` (D-286). Additive. */
+    owed?: string[]
 }
 
 export interface ProduktProps {
@@ -538,6 +540,11 @@ export interface ConfigVerdict {
         basis?: string | null
         /** The sum („So haben wir gerechnet“) open at once: a no, or the customer's figures made it stricter. */
         open?: boolean
+        /**
+         * The fields of the papers the answer waits for — `8.1`, `8.2`, `T` — where the tyres are „Noch nicht bestätigt“ for
+         * want of them (D-286): the way on is the customer's own Zulassungsbescheinigung. Additive.
+         */
+        owed?: string[]
     } | null
 }
 
@@ -551,6 +558,7 @@ export type KomplettradRefusalCode =
     | 'VERDICT_NOT_PERMITTED'
     | 'VERDICT_UNKNOWN'
     | 'TYRES_UNKNOWN'
+    | 'TYRES_AWAIT_PAPERS'
     | 'TYRES_NOT_PERMITTED'
     | 'VERDICT_RESTORED'
     | 'NO_PERMITTED_SIZES'

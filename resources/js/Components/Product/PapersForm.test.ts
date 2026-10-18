@@ -32,6 +32,40 @@ async function photograph(wrapper: ReturnType<typeof mount>, text: string): Prom
 }
 
 describe('PapersForm', () => {
+    // D-286: where the answer waits for these fields the form is the way on, not an option — open, saying what is missing.
+    it('opens by itself where the answer waits for its fields, and says which — never „Freiwillig“', () => {
+        const all = mount(PapersForm, { props: { vehicleId: 7, papers: null, powerKw: 140, asked: ['8.1', '8.2', 'T'] } })
+
+        expect(all.find('.pp__form').exists()).toBe(true)
+        expect(all.find('[data-asked]').text()).toBe(
+            'Trag die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T ein. Wir speichern die Werte zu diesem Fahrzeug als Cookie in deinem Browser.'
+        )
+        expect(all.text()).not.toContain('Freiwillig: Mit')
+
+        const speed = mount(PapersForm, { props: { vehicleId: 7, papers: null, powerKw: 140, asked: ['T'] } })
+
+        expect(speed.find('[data-asked]').text()).toContain('Trag die Höchstgeschwindigkeit aus Feld T ein und dazu die zulässigen Achslasten aus den Feldern 8.1 und 8.2')
+        // All three are asked all the same: they stand side by side in the papers, and are kept together.
+        expect(speed.find('#pp-axle_front_kg').exists()).toBe(true)
+        expect(speed.find('#pp-top_speed_kmh').exists()).toBe(true)
+
+        // Nothing waited for: closed behind its button, optional as before.
+        expect(mount(PapersForm, { props: { vehicleId: 7, papers: null, powerKw: 140, asked: [] } }).find('.pp__form').exists()).toBe(false)
+    })
+
+    // The listing says what is missing above the form, once for every wheel (D-286): the form starts closed, and opened
+    // it does not say it a second time.
+    it('starts closed where its host says what is missing, and does not repeat it', async () => {
+        const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers: null, powerKw: 140, asked: ['8.1', '8.2', 'T'], askedAbove: true } })
+
+        expect(wrapper.find('.pp__form').exists()).toBe(false)
+        await wrapper.find('#pp-open').trigger('click')
+
+        expect(wrapper.find('[data-asked]').exists()).toBe(false)
+        expect(wrapper.find('.pp__head').text()).toContain('Wir speichern die Werte zu diesem Fahrzeug als Cookie in deinem Browser.')
+        expect(wrapper.text()).not.toContain('Freiwillig: Mit')
+    })
+
     it('fills 8.1, 8.2 and T from a photo for the customer to check, and keeps nothing yet', async () => {
         const wrapper = await mountOpen(140)
 

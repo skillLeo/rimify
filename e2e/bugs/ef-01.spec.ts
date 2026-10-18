@@ -14,7 +14,7 @@ test.use({ baseURL: DEV });
  * speed are ever in a Gutachten), and both homepage selectors disable a row that needs review:
  * VehiclePanel.vue `<option :disabled="v.needsReview">`, HeroSelector.vue `<ComboboxItem :disabled="v.needsReview">`.
  * Since the R-03 amendment of 2026-09-28 the wheel answer of such a car rests on the document alone and the tyre
- * answer is CONDITIONAL — /felgen-suchen (VehicleSelector.vue) offers the same rows and POST /fahrzeug takes
+ * answer waits for the car's papers („Noch nicht bestätigt“ since D-286) — /felgen-suchen (VehicleSelector.vue) offers the same rows and POST /fahrzeug takes
  * them. The Feld K range Block E/F put into the phone select stands on options nobody can pick. (The unit test
  * VehiclePanel.test.ts builds its halves with `needsReview: false`, which no car from a Gutachten has.)
  *

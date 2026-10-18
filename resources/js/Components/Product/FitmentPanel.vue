@@ -89,14 +89,28 @@ const tone = computed<{ cls: string; icon: IconName }>(() => {
 })
 
 /*
+ * Finding 103 (the operator's decision of 14.10.2026): a wheel its Gutachten approves for the car, with a tyre half
+ * that has no answer, was headed „Keine Freigabe hinterlegt“ — the false half first, on the client's own wheel and car.
+ * Unverified is neither forbidden nor unavailable; the panel says which half is which, why, and what resolves it. Every
+ * sentence states what is on record with us, never what the document does or does not print (R-17). The same shape where
+ * the tyres wait for the car's papers (D-286): the wheel's own verdict first, in full — its Eintragung and its
+ * Auflagen —, then the tyre as unconfirmed, the reason ours, then the way on: the papers' fields, in the form below.
+ */
+const tyreOpen = computed(() => tyreUnconfirmed(props.verdict))
+
+/* The fields of the papers the answer waits for (D-286): `8.1`, `8.2`, `T` — empty where it waits for a record of ours. */
+const owed = computed(() => (tyreOpen.value ? props.verdict?.tyre?.owed ?? [] : []))
+
+/*
  * Whether the papers need an entry is only a meaningful sentence about a wheel that may be fitted
  * at all. "Keine Eintragung erforderlich." under "Nicht freigegeben" read as reassurance about a
- * wheel that cannot legally go on the car, entry or not.
+ * wheel that cannot legally go on the car, entry or not. A wheel approved with its tyres unconfirmed may be fitted:
+ * its verdict is said in full (D-286).
  */
 const entryLine = computed(() => {
     const verdict = props.verdict
 
-    if (verdict === null || (verdict.status !== 'PERMITTED' && verdict.status !== 'CONDITIONAL')) {
+    if (verdict === null || (verdict.status !== 'PERMITTED' && verdict.status !== 'CONDITIONAL' && !tyreOpen.value)) {
         return null
     }
 
@@ -257,14 +271,6 @@ const headline = computed(() => {
 })
 
 /*
- * Finding 103 (the operator's decision of 14.10.2026): a wheel its Gutachten approves for the car, with a tyre half
- * that has no answer, was headed „Keine Freigabe hinterlegt“ — the false half first, on the client's own wheel and car.
- * Unverified is neither forbidden nor unavailable; the panel says which half is which, why, and what resolves it. Every
- * sentence states what is on record with us, never what the document does or does not print (R-17).
- */
-const tyreOpen = computed(() => tyreUnconfirmed(props.verdict))
-
-/*
  * Where this wheel is no answer for the car — refused, or nothing on record for it — the panel was the end of the road
  * (finding 117): the wheels that are an answer are one link away. Not where the answer waits for something the
  * customer can give (the body style, the drive) or only the tyre size is open: there the way on is in the panel.
@@ -337,15 +343,16 @@ const openLead = computed(() =>
             <ul v-else-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
                 <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
             </ul>
-            <!-- Finding 103: an unverified size is no dead end — what settles it by itself, and what the customer can do now. -->
-            <p v-if="tyreOpen" class="fit__open-next" data-open="next">
+            <!-- Finding 103: an unverified size is no dead end — what settles it by itself, and what the customer can do now.
+                 Where the answer waits for the car's papers, the way on is the form right below (D-286). -->
+            <p v-if="tyreOpen && !owed.length" class="fit__open-next" data-open="next">
                 Sobald dazu eine Tragfähigkeitstabelle hinterlegt ist, prüfen wir das automatisch nach. Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand.
                 <Link v-if="askHref" class="link fit__open-ask" :href="askHref">Wunschreifen nennen</Link>
             </p>
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
             <!-- Keyed by the car: another car chosen meanwhile (in another tab) gets a fresh form, never the
                  last car's figures under its name (C-08). -->
-            <PapersForm v-if="vehicle && verdict.tyre" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" />
+            <PapersForm v-if="vehicle && verdict.tyre" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed" />
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->

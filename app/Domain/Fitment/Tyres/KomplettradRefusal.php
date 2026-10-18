@@ -20,6 +20,8 @@ enum KomplettradRefusal: string
     case VerdictUnknown = 'VERDICT_UNKNOWN';
     /** The wheel is approved, the tyres are not settled (R-03 split): never „kein Gutachten“ about a car the document names. */
     case TyresUnknown = 'TYRES_UNKNOWN';
+    /** The wheel is approved, the tyres wait for fields of the car's papers (D-286): the way on is the customer's own. */
+    case TyresAwaitPapers = 'TYRES_AWAIT_PAPERS';
     /** The wheel is approved, no tyre the document names may go on the car. */
     case TyresNotPermitted = 'TYRES_NOT_PERMITTED';
     case VerdictRestored = 'VERDICT_RESTORED';
@@ -52,6 +54,7 @@ enum KomplettradRefusal: string
             self::VerdictNotPermitted => 'Diese Felge ist für dein Fahrzeug nicht freigegeben. Ein Komplettrad können wir dir dazu deshalb nicht anbieten.',
             self::VerdictUnknown => 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
             self::TyresUnknown => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
+            self::TyresAwaitPapers => 'Die Felge ist für dein Fahrzeug freigegeben. Für die Reifen fehlen uns noch Werte aus deiner Zulassungsbescheinigung Teil I – sobald du sie eingetragen hast, zeigen wir dir die Reifen, die du fahren darfst.',
             self::TyresNotPermitted => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Ein Komplettrad können wir dir deshalb nicht anbieten.',
             self::VerdictRestored => 'Diese Zusammenstellung können wir dir gerade nicht neu prüfen. Bitte wähle dein Fahrzeug noch einmal aus.',
             self::NoPermittedSizes => 'Für diese Kombination ist bei uns keine Reifengröße hinterlegt. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',

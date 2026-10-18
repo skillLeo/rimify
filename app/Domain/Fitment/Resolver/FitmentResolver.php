@@ -565,14 +565,16 @@ final readonly class FitmentResolver
     }
 
     /**
-     * The tyre half of the verdict (R-03 as amended on 28.09.2026; the operator's review of C9).
+     * The tyre half of the verdict (R-03 as amended on 28.09.2026 and 18.10.2026; the operator's review of C9).
      *
-     * Without the car's axle loads and top speed it is CONDITIONAL, and says which threshold the document
-     * sets — its `reifen_tragfaehigkeit` Auflagen, T88 → 1.120 kg — and which fields of the papers to
-     * compare it with. With them it is decided per axle the wheel may go on: the document's own load-index
-     * limit and the derated requirement are stated separately and the stricter is named; a „–“ in the
-     * document's table raises the speed symbol; a speed, a symbol or a table the document does not print
-     * is UNKNOWN. A tyre rule the document writes that no figure can settle keeps it CONDITIONAL.
+     * Without the car's axle loads, or without its top speed where a covering document needs it (D-284), it is
+     * UNKNOWN — „Noch nicht bestätigt“, the absence of a grant, never a grant with conditions (D-286) — names the
+     * fields of the papers it waits for, and says which threshold the document sets — its `reifen_tragfaehigkeit`
+     * Auflagen, T88 → 1.120 kg — and which fields of the papers to compare it with. With them it is decided per
+     * axle the wheel may go on: the document's own load-index limit and the derated requirement are stated
+     * separately and the stricter is named; a „–“ in the document's table raises the speed symbol; a speed, a
+     * symbol or a table the document does not print is UNKNOWN. A tyre rule the document writes that no figure
+     * can settle keeps it CONDITIONAL.
      *
      * @param  list<Condition>  $conditions
      * @param  array<string, mixed>  $frontCheck
@@ -588,42 +590,20 @@ final readonly class FitmentResolver
             }
         }
 
-        // Where every covering document prints the index beside every size — and it stood for every axle the wheel may go
-        // on —, the axle loads are all the tyres need: the car's top speed is neither asked nor used (D-284).
+        // What the tyres need of the car (R-03 as amended on 18.10.2026): its axle loads, always; its top speed, unless every
+        // covering document prints load index and symbol beside every size and that index stood for every axle the wheel may
+        // go on (D-284) — then the document has named the tyre for this car, and the top speed is neither asked nor used.
         $documentStands = static fn (AxleRequirement $axle, array $check): bool => ! $axle->hasPermittedSizes() || ($check['speedFromDocument'] ?? false) === true;
-        $answerable = $vehicle->hasCompleteLegalData()
-            || ($speedFromDocument && $vehicle->hasAxleLoads() && ! $vehicle->hasTopSpeed()
-                && $documentStands($front, $frontCheck) && $documentStands($rear, $rearCheck));
+        $speedNeeded = ! ($speedFromDocument && $documentStands($front, $frontCheck) && $documentStands($rear, $rearCheck));
+        $owed = [
+            ...($vehicle->hasAxleLoads() ? [] : ['8.1', '8.2']),
+            ...($speedNeeded && ! $vehicle->hasTopSpeed() ? ['T'] : []),
+        ];
 
-        // The axle loads known and the top speed open, under a document that needs it: only field T is owed, and why.
-        if (! $answerable && $vehicle->hasAxleLoads() && ! $vehicle->hasTopSpeed()) {
-            return new TyreCheck(VerdictStatus::Conditional, [self::topSpeedOwed($document)], $thresholds);
-        }
-
-        if (! $answerable) {
-            $lines = [];
-
-            foreach ($thresholds as $threshold) {
-                $lines[] = sprintf(
-                    '%s Vergleiche die %s mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
-                    rtrim($threshold['textDe']),
-                    GermanFormat::kilograms($threshold['maxAxleLoadKg']),
-                );
-            }
-
-            if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
-                $lines[] = sprintf(
-                    'Die Felge ist für %s je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens %s betragen.',
-                    GermanFormat::kilograms($wheel->maxLoadKg),
-                    GermanFormat::kilograms($wheel->maxLoadKg * 2),
-                );
-            }
-
-            $lines[] = $speedFromDocument
-                ? 'Welche Reifen du fahren darfst, hängt von der zulässigen Achslast (Felder 8.1 und 8.2) deines Fahrzeugs ab. Trag sie ein, dann sagen wir es dir genau.'
-                : 'Welche Reifen du fahren darfst, hängt von der zulässigen Achslast (Felder 8.1 und 8.2) und der Höchstgeschwindigkeit (Feld T) deines Fahrzeugs ab. Trag sie ein, dann sagen wir es dir genau.';
-
-            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds);
+        // Without what they need the tyres are „Noch nicht bestätigt“: the absence of a grant, never a grant with conditions
+        // (D-286). The reason is ours — what is not on record with us —, then what the document sets, then the way on.
+        if ($owed !== []) {
+            return new TyreCheck(VerdictStatus::Unknown, self::papersOwedLines($owed, $document, $thresholds, $wheel), $thresholds, papersOwed: $owed);
         }
 
         $lines = [];
@@ -701,22 +681,57 @@ final readonly class FitmentResolver
     }
 
     /**
-     * The one figure the tyres still need, and why, as recorded with the document (D-277): its answer to how it gives the
-     * index — the papers, or a table of load at speed. Where nobody has answered, the field alone: nothing is said of the
-     * document that is not on record (R-17).
+     * The tyres' answer where fields of the car's papers are missing (D-286), in reading order: why — as ours, what is not
+     * on record with us, and where the top speed is owed, why the document needs it, as recorded with it (D-277) —; the
+     * document's own axle limits and the wheel's tested load, each with the fields to compare (R-03); then the way on.
+     * Where nobody has answered how the document gives the index, its reason is left out: nothing is said of the document
+     * that is not on record (R-17).
+     *
+     * @param  list<string>  $owed  `8.1`, `8.2`, `T`
+     * @param  list<array{textDe: string, maxAxleLoadKg: int}>  $thresholds
+     * @return list<string>
      */
-    private static function topSpeedOwed(DocumentRecord $document): string
+    private static function papersOwedLines(array $owed, DocumentRecord $document, array $thresholds, ?WheelConfigRecord $wheel): array
     {
+        $axles = in_array('8.1', $owed, true);
+        $speed = in_array('T', $owed, true);
+
         // „Fahrzeugpapiere“ is also the answer where the document prints the symbol at only some sizes (RecordFields): the
         // sentence says where the index comes from, never that the document refers to the papers in so many words.
-        $why = match ($document->tyreIndexSource) {
-            'papers' => ' Bei diesem Gutachten richtet sich der Geschwindigkeitsindex nach den Fahrzeugpapieren.',
-            'table' => ' Laut Tabelle des Gutachtens sinkt die Tragfähigkeit der Reifen bei hoher Geschwindigkeit.',
+        $why = ! $speed ? '' : match ($document->tyreIndexSource) {
+            'papers' => ' Bei diesem Gutachten ist hinterlegt, dass sich der Geschwindigkeitsindex nach den Fahrzeugpapieren richtet.',
+            'table' => ' Bei diesem Gutachten ist hinterlegt, dass es eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit enthält – welche Zeile gilt, entscheidet die Höchstgeschwindigkeit.',
             default => '',
         };
 
-        return 'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).'.$why
-            .' Trag die Höchstgeschwindigkeit ein, dann sagen wir dir genau, welche Reifen du fahren darfst.';
+        $lines = [match (true) {
+            $axles && $speed => 'Für die Reifen fehlen uns die zulässigen Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.',
+            $axles => 'Für die Reifen fehlen uns die zulässigen Achslasten deines Fahrzeugs (Felder 8.1 und 8.2).',
+            default => 'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).',
+        }.$why];
+
+        if ($axles) {
+            foreach ($thresholds as $threshold) {
+                $lines[] = sprintf(
+                    '%s Vergleiche die %s mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
+                    rtrim($threshold['textDe']),
+                    GermanFormat::kilograms($threshold['maxAxleLoadKg']),
+                );
+            }
+
+            if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
+                $lines[] = sprintf(
+                    'Die Felge ist für %s je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens %s betragen.',
+                    GermanFormat::kilograms($wheel->maxLoadKg),
+                    GermanFormat::kilograms($wheel->maxLoadKg * 2),
+                );
+            }
+        }
+
+        // One way on whatever is missing: the papers' form takes all three figures together.
+        $lines[] = 'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.';
+
+        return $lines;
     }
 
     /**

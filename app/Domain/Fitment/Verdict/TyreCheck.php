@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Verdict;
 
 /**
- * The tyre half of a verdict (R-03 as amended on 28.09.2026, docs/specs/vehicles-and-tyres.md C9).
+ * The tyre half of a verdict (R-03 as amended on 28.09.2026 and 18.10.2026, docs/specs/vehicles-and-tyres.md C9).
  *
  * A wheel verdict rests on the vehicle type and kW band a released Gutachten names; the tyres rest on
- * the car's permitted axle loads (8.1, 8.2) and top speed (T). Without those the tyre half is
- * CONDITIONAL — never positive — and says which threshold the document sets and which field of the
- * papers it is compared with. With them it is a definite answer, and the sum is shown.
+ * the car's permitted axle loads (8.1, 8.2) and top speed (T) — the top speed not where every covering
+ * document prints load index and symbol beside every size (D-284). Without what they need the tyre half
+ * is UNKNOWN, „Noch nicht bestätigt“ — the absence of a grant, never a grant with conditions (D-286) —,
+ * names the fields of the papers it waits for (`papersOwed`), and says which threshold the document sets
+ * and which field it is compared with. With them it is a definite answer, and the sum is shown.
  *
  * `lines` are full German sentences in reading order (R-15): with the car's figures, the whole sum —
  * frozen whole into the order snapshot and the printable RIMIFY-Check, whatever a surface folds away.
@@ -45,15 +47,32 @@ final readonly class TyreCheck
          * no tyre is sold against them.
          */
         public bool $figuresPermitted = false,
+        /**
+         * The fields of the papers the answer waits for — `8.1`, `8.2`, `T` — where it is UNKNOWN for want of them (D-286):
+         * the way on is the customer's own Zulassungsbescheinigung, not a record of ours. Empty where nothing of the car is
+         * missing.
+         *
+         * @var list<string>
+         */
+        public array $papersOwed = [],
     ) {}
+
+    /** The fields of the papers, in the order they stand there. */
+    public const PAPERS_FIELDS = ['8.1', '8.2', 'T'];
 
     public function withStricterByPapers(bool $stricter): self
     {
-        return new self($this->status, $this->lines, $this->thresholds, $this->fromVehicleData, $this->summary, $this->basis, $stricter, $this->figuresPermitted);
+        return new self($this->status, $this->lines, $this->thresholds, $this->fromVehicleData, $this->summary, $this->basis, $stricter, $this->figuresPermitted, $this->papersOwed);
+    }
+
+    /** Whether the answer waits for fields of the car's papers (D-286). */
+    public function awaitsPapers(): bool
+    {
+        return $this->papersOwed !== [];
     }
 
     /**
-     * @return array{status: string, lines: list<string>, thresholds: list<array{textDe: string, maxAxleLoadKg: int}>, fromVehicleData: bool, summary: string|null, basis: string|null, stricterByPapers: bool, figuresPermitted: bool}
+     * @return array{status: string, lines: list<string>, thresholds: list<array{textDe: string, maxAxleLoadKg: int}>, fromVehicleData: bool, summary: string|null, basis: string|null, stricterByPapers: bool, figuresPermitted: bool, papersOwed?: list<string>}
      */
     public function toArray(): array
     {
@@ -66,6 +85,8 @@ final readonly class TyreCheck
             'basis' => $this->basis,
             'stricterByPapers' => $this->stricterByPapers,
             'figuresPermitted' => $this->figuresPermitted,
+            // Additive, and only where there is something owed.
+            ...($this->papersOwed === [] ? [] : ['papersOwed' => $this->papersOwed]),
         ];
     }
 
@@ -91,6 +112,8 @@ final readonly class TyreCheck
             stricterByPapers: (bool) ($data['stricterByPapers'] ?? false),
             // Additive (D-105): a snapshot frozen before reads false — it is never the input to a sale anyway.
             figuresPermitted: (bool) ($data['figuresPermitted'] ?? false),
+            // Additive (D-286): only the known fields, in their order.
+            papersOwed: array_values(array_intersect(self::PAPERS_FIELDS, is_array($data['papersOwed'] ?? null) ? array_map('strval', $data['papersOwed']) : [])),
         );
     }
 }

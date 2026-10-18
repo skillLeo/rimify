@@ -180,10 +180,15 @@ it('never offers Mischbereifung without the car’s axle loads and top speed —
     $verdict = mixedVerdict(vehicleId: 8);
     $offer = mixedEligibility(mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99))->mixedOfferFor($verdict);
 
+    // „Noch nicht bestätigt“ until the papers are in (D-286): nothing sells, so — as for every answer that does not —
+    // no table is offered yet; the refusal names the papers as the way on.
     expect($verdict->tyre?->figuresPermitted)->toBeFalse()
-        ->and($offer->refusal)->toBe(KomplettradRefusal::NoUsableMinimum)
-        ->and($offer->hasTable)->toBeTrue()
+        ->and($offer->refusal)->toBe(KomplettradRefusal::TyresAwaitPapers)
+        ->and($offer->hasTable)->toBeFalse()
         ->and($offer->pairs)->toBe([]);
+
+    // A car with its figures, on the same row, is offered Nr. 8.
+    expect(mixedEligibility(mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99))->mixedOfferFor(mixedVerdict())->pairs)->toHaveCount(1);
 });
 
 it('says nothing about Mischbereifung where the document prints no table, and refuses where it prints one it cannot read', function (): void {
@@ -204,7 +209,8 @@ it('no longer refuses four identical tyres over a table that only speaks of diff
             code: 'TYRE_BRAND_LIMIT', severity: Severity::Info,
             textDe: 'Nur Reifen der im Gutachten genannten Hersteller zulässig.', affectsTyreChoice: true,
         )]), $tyre))->toBe(KomplettradRefusal::TyreChoiceRestricted)
-        // A load-index limit is read only from the car's own figures: without them, nothing is sold against it.
+        // A load-index limit is read only from the car's own figures: without them, nothing is sold against it — the
+        // tyres wait for the papers (D-286).
         ->and(mixedEligibility($tyre)->permits(mixedVerdict(sizes: [new TyreSize(235, 45, 19.0, conditions: [mixedLimit('T95', 1380)])], vehicleId: 8), $tyre))
-        ->toBe(KomplettradRefusal::TyreChoiceRestricted);
+        ->toBe(KomplettradRefusal::TyresAwaitPapers);
 });

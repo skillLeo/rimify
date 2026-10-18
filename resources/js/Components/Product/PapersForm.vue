@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * The three figures the tyre half needs, from the customer's own papers (Block C, item 10): 8.1 and 8.2,
- * the permitted axle loads front and rear, and T, the top speed. Optional — without them the wheel answer
- * stands and the tyre answer says what to compare; with them the tyre answer is definite and shows its sum.
+ * the permitted axle loads front and rear, and T, the top speed. Where the car's data has them, optional; where
+ * it lacks them the wheel answer stands and the tyres are „Noch nicht bestätigt“ until they are in (D-286) — then
+ * this form is the way on. With them the tyre answer is definite and shows its sum.
  *
  * A drawing rings where the fields stand, on the certificate issued since 2005 and on the older
  * Fahrzeugschein. The figures are kept with THIS car in the browser (a cookie keyed by the vehicle, so two
@@ -29,12 +30,34 @@ const props = defineProps<{
     papers: PapersProp | null
     /** The chosen variant's power (kW), for the P.2 check; null when the vehicle data has none. */
     powerKw?: number | null
+    /**
+     * The fields the answer waits for — `8.1`, `8.2`, `T` — where the tyres are „Noch nicht bestätigt“ for want of them
+     * (D-286). Then this form is the way on, not an option: open from the start, and it says what is missing.
+     */
+    asked?: string[]
+    /** The host says what is missing, above the form (the listing, D-286): the form starts closed and does not repeat it. */
+    askedAbove?: boolean
 }>()
 
 const variant = ref<'neu' | 'alt'>('neu')
 /* Closed until asked for: the fields are optional, and open by default they pushed the price and „In den
-   Warenkorb“ below the first screen of the product page. */
-const open = ref(false)
+   Warenkorb“ below the first screen of the product page. Where the answer waits for them nothing is in the basket's
+   way — there is no purchase until they are in —, and the form opens by itself (D-286). */
+const askedFields = computed(() => props.asked ?? [])
+const open = ref(!props.askedAbove && askedFields.value.length > 0 && props.papers === null)
+
+/* What the answer waits for, in a sentence: all three are asked either way — they stand side by side in the papers,
+   and the figures are kept together. */
+const askedLine = computed(() => {
+    const speedOnly = askedFields.value.length === 1 && askedFields.value[0] === 'T'
+
+    return speedOnly
+        ? 'Trag die Höchstgeschwindigkeit aus Feld T ein und dazu die zulässigen Achslasten aus den Feldern 8.1 und 8.2 – alle drei stehen in deiner Zulassungsbescheinigung Teil I.'
+        : 'Trag die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T ein.'
+})
+
+/* Where the figures are kept — said wherever the form asks for them. */
+const KEPT = 'Wir speichern die Werte zu diesem Fahrzeug als Cookie in deinem Browser.'
 const busy = ref(false)
 const errors = ref<Record<string, string>>({})
 
@@ -235,9 +258,10 @@ function clear(): void {
         <form v-else class="pp__form" novalidate aria-labelledby="pp-h" @submit.prevent="save">
             <div class="pp__head">
                 <p id="pp-h" class="pp__title">Werte aus deiner Zulassungsbescheinigung</p>
-                <p class="pp__help">
-                    Freiwillig: Mit der zulässigen Achslast und der Höchstgeschwindigkeit sagen wir dir genau, welche Reifen du fahren darfst. Die Werte bleiben in
-                    deinem Browser, bei diesem Fahrzeug.
+                <p v-if="askedFields.length && askedAbove" class="pp__help">{{ KEPT }}</p>
+                <p v-else-if="askedFields.length" class="pp__help pp__asked" data-asked>{{ askedLine }} {{ KEPT }}</p>
+                <p v-else class="pp__help">
+                    Freiwillig: Mit den zulässigen Achslasten und der Höchstgeschwindigkeit zeigen wir dir, welche Reifen du fahren darfst. {{ KEPT }}
                 </p>
             </div>
 
@@ -380,6 +404,11 @@ function clear(): void {
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     color: var(--c-ink-2);
+}
+
+/* What the answer waits for is not a side note: in ink (D-286). */
+.pp__asked {
+    color: var(--c-ink);
 }
 
 .pp__scan {

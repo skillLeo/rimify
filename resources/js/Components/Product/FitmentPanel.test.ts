@@ -115,6 +115,43 @@ describe('FitmentPanel', () => {
         expect(plain.find('[data-open="next"] a').exists()).toBe(false)
     })
 
+    // D-286, the operator's answer of 18.10.2026: a missing input is the absence of a grant, in finding 103's shape — the
+    // wheel's own verdict first, in full; the tyre unconfirmed, the reason ours; then the way on, which is the form.
+    it('points an answer that waits for the car’s papers at the form, open, asking for exactly what is missing', () => {
+        const lines = [
+            'Für die Reifen fehlen uns die zulässigen Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.',
+            'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.',
+        ]
+        const waiting = (owed: string[]) =>
+            mount(FitmentPanel, {
+                props: {
+                    vehicle,
+                    askHref: '/kontakt?betreff=Wunschreifen',
+                    verdict: verdict({
+                        status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, requiresEntry: true,
+                        wheelStatus: 'CONDITIONAL', wheelLabel: 'Freigegeben mit Auflagen',
+                        conditions: ['Nur mit den angegebenen Radschrauben zulässig.'],
+                        tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines, thresholds: [], fromVehicleData: false, owed },
+                    }),
+                },
+                global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } },
+            })
+        const all = waiting(['8.1', '8.2', 'T'])
+
+        // The wheel's own verdict first, in full: its Eintragung and its Auflagen.
+        expect(all.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben mit Auflagen · Reifengröße noch nicht bestätigt')
+        expect(all.find('.fit__entry--verdict').text()).toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
+        expect(all.find('.fit__conditions li').text()).toBe('Nur mit den angegebenen Radschrauben zulässig.')
+        // Then the tyre, the reason ours; the way on is the form — not a table we may hold one day, not a message to us.
+        expect(all.findAll('.fit__tyre-lines li').map((li) => li.text())).toEqual(lines)
+        expect(all.find('[data-open="next"]').exists()).toBe(false)
+        expect(all.find('#pp-axle_front_kg').exists()).toBe(true)
+        expect(all.find('[data-asked]').text()).toContain('Trag die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T ein.')
+        expect(all.find('.fit__elsewhere').exists()).toBe(false)
+
+        expect(waiting(['T']).find('[data-asked]').text()).toContain('Trag die Höchstgeschwindigkeit aus Feld T ein')
+    })
+
     it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
         const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
         const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })

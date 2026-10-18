@@ -177,8 +177,10 @@ final readonly class FitmentVerdict
 
     /**
      * „Felge freigegeben · Reifengröße noch nicht bestätigt“ (finding 103, D-214): the document approves the wheel for
-     * the car, and the tyres' half is open for want of something on record — a table, an index — not for want of a fact
-     * about the car. The product page words this state (useConfigurator's `tyreUnconfirmed`); the go-live check counts it.
+     * the car, and the tyres' half is open — for want of something on record, a table or an index, or for want of the
+     * car's figures, which the customer holds in the papers (`tyre->papersOwed`, D-286). Not for want of a fact the
+     * customer is asked for in place (`missingFacts`). The product page words this state (useConfigurator's
+     * `tyreUnconfirmed`); the go-live check counts the first kind.
      */
     public function tyreUnconfirmed(): bool
     {
@@ -237,7 +239,8 @@ final readonly class FitmentVerdict
      */
     public function papersExempt(): bool
     {
-        if (! $this->isSellable() || $this->document === null || ! $this->document->papersExempt()) {
+        // A wheel approved with its tyres unconfirmed may go on the car: its verdict is said in full (D-286).
+        if (! ($this->isSellable() || $this->tyreUnconfirmed()) || $this->document === null || ! $this->document->papersExempt()) {
             return false;
         }
 

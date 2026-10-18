@@ -17,6 +17,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FilterBar from '../../Components/Listing/FilterBar.vue'
 import BuildForm from '../../Components/Product/BuildForm.vue'
+import PapersForm from '../../Components/Product/PapersForm.vue'
 import Icon from '../../Components/Art/Icon.vue'
 import ProductTile from '../../Components/Ui/ProductTile.vue'
 import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
@@ -54,6 +55,18 @@ const buildGiven = computed(() => {
     const build = vehicle.value?.build
 
     return build != null && [build.bodySource, build.driveSource].some((source) => source === 'name' || source === 'customer')
+})
+
+/*
+ * The tyres wait for the car's papers (D-286): one sentence for the whole page, the form under it. All three are asked
+ * either way — they stand side by side in the papers and are kept together.
+ */
+const owedLead = computed(() => {
+    const owed = props.owed ?? []
+
+    return owed.length === 1 && owed[0] === 'T'
+        ? 'Für die Reifen fehlt uns die Höchstgeschwindigkeit aus Feld T deiner Zulassungsbescheinigung Teil I. Trag sie zusammen mit den Achslasten aus den Feldern 8.1 und 8.2 einmal ein, dann prüfen wir damit die Reifen zu jeder Felge.'
+        : 'Für die Reifen fehlen uns Werte aus deiner Zulassungsbescheinigung Teil I: die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T. Trag sie einmal ein, dann prüfen wir damit die Reifen zu jeder Felge.'
 })
 
 const appliedCount = computed(
@@ -170,6 +183,13 @@ onBeforeUnmount(() => {
             <div v-if="hasVehicle && vehicle && (missing?.length || buildGiven)" class="plp__ask" :class="{ 'plp__ask--said': !missing?.length }">
                 <!-- Keyed by the car: another car chosen meanwhile gets a fresh question, never this one's state (G-10). -->
                 <BuildForm :key="`build-${vehicle.id}`" :vehicle-id="vehicle.id" :build="vehicle.build ?? null" :missing="missing ?? []" />
+            </div>
+
+            <!-- The tyres wait for the car's papers (D-286): asked once, for every wheel below, and answered in place. Once
+                 given, the figures every answer rests on stay said, one click from changing — as the body style above. -->
+            <div v-if="hasVehicle && vehicle && (owed?.length || vehicle.papers)" class="plp__ask plp__papers" :class="{ 'plp__papers--said': !owed?.length }" data-papers>
+                <p v-if="owed?.length" class="plp__papers-lead">{{ owedLead }}</p>
+                <PapersForm :key="`papers-${vehicle.id}`" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed ?? []" asked-above />
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->
@@ -350,6 +370,28 @@ onBeforeUnmount(() => {
 .plp__ask--said:not(:has(.bf__group)) {
     padding: 0;
     background: none;
+}
+
+/* What the tyres wait for (D-286): the sentence in ink, the form's button under it. */
+.plp__papers-lead {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.plp__papers :deep(.pp) {
+    margin-block: var(--sp-8) 0;
+}
+
+/* Given, not asked: the figures in one line, as the body style's. „Ändern“ opens the form on the band. */
+.plp__papers--said:not(:has(.pp__form)) {
+    padding: 0;
+    background: none;
+}
+
+.plp__papers--said:not(:has(.pp__form)) :deep(.pp) {
+    margin-block: 0;
 }
 
 .plp__notice {

@@ -15,9 +15,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
- * How many pairs of a vehicle and a wheel land on „Felge freigegeben · Reifengröße noch nicht bestätigt“ (the
- * operator's brief of 14.10.2026, §1.5): the engine's own answer for every pair a released Gutachten names, counted —
- * never a query that guesses at it. A pair in this state is a wheel its document approves and the shop does not sell.
+ * How many pairs of a vehicle and a wheel land on „Felge freigegeben · Reifengröße noch nicht bestätigt“ for want of a
+ * record of ours (the operator's brief of 14.10.2026, §1.5): the engine's own answer for every pair a released Gutachten
+ * names, counted — never a query that guesses at it. A pair in this state is a wheel its document approves and the shop
+ * does not sell. Pairs that wait only for the car's papers (D-286) are left out: the customer settles them, not the team.
  *
  * The engine takes about ten milliseconds a pair, so a page never counts a large shop: rimify:go-live-check and the
  * hourly schedule count and keep the result for a day; a page reads what is kept, and counts itself only where the
@@ -27,7 +28,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class TyreConfirmations
 {
-    public const CACHE_KEY = 'golive.tyre-confirmations.v2';
+    /** v3: pairs waiting only for the car's papers are no longer counted (D-286). */
+    public const CACHE_KEY = 'golive.tyre-confirmations.v3';
 
     public const CACHE_SECONDS = 86_400;
 
@@ -128,7 +130,9 @@ final class TyreConfirmations
 
         foreach ($byVehicle as $vehicleId => $configs) {
             foreach ($resolver->resolveMany($vehicleId, array_keys($configs)) as $configId => $verdict) {
-                if (! $verdict->tyreUnconfirmed()) {
+                // What a record of ours leaves open — a table, an index. A pair that waits only for the car's papers
+                // (D-286) is answered the moment its customer enters them: no work for the team, not counted here.
+                if (! $verdict->tyreUnconfirmed() || $verdict->tyre?->awaitsPapers() === true) {
                     continue;
                 }
 

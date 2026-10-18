@@ -25,6 +25,7 @@ import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import VehicleSelector from '../../Components/Vehicle/VehicleSelector.vue'
 import { toast } from '../../Components/Chrome/toast'
 import { priceTerms } from '../../composables/usePriceTerms'
+import { tyreUnconfirmed } from '../../composables/useConfigurator'
 import { useShared } from '../../composables/useShared'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { contactHref } from '../../lib/contact'
@@ -372,7 +373,17 @@ const productHref = computed(() => {
 
 /* Why there is nothing to buy, in the verdict's own terms; the panel beside it says the rest. */
 const noSale = computed(() => {
-    switch (config.value?.verdict?.status) {
+    const verdict = config.value?.verdict ?? null
+
+    // The wheel approved and only its tyres open (finding 103, D-286): never „no approval we can show“ about a wheel the
+    // document approves — and where the tyres wait for the car's papers, the way on is the form in the panel.
+    if (tyreUnconfirmed(verdict)) {
+        return (verdict?.tyre?.owed ?? []).length > 0
+            ? 'Die Felge ist für dein Auto freigegeben. Die Reifen dazu können wir erst bestätigen, wenn du die Werte aus deiner Zulassungsbescheinigung Teil I eingetragen hast – bis dahin bieten wir die Felge dafür nicht an.'
+            : 'Die Felge ist für dein Auto freigegeben. Für die Reifen dazu fehlen in unseren Daten noch Angaben – bis sie hinterlegt sind, bieten wir die Felge dafür nicht an.'
+    }
+
+    switch (verdict?.status) {
         case 'NOT_PERMITTED':
             return 'In dieser Größe ist die Felge für dein Auto nicht freigegeben, deshalb bieten wir sie dafür nicht an.'
         default:

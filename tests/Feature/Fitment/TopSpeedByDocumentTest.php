@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Data\TyreRecord;
+use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Tyres\KomplettradRefusal;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -17,9 +21,10 @@ use Database\Seeders\ReferenceDataSeeder;
 /*
  * The operator's brief of 17.10.2026, „Do not remove the top speed. Make it conditional.“ (D-277): for each way a Gutachten
  * gives its tyres' index, a car without a top speed. Under the two that need it — the vehicle's papers, a table of tyre
- * load at speed — no PERMITTED tyre verdict comes out, and so no PERMITTED verdict at all: without the speed a table could
- * only be read the permissive way. With the top speed entered the same row is answered, so the refusal is the missing
- * field's and nothing else's. Under the third — the index beside every size — the car is answered without it.
+ * load at speed — the tyres are „Noch nicht bestätigt“, the missing field named (D-286), and so the verdict is never
+ * PERMITTED: without the speed a table could only be read the permissive way. With the top speed entered the same row is
+ * answered, so the refusal is the missing field's and nothing else's. Under the third — load index and symbol beside every
+ * size (D-285) — the car is answered without it (D-284), and the tyre chosen must meet or exceed both figures.
  */
 
 beforeEach(function (): void {
@@ -45,15 +50,24 @@ function underDocument(TyreIndexSource $source, ?int $topSpeed, ?string $symbol 
 }
 
 const TOP_SPEED_OWED = 'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).';
-const TOP_SPEED_ASK = ' Trag die Höchstgeschwindigkeit ein, dann sagen wir dir genau, welche Reifen du fahren darfst.';
+const TOP_SPEED_ASK = 'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.';
+
+/** „Noch nicht bestätigt“ for want of field T alone (D-286): the wheel answered, nothing sold, the field named. */
+function awaitsTopSpeed(FitmentVerdict $verdict): void
+{
+    expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->tyreUnconfirmed())->toBeTrue()
+        ->and($verdict->isSellable())->toBeFalse()
+        ->and($verdict->tyre?->papersOwed)->toBe(['T']);
+}
 
 it('gives no PERMITTED tyre verdict without the top speed where the document sends the reader to the papers', function (): void {
     $without = underDocument(TyreIndexSource::Papers, null);
 
-    expect($without->tyre?->status)->not->toBe(VerdictStatus::Permitted)
-        ->and($without->status)->not->toBe(VerdictStatus::Permitted)
-        // The one missing field is named, and why — as recorded with the document.
-        ->and($without->tyre->lines ?? [])->toBe([TOP_SPEED_OWED.' Bei diesem Gutachten richtet sich der Geschwindigkeitsindex nach den Fahrzeugpapieren.'.TOP_SPEED_ASK]);
+    awaitsTopSpeed($without);
+    // The one missing field is named, and why — as recorded with the document —, then the way on.
+    expect($without->tyre->lines ?? [])->toBe([TOP_SPEED_OWED.' Bei diesem Gutachten ist hinterlegt, dass sich der Geschwindigkeitsindex nach den Fahrzeugpapieren richtet.', TOP_SPEED_ASK]);
 
     // Entered — at a speed no table is needed for — the same row is answered.
     expect(underDocument(TyreIndexSource::Papers, 200)->status)->toBe(VerdictStatus::Permitted);
@@ -62,9 +76,8 @@ it('gives no PERMITTED tyre verdict without the top speed where the document sen
 it('gives no PERMITTED tyre verdict without the top speed where the document prints a table of load at speed', function (): void {
     $without = underDocument(TyreIndexSource::Table, null);
 
-    expect($without->tyre?->status)->not->toBe(VerdictStatus::Permitted)
-        ->and($without->status)->not->toBe(VerdictStatus::Permitted)
-        ->and($without->tyre->lines ?? [])->toBe([TOP_SPEED_OWED.' Laut Tabelle des Gutachtens sinkt die Tragfähigkeit der Reifen bei hoher Geschwindigkeit.'.TOP_SPEED_ASK]);
+    awaitsTopSpeed($without);
+    expect($without->tyre->lines ?? [])->toBe([TOP_SPEED_OWED.' Bei diesem Gutachten ist hinterlegt, dass es eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit enthält – welche Zeile gilt, entscheidet die Höchstgeschwindigkeit.', TOP_SPEED_ASK]);
 
     // Entered, the table is read — 250 km/h asks a W tyre for 95 % of its load — and the row is answered.
     $with = underDocument(TyreIndexSource::Table, 250);
@@ -86,7 +99,24 @@ it('answers a car without its top speed where the document prints the index besi
         ->and($lines)->toContain('Die Achslast verlangt Tragfähigkeitsindex 88 (560'."\u{00A0}".'kg).')
         ->and($lines)->toContain('Bei der Reifengröße gibt das Gutachten Tragfähigkeitsindex 91 und Geschwindigkeitsindex W an.')
         ->and($lines)->toContain('Maßgeblich ist die Reifengröße im Gutachten: mindestens Tragfähigkeitsindex 91. Der Geschwindigkeitsindex muss mindestens W sein.')
-        ->and(implode(' ', $lines))->not->toContain('km/h');
+        ->and(implode(' ', $lines))->not->toContain('km/h')
+        // Nothing is inferred about the car: nothing owed, nothing asked.
+        ->and($verdict->tyre?->papersOwed)->toBe([]);
+});
+
+it('sells only a tyre that meets or exceeds both figures the document names — a 91V is not a 91W (D-284)', function (): void {
+    $verdict = underDocument(TyreIndexSource::Document, null, 'W', loadIndex: 91);
+    $eligibility = app(TyreEligibility::class);
+    $speedSymbols = app(SpeedSymbolDeriver::class);
+    $tyre = static fn (int $loadIndex, string $symbol): TyreRecord => new TyreRecord(
+        id: 1, widthMm: 225, aspect: 40, diameterIn: 18.0, loadIndex: $loadIndex, speedSymbol: $symbol,
+        speedRank: (int) $speedSymbols->rankOf($symbol), priceCents: 15_000, stockQty: 8,
+    );
+
+    expect($eligibility->permits($verdict, $tyre(91, 'V')))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and($eligibility->permits($verdict, $tyre(90, 'W')))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and($eligibility->permits($verdict, $tyre(91, 'W')))->toBeNull()
+        ->and($eligibility->permits($verdict, $tyre(94, 'Y')))->toBeNull();
 });
 
 it('never answers without the top speed where a size lacks its load index or its symbol, even under „bei jeder Reifengröße“', function (): void {
@@ -95,9 +125,8 @@ it('never answers without the top speed where a size lacks its load index or its
     foreach ([['W', null], [null, 91], [null, null]] as [$symbol, $loadIndex]) {
         $verdict = underDocument(TyreIndexSource::Document, null, $symbol, loadIndex: $loadIndex);
 
-        expect($verdict->tyre?->status)->not->toBe(VerdictStatus::Permitted)
-            ->and($verdict->status)->not->toBe(VerdictStatus::Permitted)
-            ->and($verdict->tyre->lines ?? [])->toBe([TOP_SPEED_OWED.TOP_SPEED_ASK]);
+        awaitsTopSpeed($verdict);
+        expect($verdict->tyre->lines ?? [])->toBe([TOP_SPEED_OWED, TOP_SPEED_ASK]);
     }
 });
 
