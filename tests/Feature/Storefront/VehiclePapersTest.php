@@ -6,6 +6,7 @@ use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Storefront\PapersBook;
 use App\Domain\Storefront\VehicleContext;
+use App\Http\Requests\Storefront\VehiclePapersRequest;
 use App\Models\Vehicle;
 use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
@@ -105,12 +106,75 @@ it('refuses, in words, every figure that is not a whole number a road car can ha
     '99.999 kg' => [['axle_front_kg' => 99_999], 'axle_front_kg', 'Eine zulässige Achslast liegt zwischen 300 und 4.000 kg. Sieh bitte noch einmal in Feld 8.1 nach.'],
     'zero' => [['axle_rear_kg' => 0], 'axle_rear_kg', 'Eine zulässige Achslast liegt zwischen 300 und 4.000 kg. Sieh bitte noch einmal in Feld 8.2 nach.'],
     'negative' => [['axle_front_kg' => -1100], 'axle_front_kg', 'Eine zulässige Achslast liegt zwischen 300 und 4.000 kg. Sieh bitte noch einmal in Feld 8.1 nach.'],
-    'a fraction' => [['axle_front_kg' => '1100.5'], 'axle_front_kg', 'Bitte nur die Zahl in Kilogramm, ohne Punkt und Komma.'],
-    'a German thousands dot' => [['axle_rear_kg' => '1.100'], 'axle_rear_kg', 'Bitte nur die Zahl in Kilogramm, ohne Punkt und Komma.'],
-    'a word' => [['top_speed_kmh' => 'schnell'], 'top_speed_kmh', 'Bitte nur die Zahl in km/h, ohne Punkt und Komma.'],
+    'a fraction' => [['axle_front_kg' => '1100.5'], 'axle_front_kg', 'Bitte nur die ganze Zahl in Kilogramm, zum Beispiel 1.160.'],
+    'a decimal comma' => [['axle_rear_kg' => '1100,5'], 'axle_rear_kg', 'Bitte nur die ganze Zahl in Kilogramm, zum Beispiel 1.160.'],
+    'a word' => [['top_speed_kmh' => 'schnell'], 'top_speed_kmh', 'Bitte nur die ganze Zahl in km/h, zum Beispiel 250.'],
     'too fast' => [['top_speed_kmh' => 500], 'top_speed_kmh', 'Eine Höchstgeschwindigkeit liegt zwischen 60 und 420 km/h. Sieh bitte noch einmal in Feld T nach.'],
-    'missing' => [['axle_front_kg' => ''], 'axle_front_kg', 'Trag die zulässige Achslast aus Feld 8.1 ein.'],
+    // Asked for, it must come (D-291).
+    'missing where asked' => [['axle_front_kg' => '', 'asked' => ['8.1', '8.2', 'T']], 'axle_front_kg', 'Trag die zulässige Achslast aus Feld 8.1 ein.'],
+    'T missing where asked' => [['top_speed_kmh' => '', 'asked' => ['T']], 'top_speed_kmh', 'Trag die Höchstgeschwindigkeit aus Feld T ein.'],
 ]);
+
+// The fields are text fields now (D-290): a German writes 1160 kg as „1.160“, and that is what it is.
+it('reads a German thousands dot or space as the thousands it is', function (): void {
+    $vehicle = Vehicle::factory()->create();
+
+    $kept = papersCookie($this->post("/fahrzeug/{$vehicle->id}/papiere", ['axle_front_kg' => '1.160', 'axle_rear_kg' => '1 210', 'top_speed_kmh' => ' 250 ']));
+
+    expect($kept?->getValue())->toBe("{$vehicle->id}.1160.1210.250");
+});
+
+/*
+ * D-291: the form asks for what the answer is missing and shows the rest. What it sends it sets — an emptied field is no
+ * longer given —, what it does not send stays as the customer gave it before, and an all-empty save is refused.
+ */
+it('takes T alone where only T is asked, and keeps what the customer gave before', function (): void {
+    $vehicle = Vehicle::factory()->create();
+
+    $alone = papersCookie($this->post("/fahrzeug/{$vehicle->id}/papiere", ['asked' => ['T'], 'top_speed_kmh' => '250']));
+    expect($alone?->getValue())->toBe("{$vehicle->id}.-.-.250");
+
+    // 8.1 and 8.2 given before, T asked now: they stay.
+    $kept = papersCookie($this->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.1100.1180.-")
+        ->post("/fahrzeug/{$vehicle->id}/papiere", ['asked' => ['T'], 'top_speed_kmh' => '240']));
+    expect($kept?->getValue())->toBe("{$vehicle->id}.1100.1180.240");
+
+    // One axle where the data knows the other — another car, so the cookie above answers nothing for it.
+    $other = Vehicle::factory()->create();
+    $rear = papersCookie($this->post("/fahrzeug/{$other->id}/papiere", ['asked' => ['8.2'], 'axle_rear_kg' => '1180']));
+    expect($rear?->getValue())->toStartWith("{$other->id}.-.1180.-");
+});
+
+it('lets go of a figure whose field was emptied, keeps one it was not shown, and refuses a save with nothing in it', function (): void {
+    $vehicle = Vehicle::factory()->create(['power_kw' => null]);
+    $before = "{$vehicle->id}.1100.1180.250.140.p91W.p94Y";
+
+    // T emptied, P.2 and 15.1/15.2 emptied; 8.1 and 8.2 not sent (shown as known): they stay.
+    $emptied = papersCookie($this->withUnencryptedCookie(PapersBook::COOKIE, $before)
+        ->post("/fahrzeug/{$vehicle->id}/papiere", ['top_speed_kmh' => '', 'power_kw' => '', 'index_front' => '', 'index_rear' => '', 'axle_front_kg' => '1120']));
+    expect($emptied?->getValue())->toBe("{$vehicle->id}.1120.1180.-");
+
+    // Nothing in any field it sent: refused on the first of them, in words, and nothing kept as nothing.
+    $nothing = $this->withUnencryptedCookie(PapersBook::COOKIE, $before)
+        ->post("/fahrzeug/{$vehicle->id}/papiere", ['top_speed_kmh' => '', 'index_front' => '', 'index_rear' => ''])
+        ->assertSessionHasErrorsIn('papiere', ['top_speed_kmh' => 'Trag die Höchstgeschwindigkeit aus Feld T ein.']);
+    expect(papersCookie($nothing))->toBeNull();
+
+    // Nothing but 15.1 and 15.2 shown — our data holds every figure —, and both empty: said under 15.1, where the form
+    // can show it (the interaction review of D-291) — with figures of the customer's on record, how to delete them too.
+    $this->withUnencryptedCookie(PapersBook::COOKIE, $before)
+        ->post("/fahrzeug/{$vehicle->id}/papiere", ['index_front' => '', 'index_rear' => ''])
+        ->assertSessionHasErrorsIn('papiere', ['index_front' => VehiclePapersRequest::NOTHING_GIVEN.' '.VehiclePapersRequest::DELETE_ALL]);
+
+    // Another car, nothing of the customer's on record: only what to type, or how to leave.
+    $other = Vehicle::factory()->create();
+    $this->post("/fahrzeug/{$other->id}/papiere", ['index_front' => '', 'index_rear' => ''])
+        ->assertSessionHasErrorsIn('papiere', ['index_front' => VehiclePapersRequest::NOTHING_GIVEN]);
+
+    // An answer that asks for nothing is not a way round the fields: „asked“ names only fields of the papers.
+    $this->post("/fahrzeug/{$vehicle->id}/papiere", ['asked' => ['X'], 'top_speed_kmh' => '250'])
+        ->assertSessionHasErrorsIn('papiere', ['asked.0']);
+});
 
 it('keeps P.2 where it is given, and refuses one no car has', function (): void {
     $vehicle = Vehicle::factory()->create(['power_kw' => null]);
@@ -138,6 +202,11 @@ it('keeps 15.1 and 15.2 where both are given, and refuses one alone or one it ca
 
     // Neither given: the figures are kept without them, as before.
     expect(papersCookie($this->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'index_front' => '', 'index_rear' => '']))?->getValue())
+        ->toBe("{$vehicle->id}.1100.1100.250");
+
+    // Emptied where they were given (D-291): they go.
+    expect(papersCookie($this->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.1100.1100.250.p91W.p94Y")
+        ->post("/fahrzeug/{$vehicle->id}/papiere", [...papersPost(), 'index_front' => '', 'index_rear' => '']))?->getValue())
         ->toBe("{$vehicle->id}.1100.1100.250");
 });
 
@@ -198,6 +267,20 @@ it('shows the typed figures with the car, and says where the vehicle data asks f
             ->where('vehicle.papers.index', ['front' => '91W', 'rear' => '(95Y)'])
             ->where('vehicle.papers.notes', [
                 'Für die Vorderachse rechnen wir mit 1.100'.GermanFormat::NBSP.'kg aus unseren Fahrzeugdaten – mehr als deine 1.050'.GermanFormat::NBSP.'kg aus Feld 8.1. So bist du auf der sicheren Seite.',
+            ])
+            // What our data holds, for the form to show beside what it asks (D-291).
+            ->where('vehicle.figures', ['axleFrontKg' => 1100, 'axleRearKg' => 1000, 'topSpeedKmh' => 250])
+        );
+
+    // T alone given: the other two are null, and no note compares a figure the customer did not give.
+    $this->withCookies([VehicleContext::COOKIE => (new VehicleContext($vehicle->id, true))->encode()])
+        ->withUnencryptedCookie(PapersBook::COOKIE, "{$vehicle->id}.-.-.240")
+        ->get('/felgenrechner')
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('vehicle.papers.axleFrontKg', null)
+            ->where('vehicle.papers.topSpeedKmh', 240)
+            ->where('vehicle.papers.notes', [
+                'Als Höchstgeschwindigkeit rechnen wir mit 250'.GermanFormat::NBSP.'km/h aus unseren Fahrzeugdaten – mehr als deine 240'.GermanFormat::NBSP.'km/h aus Feld T. So bist du auf der sicheren Seite.',
             ])
         );
 });

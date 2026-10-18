@@ -77,6 +77,9 @@ class OrderConfirmationMail extends Mailable
             $entryBySize = $groups !== null && count(array_unique(array_column($groups['sizes'], 'entry'))) > 1;
             $entryHere = $groups !== null && $groups['entry'] !== null ? $groups['entry'] : (bool) ($snapshot?->requires_entry);
 
+            // A rim sold alone (D-289): our own sentence as the purchase showed it — the sizes it may only be fitted with.
+            $rimAlone = $snapshot !== null && is_string($snapshot->verdict['rimAloneNote'] ?? null) ? $snapshot->verdict['rimAloneNote'] : null;
+
             $lines[] = [
                 'label' => (string) $line->label,
                 'quantity' => (int) $line->quantity,
@@ -85,12 +88,15 @@ class OrderConfirmationMail extends Mailable
                 'verdict' => $snapshot === null ? null : match ((string) $snapshot->verdict_status) {
                     'PERMITTED' => 'Für dein Fahrzeug freigegeben.',
                     // Every Auflage a Hinweis (#23, D-104): nothing to do, so not „mit Auflagen“.
-                    'CONDITIONAL' => self::notesOnly((array) $snapshot->verdict)
-                        ? 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.'
-                        : 'Für dein Fahrzeug freigegeben, mit Auflagen.',
+                    'CONDITIONAL' => match (true) {
+                        $rimAlone !== null => 'Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen.',
+                        self::notesOnly((array) $snapshot->verdict) => 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.',
+                        default => 'Für dein Fahrzeug freigegeben, mit Auflagen.',
+                    },
                     'NOT_PERMITTED' => 'Nicht freigegeben.',
                     default => 'Noch nicht bestätigt.',
                 },
+                'rimAlone' => $rimAlone,
                 // The papers, in the two lines the purchase showed (PapersWording): the Auflagen's, and the document's.
                 'entry' => $snapshot === null ? null : ($entryBySize ? PapersWording::entryBySize($groups['sizes'], $snapshot->papersExempt()) : PapersWording::entryLine($entryHere, $snapshot->papersExempt())),
                 'papers' => $snapshot === null ? null : PapersWording::papersLine($snapshot->papersExempt()),

@@ -40,6 +40,11 @@ export interface VehicleProp {
      * with the car until customer accounts exist; null when none were entered. Additive.
      */
     papers?: PapersProp | null
+    /**
+     * 8.1, 8.2 and T as our vehicle data holds them: the papers form shows a known one with where it came from and asks
+     * only for what the answer is missing (D-291). Additive.
+     */
+    figures?: VehicleFigures | null
     /** The variant's power in kW, for the P.2 check on a photographed Zulassungsbescheinigung. Additive. */
     powerKw?: number | null
     /** Karosserieform and Antrieb as every answer reads them, and where each came from (§1.1). Additive. */
@@ -59,10 +64,18 @@ export interface BuildProp {
     driveWord: string | null
 }
 
+/** A car's 8.1, 8.2 and T as one source holds them; null where it does not. */
+export interface VehicleFigures {
+    axleFrontKg: number | null
+    axleRearKg: number | null
+    topSpeedKmh: number | null
+}
+
 export interface PapersProp {
-    axleFrontKg: number
-    axleRearKg: number
-    topSpeedKmh: number
+    /** Each as the customer gave it; null where they were not asked and did not give it (D-291). */
+    axleFrontKg: number | null
+    axleRearKg: number | null
+    topSpeedKmh: number | null
     /** P.2, where the customer gave it: a Gutachten's kW band is read against it (Block D). */
     powerKw?: number | null
     /** 15.1 and 15.2 as typed, `91W` — a floor that can only raise the tyre minimum (D-242). */
@@ -370,6 +383,11 @@ export interface BasketLine {
         conditionGroups?: ConditionGroupsView
         /** The verdict in one sentence, as the checkout repeats it up to the order button (Block G). */
         sentence?: string
+        /**
+         * A rim sold alone while its tyres wait for the papers (D-289): our own sentence — the sizes it may only be fitted
+         * with —, said beside the line, never among the Auflagen from the document (R-17). Additive.
+         */
+        rimAloneNote?: string | null
         /** The Gutachten and revisions the answer rests on (`id@revision`), for CheckoutShown. */
         basis?: string[]
     } | null

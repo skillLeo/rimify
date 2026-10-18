@@ -288,12 +288,23 @@ const elsewhere = computed(() => {
 const wheelApproved = computed(() => (props.verdict?.wheelStatus === 'CONDITIONAL' ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben'))
 /* „Reifengröße“ where a record of ours leaves a size open (finding 103); „Reifen“ where the car's papers are missing. */
 const tyresWord = computed(() => (owed.value.length > 0 ? 'Reifen' : 'Reifengröße'))
+/*
+ * The rim sells alone while its tyres wait for the car's papers, where the wheel's own approval does not wait for them
+ * (D-289): the panel says so, and the papers form waits behind its button — it would push the price off the screen.
+ */
+const rimSells = computed(() => tyreOpen.value && props.verdict?.rimSellable === true)
 /* The car named without an article, as the headlines name it („Freigegeben für …“): „deinen“ broke on a „C-Klasse“. */
-const openLead = computed(() =>
-    tyreOpen.value && props.vehicle
-        ? `Die Felge selbst ist für ${props.vehicle.label}${props.verdict?.wheelStatus === 'CONDITIONAL' ? ' mit Auflagen' : ''} freigegeben. ${owed.value.length > 0 ? 'Die Reifen' : 'Die Reifengröße'} dazu können wir noch nicht bestätigen.`
-        : null
-)
+const openLead = computed(() => {
+    if (!tyreOpen.value || !props.vehicle) {
+        return null
+    }
+
+    const approved = `Die Felge selbst ist für ${props.vehicle.label}${props.verdict?.wheelStatus === 'CONDITIONAL' ? ' mit Auflagen' : ''} freigegeben`
+
+    return rimSells.value
+        ? `${approved} – nur mit einer der zulässigen Reifengrößen. Die Reifen dazu können wir noch nicht bestätigen. Die Felge allein kannst du schon bestellen.`
+        : `${approved}. ${owed.value.length > 0 ? 'Die Reifen' : 'Die Reifengröße'} dazu können wir noch nicht bestätigen.`
+})
 </script>
 
 <template>
@@ -356,7 +367,9 @@ const openLead = computed(() =>
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
             <!-- Keyed by the car: another car chosen meanwhile (in another tab) gets a fresh form, never the
                  last car's figures under its name (C-08). -->
-            <PapersForm v-if="vehicle && verdict.tyre" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed" />
+            <!-- Also where the customer's own figures made the answer negative: theirs stay one press from changing (the
+                 interaction review of D-291) — a mistyped 1.610 kg must not take away the way to correct it. -->
+            <PapersForm v-if="vehicle && (verdict.tyre || vehicle.papers)" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :known="vehicle.figures ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed" :start-closed="rimSells" />
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
@@ -435,8 +448,8 @@ const openLead = computed(() =>
 /* Finding 103: which half is approved and which is open — body size under the headline; the way on, small, below. */
 .fit__open {
     margin: var(--sp-8) 0 0;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
     color: var(--c-ink);
 }
 

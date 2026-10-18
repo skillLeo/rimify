@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Verdict;
 
 use App\Domain\Fitment\Data\DocumentRecord;
+use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Support\BuildWindow;
@@ -99,7 +100,95 @@ final readonly class FitmentVerdict
          * @var list<Condition>|null
          */
         public ?array $combinationConditions = null,
+        /**
+         * Whether the rim may be sold alone while its tyres wait for the car's papers (the operator's brief of 18.10.2026,
+         * §1, D-289): the axle loads decide the tyres' load index, not whether the wheel is approved — unless a covering
+         * document itself limits by axle load (`DocumentRecord::$axleLimitKg`, or an Auflage that names a load and no
+         * index), and the car's figure it limits is missing. Never a Komplettrad: its tyres are what is unconfirmed.
+         */
+        public bool $sellsAlone = false,
+        /** This is the answer for the rim sold alone (`forRimAlone()`), as an order line freezes it. */
+        public bool $rimAlone = false,
+        /**
+         * The rim alone's own sentence: the sizes it may only be fitted with, and why the tyres stayed unconfirmed. Ours,
+         * not the document's — so never among the Auflagen „aus dem Gutachten“ (R-17) —, carried as shown, as the labels
+         * are, so the frozen order line says it word for word.
+         */
+        public ?string $rimAloneNoteDe = null,
     ) {}
+
+    /**
+     * The answer for the rim sold alone, where it may be (`sellsAlone`, D-289): the wheel's own verdict — its Eintragung
+     * and its Auflagen —, never PERMITTED while the tyres are unconfirmed (R-03), with a sentence of our own beside it:
+     * the sizes the document gives this car, which the rim may only be fitted with. The tyres' half stays as it is,
+     * unconfirmed, and is frozen so. Null where the rim may not be sold alone.
+     */
+    public function forRimAlone(): ?self
+    {
+        if (! $this->sellsAlone || ($this->wheelStatus !== VerdictStatus::Permitted && $this->wheelStatus !== VerdictStatus::Conditional)) {
+            return null;
+        }
+
+        return new self(
+            status: VerdictStatus::weaker($this->wheelStatus, VerdictStatus::Conditional),
+            vehicle: $this->vehicle,
+            wheel: $this->wheel,
+            document: $this->document,
+            requiresEntry: $this->requiresEntry,
+            entryNoteDe: $this->entryNoteDe,
+            conditions: $this->conditions,
+            front: $this->front,
+            rear: $this->rear,
+            reason: null,
+            snapshot: $this->snapshot,
+            documentCentreBoreMm: $this->documentCentreBoreMm,
+            centreBoreSource: $this->centreBoreSource,
+            vehicleLabel: $this->vehicleLabel,
+            buildWindowLabel: $this->buildWindowLabel,
+            wheelLabel: $this->wheelLabel,
+            restored: $this->restored,
+            documents: $this->documents,
+            wheelStatus: $this->wheelStatus,
+            tyre: $this->tyre,
+            missingFacts: $this->missingFacts,
+            combinationConditions: $this->combinationConditions,
+            sellsAlone: true,
+            rimAlone: true,
+            rimAloneNoteDe: $this->rimAloneSentence(),
+        );
+    }
+
+    /**
+     * „Die Felge ist für dein Fahrzeug nur mit Reifen der Größe 235/45 R19 oder 245/40 R19 zulässig. Welche Reifen dein
+     * Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung fehlte uns Feld T …“ — per axle where they
+     * differ. Said in the past: frozen onto an order, it reports the check, and stays true there.
+     */
+    private function rimAloneSentence(): string
+    {
+        $list = static function (array $items, string $and): string {
+            $last = (string) array_pop($items);
+
+            return $items === [] ? $last : implode(', ', $items)." {$and} ".$last;
+        };
+        $sizes = static fn (AxleRequirement $axle): string => $list(array_values(array_unique(array_map(static fn (TyreSize $s): string => $s->labelDe(), $axle->sizes))), 'oder');
+        $both = $this->front->hasPermittedSizes() && $this->rear->hasPermittedSizes();
+
+        $only = match (true) {
+            $both && $this->tyreLayout() === 'MIXED' => 'nur mit diesen Reifengrößen zulässig: vorn '.$sizes($this->front).', hinten '.$sizes($this->rear),
+            $both => 'nur mit Reifen der Größe '.$sizes($this->front).' zulässig',
+            $this->front->hasPermittedSizes() => 'nur an der Vorderachse zulässig, mit Reifen der Größe '.$sizes($this->front),
+            default => 'nur an der Hinterachse zulässig, mit Reifen der Größe '.$sizes($this->rear),
+        };
+
+        $owed = $this->tyre->papersOwed ?? [];
+        $missing = match (count($owed)) {
+            0 => 'fehlten uns Werte',
+            1 => 'fehlte uns Feld '.$owed[0],
+            default => 'fehlten uns die Felder '.$list($owed, 'und'),
+        };
+
+        return "Die Felge ist für dein Fahrzeug {$only}. Welche Reifen dein Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung {$missing} deiner Zulassungsbescheinigung Teil I.";
+    }
 
     /**
      * The Auflagen as the document hangs them: the combination's once, each size's with that size (ConditionGroups).
@@ -155,6 +244,9 @@ final readonly class FitmentVerdict
             tyre: $this->tyre,
             missingFacts: $this->missingFacts,
             combinationConditions: $this->combinationConditions,
+            sellsAlone: $this->sellsAlone,
+            rimAlone: $this->rimAlone,
+            rimAloneNoteDe: $this->rimAloneNoteDe,
         );
     }
 
@@ -314,6 +406,10 @@ final readonly class FitmentVerdict
             ...($this->tyre === null ? [] : ['tyreCheck' => $this->tyre->toArray()]),
             // Additive: what of the car an UNKNOWN answer waits for.
             ...($this->missingFacts === [] ? [] : ['missingFacts' => $this->missingFacts]),
+            // Additive (D-289): the rim may be sold alone, and this is the answer for it — an order line says which it was.
+            ...($this->sellsAlone ? ['sellsAlone' => true] : []),
+            ...($this->rimAlone ? ['rimAlone' => true] : []),
+            ...($this->rimAloneNoteDe === null ? [] : ['rimAloneNote' => $this->rimAloneNoteDe]),
         ];
     }
 
@@ -417,6 +513,9 @@ final readonly class FitmentVerdict
             combinationConditions: is_array($data['combinationConditions'] ?? null)
                 ? array_values(array_map(static fn (array $c): Condition => Condition::fromArray($c), $data['combinationConditions']))
                 : null,
+            sellsAlone: ($data['sellsAlone'] ?? false) === true,
+            rimAlone: ($data['rimAlone'] ?? false) === true,
+            rimAloneNoteDe: is_string($data['rimAloneNote'] ?? null) ? $data['rimAloneNote'] : null,
         );
     }
 

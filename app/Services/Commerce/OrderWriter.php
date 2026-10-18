@@ -67,6 +67,11 @@ final class OrderWriter
         foreach ($summary['lines'] as $i => $line) {
             $verdict = $this->resolver->resolve((int) $vehicle->id, (int) $line['wheelConfigId']);
 
+            // A rim alone is frozen with the rim's own answer where it sells while the tyres wait for the papers (D-289).
+            if (($line['isSet'] ?? false) !== true) {
+                $verdict = $verdict->forRimAlone() ?? $verdict;
+            }
+
             if (! $verdict->isSellable()) {
                 throw new OrderRefused(Basket::BLOCKED_REFUSAL);
             }

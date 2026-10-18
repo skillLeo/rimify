@@ -78,9 +78,12 @@ export interface Configurator {
 
 const FALLBACK_REASON = 'Für dein Fahrzeug nicht freigegeben.'
 
-/** With no vehicle there is no verdict and no claim: every configuration may be bought. */
+/**
+ * With no vehicle there is no verdict and no claim: every configuration may be bought. A rim that sells alone while
+ * its tyres wait for the car's papers (D-289) is a size to buy, not a struck one.
+ */
 function sellable(config: ProduktConfig): boolean {
-    return config.verdict === null || config.verdict.sellable
+    return config.verdict === null || config.verdict.sellable || config.verdict.rimSellable === true
 }
 
 /*

@@ -13,9 +13,9 @@ use App\Domain\Fitment\Data\VehicleBuild;
  * they belong to, so two saved cars never overwrite each other (the second review of C9, §5) — and, since
  * the operator's last prompt §1.1, the body style and drive they told us for a car whose data has none.
  *
- * One cookie, a compact map — `1843.1100.1100.250_977.980.1010.210`, vehicle id then 8.1, 8.2 and T (and P.2
- * where given, and 15.1 and 15.2 as `.p91W.p94Y` where given, `(95Y)` as `.p95Yx` — D-242); `977-k21`, vehicle id then the body style
- * and the drive as one digit each (0: not given) —
+ * One cookie, a compact map — `1843.1100.1100.250_977.980.1010.210`, vehicle id then 8.1, 8.2 and T, a figure the
+ * customer did not give as `-` (`977.-.-.250`, D-291) (and P.2 where given, and 15.1 and 15.2 as `.p91W.p94Y` where given,
+ * `(95Y)` as `.p95Yx` — D-242); `977-k21`, vehicle id then the body style and the drive as one digit each (0: not given) —
  * most recent first, at most five cars of each and never more than 500 bytes; the oldest drop off. Only
  * digits, letters, dots, hyphens and underscores, so the value is never percent-encoded into something
  * longer. It is not encrypted: it holds nothing but the car's own figures and build, the server re-checks
@@ -55,15 +55,17 @@ final readonly class PapersBook
         $builds = [];
 
         foreach (explode('_', $payload) as $entry) {
-            // id.8.1.8.2.T, and P.2 where the customer gave it (Block D), and 15.1 and 15.2 where he gave them (D-242).
-            if (preg_match('/^([1-9]\d{0,9})\.(\d{3,4})\.(\d{3,4})\.(\d{2,3})(?:\.(\d{2,4}))?(?:\.p(\d{2,3})([A-Z]x?)\.p(\d{2,3})([A-Z]x?))?$/', $entry, $m) === 1) {
+            // id.8.1.8.2.T, a figure not given as `-` (D-291), and P.2 where the customer gave it (Block D), and 15.1 and
+            // 15.2 where he gave them (D-242).
+            if (preg_match('/^([1-9]\d{0,9})\.(\d{3,4}|-)\.(\d{3,4}|-)\.(\d{2,3}|-)(?:\.(\d{2,4}))?(?:\.p(\d{2,3})([A-Z]x?)\.p(\d{2,3})([A-Z]x?))?$/', $entry, $m) === 1) {
                 $id = (int) $m[1];
                 $typedIndex = isset($m[6]) && $m[6] !== '';
                 $index = $typedIndex ? PapersIndex::tryFrom((int) $m[6], self::symbolOf($m[7]), (int) $m[8], self::symbolOf($m[9])) : null;
+                $figure = static fn (string $digits): ?int => $digits === '-' ? null : (int) $digits;
                 // An index that cannot be read drops the whole entry: kept without it, the answer would be the weaker one.
                 $figures = $typedIndex && $index === null
                     ? null
-                    : PapersFigures::tryFrom((int) $m[2], (int) $m[3], (int) $m[4], isset($m[5]) && $m[5] !== '' ? (int) $m[5] : null, $index);
+                    : PapersFigures::tryFrom($figure($m[2]), $figure($m[3]), $figure($m[4]), isset($m[5]) && $m[5] !== '' ? (int) $m[5] : null, $index);
 
                 if ($figures !== null && ! isset($entries[$id]) && count($entries) < self::LIMIT) {
                     $entries[$id] = $figures;
@@ -94,7 +96,7 @@ final readonly class PapersBook
         $parts = [];
 
         foreach ($this->entries as $id => $f) {
-            $parts[] = $id.'.'.$f->axleFrontKg.'.'.$f->axleRearKg.'.'.$f->topSpeedKmh.($f->powerKw === null ? '' : '.'.$f->powerKw)
+            $parts[] = $id.'.'.($f->axleFrontKg ?? '-').'.'.($f->axleRearKg ?? '-').'.'.($f->topSpeedKmh ?? '-').($f->powerKw === null ? '' : '.'.$f->powerKw)
                 .($f->index === null ? '' : '.p'.self::token($f->index, 'FRONT').'.p'.self::token($f->index, 'REAR'));
         }
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\CheckResult;
 use App\Models\ContactMessage;
 use App\Services\GoLive\TyreConfirmations;
 use App\Services\Reset\TestEnvironment;
@@ -20,8 +21,9 @@ Schedule::command('demo:assert-clean')->dailyAt('04:30')->timezone('Europe/Berli
 Schedule::command('orders:expire')->everyTenMinutes()->withoutOverlapping();
 // #19, D-103: once, some days after the team marked an order „Zugestellt“, its buyer is asked to rate the rims.
 Schedule::command('rimify:bewertungen-einladen')->dailyAt('10:00')->timezone('Europe/Berlin')->withoutOverlapping();
-// #12, D-123: a contact-form message is kept twelve months, then deleted with the address in it.
-Schedule::command('model:prune', ['--model' => [ContactMessage::class]])->dailyAt('03:30')->timezone('Europe/Berlin');
+// #12, D-123: a contact-form message is kept twelve months, then deleted with the address in it. D-292: a printable
+// RIMIFY-Check too, with the figures from the papers it was made with.
+Schedule::command('model:prune', ['--model' => [ContactMessage::class, CheckResult::class]])->dailyAt('03:30')->timezone('Europe/Berlin');
 // Testumgebung zurücksetzen: an interrupted reset is put back from its safety copy within the minute (the site stays in
 // maintenance until then; with nothing interrupted the run touches nothing), and the copies go within the hour after
 // the seven days they can be undone in, each with its own line in the Protokoll — a copy of the shop's customers has an

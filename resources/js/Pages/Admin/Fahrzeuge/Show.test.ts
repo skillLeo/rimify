@@ -63,7 +63,17 @@ describe('Fahrzeuge › Show', () => {
         expect(wrapper.find('[data-speed-why] a').attributes('href')).toBe('/admin/gutachten/4')
         expect(wrapper.find('#fs-speed').attributes('aria-describedby')).toBe('fs-speed-why fs-speed-err')
         expect(wrapper.find('.fs-warn').text()).toBe(
-            'Diesem Fahrzeug fehlt die Höchstgeschwindigkeit (Feld T). Solange sie fehlt, bestätigt der Shop die Reifen nur für Kunden, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.'
+            'Diesem Fahrzeug fehlt die Höchstgeschwindigkeit (Feld T). Solange sie fehlt, kann der Shop die Reifen nur für Kunden bestätigen, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.'
+        )
+    })
+
+    // D-291: each axle on its own, as the shop asks the customer.
+    it('names the one axle that is missing, and both where both are', () => {
+        expect(page({ owed: ['8.2'] }).find('.fs-warn').text()).toBe(
+            'Diesem Fahrzeug fehlt die Achslast hinten (Feld 8.2). Solange sie fehlt, kann der Shop die Reifen nur für Kunden bestätigen, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.'
+        )
+        expect(page({ owed: ['8.1', '8.2', 'T'] }).find('.fs-warn').text()).toBe(
+            'Diesem Fahrzeug fehlen die Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T). Solange sie fehlen, kann der Shop die Reifen nur für Kunden bestätigen, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.'
         )
     })
 

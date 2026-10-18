@@ -161,9 +161,20 @@ class CheckController extends Controller
             ? CheckResult::query()->where('token', $token)->first()
             : null;
 
+        // Past the last day its page named, a check is gone — whether or not the nightly prune has run (D-292).
+        if ($result?->expired() === true) {
+            $result = null;
+        }
+
+        $shown = $result === null ? null : $results->present($result);
+
         return Inertia::render('CheckErgebnis/Index', [
             'token' => $token,
-            'result' => $result === null ? null : $results->present($result),
+            'result' => $shown,
+            // A link outlives its result: the page says how long one is kept (D-292).
+            'keepMonths' => CheckResult::KEEP_MONTHS,
+            // Kept, but its frozen answer can no longer be read: its own reason, never the expiry's (the interaction review).
+            'unreadable' => $result !== null && $shown === null,
         ]);
     }
 }

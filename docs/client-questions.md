@@ -125,6 +125,20 @@ title; please confirm every line, or replace it with the wording the shop can st
     Bewertungen haben wir aus unserem früheren Shop übernommen. Ob sie von Käuferinnen und Käufern dieser Felge stammen,
     haben wir nicht geprüft.“ Please have the Kanzlei confirm both. And from the client: did the former shop check that
     a reviewer had bought the wheel? If it did, the second sentence is not true as written and must say how.
+38. **How long the figures from the papers are kept — for the Kanzlei (18.10.2026).** A customer may type figures from
+    their Zulassungsbescheinigung Teil I — 8.1, 8.2 and T, and if they like P.2, 15.1 and 15.2 — so the shop can say
+    which tyres they may fit; the shop asks only for the ones the answer is missing, and never for a name, a number
+    plate or a VIN. They are kept in three places: in the customer's browser (`rmf_papiere`, 365 days from the last
+    entry); in a printable RIMIFY-Check, when the customer prints one (`check_results`); and in the order's fitment
+    record, when they order (`order_line_fitments`, as long as the order, unchangeable under R-12). Our default for
+    the check, decided now (D-292): the figures are stored only to produce it, so they expire with it — the check is
+    deleted after twelve months, every night at 03:30. Please have the Kanzlei confirm whether these figures are
+    personal data at all; that Art. 6 Abs. 1 lit. b DSGVO, and § 25 Abs. 2 Nr. 2 TDDDG for the cookie (12), are the
+    basis; and that 365 days for the cookie and twelve months for the check are right — or name the periods. The
+    processing record (`docs/legal/VERARBEITUNG.md` § 2.2) says what the code does until then. The cookie list the
+    Datenschutzerklärung draws on (`resources/js/legal/cookies.ts`, the table on the Datenschutz page) now names P.2 and
+    the tyres' load and speed index from 15.1 and 15.2 for `rmf_papiere`, which the cookie always held: please take the
+    new wording into the Datenschutzerklärung (#12, BLOCKED.md #4).
 
 ## Photography and brands
 

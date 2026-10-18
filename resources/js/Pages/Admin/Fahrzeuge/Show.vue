@@ -84,18 +84,22 @@ const context = computed(() => `${props.vehicle.keys} · ${props.vehicle.window}
 
 /* What the shop waits for, in one sentence: the axle loads always, the top speed where a released Gutachten needs it. */
 const owedLine = computed(() => {
-    const axles = props.owed.includes('8.1')
+    // Each axle on its own, as the shop asks the customer (D-291).
+    const front = props.owed.includes('8.1')
+    const rear = props.owed.includes('8.2')
     const speed = props.owed.includes('T')
+    const axles = front && rear
+        ? 'die Achslasten (Felder 8.1 und 8.2)'
+        : front ? 'die Achslast vorn (Feld 8.1)' : rear ? 'die Achslast hinten (Feld 8.2)' : null
+    const parts = [axles, speed ? 'die Höchstgeschwindigkeit (Feld T)' : null].filter((part): part is string => part !== null)
 
-    if (!axles && !speed) {
+    if (parts.length === 0) {
         return null
     }
 
-    const [what, until] = axles && speed
-        ? ['fehlen die Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T)', 'Solange sie fehlen']
-        : axles ? ['fehlen die Achslasten (Felder 8.1 und 8.2)', 'Solange sie fehlen'] : ['fehlt die Höchstgeschwindigkeit (Feld T)', 'Solange sie fehlt']
+    const many = parts.length > 1 || (front && rear)
 
-    return `Diesem Fahrzeug ${what}. ${until}, bestätigt der Shop die Reifen nur für Kunden, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.`
+    return `Diesem Fahrzeug ${many ? 'fehlen' : 'fehlt'} ${parts.join(' und ')}. ${many ? 'Solange sie fehlen' : 'Solange sie fehlt'}, kann der Shop die Reifen nur für Kunden bestätigen, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.`
 })
 
 /* `nicht eingetragen` for a top speed nothing asks for — never „fehlt“ beside a field no released Gutachten needs. */

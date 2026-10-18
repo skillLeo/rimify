@@ -16,12 +16,16 @@ use Symfony\Component\HttpFoundation\Cookie as CookieValue;
  * The figures from the customer's papers, kept per car in one cookie (Block C, item 10; the second review
  * of C9, §5): `SameSite=Lax`, `Secure` in production, one year, `HttpOnly` — the server renders every
  * answer from it, the browser never needs to read it. It moves into the account once accounts exist.
+ *
+ * The form asks only for what the answer is missing (D-291), so what comes is laid over what the customer gave
+ * before for the same car: asked for T alone, their 8.1 and 8.2 stay.
  */
 class FahrzeugPapiereController extends Controller
 {
     public function store(VehiclePapersRequest $request, Vehicle $vehicle): RedirectResponse
     {
-        $book = self::book($request)->with((int) $vehicle->id, $request->figures());
+        $book = self::book($request);
+        $book = $book->with((int) $vehicle->id, $request->figuresOver($book->for((int) $vehicle->id)));
 
         return back()->withCookie(self::cookie($book))->with('toast', 'Werte übernommen.');
     }

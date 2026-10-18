@@ -46,7 +46,7 @@ function view(status: VerdictStatus, overrides: Partial<CheckResultView> = {}): 
 function mountResult(status: VerdictStatus | null, overrides: Partial<CheckResultView> = {}): VueWrapper {
     // Fixture only — the shop's address lives in config/rimify.php; a reserved example domain.
     current.props = { contact: { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9:00–17:00 Uhr' } }
-    const wrapper = mount(CheckErgebnis, { props: { token: 'abc123', result: status === null ? null : view(status, overrides) } })
+    const wrapper = mount(CheckErgebnis, { props: { token: 'abc123', result: status === null ? null : view(status, overrides), keepMonths: 12 } })
     mounted.push(wrapper)
 
     return wrapper
@@ -99,7 +99,7 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
         expect(wrapper.findAll('.res__sum li').map((li) => li.text())).toEqual(lines)
         // No disclosure on paper: nothing is folded.
         expect(wrapper.find('details').exists()).toBe(false)
-        expect(wrapper.text()).toContain('8.1 1.210 kg · 8.2 1.235 kg · T 280 km/h')
+        expect(wrapper.text()).toContain('8.1 1.210 kg · 8.2 1.235 kg · T 280 km/h')
         expect(wrapper.text()).toContain('Deine Angaben aus den Fahrzeugpapieren haben die Antwort strenger gemacht.')
         expect(wrapper.find('.res__actions button').text()).toBe('Drucken')
     })
@@ -122,6 +122,29 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
         const plain = mountResult('CONDITIONAL', { requiresEntry: true })
 
         expect(notes(plain)).toEqual(['Eintragung in die Fahrzeugpapiere erforderlich.'])
+    })
+
+    // D-291: asked only for what the answer was missing, the customer may have given T alone.
+    it('prints only the figures the customer gave', () => {
+        const wrapper = mountResult('PERMITTED', { papers: { axleFrontKg: null, axleRearKg: null, topSpeedKmh: 250 } })
+        const facts = wrapper.findAll('.res__facts > div').map((row) => [row.find('dt').text(), row.find('dd').text()])
+
+        expect(facts).toContainEqual(['Deine Angaben', 'T 250 km/h'])
+        expect(wrapper.text()).not.toContain('8.1')
+    })
+
+    // D-292: a result is kept twelve months, then deleted with the figures in it — the page says until when, and an
+    // expired link says why it no longer opens.
+    it('says until when the link works, and why an expired one no longer opens', () => {
+        const kept = mountResult('PERMITTED', { keptUntil: '18.10.2027' })
+        const meta = kept.findAll('.res__meta > div').map((row) => [row.find('dt').text(), row.find('dd').text()])
+
+        expect(meta).toContainEqual(['Link gültig bis', '18.10.2027'])
+
+        const gone = mountResult(null)
+
+        expect(gone.find('h1').text()).toBe('Dieses Ergebnis können wir nicht anzeigen.')
+        expect(gone.find('.res__body').text()).toBe('Ein Ergebnis-Link gilt zwölf Monate, danach löschen wir das Ergebnis mit deinen Angaben. Prüf, ob der Link vollständig ist, oder starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.')
     })
 
     it('keeps the other states on their Inertia links', () => {

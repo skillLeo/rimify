@@ -153,6 +153,42 @@ describe('FitmentPanel', () => {
         expect(all.find('.fit__elsewhere').exists()).toBe(false)
     })
 
+    // The interaction review of D-291: a figure the customer typed that makes the answer negative stays theirs to change.
+    it('keeps the papers form where the customer\'s own figures made the answer negative', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle: { ...vehicle, papers: { axleFrontKg: 1610, axleRearKg: 1200, topSpeedKmh: 250, notes: [] } },
+                verdict: verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false, reason: 'Die Felge ist für 690 kg je Rad geprüft. Maßgeblich ist die zulässige Achslast der Vorderachse: 1.610 kg nach deiner Angabe aus Feld 8.1, also 805 kg je Rad – mehr, als die Felge tragen darf.' }),
+            },
+            global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } },
+        })
+
+        expect(wrapper.find('.pp__summary').text()).toContain('Nach deinen Angaben: 8.1 1.610 kg')
+        expect(wrapper.find('#pp-change').exists()).toBe(true)
+    })
+
+    // D-289: where the rim sells alone, the panel says so, and the form waits behind its button — open, it pushed the price
+    // and „In den Warenkorb“ off the first screen.
+    it('says the rim alone can be ordered where it sells while the tyres wait, the form closed behind its button', () => {
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({
+                    status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, rimSellable: true,
+                    wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben',
+                    tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, owed: ['8.1', '8.2', 'T'] },
+                }),
+            },
+            global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } },
+        })
+
+        expect(wrapper.find('[data-open="tyre"]').text()).toBe(
+            'Die Felge selbst ist für BMW 3er Coupe freigegeben – nur mit einer der zulässigen Reifengrößen. Die Reifen dazu können wir noch nicht bestätigen. Die Felge allein kannst du schon bestellen.'
+        )
+        expect(wrapper.find('.pp__form').exists()).toBe(false)
+        expect(wrapper.find('#pp-open').exists()).toBe(true)
+    })
+
     it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
         const tyre = { status: 'CONDITIONAL' as const, label: 'Mit deinen Fahrzeugpapieren prüfen', lines: ['…'], thresholds: [], fromVehicleData: false }
         const empty = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) } })

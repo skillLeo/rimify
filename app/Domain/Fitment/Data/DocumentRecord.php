@@ -74,6 +74,12 @@ final readonly class DocumentRecord
          * Frozen with the verdict where set: whether the answer rested on the car's top speed is part of what was told.
          */
         public ?string $tyreIndexSource = null,
+        /**
+         * The axle load the document itself limits the wheel to — BBS's „nur für Fahrzeuge mit maximaler Achslast
+         * 1160 kg“ —, as declared at release (`counted_axle_limit_kg`); null where it names none. Then the wheel's own
+         * approval rests on the car's axle loads, not only its tyres' (D-289). Frozen with the verdict where set.
+         */
+        public ?int $axleLimitKg = null,
     ) {}
 
     public const COMPLETE = 'complete';
@@ -98,7 +104,7 @@ final readonly class DocumentRecord
      *     id: string, kind: string, number: string|null, revision: int,
      *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null,
      *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string, isDemo?: true,
-     *     tyreIndexSource?: string
+     *     tyreIndexSource?: string, axleLimitKg?: int
      * }
      */
     public function toArray(): array
@@ -122,6 +128,7 @@ final readonly class DocumentRecord
             // An example document, said where it is true: the snapshot of a demo order keeps it.
             ...($this->isDemo ? ['isDemo' => true] : []),
             ...($this->tyreIndexSource === null ? [] : ['tyreIndexSource' => $this->tyreIndexSource]),
+            ...($this->axleLimitKg === null ? [] : ['axleLimitKg' => $this->axleLimitKg]),
         ];
     }
 
@@ -136,7 +143,7 @@ final readonly class DocumentRecord
      *     id: string|int, kind: string, number: string|null, revision: int,
      *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
      *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null, completeness?: string|null,
-     *     isDemo?: bool, tyreIndexSource?: string|null
+     *     isDemo?: bool, tyreIndexSource?: string|null, axleLimitKg?: int|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -158,6 +165,7 @@ final readonly class DocumentRecord
             completeness: $data['completeness'] ?? null,
             isDemo: ($data['isDemo'] ?? false) === true,
             tyreIndexSource: $data['tyreIndexSource'] ?? null,
+            axleLimitKg: isset($data['axleLimitKg']) ? (int) $data['axleLimitKg'] : null,
         );
     }
 }

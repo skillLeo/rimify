@@ -408,6 +408,37 @@ describe('RIMIFY-Check', () => {
         expect(ours.find('.chk__nosale-go a[href="/felgen"]').exists()).toBe(true)
     })
 
+    // D-289: where the document does not itself limit the axle load, the rim alone sells while the tyres wait for the papers.
+    it('sells the rim alone where it sells while the tyres wait for the papers', async () => {
+        shared.vehicle = VEHICLE
+        const wrapper = mountCheck({
+            answer: answer({
+                verdict: verdict({
+                    status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, rimSellable: true, wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben',
+                    tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, owed: ['8.1', '8.2', 'T'] },
+                }),
+            }),
+        })
+
+        expect(wrapper.find('.chk__nosale').exists()).toBe(false)
+        expect(wrapper.find('.chk__go').text()).toBe('Jetzt kaufen')
+
+        await wrapper.find('.chk__go').trigger('click')
+
+        expect(forms[0]).toMatchObject({ wheelConfigId: 110, tyreVariantId: null, quantity: 4 })
+
+        // As a Komplettrad the tyres wait for the papers: the button is the way on, as on the product page — never a
+        // disabled „Komplettrad gerade nicht möglich“ (the interaction review).
+        post.mockClear()
+        await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
+
+        expect(wrapper.find('.chk__go').text()).toBe('Werte eintragen')
+        expect(wrapper.find('.chk__go').attributes('disabled')).toBeUndefined()
+
+        await wrapper.find('.chk__go').trigger('click')
+        expect(post).not.toHaveBeenCalled()
+    })
+
     it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {
         shared.vehicle = VEHICLE
         const wrapper = mountCheck({ answer: answer() })

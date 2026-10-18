@@ -8,12 +8,14 @@ use App\Models\CatalogueGapEvent;
 use App\Models\Vehicle;
 use App\Services\Storefront\Basket;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Support\Facades\DB;
 
 /*
  * D-286 on the storefront, the operator's answer of 18.10.2026: a car without the figures of its papers. Every wheel its
  * Gutachten approves is said as approved — never „keine Freigabe“ on a size — with its tyres „noch nicht bestätigt“; the
- * listing asks once for the papers, the product page in its panel; nothing is sold until they are in, and the basket's
- * gate names the papers as the way on; with them the same size sells.
+ * listing asks once for the papers, the product page in its panel; no tyre is sold until they are in — the rim alone is,
+ * where its document does not itself limit the axle load (D-289, RimAloneTest) —, and the basket's gate names the papers
+ * as the way on; with them the same size sells.
  */
 
 beforeEach(function (): void {
@@ -83,12 +85,17 @@ it('answers the product page in finding 103’s shape, sells nothing until the p
 
     expect(CatalogueGapEvent::query()->where('surface', 'pdp')->where('vehicle_id', $vehicle->id)->count())->toBe($nothingHeld ? 1 : 0);
 
-    // Nothing is sold on an unconfirmed tyre, and the gate names the papers as the way on — never „schreib uns“.
+    // Nothing is sold on an unconfirmed tyre, and the gate names the papers as the way on — never „schreib uns“. Where the
+    // document itself limits the axle load, not even the rim alone (D-289): the BBS case.
+    DB::table('approval_documents')->update(['counted_axle_limit_kg' => 1160, 'counted_axle_limit_page' => 3]);
+
     $this->withCookies($cookies)->from('/felgen/'.$slug)
         ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $config['id'], 'quantity' => 4])
         ->assertSessionHasErrors(['wheelConfigId' => Basket::TYRES_AWAIT_PAPERS]);
 
     expect(session(Basket::SESSION_KEY))->toBeNull();
+
+    DB::table('approval_documents')->update(['counted_axle_limit_kg' => null, 'counted_axle_limit_page' => null]);
 
     // The papers entered — at a speed no table is needed for —: the same size is answered and sells.
     $papers = "{$vehicle->id}.1100.1100.200";

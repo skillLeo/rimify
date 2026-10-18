@@ -795,6 +795,8 @@ class FelgenController extends Controller
             // Every Auflage a Hinweis (#23, D-104): the page says „Freigegeben“, quietly „mit Hinweisen“.
             'notesOnly' => $verdict->notesOnly(),
             'sellable' => $verdict->isSellable(),
+            // The rim alone sells while the tyres wait for the papers, where the wheel's approval does not (D-289).
+            'rimSellable' => $verdict->forRimAlone() !== null,
             'requiresEntry' => $verdict->requiresEntry,
             'entryNoteDe' => $verdict->entryNoteDe,
             // The document frees the papers from correction (§ 15 FZV, ABE 53841 point 10): its own line (PapersWording).

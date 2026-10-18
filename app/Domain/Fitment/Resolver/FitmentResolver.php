@@ -490,6 +490,11 @@ final readonly class FitmentResolver
 
         $status = VerdictStatus::weaker($wheelStatus, $tyre->status);
 
+        // The rim alone (the operator's brief of 18.10.2026, §1, D-289): the axle loads decide the tyres' load index, not
+        // whether the wheel is approved. Where the tyres wait only for the papers, the rim is sold alone — unless the
+        // wheel's own approval waits for them too, gated as the top speed is (D-284): on what the document itself limits.
+        $sellsAlone = $tyre->awaitsPapers() && self::wheelOwed($vehicle, $covering, $conditions, $front, $rear) === [];
+
         // Where the tyres decide against the wheel, the answer says why in the tyres' own words.
         $reason = match ($tyre->status) {
             VerdictStatus::NotPermitted => new VerdictReason(VerdictReason::TYRE_NOT_PERMITTED, $tyre->lines[0] ?? VerdictReason::sentenceFor(VerdictReason::TYRE_NOT_PERMITTED)),
@@ -521,7 +526,42 @@ final readonly class FitmentResolver
             wheelStatus: $wheelStatus,
             tyre: $tyre,
             combinationConditions: $combination,
+            sellsAlone: $sellsAlone,
         );
+    }
+
+    /**
+     * The fields of the papers the wheel's own approval waits for (D-289): none, unless a covering document limits by
+     * axle load — declared at release (`axleLimitKg`, „nur für Fahrzeuge mit maximaler Achslast 1160 kg“), or an Auflage
+     * that names a load and no index — and the car's axle load on an axle the wheel may go on is not known. Never the top
+     * speed: it decides the tyres' symbol, not the wheel.
+     *
+     * @param  list<FitmentRow>  $covering
+     * @param  list<Condition>  $conditions
+     * @return list<string>
+     */
+    private static function wheelOwed(VehicleRecord $vehicle, array $covering, array $conditions, AxleRequirement $front, AxleRequirement $rear): array
+    {
+        $limited = false;
+
+        foreach ($covering as $row) {
+            $limited = $limited || $row->document->axleLimitKg !== null;
+        }
+
+        foreach ($conditions as $condition) {
+            $limited = $limited || ($condition->kind === ConditionKind::ReifenTragfaehigkeit && $condition->maxAxleLoadKg !== null && LoadIndexCode::indexNamedBy($condition->code) === null);
+        }
+
+        if (! $limited) {
+            return [];
+        }
+
+        $known = static fn (?int $kg): bool => ! $vehicle->isDeleted && $kg !== null && $kg > 0;
+
+        return [
+            ...($front->hasPermittedSizes() && ! $known($vehicle->axleLoadFrontKg) ? ['8.1'] : []),
+            ...($rear->hasPermittedSizes() && ! $known($vehicle->axleLoadRearKg) ? ['8.2'] : []),
+        ];
     }
 
     /**
@@ -555,11 +595,19 @@ final readonly class FitmentResolver
         $name = (string) array_key_first($over);
         $load = $over[$name];
 
+        // The binding figure with its source, as the papers form names them (R-17): the customer's own, where it governs —
+        // a mistyped 1.610 kg is then theirs to correct, not a fact about the wheel (the interaction review of D-291) —,
+        // else ours. 8.1 and 8.2 are the permitted axle loads, never what the axle carries.
+        $before = $vehicle->beforePapers;
+        $dataLoad = $before === null ? null : ($name === 'Vorderachse' ? $before->axleLoadFrontKg : $before->axleLoadRearKg);
+        $theirs = $before !== null && ($dataLoad === null || $load > $dataLoad);
+
         return new VerdictReason(VerdictReason::WHEEL_LOAD_EXCEEDED, sprintf(
-            'Die Felge ist für %s je Rad geprüft. Maßgeblich ist die %s mit %s: %s je Rad – mehr, als die Felge tragen darf.',
+            'Die Felge ist für %s je Rad geprüft. Maßgeblich ist die zulässige Achslast der %s: %s %s, also %s je Rad – mehr, als die Felge tragen darf.',
             GermanFormat::kilograms($radlast),
             $name,
             GermanFormat::kilograms($load),
+            $theirs ? 'nach deiner Angabe aus Feld '.($name === 'Vorderachse' ? '8.1' : '8.2') : 'aus unseren Fahrzeugdaten',
             self::halfKg($load),
         ));
     }
@@ -595,8 +643,11 @@ final readonly class FitmentResolver
         // go on (D-284) — then the document has named the tyre for this car, and the top speed is neither asked nor used.
         $documentStands = static fn (AxleRequirement $axle, array $check): bool => ! $axle->hasPermittedSizes() || ($check['speedFromDocument'] ?? false) === true;
         $speedNeeded = ! ($speedFromDocument && $documentStands($front, $frontCheck) && $documentStands($rear, $rearCheck));
+        // Each axle on its own: where the data knows 8.1 and not 8.2, only 8.2 is asked for (D-291).
+        $axleKnown = static fn (?int $kg): bool => ! $vehicle->isDeleted && $kg !== null && $kg > 0;
         $owed = [
-            ...($vehicle->hasAxleLoads() ? [] : ['8.1', '8.2']),
+            ...($axleKnown($vehicle->axleLoadFrontKg) ? [] : ['8.1']),
+            ...($axleKnown($vehicle->axleLoadRearKg) ? [] : ['8.2']),
             ...($speedNeeded && ! $vehicle->hasTopSpeed() ? ['T'] : []),
         ];
 
@@ -693,8 +744,16 @@ final readonly class FitmentResolver
      */
     private static function papersOwedLines(array $owed, DocumentRecord $document, array $thresholds, ?WheelConfigRecord $wheel): array
     {
-        $axles = in_array('8.1', $owed, true);
+        $front = in_array('8.1', $owed, true);
+        $rear = in_array('8.2', $owed, true);
+        $axles = $front || $rear;
         $speed = in_array('T', $owed, true);
+        // Each axle on its own where the data knows the other (D-291).
+        [$axleWords, $axleFields] = match (true) {
+            $front && $rear => ['die zulässigen Achslasten', 'Felder 8.1 und 8.2'],
+            $front => ['die zulässige Achslast vorn', 'Feld 8.1'],
+            default => ['die zulässige Achslast hinten', 'Feld 8.2'],
+        };
 
         // „Fahrzeugpapiere“ is also the answer where the document prints the symbol at only some sizes (RecordFields): the
         // sentence says where the index comes from, never that the document refers to the papers in so many words.
@@ -705,8 +764,8 @@ final readonly class FitmentResolver
         };
 
         $lines = [match (true) {
-            $axles && $speed => 'Für die Reifen fehlen uns die zulässigen Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.',
-            $axles => 'Für die Reifen fehlen uns die zulässigen Achslasten deines Fahrzeugs (Felder 8.1 und 8.2).',
+            $axles && $speed => "Für die Reifen fehlen uns {$axleWords} ({$axleFields}) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.",
+            $axles => 'Für die Reifen '.($front && $rear ? 'fehlen' : 'fehlt')." uns {$axleWords} deines Fahrzeugs ({$axleFields}).",
             default => 'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).',
         }.$why];
 
@@ -728,7 +787,7 @@ final readonly class FitmentResolver
             }
         }
 
-        // One way on whatever is missing: the papers' form takes all three figures together.
+        // One way on whatever is missing: the papers' form, which asks for what is missing and shows what is known (D-291).
         $lines[] = 'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.';
 
         return $lines;

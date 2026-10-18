@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\CheckResult;
 use App\Models\ContactMessage;
 use App\Models\MailSetting;
 use App\Services\Legal\ProcessingRecord;
@@ -27,7 +28,8 @@ it('names every provider with company, place, purpose, data, legal basis and agr
         expect($record)->toContain($company);
     }
 
-    expect(substr_count($record, '| Rechtsgrundlage | '))->toBe(5)
+    // Five providers, and the figures from the papers (2.2).
+    expect(substr_count($record, '| Rechtsgrundlage | '))->toBe(6)
         ->and(substr_count($record, '| Vertrag zur Auftragsverarbeitung | '))->toBe(5)
         ->and($record)->toContain('Stand: 06.10.2026, 21:00')
         ->and($record)->toContain('Server: `us-bos-web1780.main-hosting.eu`');
@@ -74,6 +76,20 @@ it('names the periods the code enforces, the seven-day reset copy among them —
     expect(processingRecord())->toContain('| Server-Log | 30 Tage |')
         ->not->toContain('`LOG_STACK=single`')
         ->toContain('| Sitzung (Warenkorb, Anmeldung) | 45 Minuten ohne Aktivität |');
+});
+
+it('says what the figures from the papers are for, on which basis, and how long each copy is kept (D-292)', function (): void {
+    $record = processingRecord();
+
+    expect($record)->toContain('### 2.2 · Werte aus der Zulassungsbescheinigung')
+        ->toContain('| Zweck | Die Antwort, welche Reifen zu einer Felge an diesem Fahrzeug zulässig sind')
+        ->toContain('| Rechtsgrundlage | Art. 6 Abs. 1 lit. b DSGVO')
+        ->toContain('Cookie `rmf_papiere`: 365 Tage ab dem letzten Eintrag')
+        ->toContain('deshalb mit ihm gelöscht: nach '.CheckResult::KEEP_MONTHS.' Monaten')
+        ->toContain('| Ausdruckbarer RIMIFY-Check, mit den Werten aus der Zulassungsbescheinigung (2.2) | '.CheckResult::KEEP_MONTHS.' Monate |')
+        ->toContain('im Prüfnachweis der Bestellposition (`order_line_fitments`)')
+        // The Kanzlei's question stands in § 3 until it is answered (client-questions 38).
+        ->toContain('- Werte aus der Zulassungsbescheinigung (2.2): ob sie ohne Namen');
 });
 
 it('names the shop\'s mailbox provider by its mail servers', function (): void {

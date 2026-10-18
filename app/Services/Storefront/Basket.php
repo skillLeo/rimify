@@ -370,19 +370,15 @@ final readonly class Basket
         $vehicleId = $this->vehicleId($request);
         $verdict = $vehicleId === null ? null : $this->resolver->resolve($vehicleId, $config->id);
 
-        // Selected on the status, never through one "not sellable" branch (R-07): only
-        // NOT_PERMITTED means "we checked and your car may not have this".
-        if ($verdict !== null && ! $verdict->isSellable()) {
-            // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
-            if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
-                return match (true) {
-                    $verdict->status === VerdictStatus::NotPermitted => self::TYRES_NOT_PERMITTED,
-                    $verdict->tyre?->awaitsPapers() === true => self::TYRES_AWAIT_PAPERS,
-                    default => self::TYRES_UNKNOWN,
-                };
-            }
+        // The rim alone, where it sells while the tyres wait for the papers (D-289): its own answer.
+        if ($verdict !== null && $tyreVariantId === null) {
+            $verdict = $verdict->forRimAlone() ?? $verdict;
+        }
 
-            return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
+        $refusal = $verdict === null ? null : self::verdictRefusal($verdict);
+
+        if ($refusal !== null) {
+            return $refusal;
         }
 
         // Mischbereifung: `quantity` wheels on each of the two axles, all on this one rim size.
@@ -906,11 +902,19 @@ final readonly class Basket
         // before money changes hands.
         $verdict = $vehicleId === null ? null : $this->resolver->resolve($vehicleId, $config->id);
 
+        // A rim alone carries the rim's own answer where it sells while the tyres wait for the papers (D-289).
+        if ($verdict !== null && ! $isSet) {
+            $verdict = $verdict->forRimAlone() ?? $verdict;
+        }
+
         if ($rearId !== null) {
             return $this->renderMixed($config, $tyreId, $rearId, $tyre, $colour, $quantity, $verdict, $colours, $held);
         }
 
-        $blockReasons = $isSet ? $this->blockReasons($verdict, $tyre, $colour, $quantity) : [];
+        // A rim that stopped selling says why in the add's own words — the tyres open, the papers missing — never the
+        // basket's „kein Gutachten“ over a wheel its Gutachten approves (R-17).
+        $rimRefusal = ! $isSet && $verdict !== null ? self::verdictRefusal($verdict) : null;
+        $blockReasons = $isSet ? $this->blockReasons($verdict, $tyre, $colour, $quantity) : ($rimRefusal === null ? [] : [$rimRefusal]);
 
         return [$this->line($this->key($config->id, $tyreId), $config, $isSet, $tyre, $colour, $quantity, $quantity, $verdict, $blockReasons, $colours, $held)];
     }
@@ -1169,6 +1173,30 @@ final readonly class Basket
     }
 
     /**
+     * Why an answer does not sell, in one sentence — selected on the status, never through one "not sellable" branch
+     * (R-07): only NOT_PERMITTED means "we checked and your car may not have this". The add's refusal and a rim line's
+     * reason in the basket are this one sentence, so a line never reads „kein Gutachten“ over a wheel its Gutachten
+     * approves (R-17, the interaction review of D-289). Null where it sells.
+     */
+    private static function verdictRefusal(FitmentVerdict $verdict): ?string
+    {
+        if ($verdict->isSellable()) {
+            return null;
+        }
+
+        // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
+        if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
+            return match (true) {
+                $verdict->status === VerdictStatus::NotPermitted => self::TYRES_NOT_PERMITTED,
+                $verdict->tyre?->awaitsPapers() === true => self::TYRES_AWAIT_PAPERS,
+                default => self::TYRES_UNKNOWN,
+            };
+        }
+
+        return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function verdictArray(FitmentVerdict $verdict, ?string $chosenSize = null, bool $mixed = false): array
@@ -1189,6 +1217,9 @@ final readonly class Basket
             // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
             // behind a link, in full, below.
             'sentence' => self::verdictSentence($verdict, $groups, $chosenSize, $mixed),
+            // A rim sold alone (D-289): our own sentence — the sizes it may only be fitted with —, said in the open beside
+            // the line, never among the Auflagen from the document (R-17).
+            'rimAloneNote' => $verdict->rimAloneNoteDe,
             // The Gutachten and revisions the answer rests on: the checkout's record of what the customer was
             // shown (CheckoutShown), so a document changed since is noticed before money is taken.
             'basis' => array_map(static fn ($d): string => $d->id.'@'.$d->revision, $documents),
@@ -1217,7 +1248,12 @@ final readonly class Basket
         $count = count($chosenSize === null ? $groups->all() : $groups->forSize($chosenSize));
         $sentence = match ($verdict->status) {
             VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
-            VerdictStatus::Conditional => match (true) {
+            // The rim sold alone (D-289): what makes it conditional is the tyre sizes — said first —, then the document's.
+            VerdictStatus::Conditional => $verdict->rimAlone ? match (true) {
+                $bySize => 'Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen und mit Auflagen je nach Reifengröße.',
+                $count === 0 => 'Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen.',
+                default => sprintf('Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen und mit %d %s.', $count, $count === 1 ? 'Auflage' : 'Auflagen'),
+            } : match (true) {
                 // Every Auflage a Hinweis (D-104): nothing to do, so not „mit Auflagen“ — never for Mischbereifung (D-105).
                 $verdict->notesOnly() && ! $mixed => 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.',
                 $bySize => 'Für dein Fahrzeug freigegeben, mit Auflagen je nach Reifengröße.',

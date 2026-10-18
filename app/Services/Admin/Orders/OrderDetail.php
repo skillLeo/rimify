@@ -189,6 +189,8 @@ final class OrderDetail
             'entryLine' => PapersWording::entryBySize($groups['sizes'], $verdict->papersExempt()) ?? PapersWording::entryLine($groups['entry'] ?? $verdict->requiresEntry, $verdict->papersExempt()),
             'papersLine' => PapersWording::papersLine($verdict->papersExempt()),
             'entryNote' => $verdict->entryNoteDe,
+            // A rim sold alone while its tyres waited for the papers (D-289): our own sentence as the customer read it.
+            'rimAloneNote' => $verdict->rimAloneNoteDe,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $verdict->conditions),
             // As the customer read them: the combination's once, each tyre size's with that size — for a Komplettrad,
             // its tyre's (ConditionGroups).

@@ -17,6 +17,7 @@ import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { PAPERS_EXEMPT, entryBySize, entryLine } from '../../fitment/papers'
+import { withUnit } from '../../format'
 import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import type { CheckErgebnisProps } from '../../types/pages'
@@ -24,6 +25,9 @@ import type { CheckErgebnisProps } from '../../types/pages'
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
 const props = defineProps<CheckErgebnisProps>()
+
+/* „zwölf Monate“, as the order mail says the same span; any other count in digits, „einen Monat“ in the singular. */
+const kept = computed(() => (props.keepMonths === 12 ? 'zwölf Monate' : props.keepMonths === 1 ? 'einen Monat' : `${props.keepMonths} Monate`))
 
 
 interface Copy {
@@ -94,14 +98,33 @@ const copy = computed<Copy>(() => {
                 primary: { href: askHref.value, label: 'Bei uns nachfragen' },
             }
         default:
+            // A result is kept KEEP_MONTHS, then deleted with the figures in it (D-292); a document changed since does not
+            // remove one — the page then says so beside the frozen answer (documentToday).
+            // „können wir nicht anzeigen“: a mistyped link never was, a deleted one leaves no trace — no history is claimed.
             return {
                 tag: null,
                 label: null,
-                title: 'Dieses Ergebnis ist nicht mehr verfügbar.',
-                body: 'Ergebnis-Links verfallen, wenn sich die zugrunde liegende Freigabe geändert hat. Führe die Prüfung erneut durch, damit du den aktuellen Stand erhältst.',
+                title: 'Dieses Ergebnis können wir nicht anzeigen.',
+                body: props.unreadable === true
+                    ? 'Wir können das gespeicherte Ergebnis nicht mehr lesen. Starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.'
+                    : `Ein Ergebnis-Link gilt ${kept.value}, danach löschen wir das Ergebnis mit deinen Angaben. Prüf, ob der Link vollständig ist, oder starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.`,
                 primary: { href: '/rimify-check', label: 'Neue Prüfung starten' },
             }
     }
+})
+
+/* The figures as the customer gave them: asked only for what the answer was missing, they may be fewer than three (D-291). */
+const papersLine = computed<string | null>(() => {
+    const papers = props.result?.papers
+    if (!papers) return null
+    // A figure and its unit through the one helper (R-10), as the papers form says them.
+    const parts = [
+        papers.axleFrontKg == null ? null : `8.1 ${withUnit(formatNumber(papers.axleFrontKg), 'kg')}`,
+        papers.axleRearKg == null ? null : `8.2 ${withUnit(formatNumber(papers.axleRearKg), 'kg')}`,
+        papers.topSpeedKmh == null ? null : `T ${withUnit(formatNumber(papers.topSpeedKmh), 'km/h')}`,
+    ].filter((part): part is string => part !== null)
+
+    return parts.length ? parts.join(' · ') : null
 })
 </script>
 
@@ -140,9 +163,9 @@ const copy = computed<Copy>(() => {
                             <template v-if="result.document.example"> · <span class="tag tag--unknown">Beispieldaten</span></template>
                         </dd>
                     </div>
-                    <div v-if="result.papers">
+                    <div v-if="papersLine">
                         <dt>Deine Angaben</dt>
-                        <dd>8.1 {{ formatNumber(result.papers.axleFrontKg) }}&nbsp;kg · 8.2 {{ formatNumber(result.papers.axleRearKg) }}&nbsp;kg · T {{ result.papers.topSpeedKmh }}&nbsp;km/h</dd>
+                        <dd>{{ papersLine }}</dd>
                     </div>
                     <!-- What the answer assumed that our vehicle data does not hold: printed with where it came from,
                          so the workshop or the Prüfer can catch a wrong one (G-02). -->
@@ -192,14 +215,19 @@ const copy = computed<Copy>(() => {
                 </Link>
             </div>
 
+            <!-- Labels as labels, the values in full ink: the micro size is for legal text and captions (DIRECTION §3). -->
             <dl class="res__meta">
                 <div>
-                    <dt class="micro">Ergebnis-Nummer</dt>
+                    <dt class="label">Ergebnis-Nummer</dt>
                     <dd class="data">{{ token }}</dd>
                 </div>
                 <div v-if="result?.issuedAt">
-                    <dt class="micro">Geprüft am</dt>
+                    <dt class="label">Geprüft am</dt>
                     <dd class="data">{{ result.issuedAt }}</dd>
+                </div>
+                <div v-if="result?.keptUntil">
+                    <dt class="label">Link gültig bis</dt>
+                    <dd class="data">{{ result.keptUntil }}</dd>
                 </div>
             </dl>
         </div>
@@ -223,6 +251,9 @@ const copy = computed<Copy>(() => {
 }
 
 .res__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-16) var(--sp-40);
     margin: var(--space-7) 0 0;
     padding-top: var(--space-4);
     border-top: 1px solid var(--line);
@@ -231,12 +262,7 @@ const copy = computed<Copy>(() => {
 .res__meta dd {
     margin: var(--space-1) 0 0;
     overflow-wrap: anywhere;
-}
-
-.res__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-16) var(--sp-40);
+    color: var(--c-ink);
 }
 
 .res__detail {
