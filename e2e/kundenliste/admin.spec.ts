@@ -25,11 +25,13 @@ async function admin(page: Page): Promise<void> {
  * none was. The released document itself takes no entry (R-11).
  */
 async function draftOf55255(page: Page): Promise<void> {
-    await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
-    await page.locator('a', { hasText: '55255' }).first().click()
-    await page.waitForLoadState('networkidle')
+    await openDocument(page, '55255')
 
-    if (await page.locator('#kb-edit').isVisible()) {
+    // The document's page in one of its three states: the draft itself, its new Fassung started, or none started yet.
+    const edit = page.locator('#kb-edit')
+    await expect(edit.or(page.getByRole('link', { name: 'Neue Fassung öffnen' })).or(page.getByRole('button', { name: 'Neue Fassung anlegen' })).first()).toBeVisible()
+
+    if (await edit.isVisible()) {
         return
     }
 
@@ -119,7 +121,9 @@ test('load index and speed symbol in two fields of their own — a size pasted a
 async function openDocument(page: Page, number: string): Promise<void> {
     await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
     await page.locator('a', { hasText: number }).first().click()
-    await page.waitForLoadState('networkidle')
+    // An Inertia visit: the load state does not change — the address and the page's own heading do.
+    await page.waitForURL(/\/admin\/gutachten\/\d+(\?.*)?$/)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(number)
 }
 
 test('the table of tyre load at speed: whole where the document prints one, one folded line where it does not', { tag: '@admin-215' }, async ({ page }, info) => {

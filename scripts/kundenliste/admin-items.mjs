@@ -115,6 +115,7 @@ export const ITEMS = [
     {
         nr: 217,
         wish: 'Rechnungserstellung entfernen',
+        pictures: false,
         now: 'Noch nicht umgesetzt: Wir brauchen deine Antwort, wer die Rechnung ausstellt und ob der Shop eine Kopie behält, damit die Rechnungsnummern nur aus einem System kommen. Die Bestellbestätigung zeigt weiter Netto, Steuersatz, Steuer und Brutto.',
         state: 'Rückfrage',
     },

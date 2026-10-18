@@ -208,7 +208,8 @@ const rows = ITEMS.map((item) => {
     // An item whose answer is that nothing changes (`pictures: false`) has nothing to show; its test is the proof.
     if (item.pictures !== false && (!shots['1440'] || !shots['390'])) missing.push(`Bild fehlt (${['1440', '390'].filter((w) => !shots[w]).join(', ')})`)
 
-    const state = missing.length > 0 ? 'offen' : item.state
+    // A Rückfrage claims nothing done — it waits for his answer —, so it keeps its state without a test of its own.
+    const state = missing.length > 0 && !(item.state === 'Rückfrage' && tests.length === 0) ? 'offen' : item.state
     const result = tests.length === 0 ? 'kein Test' : failed.length > 0 ? 'nicht bestanden' : passed.length === 0 ? 'nicht gelaufen' : `bestanden (${passed.length})`
 
     return { item, tests, failed, shots, missing, state, result }
