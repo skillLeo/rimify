@@ -49,6 +49,7 @@ import { claimBottomEdge } from '../../composables/useShell'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { decimal, withUnit } from '../../format'
 import { contactHref as contactFormHref } from '../../lib/contact'
+import { focusPapersForm, waitsForPapers } from '../../lib/papersForm'
 import type { ProduktConfig, ProduktProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
@@ -150,10 +151,12 @@ const blockedNote = computed(() => {
 
 /*
  * Grey is not struck through (finding 103): the wheel is approved for the car and only the tyre size is unconfirmed.
- * The legend says the difference in plain words — unverified is neither forbidden nor unavailable.
+ * The legend says the difference in plain words — unverified is neither forbidden nor unavailable. Where a size waits
+ * only for the car's papers (D-286) the panel right below asks for them, and a legend blaming „Unterlagen“ would point
+ * the wrong way: it speaks only of the sizes a record of ours leaves open.
  */
 const unconfirmedNote = computed(() =>
-    config.sizes.value.some((s) => s.unconfirmed)
+    config.sizes.value.some((s) => s.unconfirmed && !waitsForPapers(s.config.verdict))
         ? 'Grau markierte Größen können wir für dein Fahrzeug noch nicht bestätigen. Das heißt nicht, dass sie unzulässig sind, sondern dass uns die Unterlagen dazu fehlen.'
         : null
 )
@@ -374,6 +377,12 @@ const canBuy = computed(() => {
     return current.verdict === null || current.verdict.sellable
 })
 
+/*
+ * Where the tyres wait for the car's papers (D-286) the button is the way on, not a dead disabled one: it reads
+ * „Werte eintragen“ and takes the keyboard to the papers form in the panel. Nothing is added until they are in.
+ */
+const papersFirst = computed(() => selected.value !== null && selected.value.inStock && waitsForPapers(selected.value.verdict))
+
 const buyLabel = computed(() => {
     if (basket.processing) {
         return 'Wird hinzugefügt …'
@@ -381,6 +390,10 @@ const buyLabel = computed(() => {
 
     if (selected.value !== null && !selected.value.inStock) {
         return 'Ausverkauft'
+    }
+
+    if (papersFirst.value) {
+        return 'Werte eintragen'
     }
 
     if (isSet.value) {
@@ -413,6 +426,12 @@ const shownNote = computed(() => {
 const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.weightColourId ?? null)
 
 function addToBasket(): void {
+    if (papersFirst.value) {
+        focusPapersForm()
+
+        return
+    }
+
     // One add at a time: a second press while the first is on its way does nothing.
     if (selected.value === null || !canBuy.value || basket.processing) {
         return
@@ -680,7 +699,7 @@ claimBottomEdge(() => stickyShown.value)
                         <button
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
-                            :disabled="!canBuy"
+                            :disabled="!canBuy && !papersFirst"
                             :aria-busy="basket.processing ? 'true' : undefined"
                             @click="addToBasket"
                         >
@@ -867,7 +886,7 @@ claimBottomEdge(() => stickyShown.value)
         <button
             class="btn btn--primary pdp__sticky-btn"
             type="button"
-            :disabled="!canBuy"
+            :disabled="!canBuy && !papersFirst"
             :aria-busy="basket.processing ? 'true' : undefined"
             @click="addToBasket"
         >

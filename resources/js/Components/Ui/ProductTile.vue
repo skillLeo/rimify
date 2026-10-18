@@ -86,7 +86,7 @@ function onPointerEnter(event: PointerEvent): void {
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: boolean; label?: string } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
@@ -102,10 +102,12 @@ const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: bo
         conditions: effective === 'CONDITIONAL' && !notes ? conditions : [],
         vary: effective === 'CONDITIONAL' && !notes && conditionsVary,
         notesOnly: notes,
-        // The wheel approved, its tyres not yet confirmed (finding 103, D-286): the true half first, never „keine Freigabe“ —
-        // in the panel's words.
-        tyresOpen: effective === 'UNKNOWN' && tyresOpen,
-        label: effective === 'UNKNOWN' && tyresOpen ? (wheelConditional ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben') : undefined,
+        // The wheel approved, its tyres not yet confirmed (finding 103, D-286): the badge stays the plain state — a corner
+        // has no room for both halves, and a longer one ran off a phone's tile —, the line under the price says which is
+        // which, in the panel's words, and its sizes are never „keine Freigabe“.
+        tyresOpen: effective === 'UNKNOWN' && tyresOpen
+            ? `${wheelConditional ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben'}, Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.`
+            : null,
     }
 })
 
@@ -198,7 +200,7 @@ function onCompareLabelClick(event: MouseEvent): void {
             <!-- After the v-if/v-else pair, never between: there it would take the v-else. -->
             <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" soon class="tile__picture tile__media--alt" aria-hidden="true" />
 
-            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" :label="verdict.label" class="tile__badge" />
+            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" class="tile__badge" />
         </div>
 
         <!-- Names and sizes are never translated: a page translator turns a brand into a word and
@@ -225,7 +227,7 @@ function onCompareLabelClick(event: MouseEvent): void {
         <!-- Never one blended list: what depends on the size is said per size on the product page. -->
         <p v-if="verdict && verdict.vary" class="tile__vary">Weitere Auflagen je nach Größe – auf der Produktseite.</p>
         <p v-if="verdict && verdict.notesOnly" class="tile__vary">Mit Hinweisen aus dem Gutachten – auf der Produktseite.</p>
-        <p v-if="verdict && verdict.tyresOpen" class="tile__vary" data-tyres="open">Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.</p>
+        <p v-if="verdict && verdict.tyresOpen" class="tile__vary" data-tyres="open">{{ verdict.tyresOpen }}</p>
 
         <span v-if="!card.inStock" class="stock stock--out">Ausverkauft</span>
 

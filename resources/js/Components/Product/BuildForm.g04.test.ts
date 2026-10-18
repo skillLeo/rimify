@@ -13,7 +13,7 @@ import type { BuildProp } from '../../types/rimify'
 
 const post = vi.fn()
 
-vi.mock('@inertiajs/vue3', () => ({ router: { post: (...args: unknown[]) => post(...args) } }))
+vi.mock('@inertiajs/vue3', () => ({ router: { post: (...args: unknown[]) => post(...args), flushAll: vi.fn() } }))
 
 const { default: BuildForm } = await import('./BuildForm.vue')
 

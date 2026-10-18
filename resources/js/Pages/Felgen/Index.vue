@@ -156,7 +156,8 @@ onBeforeUnmount(() => {
             </nav>
 
             <div class="plp__head">
-                <h1 class="t-h1">
+                <!-- Where the keyboard goes when the papers' block it was in goes with the figures (PapersForm). -->
+                <h1 class="t-h1" tabindex="-1" data-focus-after-papers>
                     {{ heading }}
                     <!-- Seeded demonstration rows are on this page: it says so, once (OVERHAUL.md §2). -->
                     <span v-if="demo" class="badge demo-note plp__demo">Demodaten</span>
@@ -188,8 +189,11 @@ onBeforeUnmount(() => {
             <!-- The tyres wait for the car's papers (D-286): asked once, for every wheel below, and answered in place. Once
                  given, the figures every answer rests on stay said, one click from changing — as the body style above. -->
             <div v-if="hasVehicle && vehicle && (owed?.length || vehicle.papers)" class="plp__ask plp__papers" :class="{ 'plp__papers--said': !owed?.length }" data-papers>
-                <p v-if="owed?.length" class="plp__papers-lead">{{ owedLead }}</p>
-                <PapersForm :key="`papers-${vehicle.id}`" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed ?? []" asked-above />
+                <p v-if="owed?.length" class="plp__papers-lead">
+                    <Icon name="info" :size="20" />
+                    <span>{{ owedLead }}</span>
+                </p>
+                <PapersForm :key="`papers-${vehicle.id}`" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed ?? []" start-closed />
             </div>
 
             <!-- No vehicle: honest about what the page is, and one step away from the real answer. -->
@@ -373,11 +377,22 @@ onBeforeUnmount(() => {
 }
 
 /* What the tyres wait for (D-286): the sentence in ink, the form's button under it. */
+/* As the no-car notice says its one thing: the icon, body size, a line one can read (DIRECTION §3). */
 .plp__papers-lead {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-12);
+    max-width: calc(64 * var(--ch-text));
     margin: 0;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
     color: var(--c-ink);
+}
+
+.plp__papers-lead :deep(svg) {
+    flex: none;
+    margin-top: 2px;
+    color: var(--c-ink-2);
 }
 
 .plp__papers :deep(.pp) {

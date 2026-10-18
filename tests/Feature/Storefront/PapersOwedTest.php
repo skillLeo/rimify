@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Storefront\PapersBook;
 use App\Domain\Storefront\VehicleContext;
+use App\Models\CatalogueGapEvent;
 use App\Models\Vehicle;
 use App\Services\Storefront\Basket;
 use Database\Seeders\CommerceSeeder;
@@ -52,8 +53,11 @@ it('lists the wheels the documents approve as approved, the tyres open, and asks
 
     expect($props['owed'])->toBe(['8.1', '8.2', 'T'])
         ->and($card['fitment']['status'])->toBe('UNKNOWN')
-        // Approved in the sizes it is listed with: none of them greyed as „keine Freigabe“.
-        ->and($card['diametersFitting'])->not->toBe([]);
+        // Approved in the sizes it is listed with: none of them greyed as „keine Freigabe“ — spelled as the card's own
+        // sizes are, strings; as the integers PHP makes of „18“, the tile matched none and greyed every whole inch.
+        ->and($card['diametersFitting'])->not->toBe([])
+        ->and($card['diametersFitting'])->each->toBeString()
+        ->and(array_values(array_intersect($card['diameters'], $card['diametersFitting'])))->toBe($card['diametersFitting']);
 });
 
 it('answers the product page in finding 103’s shape, sells nothing until the papers are in, and sells with them', function (): void {
@@ -72,6 +76,13 @@ it('answers the product page in finding 103’s shape, sells nothing until the p
         // The wheel's own verdict in full, its Auflagen with their detail.
         ->and($verdict['detail'])->not->toBeNull();
 
+    // Not a document to buy: its Gutachten is held. Only a size we hold nothing for counts on the Übersicht's list.
+    $open = static fn (array $v): bool => $v['status'] === 'UNKNOWN' && in_array($v['wheelStatus'], ['PERMITTED', 'CONDITIONAL'], true)
+        && ($v['tyre']['status'] ?? null) === 'UNKNOWN' && $v['missing'] === [];
+    $nothingHeld = collect($configs)->contains(static fn (array $c): bool => $c['verdict']['status'] === 'UNKNOWN' && ! $open($c['verdict']));
+
+    expect(CatalogueGapEvent::query()->where('surface', 'pdp')->where('vehicle_id', $vehicle->id)->count())->toBe($nothingHeld ? 1 : 0);
+
     // Nothing is sold on an unconfirmed tyre, and the gate names the papers as the way on — never „schreib uns“.
     $this->withCookies($cookies)->from('/felgen/'.$slug)
         ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $config['id'], 'quantity' => 4])
@@ -86,6 +97,15 @@ it('answers the product page in finding 103’s shape, sells nothing until the p
 
     expect($answered['sellable'])->toBeTrue()
         ->and($answered['tyre']['owed'] ?? [])->toBe([]);
+
+    // The listing with them: the card sells, its sizes spelled as the card's own, and nothing is asked any more.
+    $listing = $this->withCookies($cookies)->withUnencryptedCookie(PapersBook::COOKIE, $papers)->get('/felgen')->viewData('page')['props'];
+    $sold = collect($listing['cards'])->firstWhere('slug', $slug);
+
+    expect($listing['owed'])->toBe([])
+        ->and($sold['fitment']['status'])->toBeIn(['PERMITTED', 'CONDITIONAL'])
+        ->and($sold['diametersFitting'])->not->toBe([])
+        ->and($sold['diametersFitting'])->each->toBeString();
 
     $this->withCookies($cookies)->withUnencryptedCookie(PapersBook::COOKIE, $papers)->from('/felgen/'.$slug)
         ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $config['id'], 'quantity' => 4])

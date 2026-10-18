@@ -12,13 +12,15 @@
  * for the tyre chosen — the label itself, never a class the regulation does not know.
  *
  * The refusal code is never rendered — it only picks which routes forward make sense: the selector when the car is
- * missing, the contact form when a person has to look at it.
+ * missing, the papers form when the tyres wait for the car's figures (D-286), the contact form when a person has to
+ * look at it.
  */
 
 import { Link, usePage } from '@inertiajs/vue3'
 import { computed, nextTick, ref, useTemplateRef } from 'vue'
 import { withUnit } from '../../format'
 import { contactHref } from '../../lib/contact'
+import { focusPapersForm } from '../../lib/papersForm'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
 import type { KomplettradOfferProp, KomplettradOptionsProp, KomplettradTyreProp, TyreClass } from '../../types/pages'
@@ -68,7 +70,9 @@ const forward = computed(() => {
 
     return {
         vehicle: code === 'NO_VEHICLE' || code === 'VERDICT_RESTORED',
-        contact: code !== 'NO_VEHICLE',
+        // The tyres wait for the car's own figures: the way on is the customer's, in the panel — not a message to us.
+        papers: code === 'TYRES_AWAIT_PAPERS',
+        contact: code !== 'NO_VEHICLE' && code !== 'TYRES_AWAIT_PAPERS',
     }
 })
 
@@ -147,8 +151,9 @@ async function expand(): Promise<void> {
             <Icon name="info" :size="20" />
             <div>
                 <p class="kc__refusal-text">{{ refusal }}</p>
-                <p v-if="forward.vehicle || forward.contact" class="kc__routes">
+                <p v-if="forward.vehicle || forward.papers || forward.contact" class="kc__routes">
                     <Link v-if="forward.vehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm">Fahrzeug wählen</Link>
+                    <button v-if="forward.papers" class="btn btn--secondary btn--sm" type="button" @click="focusPapersForm">Werte eintragen</button>
                     <Link v-if="forward.contact" :href="askHref" class="link kc__mail">Schreib uns</Link>
                 </p>
             </div>

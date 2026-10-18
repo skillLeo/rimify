@@ -99,7 +99,7 @@ describe('FitmentPanel', () => {
 
         expect(open.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben mit Auflagen · Reifengröße noch nicht bestätigt')
         expect(open.text()).not.toContain('Keine Freigabe hinterlegt')
-        expect(open.find('[data-open="tyre"]').text()).toBe('Die Felge selbst ist für deinen BMW 3er Coupe freigegeben, mit Auflagen. Nicht bestätigen können wir die Reifengröße.')
+        expect(open.find('[data-open="tyre"]').text()).toBe('Die Felge selbst ist für BMW 3er Coupe mit Auflagen freigegeben. Die Reifengröße dazu können wir noch nicht bestätigen.')
         // What is on record, said as that — and never what the document does or does not print (R-17).
         expect(open.find('.fit__tyre-summary').text()).toBe(summary)
         expect(open.text()).not.toMatch(/Gutachten (druckt|enthält|nennt) kein/)
@@ -138,18 +138,19 @@ describe('FitmentPanel', () => {
             })
         const all = waiting(['8.1', '8.2', 'T'])
 
-        // The wheel's own verdict first, in full: its Eintragung and its Auflagen.
-        expect(all.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben mit Auflagen · Reifengröße noch nicht bestätigt')
+        // The wheel's own verdict first, in full: its Eintragung and its Auflagen. No size is the open part here — the
+        // tyres are, whichever size: „Reifen“, not „Reifengröße“.
+        expect(all.find('.rcheck-panel__vehicle').text()).toBe('Felge freigegeben mit Auflagen · Reifen noch nicht bestätigt')
+        expect(all.find('[data-open="tyre"]').text()).toBe('Die Felge selbst ist für BMW 3er Coupe mit Auflagen freigegeben. Die Reifen dazu können wir noch nicht bestätigen.')
         expect(all.find('.fit__entry--verdict').text()).toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
         expect(all.find('.fit__conditions li').text()).toBe('Nur mit den angegebenen Radschrauben zulässig.')
         // Then the tyre, the reason ours; the way on is the form — not a table we may hold one day, not a message to us.
         expect(all.findAll('.fit__tyre-lines li').map((li) => li.text())).toEqual(lines)
         expect(all.find('[data-open="next"]').exists()).toBe(false)
         expect(all.find('#pp-axle_front_kg').exists()).toBe(true)
-        expect(all.find('[data-asked]').text()).toContain('Trag die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T ein.')
+        // Which fields, the tyre lines just said: the form says only where they are kept.
+        expect(all.find('[data-asked]').text()).toBe('Wir speichern die Werte zu diesem Fahrzeug als Cookie in deinem Browser.')
         expect(all.find('.fit__elsewhere').exists()).toBe(false)
-
-        expect(waiting(['T']).find('[data-asked]').text()).toContain('Trag die Höchstgeschwindigkeit aus Feld T ein')
     })
 
     it('offers the fields 8.1, 8.2 and T under the tyre lines, and the typed figures once they are kept', async () => {
@@ -254,7 +255,8 @@ describe('FitmentPanel', () => {
             verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'NO_DOCUMENT', reason: 'Für diese Kombination liegt uns kein Gutachten vor.' }),
             verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'ANNEX_MISSING', reason: 'Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor.' }),
         ]) {
-            expect(link(v).text()).toBe('Felgen für deinen BMW 3er anzeigen')
+            // Without an article: „deinen“ broke on a feminine model name („deinen … C-Klasse“).
+            expect(link(v).text()).toBe('Felgen für BMW 3er anzeigen')
             expect(link(v).attributes('href')).toBe('/felgen?fahrzeug=3')
         }
 

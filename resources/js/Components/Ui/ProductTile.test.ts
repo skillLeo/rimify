@@ -280,15 +280,16 @@ describe('ProductTile', () => {
             card: card(1, { diametersFitting: ['18', '19', '20'], fitment: { status: 'UNKNOWN', requiresEntry: false, tyresOpen: true } }),
         })
 
-        expect(wrapper.find('.tile__badge').text()).toBe('Felge freigegeben')
-        expect(wrapper.find('[data-tyres="open"]').text()).toBe('Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.')
+        // The badge keeps the plain state — a corner has no room for both halves —; the line says which is which.
+        expect(wrapper.find('.tile__badge').text()).toBe('Noch nicht bestätigt')
+        expect(wrapper.find('[data-tyres="open"]').text()).toBe('Felge freigegeben, Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.')
         expect(wrapper.findAll('.tile__size--none')).toHaveLength(0)
         expect(wrapper.text()).not.toContain('keine Freigabe')
 
         // Approved with Auflagen: said in the panel's words.
         const conditional = mountTile({ vehicle, card: card(3, { diametersFitting: ['18'], fitment: { status: 'UNKNOWN', requiresEntry: false, tyresOpen: true, wheelConditional: true } }) })
 
-        expect(conditional.find('.tile__badge').text()).toBe('Felge freigegeben mit Auflagen')
+        expect(conditional.find('[data-tyres="open"]').text()).toBe('Felge freigegeben mit Auflagen, Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.')
 
         // A plain „we hold nothing“ stays what it was.
         const unknown = mountTile({ vehicle, card: card(2, { diametersFitting: [], fitment: { status: 'UNKNOWN', requiresEntry: false } }) })

@@ -23,6 +23,7 @@ import { useOcr } from '../../composables/useOcr'
 import { withUnit } from '../../format'
 import { parsePapers } from '../../lib/fahrzeugschein'
 import { formatNumber } from '../../lib/num'
+import { OFFLINE, refusal } from '../../lib/visitRefusal'
 import type { PapersProp } from '../../types/rimify'
 
 const props = defineProps<{
@@ -32,11 +33,12 @@ const props = defineProps<{
     powerKw?: number | null
     /**
      * The fields the answer waits for — `8.1`, `8.2`, `T` — where the tyres are „Noch nicht bestätigt“ for want of them
-     * (D-286). Then this form is the way on, not an option: open from the start, and it says what is missing.
+     * (D-286). Then this form is the way on, not an option: open from the start. Which fields, the page above says — the
+     * tyre lines in the panel, the listing's banner —, never the form a second time.
      */
     asked?: string[]
-    /** The host says what is missing, above the form (the listing, D-286): the form starts closed and does not repeat it. */
-    askedAbove?: boolean
+    /** Closed behind its button even where it is asked for: the listing, where it stands above every wheel. */
+    startClosed?: boolean
 }>()
 
 const variant = ref<'neu' | 'alt'>('neu')
@@ -44,22 +46,41 @@ const variant = ref<'neu' | 'alt'>('neu')
    Warenkorb“ below the first screen of the product page. Where the answer waits for them nothing is in the basket's
    way — there is no purchase until they are in —, and the form opens by itself (D-286). */
 const askedFields = computed(() => props.asked ?? [])
-const open = ref(!props.askedAbove && askedFields.value.length > 0 && props.papers === null)
+const waits = computed(() => askedFields.value.length > 0 && props.papers === null)
+const open = ref(!props.startClosed && waits.value)
 
-/* What the answer waits for, in a sentence: all three are asked either way — they stand side by side in the papers,
-   and the figures are kept together. */
-const askedLine = computed(() => {
-    const speedOnly = askedFields.value.length === 1 && askedFields.value[0] === 'T'
-
-    return speedOnly
-        ? 'Trag die Höchstgeschwindigkeit aus Feld T ein und dazu die zulässigen Achslasten aus den Feldern 8.1 und 8.2 – alle drei stehen in deiner Zulassungsbescheinigung Teil I.'
-        : 'Trag die zulässigen Achslasten aus den Feldern 8.1 und 8.2 und die Höchstgeschwindigkeit aus Feld T ein.'
+/* Where the answer comes to wait for the figures — another size, the figures deleted —, the form is the way on again. */
+watch(waits, (now, before) => {
+    if (now && !before && !props.startClosed) {
+        open.value = true
+    }
 })
 
 /* Where the figures are kept — said wherever the form asks for them. */
 const KEPT = 'Wir speichern die Werte zu diesem Fahrzeug als Cookie in deinem Browser.'
 const busy = ref(false)
 const errors = ref<Record<string, string>>({})
+
+/* Offline, an expired page, too many tries, a fault: said at the form, the page and what was typed kept (G-05). */
+const failure = ref('')
+
+/* 15.1 and 15.2 are optional: folded, open where they were given or refused. */
+const moreOpen = ref(Boolean(props.papers?.index))
+
+/* The keyboard to the first of these that stands on the page: a form that closed must not drop it to the page's end. */
+function focusFirst(...selectors: string[]): void {
+    void nextTick(() => {
+        for (const selector of selectors) {
+            const target = document.querySelector<HTMLElement>(selector)
+
+            if (target !== null) {
+                target.focus()
+
+                return
+            }
+        }
+    })
+}
 
 type FieldKey = 'axle_front_kg' | 'axle_rear_kg' | 'top_speed_kmh' | 'power_kw'
 
@@ -128,18 +149,45 @@ function change(): void {
     void nextTick(() => document.getElementById('pp-axle_front_kg')?.focus())
 }
 
-/** „Abbrechen“: back to the summary, nothing kept of what was typed (C-06). */
+/** „Abbrechen“: back to the summary, nothing kept of what was typed (C-06). Not while the figures are on their way. */
 function cancel(): void {
+    if (busy.value) {
+        return
+    }
+
     fromPapers()
+    failure.value = ''
     open.value = false
-    void nextTick(() => document.getElementById(props.papers ? 'pp-change' : 'pp-open')?.focus())
+    focusFirst(props.papers ? '#pp-change' : '#pp-open')
+}
+
+/* What a visit that never reached an answer says, the typed figures kept and the keyboard on the button it came from. */
+const unreached = {
+    onHttpException: (response: { status: number }) => {
+        failure.value = refusal(response.status)
+        focusFirst('#pp-save')
+
+        return false
+    },
+    onNetworkError: () => {
+        failure.value = OFFLINE
+        focusFirst('#pp-save')
+
+        return false
+    },
 }
 
 /* `1.160 kg`: a figure and its unit through the one helper (R-10). */
 const kg = (n: number): string => withUnit(formatNumber(n), 'kg')
 
 function save(): void {
+    // One send at a time: a second press while the first is on its way does nothing.
+    if (busy.value) {
+        return
+    }
+
     busy.value = true
+    failure.value = ''
     // P.2 goes only where it was asked; empty, it is not sent. 15.1 and 15.2 go where either was typed.
     const { power_kw: power, ...figures } = form
     const typed = index.index_front.trim() !== '' || index.index_rear.trim() !== ''
@@ -150,16 +198,21 @@ function save(): void {
     }, {
         preserveScroll: true,
         errorBag: 'papiere',
+        ...unreached,
         onError: (bag) => {
             errors.value = bag as Record<string, string>
             const first = ['axle_front_kg', 'axle_rear_kg', 'top_speed_kmh', 'power_kw', 'index_front', 'index_rear'].find((key) => errors.value[key])
-            document.getElementById(first ? `pp-${first}` : 'pp-save')?.focus()
+            // A refused 15.1 or 15.2 is not left folded away.
+            moreOpen.value = moreOpen.value || first === 'index_front' || first === 'index_rear'
+            focusFirst(first ? `#pp-${first}` : '#pp-save')
         },
         onSuccess: () => {
+            // Every answer about this car changed with its figures: a page fetched ahead on a hover would show the old one.
+            router.flushAll()
             errors.value = {}
             open.value = false
             // The form gives way to the summary: focus goes where the reader can change it again.
-            void nextTick(() => document.getElementById('pp-change')?.focus())
+            focusFirst('#pp-change')
         },
         onFinish: () => {
             busy.value = false
@@ -218,10 +271,17 @@ async function onPhoto(event: Event): Promise<void> {
 }
 
 function clear(): void {
+    if (busy.value) {
+        return
+    }
+
     busy.value = true
+    failure.value = ''
     router.delete(`/fahrzeug/${props.vehicleId}/papiere`, {
         preserveScroll: true,
+        ...unreached,
         onSuccess: () => {
+            router.flushAll()
             form.axle_front_kg = ''
             form.axle_rear_kg = ''
             form.top_speed_kmh = ''
@@ -230,8 +290,10 @@ function clear(): void {
             index.index_rear = ''
             // What was wrong with figures that are gone is no longer said (C-07).
             errors.value = {}
-            open.value = false
-            void nextTick(() => document.getElementById('pp-open')?.focus())
+            // Where the answer now waits for them, the form stays the way on (D-286); else its button comes back. Where
+            // the whole block goes with them (the listing), the keyboard goes to the page's heading, never its end.
+            open.value = waits.value && !props.startClosed
+            focusFirst('#pp-axle_front_kg', '#pp-open', '[data-focus-after-papers]')
         },
         onFinish: () => {
             busy.value = false
@@ -258,12 +320,53 @@ function clear(): void {
         <form v-else class="pp__form" novalidate aria-labelledby="pp-h" @submit.prevent="save">
             <div class="pp__head">
                 <p id="pp-h" class="pp__title">Werte aus deiner Zulassungsbescheinigung</p>
-                <p v-if="askedFields.length && askedAbove" class="pp__help">{{ KEPT }}</p>
-                <p v-else-if="askedFields.length" class="pp__help pp__asked" data-asked>{{ askedLine }} {{ KEPT }}</p>
+                <!-- Asked for: which fields, the page says above the form (the tyre lines, the listing's banner, D-286). -->
+                <p v-if="askedFields.length" class="pp__help" data-asked>{{ KEPT }}</p>
                 <p v-else class="pp__help">
                     Freiwillig: Mit den zulässigen Achslasten und der Höchstgeschwindigkeit zeigen wir dir, welche Reifen du fahren darfst. {{ KEPT }}
                 </p>
             </div>
+
+            <!-- The three figures first: what the answer waits for. -->
+            <div class="pp__grid">
+                <div v-for="field in FIELDS" :key="field.key" class="form-field">
+                    <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}<span class="visually-hidden"> ({{ field.unit }})</span></label>
+                    <div class="input-group">
+                        <input
+                            :id="`pp-${field.key}`"
+                            v-model.number="form[field.key]"
+                            class="input"
+                            type="number"
+                            :min="field.min"
+                            :max="field.max"
+                            inputmode="numeric"
+                            :aria-invalid="errors[field.key] ? 'true' : undefined"
+                            :aria-describedby="`pp-${field.key}-err`"
+                        >
+                        <span class="input-group__suffix" aria-hidden="true" translate="no">{{ field.unit }}</span>
+                    </div>
+                    <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
+                </div>
+            </div>
+
+            <!-- Where they stand in the papers, one press away: open, the drawing made the form taller than the panel's answer. -->
+            <details class="pp__fold">
+                <summary class="pp__toggle">Wo stehen die Werte?</summary>
+                <figure class="pp__figure">
+                    <div class="pp__variants" role="group" aria-label="Welches Dokument hast du?">
+                        <button class="chip" type="button" :aria-pressed="variant === 'neu' ? 'true' : 'false'" @click="variant = 'neu'">Zulassungsbescheinigung Teil I</button>
+                        <button class="chip" type="button" :aria-pressed="variant === 'alt' ? 'true' : 'false'" @click="variant = 'alt'">Alter Fahrzeugschein</button>
+                    </div>
+                    <PapersFacsimile
+                        :variant="variant"
+                        :width="360"
+                        :title="variant === 'neu' ? 'Zulassungsbescheinigung Teil I: die Felder 8.1, 8.2, T und P.2 sind markiert' : 'Alter Fahrzeugschein: die Ziffern 6, 7 und 16 sind markiert'"
+                    />
+                    <figcaption class="pp__caption">
+                        {{ variant === 'neu' ? 'Die Achslasten stehen in 8.1 und 8.2, die Höchstgeschwindigkeit in T.' : 'Im alten Fahrzeugschein: Achslasten in Ziffer 16, Höchstgeschwindigkeit in Ziffer 6.' }}
+                    </figcaption>
+                </figure>
+            </details>
 
             <div class="pp__scan">
                 <label for="pp-photo" class="visually-hidden">Foto der Zulassungsbescheinigung Teil I</label>
@@ -288,73 +391,42 @@ function clear(): void {
                 </p>
             </div>
 
-            <div class="pp__grid">
-                <div v-for="field in FIELDS" :key="field.key" class="form-field">
-                    <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}<span class="visually-hidden"> ({{ field.unit }})</span></label>
-                    <div class="input-group">
-                        <input
-                            :id="`pp-${field.key}`"
-                            v-model.number="form[field.key]"
-                            class="input"
-                            type="number"
-                            :min="field.min"
-                            :max="field.max"
-                            inputmode="numeric"
-                            :aria-invalid="errors[field.key] ? 'true' : undefined"
-                            :aria-describedby="`pp-${field.key}-err`"
-                        >
-                        <span class="input-group__suffix" aria-hidden="true" translate="no">{{ field.unit }}</span>
-                    </div>
-                    <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
-                </div>
-            </div>
-
-            <!-- 15.1 and 15.2, optional (D-242): the stricter of these and our own sum governs, never the weaker. -->
-            <div class="pp__index">
-                <p class="pp__help">
-                    Freiwillig, vorn und hinten zusammen: die Reifen aus Feld 15.1 und 15.2, so wie sie dort stehen. Verlangen sie mehr
-                    als unsere Rechnung, gilt das Strengere.
-                </p>
-                <div class="pp__pair">
-                    <div v-for="field in INDEX_FIELDS" :key="field.key" class="form-field">
-                        <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}</label>
-                        <input
-                            :id="`pp-${field.key}`"
-                            v-model="index[field.key]"
-                            class="input"
-                            type="text"
-                            autocomplete="off"
-                            spellcheck="false"
-                            placeholder="z. B. 225/45 R17 91W"
-                            :aria-invalid="errors[field.key] ? 'true' : undefined"
-                            :aria-describedby="`pp-${field.key}-err`"
-                        >
-                        <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
+            <!-- 15.1 and 15.2, optional (D-242): the stricter of these and our own sum governs, never the weaker. Folded, open
+                 where they were given or refused. -->
+            <details class="pp__fold" :open="moreOpen" @toggle="moreOpen = ($event.target as HTMLDetailsElement).open">
+                <summary class="pp__toggle">Reifen aus den Feldern 15.1 und 15.2 eintragen (freiwillig)</summary>
+                <div class="pp__index">
+                    <p class="pp__help">
+                        Trag beide ein, vorn und hinten, so wie sie dort stehen. Verlangen sie mehr als unsere Berechnung, gilt das Strengere.
+                    </p>
+                    <div class="pp__pair">
+                        <div v-for="field in INDEX_FIELDS" :key="field.key" class="form-field">
+                            <label class="form-field__label" :for="`pp-${field.key}`">{{ field.label }}</label>
+                            <input
+                                :id="`pp-${field.key}`"
+                                v-model="index[field.key]"
+                                class="input"
+                                type="text"
+                                autocomplete="off"
+                                spellcheck="false"
+                                placeholder="z. B. 225/45 R17 91W"
+                                :aria-invalid="errors[field.key] ? 'true' : undefined"
+                                :aria-describedby="`pp-${field.key}-err`"
+                            >
+                            <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            <figure class="pp__figure">
-                <div class="pp__variants" role="group" aria-label="Welches Dokument hast du?">
-                    <button class="chip" type="button" :aria-pressed="variant === 'neu' ? 'true' : 'false'" @click="variant = 'neu'">Zulassungsbescheinigung Teil I</button>
-                    <button class="chip" type="button" :aria-pressed="variant === 'alt' ? 'true' : 'false'" @click="variant = 'alt'">Alter Fahrzeugschein</button>
-                </div>
-                <PapersFacsimile
-                    :variant="variant"
-                    :width="360"
-                    :title="variant === 'neu' ? 'Zulassungsbescheinigung Teil I: die Felder 8.1, 8.2, T und P.2 sind markiert' : 'Alter Fahrzeugschein: die Ziffern 6, 7 und 16 sind markiert'"
-                />
-                <figcaption class="pp__caption">
-                    {{ variant === 'neu' ? 'Die Achslasten stehen in 8.1 und 8.2, die Höchstgeschwindigkeit in T.' : 'Im alten Fahrzeugschein: Achslasten in Ziffer 16, Höchstgeschwindigkeit in Ziffer 6.' }}
-                </figcaption>
-            </figure>
+            </details>
 
             <div class="pp__actions">
-                <!-- Secondary: „In den Warenkorb“ stays the page's one primary action. -->
-                <button id="pp-save" class="btn btn--secondary btn--sm" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Werte übernehmen</button>
-                <button class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="cancel">Abbrechen</button>
-                <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :disabled="busy" @click="clear">Werte löschen</button>
+                <!-- Secondary: „In den Warenkorb“ stays the page's one primary action. Busy, never disabled, while it sends:
+                     a disabled button drops the keyboard to the page (#16); a second press does nothing (save, clear). -->
+                <button id="pp-save" class="btn btn--secondary btn--sm" type="submit" :aria-busy="busy ? 'true' : undefined">Werte übernehmen</button>
+                <button class="btn btn--ghost btn--sm" type="button" :aria-disabled="busy ? 'true' : undefined" @click="cancel">Abbrechen</button>
+                <button v-if="entered" class="btn btn--ghost btn--sm" type="button" :aria-busy="busy ? 'true' : undefined" @click="clear">Werte löschen</button>
             </div>
+            <p v-if="failure" class="form-field__error pp__failure" role="alert">{{ failure }}</p>
         </form>
     </div>
 </template>
@@ -406,9 +478,42 @@ function clear(): void {
     color: var(--c-ink-2);
 }
 
-/* What the answer waits for is not a side note: in ink (D-286). */
-.pp__asked {
-    color: var(--c-ink);
+/* What is optional, or only help, one press away: the form stays as short as what the answer waits for (D-286). */
+.pp__fold {
+    display: grid;
+    gap: var(--sp-8);
+}
+
+.pp__fold[open] {
+    gap: var(--sp-12);
+}
+
+.pp__toggle {
+    cursor: pointer;
+    width: fit-content;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.pp__toggle:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+}
+
+/* Under a finger the toggle is a 44 px row, as every other control. */
+@media (pointer: coarse) {
+    .pp__toggle {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+    }
+}
+
+.pp__failure {
+    margin: 0;
 }
 
 .pp__scan {

@@ -27,7 +27,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
-    router: { get: vi.fn(), post: (...args: unknown[]) => post(...args), on: vi.fn(() => () => undefined), delete: vi.fn() },
+    router: { get: vi.fn(), post: (...args: unknown[]) => post(...args), on: vi.fn(() => () => undefined), delete: vi.fn(), flushAll: vi.fn() },
 }))
 
 const { default: Felgen } = await import('./Index.vue')

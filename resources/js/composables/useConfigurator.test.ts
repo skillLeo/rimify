@@ -216,6 +216,26 @@ describe('useConfigurator', () => {
         expect(c.selected.value?.id).toBe(4)
     })
 
+    // D-286: until the car's papers are in, no size sells — the colour must not move the customer off the size chosen.
+    it('keeps the chosen size when the colour changes where the wheel is approved and only the tyres wait for the papers', () => {
+        const open = verdict({
+            status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, wheelStatus: 'CONDITIONAL',
+            tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, owed: ['8.1', '8.2', 'T'] },
+        })
+        const configs = [
+            config({ id: 1, finishId: 10, diameterIn: 18, priceCents: 80000, verdict: open }),
+            config({ id: 2, finishId: 10, diameterIn: 19, priceCents: 90000, verdict: open }),
+            config({ id: 3, finishId: 20, diameterIn: 18, priceCents: 80000, verdict: open }),
+            config({ id: 4, finishId: 20, diameterIn: 19, priceCents: 90000, verdict: open }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+        c.selectSize(c.sizes.value.find((s) => s.diameter === 19)!)
+        c.selectFinish(20)
+
+        expect(c.selected.value?.id).toBe(4)
+    })
+
     it('speaks to the customer informally when a refused size carries no reason of its own', () => {
         const configs = [
             config({ id: 1, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: null }) }),

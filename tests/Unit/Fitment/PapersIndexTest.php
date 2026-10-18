@@ -156,8 +156,8 @@ it('never answers on the papers’ index alone: without its own computation the 
         ->and($verdict->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->front->minLoadIndex)->toBeNull()
         ->and($verdict->rear->minLoadIndex)->toBeNull()
-        ->and($verdict->tyre?->lines)->toContain('Deine Angabe aus Feld 15.1 – Tragfähigkeitsindex 91, Geschwindigkeitsindex Y – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Rechnung aus Achslast und Höchstgeschwindigkeit.')
-        ->and($verdict->tyre?->lines)->toContain('Deine Angabe aus Feld 15.2 – Tragfähigkeitsindex 94, Geschwindigkeitsindex Y – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Rechnung aus Achslast und Höchstgeschwindigkeit.');
+        ->and($verdict->tyre?->lines)->toContain('Deine Angabe aus Feld 15.1 – Tragfähigkeitsindex 91, Geschwindigkeitsindex Y – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Berechnung aus Achslast und Höchstgeschwindigkeit.')
+        ->and($verdict->tyre?->lines)->toContain('Deine Angabe aus Feld 15.2 – Tragfähigkeitsindex 94, Geschwindigkeitsindex Y – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Berechnung aus Achslast und Höchstgeschwindigkeit.');
 });
 
 it('freezes where every number came from beside the verdict', function (): void {

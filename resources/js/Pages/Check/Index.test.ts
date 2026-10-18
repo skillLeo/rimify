@@ -385,19 +385,27 @@ describe('RIMIFY-Check', () => {
     // belegen“ — and where the tyres wait for the car's papers, the line says that they do.
     it('never denies the approval of a wheel whose tyres are only unconfirmed, and names the papers where they are the way on', () => {
         shared.vehicle = VEHICLE
-        const open = (owed?: string[]) =>
+        const open = (owed?: string[], wheelStatus: 'PERMITTED' | 'CONDITIONAL' = 'CONDITIONAL') =>
             mountCheck({
                 answer: answer({
                     verdict: verdict({
-                        status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, wheelStatus: 'CONDITIONAL', wheelLabel: 'Freigegeben mit Auflagen',
+                        status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, wheelStatus, wheelLabel: 'Freigegeben mit Auflagen',
                         tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, ...(owed ? { owed } : {}) },
                     }),
                 }),
-            }).find('.chk__nosale-text').text()
+            })
+        const papers = open(['8.1', '8.2', 'T'])
 
-        expect(open(['8.1', '8.2', 'T'])).toBe('Die Felge ist für dein Auto freigegeben. Die Reifen dazu können wir erst bestätigen, wenn du die Werte aus deiner Zulassungsbescheinigung Teil I eingetragen hast – bis dahin bieten wir die Felge dafür nicht an.')
-        expect(open()).toBe('Die Felge ist für dein Auto freigegeben. Für die Reifen dazu fehlen in unseren Daten noch Angaben – bis sie hinterlegt sind, bieten wir die Felge dafür nicht an.')
-        expect(open()).not.toContain('nicht belegen')
+        // Said as the panel says it — „mit Auflagen“ where it is —, and the one way on is a press away.
+        expect(papers.find('.chk__nosale-text').text()).toBe('Die Felge ist für dein Auto mit Auflagen freigegeben. Die Reifen dazu können wir erst bestätigen, wenn du die Werte aus deiner Zulassungsbescheinigung Teil I eingetragen hast – bis dahin bieten wir die Felge dafür nicht an.')
+        expect(papers.find('.chk__nosale-go button').text()).toBe('Werte eintragen')
+        expect(papers.find('.chk__nosale-go a[href="/felgen"]').exists()).toBe(false)
+
+        const ours = open(undefined, 'PERMITTED')
+
+        expect(ours.find('.chk__nosale-text').text()).toBe('Die Felge ist für dein Auto freigegeben. Für die Reifen dazu fehlen in unseren Daten noch Angaben – bis sie hinterlegt sind, bieten wir die Felge dafür nicht an.')
+        expect(ours.find('.chk__nosale-text').text()).not.toContain('nicht belegen')
+        expect(ours.find('.chk__nosale-go a[href="/felgen"]').exists()).toBe(true)
     })
 
     it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {

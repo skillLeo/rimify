@@ -186,7 +186,9 @@ final readonly class ProductCards
             }
         }
 
-        $diametersFitting = array_keys($fitting);
+        // As strings, the way `diameters` spells them: PHP turns the key „18“ into the integer 18, and the tile compares
+        // „18“ with 18 — every whole-inch size of every card was greyed as „keine Freigabe für dein Fahrzeug“.
+        $diametersFitting = array_map('strval', array_keys($fitting));
         usort($diametersFitting, static fn (string $a, string $b): int => (float) str_replace(',', '.', $a) <=> (float) str_replace(',', '.', $b));
 
         // The listing and the engine disagree about this card. It makes no positive claim — save the wheel's own half,

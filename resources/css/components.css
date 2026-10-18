@@ -457,6 +457,21 @@
         cursor: not-allowed;
     }
 
+    /* Unverified, which is neither forbidden nor unavailable (finding 103, D-214): grey and dashed, never struck
+       through — the wheel is approved for the car, only its tyres are open. It can be chosen; chosen, it keeps the dash
+       in the chosen blue. (In the legacy layer this lost to `.chip` and never showed.) */
+    .chip--unconfirmed {
+        color: var(--c-ink-3);
+        border-color: var(--c-ink-3);
+        border-style: dashed;
+    }
+
+    .chip--unconfirmed.chip--on,
+    .chip--unconfirmed[aria-pressed='true'] {
+        color: var(--c-blue);
+        border-color: var(--c-blue);
+    }
+
     .chip-row {
         display: flex;
         flex-wrap: wrap;

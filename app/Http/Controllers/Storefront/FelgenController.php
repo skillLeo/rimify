@@ -258,9 +258,12 @@ class FelgenController extends Controller
         $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
         foreach ($wheel->configs as $config) {
-            $row = $this->configRow($config, $verdicts[$config->id] ?? null, $colour, $colours);
+            $verdict = $verdicts[$config->id] ?? null;
+            $row = $this->configRow($config, $verdict, $colour, $colours);
 
-            if (($row['verdict']['status'] ?? null) === VerdictStatus::Unknown->value) {
+            // Not a wheel approved with its tyres unconfirmed (finding 103, D-286): its Gutachten is held, and counting it
+            // would rank a document we have on the Übersicht's list of documents to buy.
+            if ($verdict?->status === VerdictStatus::Unknown && ! $verdict->tyreUnconfirmed()) {
                 $anyUnknown = true;
             }
 

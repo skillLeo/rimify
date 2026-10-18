@@ -619,7 +619,7 @@ final readonly class FitmentResolver
             // The papers' index where our own computation is missing: said, and never taken alone (R-03, D-242).
             if ($axleStatus === VerdictStatus::Unknown && is_array($check['papers'] ?? null)) {
                 $axleLines[] = sprintf(
-                    'Deine Angabe aus Feld %s – Tragfähigkeitsindex %d, Geschwindigkeitsindex %s – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Rechnung aus Achslast und Höchstgeschwindigkeit.',
+                    'Deine Angabe aus Feld %s – Tragfähigkeitsindex %d, Geschwindigkeitsindex %s – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Berechnung aus Achslast und Höchstgeschwindigkeit.',
                     $check['papers']['field'],
                     $check['papers']['loadIndex'],
                     $check['papers']['speedSymbol'],

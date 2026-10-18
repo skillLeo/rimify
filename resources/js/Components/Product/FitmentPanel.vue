@@ -263,9 +263,10 @@ const headline = computed(() => {
             }
 
             // The wheel is approved and only the tyre size is unconfirmed (finding 103): lead with what is true — the
-            // customer's first question is whether this wheel may go on this car — then the caveat.
+            // customer's first question is whether this wheel may go on this car — then the caveat. Where the car's
+            // papers are what is missing, no size is the open part — the tyres are, whichever size (D-286).
             return tyreOpen.value
-                ? `${wheelApproved.value} · Reifengröße noch nicht bestätigt`
+                ? `${wheelApproved.value} · ${tyresWord.value} noch nicht bestätigt`
                 : `Noch nicht bestätigt für ${props.vehicle.label}`
     }
 })
@@ -285,9 +286,12 @@ const elsewhere = computed(() => {
     return verdict.status === 'NOT_PERMITTED' || verdict.status === 'UNKNOWN' ? `/felgen?fahrzeug=${props.vehicle.id}` : null
 })
 const wheelApproved = computed(() => (props.verdict?.wheelStatus === 'CONDITIONAL' ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben'))
+/* „Reifengröße“ where a record of ours leaves a size open (finding 103); „Reifen“ where the car's papers are missing. */
+const tyresWord = computed(() => (owed.value.length > 0 ? 'Reifen' : 'Reifengröße'))
+/* The car named without an article, as the headlines name it („Freigegeben für …“): „deinen“ broke on a „C-Klasse“. */
 const openLead = computed(() =>
     tyreOpen.value && props.vehicle
-        ? `Die Felge selbst ist für deinen ${props.vehicle.label} freigegeben${props.verdict?.wheelStatus === 'CONDITIONAL' ? ', mit Auflagen' : ''}. Nicht bestätigen können wir die Reifengröße.`
+        ? `Die Felge selbst ist für ${props.vehicle.label}${props.verdict?.wheelStatus === 'CONDITIONAL' ? ' mit Auflagen' : ''} freigegeben. ${owed.value.length > 0 ? 'Die Reifen' : 'Die Reifengröße'} dazu können wir noch nicht bestätigen.`
         : null
 )
 </script>
@@ -396,7 +400,7 @@ const openLead = computed(() =>
             </p>
             <!-- No dead end (finding 117): the wheels that are an answer for this car. -->
             <p v-if="elsewhere && vehicle" class="fit__pdf fit__elsewhere">
-                <Link class="link" :href="elsewhere">Felgen für deinen {{ vehicle.short }} anzeigen</Link>
+                <Link class="link" :href="elsewhere">Felgen für {{ vehicle.short }} anzeigen</Link>
             </p>
             <!-- The answer to take away: frozen whole, every line of the sum, printable and shareable. -->
             <p v-if="vehicle && configId" class="fit__pdf">
@@ -463,11 +467,12 @@ const openLead = computed(() =>
     font-weight: 700;
 }
 
+/* No bullets, so no indent: the lines keep the panel's text edge. */
 .fit__tyre-lines {
     display: grid;
     gap: var(--space-2);
     margin: var(--space-2) 0 0;
-    padding-left: var(--space-4);
+    padding-left: 0;
     font-size: var(--text-small);
     color: var(--ink);
 }
