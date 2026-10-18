@@ -115,7 +115,8 @@ final class DocumentRelease
 
     /**
      * How the document gives its tyres' load index and speed symbol (D-277) — answered, and borne out by the entry: a
-     * table it prints is entered, a symbol it prints beside every size is entered at every size. Without the answer the
+     * table it prints is entered, the index it prints beside every size — load index and symbol — is entered at every
+     * size (D-285). Without the answer the
      * shop reads it the safe way and needs the car's top speed; the question is asked all the same, because the answer
      * decides whether a car without one can be answered at all.
      *
@@ -136,11 +137,14 @@ final class DocumentRelease
         }
 
         if ($source === TyreIndexSource::Document) {
-            $open = DB::table('fitment_tyre_sizes')->whereIn('fitment_id', (clone $rows)->select('id'))->whereNull('min_speed_symbol')->count();
+            // „93Y“: both figures at every size, as the question asks them — a symbol without its load index says nothing
+            // of the tyre's load at speed (D-285).
+            $open = DB::table('fitment_tyre_sizes')->whereIn('fitment_id', (clone $rows)->select('id'))
+                ->where(static fn ($q) => $q->whereNull('min_speed_symbol')->orWhereNull('min_load_index'))->count();
 
             if ($open > 0) {
                 return [($open === 1 ? 'Bei einer Reifengröße fehlt' : "Bei {$open} Reifengrößen fehlt")
-                    .' das Geschwindigkeitssymbol, obwohl das Gutachten es laut den Angaben bei jeder Größe nennt. Trag es nach oder ändere die Angabe.'];
+                    .' der Lastindex oder das Geschwindigkeitssymbol, obwohl das Gutachten laut den Angaben beide bei jeder Größe nennt. Trag sie nach oder ändere die Angabe.'];
             }
         }
 
