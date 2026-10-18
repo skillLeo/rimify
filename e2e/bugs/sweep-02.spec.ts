@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures';
 import { open } from '../support';
-import { ENTRY_BY_SIZE, SHOTS, SWEEP, chooseCar, listsWithBothChainSentences, norm, openNineteen } from './sweep-support';
+import { ENTRY_BY_SIZE, SHOTS, SWEEP, chooseCar, enterPapers, listsWithBothChainSentences, norm, openNineteen } from './sweep-support';
 
 test.use({ baseURL: SWEEP });
 
@@ -15,12 +15,13 @@ test.use({ baseURL: SWEEP });
  * answer to „do I have to go to the Prüfer?“ is missing where the customer last reviews the order before the Kasse.
  *
  * Expected: the basket line carries the papers line the other surfaces carry. Writes nothing but the session's
- * basket (one 19″ wheel line).
+ * basket (one 19″ wheel line) and the papers' cookie: the car from the document has no figures, and nothing is sold
+ * on tyres not confirmed (D-286) — the customer enters them first, as the panel asks.
  */
 
 test('SWEEP-02 the Warenkorb says which tyre size needs the Eintragung (BMW X3 X83, 19″)', async ({ page }, info) => {
     await chooseCar(page, 'BMW', 'X3', 'X83');
-    await openNineteen(page);
+    await enterPapers(await openNineteen(page));
 
     await page.locator('.pdp__add').click();
     await expect(page.getByText('Zum Warenkorb hinzugefügt.').first()).toBeVisible({ timeout: 20_000 });

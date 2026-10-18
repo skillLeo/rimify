@@ -27,7 +27,8 @@ use Tests\Support\Fitment\InMemoryVehicleRepository;
 /*
  * R-03 as amended on 28.09.2026 (the operator's Answer 1, docs/specs/vehicles-and-tyres.md C9) and the
  * operator's review of C9: a wheel verdict rests on the vehicle type and kW band a released Gutachten names;
- * a tyre verdict is never positive without the car's axle loads and top speed; the answer is the weaker.
+ * a tyre verdict is never positive without the car's axle loads and top speed — without them it is „Noch nicht
+ * bestätigt“, the absence of a grant, never a grant with conditions (D-286); the answer is the weaker.
  * The document's own table of tyre load at speed reads three ways — a share, a „–“, nothing — and the
  * speed is rounded up to its row.
  */
@@ -92,27 +93,46 @@ function decideFor(VehicleRecord $vehicle, array $conditions = [], ?WheelConfigR
     ))->resolve($vehicle->id, FitmentFixtures::WHEEL_CONFIG_ID);
 }
 
-/* ── Without the figures: the wheel answers, the tyres wait for the papers ──────────────────────── */
+/* ── Without the figures: the wheel answers, the tyres are „Noch nicht bestätigt“ until the papers are in ─── */
 
-it('gives the BMW 4er 3C a positive wheel verdict without axle data, and a CONDITIONAL tyre line naming 1.120 kg', function (): void {
+it('gives the BMW 4er 3C a positive wheel verdict without axle data, and tyres „Noch nicht bestätigt“ naming 1.120 kg', function (): void {
     $verdict = decideFor(bmw4er3C(), [tCode(88, 1120)]);
 
+    // The operator's answer of 18.10.2026 (D-286): a missing input produces the absence of a grant, never a grant with
+    // conditions — and nothing is sold on an unconfirmed tyre (R-03).
     expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Conditional)
-        ->and($verdict->status)->toBe(VerdictStatus::Conditional)
-        ->and($verdict->isSellable())->toBeTrue()
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
+        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->tyreUnconfirmed())->toBeTrue()
+        ->and($verdict->isSellable())->toBeFalse()
         ->and($verdict->tyre?->thresholds)->toBe([[
             'textDe' => 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.120 kg zulässig.',
             'maxAxleLoadKg' => 1120,
         ]]);
 
-    $lines = implode(' ', $verdict->tyre->lines ?? []);
+    // The reason first, as ours; then what the document sets, with the fields to compare; then the way on.
+    expect($verdict->tyre->lines ?? [])->toBe([
+        'Für die Reifen fehlen uns die zulässigen Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.',
+        'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.120 kg zulässig. Vergleiche die '.kg('1.120').' mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
+        'Die Felge ist für '.kg('700').' je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens '.kg('1.400').' betragen.',
+        'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.',
+    ]);
+});
 
-    expect($lines)->toContain('Vergleiche die '.kg('1.120').' mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I')
-        ->and($lines)->toContain('im alten Fahrzeugschein Ziffer 16')
-        ->and($lines)->toContain('Die Felge ist für '.kg('700').' je Rad geprüft')
-        ->and($lines)->toContain('höchstens '.kg('1.400'))
-        ->and($lines)->toContain('Höchstgeschwindigkeit (Feld T)');
+it('asks only for what is missing: the axle loads where only they are, the top speed where only it is', function (): void {
+    $axles = decideFor(bmw4er3C(speed: 250), [tCode(88, 1120)])->tyre;
+    $speed = decideFor(bmw4er3C(1100, 1100), [tCode(88, 1120)])->tyre;
+
+    expect($axles?->papersOwed)->toBe(['8.1', '8.2'])
+        ->and($axles->lines[0] ?? null)->toBe('Für die Reifen fehlen uns die zulässigen Achslasten deines Fahrzeugs (Felder 8.1 und 8.2).')
+        ->and($speed?->papersOwed)->toBe(['T'])
+        // The axle loads are on record: no threshold to compare by hand, only the one field and the way on.
+        ->and($speed->lines ?? [])->toBe([
+            'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).',
+            // One way on: the papers' form takes all three figures together.
+            'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.',
+        ]);
 });
 
 it('is never PERMITTED while the tyre half is CONDITIONAL or UNKNOWN', function (): void {
@@ -132,7 +152,7 @@ it('is never PERMITTED while the tyre half is CONDITIONAL or UNKNOWN', function 
     $verdict = decideFor(bmw4er3C());
 
     expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->status)->toBe(VerdictStatus::Conditional);
+        ->and($verdict->status)->toBe(VerdictStatus::Unknown);
 });
 
 /* ── With the figures: a definite answer, both constraints shown, the binding one named ────────── */
@@ -455,7 +475,9 @@ it('carries both halves through the snapshot, and reads an older snapshot withou
     $restored = FitmentVerdict::fromArray($verdict->toArray());
 
     expect($restored->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($restored->tyre?->status)->toBe(VerdictStatus::Conditional)
+        ->and($restored->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($restored->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
+        ->and($restored->tyreUnconfirmed())->toBeTrue()
         ->and($restored->tyre?->lines)->toBe($verdict->tyre?->lines)
         ->and($restored->conditions[0]->maxAxleLoadKg)->toBe(1120);
 
@@ -464,4 +486,13 @@ it('carries both halves through the snapshot, and reads an older snapshot withou
 
     expect(FitmentVerdict::fromArray($old)->tyre)->toBeNull()
         ->and(FitmentVerdict::fromArray($old)->wheelStatus)->toBeNull();
+
+    // A snapshot from before D-286 has no list of owed fields: it reads as none, and a field it never named is not read.
+    $before = $verdict->toArray();
+    unset($before['tyreCheck']['papersOwed']);
+    $forged = $verdict->toArray();
+    $forged['tyreCheck']['papersOwed'] = ['8.1', 'P.2'];
+
+    expect(FitmentVerdict::fromArray($before)->tyre?->papersOwed)->toBe([])
+        ->and(FitmentVerdict::fromArray($forged)->tyre?->papersOwed)->toBe(['8.1']);
 });

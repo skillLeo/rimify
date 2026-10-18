@@ -16,6 +16,14 @@ import type { AmountPrice, ConfigVerdict, KomplettradOfferProp, ProduktConfig, P
 const post = vi.fn()
 let forms: Array<Record<string, unknown>> = []
 
+// The way on to the papers form (lib/papersForm): what the page's button calls where the tyres wait for the car's papers.
+const focusPapers = vi.hoisted(() => vi.fn())
+
+vi.mock('../../lib/papersForm', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../lib/papersForm')>()),
+    focusPapersForm: focusPapers,
+}))
+
 vi.mock('@inertiajs/vue3', () => ({
     Head: defineComponent({ setup: () => () => null }),
     Link: defineComponent({
@@ -245,6 +253,32 @@ describe('Produkt page', () => {
         expect(wrapper.find('.pdp__stock').text()).toBe('Auf Lager')
         expect(wrapper.find('.pdp__stock').classes()).toContain('tag--ok')
         expect(wrapper.find('.pdp__demo').exists()).toBe(false)
+    })
+
+    // D-286, the look review: where the tyres wait for the car's papers the page's button is the way on — never a disabled
+    // „In den Warenkorb“ with no reason beside it. Nothing is added until the figures are in.
+    it('turns the button into „Werte eintragen“ where the tyres wait for the car’s papers, and adds nothing', async () => {
+        focusPapers.mockClear()
+        const owed = verdict({
+            status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, wheelStatus: 'CONDITIONAL', wheelLabel: 'Freigegeben mit Auflagen',
+            tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false, owed: ['8.1', '8.2', 'T'] },
+        })
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed })] })
+        const button = wrapper.find('button.pdp__add')
+
+        expect(button.text()).toBe('Werte eintragen')
+        expect(button.attributes('disabled')).toBeUndefined()
+
+        await button.trigger('click')
+
+        expect(focusPapers).toHaveBeenCalledTimes(1)
+        expect(post).not.toHaveBeenCalled()
+
+        // Sold out stays sold out: the figures would not change that.
+        const gone = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false, stockQty: 0 })] }).find('button.pdp__add')
+
+        expect(gone.text()).toBe('Ausverkauft')
+        expect(gone.attributes('disabled')).toBeDefined()
     })
 
     it('shows a demo model as Beispielbestand, says it cannot be ordered yet, and keeps the basket usable', async () => {

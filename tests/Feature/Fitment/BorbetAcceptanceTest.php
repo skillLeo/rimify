@@ -288,10 +288,12 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
     $f20->forceFill(['power_kw' => 100, 'body_form' => 'Schrägheck', 'drive_axle' => 'Hinterachse'])->save();
 
     // One answer, both documents: the 5-door 1er the owner calls a Schrägheck passes 55255's Y85 and the
-    // Nachtrag's „Kombilimousine“ alike — neither word rewritten, each mapped once.
+    // Nachtrag's „Kombilimousine“ alike — neither word rewritten, each mapped once. The wheel is answered; the tyres
+    // wait for 8.1, 8.2 and T, which a car typed from the document does not have (D-286).
     expect(borbetVerdict($f20, 'BOR-DB8GT2-8519-SM')->reason?->code)->not->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
         ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->reason?->code)->not->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
-        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->status)->toBe(VerdictStatus::Conditional);
+        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->wheelStatus)->toBe(VerdictStatus::Conditional)
+        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T']);
     $f20->forceFill(['body_form' => 'Kombi'])->save();
     expect(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED);
     $f20->forceFill(['body_form' => 'Schrägheck'])->save();
@@ -365,7 +367,9 @@ it('asks for exactly the body style and drive a row needs, answers from the owne
     $page = $this->withCookies($vehicleCookie)->withUnencryptedCookie(PapersBook::COOKIE, (string) $papers)->get('/felgen/'.GoldenRecordSeeder::SLUG);
     $answered = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $eighteen->id)['verdict'];
 
-    expect($answered['status'])->toBe('CONDITIONAL')
+    // The question is gone and the wheel answered; what is left are the tyres, which wait for the papers' figures (D-286).
+    expect($answered['wheelStatus'])->toBe('CONDITIONAL')
+        ->and($answered['tyre']['owed'])->toBe(['8.1', '8.2', 'T'])
         ->and($answered['missing'])->toBe([])
         ->and($page->viewData('page')['props']['vehicle']['build'])->toMatchArray(['bodyForm' => 'Schrägheck', 'bodySource' => 'customer', 'driveAxle' => 'Hinterachse', 'driveSource' => 'customer']);
 
@@ -453,10 +457,12 @@ it('refuses a Limousine a row the document gives the Coupé only — NOT_PERMITT
     $paceman->forceFill(['body_form' => 'Coupe'])->save();
     $coupe = borbetVerdict($paceman, 'BOR-DB8GT2-8519-SM');
 
+    // The Coupé is answered on the wheel; its tyres wait for the car's papers, which this car from the document lacks (D-286).
     expect($limousine->status)->toBe(VerdictStatus::NotPermitted)
         ->and($limousine->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
         ->and($coupe->status)->not->toBe(VerdictStatus::NotPermitted)
-        ->and($coupe->status)->not->toBe(VerdictStatus::Unknown);
+        ->and($coupe->wheelStatus)->toBeIn([VerdictStatus::Permitted, VerdictStatus::Conditional])
+        ->and($coupe->tyreUnconfirmed())->toBeTrue();
 
     // The cars one approval names twice keep their own rows.
     // ABE 55255, page 4: 5L „ohne“ and „mit Allradlenkung“ — L05 and L04, never both on one car. Both rows print

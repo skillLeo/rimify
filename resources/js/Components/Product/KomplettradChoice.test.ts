@@ -165,6 +165,15 @@ describe('KomplettradChoice', () => {
         expect(wrapper.find('a[href="/felgen-suchen"]').exists()).toBe(false)
     })
 
+    // D-286: the tyres wait for the car's own figures — the way on is the papers form in the panel, not a message to us.
+    it('points a refusal that waits for the car\'s papers at the papers form, not at the contact form', () => {
+        const wrapper = mountChoice(refused('TYRES_AWAIT_PAPERS', 'Die Felge ist für dein Fahrzeug freigegeben. Für die Reifen fehlen uns noch Werte aus deiner Zulassungsbescheinigung Teil I – sobald du sie eingetragen hast, zeigen wir dir die Reifen, die du fahren darfst.'), null)
+
+        expect(wrapper.find('.kc__routes button').text()).toBe('Werte eintragen')
+        expect(wrapper.find('a[href^="/kontakt"]').exists()).toBe(false)
+        expect(wrapper.find('a[href="/felgen-suchen"]').exists()).toBe(false)
+    })
+
     it('carries no link that only points at the page\'s own button (#25), whatever the refusal @kunde-25', () => {
         for (const code of ['NO_VEHICLE', 'NO_TYRE_AVAILABLE', 'VERDICT_NOT_PERMITTED', 'TYRES_UNKNOWN'] as const) {
             const wrapper = mountChoice(refused(code, 'Ein Satz.'), null)

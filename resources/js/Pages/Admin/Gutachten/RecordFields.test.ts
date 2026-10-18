@@ -48,7 +48,7 @@ describe('RecordFields — the tyres\' index', () => {
 
     it('shows an answer already given, and the server’s refusal beside the question, tied to every answer', () => {
         const wrapper = mount(RecordFields, {
-            props: { kind: 'NACHTRAG', errors: { tyre_index_source: 'Bitte wähl, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt.' }, supplementable: [], idPrefix: 'fd', shape: reactive({ ...blank(), tyre_index_source: 'papers' }) },
+            props: { kind: 'NACHTRAG', errors: { tyre_index_source: 'Bitte wähl, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt.' }, supplementable: [], idPrefix: 'fd', shape: reactive<RecordShape>({ ...blank(), tyre_index_source: 'papers' }) },
         })
 
         expect((wrapper.find('fieldset.rsf-group input[value="papers"]').element as HTMLInputElement).checked).toBe(true)

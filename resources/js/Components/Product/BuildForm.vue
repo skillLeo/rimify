@@ -11,6 +11,7 @@
 
 import { router } from '@inertiajs/vue3'
 import { computed, nextTick, ref } from 'vue'
+import { OFFLINE, refusal } from '../../lib/visitRefusal'
 import type { BuildProp } from '../../types/rimify'
 
 type Fact = 'bodyForm' | 'driveAxle'
@@ -121,21 +122,6 @@ function cancel(): void {
 }
 
 /* Offline, an expired page, too many tries, a fault: said at the question, the page and the choice kept (G-05). */
-const OFFLINE = 'Keine Verbindung zum Server. Deine Änderung ist nicht gespeichert – prüf die Verbindung und versuch es noch einmal.'
-
-function refusal(status: number): string {
-    switch (status) {
-        case 404:
-            return 'Dieses Fahrzeug gibt es bei uns nicht mehr. Wähle dein Fahrzeug bitte neu.'
-        case 419:
-            return 'Die Seite war zu lange offen, deshalb ist nichts gespeichert. Lade sie neu und versuch es noch einmal.'
-        case 429:
-            return 'Zu viele Versuche in kurzer Zeit. Bitte warte eine Minute und versuch es dann noch einmal.'
-        default:
-            return 'Deine Änderung ließ sich gerade nicht speichern. Versuch es gleich noch einmal.'
-    }
-}
-
 const visit = {
     preserveScroll: true,
     errorBag: 'aufbau',
@@ -168,6 +154,8 @@ function choose(fact: Fact, value: string): void {
     router.post(`/fahrzeug/${props.vehicleId}/aufbau`, fact === 'bodyForm' ? { body_form: value } : { drive_axle: value }, {
         ...visit,
         onSuccess: () => {
+            // Every answer about this car changed with it: a page fetched ahead on a hover would show the old one.
+            router.flushAll()
             changing.value = null
             // The question has gone; the answer stands in its place, and focus with it.
             focusSoon(`#bf-given-${fact}`)
@@ -187,7 +175,10 @@ function forget(): void {
     error.value = ''
     router.delete(`/fahrzeug/${props.vehicleId}/aufbau`, {
         ...visit,
-        onSuccess: () => focusSoon('.bf__lead, .bf__given'),
+        onSuccess: () => {
+            router.flushAll()
+            focusSoon('.bf__lead, .bf__given')
+        },
     })
 }
 </script>

@@ -318,7 +318,12 @@ final readonly class TyreEligibility
 
         return match ($verdict->status) {
             VerdictStatus::NotPermitted => $wheelApproved ? KomplettradRefusal::TyresNotPermitted : KomplettradRefusal::VerdictNotPermitted,
-            VerdictStatus::Unknown => $wheelApproved ? KomplettradRefusal::TyresUnknown : KomplettradRefusal::VerdictUnknown,
+            // Where the tyres wait only for the car's papers, the way on is the customer's own (D-286), not a message to us.
+            VerdictStatus::Unknown => match (true) {
+                ! $wheelApproved => KomplettradRefusal::VerdictUnknown,
+                $verdict->tyre?->awaitsPapers() === true => KomplettradRefusal::TyresAwaitPapers,
+                default => KomplettradRefusal::TyresUnknown,
+            },
             VerdictStatus::Permitted, VerdictStatus::Conditional => null,
         };
     }

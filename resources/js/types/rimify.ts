@@ -221,8 +221,9 @@ export interface ProductCardProp {
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
     /**
-     * The subset of `diameters` with a `PERMITTED`/`CONDITIONAL` configuration for the vehicle;
-     * null without a vehicle (or while the server does not send it — the tile then greys nothing).
+     * The subset of `diameters` with a `PERMITTED`/`CONDITIONAL` configuration for the vehicle, or one whose wheel is
+     * approved with its tyres not yet confirmed (D-286); null without a vehicle (or while the server does not send it —
+     * the tile then greys nothing).
      */
     diametersFitting?: string[] | null
     /** `${modelId}:${finishId}` — the one key the compare store uses. Derived on the client when absent. */
@@ -265,6 +266,10 @@ export interface CardFitment {
     conditionsVary?: boolean
     /** Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. */
     notesOnly?: boolean
+    /** No size sells, and the wheel is approved with its tyres not yet confirmed (finding 103, D-286). Additive. */
+    tyresOpen?: boolean
+    /** With `tyresOpen`: the wheel is approved with Auflagen in at least one size, as the product page's panel says. */
+    wheelConditional?: boolean
 }
 
 export interface FacetOption {

@@ -9,6 +9,7 @@ use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\TyreCheck;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Support\DemoWheels;
@@ -37,10 +38,11 @@ final readonly class ProductCards
      * Cards for a chosen vehicle: only wheels a published document permits on that exact variant.
      *
      * `missing`: what of the car the page's answers wait for (`bodyForm`, `driveAxle`), so the listing can ask
-     * for it by name the moment the car is chosen (the operator's last prompt §1.1).
+     * for it by name the moment the car is chosen (the operator's last prompt §1.1). `owed`: the fields of the car's
+     * papers its tyres wait for (`8.1`, `8.2`, `T` — D-286), asked once for every wheel on the page.
      *
      * @param  array<string, mixed>  $filters
-     * @return array{cards: list<array<string, mixed>>, total: int, missing: list<string>}
+     * @return array{cards: list<array<string, mixed>>, total: int, missing: list<string>, owed: list<string>}
      */
     public function forVehicle(int $vehicleId, array $filters = [], int $perPage = 24, int $page = 1): array
     {
@@ -83,14 +85,24 @@ final readonly class ProductCards
         }
 
         $missing = [];
+        $owed = [];
 
         foreach ($verdicts as $verdict) {
             foreach ($verdict->missingFacts as $fact) {
                 $missing[$fact] = true;
             }
+
+            foreach ($verdict->tyre->papersOwed ?? [] as $field) {
+                $owed[$field] = true;
+            }
         }
 
-        return ['cards' => $cards, 'total' => $result['total'], 'missing' => array_values(array_intersect(['bodyForm', 'driveAxle'], array_keys($missing)))];
+        return [
+            'cards' => $cards,
+            'total' => $result['total'],
+            'missing' => array_values(array_intersect(['bodyForm', 'driveAxle'], array_keys($missing))),
+            'owed' => array_values(array_intersect(TyreCheck::PAPERS_FIELDS, array_keys($owed))),
+        ];
     }
 
     /**
@@ -106,10 +118,14 @@ final readonly class ProductCards
      * The diameters the permitted configurations come in travel with the claim, so a tile can
      * grey the sizes no document permits on this car (in the same spelling as `diameters`).
      *
+     * A size whose wheel is approved and whose tyres are only unconfirmed (finding 103, D-286) is a size the document
+     * permits: never greyed as „keine Freigabe“. Where no size sells and such a one exists, the card says the wheel's
+     * half and that the tyres are open (`tyresOpen`), as the product page does.
+     *
      * @param  array<int, FitmentVerdict>  $verdicts  the engine's verdicts for the page, by configuration id
      * @param  list<int>  $configIds
      * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
-     * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>}
+     * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>, tyresOpen: bool, wheelConditional: bool}
      */
     private function claim(array $verdicts, array $configIds, array $diameterOf = []): array
     {
@@ -125,8 +141,24 @@ final readonly class ProductCards
         // Every conditional size's Auflagen all Hinweise (#23, D-104): the tile may say „Freigegeben“.
         $allNotes = true;
 
+        $open = false;
+        $openConditional = false;
+
         foreach ($configIds as $configId) {
             $verdict = $verdicts[$configId] ?? null;
+
+            // The wheel approved, its tyres not yet confirmed: no claim to sell, and no „keine Freigabe“ on its size.
+            if ($verdict !== null && $verdict->tyreUnconfirmed()) {
+                $open = true;
+                // Merged toward caution, as the rest of the claim: one size approved with Auflagen and the card says so.
+                $openConditional = $openConditional || $verdict->wheelStatus === VerdictStatus::Conditional;
+
+                if (isset($diameterOf[$configId])) {
+                    $fitting[$diameterOf[$configId]] = true;
+                }
+
+                continue;
+            }
 
             // No verdict (no vehicle, or not asked about) is no claim — never a default yes.
             if ($verdict === null || ! $verdict->isSellable()) {
@@ -154,15 +186,21 @@ final readonly class ProductCards
             }
         }
 
-        // The listing and the engine disagree about this card. It makes no positive claim.
+        // As strings, the way `diameters` spells them: PHP turns the key „18“ into the integer 18, and the tile compares
+        // „18“ with 18 — every whole-inch size of every card was greyed as „keine Freigabe für dein Fahrzeug“.
+        $diametersFitting = array_map('strval', array_keys($fitting));
+        usort($diametersFitting, static fn (string $a, string $b): int => (float) str_replace(',', '.', $a) <=> (float) str_replace(',', '.', $b));
+
+        // The listing and the engine disagree about this card. It makes no positive claim — save the wheel's own half,
+        // where the document approves it and only the tyres are open.
         if ($status === null) {
-            return ['status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false, 'diametersFitting' => []];
+            return [
+                'status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false,
+                'diametersFitting' => $open ? $diametersFitting : [], 'tyresOpen' => $open, 'wheelConditional' => $openConditional,
+            ];
         }
 
         $conditions ??= [];
-
-        $diametersFitting = array_keys($fitting);
-        usort($diametersFitting, static fn (string $a, string $b): int => (float) str_replace(',', '.', $a) <=> (float) str_replace(',', '.', $b));
 
         // Merged across configurations, "Keine Eintragung erforderlich." from one of them would
         // contradict the entry another one needs.
@@ -182,6 +220,8 @@ final readonly class ProductCards
             // Further Auflagen depend on the rim or tyre size: the tile says so and points to the product page.
             'conditionsVary' => $vary,
             'diametersFitting' => $diametersFitting,
+            'tyresOpen' => false,
+            'wheelConditional' => false,
         ];
     }
 

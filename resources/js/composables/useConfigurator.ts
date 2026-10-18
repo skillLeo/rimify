@@ -198,7 +198,9 @@ export function useConfigurator(
             return
         }
 
-        const candidates = forFinish.value.filter((c) => sellable(c) && c.diameterIn === previous.diameterIn)
+        // The size the customer chose stays where the other finish has it and it can be chosen there — sold, waiting for a
+        // fact of the car, or approved with its tyres open (D-286): never a jump to another size for want of the papers.
+        const candidates = forFinish.value.filter((c) => (choosable(c) || tyreUnconfirmed(c.verdict)) && c.diameterIn === previous.diameterIn)
         const same = candidates.find((c) => c.widthIn === previous.widthIn && c.etMm === previous.etMm)
         const keep = same ?? best(candidates)
 

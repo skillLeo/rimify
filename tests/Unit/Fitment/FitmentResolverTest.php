@@ -79,13 +79,17 @@ it('flags a workshop condition as needing explicit acknowledgement', function ()
  */
 
 it('gives a vehicle whose legal data could not be parsed its wheel verdict, and never a positive tyre half', function (): void {
-    // R-03 as amended on 28.09.2026: the wheel rests on the document; the tyres wait for the papers.
+    // R-03 as amended on 28.09.2026: the wheel rests on the document; the tyres wait for the papers. A missing input is
+    // the absence of a grant, never a grant with conditions (D-286): „Noch nicht bestätigt“, and nothing is sold.
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: NEEDS_REVIEW)])
         ->resolve(NEEDS_REVIEW, FitmentFixtures::WHEEL_CONFIG_ID);
 
     expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Conditional)
-        ->and($verdict->status)->toBe(VerdictStatus::Conditional)
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
+        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->tyreUnconfirmed())->toBeTrue()
+        ->and($verdict->isSellable())->toBeFalse()
         // No minimum is stated without the figures, so no tyre can be offered on it.
         ->and($verdict->front->minLoadIndex)->toBeNull()
         ->and($verdict->front->minSpeedSymbol)->toBeNull();

@@ -31,12 +31,13 @@ it('carries a full German sentence for every refusal, naming no code and no cont
         ->and($sentence)->not->toMatch('/\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihnen)\b/u');
 })->with($everyCase);
 
-it('has exactly the twenty-one cases — the specification’s thirteen, the two halves of R-03, the four of D-105 and the two of D-256 — in its order', function (): void {
+it('has exactly the twenty-two cases — the specification’s thirteen, the two halves of R-03, the papers of D-286, the four of D-105 and the two of D-256 — in its order', function (): void {
     expect(KomplettradRefusal::values())->toBe([
         'NO_VEHICLE',
         'VERDICT_NOT_PERMITTED',
         'VERDICT_UNKNOWN',
         'TYRES_UNKNOWN',
+        'TYRES_AWAIT_PAPERS',
         'TYRES_NOT_PERMITTED',
         'VERDICT_RESTORED',
         'NO_PERMITTED_SIZES',
@@ -54,17 +55,20 @@ it('has exactly the twenty-one cases — the specification’s thirteen, the two
         'MIXED_NOT_ONE_MAKER',
         'NO_SAME_SIZE_COMBINATION',
         'SIZE_NOT_A_COMBINATION',
-    ])->and(KomplettradRefusal::cases())->toHaveCount(21);
+    ])->and(KomplettradRefusal::cases())->toHaveCount(22);
 });
 
 it('never says „kein Gutachten“ when the wheel is approved and only the tyres are open (R-03 split)', function (): void {
-    foreach ([KomplettradRefusal::TyresUnknown, KomplettradRefusal::TyresNotPermitted] as $tyres) {
+    foreach ([KomplettradRefusal::TyresUnknown, KomplettradRefusal::TyresAwaitPapers, KomplettradRefusal::TyresNotPermitted] as $tyres) {
         expect($tyres->sentenceDe())->toContain('Die Felge ist für dein Fahrzeug freigegeben')
             ->and($tyres->sentenceDe())->not->toContain('kein Gutachten');
     }
 
     expect(KomplettradRefusal::TyresUnknown->sentenceDe())->toContain('nicht bestätigen')
-        ->and(KomplettradRefusal::TyresUnknown->sentenceDe())->toContain('schreib uns');
+        ->and(KomplettradRefusal::TyresUnknown->sentenceDe())->toContain('schreib uns')
+        // Waiting only for the car's papers (D-286): the way on is the customer's own — what is missing, where it stands.
+        ->and(KomplettradRefusal::TyresAwaitPapers->sentenceDe())->toContain('Zulassungsbescheinigung Teil I')
+        ->and(KomplettradRefusal::TyresAwaitPapers->sentenceDe())->not->toContain('schreib uns');
 });
 
 it('keeps UNKNOWN apart from NOT_PERMITTED — R-07', function (): void {

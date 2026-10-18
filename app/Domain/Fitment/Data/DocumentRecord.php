@@ -68,9 +68,24 @@ final readonly class DocumentRecord
          * snapshot, like the derating table: TyreEligibility answers live verdicts only.
          */
         public ?TyrePairingTable $tyreCombinations = null,
+        /**
+         * How the document gives its tyres' load index and speed symbol (D-277): `document` — beside every size, so a car's
+         * top speed is not needed —, `papers`, `table`; null where nobody has answered, read as needing the top speed.
+         * Frozen with the verdict where set: whether the answer rested on the car's top speed is part of what was told.
+         */
+        public ?string $tyreIndexSource = null,
     ) {}
 
     public const COMPLETE = 'complete';
+
+    /** The answer that frees a car from its top speed: the document prints the index beside every size (D-277). */
+    public const INDEX_AT_EVERY_SIZE = 'document';
+
+    /** Whether the document gives the speed symbol beside every size, so the car's top speed is not needed for it. */
+    public function statesIndexAtEverySize(): bool
+    {
+        return $this->tyreIndexSource === self::INDEX_AT_EVERY_SIZE;
+    }
 
     /** Whether a person asserted that every Anlage and every vehicle of the document is entered. */
     public function assertedComplete(): bool
@@ -82,7 +97,8 @@ final readonly class DocumentRecord
      * @return array{
      *     id: string, kind: string, number: string|null, revision: int,
      *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null,
-     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string, isDemo?: true
+     *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string, isDemo?: true,
+     *     tyreIndexSource?: string
      * }
      */
     public function toArray(): array
@@ -105,6 +121,7 @@ final readonly class DocumentRecord
             ...($this->completeness === null ? [] : ['completeness' => $this->completeness]),
             // An example document, said where it is true: the snapshot of a demo order keeps it.
             ...($this->isDemo ? ['isDemo' => true] : []),
+            ...($this->tyreIndexSource === null ? [] : ['tyreIndexSource' => $this->tyreIndexSource]),
         ];
     }
 
@@ -119,7 +136,7 @@ final readonly class DocumentRecord
      *     id: string|int, kind: string, number: string|null, revision: int,
      *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
      *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null, completeness?: string|null,
-     *     isDemo?: bool
+     *     isDemo?: bool, tyreIndexSource?: string|null
      * } $data
      */
     public static function fromArray(array $data): self
@@ -140,6 +157,7 @@ final readonly class DocumentRecord
             missingAnnexes: $data['missingAnnexes'] ?? null,
             completeness: $data['completeness'] ?? null,
             isDemo: ($data['isDemo'] ?? false) === true,
+            tyreIndexSource: $data['tyreIndexSource'] ?? null,
         );
     }
 }

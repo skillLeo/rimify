@@ -2,7 +2,10 @@
 /**
  * Fahrzeuge › one vehicle — its keys and build period, the legal data a verdict needs (axle loads and
  * top speed, fields 8.1, 8.2 and T of the Zulassungsbescheinigung), and every Gutachten row that names
- * it. Without all three values no wheel is ever shown as fitting (R-03); entering them is the review.
+ * it. Without the axle loads — and the top speed, where a released Gutachten for this car needs it (D-284) —
+ * the shop answers the wheel and leaves the tyres „Noch nicht bestätigt“ until a customer enters their own
+ * papers (D-286); entered here, they answer every customer at once. Field T is asked only where it is needed,
+ * and the page names the documents that need it and why (D-287). Entering all three is the review (R-03).
  */
 
 import { Link, useForm } from '@inertiajs/vue3'
@@ -32,6 +35,10 @@ const props = defineProps<{
         complete: boolean
     }
     rows: Row[]
+    /** Whether a released Gutachten naming this car needs field T for the tyres, which ones and why (D-287). */
+    topSpeed: { needed: boolean; released: number; documents: { id: number; label: string; href: string; why: string }[] }
+    /** What the shop waits for of this car (D-286): `8.1`, `8.2`, `T`. */
+    owed: string[]
     can: { edit: boolean }
 }>()
 
@@ -75,12 +82,43 @@ const form = useForm({
 const errors = computed(() => form.errors as Record<string, string | undefined>)
 const context = computed(() => `${props.vehicle.keys} · ${props.vehicle.window}`)
 
-/* Emptying a value of a complete vehicle takes it out of the shop's answers: that is asked first. */
+/* What the shop waits for, in one sentence: the axle loads always, the top speed where a released Gutachten needs it. */
+const owedLine = computed(() => {
+    const axles = props.owed.includes('8.1')
+    const speed = props.owed.includes('T')
+
+    if (!axles && !speed) {
+        return null
+    }
+
+    const [what, until] = axles && speed
+        ? ['fehlen die Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T)', 'Solange sie fehlen']
+        : axles ? ['fehlen die Achslasten (Felder 8.1 und 8.2)', 'Solange sie fehlen'] : ['fehlt die Höchstgeschwindigkeit (Feld T)', 'Solange sie fehlt']
+
+    return `Diesem Fahrzeug ${what}. ${until}, bestätigt der Shop die Reifen nur für Kunden, die ihre Werte aus der Zulassungsbescheinigung Teil I eintragen.`
+})
+
+/* `nicht eingetragen` for a top speed nothing asks for — never „fehlt“ beside a field no released Gutachten needs. */
+const speedRead = computed(() => {
+    if (props.vehicle.maxSpeed !== null) {
+        return `${decimal(props.vehicle.maxSpeed, 0)} km/h`
+    }
+
+    if (props.topSpeed.needed) {
+        return 'fehlt'
+    }
+
+    return props.topSpeed.released > 0 ? 'nicht eingetragen – für die Reifen nicht nötig' : 'nicht eingetragen'
+})
+
+/* Emptying a value the shop's answers rest on takes them away: that is asked first. A top speed nothing needs is not one. */
 const confirmOpen = ref(false)
-const empties = computed(() => [form.axle_load_front_kg, form.axle_load_rear_kg, form.max_speed_kmh].some((value) => String(value).trim() === ''))
+const empties = computed(() =>
+    [form.axle_load_front_kg, form.axle_load_rear_kg, ...(props.topSpeed.needed ? [form.max_speed_kmh] : [])].some((value) => String(value).trim() === '')
+)
 
 function save(): void {
-    if (props.vehicle.complete && empties.value && !confirmOpen.value) {
+    if (props.owed.length === 0 && empties.value && !confirmOpen.value) {
         confirmOpen.value = true
 
         return
@@ -99,7 +137,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
 
 <template>
     <AdminPage :title="vehicle.name" :context="context">
-        <p v-if="!vehicle.complete" class="fs-warn" role="note">Diesem Fahrzeug fehlen Angaben. Solange sie fehlen, kann der Shop die Reifen für dieses Fahrzeug nicht bestätigen und verweist auf die Fahrzeugpapiere.</p>
+        <p v-if="owedLine" class="fs-warn" role="note">{{ owedLine }}</p>
 
         <section class="adm-section" aria-labelledby="fs-facts-h">
             <div class="adm-section__head">
@@ -131,7 +169,24 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="fs-speed">Höchstgeschwindigkeit in km/h (Feld T)</label>
-                    <input id="fs-speed" v-model="form.max_speed_kmh" class="input" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="errors.max_speed_kmh ? 'true' : undefined" aria-describedby="fs-speed-err">
+                    <input id="fs-speed" v-model="form.max_speed_kmh" class="input" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="errors.max_speed_kmh ? 'true' : undefined" aria-describedby="fs-speed-why fs-speed-err">
+                    <!-- Why it is asked, or why not (D-287): the released Gutachten that need it, each with what is recorded. -->
+                    <div id="fs-speed-why" class="fs-why" data-speed-why>
+                        <template v-if="topSpeed.needed">
+                            <p class="fs-why__lead">Für die Reifen nötig:</p>
+                            <ul class="fs-why__list">
+                                <li v-for="document in topSpeed.documents" :key="document.id">
+                                    <Link :href="document.href" class="fs-link">{{ document.label }}</Link>: {{ document.why }}
+                                </li>
+                            </ul>
+                        </template>
+                        <p v-else-if="topSpeed.released > 0" class="fs-why__lead">
+                            Für die Reifen nicht nötig: Bei jedem freigegebenen Gutachten zu diesem Fahrzeug sind Lastindex und Geschwindigkeitssymbol bei jeder Reifengröße erfasst.
+                        </p>
+                        <p v-else class="fs-why__lead">
+                            Bei uns ist noch kein Gutachten zu diesem Fahrzeug freigegeben. Ob die Höchstgeschwindigkeit für die Reifen nötig ist, hängt davon ab, wie ein Gutachten Lastindex und Geschwindigkeitssymbol angibt.
+                        </p>
+                    </div>
                     <p id="fs-speed-err" class="form-field__error">{{ errors.max_speed_kmh }}</p>
                 </div>
                 <div>
@@ -141,7 +196,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
             <dl v-else class="adm-facts fs-facts">
                 <div class="adm-facts__row"><dt>Achslast vorn</dt><dd>{{ vehicle.axleFront === null ? 'fehlt' : `${decimal(vehicle.axleFront, 0)} kg` }}</dd></div>
                 <div class="adm-facts__row"><dt>Achslast hinten</dt><dd>{{ vehicle.axleRear === null ? 'fehlt' : `${decimal(vehicle.axleRear, 0)} kg` }}</dd></div>
-                <div class="adm-facts__row"><dt>Höchstgeschwindigkeit</dt><dd>{{ vehicle.maxSpeed === null ? 'fehlt' : `${decimal(vehicle.maxSpeed, 0)} km/h` }}</dd></div>
+                <div class="adm-facts__row"><dt>Höchstgeschwindigkeit</dt><dd>{{ speedRead }}</dd></div>
             </dl>
         </section>
 
@@ -187,7 +242,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
         <AdminConfirm
             v-model:open="confirmOpen"
             title="Angabe entfernen?"
-            body="Ohne alle drei Angaben kann der Shop die Reifen für dieses Fahrzeug nicht mehr bestätigen, bis sie wieder eingetragen sind."
+            body="Ohne diesen Wert bestätigt der Shop die Reifen für dieses Fahrzeug erst wieder, wenn er hier eingetragen ist – bis dahin nur für Kunden, die ihn aus ihrer Zulassungsbescheinigung Teil I eintragen."
             confirm-label="Entfernen und speichern"
             :busy="form.processing"
             @confirm="send"
@@ -218,6 +273,26 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
 
 .fs-form .form-field__error:empty {
     display: none;
+}
+
+/* Why field T is asked or not: small, under the field, the documents linked. */
+.fs-why {
+    display: grid;
+    gap: var(--sp-4);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.fs-why__lead {
+    margin: 0;
+}
+
+.fs-why__list {
+    display: grid;
+    gap: var(--sp-4);
+    margin: 0;
+    padding-left: var(--sp-16);
 }
 
 .fs-group + .fs-group {

@@ -86,12 +86,12 @@ function onPointerEnter(event: PointerEvent): void {
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
 
-    const { status = 'PERMITTED', requiresEntry, conditions = [], conditionsVary = false, notesOnly = false } = props.card.fitment
+    const { status = 'PERMITTED', requiresEntry, conditions = [], conditionsVary = false, notesOnly = false, tyresOpen = false, wheelConditional = false } = props.card.fitment
     const effective: VerdictStatus = status === 'PERMITTED' && requiresEntry ? 'CONDITIONAL' : status
     // Every Auflage of every size a Hinweis (#23, D-104, the server's): „Freigegeben“, and one quiet line, not a list.
     const notes = effective === 'CONDITIONAL' && notesOnly && !requiresEntry
@@ -102,6 +102,12 @@ const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: bo
         conditions: effective === 'CONDITIONAL' && !notes ? conditions : [],
         vary: effective === 'CONDITIONAL' && !notes && conditionsVary,
         notesOnly: notes,
+        // The wheel approved, its tyres not yet confirmed (finding 103, D-286): the badge stays the plain state — a corner
+        // has no room for both halves, and a longer one ran off a phone's tile —, the line under the price says which is
+        // which, in the panel's words, and its sizes are never „keine Freigabe“.
+        tyresOpen: effective === 'UNKNOWN' && tyresOpen
+            ? `${wheelConditional ? 'Felge freigegeben mit Auflagen' : 'Felge freigegeben'}, Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.`
+            : null,
     }
 })
 
@@ -221,6 +227,7 @@ function onCompareLabelClick(event: MouseEvent): void {
         <!-- Never one blended list: what depends on the size is said per size on the product page. -->
         <p v-if="verdict && verdict.vary" class="tile__vary">Weitere Auflagen je nach Größe – auf der Produktseite.</p>
         <p v-if="verdict && verdict.notesOnly" class="tile__vary">Mit Hinweisen aus dem Gutachten – auf der Produktseite.</p>
+        <p v-if="verdict && verdict.tyresOpen" class="tile__vary" data-tyres="open">{{ verdict.tyresOpen }}</p>
 
         <span v-if="!card.inStock" class="stock stock--out">Ausverkauft</span>
 

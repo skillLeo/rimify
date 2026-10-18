@@ -106,7 +106,10 @@ export function sizeChip(page: Page, diameter: string): Locator {
     return page.locator('#groessen').getByRole('button', { name: diameter, exact: true });
 }
 
-/** The product page with the 19″ chosen, its panel answered. */
+/**
+ * The product page with the 19″ chosen, its panel answered: the wheel approved with its Auflagen — and, for a car from
+ * the document without the figures of its papers, the tyres „noch nicht bestätigt“ until they are in (D-286).
+ */
 export async function openNineteen(page: Page): Promise<Locator> {
     await open(page, `/felgen/${SLUG}`);
 
@@ -118,9 +121,27 @@ export async function openNineteen(page: Page): Promise<Locator> {
 
     const panel = page.locator('.rcheck-panel').first();
 
-    await expect(panel.locator('.rcheck-panel__vehicle')).toContainText('Mit Auflagen freigegeben für');
+    await expect(panel.locator('.rcheck-panel__vehicle')).toContainText(/Mit Auflagen freigegeben für|Felge freigegeben mit Auflagen/);
 
     return panel;
+}
+
+/**
+ * The figures of the car's papers, entered in the panel's form as a customer enters them — a cookie of the test's own
+ * context, no row. Only where the answer waits for them (D-286): the form is open then and says what is missing. The
+ * default is the acceptance set's X3 2.0d (AcceptanceSeeder): 1.130 kg, 1.240 kg, 198 km/h.
+ */
+export async function enterPapers(panel: Locator, figures = { front: 1130, rear: 1240, speed: 198 }): Promise<void> {
+    if (!(await panel.locator('[data-asked]').isVisible())) {
+        return;
+    }
+
+    await panel.locator('#pp-axle_front_kg').fill(String(figures.front));
+    await panel.locator('#pp-axle_rear_kg').fill(String(figures.rear));
+    await panel.locator('#pp-top_speed_kmh').fill(String(figures.speed));
+    await panel.locator('#pp-save').click();
+    await expect(panel.locator('.pp__summary'), 'the papers were not kept').toBeVisible({ timeout: 20_000 });
+    await expect(panel.locator('.rcheck-panel__vehicle')).toContainText('Mit Auflagen freigegeben für');
 }
 
 /** The texts of every list under `scope` that holds both snow-chain sentences. */

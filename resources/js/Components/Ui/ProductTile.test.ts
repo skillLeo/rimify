@@ -272,6 +272,32 @@ describe('ProductTile', () => {
         expect(wrapper.find('.tile__sizes').html()).not.toContain('<s>')
     })
 
+    // Finding 103, D-286: a wheel its document approves, with the tyres not yet confirmed, is said as that on the tile too —
+    // the wheel's half in the badge, the open half under it, and its sizes never „keine Freigabe“.
+    it('says the wheel approved and the tyres open where nothing sells yet, and greys none of its sizes', () => {
+        const wrapper = mountTile({
+            vehicle,
+            card: card(1, { diametersFitting: ['18', '19', '20'], fitment: { status: 'UNKNOWN', requiresEntry: false, tyresOpen: true } }),
+        })
+
+        // The badge keeps the plain state — a corner has no room for both halves —; the line says which is which.
+        expect(wrapper.find('.tile__badge').text()).toBe('Noch nicht bestätigt')
+        expect(wrapper.find('[data-tyres="open"]').text()).toBe('Felge freigegeben, Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.')
+        expect(wrapper.findAll('.tile__size--none')).toHaveLength(0)
+        expect(wrapper.text()).not.toContain('keine Freigabe')
+
+        // Approved with Auflagen: said in the panel's words.
+        const conditional = mountTile({ vehicle, card: card(3, { diametersFitting: ['18'], fitment: { status: 'UNKNOWN', requiresEntry: false, tyresOpen: true, wheelConditional: true } }) })
+
+        expect(conditional.find('[data-tyres="open"]').text()).toBe('Felge freigegeben mit Auflagen, Reifen noch nicht bestätigt – was fehlt, steht auf der Produktseite.')
+
+        // A plain „we hold nothing“ stays what it was.
+        const unknown = mountTile({ vehicle, card: card(2, { diametersFitting: [], fitment: { status: 'UNKNOWN', requiresEntry: false } }) })
+
+        expect(unknown.find('.tile__badge').text()).toBe('Noch nicht bestätigt')
+        expect(unknown.find('[data-tyres="open"]').exists()).toBe(false)
+    })
+
     it('says Ausverkauft above the actions and keeps the CTA', () => {
         const wrapper = mountTile({ card: card(1, { inStock: false, stockQty: 0 }) })
 

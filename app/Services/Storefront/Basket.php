@@ -103,6 +103,9 @@ final readonly class Basket
     /** The wheel is approved, the tyres are not settled: the rim is not sold until they are (fail closed). */
     public const TYRES_UNKNOWN = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Deshalb verkaufen wir dir die Felge noch nicht – schreib uns, dann prüfen wir das für dich.';
 
+    /** The same, where the tyres wait only for fields of the car's papers (D-286): the way on is the customer's own. */
+    public const TYRES_AWAIT_PAPERS = 'Die Felge ist für dein Fahrzeug freigegeben. Für die Reifen fehlen uns noch Werte aus deiner Zulassungsbescheinigung Teil I – trag sie auf der Seite der Felge ein, dann kannst du bestellen.';
+
     public const TYRES_NOT_PERMITTED = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Deshalb verkaufen wir dir die Felge nicht.';
 
     public const WHEEL_SOLD_OUT = 'Diese Größe ist derzeit ausverkauft.';
@@ -372,7 +375,11 @@ final readonly class Basket
         if ($verdict !== null && ! $verdict->isSellable()) {
             // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
             if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
-                return $verdict->status === VerdictStatus::NotPermitted ? self::TYRES_NOT_PERMITTED : self::TYRES_UNKNOWN;
+                return match (true) {
+                    $verdict->status === VerdictStatus::NotPermitted => self::TYRES_NOT_PERMITTED,
+                    $verdict->tyre?->awaitsPapers() === true => self::TYRES_AWAIT_PAPERS,
+                    default => self::TYRES_UNKNOWN,
+                };
             }
 
             return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;

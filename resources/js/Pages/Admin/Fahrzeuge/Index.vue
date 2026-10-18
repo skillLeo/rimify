@@ -59,7 +59,7 @@ function reset(): void {
 
 <template>
     <AdminPage :title="review ? 'Zur Prüfung' : 'Fahrzeuge'" :context="context">
-        <p v-if="review" class="adm-note fz-intro">Diesen Fahrzeugen fehlen Achslasten oder die Höchstgeschwindigkeit. Solange sie fehlen, zeigt der Shop die Felgen mit ihrer Freigabe, kann die Reifen aber nicht bestätigen und verweist dafür auf die Fahrzeugpapiere. Die Werte stehen in der Zulassungsbescheinigung Teil I (Felder 8.1, 8.2 und T).</p>
+        <p v-if="review" class="adm-note fz-intro">Diesen Fahrzeugen fehlen Achslasten oder die Höchstgeschwindigkeit. Die Felgen zeigt der Shop trotzdem mit ihrer Freigabe. Wo er die fehlenden Werte für die Reifen braucht, bestätigt er die Reifen nur für Kunden, die ihre Werte aus der Zulassungsbescheinigung Teil I (Felder 8.1, 8.2 und T) eintragen. Ohne bestätigte Reifen verkauft er weder Felge noch Komplettrad.</p>
 
         <nav class="fz-tabs" aria-label="Fahrzeuge">
             <Link href="/admin/fahrzeuge" class="fz-tab" :aria-current="review ? undefined : 'page'">Alle · {{ decimal(counts.all, 0) }}</Link>

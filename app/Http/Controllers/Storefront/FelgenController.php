@@ -199,6 +199,8 @@ class FelgenController extends Controller
             'acceptance' => $this->acceptance(),
             // What of the car the page's answers wait for, asked for by name the moment the car is chosen (§1.1).
             'missing' => $result['missing'],
+            // The fields of the car's papers its tyres wait for (D-286): asked once, for every wheel on the page.
+            'owed' => $result['owed'],
         ]);
     }
 
@@ -256,9 +258,12 @@ class FelgenController extends Controller
         $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
         foreach ($wheel->configs as $config) {
-            $row = $this->configRow($config, $verdicts[$config->id] ?? null, $colour, $colours);
+            $verdict = $verdicts[$config->id] ?? null;
+            $row = $this->configRow($config, $verdict, $colour, $colours);
 
-            if (($row['verdict']['status'] ?? null) === VerdictStatus::Unknown->value) {
+            // Not a wheel approved with its tyres unconfirmed (finding 103, D-286): its Gutachten is held, and counting it
+            // would rank a document we have on the Übersicht's list of documents to buy.
+            if ($verdict?->status === VerdictStatus::Unknown && ! $verdict->tyreUnconfirmed()) {
                 $anyUnknown = true;
             }
 
@@ -813,8 +818,9 @@ class FelgenController extends Controller
             'conditionGroups' => $verdict->conditionGroups()->toArray(),
             // The same sentences as the customer works through them — Abnahme, work on the car with its
             // millimetres, the bolts and their torque, each tyre size's axle and printed minimum, the document's
-            // notes — for a wheel that may go on the car at all (Block D, item 15).
-            'detail' => in_array($verdict->status, [VerdictStatus::Permitted, VerdictStatus::Conditional], true) ? $this->detail->for($verdict) : null,
+            // notes — for a wheel that may go on the car at all (Block D, item 15), and for one approved with its tyres
+            // unconfirmed: its own verdict is said in full, Auflagen and all (finding 103, D-286).
+            'detail' => $verdict->isSellable() || $verdict->tyreUnconfirmed() ? $this->detail->for($verdict) : null,
             // The reason is a German sentence, because a disabled chip with no explanation reads
             // as a broken control rather than as a fact about the customer's car.
             'reason' => $verdict->reason?->textDe,
@@ -874,6 +880,8 @@ class FelgenController extends Controller
                     'maxAxleLoad' => GermanFormat::kilograms($t['maxAxleLoadKg']),
                 ], $verdict->tyre->thresholds),
                 'fromVehicleData' => $verdict->tyre->fromVehicleData,
+                // The papers' fields the answer waits for (D-286): the panel points at the form that takes them.
+                ...($verdict->tyre->papersOwed === [] ? [] : ['owed' => $verdict->tyre->papersOwed]),
             ],
         ];
     }

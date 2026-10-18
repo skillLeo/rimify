@@ -25,6 +25,8 @@ import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import VehicleSelector from '../../Components/Vehicle/VehicleSelector.vue'
 import { toast } from '../../Components/Chrome/toast'
 import { priceTerms } from '../../composables/usePriceTerms'
+import { tyreUnconfirmed } from '../../composables/useConfigurator'
+import { focusPapersForm, waitsForPapers } from '../../lib/papersForm'
 import { useShared } from '../../composables/useShared'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { contactHref } from '../../lib/contact'
@@ -372,7 +374,20 @@ const productHref = computed(() => {
 
 /* Why there is nothing to buy, in the verdict's own terms; the panel beside it says the rest. */
 const noSale = computed(() => {
-    switch (config.value?.verdict?.status) {
+    const verdict = config.value?.verdict ?? null
+
+    // The wheel approved and only its tyres open (finding 103, D-286): never „no approval we can show“ about a wheel the
+    // document approves, said as the panel says it — and where the tyres wait for the car's papers, the way on is the
+    // form in the panel (`papersFirst`).
+    if (tyreUnconfirmed(verdict)) {
+        const approved = verdict?.wheelStatus === 'CONDITIONAL' ? 'Die Felge ist für dein Auto mit Auflagen freigegeben.' : 'Die Felge ist für dein Auto freigegeben.'
+
+        return waitsForPapers(verdict)
+            ? `${approved} Die Reifen dazu können wir erst bestätigen, wenn du die Werte aus deiner Zulassungsbescheinigung Teil I eingetragen hast – bis dahin bieten wir die Felge dafür nicht an.`
+            : `${approved} Für die Reifen dazu fehlen in unseren Daten noch Angaben – bis sie hinterlegt sind, bieten wir die Felge dafür nicht an.`
+    }
+
+    switch (verdict?.status) {
         case 'NOT_PERMITTED':
             return 'In dieser Größe ist die Felge für dein Auto nicht freigegeben, deshalb bieten wir sie dafür nicht an.'
         default:
@@ -383,6 +398,9 @@ const noSale = computed(() => {
 const askHref = computed(() =>
     contactHref({ subject: props.answer ? `RIMIFY-Check: ${props.answer.product.brandName} ${props.answer.product.modelName}` : 'RIMIFY-Check', from: page.url })
 )
+
+/* The tyres wait for the car's papers (D-286): the one way on is the form in the panel beside, one press away. */
+const papersFirst = computed(() => tyreUnconfirmed(config.value?.verdict ?? null) && waitsForPapers(config.value?.verdict))
 
 /*
  * The page's address is the question: whoever opens it sees this car, this wheel, this size. What the visitor typed
@@ -595,7 +613,10 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                             <Icon name="info" :size="20" />
                             <div>
                                 <p class="chk__nosale-text">{{ noSale }}</p>
-                                <p class="chk__nosale-go">
+                                <p v-if="papersFirst" class="chk__nosale-go">
+                                    <button class="btn btn--secondary btn--sm" type="button" @click="focusPapersForm">Werte eintragen</button>
+                                </p>
+                                <p v-else class="chk__nosale-go">
                                     <Link href="/felgen" class="btn btn--secondary btn--sm">Passende Felgen für {{ vehicle.short }}</Link>
                                     <Link :href="askHref" class="link">Bei uns nachfragen</Link>
                                 </p>
