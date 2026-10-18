@@ -104,37 +104,10 @@ final class WheelEditor
         });
     }
 
+    /** A wheel brand stands on the homepage's brand wall (CatalogueBrands, the Reifen form's lookup too). */
     private function brand(?int $id, ?string $new): Brand
     {
-        if ($id !== null) {
-            return Brand::query()->findOrFail($id);
-        }
-
-        $name = trim((string) $new);
-        $existing = Brand::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
-
-        if ($existing instanceof Brand) {
-            return $existing;
-        }
-
-        // A removed brand of that name comes back — its id, its slug and its logo — as on the Marken
-        // page, rather than a second row as „rotiform-2" (K2-01).
-        $removed = Brand::onlyTrashed()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->latest('deleted_at')->first();
-
-        // Only while no live brand holds its address: a brand renamed to „Rotiform.“ keeps the slug
-        // `rotiform`, and a restored twin would collide with it (K2-44) — a new brand is made instead.
-        if ($removed instanceof Brand && ! Brand::query()->where('slug', $removed->slug)->exists()) {
-            $removed->restore();
-
-            return $removed;
-        }
-
-        return Brand::query()->create([
-            'name' => $name,
-            'slug' => self::brandSlug($name),
-            'is_wheel_brand' => true,
-            'sort_order' => (int) Brand::query()->max('sort_order') + 10,
-        ]);
+        return CatalogueBrands::resolve($id, $new, wheelBrand: true);
     }
 
     /**
@@ -394,19 +367,6 @@ final class WheelEditor
         $n = 2;
 
         while (WheelModel::withTrashed()->where('slug', $slug)->exists()) {
-            $slug = $base.'-'.$n++;
-        }
-
-        return $slug;
-    }
-
-    private static function brandSlug(string $name): string
-    {
-        $base = Str::slug($name, '-', 'de') ?: 'marke';
-        $slug = $base;
-        $n = 2;
-
-        while (Brand::withTrashed()->where('slug', $slug)->exists()) {
             $slug = $base.'-'.$n++;
         }
 

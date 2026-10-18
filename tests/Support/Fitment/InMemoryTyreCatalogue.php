@@ -13,7 +13,7 @@ use App\Domain\Fitment\Data\TyreSize;
  * framework booted (R-13).
  *
  * It mirrors the Eloquent implementation's contract exactly — size match by identity, the
- * in-stock filter, cheapest first then by id — rather than the eligibility's expectations, so a
+ * sellable filter, cheapest first then by id — rather than the eligibility's expectations, so a
  * test passing here means the rule is right and not merely consistent with a fake written to
  * agree with it.
  */
@@ -26,7 +26,7 @@ final class InMemoryTyreCatalogue implements TyreCatalogue
      * @param  list<TyreSize>  $sizes
      * @return list<TyreRecord>
      */
-    public function inSizes(array $sizes, bool $inStockOnly = true): array
+    public function inSizes(array $sizes, bool $sellableOnly = true): array
     {
         if ($sizes === []) {
             return [];
@@ -37,7 +37,7 @@ final class InMemoryTyreCatalogue implements TyreCatalogue
         $found = array_values(array_filter(
             $this->tyres,
             static fn (TyreRecord $tyre): bool => in_array($tyre->size()->key(), $keys, true)
-                && (! $inStockOnly || $tyre->stockQty > 0),
+                && (! $sellableOnly || $tyre->sellable),
         ));
 
         usort(

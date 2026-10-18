@@ -117,7 +117,6 @@ function config(overrides: Partial<ProduktConfig> = {}): ProduktConfig {
                     season: 'sommer',
                     seasonLabel: 'Sommerreifen',
                     sizeLabel: '245/45 R19 100Y',
-                    stockQty: 8,
                     tyrePriceCents: 15_000,
                     tyrePrice: '150,00 €',
                     perWheelCents: 40_400,
@@ -312,13 +311,13 @@ describe('RIMIFY-Check', () => {
         await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
 
         // The refusal: the same size again, a new object, with the sentence under the button.
-        ;(forms[0]?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        ;(forms[0]?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
         await wrapper.setProps({ answer: JSON.parse(JSON.stringify(twoTyres)) as CheckAnswer })
         await flushPromises()
 
         expect((wrapper.find('input[name="kc-tyre"][value="8"]').element as HTMLInputElement).checked).toBe(true)
         expect((wrapper.find('input[name="kc-weights"][value="2"]').element as HTMLInputElement).checked).toBe(true)
-        expect(wrapper.find('.chk__error').text()).toContain('Diesen Reifen haben wir gerade nicht')
+        expect(wrapper.find('.chk__error').text()).toContain('Dieser Reifen ist zurzeit nicht verfügbar')
     })
 
     it('leads to the product page on the size answered (CHECK-13)', () => {

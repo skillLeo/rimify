@@ -56,6 +56,9 @@ export const ICON_NAMES = [
     'fuel',
     'rain',
     'sound',
+    // The EU tyre label's two pictograms (D-302): snow grip — the mountain with the snowflake — and ice grip.
+    'snow',
+    'ice',
     'ruler',
     // The admin shell (docs/design/sections/admin-shell.md §5.3): Inhalte, Importe, the team's
     // notifications, and the row-actions trigger.
@@ -120,6 +123,8 @@ const PATHS: Readonly<Record<IconName, string>> = {
     fuel: '<path d="M4.5 20.5V5a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 13.5 5v15.5"/><path d="M4.5 10h9"/><path d="M13.5 9H16a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V9l-2.5-2.5"/><path d="M3 20.5h12"/>',
     rain: '<path d="M7 15.5a4 4 0 0 1 .5-8 5.5 5.5 0 0 1 10.5 1.5 3.3 3.3 0 0 1-.5 6.5"/><path d="m9 17.5-1 2.5M13 17.5l-1 2.5M17 17.5l-1 2.5"/>',
     sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+    snow: '<path d="M2.5 20 9 6.5l3.5 6 2.5-3.5 6.5 11Z"/><path d="M12 14.5v4M10.3 15.5l3.4 2M10.3 17.5l3.4-2"/>',
+    ice: '<path d="M12 3.5 19.4 7.8v8.4L12 20.5l-7.4-4.3V7.8Z"/><path d="M12 7.5v9M8.1 9.8l7.8 4.4M15.9 9.8l-7.8 4.4"/>',
     ruler: '<path d="M3 15.5 15.5 3 21 8.5 8.5 21z"/><path d="m7 11.5 2 2M10 8.5l2 2M13 5.5l2 2"/>',
     // A paragraph reduced to its rhythm: left-aligned and ragged-right, so it can never be read as
     // `sort`, which is centred and tapers.

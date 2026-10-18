@@ -20,9 +20,10 @@ use Illuminate\Support\Facades\Log;
  * What money does to an order — provider-neutral: the checkout, the webhook's job, the sandbox, the expiry run
  * and the refund all go through here.
  *
- * - Tyres are reserved when the order is written (reserve, inside OrderWriter's transaction) and released when it
- *   dies unpaid — storniert, abgelaufen. A rim is available or not and is never counted (his admin item 7, D-299):
- *   one that is no longer available stops the order, nothing is taken off a shelf.
+ * - Nothing is counted (his admin items 7 and 10, D-299, D-301): when the order is written (reserve, inside
+ *   OrderWriter's transaction) each rim and each tyre is read under a lock and must still be available — a tyre
+ *   offered, its EU label on record (D-303) —, and one that is not stops the order. Nothing is taken off a shelf, so
+ *   an order that dies unpaid puts nothing back.
  * - An order moves only where OrderStatus::next() allows; a late event that would move it backwards (a
  *   `processing` after `succeeded`) is recorded and ignored. Every move is audited with the event that caused it.
  * - Paid means the provider's signed event said so, for the order's own total: an amount that does not match
@@ -33,23 +34,24 @@ final class OrderPayments
     /** How long an unpaid order holds its stock and its payment. */
     public const HOURS_TO_PAY = 24;
 
-    public const OUT_OF_STOCK = 'Ein Artikel in deinem Warenkorb ist nicht mehr in dieser Menge auf Lager. Es wurde nichts bestellt und nichts berechnet.';
-
     public const NOT_AVAILABLE = 'Eine Felge in deinem Warenkorb ist nicht mehr verfügbar. Es wurde nichts bestellt und nichts berechnet. '
         .'Im Warenkorb ist sie als „Nicht mehr verfügbar“ markiert – nimm sie heraus, dann kannst du bestellen.';
 
+    public const TYRE_NOT_AVAILABLE = 'Der Reifen eines Komplettrads in deinem Warenkorb ist nicht mehr verfügbar. Es wurde nichts bestellt und nichts berechnet. '
+        .'Im Warenkorb ist das Komplettrad als „Nicht mehr verfügbar“ markiert – nimm es heraus, dann kannst du bestellen.';
+
     /**
-     * Holds the order's goods, all or nothing. Call inside the transaction that writes the order.
+     * Checks the order's goods, all or nothing, and opens its time to pay. Call inside the transaction that writes the
+     * order.
      *
-     * A rim is read under a lock and must still be available — nothing is counted down (D-299); a tyre is taken off its
-     * shelf, each decrement only where enough is left.
+     * Each rim and each tyre is read under a lock and must still be available — nothing is counted down (D-299, D-301);
+     * a tyre must still be offered, its EU label on record (D-303).
      *
      * @throws OrderRefused
      */
     public function reserve(Order $order): void
     {
         foreach ($order->lines()->get() as $line) {
-            $quantity = (int) $line->getAttribute('quantity');
             $config = $line->getAttribute('wheel_config_id');
             $tyre = $line->getAttribute('tyre_variant_id');
 
@@ -57,27 +59,19 @@ final class OrderPayments
                 throw new OrderRefused(self::NOT_AVAILABLE);
             }
 
-            if ($tyre !== null && TyreVariant::query()->whereKey($tyre)->where('stock_qty', '>=', $quantity)->decrement('stock_qty', $quantity) !== 1) {
-                throw new OrderRefused(self::OUT_OF_STOCK);
+            if ($tyre !== null && TyreVariant::query()->whereKey($tyre)->lockForUpdate()->first()?->offered() !== true) {
+                throw new OrderRefused(self::TYRE_NOT_AVAILABLE);
             }
         }
 
         $order->forceFill(['stock_reserved' => true, 'expires_at' => ($order->placed_at ?? now())->addHours(self::HOURS_TO_PAY)])->save();
     }
 
-    /** Puts a dead order's tyres back on the shelf, once — a rim was never taken off one (D-299). */
+    /** Ends a dead order's hold, once. Nothing goes back on a shelf: nothing was taken off one (D-299, D-301). */
     public function release(Order $order): void
     {
         if (! $order->stock_reserved) {
             return;
-        }
-
-        foreach ($order->lines()->get() as $line) {
-            $quantity = (int) $line->getAttribute('quantity');
-
-            if ($line->getAttribute('tyre_variant_id') !== null) {
-                TyreVariant::query()->whereKey($line->getAttribute('tyre_variant_id'))->increment('stock_qty', $quantity);
-            }
         }
 
         $order->forceFill(['stock_reserved' => false])->save();

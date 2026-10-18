@@ -38,7 +38,26 @@ class TyreVariantFactory extends Factory
             'price_cents' => $this->faker->numberBetween(9_900, 32_900),
             'currency' => 'EUR',
             'stock_qty' => $this->faker->numberBetween(1, 60),
+            'available' => true,
+            // A real tyre is offered only with its EU label on record (D-303), so a test tyre carries a complete one.
+            // Test data: the EPREL number is no real registration.
+            'eu_fuel_class' => $this->faker->randomElement(['A', 'B', 'C']),
+            'eu_wet_grip_class' => $this->faker->randomElement(['A', 'B']),
+            'eu_noise_db' => $this->faker->numberBetween(68, 73),
+            'eu_noise_class' => $this->faker->randomElement(['A', 'B']),
+            'eu_snow_grip' => false,
+            'eu_ice_grip' => false,
+            'eprel_id' => (string) $this->faker->unique()->numberBetween(100_000, 9_999_999),
         ];
+    }
+
+    /** A tyre whose EU label is not on record: not offered while it is real (D-303). */
+    public function unlabelled(): static
+    {
+        return $this->state(fn (): array => [
+            'eu_fuel_class' => null, 'eu_wet_grip_class' => null, 'eu_noise_db' => null, 'eu_noise_class' => null,
+            'eu_snow_grip' => null, 'eu_ice_grip' => null, 'eprel_id' => null,
+        ]);
     }
 
     /** @param  non-empty-string  $symbol */
@@ -64,8 +83,9 @@ class TyreVariantFactory extends Factory
         ]);
     }
 
+    /** A tyre marked „nicht verfügbar“ (D-301): what the shop reads; the old count with it, nought. */
     public function outOfStock(): static
     {
-        return $this->state(fn (): array => ['stock_qty' => 0]);
+        return $this->state(fn (): array => ['stock_qty' => 0, 'available' => false]);
     }
 }

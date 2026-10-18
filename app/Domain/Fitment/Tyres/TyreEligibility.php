@@ -40,7 +40,7 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
  */
 final readonly class TyreEligibility
 {
-    /** A mixed set is two wheels on each axle: the least the shelf must hold of each tyre. */
+    /** A mixed set is two wheels on each axle. */
     public const MIXED_PER_AXLE = 2;
 
     private const MINIMUM_LEAD = 'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex %d und Geschwindigkeitsindex %s.';
@@ -76,7 +76,7 @@ final readonly class TyreEligibility
     ) {}
 
     /** Every tyre this verdict permits on this wheel, cheapest first. */
-    public function offerFor(FitmentVerdict $verdict, bool $inStockOnly = true): KomplettradOffer
+    public function offerFor(FitmentVerdict $verdict, bool $sellableOnly = true): KomplettradOffer
     {
         $refusal = $this->verdictRefusal($verdict);
 
@@ -90,11 +90,11 @@ final readonly class TyreEligibility
         $sizes = $this->sameSizes($verdict);
         $tyres = [];
 
-        // One wheel's worth is the least a Komplettrad needs. With the stock filter off the offer
-        // deliberately lists what is not on the shelf, so rule 9 is asked for nothing.
-        $quantity = $inStockOnly ? 1 : 0;
+        // Rule 9 asks whether the shop sells the tyre at all — never how many (D-301). With the filter off the offer
+        // deliberately lists what it does not sell, so rule 9 is asked for nothing.
+        $quantity = $sellableOnly ? 1 : 0;
 
-        foreach ($this->catalogue->inSizes($sizes, $inStockOnly) as $tyre) {
+        foreach ($this->catalogue->inSizes($sizes, $sellableOnly) as $tyre) {
             if ($this->tyreRefusal($verdict, $tyre, $quantity) === null) {
                 $tyres[] = $tyre;
             }
@@ -129,7 +129,7 @@ final readonly class TyreEligibility
      * first, and the car's row lists the front size on the front axle and the rear size on the rear; each tyre meets
      * its own axle; front and rear are one maker's one profile, as the table's own sentence asks.
      */
-    public function mixedOfferFor(FitmentVerdict $verdict, bool $inStockOnly = true): MixedOffer
+    public function mixedOfferFor(FitmentVerdict $verdict, bool $sellableOnly = true): MixedOffer
     {
         [$table, $refusal, $source] = $this->mixedGate($verdict);
 
@@ -149,11 +149,11 @@ final readonly class TyreEligibility
                 continue;
             }
 
-            $perAxle = $inStockOnly ? self::MIXED_PER_AXLE : 0;
+            $perAxle = $sellableOnly ? self::MIXED_PER_AXLE : 0;
             $fronts = [];
             $rears = [];
 
-            foreach ($this->catalogue->inSizes([$front, $rear], $inStockOnly) as $tyre) {
+            foreach ($this->catalogue->inSizes([$front, $rear], $sellableOnly) as $tyre) {
                 if ($tyre->size()->matches($front) && $this->axleTyreRefusal($verdict, 'FRONT', $tyre, $perAxle) === null) {
                     $fronts[] = $tyre;
                 } elseif ($tyre->size()->matches($rear) && $this->axleTyreRefusal($verdict, 'REAR', $tyre, $perAxle) === null) {
@@ -383,15 +383,15 @@ final readonly class TyreEligibility
             return KomplettradRefusal::SizeNotACombination;
         }
 
-        // Rule 9
-        if ($tyre->stockQty < $quantity) {
+        // Rule 9 — sold by the shop now: available, never counted (D-301), its EU label on record (D-303).
+        if ($quantity > 0 && ! $tyre->sellable) {
             return KomplettradRefusal::OutOfStock;
         }
 
         return null;
     }
 
-    /** Rules 6–9 for a tyre on ONE axle of a mixed set: its diameter, its size on that axle, that axle's minimum, the shelf. */
+    /** Rules 6–9 for a tyre on ONE axle of a mixed set: its diameter, its size on that axle, that axle's minimum, sold or not. */
     private function axleTyreRefusal(FitmentVerdict $verdict, string $name, TyreRecord $tyre, int $quantity): ?KomplettradRefusal
     {
         $wheelDiameter = $verdict->wheel?->diameterIn;
@@ -406,7 +406,7 @@ final readonly class TyreEligibility
             return $refusal;
         }
 
-        return $tyre->stockQty < $quantity ? KomplettradRefusal::OutOfStock : null;
+        return $quantity > 0 && ! $tyre->sellable ? KomplettradRefusal::OutOfStock : null;
     }
 
     private function axleRefusal(FitmentVerdict $verdict, string $name, AxleRequirement $axle, TyreRecord $tyre): ?KomplettradRefusal

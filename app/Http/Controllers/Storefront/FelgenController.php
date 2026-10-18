@@ -546,7 +546,6 @@ class FelgenController extends Controller
                 'season' => (string) $variant->season,
                 'seasonLabel' => TyreSeason::from((string) $variant->season)->longLabelDe(),
                 'sizeLabel' => $variant->label(),
-                'stockQty' => (int) $variant->stock_qty,
                 'tyrePriceCents' => (int) $variant->price_cents,
                 'tyrePrice' => Money::fromMinor((int) $variant->price_cents, $price->currency)->format(),
                 // The known components per wheel; an unconfigured mounting fee is left out and

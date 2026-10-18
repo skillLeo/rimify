@@ -533,6 +533,9 @@ describe('putting every entry into words', function (): void {
             'wheel.image_removed' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Das Foto der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde entfernt.', []],
             'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
             'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
+            'tyre.created' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'offered' => false], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde angelegt; der Shop bietet ihn nicht an – er ist nicht verfügbar oder sein EU-Reifenlabel ist unvollständig.', []],
+            'tyre.updated' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'changed' => ['eprel_id', 'price_cents'], 'offered' => true], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde geändert (EPREL-Nummer, Preis); der Shop bietet ihn an.', []],
+            'tyre.deleted' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y'], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde entfernt.', []],
             'brand.created' => [['name' => 'Borbet'], 'Die Marke „Borbet“ wurde angelegt.', []],
             'brand.restored' => [['name' => 'Borbet', 'with_logo' => true], 'Die entfernte Marke „Borbet“ wurde wieder angelegt, mit ihrem früheren Logo.', []],
             'brand.updated' => [

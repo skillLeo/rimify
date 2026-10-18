@@ -156,7 +156,6 @@ function komplettrad(overrides: Partial<KomplettradOfferProp> = {}): Komplettrad
                 season: 'sommer',
                 seasonLabel: 'Sommerreifen',
                 sizeLabel: '245/45 R19 100Y',
-                stockQty: 8,
                 tyrePriceCents: 15_000,
                 tyrePrice: '150,00 €',
                 perWheelCents: 96_500,
@@ -237,6 +236,8 @@ describe('Produkt page', () => {
         // The name already holds the Radtypenbezeichnung (D-298): never said twice.
         expect(block.text()).toContain('MOTEC MCR4 Ultimate · Artikelnummer')
         expect(block.text()).not.toContain('Radtypenbezeichnung MCR4')
+        // Nor under the heading: the line beside the name is only for a name that does not hold it.
+        expect(wrapper.find('.pdp__type').exists()).toBe(false)
         expect(block.text()).toContain('Montage nur durch eine Fachwerkstatt.')
         expect(block.text()).not.toContain('Verantwortliche Person in der EU')
 
@@ -284,8 +285,12 @@ describe('Produkt page', () => {
         // Not available stays not available: the figures would not change that.
         const gone = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] }).find('button.pdp__add')
 
-        expect(gone.text()).toBe('Nicht verfügbar')
+        // Switched off under its own words; the tag says „Nicht verfügbar“ and the sentence under it the way on.
+        const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] })
+        expect(gone.text()).toBe('In den Warenkorb')
         expect(gone.attributes('disabled')).toBeDefined()
+        expect(goneWrapper.find('.pdp__unavailable').text()).toBe('Diese Felge ist zurzeit in keiner Größe verfügbar.')
+        expect(goneWrapper.find('button.pdp__add').attributes('aria-describedby')).toBe('pdp-unavailable')
     })
 
     // D-289: where the document does not itself limit the axle load, the rim alone sells while the tyres wait for the
@@ -646,7 +651,7 @@ describe('Produkt page', () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
         const form = forms.find((f) => f.kind === 'WHEEL')
 
-        ;(form?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        ;(form?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
         await nextTick()
         expect(wrapper.find('.pdp__add-error').exists()).toBe(true)
 
@@ -680,10 +685,10 @@ describe('Produkt page', () => {
         const wrapper = mountPage()
         const form = forms.find((f) => f.kind === 'WHEEL')
 
-        ;(form?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        ;(form?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
         await nextTick()
 
         expect(wrapper.find('.pdp__add-error').attributes('role')).toBe('alert')
-        expect(wrapper.find('.pdp__add-error').text()).toBe('Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.')
+        expect(wrapper.find('.pdp__add-error').text()).toBe('Dieser Reifen ist zurzeit nicht verfügbar.')
     })
 })

@@ -561,9 +561,10 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The tyre whose EU label the Kompletträder band shows: the first in-stock tyre carrying a
-     * complete label that is verified against its EPREL entry. No verified label data, no label —
-     * never a drawn one, and never values typed in from memory (ACCURACY.md D7).
+     * The tyre whose EU label the Kompletträder band shows: the first available tyre (D-301) carrying a
+     * complete label that is verified against its EPREL entry — the snow and ice pictograms answered
+     * too (D-302). No verified label data, no label — never a drawn one, and never values typed in
+     * from memory (ACCURACY.md D7).
      *
      * @return array<string, mixed>|null
      */
@@ -572,15 +573,17 @@ class StartseiteController extends Controller
         $row = DB::table('tyre_variants as t')
             ->join('brands as br', 'br.id', '=', 't.brand_id')
             ->whereNull('t.deleted_at')
-            ->where('t.stock_qty', '>', 0)
+            ->where('t.available', true)
             ->whereNotNull('t.eprel_id')
             ->where('t.eprel_id', '<>', '')
             ->whereNotNull('t.eu_fuel_class')
             ->whereNotNull('t.eu_wet_grip_class')
             ->whereNotNull('t.eu_noise_db')
             ->whereNotNull('t.eu_noise_class')
+            ->whereNotNull('t.eu_snow_grip')
+            ->whereNotNull('t.eu_ice_grip')
             ->orderBy('t.id')
-            ->first(['t.name', 'br.name as brand', 't.width_mm', 't.aspect', 't.diameter_in', 't.load_index', 't.speed_symbol', 't.eu_fuel_class', 't.eu_wet_grip_class', 't.eu_noise_db', 't.eu_noise_class', 't.eprel_id']);
+            ->first(['t.name', 'br.name as brand', 't.width_mm', 't.aspect', 't.diameter_in', 't.load_index', 't.speed_symbol', 't.eu_fuel_class', 't.eu_wet_grip_class', 't.eu_noise_db', 't.eu_noise_class', 't.eu_snow_grip', 't.eu_ice_grip', 't.eprel_id']);
 
         if ($row === null) {
             return null;
@@ -592,6 +595,8 @@ class StartseiteController extends Controller
             'wet' => (string) $row->eu_wet_grip_class,
             'noiseDb' => (int) $row->eu_noise_db,
             'noiseClass' => (string) $row->eu_noise_class,
+            'snowGrip' => (bool) $row->eu_snow_grip,
+            'iceGrip' => (bool) $row->eu_ice_grip,
             'eprelId' => is_string($row->eprel_id) && $row->eprel_id !== '' ? $row->eprel_id : null,
         ];
     }

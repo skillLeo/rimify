@@ -12,8 +12,6 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Payments\Payments;
-use App\Services\Admin\AuditTrail;
-use App\Services\Commerce\OrderPayments;
 use App\Services\Reset\BaselineState;
 use App\Services\Reset\TestEnvironment;
 use App\Services\Smoke\PrivateFilesProbe;
@@ -414,34 +412,9 @@ final class Smoke extends Command
         $page = self::rendered($this->get($confirmation)->body());
         $this->expect(str_contains($page, $number[1]) && str_contains($page, 'Bezahlt'), 'die Bestätigung zeigt die bezahlte Bestellung nicht');
 
-        $back = self::returnTestStock($number[1]);
-
-        return "{$number[1]} bezahlt (Testzahlung, kein Geld)".($back > 0 ? ", {$back} Stück wieder auf Lager" : '');
-    }
-
-    /**
-     * A test order's goods back on the shelf (D-146). A paid order keeps its stock by design — money returned puts no
-     * piece back — so every release's smoke took stock the client reviews: nine wheels in two days on the preview. Since
-     * D-299 a rim is never counted, so what goes back is a Komplettrad's tyres. Only an order paid with the test payment
-     * that still holds its stock, so never twice; written to the Protokoll where a piece went back. Returns the pieces.
-     */
-    public static function returnTestStock(string $number, string $by = 'Smoke-Test', ?string $reason = null): int
-    {
-        $order = Order::query()->where('order_number', $number)->first();
-
-        if ($order === null || $order->getAttribute('payment_method') !== 'sandbox' || ! $order->getAttribute('stock_reserved')) {
-            return 0;
-        }
-
-        // The tyres alone: a rim is available or not and was never counted down (his admin item 7, D-299).
-        $pieces = (int) $order->lines()->whereNotNull('tyre_variant_id')->sum('quantity');
-        app(OrderPayments::class)->release($order);
-
-        if ($pieces > 0) {
-            AuditTrail::system($by, 'order.test_stock_returned', array_filter(['order' => $number, 'quantity' => $pieces, 'reason' => $reason]), $order);
-        }
-
-        return $pieces;
+        // Nothing to put back on a shelf: since his admin items 7 and 10 nothing is counted (D-299, D-301), so a paid test
+        // order takes no stock the client reviews — what D-146 once returned by hand.
+        return "{$number[1]} bezahlt (Testzahlung, kein Geld)";
     }
 
     /** Public prefixes readable over HTTP, `invoices/` not — on the bucket by the S3 audit's own probes. */

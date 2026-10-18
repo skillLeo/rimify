@@ -308,10 +308,10 @@ export interface BasketTyre {
     sizeLabel: string
     unitPriceCents: number
     unitPrice: string
-    /** Enough of this tyre for the line's quantity. */
+    /** The shop sells this tyre now: available, its EU label on record (D-301, D-303) — never a count. */
     inStock: boolean
     /** Shipped only when the tyre carries a verified EPREL id (ACCURACY D7). */
-    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
+    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; snowGrip: boolean | null; iceGrip: boolean | null; eprelId: string } | null
 }
 
 /** The Wuchtgewichte colour on a Komplettrad line: per wheel, surcharge 0 unless the admin set one. */

@@ -33,7 +33,7 @@ function eligibilityOver(TyreRecord ...$tyres): TyreEligibility
     );
 }
 
-/** A 245/45 R18 95Y in stock — meets the RS 4's minimum (93, Y) with room to spare. */
+/** A 245/45 R18 95Y the shop sells — meets the RS 4's minimum (93, Y) with room to spare. */
 function permittedTyre(
     int $id = 1,
     int $widthMm = 245,
@@ -42,7 +42,7 @@ function permittedTyre(
     int $loadIndex = 95,
     string $speedSymbol = 'Y',
     int $priceCents = 18_900,
-    int $stockQty = 8,
+    bool $sellable = true,
 ): TyreRecord {
     return new TyreRecord(
         id: $id,
@@ -53,7 +53,7 @@ function permittedTyre(
         speedSymbol: $speedSymbol,
         speedRank: FitmentFixtures::tables()->speedSymbol($speedSymbol)?->rank ?? 0,
         priceCents: $priceCents,
-        stockQty: $stockQty,
+        sellable: $sellable,
         brandName: 'Demo',
         name: 'Sport',
         season: 'sommer',
@@ -526,17 +526,18 @@ it('returns no minimum sentence for a verdict that has none to state', function 
 });
 
 /*
- * Rule 9 — stock, at the quantity asked for.
+ * Rule 9 — sold by the shop now: available, never a count (D-301), its EU label on record (D-303).
  */
 
-it('refuses a tyre with less stock than the quantity asked for — rule 9', function (): void {
+it('refuses a tyre the shop does not sell now, whatever the quantity — rule 9', function (): void {
     $verdict = liveVerdict(FitmentFixtures::row());
-    $twoLeft = permittedTyre(stockQty: 2);
+    $notSold = permittedTyre(sellable: false);
 
-    expect(eligibilityOver()->permits($verdict, $twoLeft, 4))->toBe(KomplettradRefusal::OutOfStock)
-        ->and(eligibilityOver()->permits($verdict, $twoLeft, 2))->toBeNull()
-        ->and(eligibilityOver()->permits($verdict, $twoLeft))->toBeNull()
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(stockQty: 0)))->toBe(KomplettradRefusal::OutOfStock);
+    expect(eligibilityOver()->permits($verdict, $notSold, 4))->toBe(KomplettradRefusal::OutOfStock)
+        ->and(eligibilityOver()->permits($verdict, $notSold))->toBe(KomplettradRefusal::OutOfStock)
+        // Never a count: any number of a tyre the shop sells passes rule 9.
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(), 40))->toBeNull()
+        ->and(eligibilityOver()->permits($verdict, permittedTyre()))->toBeNull();
 });
 
 /*
@@ -552,7 +553,7 @@ it('offers every permitted tyre cheapest first, with the minimum sentence', func
         permittedTyre(id: 3, priceCents: 15_000),
         permittedTyre(id: 4, widthMm: 255, aspect: 40),      // not listed
         permittedTyre(id: 5, loadIndex: 90),                  // below the minimum
-        permittedTyre(id: 6, priceCents: 9_000, stockQty: 0), // cheapest, but not on the shelf
+        permittedTyre(id: 6, priceCents: 9_000, sellable: false), // cheapest, but not sold now
     )->offerFor($verdict);
 
     expect(array_map(static fn (TyreRecord $t): int => $t->id, $offer->tyres))->toBe([2, 3, 1])
@@ -561,15 +562,15 @@ it('offers every permitted tyre cheapest first, with the minimum sentence', func
         ->and($offer->minSource)->toBe(MinSource::Derived);
 });
 
-it('lists what is not on the shelf only when asked to', function (): void {
+it('lists what the shop does not sell now only when asked to', function (): void {
     $verdict = liveVerdict(FitmentFixtures::row());
     $eligibility = eligibilityOver(
         permittedTyre(id: 1, priceCents: 20_000),
-        permittedTyre(id: 2, priceCents: 9_000, stockQty: 0),
+        permittedTyre(id: 2, priceCents: 9_000, sellable: false),
     );
 
     expect(array_map(static fn (TyreRecord $t): int => $t->id, $eligibility->offerFor($verdict)->tyres))->toBe([1])
-        ->and(array_map(static fn (TyreRecord $t): int => $t->id, $eligibility->offerFor($verdict, inStockOnly: false)->tyres))->toBe([2, 1]);
+        ->and(array_map(static fn (TyreRecord $t): int => $t->id, $eligibility->offerFor($verdict, sellableOnly: false)->tyres))->toBe([2, 1]);
 });
 
 it('says so when nothing in the catalogue fits, and still states the minimum', function (): void {
@@ -579,7 +580,7 @@ it('says so when nothing in the catalogue fits, and still states the minimum', f
         eligibilityOver(),
         eligibilityOver(permittedTyre(widthMm: 255, aspect: 40)),
         eligibilityOver(permittedTyre(loadIndex: 90)),
-        eligibilityOver(permittedTyre(stockQty: 0)),
+        eligibilityOver(permittedTyre(sellable: false)),
     ] as $eligibility) {
         $offer = $eligibility->offerFor($verdict);
 

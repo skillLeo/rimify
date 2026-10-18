@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
  *
  * One query, every value bound (R-14), cheapest first so the offer a customer sees is stable
  * between renders. Soft-deleted rows never cross this boundary.
+ *
+ * Whether the shop sells a tyre is decided here, once, for the engine to read (TyreRecord::$sellable): available —
+ * never a count (D-301) — and its EU label complete on record, or a demonstration row (D-303, TyreVariant::offered).
  */
 final readonly class EloquentTyreCatalogue implements TyreCatalogue
 {
@@ -22,7 +25,7 @@ final readonly class EloquentTyreCatalogue implements TyreCatalogue
      * @param  list<TyreSize>  $sizes
      * @return list<TyreRecord>
      */
-    public function inSizes(array $sizes, bool $inStockOnly = true): array
+    public function inSizes(array $sizes, bool $sellableOnly = true): array
     {
         if ($sizes === []) {
             return [];
@@ -50,8 +53,8 @@ final readonly class EloquentTyreCatalogue implements TyreCatalogue
                 }
             });
 
-        if ($inStockOnly) {
-            $query->where('stock_qty', '>', 0);
+        if ($sellableOnly) {
+            TyreVariant::whereOffered($query);
         }
 
         return $query
@@ -74,7 +77,7 @@ final readonly class EloquentTyreCatalogue implements TyreCatalogue
             speedSymbol: (string) $tyre->speed_symbol,
             speedRank: (int) $tyre->speed_rank,
             priceCents: (int) $tyre->price_cents,
-            stockQty: (int) $tyre->stock_qty,
+            sellable: $tyre->offered(),
             brandName: $tyre->relationLoaded('brand') ? $tyre->brand?->name : null,
             name: (string) $tyre->name,
             season: (string) $tyre->season,

@@ -30,7 +30,6 @@ function tyre(overrides: Partial<KomplettradTyreProp> = {}): KomplettradTyreProp
         season: 'sommer',
         seasonLabel: 'Sommerreifen',
         sizeLabel: '245/45 R18 100Y',
-        stockQty: 8,
         tyrePriceCents: 15_000,
         tyrePrice: '150,00 €',
         perWheelCents: 96_500,
@@ -135,7 +134,7 @@ describe('KomplettradChoice', () => {
     })
 
     it('stands the EU label\'s classes beside each price and the full label for the tyre chosen', () => {
-        const label = { fuel: 'B', wetGrip: 'A', noiseDb: 71, noiseClass: 'B', eprelId: '123456' }
+        const label = { fuel: 'B', wetGrip: 'A', noiseDb: 71, noiseClass: 'B', snowGrip: false, iceGrip: false, eprelId: '123456' }
         const wrapper = mountChoice(offer({ tyres: [tyre({ label })] }))
 
         expect(wrapper.find('.kc-row__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB (B)')
@@ -244,6 +243,6 @@ describe('KomplettradChoice', () => {
     it('still says something if the server sent neither tyres nor a sentence', () => {
         const wrapper = mountChoice(offer({ tyres: [] }), null)
 
-        expect(wrapper.find('.kc__refusal').text()).toContain('Passende Reifen für diese Größe haben wir gerade nicht vorrätig.')
+        expect(wrapper.find('.kc__refusal').text()).toContain('Passende Reifen für diese Größe können wir dir gerade nicht anbieten.')
     })
 })

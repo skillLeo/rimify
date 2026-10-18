@@ -222,6 +222,7 @@ final class AdminNavigation
         '/admin/review',
         '/admin/review/rueckmeldungen',
         '/admin/felgen',
+        '/admin/reifen',
         '/admin/marken',
         '/admin/katalog/import',
         '/admin/gutachten',

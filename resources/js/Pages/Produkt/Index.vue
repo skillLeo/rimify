@@ -330,6 +330,17 @@ const stockLabel = computed(() => {
     return inStock ? 'Verfügbar' : 'Nicht verfügbar'
 })
 
+/* A size not available: the way on, in one sentence under its tag — another size or colour, where one can be bought (D-304). */
+const unavailableHint = computed(() => {
+    const current = selected.value
+
+    if (current === null || current.inStock) {
+        return ''
+    }
+
+    return props.configs.some((c) => c.id !== current.id && c.inStock) ? 'Wähl eine andere Größe oder Farbe.' : 'Diese Felge ist zurzeit in keiner Größe verfügbar.'
+})
+
 const stockTone = computed(() => {
     if (props.demo === true) {
         return 'tag--unknown'
@@ -399,8 +410,10 @@ const buyLabel = computed(() => {
         return 'Wird hinzugefügt …'
     }
 
+    // Not available: the tag above says so and the sentence under it the way on, so the button keeps its own words
+    // and is only switched off — never „Nicht verfügbar“ said twice.
     if (selected.value !== null && !selected.value.inStock) {
-        return 'Nicht verfügbar'
+        return 'In den Warenkorb'
     }
 
     if (papersFirst.value) {
@@ -584,7 +597,8 @@ claimBottomEdge(() => stickyShown.value)
                     <!-- The brand, the model and the type designation are names and codes, never
                          words: a page translator would turn them into English. -->
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
-                    <p v-if="product.typeDesignation" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation" whole /></p>
+                    <!-- Only where the name does not hold it already (a title typed otherwise): never said twice. -->
+                    <p v-if="designationApart" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation ?? ''" whole /></p>
                     <!-- The buyers' stars, computed from their reviews alone (D-103), leading to them; until there are
                          any, what the page can prove instead — never an empty row of stars. -->
                     <a v-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
@@ -695,6 +709,7 @@ claimBottomEdge(() => stickyShown.value)
                         <!-- Einstellungen › Verkäufer & Versand: only what is given, never a placeholder (Shipping::summary). -->
                         <p v-if="shipping" class="price-note pdp__shipping">{{ shipping }}</p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
+                        <p v-if="unavailableHint" id="pdp-unavailable" class="t-small pdp__unavailable">{{ unavailableHint }}</p>
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
                             legen, bestellen kannst du sie noch nicht.
@@ -712,6 +727,7 @@ claimBottomEdge(() => stickyShown.value)
                             type="button"
                             :disabled="!canBuy && !papersFirst"
                             :aria-busy="basket.processing ? 'true' : undefined"
+                            :aria-describedby="unavailableHint ? 'pdp-unavailable' : undefined"
                             @click="addToBasket"
                         >
                             {{ buyLabel }}
@@ -901,7 +917,8 @@ claimBottomEdge(() => stickyShown.value)
             :aria-busy="basket.processing ? 'true' : undefined"
             @click="addToBasket"
         >
-            {{ isSet && canBuy && !basket.processing ? 'In den Warenkorb' : buyLabel }}
+            <!-- The bar stands away from the tag and its sentence: here the button says it itself. -->
+            {{ unavailableHint ? 'Nicht verfügbar' : isSet && canBuy && !basket.processing ? 'In den Warenkorb' : buyLabel }}
         </button>
     </div>
 </template>
@@ -1235,6 +1252,12 @@ a.pdp__rating {
 
 .pdp__stock {
     margin-top: var(--space-2);
+}
+
+/* The way on under a size marked not available, quiet beside the tag that says so. */
+.pdp__unavailable {
+    margin: var(--space-2) 0 0;
+    color: var(--ink2);
 }
 
 .pdp__demo {

@@ -34,7 +34,8 @@ class WheelModelRequest extends FormRequest
 
     public const ART_FINISHES = ['graphite' => 'Graphit', 'silver' => 'Silber', 'black' => 'Schwarz', 'bronze' => 'Bronze', 'polished' => 'Poliert'];
 
-    public const DESIGNATION_REQUIRED = 'Bitte gib die Radtypenbezeichnung ein, so wie das Gutachten sie druckt.';
+    /** Short: the help right under the field already says how the Gutachten prints it. */
+    public const DESIGNATION_REQUIRED = 'Bitte gib die Radtypenbezeichnung ein.';
 
     /** What real wheels measure: a figure outside is a typo, not a product. */
     private const RANGES = [

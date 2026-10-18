@@ -67,7 +67,7 @@ function kombiTyre(int $id, int $width, int $aspect, int $loadIndex): TyreRecord
 {
     return new TyreRecord(
         id: $id, widthMm: $width, aspect: $aspect, diameterIn: 19.0, loadIndex: $loadIndex, speedSymbol: 'Y',
-        speedRank: FitmentFixtures::tables()->speedSymbol('Y')?->rank ?? 0, priceCents: 21_900, stockQty: 8,
+        speedRank: FitmentFixtures::tables()->speedSymbol('Y')?->rank ?? 0, priceCents: 21_900, sellable: true,
         brandName: 'Demo', name: 'Sport', season: 'sommer',
     );
 }

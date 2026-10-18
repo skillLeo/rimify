@@ -72,8 +72,8 @@ export const ITEMS = [
     {
         nr: 210,
         wish: 'Ein Bereich für Reifen im Admin: Marke, Größen, Saison … anlegen und verwalten',
-        now: 'Noch nicht gebaut – mit den Angaben des EU-Reifenlabels von Anfang an.',
-        state: 'offen',
+        now: 'Unter Katalog › Reifen legst du jeden Reifen an, eine Größe eines Profils nach der anderen: Marke, Profil, Saison, Größe mit Lastindex und Geschwindigkeitssymbol, das EU-Reifenlabel mit Kraftstoffeffizienz, Nasshaftung, Rollgeräusch, Schnee- und Eisgriffigkeit und EPREL-Nummer, Preis und Verfügbarkeit. „Weitere Größe anlegen“ übernimmt Marke, Profil und Saison. Angeboten wird ein Reifen als Komplettrad nur, solange er verfügbar ist und sein EU-Reifenlabel vollständig eingetragen ist. Über der Liste steht, bei wie vielen Reifen am EU-Reifenlabel noch etwas fehlt; ein Klick zeigt nur diese. Einen Bestand zählt der Shop auch bei Reifen nicht mehr: Ein Reifen ist verfügbar oder nicht verfügbar, wie eine Felge.',
+        state: 'erledigt',
     },
     {
         nr: 211,
@@ -140,7 +140,7 @@ export const NOTES = {
     207: 'Each size is „Verfügbar“ or „Nicht verfügbar“ instead of a count. Not available: it cannot be bought, and the shop says so. Rims are not counted any more: the quantity selector follows no stock and an order books nothing off. A quantity in the supplier file becomes „Verfügbar“ (1 or more) or „Nicht verfügbar“ (0) on import. The old count stays stored and is no longer used.',
     208: 'Each Gutachten has a „Bereifungskombinationen“ section: you enter the list as printed (number, front, rear, page), and from then on the shop offers only those pairs. Conditions per axle are entered with each tyre size and its axle; codes are typed as printed, brackets included: 0), R), 13), 16a). We still need to confirm with you whether your document lists three or four combinations.',
     209: 'Beside each tyre size, load index and speed symbol now have two fields of their own: the load index as a number, the symbol from the list L to (Y). A size pasted as the Gutachten prints it („245/35 R19 93Y“) splits into the fields by itself, and a front-and-rear pair becomes two lines. Both are checked when you save and again at release.',
-    210: 'Not built yet — with the EU tyre label fields from the start.',
+    210: 'Catalogue › Reifen: each tyre is one size of one profile — brand, profile, season, size with load and speed index, the EU tyre label (fuel efficiency, wet grip, rolling noise, snow and ice grip, EPREL number), price and availability. „Weitere Größe anlegen“ copies brand, profile and season. A tyre is offered as part of a complete wheel only while it is available and its EU tyre label is complete; above the list stands how many tyres still lack part of their label, and one click shows only those. Tyres are no longer counted either: a tyre is available or not, like a rim.',
     211: 'Not built yet: an editor with building blocks — a table with header cells, an image with required alt text, a quote — instead of free HTML, which could put someone else\'s code on the site.',
     212: 'The blog page /blog lists every published article, newest first, linked from the footer. Two guides are published; the third — ABE, Teilegutachten, ECE — appears once the law firm has checked it.',
     213: 'The title composes itself from brand, model and Radtypenbezeichnung. A title typed otherwise under „Titel im Shop“ stays, even when the parts change later; the rim list flags it „Titel weicht ab“, and in the form the composed title is one click away.',

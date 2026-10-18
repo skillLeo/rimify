@@ -3,8 +3,12 @@
  * The EU tyre label (Regulation (EU) 2020/740): fuel efficiency, wet grip and external rolling
  * noise, laid out the way the printed label lays them out, and linked to the EPREL entry when the
  * registration number is known. Every value comes from product data; nothing here is a default.
+ *
+ * Snow grip and ice grip are pictograms the printed label carries only where the tyre has them, so
+ * a row appears only where „ja“ is on record (D-302) — never for „nein“, never for an unanswered field.
  */
 
+import { computed } from 'vue'
 import Icon from './Icon.vue'
 import { withUnit } from '../../format'
 
@@ -18,9 +22,12 @@ const props = defineProps<{
     /** `Continental PremiumContact 7 · 225/45 R18 95Y` */
     title: string
     eprelId?: string | null
+    snowGrip?: boolean | null
+    iceGrip?: boolean | null
 }>()
 
-const eprelHref = props.eprelId ? `https://eprel.ec.europa.eu/qr/${encodeURIComponent(props.eprelId)}` : null
+/* Read on every change: a label shown for another tyre, or a number typed in the admin's preview, links its own entry. */
+const eprelHref = computed(() => (props.eprelId ? `https://eprel.ec.europa.eu/qr/${encodeURIComponent(props.eprelId)}` : null))
 </script>
 
 <template>
@@ -43,6 +50,16 @@ const eprelHref = props.eprelId ? `https://eprel.ec.europa.eu/qr/${encodeURIComp
             <Icon name="sound" :size="24" />
             <span class="tyre-label__name num">Rollgeräusch {{ withUnit(noiseDb, 'dB') }}</span>
             <span class="tyre-label__class">{{ noiseClass }}</span>
+        </div>
+
+        <div v-if="snowGrip === true" class="tyre-label__row">
+            <Icon name="snow" :size="24" />
+            <span class="tyre-label__name">Schneegriffigkeit</span>
+        </div>
+
+        <div v-if="iceGrip === true" class="tyre-label__row">
+            <Icon name="ice" :size="24" />
+            <span class="tyre-label__name">Eisgriffigkeit</span>
         </div>
 
         <div class="tyre-label__foot">

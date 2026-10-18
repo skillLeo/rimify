@@ -151,7 +151,10 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
         ->and($lines->pluck('quantity')->all())->toBe([2, 2])
         ->and($lines[0]->package_group)->toBe($lines[1]->package_group)
         ->and($lines[0]->label)->toStartWith('Komplettrad Vorderachse: ')
-        ->and($lines[1]->label)->toStartWith('Komplettrad Hinterachse: ');
+        ->and($lines[1]->label)->toStartWith('Komplettrad Hinterachse: ')
+        // Each tyre in the frozen words as the workshop fits it — brand, profile, size — whatever its EU label (D-303).
+        ->and($lines[0]->label)->toEndWith(' mit '.$frontTyre->brand->name.' Sport Contact '.$frontTyre->label())
+        ->and($lines[1]->label)->toEndWith(' mit '.$rearTyre->brand->name.' Sport Contact '.$rearTyre->label());
 
     $frozen = OrderLineFitment::query()->whereIn('order_line_id', $lines->pluck('id'))->orderBy('order_line_id')->get()
         ->map(static fn (OrderLineFitment $f): array => $f->verdict['mixedTyres'] ?? []);

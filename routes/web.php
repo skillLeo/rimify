@@ -36,6 +36,7 @@ use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RechnungsnummernController;
+use App\Http\Controllers\Admin\ReifenController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\RueckbuchungenController;
@@ -471,6 +472,17 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/felgen/{model}/ausfuehrungen/{finish}/fotos/{image}', [AdminFelgenController::class, 'removeImage'])
             ->whereNumber(['model', 'finish', 'image'])
             ->name('felgen.foto.entfernen');
+
+        // Katalog › Reifen (his admin item 10, D-302): one tyre size per record, with its EU label — TyreVariantPolicy
+        // through the Form Requests. `/neu` is a fixed segment, never read as a `{tyre}`.
+        Route::get('/reifen', [ReifenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':catalogue,view')
+            ->name('reifen.index');
+        Route::get('/reifen/neu', [ReifenController::class, 'create'])->name('reifen.create');
+        Route::post('/reifen', [ReifenController::class, 'store'])->name('reifen.store');
+        Route::get('/reifen/{tyre}', [ReifenController::class, 'edit'])->whereNumber('tyre')->name('reifen.edit');
+        Route::put('/reifen/{tyre}', [ReifenController::class, 'update'])->whereNumber('tyre')->name('reifen.update');
+        Route::delete('/reifen/{tyre}', [ReifenController::class, 'destroy'])->whereNumber('tyre')->name('reifen.destroy');
 
         // Katalog › Marken: every brand, its place on the brand wall and its logo (BrandPolicy through the
         // Form Requests; the logo read from its bytes, an SVG reduced to drawing — BrandLogoStore).

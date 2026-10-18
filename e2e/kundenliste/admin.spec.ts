@@ -339,7 +339,9 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     const heading = page.getByRole('heading', { level: 1 })
     await expect(heading).toHaveText(`Beispielmarke ${model} BM 18`)
     await expect(page.locator('.pdp__stock')).toHaveText('Verfügbar')
-    await shotAround(page, [heading, page.locator('.pdp__type')], 206, info)
+    // The Radtypenbezeichnung in the name — and not said a second time under it.
+    await expect(page.locator('.pdp__type')).toHaveCount(0)
+    await shotAround(page, [heading], 206, info)
 
     // Not available: the size says so in the shop, and cannot be bought — no count anywhere.
     await page.goto(felge, { waitUntil: 'networkidle' })
@@ -349,7 +351,62 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
 
     await page.goto(`${ABNAHME}/felgen/${slug}`, { waitUntil: 'networkidle' })
     await expect(page.locator('.pdp__stock')).toHaveText('Nicht verfügbar')
-    await expect(page.locator('button.pdp__add')).toHaveText('Nicht verfügbar')
+    // The way on under the tag; the button keeps its words and is switched off.
+    await expect(page.locator('.pdp__unavailable')).toHaveText('Diese Felge ist zurzeit in keiner Größe verfügbar.')
+    await expect(page.locator('button.pdp__add')).toHaveText('In den Warenkorb')
     await expect(page.locator('button.pdp__add')).toBeDisabled()
-    await shotAround(page, [page.locator('.pdp__stock'), page.locator('button.pdp__add')], 207, info)
+    await shotAround(page, [page.locator('.pdp__each'), page.locator('.pdp__stock'), page.locator('.pdp__unavailable'), page.locator('button.pdp__add')], 207, info)
+})
+
+test('a tyre made in the admin with its EU label: offered once the label is complete, and listed @admin-210', async ({ page }, info) => {
+    const { stamp } = runKeys(info)
+    const profile = `Muster ${stamp.slice(-4)}`
+    // An example tyre on our own acceptance shop: the brand plainly an example, the EPREL number the run's own digits.
+    const eprel = String(Date.now()).slice(-9)
+
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/reifen/neu`, { waitUntil: 'networkidle' })
+    await page.selectOption('#rf-brand', '-1')
+    await page.fill('#rf-brand-new', 'Beispielmarke')
+    await page.fill('#rf-name', profile)
+    await page.selectOption('#rf-season', 'sommer')
+    await page.fill('#rf-width', '225')
+    await page.fill('#rf-aspect', '45')
+    await page.fill('#rf-diameter', '18')
+    await page.fill('#rf-load', '95')
+    await page.selectOption('#rf-speed', 'Y')
+    await expect(page.locator('.rf-size-preview')).toHaveText('225/45 R18 95Y')
+    await page.fill('#rf-price', '129')
+
+    // The label without its noise class and EPREL number first: saved, kept, and said not to be offered.
+    await page.selectOption('#rf-fuel', 'B')
+    await page.selectOption('#rf-wet', 'A')
+    await page.fill('#rf-noise', '71')
+    await page.locator('input[name="rf-snow"]').nth(1).check()
+    await page.locator('input[name="rf-ice"]').nth(1).check()
+    await page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' }).click()
+    await page.waitForURL(/\/admin\/reifen\/\d+$/)
+    await expect(page.locator('.rf-state__verdict')).toHaveText('Wird nicht angeboten')
+    await expect(page.locator('.rf-state')).toContainText('Noch nicht eingetragen: Rollgeräuschklasse, EPREL-Nummer.')
+
+    // Complete: offered — and the label previewed as the shop prints it.
+    await page.selectOption('#rf-noise-class', 'B')
+    await page.fill('#rf-eprel', eprel)
+    await expect(page.locator('.rf-preview .tyre-label')).toContainText('Nasshaftung')
+    await page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' }).click()
+    await expect(page.locator('.adm-savebar')).toContainText('Keine Änderungen')
+    await expect(page.locator('.rf-state__verdict')).toHaveText('Wird angeboten')
+    // The „Gespeichert.“ toast closed first: on a phone it would stand over the label in the picture.
+    if (await page.locator('.toast__close').isVisible()) {
+        await page.locator('.toast__close').click()
+    }
+    await expect(page.locator('.toast')).toHaveCount(0)
+    await shotAround(page, [page.locator('.rf-state'), page.locator('section[aria-labelledby="rf-h-label"]')], 210, info)
+
+    // In the list, by brand, profile and size, with its label in one line.
+    await page.goto(`${ABNAHME}/admin/reifen?q=${encodeURIComponent(profile)}`, { waitUntil: 'networkidle' })
+    const row = page.locator('.adm-table tbody tr', { hasText: profile })
+    await expect(row).toContainText('225/45 R18 95Y')
+    await expect(row).toContainText('B · A · 71')
+    await expect(row).toContainText('Im Shop')
 })

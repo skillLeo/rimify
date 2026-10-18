@@ -62,6 +62,8 @@ const label = computed(() => {
         wet: tyre.wet,
         noiseDb: tyre.noiseDb,
         noiseClass: tyre.noiseClass,
+        snowGrip: tyre.snowGrip,
+        iceGrip: tyre.iceGrip,
         eprelId: tyre.eprelId,
     }
 })

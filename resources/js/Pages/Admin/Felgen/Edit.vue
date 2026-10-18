@@ -398,14 +398,14 @@ const more = computed<AdminPageAction[]>(() => {
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="fe-title">Titel im Shop <span class="fe-optional">(optional)</span></label>
-                        <input id="fe-title" v-model="form.title" class="input" type="text" maxlength="160" :placeholder="composed" :readonly="readonly" :aria-invalid="err('title') ? 'true' : undefined" aria-describedby="fe-title-help fe-title-err">
+                        <input id="fe-title" v-model="form.title" class="input" type="text" maxlength="160" :readonly="readonly" :aria-invalid="err('title') ? 'true' : undefined" aria-describedby="fe-title-help fe-title-err">
                         <p id="fe-title-help" class="form-field__help">
                             Bleibt das Feld leer, setzt der Shop den Titel aus Marke, Modell und Radtypenbezeichnung zusammen. Die Marke steht immer vorn. Im Shop: „{{ inShop || '–' }}“.
                         </p>
-                        <p v-if="diverges" class="adm-note fe-title-diverges" role="status">
-                            Dieser Titel weicht vom zusammengesetzten ab: „{{ composed }}“.
-                            <button v-if="!readonly" class="btn btn--ghost btn--sm" type="button" @click="form.title = ''">Zusammengesetzten Titel verwenden</button>
-                        </p>
+                        <div v-if="diverges" class="fe-title-diverges" role="status">
+                            <p class="adm-note">Dieser Titel weicht vom zusammengesetzten ab: <span class="fe-title-composed">„{{ composed }}“</span>.</p>
+                            <button v-if="!readonly" class="btn btn--ghost btn--sm fe-title-use" type="button" @click="form.title = ''">Zusammengesetzten Titel verwenden</button>
+                        </div>
                         <p id="fe-title-err" class="form-field__error">{{ err('title') }}</p>
                     </div>
                     <div class="form-field">
@@ -650,8 +650,32 @@ const more = computed<AdminPageAction[]>(() => {
     background: var(--c-band);
 }
 
+/* Where the page body already spaces its parts (a form with its save bar), the check adds no second gap. */
+:global(.adm-page__body:has(> .adm-savebar)) > .fe-check {
+    margin-bottom: 0;
+}
+
 .fe-check--blocked {
     background: var(--c-warn-tint);
+}
+
+/* A title typed otherwise: the note, then on its own line the way back — its text on the note's edge, the composed
+   title never broken across lines. */
+.fe-title-diverges {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-4);
+}
+
+/* From 768 px; on a phone a long title may wrap rather than run past the screen. */
+@media (min-width: 768px) {
+    .fe-title-composed {
+        white-space: nowrap;
+    }
+}
+
+.fe-title-use {
+    margin-inline-start: calc(-1 * var(--sp-12));
 }
 
 .fe-check__title {

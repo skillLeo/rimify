@@ -74,11 +74,11 @@ function mixedVerdict(array $conditions = [], ?array $sizes = null, int $vehicle
     return FitmentFixtures::resolver([], new InMemoryFitmentRepository([$row], [$wheel]))->resolve($vehicleId, FitmentFixtures::WHEEL_CONFIG_ID);
 }
 
-function mixedTyre(int $id, int $width, int $aspect, int $loadIndex, string $brand = 'Demo', string $name = 'Sport', int $stock = 8, int $price = 21_900): TyreRecord
+function mixedTyre(int $id, int $width, int $aspect, int $loadIndex, string $brand = 'Demo', string $name = 'Sport', bool $sellable = true, int $price = 21_900): TyreRecord
 {
     return new TyreRecord(
         id: $id, widthMm: $width, aspect: $aspect, diameterIn: 19.0, loadIndex: $loadIndex, speedSymbol: 'Y',
-        speedRank: FitmentFixtures::tables()->speedSymbol('Y')?->rank ?? 0, priceCents: $price, stockQty: $stock,
+        speedRank: FitmentFixtures::tables()->speedSymbol('Y')?->rank ?? 0, priceCents: $price, sellable: $sellable,
         brandName: $brand, name: $name, season: 'sommer',
     );
 }
@@ -148,7 +148,7 @@ it('refuses a plausible but unlisted pair, a pair the wrong way round and two ma
         ->and($eligibility->permitsMixed($verdict, mixedTyre(13, 245, 40, 97), mixedTyre(12, 255, 40, 99)))->toBe(KomplettradRefusal::MixedPairNotListed)
         ->and($eligibility->permitsMixed($verdict, mixedTyre(12, 255, 40, 99), mixedTyre(11, 235, 45, 95)))->toBe(KomplettradRefusal::MixedPairNotListed)
         ->and($eligibility->permitsMixed($verdict, mixedTyre(11, 235, 45, 95), mixedTyre(14, 255, 40, 99, brand: 'Andere', name: 'Grip')))->toBe(KomplettradRefusal::MixedNotOneMaker)
-        ->and($eligibility->permitsMixed($verdict, mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99, stock: 1)))->toBe(KomplettradRefusal::OutOfStock);
+        ->and($eligibility->permitsMixed($verdict, mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99, sellable: false)))->toBe(KomplettradRefusal::OutOfStock);
 });
 
 it('measures each axle against its own load and names the axle that asks for more', function (): void {
