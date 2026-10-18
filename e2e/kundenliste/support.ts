@@ -35,7 +35,17 @@ export function isPhone(info: TestInfo): boolean {
     return breite(info) === '390'
 }
 
-const SHOTS = 'docs/qa/shots/kundenliste'
+/** Where an item's pictures go: his storefront list's (1–34), or his admin list's (201–218, `npm run adminliste`). */
+function shotsFor(nr: number): { dir: string; name: string } {
+    return nr >= 200 ? { dir: 'docs/qa/shots/adminliste', name: `admin-${nr}` } : { dir: 'docs/qa/shots/kundenliste', name: `kunde-${String(nr).padStart(2, '0')}` }
+}
+
+function shotPath(nr: number, info: TestInfo): string {
+    const { dir } = shotsFor(nr)
+    mkdirSync(dir, { recursive: true })
+
+    return `${dir}/${String(nr).padStart(2, '0')}-${breite(info)}.png`
+}
 
 /** The item's picture at this width: the element itself where one is given, never the whole page by default. */
 export async function shot(target: Page | Locator, nr: number, info: TestInfo, options: { fullPage?: boolean } = {}): Promise<void> {
@@ -45,11 +55,10 @@ export async function shot(target: Page | Locator, nr: number, info: TestInfo, o
         return
     }
 
-    mkdirSync(SHOTS, { recursive: true })
-    const path = `${SHOTS}/${String(nr).padStart(2, '0')}-${breite(info)}.png`
+    const path = shotPath(nr, info)
 
     await target.screenshot({ path, animations: 'disabled', fullPage: options.fullPage ?? false })
-    await info.attach(`kunde-${String(nr).padStart(2, '0')}-${breite(info)}`, { path, contentType: 'image/png' })
+    await info.attach(`${shotsFor(nr).name}-${breite(info)}`, { path, contentType: 'image/png' })
 }
 
 /** The union of the targets' boxes, in the window's coordinates. */
@@ -117,8 +126,7 @@ async function bars(target: Locator): Promise<{ top: number; bottom: number }> {
  * photograph, 56vh on a phone) then lies elsewhere than where it was measured.
  */
 export async function shotAround(page: Page, targets: Locator[], nr: number, info: TestInfo, pad = 16): Promise<void> {
-    mkdirSync(SHOTS, { recursive: true })
-    const path = `${SHOTS}/${String(nr).padStart(2, '0')}-${breite(info)}.png`
+    const path = shotPath(nr, info)
     const view = page.viewportSize() ?? { width: 1440, height: 900 }
     const first = targets[0]
 
@@ -158,7 +166,7 @@ export async function shotAround(page: Page, targets: Locator[], nr: number, inf
         await page.setViewportSize(view)
     }
 
-    await info.attach(`kunde-${String(nr).padStart(2, '0')}-${breite(info)}`, { path, contentType: 'image/png' })
+    await info.attach(`${shotsFor(nr).name}-${breite(info)}`, { path, contentType: 'image/png' })
 }
 
 /** The choice a returning visitor has already made, so the cookie sheet stays out of the picture. */

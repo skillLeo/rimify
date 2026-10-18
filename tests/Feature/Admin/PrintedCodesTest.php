@@ -46,7 +46,7 @@ it('drops the printed bracket and nothing else', function (): void {
         ->and(DocumentConditions::normaliseCode(null))->toBeNull();
 });
 
-it('takes his codes as printed — in the Auflagenverzeichnis, from a pasted legend and on a row — and the row finds its sentence', function (): void {
+it('takes his codes as printed — in the Auflagenverzeichnis, from a pasted legend and on a row — and the row finds its sentence @admin-208', function (): void {
     $document = ApprovalDocument::factory()->draft()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'page_count' => 8]);
 
     $this->actingAs(printedAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", [

@@ -40,7 +40,7 @@ function checkoutOrder(bool $acceptanceWheel): Order
     return $order->refresh();
 }
 
-it('opens an order that came through the checkout to nobody who merely knows its number, whatever it contains', function (bool $acceptanceWheel): void {
+it('opens an order that came through the checkout to nobody who merely knows its number, whatever it contains @admin-218', function (bool $acceptanceWheel): void {
     $order = checkoutOrder($acceptanceWheel);
 
     expect($order->origin)->toBe(Order::ORIGIN_CHECKOUT)
@@ -66,7 +66,7 @@ it('opens an order a seeder wrote by its number', function (): void {
     $this->get('/bestellung/'.$order->order_number)->assertOk();
 });
 
-it('opens a seeded demo order by number only while the demo data is there — afterwards its number answers 404', function (): void {
+it('opens a seeded demo order by number only while the demo data is there — afterwards its number answers 404 @admin-218', function (): void {
     $order = Order::factory()->seeded()->create(['is_demo' => true, 'demo_ref' => 'demo:order:verschwindet']);
 
     $this->get('/bestellung/'.$order->order_number)->assertOk();

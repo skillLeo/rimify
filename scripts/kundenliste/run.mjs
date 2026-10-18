@@ -11,16 +11,42 @@
 //   npm run kundenliste -- --report     write the table again from the last run's results and pictures, running nothing
 //                                       (after items.mjs changed — its sentences, its commits); dated by that run
 //   npm run kundenliste -- --only=pest  run one framework again, take the others' results and pictures from the last run
+//
+// His second list, the admin's (`npm run adminliste`, `--liste=admin`): the same run over the tests tagged `@admin-201` …
+// `@admin-218` (admin-items.mjs), written to docs/review/ADMINLISTE.md and its CSV, its pictures under
+// docs/qa/shots/adminliste/.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ITEMS, STATES } from './items.mjs'
-import { DONE, INSTANCES, sheetRow, toCsv } from './sheet.mjs'
+import * as admin from './admin-items.mjs'
+import * as kunde from './items.mjs'
+import { DONE, INSTANCES, NOTES, sheetRow, toCsv } from './sheet.mjs'
 
+/** The two lists the client gave us: his storefront list (1–34) and his admin list (201–218). */
+const LISTS = {
+    kunde: {
+        ...kunde, NOTES, tag: 'kunde', digits: 2, pest: 'kunde-', slug: 'kundenliste', file: 'KUNDENLISTE',
+        title: '# Deine Änderungsliste – Stand der Umsetzung',
+    },
+    admin: {
+        ...admin, tag: 'admin', digits: 3, pest: 'admin-2\\d\\d', slug: 'adminliste', file: 'ADMINLISTE',
+        title: '# Deine Admin-Änderungsliste – Stand der Umsetzung',
+    },
+}
+
+const listName = (process.argv.find((a) => a.startsWith('--liste=')) ?? '--liste=kunde').slice(8)
+const LIST = LISTS[listName]
+
+if (LIST === undefined) {
+    process.stderr.write(`no list „${listName}“: kunde or admin\n`)
+    process.exit(1)
+}
+
+const { ITEMS, STATES } = LIST
 const ROOT = new URL('../..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
-const OUT = join(ROOT, 'test-results', 'kundenliste-run')
-const SHOTS = 'docs/qa/shots/kundenliste'
-const TAG = /@kunde-(\d{2})\b/g
+const OUT = join(ROOT, 'test-results', `${LIST.slug}-run`)
+const SHOTS = `docs/qa/shots/${LIST.slug}`
+const TAG = new RegExp(`@${LIST.tag}-(\\d{${LIST.digits}})\\b`, 'g')
 const report = process.argv.includes('--report')
 const only = new Set((process.argv.find((a) => a.startsWith('--only=')) ?? '--only=').slice(7).split(',').filter(Boolean))
 const skip = new Set(report || only.size > 0 ? [] : (process.argv.find((a) => a.startsWith('--skip=')) ?? '--skip=').slice(7).split(',').filter(Boolean))
@@ -70,7 +96,7 @@ if (!skip.has('pest')) {
 
     // `kunde-`, never `@kunde-`: PHPUnit reads `@` in a filter as the start of a data set's name, so that matched nothing.
     if (live('pest')) {
-        run('Pest', 'php', ['vendor/bin/pest', '--filter', 'kunde-', '--log-junit', junit])
+        run('Pest', 'php', ['vendor/bin/pest', '--filter', LIST.pest, '--log-junit', junit])
     }
 
     if (existsSync(junit)) {
@@ -91,7 +117,7 @@ if (!skip.has('vitest')) {
     const json = join(OUT, 'vitest.json')
 
     if (live('vitest')) {
-        run('Vitest', 'npx', ['vitest', 'run', '-t', '@kunde-', '--reporter=json', `--outputFile=${json}`, '--passWithNoTests'])
+        run('Vitest', 'npx', ['vitest', 'run', '-t', `@${LIST.tag}-`, '--reporter=json', `--outputFile=${json}`, '--passWithNoTests'])
     }
 
     if (existsSync(json)) {
@@ -112,7 +138,7 @@ if (!skip.has('playwright')) {
     const json = join(OUT, 'playwright.json')
 
     if (live('playwright')) {
-        run('Playwright', 'npx', ['playwright', 'test', '-c', 'playwright.kundenliste.config.ts', '--grep', '@kunde-'], { KUNDENLISTE_JSON: json })
+        run('Playwright', 'npx', ['playwright', 'test', '-c', 'playwright.kundenliste.config.ts', '--grep', `@${LIST.tag}-`], { KUNDENLISTE_JSON: json })
     }
 
     if (existsSync(json)) {
@@ -148,7 +174,7 @@ const picture = (nr, width) => {
     return existsSync(full) && statSync(full).mtimeMs >= started - 1000 ? path : null
 }
 
-const OURS_FILE = join(ROOT, 'docs', 'review', 'kundenliste', `ergebnis-${INSTANCES.ours}.json`)
+const OURS_FILE = join(ROOT, 'docs', 'review', LIST.slug, `ergebnis-${INSTANCES.ours}.json`)
 
 const commit = (() => {
     // Writing the table again runs nothing: the results are the last run's, and so is the code they were proven on — not
@@ -179,7 +205,8 @@ const rows = ITEMS.map((item) => {
     if (tests.length === 0) missing.push('kein Test')
     if (failed.length > 0) missing.push(`${failed.length} von ${tests.length} ${tests.length === 1 ? 'Test' : 'Tests'} nicht bestanden`)
     if (tests.length > 0 && passed.length === 0 && failed.length === 0) missing.push('Tests nicht gelaufen')
-    if (!shots['1440'] || !shots['390']) missing.push(`Bild fehlt (${['1440', '390'].filter((w) => !shots[w]).join(', ')})`)
+    // An item whose answer is that nothing changes (`pictures: false`) has nothing to show; its test is the proof.
+    if (item.pictures !== false && (!shots['1440'] || !shots['390'])) missing.push(`Bild fehlt (${['1440', '390'].filter((w) => !shots[w]).join(', ')})`)
 
     const state = missing.length > 0 ? 'offen' : item.state
     const result = tests.length === 0 ? 'kein Test' : failed.length > 0 ? 'nicht bestanden' : passed.length === 0 ? 'nicht gelaufen' : `bestanden (${passed.length})`
@@ -191,7 +218,7 @@ const rows = ITEMS.map((item) => {
 // own instance — the local acceptance shop; the preview's results are written by the acceptance run (`abnahme`), which
 // is the suite that may be pointed at the site the client looks at. The two are never merged: the table shows both, and
 // only the preview's can tick his sheet (sheet.mjs).
-const RESULTS = join(ROOT, 'docs', 'review', 'kundenliste')
+const RESULTS = join(ROOT, 'docs', 'review', LIST.slug)
 const resultFile = (instance) => join(RESULTS, `ergebnis-${instance}.json`)
 const readResult = (instance) => (existsSync(resultFile(instance)) ? JSON.parse(readFileSync(resultFile(instance), 'utf8')) : null)
 
@@ -229,8 +256,8 @@ const onPreview = (nr) => {
 }
 const previewReleases = [...new Set(Object.values(preview?.items ?? {}).map((i) => i.commit).filter(Boolean))]
 
-const sheet = rows.map((r) => sheetRow(r.item, { passed: r.missing.length === 0 }, preview?.items?.[r.item.nr] ?? null))
-writeFileSync(join(ROOT, 'docs', 'review', 'KUNDENLISTE.csv'), toCsv(sheet))
+const sheet = rows.map((r) => sheetRow(r.item, { passed: r.missing.length === 0 }, preview?.items?.[r.item.nr] ?? null, LIST.NOTES))
+writeFileSync(join(ROOT, 'docs', 'review', `${LIST.file}.csv`), toCsv(sheet))
 
 const count = (state) => rows.filter((r) => r.state === state).length
 const cell = (text) => String(text ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ')
@@ -240,20 +267,21 @@ const frameworks = (tests) =>
         .join('<br>')
 
 const stamp = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Berlin' }).format(new Date(started))
+const tally = Object.keys(STATES).map((state) => `${count(state)} ${state}`)
 const lines = [
-    '# Deine Änderungsliste – Stand der Umsetzung',
+    LIST.title,
     '',
-    `Erzeugt mit \`npm run kundenliste\` am ${stamp} Uhr, geprüft auf dem Stand ${commit}. Nichts darin ist von Hand als erledigt eingetragen: Ein Punkt ist **erledigt**, wenn sein Test besteht und die beiden Bilder zeigen, worum es geht.`,
+    `Erzeugt mit \`npm run ${LIST.slug}\` am ${stamp} Uhr, geprüft auf dem Stand ${commit}. Nichts darin ist von Hand als erledigt eingetragen: Ein Punkt ist **erledigt**, wenn sein Test besteht und die beiden Bilder zeigen, worum es geht.`,
     '',
-    `**${count('erledigt')} erledigt · ${count('anders gelöst')} anders gelöst · ${count('Urteil offen')} Urteil offen · ${count('Rückfrage')} Rückfrage · ${count('offen')} offen**`,
+    `**${tally.join(' · ')}**`,
     '',
-    `Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“${preview ? ` (Stand ${previewReleases.join(' und ') || preview.commit}, je Punkt mit Tag und Stand)` : ''} – erst das zählt für deine Liste: ${sheet.filter((r) => r.value === DONE).length} von 34.`,
+    `Geprüft wurde hier auf **unserer eigenen Instanz** (ein lokaler Shop mit dem Abnahme-Satz), nicht auf deiner Vorschau. Was auf der Vorschau geprüft ist, steht in der Spalte „Auf der Vorschau“${preview ? ` (Stand ${previewReleases.join(' und ') || preview.commit}, je Punkt mit Tag und Stand)` : ''} – erst das zählt für deine Liste: ${sheet.filter((r) => r.value === DONE).length} von ${ITEMS.length}.`,
     '',
     'Die Status:',
     '',
     ...Object.entries(STATES).map(([state, meaning]) => `- **${state}** – ${meaning}`),
     '',
-    'Die Bilder liegen unter `docs/qa/shots/kundenliste/`: je Punkt eines am Computer (1440 Pixel breit) und eines am Handy (390 Pixel).',
+    `Die Bilder liegen unter \`${SHOTS}/\`: je Punkt eines am Computer (1440 Pixel breit) und eines am Handy (390 Pixel).`,
     '',
     '| Nr. | Dein Wunsch | Was es jetzt tut | Stand | Auf der Vorschau | Test | Ergebnis | Bilder | Commit |',
     '|---|---|---|---|---|---|---|---|---|',
@@ -266,21 +294,23 @@ const lines = [
             onPreview(item.nr),
             frameworks(tests) || '–',
             result,
-            ['1440', '390'].map((w) => (shots[w] ? `[${w}](../qa/shots/kundenliste/${shots[w].split('/').pop()})` : `${w}: –`)).join(' · '),
+            item.pictures === false
+                ? '–'
+                : ['1440', '390'].map((w) => (shots[w] ? `[${w}](../qa/shots/${LIST.slug}/${shots[w].split('/').pop()})` : `${w}: –`)).join(' · '),
             cell((item.commits ?? []).join(', ') || '–'),
         ].join(' | ').replace(/^/, '| ').replace(/$/, ' |'),
     ),
     '',
 ]
 
-writeFileSync(join(ROOT, 'docs', 'review', 'KUNDENLISTE.md'), lines.join('\n'))
+writeFileSync(join(ROOT, 'docs', 'review', `${LIST.file}.md`), lines.join('\n'))
 
 const notRun = ['pest', 'vitest', 'playwright'].filter((f) => !ran.has(f))
 const failedItems = rows.filter((r) => r.failed.length > 0).map((r) => r.item.nr)
 
 process.stdout.write(
-    `\nKUNDENLISTE.md (unsere Instanz): ${count('erledigt')} erledigt, ${count('anders gelöst')} anders gelöst, ${count('Urteil offen')} Urteil offen, ${count('Rückfrage')} Rückfrage, ${count('offen')} offen` +
-        `\nKUNDENLISTE.csv (zählt nur die Vorschau): ${sheet.filter((r) => r.value === DONE).length} × ${DONE}, ${sheet.filter((r) => r.value !== DONE).length} × Open` +
+    `\n${LIST.file}.md (unsere Instanz): ${tally.join(', ')}` +
+        `\n${LIST.file}.csv (zählt nur die Vorschau): ${sheet.filter((r) => r.value === DONE).length} × ${DONE}, ${sheet.filter((r) => r.value !== DONE).length} × Open` +
         (notRun.length ? ` · nicht gelaufen: ${notRun.join(', ')}` : '') +
         (failedItems.length ? ` · Tests rot bei Nr. ${failedItems.join(', ')}` : '') +
         '\n',

@@ -48,7 +48,7 @@ it('answers 404 for a guide that does not exist or is not published', function (
 
 // ── The Blog (the client's #10, D-230) ─────────────────────────────────────────────────────────────────────────────
 
-it('lists every published article on /blog, and never the draft the lawyer has not signed off', function (): void {
+it('lists every published article on /blog, and never the draft the lawyer has not signed off @admin-212', function (): void {
     $this->get('/blog')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
@@ -63,7 +63,7 @@ it('lists every published article on /blog, and never the draft the lawyer has n
     $this->get('/ratgeber')->assertStatus(301)->assertRedirect('/blog');
 });
 
-it('links the Blog from the footer, beside the Felgenrechner', function (): void {
+it('links the Blog from the footer, beside the Felgenrechner @admin-212', function (): void {
     $this->get('/blog')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('menus.footer_shop', fn ($items) => collect($items)->contains(fn ($i): bool => $i['label'] === 'Blog' && parse_url((string) $i['href'], PHP_URL_PATH) === '/blog')
             && collect($items)->contains(fn ($i): bool => $i['label'] === 'Felgenrechner'))

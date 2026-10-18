@@ -65,10 +65,11 @@ export const NOTES = {
  *                                                           at best; `tick`: its column is ours though its state is not)
  * @param {{passed: boolean}|null} ours           its result on our own instance, if it ran there
  * @param {{passed: boolean}|null} preview        its result on the preview, if it ran there
+ * @param {Record<number, string>} notes          the list's notes: his storefront list's (above) or his admin list's
  * @returns {{nr: number, value: string, note: string}}
  */
-export function sheetRow(item, ours, preview) {
-    const note = NOTES[item.nr] ?? ''
+export function sheetRow(item, ours, preview, notes = NOTES) {
+    const note = notes[item.nr] ?? ''
 
     // Solved differently, or waiting on him: not ours to tick, whatever the tests say — unless the operator made the
     // column ours (`tick`: the judgement items and #23), and then only by a pass on the preview, like every other row.

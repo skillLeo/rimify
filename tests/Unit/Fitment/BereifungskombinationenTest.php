@@ -95,7 +95,7 @@ function kombiBbs(): TyrePairingTable
     return kombiList([[1, [235, 45], [235, 45]], [2, [235, 45], [255, 40]], [3, [245, 40], [255, 40]]]);
 }
 
-it('offers four of a kind only in a size the list names on both axles — though the row lists all three on both', function (): void {
+it('offers four of a kind only in a size the list names on both axles — though the row lists all three on both @admin-208', function (): void {
     [$engine, $t235, $t245, $t255] = kombiEngine();
     $verdict = kombiVerdict(kombiBbs());
     $offer = $engine->offerFor($verdict);
@@ -111,7 +111,7 @@ it('offers four of a kind only in a size the list names on both axles — though
         ->and(array_map(static fn (TyreRecord $t): int => $t->id, $engine->offerFor(kombiVerdict(null))->tyres))->toEqualCanonicalizing([11, 12, 13]);
 });
 
-it('offers each pair the list names, in its numbering and on its page — and no pair it does not name', function (): void {
+it('offers each pair the list names, in its numbering and on its page — and no pair it does not name @admin-208', function (): void {
     [$engine, $t235, $t245, $t255] = kombiEngine();
     $verdict = kombiVerdict(kombiBbs());
     $offer = $engine->mixedOfferFor($verdict);
