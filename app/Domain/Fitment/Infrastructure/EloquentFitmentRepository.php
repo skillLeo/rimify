@@ -398,6 +398,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             completeness: $document->completeness,
             isDemo: (bool) $document->getAttribute('is_demo'),
             tyreCombinations: self::tyreCombinations($document),
+            tyreIndexSource: $document->tyre_index_source?->value,
         );
     }
 

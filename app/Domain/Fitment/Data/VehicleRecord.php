@@ -102,6 +102,20 @@ final readonly class VehicleRecord
      * parsed can never produce a positive verdict, because both derivations would return null and
      * a null minimum is not "no minimum".
      */
+    /** Both permitted axle loads, the papers' fields 8.1 and 8.2: what a tyre's load index and the wheel's load are checked against. */
+    public function hasAxleLoads(): bool
+    {
+        return ! $this->isDeleted
+            && $this->axleLoadFrontKg !== null && $this->axleLoadFrontKg > 0
+            && $this->axleLoadRearKg !== null && $this->axleLoadRearKg > 0;
+    }
+
+    /** The top speed, the papers' field T: what a tyre's speed symbol and its derating follow from (D-277). */
+    public function hasTopSpeed(): bool
+    {
+        return $this->maxSpeedKmh !== null && $this->maxSpeedKmh > 0;
+    }
+
     public function hasCompleteLegalData(): bool
     {
         return ! $this->needsReview
