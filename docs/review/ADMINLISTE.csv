@@ -1,0 +1,19 @@
+Nr,Skill Leo,Description
+201,Open,"Not built yet — next, together with 203: a form for a vehicle with everything the approval check needs."
+202,Open,"Not built yet — next: an import that first does a test run and shows the numbers and never overwrites a vehicle taken from a Gutachten. The bolt circle is not needed: whether a wheel may go on a car is decided by the Gutachten, not by geometry."
+203,Open,Not built yet — comes with 201.
+204,Open,"Not built yet: the field becomes required for new wheels, and a list shows the existing wheels where it is still missing."
+205,Open,Not built yet — comes with 204.
+206,Open,Not built yet — comes with 204.
+207,Open,"Not built yet: the stock figure goes, „nicht verfügbar“ blocks the purchase and says so, and the quantity selector no longer follows the stock."
+208,Open,Built and tested on our side. Not on your preview yet.
+209,Open,Built and tested on our side. Not on your preview yet.
+210,Open,Not built yet — with the EU tyre label fields from the start.
+211,Open,"Not built yet: an editor with building blocks — a table with header cells, an image with required alt text, a quote — instead of free HTML, which could put someone else's code on the site."
+212,Open,Built and tested on our side. Not on your preview yet.
+213,Open,Not built yet — comes with 204.
+214,Open,Not built yet. Ratings only where real reviews exist; shipping and returns once your details for them are in.
+215,Open,"Solved differently: the table now appears only on a Gutachten that, according to the details entered, prints one — there the release requires it. Everywhere else it is folded to one line, „Keine Tabelle hinterlegt“. We did not remove it: on a document that prints one, like ABE 55255, it decides which tyres are permitted on cars with a top speed above 210 km/h."
+216,Open,Built and tested on our side. Not on your preview yet.
+217,Open,Not done yet: we need your answer on who issues the invoice and whether the shop keeps a copy.
+218,Open,"Checked, including with a forged signature: an order from the shop opens only with the link from its e-mail, in the browser that placed it, or in the customer account. The link is signed and valid for twelve months; after that, the page sends a new one to the order's e-mail address on request. Someone who knows only the number sees the same page as for a number that does not exist. Only the preview's example orders open by number: they belong to no real customer and are removed with the demo data."

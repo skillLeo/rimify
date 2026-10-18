@@ -1,0 +1,98 @@
+{
+  "instance": "eigene-instanz",
+  "where": "unser lokaler Abnahme-Shop (127.0.0.1)",
+  "commit": "f9e330e6",
+  "at": "2026-10-18T16:38:20.428Z",
+  "items": {
+    "201": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "202": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "203": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "204": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "205": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "206": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "207": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "208": {
+      "passed": true,
+      "tests": 7,
+      "failed": 0
+    },
+    "209": {
+      "passed": true,
+      "tests": 7,
+      "failed": 0
+    },
+    "210": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "211": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "212": {
+      "passed": true,
+      "tests": 4,
+      "failed": 0
+    },
+    "213": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "214": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "215": {
+      "passed": true,
+      "tests": 5,
+      "failed": 0
+    },
+    "216": {
+      "passed": true,
+      "tests": 9,
+      "failed": 0
+    },
+    "217": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "218": {
+      "passed": true,
+      "tests": 5,
+      "failed": 0
+    }
+  }
+}

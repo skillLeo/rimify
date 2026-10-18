@@ -1,7 +1,7 @@
 # Verarbeitung personenbezogener Daten – Dienstleister und Speicherfristen
 
 > Erzeugt mit `php artisan rimify:verarbeitung` aus der Konfiguration dieser Installation – nicht von Hand geschrieben.
-> Stand: 06.10.2026, 21:33 Uhr · Server: `us-bos-web1780.main-hosting.eu` · Umgebung: `staging`.
+> Stand: 18.10.2026, 18:08 Uhr · Server: `us-bos-web1780.main-hosting.eu` · Umgebung: `staging`.
 > Für den Betreiber und die Kanzlei: was der Shop heute tatsächlich tut. Was offen ist, steht als „offen“ da.
 
 ## 1 · Dienstleister, die personenbezogene Daten für den Shop verarbeiten
@@ -22,7 +22,7 @@
 
 | | |
 |---|---|
-| Stand in dieser Installation | Nicht in Betrieb: Die Dateien liegen auf dem Webserver (1.1). |
+| Stand in dieser Installation | In Betrieb: Bucket `rmfy-wbst-bkt-001` in `eu-north-1`, eingetragen in Einstellungen › Medien und Speicher. |
 | Unternehmen | Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855 Luxemburg |
 | Ort der Verarbeitung | AWS-Region `eu-north-1` (Stockholm, Schweden). |
 | Zweck | Ablage der Felgenfotos, der Bilder der Inhaltsseiten, der Gutachten-PDFs, der Rechnungen und Gutschriften (privat, nur über signierte Links) und der Exporte. |
@@ -78,6 +78,7 @@
 | Daten | Frist | Umgesetzt durch |
 |---|---|---|
 | Kontaktanfragen | 12 Monate | `model:prune` täglich um 03:30 Uhr (`ContactMessage::KEEP_MONTHS`) |
+| Ausdruckbarer RIMIFY-Check, mit den Werten aus der Zulassungsbescheinigung (2.2) | 12 Monate | `model:prune` täglich um 03:30 Uhr (`CheckResult::KEEP_MONTHS`) |
 | Unbezahlte Bestellungen | verfallen nach 24 Stunden; der Bestand geht zurück, der Datensatz bleibt | `orders:expire` alle zehn Minuten (`OrderPayments::HOURS_TO_PAY`) – eine Löschung ist **nicht umgesetzt** (3) |
 | Bestellungen, Rechnungen, Gutschriften | unbefristet; Rechnungen unveränderlich | Datenbank-Trigger; eine Löschung nach Ablauf der Aufbewahrungspflicht (§ 147 AO, § 14b UStG – die Frist bestätigt die Kanzlei) ist **nicht umgesetzt** (3) |
 | Prüfnachweise der Bestellungen, Protokoll | unbefristet, unveränderlich | CLAUDE.md R-12: Trigger mit SQLSTATE 45000 |
@@ -103,8 +104,19 @@
 | `rmf_garage` | Die letzten fünf Fahrzeuge, die du gewählt hast, damit du schnell zurückwechseln kannst. | 90 Tage |
 | `rmf_consent` | Dass du diesen Hinweis gelesen hast, und wann. | 12 Monate |
 | `Sitzung und XSRF-TOKEN` | Deinen Warenkorb und den Schutz deiner Eingaben vor fremden Seiten. | 120 Minuten |
-| `rmf_papiere` | Die Werte, die du aus deiner Zulassungsbescheinigung einträgst – Achslasten (8.1, 8.2) und Höchstgeschwindigkeit (T) – sowie Karosserieform und Antriebsart, wenn wir danach fragen; für bis zu fünf Fahrzeuge, ohne Namen, Kennzeichen oder Fahrgestellnummer. | 1 Jahr |
+| `rmf_papiere` | Die Werte, die du aus deiner Zulassungsbescheinigung einträgst – Achslasten (8.1, 8.2), Höchstgeschwindigkeit (T) und, wenn du sie angibst, Leistung (P.2) sowie Tragfähigkeits- und Geschwindigkeitsindex der Reifen (15.1, 15.2) –, dazu Karosserieform und Antriebsart, wenn wir danach fragen; für bis zu fünf Fahrzeuge, ohne Namen, Kennzeichen oder Fahrgestellnummer. | 1 Jahr |
 | `rmf_geraet` | Eine zufällige Kennung für diesen Browser und sonst nichts. Unser Schutz vor zu vielen Anfragen zählt nach ihr statt nach deiner IP-Adresse – so wirst du nicht mit anderen im selben Mobilfunknetz verwechselt. | 1 Jahr |
+
+### 2.2 · Werte aus der Zulassungsbescheinigung
+
+| | |
+|---|---|
+| Daten | Die Werte, die ein Kunde aus seiner Zulassungsbescheinigung Teil I einträgt: die zulässigen Achslasten (8.1, 8.2) und die Höchstgeschwindigkeit (T), wenn er will auch die Leistung (P.2) sowie Tragfähigkeits- und Geschwindigkeitsindex der Reifen (15.1, 15.2). Name, Kennzeichen und Fahrgestellnummer fragt der Shop dazu nicht ab. |
+| Zweck | Die Antwort, welche Reifen zu einer Felge an diesem Fahrzeug zulässig sind – Tragfähigkeit und Geschwindigkeit (CLAUDE.md R-03). Gefragt wird nur nach den Werten, die dem Shop für diese Antwort fehlen. |
+| Rechtsgrundlage | Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahme auf Anfrage des Kunden); für das Cookie § 25 Abs. 2 Nr. 2 TDDDG (unbedingt erforderlich für einen vom Kunden ausdrücklich gewünschten Dienst). Beides bestätigt die Kanzlei (3). |
+| Im Browser des Kunden | Cookie `rmf_papiere`: 365 Tage ab dem letzten Eintrag (`PapersBook::LIFETIME_MINUTES`). Der Kunde löscht die Werte mit „Werte löschen“ oder mit seinen Cookies. |
+| Im ausdruckbaren RIMIFY-Check | Wenn der Kunde einen Check druckt, mit dessen Ergebnis in der Datenbank (`check_results`). Gespeichert nur für diesen Check, deshalb mit ihm gelöscht: nach 12 Monaten, `model:prune` täglich um 03:30 Uhr (`CheckResult::KEEP_MONTHS`, D-292). |
+| In einer Bestellung | Wenn der Kunde bestellt, die Achslasten und die Höchstgeschwindigkeit, mit denen das Ergebnis gerechnet wurde, im Prüfnachweis der Bestellposition (`order_line_fitments`): unveränderlich (CLAUDE.md R-12) und so lange wie die Bestellung (2). |
 
 ## 3 · Offen für die Kanzlei
 
@@ -113,3 +125,4 @@
 - Bestellungen, Rechnungen und Prüfnachweise werden nicht gelöscht, auch nicht nach Ablauf der Aufbewahrungspflicht. Frist festlegen; die Prüfnachweise und das Protokoll sind nach CLAUDE.md R-12 unveränderlich, eine Löschung braucht eine eigene Entscheidung.
 - Das Log des Server-Renderings wird nicht rotiert (es enthält Seitenpfade, keine Kundendaten).
 - Verträge zur Auftragsverarbeitung für den Live-Shop nachweisen: Hostinger (1.1), Postfach (1.5); bei AWS und Stripe sind sie Teil der Vertragsbedingungen.
+- Werte aus der Zulassungsbescheinigung (2.2): ob sie ohne Namen, Kennzeichen und Fahrgestellnummer personenbezogen sind, ob die Rechtsgrundlage stimmt und ob die Fristen (Cookie 365 Tage, RIMIFY-Check 12 Monate) passen.
