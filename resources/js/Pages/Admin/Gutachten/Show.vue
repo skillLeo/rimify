@@ -23,12 +23,13 @@ import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import CountCard from './CountCard.vue'
 import CombinationsCard from './CombinationsCard.vue'
 import DeratingTable from './DeratingTable.vue'
+import { deratingAbsent as absentLine, deratingShown as isDeratingShown } from './derating'
 import DocumentExtras from './DocumentExtras.vue'
 import FactsDialog from './FactsDialog.vue'
 import ReleaseDialog from './ReleaseDialog.vue'
 import RowComposer from './RowComposer.vue'
 import RowFields from './RowFields.vue'
-import { codesText, formFromRow, payload, unreadable } from './rows'
+import { codesText, formFromRow, payload, settleSizes, unreadable } from './rows'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -69,6 +70,17 @@ function pageHref(n: number | null): string | null {
 }
 
 const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).release ?? '')
+
+/* ── Tragfähigkeit bei hoher Geschwindigkeit (his admin item 15, D-295) ──────── */
+
+/** The document prints a table of tyre load at speed, as the record says (D-277): entered here, released only with it. */
+const deratingRequired = computed(() => props.document.shape.tyre_index_source === 'table')
+
+/** Shown whole where the document prints one — or where one is entered all the same; otherwise one line, folded away. */
+const deratingShown = computed(() => isDeratingShown(props.document.shape.tyre_index_source, props.derating.rows.length))
+
+/** The folded line, in finding 104's words, and why no table is asked for (derating.ts, R-17). */
+const deratingAbsent = computed(() => absentLine(props.document.shape.tyre_index_source, props.can.edit && draft.value))
 
 /* ── Facts ─────────────────────────────────────────────────────────────────── */
 
@@ -183,6 +195,9 @@ function saveRow(): void {
     if (!row || !form || editBusy.value) {
         return
     }
+
+    // A size pasted with its minimum, or a pair, saved without leaving its field: settled first (his admin item 9).
+    settleSizes(form)
 
     if (unreadable(form).length > 0) {
         editErrors.value = { ...editErrors.value }
@@ -429,15 +444,22 @@ const TONE: Record<string, string | null> = {
             <DocumentExtras :document-id="document.id" :fasteners="fasteners" :notices="notices" :reworks="reworks" :conditions="conditions" :editable="can.edit && draft" :page-count="document.pageCount" />
         </section>
 
-        <!-- ── Its own table of tyre load at speed ───────────────────── -->
-        <section class="adm-section" aria-labelledby="gs-derating-h">
+        <!-- ── Its own table of tyre load at speed: whole where the document prints one, else one line (his item 15) ── -->
+        <section v-if="deratingShown" class="adm-section" aria-labelledby="gs-derating-h">
             <div class="adm-section__head">
                 <h2 id="gs-derating-h" class="adm-section__title">Tragfähigkeit bei hoher Geschwindigkeit</h2>
                 <!-- A table the demo seed wrote carries the same tag as every other demo row. -->
                 <span v-if="derating.seededFrom" class="adm-tag adm-tag--neutral">Demodaten</span>
             </div>
-            <DeratingTable :document-id="document.id" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" />
+            <DeratingTable :document-id="document.id" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" :required="deratingRequired" />
         </section>
+        <details v-else class="adm-section gs-fold">
+            <summary class="gs-fold__summary">
+                <h2 id="gs-derating-h" class="adm-section__title">Tragfähigkeit bei hoher Geschwindigkeit</h2>
+                <span class="gs-fold__state">Keine Tabelle hinterlegt</span>
+            </summary>
+            <p class="adm-note">{{ deratingAbsent }}</p>
+        </details>
 
         <!-- ── Its own „Bereifungskombinationen“ (D-256) ──────────────── -->
         <section class="adm-section" aria-labelledby="gs-combinations-h">
@@ -684,6 +706,28 @@ const TONE: Record<string, string | null> = {
 }
 
 .gs-lead {
+    margin-bottom: var(--sp-12);
+}
+
+/* A section with nothing to show folded to its heading and its state (his item 15): open, it says why. */
+.gs-fold__summary {
+    min-height: var(--adm-control-h);
+    padding-block: var(--sp-8);
+    cursor: pointer;
+}
+
+.gs-fold__summary .adm-section__title {
+    display: inline;
+}
+
+.gs-fold__state {
+    margin-left: var(--sp-12);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.gs-fold[open] .gs-fold__summary {
     margin-bottom: var(--sp-12);
 }
 

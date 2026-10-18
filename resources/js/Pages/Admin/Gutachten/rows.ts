@@ -1,6 +1,7 @@
 /**
- * The Verwendungsbereich row form: typed the way a Gutachten prints it — a tyre size is `225/40 R18`,
- * optionally with its minimum `92Y` — and sent the way the server reads it (FitmentRowsRequest).
+ * The Verwendungsbereich row form: typed the way a Gutachten prints it — a tyre size is `225/40 R18`, its minimum in two
+ * fields of its own, load index `92` and speed symbol `Y` (his admin item 9) — and sent the way the server reads it
+ * (FitmentRowsRequest). A size pasted with its minimum, `225/40 R18 92Y`, is settled into the three fields.
  * Kept apart from the pages so its reading is tested.
  */
 
@@ -68,11 +69,86 @@ export function kwText(size: { kw_min?: number | null; kw_max?: number | null })
     return size.kw_min == null || size.kw_max == null ? '' : `${size.kw_min}-${size.kw_max}`
 }
 
-/** A size as the form shows it, with the document's minimum where it names one: `245/35 R19 93Y`, `… 93`. */
+/** A size as a list shows it, with the document's minimum where it names one: `245/35 R19 93Y`, `… 93`. */
 export function tyreText(size: { width_mm: number; aspect: number; diameter: number; min_load_index: number | null; min_speed_symbol: string }): string {
     const minimum = `${size.min_load_index ?? ''}${size.min_speed_symbol ?? ''}`
 
-    return `${size.width_mm}/${size.aspect} R${size.diameter}${minimum === '' ? '' : ` ${minimum}`}`
+    return `${sizeText(size)}${minimum === '' ? '' : ` ${minimum}`}`
+}
+
+/** A size as its field holds it: the size alone, `245/35 R19` — the minimum stands in its own two fields. */
+export function sizeText(size: { width_mm: number; aspect: number; diameter: number }): string {
+    return `${size.width_mm}/${size.aspect} R${size.diameter}`
+}
+
+/** The speed symbols a minimum may name, slowest first — the server's table (speed_symbol_table). */
+export const SPEED_SYMBOLS = ['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'] as const
+
+/** The load index field as the server takes it: a whole number, or none. Undefined for one that does not read. */
+export function loadIndex(value: number | string | null | undefined): number | null | undefined {
+    const text = String(value ?? '').trim()
+
+    if (text === '') {
+        return null
+    }
+
+    return /^\d{1,3}$/.test(text) ? Number(text) : undefined
+}
+
+/* Between the two sizes of a pair as a Gutachten prints it: `225/40 R18 92Y / 255/35 R18 94Y`, or with `;` `,` `|` `–`. */
+const PAIR = /\s+[/|–-]\s+|\s*[,;]\s*/
+
+/**
+ * A size line as it was left: a size pasted with its minimum — `245/35 R19 93Y`, as the PDF prints it — puts the minimum
+ * into its own two fields and keeps the size; a front-and-rear pair pasted into one field — `225/40 R18 92Y / 255/35 R18
+ * 94Y` — becomes two lines, front and rear, each with its minimum. A minimum typed with the size is the one meant; typed
+ * without one, the fields keep what they hold. Anything else stays as typed, for the field to say what it cannot read.
+ */
+export function settleSize(size: TyreSizeForm): TyreSizeForm[] {
+    const pieces = size.text.split(PAIR).map((piece) => piece.trim()).filter((piece) => piece !== '')
+
+    if (pieces.length === 2) {
+        const [front, rear] = pieces.map((piece) => parseTyre(piece))
+
+        if (front && rear) {
+            return [withSize(size, front, 'FRONT'), withSize(size, rear, 'REAR')]
+        }
+    }
+
+    const parsed = parseTyre(size.text)
+
+    return [splitLoadIndex(parsed === null ? size : withSize(size, parsed, size.axle))]
+}
+
+/**
+ * A load index typed with its symbol — `93Y`, as the PDF prints the two together — split into its two fields: the
+ * number as the load index, the symbol where the server's table knows it. Anything else stays, for the field to say.
+ */
+export function splitLoadIndex(size: TyreSizeForm): TyreSizeForm {
+    const m = String(size.min_load_index ?? '').trim().toUpperCase().match(/^(\d{2,3})\s*(\(Y\)|[A-Z])$/)
+
+    if (m === null || !(SPEED_SYMBOLS as readonly string[]).includes(m[2] ?? '')) {
+        return size
+    }
+
+    return { ...size, min_load_index: Number(m[1]), min_speed_symbol: m[2] ?? '' }
+}
+
+function withSize(size: TyreSizeForm, parsed: ParsedTyre, axle: AxleValue): TyreSizeForm {
+    const named = parsed.min_load_index !== null || parsed.min_speed_symbol !== ''
+
+    return {
+        ...size,
+        axle,
+        text: sizeText(parsed),
+        min_load_index: named ? parsed.min_load_index : size.min_load_index,
+        min_speed_symbol: named ? parsed.min_speed_symbol : size.min_speed_symbol,
+    }
+}
+
+/** Every line of a row settled (`settleSize`): before a save, so what is sent is what the fields show. */
+export function settleSizes(form: RowForm): void {
+    form.tyre_sizes = form.tyre_sizes.flatMap(settleSize)
 }
 
 /**
@@ -204,10 +280,10 @@ export function formFromRow(row: FitmentRowView): RowForm {
         et_max: row.etMax,
         centre_bore: row.centreBore,
         tyre_sizes: row.tyreSizes.map((s) => ({
-            text: tyreText(s),
+            text: sizeText(s),
             axle: s.axle,
             min_load_index: s.min_load_index,
-            min_speed_symbol: s.min_speed_symbol,
+            min_speed_symbol: s.min_speed_symbol ?? '',
             kw: kwText(s),
             codes: codesText(s.codes.map((c) => c.code)),
         })),
@@ -215,12 +291,20 @@ export function formFromRow(row: FitmentRowView): RowForm {
     }
 }
 
-/** The lines that cannot be sent: a size that does not read, or codes without their size — by their place. */
+/**
+ * The lines that cannot be sent: a size that does not read, codes without their size, a kW band or a load index that
+ * does not read — by their place. Nothing typed is dropped on the way.
+ */
 export function unreadable(form: RowForm): number[] {
     return form.tyre_sizes.flatMap((size, index) => {
         const text = size.text.trim()
 
-        return (text !== '' && parseTyre(size.text) === null) || (text === '' && size.codes.trim() !== '') || parseKwBand(size.kw ?? '') === null ? [index] : []
+        return (text !== '' && parseTyre(size.text) === null)
+            || (text === '' && size.codes.trim() !== '')
+            || parseKwBand(size.kw ?? '') === null
+            || loadIndex(size.min_load_index) === undefined
+            ? [index]
+            : []
     })
 }
 
@@ -237,17 +321,18 @@ export function sentIndex(form: RowForm, index: number): number | null {
     return form.tyre_sizes.slice(0, index).filter((size) => parseTyre(size.text) !== null).length
 }
 
-/** What the server reads: empty size lines left out, each size in its parts. */
+/** What the server reads: empty size lines left out, each size in its parts, its minimum from its own two fields. */
 export function payload(form: RowForm): Record<string, unknown> {
     const sizes = form.tyre_sizes
+        .flatMap(settleSize)
         .map((size) => ({ size, parsed: parseTyre(size.text) }))
         .filter((entry): entry is { size: TyreSizeForm; parsed: ParsedTyre } => entry.parsed !== null)
         .map(({ size, parsed }) => ({
             width_mm: parsed.width_mm,
             aspect: parsed.aspect,
             diameter: parsed.diameter,
-            min_load_index: parsed.min_load_index,
-            min_speed_symbol: parsed.min_speed_symbol,
+            min_load_index: loadIndex(size.min_load_index) ?? null,
+            min_speed_symbol: size.min_speed_symbol.trim().toUpperCase(),
             axle: size.axle,
             kw_min: parseKwBand(size.kw ?? '')?.kw_min ?? null,
             kw_max: parseKwBand(size.kw ?? '')?.kw_max ?? null,

@@ -19,6 +19,8 @@ const props = defineProps<{
     derating: DeratingView
     editable: boolean
     pageCount: number | null
+    /** The document prints one, as the record says (D-277): the release waits for it (his admin item 15, D-295). */
+    required: boolean
 }>()
 
 const BAG = 'tabelle'
@@ -90,8 +92,8 @@ function cellError(i: number, symbol: string): string {
 <template>
     <div class="dt">
         <p class="adm-note">
-            Wie viel ihrer Last Reifen mit V, W oder Y bei hoher Geschwindigkeit tragen dürfen – so, wie dieses Gutachten es druckt. Ohne
-            Tabelle kann der Shop die Reifen über 210 km/h nicht bestätigen.
+            Wie viel ihrer Last Reifen mit V, W oder Y bei hoher Geschwindigkeit tragen dürfen – so, wie dieses Gutachten es druckt.
+            <template v-if="required">Laut den Angaben druckt dieses Gutachten eine solche Tabelle. Ohne sie ist keine Freigabe möglich, und für Fahrzeuge mit mehr als 210&#8239;km/h Höchstgeschwindigkeit kann der Shop die Reifen nicht bestätigen.</template>
         </p>
 
         <template v-if="!editing">

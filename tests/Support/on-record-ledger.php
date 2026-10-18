@@ -89,7 +89,6 @@ return [
     'Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht' => ['backed', 'the field being filled in: valid_from_production'],
     'Ein Nachtrag ohne eigene Angabe übernimmt es' => ['ours', 'a rule of the record'],
     'so wie im Gutachten.' => ['ours', 'an instruction for entering codes'],
-    'nur für diese Leistung gilt die Größe' => ['ours', 'an instruction for entering a kW band'],
     'Codes, die das Gutachten nur bei dieser Größe druckt' => ['ours', 'an instruction for entering codes'],
     'und das Gutachten nicht freigebbar, bis der Code dort steht' => ['ours', 'a rule of the release'],
     'Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern' => ['ours', 'R-12\'s neighbour: a released record is not edited; a correction is a new revision (D-250)'],

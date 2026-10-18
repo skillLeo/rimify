@@ -14,7 +14,7 @@ import { focusRefused } from '../../../composables/admin/focusRefused'
 import type { DocumentConditionView, RowForm, VehicleHit, WheelGroup } from '../../../types/admin/gutachten'
 import RowFields from './RowFields.vue'
 import VehicleFromDocument from './VehicleFromDocument.vue'
-import { emptyRow, payload, unreadable } from './rows'
+import { emptyRow, payload, settleSizes, unreadable } from './rows'
 
 const props = defineProps<{
     documentId: number
@@ -207,6 +207,9 @@ const choiceErrors = computed(() =>
 )
 
 function submit(): void {
+    // A size pasted with its minimum, or a pair, saved without leaving its field: settled first (his admin item 9).
+    settleSizes(form.value)
+
     if (unreadable(form.value).length > 0) {
         focusRefused(root.value)
 

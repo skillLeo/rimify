@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DocumentConditionView, FitmentRowView, TyreSizeForm } from '../../../types/admin/gutachten'
-import { badCodes, codesText, derivedEntry, emptyRow, formFromRow, kwText, parseCodes, parseKwBand, parseTyre, payload, sentIndex, unreadable } from './rows'
+import { SPEED_SYMBOLS, badCodes, codesText, derivedEntry, emptyRow, formFromRow, kwText, loadIndex, parseCodes, parseKwBand, parseTyre, payload, sentIndex, settleSize, settleSizes, unreadable } from './rows'
 
 const size = (text: string, axle: TyreSizeForm['axle'] = 'ALL', codes = ''): TyreSizeForm => ({ text, axle, min_load_index: null, min_speed_symbol: '', kw: '', codes })
 
@@ -149,7 +149,8 @@ describe('the row as the server reads it', () => {
             entry_override: 'required',
             entry_override_reason: 'Der Prüfer verlangt die Eintragung.',
             source_page: 3,
-            tyre_sizes: [{ text: '245/35 R19 93Y', axle: 'REAR', codes: 'T88' }],
+            // The size alone in its field; load index and symbol in their own (his admin item 9).
+            tyre_sizes: [{ text: '245/35 R19', min_load_index: 93, min_speed_symbol: 'Y', axle: 'REAR', codes: 'T88' }],
             notes: {},
         })
     })
@@ -157,7 +158,7 @@ describe('the row as the server reads it', () => {
     it('keeps a minimum load index without a symbol when a row is changed', () => {
         const row = { tyreSizes: [{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL', label: '', codes: [] }], conditions: [], entryOverride: null, entryOverrideReason: '' } as unknown as FitmentRowView
 
-        expect(formFromRow(row).tyre_sizes[0]?.text).toBe('245/35 R19 93')
+        expect(formFromRow(row).tyre_sizes[0]).toMatchObject({ text: '245/35 R19', min_load_index: 93, min_speed_symbol: '' })
         expect(payload(formFromRow(row)).tyre_sizes).toEqual([{ width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: '', axle: 'ALL', kw_min: null, kw_max: null, codes: [] }])
     })
 
@@ -166,6 +167,60 @@ describe('the row as the server reads it', () => {
         form.tyre_sizes = [size(''), size('225/40 R18'), size('225/40 ZR18')]
 
         expect([0, 1, 2].map((i) => sentIndex(form, i))).toEqual([null, 0, 1])
+    })
+})
+
+// His admin item 9: „separate fields for load index and speed index instead of it being in one field“.
+describe('the minimum in two fields of its own — load index and speed symbol', () => {
+    it('settles a size pasted as the PDF prints it into its three fields, reading past XL @admin-209', () => {
+        expect(settleSize(size('245/35 R19 93Y'))).toEqual([{ ...size('245/35 R19'), min_load_index: 93, min_speed_symbol: 'Y' }])
+        expect(settleSize(size('245/35 ZR19 (93Y) XL'))).toEqual([{ ...size('245/35 R19'), min_load_index: 93, min_speed_symbol: 'Y' }])
+        expect(settleSize(size('245/35 R19 93'))).toEqual([{ ...size('245/35 R19'), min_load_index: 93, min_speed_symbol: '' }])
+    })
+
+    it('splits a load index typed with its symbol into the two fields, and leaves a symbol the table does not know @admin-209', () => {
+        expect(settleSize({ ...size('245/35 R19'), min_load_index: ' 93y ' })).toEqual([{ ...size('245/35 R19'), min_load_index: 93, min_speed_symbol: 'Y' }])
+        expect(settleSize({ ...size('245/35 R19'), min_load_index: '93X' })).toEqual([{ ...size('245/35 R19'), min_load_index: '93X' }])
+    })
+
+    it('keeps what the two fields hold where the size is typed without a minimum, and an unreadable size as typed', () => {
+        const typed = { ...size('245/35 R19'), min_load_index: '93', min_speed_symbol: 'Y' }
+
+        expect(settleSize(typed)).toEqual([typed])
+        expect(settleSize(size('245/35 19'))).toEqual([size('245/35 19')])
+    })
+
+    it('makes a front-and-rear pair pasted into one field two lines, front and rear, each with its minimum @admin-209', () => {
+        const pasted = { ...size('225/40 R18 92Y / 255/35 R18 94Y', 'ALL', 'A01'), kw: '85-195' }
+
+        expect(settleSize(pasted)).toEqual([
+            { ...pasted, text: '225/40 R18', axle: 'FRONT', min_load_index: 92, min_speed_symbol: 'Y' },
+            { ...pasted, text: '255/35 R18', axle: 'REAR', min_load_index: 94, min_speed_symbol: 'Y' },
+        ])
+
+        const form = emptyRow()
+        form.tyre_sizes = [size('225/40 R18 92Y; 255/35 R18 94Y')]
+        settleSizes(form)
+
+        expect(form.tyre_sizes.map((s) => [s.text, s.axle])).toEqual([['225/40 R18', 'FRONT'], ['255/35 R18', 'REAR']])
+    })
+
+    it('sends the minimum from its own fields — typed as text, read as a number — and drops nothing it cannot read @admin-209', () => {
+        const form = emptyRow()
+        form.tyre_sizes = [{ ...size('245/35 R19'), min_load_index: ' 93 ', min_speed_symbol: 'y' }, { ...size('245/40 R19'), min_load_index: '9x' }]
+
+        expect(unreadable(form)).toEqual([1])
+
+        form.tyre_sizes[1]!.min_load_index = ''
+        expect(payload(form).tyre_sizes).toMatchObject([
+            { width_mm: 245, aspect: 35, diameter: 19, min_load_index: 93, min_speed_symbol: 'Y' },
+            { width_mm: 245, aspect: 40, diameter: 19, min_load_index: null, min_speed_symbol: '' },
+        ])
+        expect([loadIndex(''), loadIndex(null), loadIndex(91), loadIndex('105'), loadIndex('1050'), loadIndex('Y')]).toEqual([null, null, 91, 105, undefined, undefined])
+    })
+
+    it('offers the symbols of the server\'s table, slowest first', () => {
+        expect(SPEED_SYMBOLS).toEqual(['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'])
     })
 })
 

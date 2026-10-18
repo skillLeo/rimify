@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**79 sentences: 1 open, 22 backed by a recorded field, 54 about the shop itself, 2 not sentences.**
+**78 sentences: 1 open, 22 backed by a recorded field, 53 about the shop itself, 2 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -91,8 +91,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben.“ | admin | `Services/Admin/Approvals/DocumentRelease.php` | the state of a record: only a released one can be taken back (D-225) |
 | „Ein Nachtrag ohne eigene Angabe übernimmt es, sobald sein Grundgutachten freigegeben ist.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | a rule of the record |
 | „}: Buchstaben und Ziffern, höchstens 32 Zeichen, so wie im Gutachten.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
-| „Den kW-Bereich, den das Gutachten neben die Größe druckt, trägst du daneben ein – 85-195; nur für diese Leistung gilt die Größe.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering a kW band |
-| „Codes, die das Gutachten nur bei dieser Größe druckt, stehen dahinter.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
+| „Codes, die das Gutachten nur bei dieser Größe druckt, trägst du ins Feld für die Codes ein.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
 | „Die Zeile bleibt „Noch nicht bestätigt“ und das Gutachten nicht freigebbar, bis der Code dort steht.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | a rule of the release |
 | „Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern.“ | admin | `Pages/Admin/Gutachten/Show.vue` | R-12's neighbour: a released record is not edited; a correction is a new revision (D-250) |
 | „Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten.“ | admin | `Services/Admin/Approvals/DocumentRevision.php` | a rule of the record: a revision is started from the released one (D-250) |
