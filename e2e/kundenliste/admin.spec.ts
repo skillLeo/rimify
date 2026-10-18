@@ -196,3 +196,74 @@ test('the Blog lists every published article, for every visitor — two guides, 
 
     await shotAround(page, [main.getByRole('heading', { level: 1 }), articles.last()], 212, info)
 })
+
+/**
+ * A run's own key numbers: the two widths share one shop, and a car's key (HSN, TSN, variant) must be new on every run,
+ * or the twin check (and the import's idempotence) would rightly turn the second run away. The variant carries the stamp.
+ */
+function runKeys(info: { project: { name: string } }): { tsn: string; stamp: string } {
+    const stamp = Date.now().toString(36).toUpperCase()
+
+    return { tsn: `${info.project.name.includes('390') ? 'M' : 'D'}${stamp.slice(-2)}`, stamp }
+}
+
+test('a car typed from its papers: each field by its number there, stored as checked by hand @admin-201 @admin-203', async ({ page }, info) => {
+    const { tsn, stamp } = runKeys(info)
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/fahrzeuge/neu`, { waitUntil: 'networkidle' })
+
+    const form = page.locator('form.fn-form')
+    await expect(page.locator('label[for="fn-hsn"]')).toContainText('2.1')
+    await expect(page.locator('label[for="fn-eg"] .fn-field')).toHaveText('(Feld K)')
+
+    await page.fill('#fn-make', 'Beispielmarke')
+    await page.fill('#fn-model', 'Muster (BM1)')
+    await page.fill('#fn-variant', `1.6 Limousine ${stamp}`)
+    await page.fill('#fn-type', 'BM1')
+    await page.fill('#fn-hsn', '0000')
+    await page.fill('#fn-tsn', tsn)
+    await page.fill('#fn-eg', 'e1*2007/46*0001*00')
+    await page.fill('#fn-kw', '85')
+    await page.fill('#fn-from', '03.2015')
+    await shotAround(page, [page.locator('#fn-h-keys').locator('..')], 203, info)
+
+    // Without the axle loads the form says first what that costs; saved only on yes.
+    await form.getByRole('button', { name: 'Fahrzeug anlegen' }).click()
+    const warning = page.getByRole('dialog')
+    await expect(warning).toContainText('Ohne die Achslasten aus den Feldern 8.1 und 8.2')
+    await shotAround(page, [warning], 201, info)
+    await warning.getByRole('button', { name: 'Ohne Achslasten anlegen' }).click()
+
+    await page.waitForURL(/\/admin\/fahrzeuge\/\d+$/)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Beispielmarke')
+})
+
+test('a vehicle dataset: the Probelauf counts before anything is written, then the import @admin-202', async ({ page }, info) => {
+    const { tsn, stamp } = runKeys(info)
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/fahrzeuge/import`, { waitUntil: 'networkidle' })
+
+    const csv = [
+        'HSN;TSN;Hersteller;Handelsname;Variante;Fahrzeugtyp;EG-Nummer;Leistung kW;Baubeginn;Bauende;Achslast vorn kg;Achslast hinten kg;Höchstgeschwindigkeit km/h',
+        `0000;${tsn};Beispielmarke;Muster;2.0 Kombi ${stamp};BM2;e1*2007/46*0002*00;110;06.2016;;1.050;1.120;225`,
+        `0000;${tsn};Beispielmarke;Muster;2.0 Coupé ${stamp};BM2;e1*2007/46*0002*01;110;06.2016;;;;`,
+        ';;Beispielmarke;Muster;ohne Schlüsselnummern;BM2;;;;;;;',
+    ].join('\n')
+
+    await page.setInputFiles('#fi-file', { name: `fahrzeuge-${stamp.toLowerCase()}.csv`, mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') })
+    await page.selectOption('#fi-source', 'import_kba')
+    await page.getByRole('button', { name: 'Probelauf starten' }).click()
+    await page.waitForURL(/\/admin\/fahrzeuge\/import\/\d+$/)
+
+    // Counted, nothing written: two new, one refused for want of key numbers.
+    const counts = page.locator('.fr-counts')
+    const count = (label: string) => counts.locator('.fr-count').filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) }).locator('dd')
+    await expect(count('Neue Fahrzeuge')).toHaveText('2')
+    await expect(count('Abgelehnt')).toHaveText('1')
+    await expect(page.locator('.fr-rows')).toContainText('HSN oder TSN fehlt oder ist nicht lesbar')
+    await shotAround(page, [counts, page.locator('.fr-rows')], 202, info)
+
+    await page.getByRole('button', { name: 'Importieren' }).first().click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Importieren' }).click()
+    await expect(page.locator('.fr-state')).toContainText('Importiert am')
+})

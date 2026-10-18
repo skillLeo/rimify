@@ -286,7 +286,7 @@ it('refuses to apply a Probelauf the catalogue has moved away from', function ()
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$first->id}/importieren")->assertSessionHasNoErrors();
 
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$second->id}/importieren")
-        ->assertSessionHasErrors(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Mach bitte einen neuen Probelauf, bevor du importierst.']);
+        ->assertSessionHasErrors(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.']);
 
     expect(WheelConfig::query()->count())->toBe(2);
 });

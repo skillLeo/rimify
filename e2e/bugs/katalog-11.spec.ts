@@ -22,7 +22,7 @@ test.skip(({ isMobile }) => isMobile, 'The same page at every width; run once, a
 
 const RUN_ID = 987654321;
 const RUN_URL = `/admin/katalog/import/${RUN_ID}`;
-const REFUSAL = 'Der Katalog hat sich seit dem Probelauf geändert. Mach bitte einen neuen Probelauf, bevor du importierst.';
+const REFUSAL = 'Der Katalog hat sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.';
 
 const run = {
     id: RUN_ID,

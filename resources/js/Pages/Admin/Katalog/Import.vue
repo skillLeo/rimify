@@ -87,7 +87,12 @@ function counts(run: ImportRunRow): string {
         parts.push(`${decimal(s.refused, 0)} abgelehnt`)
     }
 
-    return parts.length ? parts.join(' · ') : 'Zuordnung unvollständig'
+    // An empty summary is a run whose columns are not all mapped; a counted one with nothing to bring in says so.
+    if (parts.length > 0) {
+        return parts.join(' · ')
+    }
+
+    return Object.keys(s).length === 0 ? 'Zuordnung unvollständig' : 'Nichts zu importieren'
 }
 
 const required = props.fields.filter((field) => field.required)

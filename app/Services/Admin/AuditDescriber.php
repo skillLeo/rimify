@@ -174,6 +174,8 @@ final class AuditDescriber
         'vehicle.created_from_document' => 'fahrzeuge',
         'vehicle.merged_from_dataset' => 'fahrzeuge',
         'vehicle.merge_applied' => 'fahrzeuge',
+        'vehicle.created_manually' => 'fahrzeuge',
+        'vehicle.import_applied' => 'fahrzeuge',
     ];
 
     /**
@@ -549,11 +551,38 @@ final class AuditDescriber
                     .(($p['complete'] ?? false) === true ? '; das Fahrzeug ist vollständig.' : '; es fehlen noch Angaben.'),
                 [],
             ],
+            'vehicle.created_manually' => [
+                'Das Fahrzeug '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurde von Hand aus den Fahrzeugpapieren angelegt, mit der EG-Typgenehmigungsnummer '
+                    .self::q(self::text($p, 'eg') ?? '–').(($p['complete'] ?? false) === true ? '; es ist vollständig.' : '; es fehlen noch Angaben.'),
+                [],
+            ],
+            'vehicle.import_applied' => [self::vehicleImport($p), []],
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /**
+     * A vehicle dataset imported (D-297): the file, and each count that is not nought — what came in new, what its own
+     * source updated, what it completed, and what it refused.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function vehicleImport(array $p): string
+    {
+        $summary = self::map($p, 'summary');
+        $n = static fn (string $key): int => is_numeric($summary[$key] ?? null) ? (int) $summary[$key] : 0;
+        $parts = array_filter([
+            $n('create') > 0 ? self::count($n('create'), 'Fahrzeug neu', 'Fahrzeuge neu') : null,
+            $n('update') > 0 ? GermanFormat::integer($n('update')).' geändert' : null,
+            $n('merge') > 0 ? GermanFormat::integer($n('merge')).' ergänzt' : null,
+            $n('refused') > 0 ? GermanFormat::integer($n('refused')).' abgelehnt' : null,
+        ]);
+
+        return 'Der Fahrzeugdatensatz '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde importiert'
+            .($parts === [] ? '.' : ': '.implode(', ', $parts).'.');
     }
 
     /** @param  array<array-key, mixed>  $p */

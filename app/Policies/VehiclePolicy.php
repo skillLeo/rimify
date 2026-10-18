@@ -27,6 +27,12 @@ final class VehiclePolicy
         return $user->may(PermissionModule::Vehicles, PermissionAction::Edit);
     }
 
+    /** A car typed by hand from its papers (his admin items 1 and 3, D-296). */
+    public function create(AdminUser $user): bool
+    {
+        return $user->may(PermissionModule::Vehicles, PermissionAction::Create);
+    }
+
     /**
      * A customer's own papers for this car (Block C, item 10): anyone may type them — a guest too, there
      * are no customer accounts yet — for a car the shop still offers. They are kept in the customer's

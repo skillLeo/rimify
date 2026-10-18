@@ -91,8 +91,9 @@ final class ResetTables
         'fitment_conflicts',
         'fitment_tyre_sizes',
         'fitment_tyre_size_conditions',
-        // The cars.
+        // The cars, and the vehicle datasets that brought them (D-297).
         'vehicles',
+        'vehicle_imports',
         // Orders, customers and everything that hangs off them.
         'customers',
         'customer_accounts',

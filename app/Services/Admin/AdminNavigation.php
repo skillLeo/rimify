@@ -130,6 +130,9 @@ final class AdminNavigation
             'pages' => [
                 ['label' => 'Fahrzeuge', 'href' => '/admin/fahrzeuge', 'icon' => 'vehicles'],
                 ['label' => 'Zur Prüfung', 'href' => '/admin/fahrzeuge/pruefung', 'icon' => 'review', 'count' => 'vehicles_review'],
+                // A vehicle dataset into the shop (D-297): the importer's own right, as the catalogue's Import. A table, so
+                // the collapsed rail tells the two imports apart.
+                ['label' => 'Import', 'href' => '/admin/fahrzeuge/import', 'icon' => 'table', 'module' => PermissionModule::Imports->value],
             ],
         ],
         [
@@ -226,6 +229,7 @@ final class AdminNavigation
         '/admin/konflikte',
         '/admin/fahrzeuge',
         '/admin/fahrzeuge/pruefung',
+        '/admin/fahrzeuge/import',
         '/admin/abdeckung',
         '/admin/bestellungen',
         '/admin/rueckbuchungen',
@@ -475,7 +479,10 @@ final class AdminNavigation
         }
 
         // One record beneath a rail page (/admin/seiten/7): the page becomes the way back, and the
-        // record — named by its controller (RECORD) — is where the reader is.
+        // record — named by its controller (RECORD) — is where the reader is. The nearest page wins:
+        // /admin/fahrzeuge/import/3 lies beneath Import, not beneath Fahrzeuge.
+        $nearest = null;
+
         foreach ($tree as $group) {
             /** @var list<array{label: string, href: string}> $pages */
             $pages = $group['pages'];
@@ -485,23 +492,30 @@ final class AdminNavigation
                     continue;
                 }
 
-                $crumbs = [
-                    ['label' => (string) $group['label'], 'href' => null],
-                    // An item whose pages are tabs has no page of its own — its address only leads to
-                    // the first tab — so its crumb is a label, like the group's.
-                    ['label' => $page['label'], 'href' => in_array($page['href'], self::TABBED, true) ? null : $page['href']],
-                ];
-
-                if ($page['label'] === $group['label']) {
-                    array_shift($crumbs);
+                if ($nearest === null || strlen($page['href']) > strlen($nearest['page']['href'])) {
+                    $nearest = ['group' => (string) $group['label'], 'page' => $page];
                 }
-
-                if ($record !== null && $record !== '') {
-                    $crumbs[] = ['label' => $record, 'href' => null];
-                }
-
-                return $crumbs;
             }
+        }
+
+        if ($nearest !== null) {
+            $page = $nearest['page'];
+            $crumbs = [
+                ['label' => $nearest['group'], 'href' => null],
+                // An item whose pages are tabs has no page of its own — its address only leads to
+                // the first tab — so its crumb is a label, like the group's.
+                ['label' => $page['label'], 'href' => in_array($page['href'], self::TABBED, true) ? null : $page['href']],
+            ];
+
+            if ($page['label'] === $nearest['group']) {
+                array_shift($crumbs);
+            }
+
+            if ($record !== null && $record !== '') {
+                $crumbs[] = ['label' => $record, 'href' => null];
+            }
+
+            return $crumbs;
         }
 
         if (isset(self::OFF_RAIL[$path])) {

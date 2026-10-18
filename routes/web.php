@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\EinladungController;
 use App\Http\Controllers\Admin\EmailController;
 use App\Http\Controllers\Admin\ErstattungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
+use App\Http\Controllers\Admin\FahrzeugImportController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenAngabenController;
@@ -375,6 +376,16 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/fahrzeuge/pruefung', [FahrzeugeController::class, 'review'])->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.pruefung');
         Route::get('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'show'])->whereNumber('vehicle')->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.show');
         Route::put('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'update'])->whereNumber('vehicle')->name('fahrzeuge.update');
+        // Fahrzeuge › Neues Fahrzeug (his admin items 1 and 3, D-296): a car typed from its papers, checked by hand.
+        Route::get('/fahrzeuge/neu', [FahrzeugeController::class, 'create'])->middleware(EnsureAdminMay::class.':vehicles,create')->name('fahrzeuge.create');
+        Route::post('/fahrzeuge', [FahrzeugeController::class, 'store'])->middleware('throttle:30,1,fahrzeuge-anlegen')->name('fahrzeuge.store');
+        // Fahrzeuge › Import (his admin item 2, D-297): a vehicle dataset in a Probelauf, then imported (VehicleImportPolicy).
+        Route::get('/fahrzeuge/import', [FahrzeugImportController::class, 'index'])->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.index');
+        Route::get('/fahrzeuge/import/beispiel.csv', [FahrzeugImportController::class, 'sample'])->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.beispiel');
+        Route::post('/fahrzeuge/import/probelauf', [FahrzeugImportController::class, 'preview'])->middleware('throttle:20,1,fahrzeugimport-probelauf')->name('fahrzeugimport.probelauf');
+        Route::get('/fahrzeuge/import/{import}', [FahrzeugImportController::class, 'show'])->whereNumber('import')->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.show');
+        Route::post('/fahrzeuge/import/{import}/zuordnung', [FahrzeugImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1,fahrzeugimport-zuordnung')->name('fahrzeugimport.zuordnung');
+        Route::post('/fahrzeuge/import/{import}/importieren', [FahrzeugImportController::class, 'apply'])->whereNumber('import')->middleware('throttle:10,1,fahrzeugimport-importieren')->name('fahrzeugimport.importieren');
         // Team: roles and their rights, the accounts that hold them, and the record of every change
         // (docs/admin/team-build-plan.md). Each write is refused on the server by its Form Request.
         Route::get('/rollen', [RollenController::class, 'index'])

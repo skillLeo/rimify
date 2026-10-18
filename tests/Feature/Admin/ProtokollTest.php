@@ -645,6 +645,16 @@ describe('putting every entry into words', function (): void {
                 'Die Achslasten und die Höchstgeschwindigkeit von „BMW 3er Limousine“ wurden eingetragen; das Fahrzeug ist vollständig.',
                 [],
             ],
+            'vehicle.created_manually' => [
+                ['vehicle' => 'Beispielmarke Muster 1.6 Limousine · HSN 0000 · TSN AAA', 'eg' => 'e1*2007/46*0001*00', 'complete' => false],
+                'Das Fahrzeug „Beispielmarke Muster 1.6 Limousine · HSN 0000 · TSN AAA“ wurde von Hand aus den Fahrzeugpapieren angelegt, mit der EG-Typgenehmigungsnummer „e1*2007/46*0001*00“; es fehlen noch Angaben.',
+                [],
+            ],
+            'vehicle.import_applied' => [
+                ['file' => 'fahrzeuge.csv', 'source' => 'import_kba', 'summary' => ['create' => 2, 'update' => 0, 'unchanged' => 4, 'merge' => 1, 'kept' => 3, 'refused' => 1, 'unread' => 1]],
+                'Der Fahrzeugdatensatz „fahrzeuge.csv“ wurde importiert: 2 Fahrzeuge neu, 1 ergänzt, 1 abgelehnt.',
+                [],
+            ],
             'order.shipped' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Bestellung „RMF-2026-1001“ wurde als versendet markiert, Sendungsnummer „00340434 1234“.', []],
             'order.delivered' => [['order' => 'RMF-2026-1001'], 'Die Bestellung „RMF-2026-1001“ wurde als zugestellt markiert. Einige Tage danach lädt der Shop zur Bewertung ein.', []],
             'order.test_stock_returned' => [

@@ -25,9 +25,12 @@ class VehicleRequest extends FormRequest
             return false;
         }
 
-        return $this->step() === 'update'
-            ? $vehicle instanceof Vehicle && $user->can('update', $vehicle)
-            : $user->can('viewAny', Vehicle::class);
+        return match ($this->step()) {
+            'update' => $vehicle instanceof Vehicle && $user->can('update', $vehicle),
+            // The form to type a car from its papers (D-296); the car itself is sent through ManualVehicleRequest.
+            'create' => $user->can('create', Vehicle::class),
+            default => $user->can('viewAny', Vehicle::class),
+        };
     }
 
     /** `1.200` is how a German writes 1200 kg: the thousands dot and spaces are read past. */

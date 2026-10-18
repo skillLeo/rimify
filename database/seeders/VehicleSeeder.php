@@ -42,15 +42,18 @@ class VehicleSeeder extends Seeder
         // checked cars there, as its wheels stand for published ones. Never outside a test run.
         $shop = CatalogueSeeder::$shopFixture && app()->runningUnitTests();
 
+        $source = $shop ? VehicleSource::ManuellGeprueft->value : self::SOURCE;
+
         foreach ([...self::VEHICLES, ...$this->fleet()] as $vehicle) {
             // Born demo (R-12's rule of birth), so demo:purge and demo:assert-clean see it; a car the
-            // purge hid (R-04: soft-deleted, never removed) comes back on the next seed.
+            // purge hid (R-04: soft-deleted, never removed) comes back on the next seed. A number is unique
+            // within its source only (uq_vehicle_source_number): an imported car with the same one is another car.
             Vehicle::withTrashed()->updateOrCreate(
-                ['source_vehicle_id' => $vehicle['source_vehicle_id']],
+                ['source' => $source, 'source_vehicle_id' => $vehicle['source_vehicle_id']],
                 $vehicle + [
                     'raw' => $vehicle,
                     'imported_at' => now(),
-                    'source' => $shop ? VehicleSource::ManuellGeprueft->value : self::SOURCE,
+                    'source' => $source,
                     'is_demo' => ! $shop,
                     'demo_ref' => $shop ? null : 'demo:vehicle:'.$vehicle['source_vehicle_id'],
                 ],

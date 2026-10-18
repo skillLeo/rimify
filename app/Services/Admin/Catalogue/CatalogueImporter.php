@@ -296,7 +296,7 @@ final class CatalogueImporter
     public function apply(CatalogueImport $import, AdminUser $admin): CatalogueImport
     {
         if (self::missing($import->mapping, $import->source['headers']) !== []) {
-            throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und mach den Probelauf.']);
+            throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und wähl „Neu prüfen“.']);
         }
 
         if ((int) ($import->summary['create'] ?? 0) + (int) ($import->summary['update'] ?? 0) === 0) {
@@ -306,7 +306,7 @@ final class CatalogueImporter
         [$plan] = $this->plan($import->rows);
 
         if (self::fingerprint($plan) !== self::fingerprint($import->plan)) {
-            throw ValidationException::withMessages(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Mach bitte einen neuen Probelauf, bevor du importierst.']);
+            throw ValidationException::withMessages(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.']);
         }
 
         return DB::transaction(function () use ($import, $plan, $admin): CatalogueImport {
