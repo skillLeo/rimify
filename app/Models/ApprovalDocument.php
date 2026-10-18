@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Approval\SupersedeChain;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
+use App\Enums\TyreIndexSource;
 use App\Events\ApprovalDocumentPublished;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -40,6 +41,7 @@ use LogicException;
  * @property CarbonImmutable|null $valid_from_production the first day of the month a wheel must be made from
  * @property bool|null $papers_correction_required § 15 FZV: false = no correction of the papers; null = not said
  * @property string|null $missing_annexes the Anlagen or ranges of its Verwendungsbereich we do not hold („1–15“)
+ * @property TyreIndexSource|null $tyre_index_source how it gives its tyres' load index and speed symbol; null = not answered (D-277)
  * @property string|null $completeness complete | partial | unknown, asserted at release; null = not answered (D-227)
  * @property int|null $completeness_by
  * @property CarbonImmutable|null $completeness_at
@@ -77,7 +79,7 @@ class ApprovalDocument extends Model
         'revision', 'supersedes_id', 'valid_from', 'valid_to',
         'supplement_to_id', 'supplement_to_number', 'annex', 'test_report_number', 'copy_number',
         'designation_number', 'test_site', 'test_date', 'revision_date', 'valid_from_production',
-        'papers_correction_required', 'missing_annexes',
+        'papers_correction_required', 'missing_annexes', 'tyre_index_source',
         'completeness', 'completeness_by', 'completeness_at', 'completeness_revision',
         'pdf_key', 'pdf_sha256', 'page_count', 'status', 'created_by',
     ];
@@ -97,6 +99,7 @@ class ApprovalDocument extends Model
             'revision' => 'integer',
             'page_count' => 'integer',
             'papers_correction_required' => 'boolean',
+            'tyre_index_source' => TyreIndexSource::class,
             'completeness_at' => 'immutable_datetime',
             'completeness_revision' => 'integer',
             'counted_codes' => 'integer',

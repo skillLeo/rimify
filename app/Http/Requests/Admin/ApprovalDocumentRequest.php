@@ -6,6 +6,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
+use App\Enums\TyreIndexSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use Illuminate\Foundation\Http\FormRequest;
@@ -45,7 +46,7 @@ class ApprovalDocumentRequest extends FormRequest
             $this->merge([$key => is_string($value) ? trim($value) : $value]);
         }
 
-        foreach (['test_date', 'revision_date', 'supplement_to_id', 'papers_correction'] as $key) {
+        foreach (['test_date', 'revision_date', 'supplement_to_id', 'papers_correction', 'tyre_index_source'] as $key) {
             if ($this->input($key) === '') {
                 $this->merge([$key => null]);
             }
@@ -104,6 +105,8 @@ class ApprovalDocumentRequest extends FormRequest
             'papers_correction' => ['nullable', 'string', Rule::in(['not_required', 'required'])],
             // The Anlagen of its Verwendungsbereich we do not hold, as printed: „1–15“.
             'missing_annexes' => ['nullable', 'string', 'max:64'],
+            // How it gives its tyres' load index and speed symbol (D-277): saved open on a draft, asked before release.
+            'tyre_index_source' => ['nullable', 'string', Rule::in(TyreIndexSource::values())],
         ];
     }
 
@@ -136,6 +139,7 @@ class ApprovalDocumentRequest extends FormRequest
             'supersedes_id.*' => 'Ersetzt werden kann nur ein freigegebenes Dokument.',
             'papers_correction.*' => 'Bitte wähl, was das Dokument zur Berichtigung der Fahrzeugpapiere sagt.',
             'missing_annexes.max' => 'Die fehlenden Anlagen dürfen höchstens 64 Zeichen lang sein.',
+            'tyre_index_source.*' => 'Bitte wähl, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt.',
         ];
     }
 
@@ -201,6 +205,7 @@ class ApprovalDocumentRequest extends FormRequest
                 default => null,
             },
             'missing_annexes' => $text('missing_annexes'),
+            'tyre_index_source' => $text('tyre_index_source'),
         ];
     }
 

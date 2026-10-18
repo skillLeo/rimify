@@ -25,6 +25,8 @@ return [
                 'valid_from_production' => '2023-02-01',
                 'papers_correction_required' => null,
                 'missing_annexes' => null,
+                // Page 6: the papers, and its table of tyre load at speed — the stricter answer (D-277).
+                'tyre_index_source' => 'table',
                 'issuer' => 'TÜV Rheinland Kraftfahrt GmbH',
                 'issued_on' => '2023-11-29',
                 'revision' => 1,
@@ -1432,6 +1434,8 @@ return [
                 'valid_from_production' => '2021-02-01',
                 'papers_correction_required' => null,
                 'missing_annexes' => null,
+                // 10B, page 10: „… den Fahrzeugpapieren zu entnehmen“ (D-277).
+                'tyre_index_source' => 'papers',
                 'issuer' => 'TÜV AUSTRIA GMBH',
                 'issued_on' => null,
                 'revision' => 1,

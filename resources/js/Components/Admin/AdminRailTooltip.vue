@@ -4,8 +4,9 @@
  *
  * Until the page has hydrated a tooltip cannot open — nothing listens for the pointer yet — so the server renders the
  * item alone. reka-ui's tooltip is some ten components per item; for the rail's thirty items they were 60 % of the time
- * the server took to render an admin page (a CPU profile of the renderer, 17.10.2026). After mounting, the item is
- * drawn again inside its tooltip, with the same markup.
+ * the server took to render an admin page (a CPU profile of the renderer, 17.10.2026). Once the browser is idle after
+ * mounting, the item is drawn again inside its tooltip, with the same markup — not inside the task that hydrates the
+ * page, where they cost it about 150 ms (D-276).
  */
 import { TooltipContent, TooltipPortal, TooltipRoot, TooltipTrigger } from 'reka-ui'
 

@@ -76,9 +76,16 @@ describe('AdminRail tooltips', () => {
         expect(html).toContain('adm-rail__toggle')
     })
 
-    it('draws every item inside its tooltip once mounted, with the same link', async () => {
+    it('draws the items without their tooltips through hydration, and inside them once the browser is idle', async () => {
         const wrapper = mount(Shell)
         mounted.push(wrapper)
+        await nextTick()
+
+        // Mounted, not yet idle: the toggle's tooltip only (D-276).
+        expect(wrapper.findAll('[data-tooltip]')).toHaveLength(1)
+
+        // jsdom has no requestIdleCallback: the composable falls back to the next timer turn.
+        await new Promise((resolve) => setTimeout(resolve, 5))
         await nextTick()
 
         expect(wrapper.findAll('[data-tooltip]')).toHaveLength(4)

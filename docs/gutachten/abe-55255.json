@@ -16,12 +16,14 @@
   "designation_number": "KBA-P 00010-96",
   "test_site": "Lambsheim",
   "test_date": "2023-11-29",
-  "valid_from_production": "02.2023"
+  "valid_from_production": "02.2023",
+  "tyre_index_source": "table"
  },
  "read": [
   "Seite 1: Anlage 19 zum Prüfbericht Nr. 55051823 (1. Ausfertigung); PKW-Sonderrad 8.5JX19 H2 Typ DB8GT2-8519; LK120, 5/120/72,6, ET 35, Radlast 700 kg, Abrollumfang 2260 mm; Kennzeichnung „DB8GT2-8519 LK120 / ohne Ring“.",
   "Seite 12: „Die Verwendungsprüfung fand am 29. November 2023 in Lambsheim statt.“ Seite 13: „Lambsheim, 29. November 2023“; „gilt für Sonderräder ab Herstellungsdatum Februar 2023“; benannt unter KBA-P 00010-96.",
-  "Aussteller: der Technische Dienst der TÜV Rheinland Kraftfahrt GmbH (Seite 13). Ein Stand-Datum druckt das Gutachten nicht."
+  "Aussteller: der Technische Dienst der TÜV Rheinland Kraftfahrt GmbH (Seite 13). Ein Stand-Datum druckt das Gutachten nicht.",
+  "Lastindex und Geschwindigkeitssymbol (D-277): Seite 6 verweist auf die Fahrzeugpapiere („Die mindestens erforderlichen Geschwindigkeitsbereiche … sind den Fahrzeugpapieren … zu entnehmen. Abschläge der Tragfähigkeit aufgrund der Fahrzeughöchstgeschwindigkeit sind zu berücksichtigen.“) und druckt dazu die Tabelle der Tragfähigkeit bei hoher Geschwindigkeit, 210 bis 300 km/h für V, W und Y – eingetragen als „Tabelle“, die strengere der beiden Antworten."
  ],
  "conditions": [
   {

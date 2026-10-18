@@ -7,7 +7,7 @@
  */
 
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 import Icon from './Icon.vue'
 
 const props = withDefaults(
@@ -42,7 +42,18 @@ const emit = defineEmits<{ closeAutoFocus: [event: Event] }>()
  */
 let opener: HTMLElement | null = null
 
+/*
+ * Built the first time it opens, then kept. A dialog never opened costs nothing — the admin's frame carries several on
+ * every page (the palette, the keyboard help, a confirmation), each some ten of reka's components that hydration set up
+ * for nothing — and one opened once stays, so closing still plays out and hands the focus back (D-275).
+ */
+const opened = ref(open.value)
+
 watch(open, (value) => {
+    if (value) {
+        opened.value = true
+    }
+
     if (!value || typeof document === 'undefined') {
         return
     }
@@ -76,7 +87,7 @@ function onCloseAutoFocus(event: Event): void {
 </script>
 
 <template>
-    <DialogRoot v-model:open="open">
+    <DialogRoot v-if="opened" v-model:open="open">
         <DialogPortal>
             <DialogOverlay class="overlay" />
             <DialogContent

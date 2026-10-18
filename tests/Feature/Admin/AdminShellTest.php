@@ -461,3 +461,24 @@ describe('signing in', function (): void {
         expect(shellAdmin()->last_login_at)->not->toBeNull();
     });
 });
+
+it('builds the shell with the page, never for a partial reload, which does not carry it (D-281)', function (): void {
+    // Every query, by the request that ran it: the Übersicht, then its deferred charts.
+    $phase = 'page';
+    $ran = ['page' => [], 'reload' => []];
+    DB::listen(function ($query) use (&$phase, &$ran): void {
+        $ran[$phase][] = $query->sql;
+    });
+    // One of the rail's counts: the unread messages (AdminNavigation).
+    $rail = static fn (array $sql): array => array_values(array_filter($sql, static fn (string $s): bool => str_contains($s, 'from `contact_messages`')));
+
+    $this->actingAs(shellAdmin(), 'admin')->get('/admin')
+        ->assertInertia(function (AssertableInertia $page) use (&$phase): AssertableInertia {
+            $phase = 'reload';
+
+            return $page->has('admin.nav')->loadDeferredProps(fn (AssertableInertia $reload) => $reload->missing('admin')->has('charts'));
+        });
+
+    expect($rail($ran['page']))->not->toBe([])
+        ->and($rail($ran['reload']))->toBe([]);
+});

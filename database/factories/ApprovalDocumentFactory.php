@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
+use App\Enums\TyreIndexSource;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentSpeedDerating;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -40,7 +41,16 @@ class ApprovalDocumentFactory extends Factory
             'completeness' => ApprovalDocument::COMPLETE,
             'completeness_at' => now(),
             'completeness_revision' => 1,
+            // How it gives its tyres' index, read off it (D-277): the papers, the answer that asks the most of a car. A test
+            // about another answer, or about none, sets `tyreIndex()`.
+            'tyre_index_source' => TyreIndexSource::Papers->value,
         ];
+    }
+
+    /** How the document gives its tyres' load index and speed symbol; null = never answered (D-277). */
+    public function tyreIndex(?TyreIndexSource $source): static
+    {
+        return $this->state(fn (): array => ['tyre_index_source' => $source?->value]);
     }
 
     /** Released before the completeness question existed, or never answered: read as partial (D-227). */
