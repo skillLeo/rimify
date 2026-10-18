@@ -201,6 +201,9 @@ const VERDICT_TONE: Record<string, string> = {
 
                                 <!-- The papers, as the product page says them: per size where the sizes differ, a Komplettrad's tyre's. -->
                                 <p v-for="sentence in papersLines(line.verdict)" :key="sentence" class="bl__entry">{{ sentence }}</p>
+                                <!-- A rim sold alone (D-289): the sizes it may only be fitted with — ours, so said here in the open,
+                                     never counted among the Auflagen from the document below (R-17). -->
+                                <p v-if="line.verdict?.rimAloneNote" class="bl__entry" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
 
                                 <!-- Auflagen in full, never a badge on its own — each tyre size's with that size, a Komplettrad's
                                      for its tyre. Where they are a Gutachten's paragraphs they unfold in place (D-197): the

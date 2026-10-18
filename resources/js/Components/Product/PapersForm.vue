@@ -134,8 +134,9 @@ const rows = computed<Row[]>(() => {
         }
     }
 
+    // Beside fields the answer waits for, the one that is voluntary says so (the look review of D-291).
     if (props.powerKw == null) {
-        out.push({ kind: 'input', key: 'power_kw', label: 'P.2 · Leistung (erste Zahl)', unit: 'kW', required: false })
+        out.push({ kind: 'input', key: 'power_kw', label: asking ? 'P.2 · Leistung (erste Zahl, freiwillig)' : 'P.2 · Leistung (erste Zahl)', unit: 'kW', required: false })
     }
 
     return out
@@ -645,14 +646,11 @@ function clear(): void {
     padding-right: var(--sp-48);
 }
 
-/* A figure we know: the field's height and type, drawn flat on the band — shown, not asked (D-291). */
+/* A figure we know: plain text on the field's line, never a locked field — shown, not asked (D-291). */
 .pp__value {
     display: flex;
     align-items: center;
     min-height: 44px;
-    padding: 0 var(--sp-12);
-    border-radius: var(--r-control);
-    background: var(--c-band);
     font-variant-numeric: tabular-nums;
 }
 
@@ -721,9 +719,10 @@ function clear(): void {
 /* Only where the form is wide enough for „Höchstgeschwindigkeit“ in a third of it: three fields side by
    side, label, field and error each on one line across the three, however many lines a label takes. */
 @container (min-width: 560px) {
+    /* The rows of fields keep the grid's own gap between them; inside a field, its label, field and line keep theirs
+       (`.form-field`'s gap, which a subgrid uses for its own tracks). */
     .pp__grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        row-gap: var(--sp-4);
     }
 
     .pp__grid .form-field {

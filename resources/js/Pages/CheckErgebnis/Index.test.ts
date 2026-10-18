@@ -99,7 +99,7 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
         expect(wrapper.findAll('.res__sum li').map((li) => li.text())).toEqual(lines)
         // No disclosure on paper: nothing is folded.
         expect(wrapper.find('details').exists()).toBe(false)
-        expect(wrapper.text()).toContain('8.1 1.210 kg · 8.2 1.235 kg · T 280 km/h')
+        expect(wrapper.text()).toContain('8.1 1.210 kg · 8.2 1.235 kg · T 280 km/h')
         expect(wrapper.text()).toContain('Deine Angaben aus den Fahrzeugpapieren haben die Antwort strenger gemacht.')
         expect(wrapper.find('.res__actions button').text()).toBe('Drucken')
     })
@@ -129,7 +129,7 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
         const wrapper = mountResult('PERMITTED', { papers: { axleFrontKg: null, axleRearKg: null, topSpeedKmh: 250 } })
         const facts = wrapper.findAll('.res__facts > div').map((row) => [row.find('dt').text(), row.find('dd').text()])
 
-        expect(facts).toContainEqual(['Deine Angaben', 'T 250 km/h'])
+        expect(facts).toContainEqual(['Deine Angaben', 'T 250 km/h'])
         expect(wrapper.text()).not.toContain('8.1')
     })
 

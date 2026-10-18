@@ -161,12 +161,20 @@ it('sells the rim alone while only the tyres wait for the papers — never where
         ->and($rim?->wheelStatus)->toBe(VerdictStatus::Permitted)
         ->and($rim?->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($rim?->rimAlone)->toBeTrue()
-        ->and(collect($rim->conditions ?? [])->firstWhere('code', FitmentVerdict::RIM_ALONE)?->sentenceDe())
+        // Ours, beside the document's Auflagen and never among them (R-17).
+        ->and($rim?->conditions)->toEqual($free->conditions)
+        ->and($rim?->rimAloneNoteDe)
         ->toBe('Die Felge ist für dein Fahrzeug nur mit Reifen der Größe 225/40 R19 zulässig. Welche Reifen dein Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung fehlten uns die Felder 8.1, 8.2 und T deiner Zulassungsbescheinigung Teil I.');
 
-    // Frozen and read back as it was.
+    // Frozen and read back as it was, word for word.
     $restored = FitmentVerdict::fromArray($rim?->toArray() ?? []);
-    expect($restored->rimAlone)->toBeTrue()->and($restored->status)->toBe(VerdictStatus::Conditional);
+    expect($restored->rimAlone)->toBeTrue()
+        ->and($restored->status)->toBe(VerdictStatus::Conditional)
+        ->and($restored->rimAloneNoteDe)->toBe($rim?->rimAloneNoteDe);
+
+    // One field missing: named alone.
+    expect(decideFor(bmw4er3C(1100, 1100), [tCode(88, 1120)])->forRimAlone()?->rimAloneNoteDe)
+        ->toEndWith('Bei der Prüfung fehlte uns Feld T deiner Zulassungsbescheinigung Teil I.');
 
     // The document limits the axle load — declared at release, or an Auflage naming a load and no index: nothing sells.
     $declared = decideFor(bmw4er3C(), [tCode(88, 1120)], axleLimitKg: 1160);

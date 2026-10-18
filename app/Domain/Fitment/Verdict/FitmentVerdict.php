@@ -109,15 +109,18 @@ final readonly class FitmentVerdict
         public bool $sellsAlone = false,
         /** This is the answer for the rim sold alone (`forRimAlone()`), as an order line freezes it. */
         public bool $rimAlone = false,
+        /**
+         * The rim alone's own sentence: the sizes it may only be fitted with, and why the tyres stayed unconfirmed. Ours,
+         * not the document's — so never among the Auflagen „aus dem Gutachten“ (R-17) —, carried as shown, as the labels
+         * are, so the frozen order line says it word for word.
+         */
+        public ?string $rimAloneNoteDe = null,
     ) {}
-
-    /** Our own Auflage on a rim sold alone: the tyre sizes it may only be fitted with (D-289). */
-    public const RIM_ALONE = 'NUR-FELGE';
 
     /**
      * The answer for the rim sold alone, where it may be (`sellsAlone`, D-289): the wheel's own verdict — its Eintragung
-     * and its Auflagen —, never PERMITTED while the tyres are unconfirmed (R-03), with one more Auflage of our own: the
-     * sizes the document gives this car, which the rim may only be fitted with. The tyres' half stays as it is,
+     * and its Auflagen —, never PERMITTED while the tyres are unconfirmed (R-03), with a sentence of our own beside it:
+     * the sizes the document gives this car, which the rim may only be fitted with. The tyres' half stays as it is,
      * unconfirmed, and is frozen so. Null where the rim may not be sold alone.
      */
     public function forRimAlone(): ?self
@@ -126,13 +129,6 @@ final readonly class FitmentVerdict
             return null;
         }
 
-        $only = new Condition(
-            code: self::RIM_ALONE,
-            severity: Severity::Action,
-            textDe: $this->rimAloneSentence(),
-            affectsTyreChoice: true,
-        );
-
         return new self(
             status: VerdictStatus::weaker($this->wheelStatus, VerdictStatus::Conditional),
             vehicle: $this->vehicle,
@@ -140,7 +136,7 @@ final readonly class FitmentVerdict
             document: $this->document,
             requiresEntry: $this->requiresEntry,
             entryNoteDe: $this->entryNoteDe,
-            conditions: Condition::union($this->conditions, [$only]),
+            conditions: $this->conditions,
             front: $this->front,
             rear: $this->rear,
             reason: null,
@@ -155,9 +151,10 @@ final readonly class FitmentVerdict
             wheelStatus: $this->wheelStatus,
             tyre: $this->tyre,
             missingFacts: $this->missingFacts,
-            combinationConditions: Condition::union($this->combinationConditions ?? [], [$only]),
+            combinationConditions: $this->combinationConditions,
             sellsAlone: true,
             rimAlone: true,
+            rimAloneNoteDe: $this->rimAloneSentence(),
         );
     }
 
@@ -249,6 +246,7 @@ final readonly class FitmentVerdict
             combinationConditions: $this->combinationConditions,
             sellsAlone: $this->sellsAlone,
             rimAlone: $this->rimAlone,
+            rimAloneNoteDe: $this->rimAloneNoteDe,
         );
     }
 
@@ -411,6 +409,7 @@ final readonly class FitmentVerdict
             // Additive (D-289): the rim may be sold alone, and this is the answer for it — an order line says which it was.
             ...($this->sellsAlone ? ['sellsAlone' => true] : []),
             ...($this->rimAlone ? ['rimAlone' => true] : []),
+            ...($this->rimAloneNoteDe === null ? [] : ['rimAloneNote' => $this->rimAloneNoteDe]),
         ];
     }
 
@@ -516,6 +515,7 @@ final readonly class FitmentVerdict
                 : null,
             sellsAlone: ($data['sellsAlone'] ?? false) === true,
             rimAlone: ($data['rimAlone'] ?? false) === true,
+            rimAloneNoteDe: is_string($data['rimAloneNote'] ?? null) ? $data['rimAloneNote'] : null,
         );
     }
 

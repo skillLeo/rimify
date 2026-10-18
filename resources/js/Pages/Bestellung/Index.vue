@@ -344,6 +344,8 @@ function openAccount(): void {
                                     {{ entryLine(true, line.verdict.papersExempt === true) }}
                                 </p>
                                 <p v-if="line.verdict.papersExempt" class="ord__entry">{{ PAPERS_EXEMPT }}</p>
+                                <!-- A rim sold alone (D-289): the sizes it may only be fitted with, as said at the purchase — ours. -->
+                                <p v-if="line.verdict.rimAloneNote" class="ord__entry" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
                                 <!-- As the customer read them at the purchase: each tyre size's Auflagen with that size. -->
                                 <ConditionGroups v-if="line.verdict.conditionGroups && line.conditions.length" class="ord__groups" :groups="line.verdict.conditionGroups" />
                                 <ul v-else-if="line.conditions.length" class="ord__conditions">

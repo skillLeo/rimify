@@ -793,6 +793,8 @@ export interface BestellungProps {
             detail: Record<string, unknown>
             /** The Auflagen as the customer read them (ConditionGroups); null where the snapshot cannot be read. Additive. */
             conditionGroups?: ConditionGroupsView | null
+            /** A rim sold alone (D-289): our own sentence as shown at the purchase, never among the Auflagen. Additive. */
+            rimAloneNote?: string | null
         } | null
     }[]
     /** Where the payment stands; null on a seeded order. Only the provider's webhook ever makes it `paid`. */

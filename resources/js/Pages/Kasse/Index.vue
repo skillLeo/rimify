@@ -777,6 +777,8 @@ function verdictSentence(line: BasketLine): string {
                                     <!-- The verdict in one sentence on every step; its Auflagen one tap away, in full (R-15). -->
                                     <template v-if="line.verdict">
                                         <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
+                                        <!-- A rim sold alone (D-289): the sizes it may only be fitted with, ours — in the open, not in the Auflagen. -->
+                                        <p v-if="line.verdict.rimAloneNote" class="ko__rim" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
                                         <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                             <summary>Auflagen lesen</summary>
                                             <!-- Each tyre size's Auflagen with that size; a Komplettrad's for its tyre (ConditionGroups). -->
@@ -1313,6 +1315,7 @@ function verdictSentence(line: BasketLine): string {
                                             </p>
                                             <template v-if="line.verdict">
                                                 <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
+                                                <p v-if="line.verdict.rimAloneNote" class="ko__rim" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
                                                 <details v-if="line.verdict.conditions.length" class="ko__auflagen">
                                                     <summary>Auflagen lesen</summary>
                                                     <ConditionGroups v-if="line.verdict.conditionGroups" class="ko__groups" :groups="line.verdict.conditionGroups" />
@@ -1527,6 +1530,13 @@ function verdictSentence(line: BasketLine): string {
 .ko__auflagen {
     margin-top: var(--space-1);
     font-size: var(--text-small);
+}
+
+/* A rim sold alone: the sizes it may only be fitted with, under the verdict's sentence, in its size. */
+.ko__rim {
+    margin: var(--space-1) 0 0;
+    font-size: var(--text-small);
+    color: var(--ink);
 }
 
 .ko__auflagen summary {

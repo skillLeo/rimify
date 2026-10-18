@@ -106,4 +106,25 @@ describe('Warenkorb', () => {
         expect(go.exists()).toBe(true)
         expect(go.attributes('href')).toBe('/kasse')
     })
+
+    // D-289 and R-17: a rim sold alone says the sizes it may only be fitted with in the open, in our words — never folded
+    // away, never counted among the Auflagen from the document.
+    it('says the rim-alone sentence in the open, apart from the Auflagen from the document', () => {
+        const note = 'Die Felge ist für dein Fahrzeug nur mit Reifen der Größe 235/45 R19 zulässig. Welche Reifen dein Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung fehlte uns Feld T deiner Zulassungsbescheinigung Teil I.'
+        const wrapper = mountBasket({
+            lines: [line({
+                demo: false,
+                verdict: {
+                    status: 'CONDITIONAL', label: 'Freigegeben mit Auflagen', sellable: true, requiresEntry: false,
+                    conditions: ['Nur mit den angegebenen Radschrauben zulässig.'],
+                    sentence: 'Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen und mit 1 Auflage.',
+                    rimAloneNote: note,
+                },
+            })],
+        })
+
+        expect(wrapper.find('[data-rim-alone]').text()).toBe(note)
+        expect(wrapper.find('[data-auflagen]').text()).not.toContain('Die Felge ist für dein Fahrzeug nur')
+        expect(wrapper.find('[data-auflagen]').text()).toContain('Nur mit den angegebenen Radschrauben zulässig.')
+    })
 })

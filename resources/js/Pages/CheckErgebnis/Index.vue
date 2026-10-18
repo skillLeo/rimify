@@ -17,6 +17,7 @@ import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import { PAPERS_EXEMPT, entryBySize, entryLine } from '../../fitment/papers'
+import { withUnit } from '../../format'
 import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import type { CheckErgebnisProps } from '../../types/pages'
@@ -111,10 +112,11 @@ const copy = computed<Copy>(() => {
 const papersLine = computed<string | null>(() => {
     const papers = props.result?.papers
     if (!papers) return null
+    // A figure and its unit through the one helper (R-10), as the papers form says them.
     const parts = [
-        papers.axleFrontKg == null ? null : `8.1 ${formatNumber(papers.axleFrontKg)}\u00a0kg`,
-        papers.axleRearKg == null ? null : `8.2 ${formatNumber(papers.axleRearKg)}\u00a0kg`,
-        papers.topSpeedKmh == null ? null : `T ${papers.topSpeedKmh}\u00a0km/h`,
+        papers.axleFrontKg == null ? null : `8.1 ${withUnit(formatNumber(papers.axleFrontKg), 'kg')}`,
+        papers.axleRearKg == null ? null : `8.2 ${withUnit(formatNumber(papers.axleRearKg), 'kg')}`,
+        papers.topSpeedKmh == null ? null : `T ${withUnit(formatNumber(papers.topSpeedKmh), 'km/h')}`,
     ].filter((part): part is string => part !== null)
 
     return parts.length ? parts.join(' · ') : null
@@ -208,17 +210,18 @@ const papersLine = computed<string | null>(() => {
                 </Link>
             </div>
 
+            <!-- Labels as labels, the values in full ink: the micro size is for legal text and captions (DIRECTION §3). -->
             <dl class="res__meta">
                 <div>
-                    <dt class="micro">Ergebnis-Nummer</dt>
+                    <dt class="label">Ergebnis-Nummer</dt>
                     <dd class="data">{{ token }}</dd>
                 </div>
                 <div v-if="result?.issuedAt">
-                    <dt class="micro">Geprüft am</dt>
+                    <dt class="label">Geprüft am</dt>
                     <dd class="data">{{ result.issuedAt }}</dd>
                 </div>
                 <div v-if="result?.keptUntil">
-                    <dt class="micro">Link gültig bis</dt>
+                    <dt class="label">Link gültig bis</dt>
                     <dd class="data">{{ result.keptUntil }}</dd>
                 </div>
             </dl>
@@ -243,6 +246,9 @@ const papersLine = computed<string | null>(() => {
 }
 
 .res__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-16) var(--sp-40);
     margin: var(--space-7) 0 0;
     padding-top: var(--space-4);
     border-top: 1px solid var(--line);
@@ -251,12 +257,7 @@ const papersLine = computed<string | null>(() => {
 .res__meta dd {
     margin: var(--space-1) 0 0;
     overflow-wrap: anywhere;
-}
-
-.res__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-16) var(--sp-40);
+    color: var(--c-ink);
 }
 
 .res__detail {

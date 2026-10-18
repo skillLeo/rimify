@@ -99,6 +99,8 @@ class BestellungController extends Controller
                     'detail' => $snapshot->verdict,
                     // The Auflagen as the customer read them: the combination's once, each tyre size's with that size.
                     'conditionGroups' => self::conditionGroups($snapshot->verdict, PackageTyreSizes::for($line, $tyres)),
+                    // A rim sold alone (D-289): our own sentence as it was shown, never among the Auflagen (R-17).
+                    'rimAloneNote' => is_string($snapshot->verdict['rimAloneNote'] ?? null) ? $snapshot->verdict['rimAloneNote'] : null,
                 ],
             ];
         }

@@ -1199,6 +1199,9 @@ final readonly class Basket
             // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
             // behind a link, in full, below.
             'sentence' => self::verdictSentence($verdict, $groups, $chosenSize, $mixed),
+            // A rim sold alone (D-289): our own sentence — the sizes it may only be fitted with —, said in the open beside
+            // the line, never among the Auflagen from the document (R-17).
+            'rimAloneNote' => $verdict->rimAloneNoteDe,
             // The Gutachten and revisions the answer rests on: the checkout's record of what the customer was
             // shown (CheckoutShown), so a document changed since is noticed before money is taken.
             'basis' => array_map(static fn ($d): string => $d->id.'@'.$d->revision, $documents),
@@ -1227,7 +1230,12 @@ final readonly class Basket
         $count = count($chosenSize === null ? $groups->all() : $groups->forSize($chosenSize));
         $sentence = match ($verdict->status) {
             VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
-            VerdictStatus::Conditional => match (true) {
+            // The rim sold alone (D-289): what makes it conditional is the tyre sizes — said first —, then the document's.
+            VerdictStatus::Conditional => $verdict->rimAlone ? match (true) {
+                $bySize => 'Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen und mit Auflagen je nach Reifengröße.',
+                $count === 0 => 'Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen.',
+                default => sprintf('Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen und mit %d %s.', $count, $count === 1 ? 'Auflage' : 'Auflagen'),
+            } : match (true) {
                 // Every Auflage a Hinweis (D-104): nothing to do, so not „mit Auflagen“ — never for Mischbereifung (D-105).
                 $verdict->notesOnly() && ! $mixed => 'Für dein Fahrzeug freigegeben, mit Hinweisen aus dem Gutachten.',
                 $bySize => 'Für dein Fahrzeug freigegeben, mit Auflagen je nach Reifengröße.',

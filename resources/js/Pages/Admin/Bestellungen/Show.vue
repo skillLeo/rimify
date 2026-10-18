@@ -46,6 +46,8 @@ interface Snapshot {
     entryLine?: string | null
     papersLine?: string | null
     entryNote?: string | null
+    /** A rim sold alone while its tyres waited for the papers (D-289): our own sentence, as the customer read it. */
+    rimAloneNote?: string | null
     conditions?: string[]
     /** Each tyre size's Auflagen with that size, as the customer read them (ConditionGroups). Additive. */
     conditionGroups?: ConditionGroupsView
@@ -382,6 +384,7 @@ function tagClass(state: OrderState): string | null {
                             <!-- The server's line: per size where the sizes differ, the tyre's for a Komplettrad (PapersWording). -->
                             <p v-if="line.snapshot.entryLine" class="bs-proof__line">{{ line.snapshot.entryLine }}<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
                             <p v-if="line.snapshot.papersLine" class="bs-proof__line">{{ line.snapshot.papersLine }}</p>
+                            <p v-if="line.snapshot.rimAloneNote" class="bs-proof__line" data-rim-alone>{{ line.snapshot.rimAloneNote }}</p>
                             <!-- Each tyre size's Auflagen with that size, as the customer read them (ConditionGroups). -->
                             <ConditionGroups v-if="line.snapshot.conditionGroups && (line.snapshot.conditions ?? []).length" class="bs-proof__groups" :groups="line.snapshot.conditionGroups" />
                             <p v-for="sentence in line.snapshot.conditionGroups ? [] : line.snapshot.conditions ?? []" :key="sentence" class="bs-proof__line">{{ sentence }}</p>

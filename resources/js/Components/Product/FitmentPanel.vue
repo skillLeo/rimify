@@ -446,8 +446,8 @@ const openLead = computed(() => {
 /* Finding 103: which half is approved and which is open — body size under the headline; the way on, small, below. */
 .fit__open {
     margin: var(--sp-8) 0 0;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
     color: var(--c-ink);
 }
 

@@ -6,6 +6,7 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\PapersBook;
+use App\Mail\OrderConfirmationMail;
 use App\Models\BalanceWeightColour;
 use App\Models\Order;
 use App\Models\OrderLine;
@@ -77,7 +78,7 @@ function rimAloneAdd(object $test, bool $withTyre = false): array
 it('sells the rim alone while the tyres wait for the papers, with its own answer and the sizes it may only be fitted with', function (): void {
     $verdict = rimAloneVerdict($this);
     $rim = $verdict->forRimAlone();
-    $only = collect($rim->conditions ?? [])->firstWhere('code', FitmentVerdict::RIM_ALONE);
+    $only = (string) $rim?->rimAloneNoteDe;
 
     // The answer itself stays what it is: the tyres unconfirmed, nothing sold on them.
     expect($verdict->status)->toBe(VerdictStatus::Unknown)
@@ -88,10 +89,12 @@ it('sells the rim alone while the tyres wait for the papers, with its own answer
         ->and($rim?->isSellable())->toBeTrue()
         ->and($rim?->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($rim?->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
-        ->and($only?->sentenceDe())->toStartWith('Die Felge ist für dein Fahrzeug nur ')
-        ->and($only?->sentenceDe())->toContain($this->fx->size->labelDe())
+        // Our sentence, beside the document's Auflagen and never among them (R-17).
+        ->and($rim?->conditions)->toEqual($verdict->conditions)
+        ->and($only)->toStartWith('Die Felge ist für dein Fahrzeug nur ')
+        ->and($only)->toContain($this->fx->size->labelDe())
         // Said in the past: frozen onto the order, it reports the check and stays true there.
-        ->and($only?->sentenceDe())->toEndWith('konnten wir nicht bestätigen: Bei der Prüfung fehlten uns die Felder 8.1, 8.2 und T deiner Zulassungsbescheinigung Teil I.');
+        ->and($only)->toEndWith('konnten wir nicht bestätigen: Bei der Prüfung fehlten uns die Felder 8.1, 8.2 und T deiner Zulassungsbescheinigung Teil I.');
 
     $config = rimAlonePayload($this);
 
@@ -116,9 +119,12 @@ it('freezes the rim\'s own answer onto the order, and says in the basket what it
     $basket = $this->withCookies($this->fx->cookies())->withSession([Basket::SESSION_KEY => ['wheel:'.$this->fx->config->id => $line]])
         ->get('/warenkorb')->assertOk()->viewData('page')['props']['lines'][0]['verdict'];
 
+    // Said in the open beside the line — never counted among the Auflagen „aus dem Gutachten“ (R-17).
     expect($basket['sellable'])->toBeTrue()
         ->and($basket['status'])->toBe('CONDITIONAL')
-        ->and(collect($basket['conditions'])->contains(static fn (string $c): bool => str_starts_with($c, 'Die Felge ist für dein Fahrzeug nur ')))->toBeTrue();
+        ->and($basket['sentence'])->toStartWith('Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen')
+        ->and($basket['rimAloneNote'])->toStartWith('Die Felge ist für dein Fahrzeug nur ')
+        ->and(collect($basket['conditions'])->contains(static fn (string $c): bool => str_starts_with($c, 'Die Felge ist für dein Fahrzeug nur ')))->toBeFalse();
 
     $this->withCookies($this->fx->cookies())->withSession([Basket::SESSION_KEY => ['wheel:'.$this->fx->config->id => $line]])
         ->from('/kasse')
@@ -131,8 +137,14 @@ it('freezes the rim\'s own answer onto the order, and says in the basket what it
     expect($snapshot->verdict_status)->toBe('CONDITIONAL')
         ->and($snapshot->verdict['rimAlone'] ?? null)->toBeTrue()
         ->and($snapshot->verdict['tyreCheck']['status'] ?? null)->toBe('UNKNOWN')
-        ->and(collect($snapshot->verdict['conditions'])->pluck('code'))->toContain(FitmentVerdict::RIM_ALONE)
-        ->and(FitmentVerdict::fromArray($snapshot->verdict)->rimAlone)->toBeTrue();
+        ->and($snapshot->verdict['rimAloneNote'] ?? null)->toBe($basket['rimAloneNote'])
+        ->and(FitmentVerdict::fromArray($snapshot->verdict)->rimAloneNoteDe)->toBe($basket['rimAloneNote']);
+
+    // The confirmation says it as the purchase did: the line's sentence, then ours on its own.
+    $mail = (new OrderConfirmationMail($order, null))->content()->with['lines'][0];
+
+    expect($mail['verdict'])->toBe('Für dein Fahrzeug freigegeben, nur mit einer der zulässigen Reifengrößen.')
+        ->and($mail['rimAlone'])->toBe($basket['rimAloneNote']);
 });
 
 it('sells nothing where the document itself limits the axle load and the car\'s is not known — and the rim once it is', function (): void {

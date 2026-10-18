@@ -12,6 +12,10 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 @if ($line['verdict'])
 {{ $line['verdict'] }}@if ($line['entry']) {{ $line['entry'] }}@endif @if ($line['papers']) {{ $line['papers'] }}@endif
 
+@if ($line['rimAlone'] ?? null)
+{{ $line['rimAlone'] }}
+
+@endif
 @if ($line['chosen'])
 Für {{ $line['chosen'] }}:
 @elseif ($line['sizes'] && $line['conditions'])

@@ -383,6 +383,11 @@ export interface BasketLine {
         conditionGroups?: ConditionGroupsView
         /** The verdict in one sentence, as the checkout repeats it up to the order button (Block G). */
         sentence?: string
+        /**
+         * A rim sold alone while its tyres wait for the papers (D-289): our own sentence — the sizes it may only be fitted
+         * with —, said beside the line, never among the Auflagen from the document (R-17). Additive.
+         */
+        rimAloneNote?: string | null
         /** The Gutachten and revisions the answer rests on (`id@revision`), for CheckoutShown. */
         basis?: string[]
     } | null
