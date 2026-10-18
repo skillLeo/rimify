@@ -1,8 +1,8 @@
 {
   "instance": "eigene-instanz",
   "where": "unser lokaler Abnahme-Shop (127.0.0.1)",
-  "commit": "f38ca86d mit lokalen Änderungen",
-  "at": "2026-10-18T21:01:19.152Z",
+  "commit": "a7df75c1 mit lokalen Änderungen",
+  "at": "2026-10-18T23:03:35.866Z",
   "items": {
     "201": {
       "passed": true,
@@ -21,7 +21,7 @@
     },
     "204": {
       "passed": true,
-      "tests": 9,
+      "tests": 10,
       "failed": 0
     },
     "205": {
@@ -36,7 +36,7 @@
     },
     "207": {
       "passed": true,
-      "tests": 21,
+      "tests": 22,
       "failed": 0
     },
     "208": {
@@ -51,12 +51,12 @@
     },
     "210": {
       "passed": true,
-      "tests": 37,
+      "tests": 41,
       "failed": 0
     },
     "211": {
-      "passed": false,
-      "tests": 0,
+      "passed": true,
+      "tests": 25,
       "failed": 0
     },
     "212": {
@@ -70,8 +70,8 @@
       "failed": 0
     },
     "214": {
-      "passed": false,
-      "tests": 0,
+      "passed": true,
+      "tests": 4,
       "failed": 0
     },
     "215": {

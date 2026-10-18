@@ -9,10 +9,10 @@ Nr,Skill Leo,Description
 208,Open,Built and tested on our side. Not on your preview yet.
 209,Open,Built and tested on our side. Not on your preview yet.
 210,Open,Built and tested on our side. Not on your preview yet.
-211,Open,"Not built yet: an editor with building blocks — a table with header cells, an image with required alt text, a quote — instead of free HTML, which could put someone else's code on the site."
+211,Open,"Solved differently: an article is now built from blocks in any order — section, image, table, quote. An image is uploaded right in the article, stored in our own storage, and needs a description for screen readers. A table is typed cell by cell, with header cells, 2 to 6 columns. There is deliberately no free HTML: it could put someone else's code on the site. The check before publishing names anything missing at the place it is missing."
 212,Open,Built and tested on our side. Not on your preview yet.
 213,Open,Built and tested on our side. Not on your preview yet.
-214,Open,Not built yet. Ratings only where real reviews exist; shipping and returns once your details for them are in.
+214,Open,Built and tested on our side. Not on your preview yet.
 215,Open,"Solved differently: the table now appears only on a Gutachten that, according to the details entered, prints one — there the release requires it. Everywhere else it is folded to one line, „Keine Tabelle hinterlegt“. We did not remove it: on a document that prints one, like ABE 55255, it decides which tyres are permitted on cars with a top speed above 210 km/h."
 216,Open,Built and tested on our side. Not on your preview yet.
 217,Open,Not done yet: we need your answer on who issues the invoice and whether the shop keeps a copy.
