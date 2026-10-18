@@ -96,7 +96,9 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            ...$this->chrome->share($request),
+            // The shop's frame — its header, menus, basket, garage — only where the shop is drawn: an admin page never shows
+            // it, and carried 3,4 KB of it and three queries on every admin request (D-283).
+            ...(self::isAdmin($request) ? [] : $this->chrome->share($request)),
             'isMobile' => (bool) $request->attributes->get(DetectDevice::ATTRIBUTE, false),
             'locale' => 'de',
             // The page's one address (the client's #8): the shop's own host and the address the browser shows — with the
@@ -181,13 +183,7 @@ class HandleInertiaRequests extends Middleware
      */
     private function admin(Request $request): array
     {
-        $routeName = Route::currentRouteName();
-
-        // An admin route — or any address under /admin, so a page that does not exist is still
-        // answered inside the admin's frame for somebody signed into it (AdminErrorPage).
-        $isAdmin = (is_string($routeName) && str_starts_with($routeName, 'admin.')) || $request->is('admin', 'admin/*');
-
-        if (! $isAdmin) {
+        if (! self::isAdmin($request)) {
             return [];
         }
 
@@ -197,6 +193,17 @@ class HandleInertiaRequests extends Middleware
         Inertia::encryptHistory();
 
         return ['admin' => fn (): array => $this->shell($request)];
+    }
+
+    /**
+     * An admin route — or any address under /admin, so a page that does not exist is still answered inside the admin's
+     * frame for somebody signed into it (AdminErrorPage).
+     */
+    private static function isAdmin(Request $request): bool
+    {
+        $routeName = Route::currentRouteName();
+
+        return (is_string($routeName) && str_starts_with($routeName, 'admin.')) || $request->is('admin', 'admin/*');
     }
 
     /** @return array<string, mixed> */

@@ -482,3 +482,31 @@ it('builds the shell with the page, never for a partial reload, which does not c
     expect($rail($ran['page']))->not->toBe([])
         ->and($rail($ran['reload']))->toBe([]);
 });
+
+/** The shop's frame (Storefront\Chrome): what an admin page never draws (D-283). */
+const SHOP_FRAME = ['headerMode', 'vehicle', 'menus', 'cartCount', 'routeName', 'contact', 'mega', 'consent', 'garage', 'serviceStatus', 'demoBadge', 'notifyByMail'];
+
+// One request per test: Inertia's shared props live in one object for the whole application, and a second request in the
+// same test would find the first one's.
+it('carries none of the shop’s frame on an admin page (D-283)', function (): void {
+    $this->actingAs(shellAdmin(), 'admin')->get('/admin')
+        ->assertInertia(function (AssertableInertia $page): void {
+            $page->has('admin.nav');
+
+            foreach (SHOP_FRAME as $key) {
+                $page->missing($key);
+            }
+        });
+});
+
+it('keeps all of the shop’s frame on a shop page (D-283)', function (): void {
+    $this->get('/kontakt')
+        ->assertOk()
+        ->assertInertia(function (AssertableInertia $page): void {
+            $page->missing('admin');
+
+            foreach (SHOP_FRAME as $key) {
+                $page->has($key);
+            }
+        });
+});
