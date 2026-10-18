@@ -282,6 +282,12 @@ const canBuy = computed(() => {
     return isSet.value ? tyre.value !== null && current.stockQty >= (offer.value?.quantity ?? 4) : true
 })
 
+/*
+ * A Komplettrad where the rim sells alone and the tyres wait for the papers (D-289): the button is the way on, as on the
+ * product page — „Werte eintragen“, to the form in the panel —, never a disabled „Komplettrad gerade nicht möglich“.
+ */
+const setAwaitsPapers = computed(() => isSet.value && config.value !== null && config.value.inStock && waitsForPapers(config.value.verdict))
+
 const buyLabel = computed(() => {
     if (basket.processing || leaving.value) {
         return 'Wird hinzugefügt …'
@@ -293,6 +299,10 @@ const buyLabel = computed(() => {
 
     if (config.value !== null && !config.value.inStock) {
         return 'Ausverkauft'
+    }
+
+    if (setAwaitsPapers.value) {
+        return 'Werte eintragen'
     }
 
     if (isSet.value && (tyre.value === null || setShort.value !== null)) {
@@ -332,6 +342,12 @@ watch([() => props.answer?.config.id, mode, tyreId, colourId], () => {
 /* „Jetzt kaufen“: exactly this combination into the basket, then the basket. */
 function buy(): void {
     const current = config.value
+
+    if (setAwaitsPapers.value) {
+        focusPapersForm()
+
+        return
+    }
 
     if (current === null || !canBuy.value || basket.processing || leaving.value) {
         return
@@ -597,7 +613,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                             <button
                                 class="btn btn--primary btn--block btn--lg chk__go"
                                 type="button"
-                                :disabled="!canBuy && !basket.processing && !leaving"
+                                :disabled="!canBuy && !basket.processing && !leaving && !setAwaitsPapers"
                                 :aria-busy="basket.processing || leaving ? 'true' : undefined"
                                 @click="buy"
                             >

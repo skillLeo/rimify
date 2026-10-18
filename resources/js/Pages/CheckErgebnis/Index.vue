@@ -26,6 +26,9 @@ defineOptions({ layout: AppLayout, inheritAttrs: false })
 
 const props = defineProps<CheckErgebnisProps>()
 
+/* „zwölf Monate“, as the order mail says the same span; any other count in digits, „einen Monat“ in the singular. */
+const kept = computed(() => (props.keepMonths === 12 ? 'zwölf Monate' : props.keepMonths === 1 ? 'einen Monat' : `${props.keepMonths} Monate`))
+
 
 interface Copy {
     tag: string | null
@@ -102,7 +105,9 @@ const copy = computed<Copy>(() => {
                 tag: null,
                 label: null,
                 title: 'Dieses Ergebnis können wir nicht anzeigen.',
-                body: `Ein Ergebnis-Link gilt ${props.keepMonths === 12 ? 'zwölf' : props.keepMonths} Monate, danach löschen wir das Ergebnis mit deinen Angaben. Prüf, ob der Link vollständig ist, oder starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.`,
+                body: props.unreadable === true
+                    ? 'Wir können das gespeicherte Ergebnis nicht mehr lesen. Starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.'
+                    : `Ein Ergebnis-Link gilt ${kept.value}, danach löschen wir das Ergebnis mit deinen Angaben. Prüf, ob der Link vollständig ist, oder starte eine neue Prüfung – sie zeigt dir den aktuellen Stand.`,
                 primary: { href: '/rimify-check', label: 'Neue Prüfung starten' },
             }
     }

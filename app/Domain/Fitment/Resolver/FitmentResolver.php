@@ -595,11 +595,19 @@ final readonly class FitmentResolver
         $name = (string) array_key_first($over);
         $load = $over[$name];
 
+        // The binding figure with its source, as the papers form names them (R-17): the customer's own, where it governs —
+        // a mistyped 1.610 kg is then theirs to correct, not a fact about the wheel (the interaction review of D-291) —,
+        // else ours. 8.1 and 8.2 are the permitted axle loads, never what the axle carries.
+        $before = $vehicle->beforePapers;
+        $dataLoad = $before === null ? null : ($name === 'Vorderachse' ? $before->axleLoadFrontKg : $before->axleLoadRearKg);
+        $theirs = $before !== null && ($dataLoad === null || $load > $dataLoad);
+
         return new VerdictReason(VerdictReason::WHEEL_LOAD_EXCEEDED, sprintf(
-            'Die Felge ist für %s je Rad geprüft. Maßgeblich ist die %s mit %s: %s je Rad – mehr, als die Felge tragen darf.',
+            'Die Felge ist für %s je Rad geprüft. Maßgeblich ist die zulässige Achslast der %s: %s %s, also %s je Rad – mehr, als die Felge tragen darf.',
             GermanFormat::kilograms($radlast),
             $name,
             GermanFormat::kilograms($load),
+            $theirs ? 'nach deiner Angabe aus Feld '.($name === 'Vorderachse' ? '8.1' : '8.2') : 'aus unseren Fahrzeugdaten',
             self::halfKg($load),
         ));
     }

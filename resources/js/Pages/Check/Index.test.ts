@@ -426,6 +426,17 @@ describe('RIMIFY-Check', () => {
         await wrapper.find('.chk__go').trigger('click')
 
         expect(forms[0]).toMatchObject({ wheelConfigId: 110, tyreVariantId: null, quantity: 4 })
+
+        // As a Komplettrad the tyres wait for the papers: the button is the way on, as on the product page — never a
+        // disabled „Komplettrad gerade nicht möglich“ (the interaction review).
+        post.mockClear()
+        await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
+
+        expect(wrapper.find('.chk__go').text()).toBe('Werte eintragen')
+        expect(wrapper.find('.chk__go').attributes('disabled')).toBeUndefined()
+
+        await wrapper.find('.chk__go').trigger('click')
+        expect(post).not.toHaveBeenCalled()
     })
 
     it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {

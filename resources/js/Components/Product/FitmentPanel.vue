@@ -367,7 +367,9 @@ const openLead = computed(() => {
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->
             <!-- Keyed by the car: another car chosen meanwhile (in another tab) gets a fresh form, never the
                  last car's figures under its name (C-08). -->
-            <PapersForm v-if="vehicle && verdict.tyre" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :known="vehicle.figures ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed" :start-closed="rimSells" />
+            <!-- Also where the customer's own figures made the answer negative: theirs stay one press from changing (the
+                 interaction review of D-291) — a mistyped 1.610 kg must not take away the way to correct it. -->
+            <PapersForm v-if="vehicle && (verdict.tyre || vehicle.papers)" :key="vehicle.id" :vehicle-id="vehicle.id" :papers="vehicle.papers ?? null" :known="vehicle.figures ?? null" :power-kw="vehicle.powerKw ?? null" :asked="owed" :start-closed="rimSells" />
 
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->

@@ -203,7 +203,7 @@ const VERDICT_TONE: Record<string, string> = {
                                 <p v-for="sentence in papersLines(line.verdict)" :key="sentence" class="bl__entry">{{ sentence }}</p>
                                 <!-- A rim sold alone (D-289): the sizes it may only be fitted with — ours, so said here in the open,
                                      never counted among the Auflagen from the document below (R-17). -->
-                                <p v-if="line.verdict?.rimAloneNote" class="bl__entry" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
+                                <p v-if="line.verdict?.rimAloneNote" class="bl__entry bl__entry--note" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
 
                                 <!-- Auflagen in full, never a badge on its own — each tyre size's with that size, a Komplettrad's
                                      for its tyre. Where they are a Gutachten's paragraphs they unfold in place (D-197): the
@@ -566,6 +566,12 @@ const VERDICT_TONE: Record<string, string> = {
     margin: var(--space-2) 0 0;
     font-size: var(--text-small);
     font-weight: 700;
+}
+
+/* The rim alone's sentence: in the open like the papers' line, read as a paragraph rather than shouted. */
+.bl__entry--note {
+    font-weight: 400;
+    color: var(--ink);
 }
 
 .bl__groups {

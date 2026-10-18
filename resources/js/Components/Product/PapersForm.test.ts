@@ -71,11 +71,13 @@ describe('PapersForm', () => {
         const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers: null, known, powerKw: 140, asked: ['T'] } })
 
         expect(wrapper.findAll('.pp__grid input').map((i) => i.attributes('id'))).toEqual(['pp-top_speed_kmh'])
-        const shown = wrapper.findAll('.pp__known').map((row) => [row.find('.form-field__label').text(), row.find('.pp__value').text(), row.find('.pp__source').text()])
+        // The source first; beside ours, the way to say the papers state another figure.
+        const shown = wrapper.findAll('.pp__known').map((row) => [row.find('.form-field__label').text(), row.find('.pp__value').text(), row.find('.pp__source').text().split(' · ')[0]])
         expect(shown).toEqual([
             ['8.1 · zulässige Achslast vorn', '1.160 kg', 'aus unseren Fahrzeugdaten'],
             ['8.2 · zulässige Achslast hinten', '1.210 kg', 'aus unseren Fahrzeugdaten'],
         ])
+        expect(wrapper.findAll('.pp__differ').map((b) => b.text())).toEqual(['Steht in deinen Papieren ein anderer Wert?', 'Steht in deinen Papieren ein anderer Wert?'])
 
         // Only what it asks is sent: a figure we know is never sent as the customer's.
         await wrapper.find('#pp-top_speed_kmh').setValue('250')
@@ -119,11 +121,76 @@ describe('PapersForm', () => {
         expect(wrapper.find('[role="alert"]').text()).toBe('Wir konnten T nicht lesen. Trag den Wert bitte von Hand ein.')
     })
 
-    it('fills from a photo only the fields it asks, never a figure we know', async () => {
+    // The interaction review of D-291: the figure that governs is shown — the larger of ours and the customer's.
+    it('shows the figure that governs, with where it came from', () => {
+        const known = { axleFrontKg: 1160, axleRearKg: 1200, topSpeedKmh: null }
+        const papers = { axleFrontKg: 1180, axleRearKg: 1150, topSpeedKmh: null, notes: [] }
+        const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers, known, powerKw: 140, asked: ['T'] } })
+        const shown = wrapper.findAll('.pp__known').map((row) => [row.find('.pp__value').text(), row.find('.pp__source').text().split(' · ')[0]])
+
+        expect(shown).toEqual([
+            ['1.180 kg', 'von dir eingetragen'],
+            ['1.200 kg', 'aus unseren Fahrzeugdaten'],
+        ])
+    })
+
+    // CLAUDE.md §2 over the default: our figure is read-only, never a way closed to a stricter answer — an Auflastung.
+    it('lets the customer say their papers state another figure than ours, and sends it — the larger governs', async () => {
+        const post = vi.mocked(router.post)
+        post.mockClear()
+        const known = { axleFrontKg: 1160, axleRearKg: 1210, topSpeedKmh: null }
+        const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers: null, known, powerKw: 140, asked: ['T'] }, attachTo: document.body })
+
+        await wrapper.findAll('.pp__differ')[1]!.trigger('click')
+        await flushPromises()
+
+        expect(document.activeElement?.id).toBe('pp-axle_rear_kg')
+        expect(wrapper.find('#pp-axle_rear_kg-err').text()).toBe('In unseren Fahrzeugdaten: 1.210 kg. Wir rechnen mit dem höheren der beiden Werte.')
+
+        await wrapper.find('#pp-axle_rear_kg').setValue('1.250')
+        await wrapper.find('#pp-top_speed_kmh').setValue('240')
+        await wrapper.find('form').trigger('submit')
+
+        expect(post.mock.calls[0]?.[1]).toEqual({ asked: ['T'], axle_rear_kg: '1.250', top_speed_kmh: '240', index_front: '', index_rear: '' })
+        lastVisit('post').onFinish?.()
+        wrapper.unmount()
+    })
+
+    it('opens a field where the photo reads another figure than ours, the reading in it', async () => {
         const known = { axleFrontKg: 1160, axleRearKg: 1210, topSpeedKmh: null }
         const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers: null, known, powerKw: 140, asked: ['T'] } })
 
+        await photograph(wrapper, '8.1 1.160 8.2 1.250 T 250 P.2/P.4 140/5500')
+
+        expect((wrapper.find('#pp-axle_rear_kg').element as HTMLInputElement).value).toBe('1250')
+        expect(wrapper.find('#pp-axle_front_kg').exists()).toBe(false)
+        expect(wrapper.find('#pp-top_speed_kmh').element as HTMLInputElement).toHaveProperty('value', '250')
+    })
+
+    it('forgets a photo\'s reading on „Abbrechen“, and follows a size where the rim sells alone', async () => {
+        const wrapper = await mountOpen(140)
         await photograph(wrapper, '8.1 1.120 8.2 1.180 T 250 P.2/P.4 140/5500')
+        expect(wrapper.text()).toContain('Aus dem Foto gelesen.')
+
+        await wrapper.findAll('button').find((b) => b.text() === 'Abbrechen')!.trigger('click')
+        await wrapper.find('#pp-open').trigger('click')
+        await flushPromises()
+        expect(wrapper.text()).not.toContain('Aus dem Foto gelesen.')
+
+        // Opened by itself where the answer waits; another size where the rim sells alone shuts it, untouched.
+        const sized = mount(PapersForm, { props: { vehicleId: 7, papers: null, powerKw: 140, asked: ['8.1', '8.2', 'T'], startClosed: false } })
+        expect(sized.find('.pp__form').exists()).toBe(true)
+        await sized.setProps({ startClosed: true })
+        expect(sized.find('.pp__form').exists()).toBe(false)
+        await sized.setProps({ startClosed: false })
+        expect(sized.find('.pp__form').exists()).toBe(true)
+    })
+
+    it('fills from a photo the fields it asks, and leaves a figure we know that it reads alike', async () => {
+        const known = { axleFrontKg: 1160, axleRearKg: 1210, topSpeedKmh: null }
+        const wrapper = mount(PapersForm, { props: { vehicleId: 7, papers: null, known, powerKw: 140, asked: ['T'] } })
+
+        await photograph(wrapper, '8.1 1.160 8.2 1.210 T 250 P.2/P.4 140/5500')
 
         expect((wrapper.find('#pp-top_speed_kmh').element as HTMLInputElement).value).toBe('250')
         expect(wrapper.findAll('.pp__known .pp__value').map((v) => v.text())).toEqual(['1.160 kg', '1.210 kg'])

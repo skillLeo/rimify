@@ -34,6 +34,21 @@ describe('installNumberWheelGuard', () => {
         expect(input.value).toBe('1160')
     })
 
+    // A zoom gesture or a sideways swipe steps nothing: the keyboard stays where it is, mid-entry.
+    it('leaves the field focused for Ctrl+wheel and a sideways swipe', () => {
+        remove = installNumberWheelGuard()
+        const input = field('number')
+
+        // As a browser sets it: the test DOM takes no modifier keys in a WheelEvent's init.
+        const zoom = new WheelEvent('wheel', { bubbles: true, deltaY: 100 })
+        Object.defineProperty(zoom, 'ctrlKey', { value: true })
+
+        input.dispatchEvent(zoom)
+        input.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaX: 100, deltaY: 0 }))
+
+        expect(document.activeElement).toBe(input)
+    })
+
     it('leaves alone a text field, and a number field the wheel turns elsewhere', () => {
         remove = installNumberWheelGuard()
         const text = field('text')

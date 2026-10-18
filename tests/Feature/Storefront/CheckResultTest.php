@@ -8,6 +8,7 @@ use App\Models\Vehicle;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Storefront\KomplettradFixture;
@@ -87,31 +88,37 @@ it('keeps only the figures the customer gave, where the form asked for T alone (
     expect(CheckResult::query()->sole()->papers)->toEqual(['axleFrontKg' => null, 'axleRearKg' => null, 'topSpeedKmh' => 200, 'powerKw' => null]);
 });
 
-it('is kept twelve months, then deleted with the figures in it — and the page says until when (D-292)', function (): void {
+it('is kept twelve months, through the last day its page names, then deleted with the figures in it (D-292)', function (): void {
+    // Issued at 02:00 in Berlin: the page promises the whole of 18.10.2027.
+    $this->travelTo(Carbon::parse('2026-10-18 02:00', 'Europe/Berlin'));
     $fixture = KomplettradFixture::permitted();
     $this->withCookies($fixture->cookies())
         ->withUnencryptedCookie(PapersBook::COOKIE, "{$fixture->vehicle->id}.1100.1100.200")
         ->post('/rimify-check/ergebnis', ['wheelConfigId' => $fixture->config->id]);
     $result = CheckResult::query()->sole();
+    $prune = fn () => $this->artisan('model:prune', ['--model' => [CheckResult::class]])->assertSuccessful();
 
     $this->get('/rimify-check/ergebnis/'.$result->token)
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('result.keptUntil', $result->computed_at->copy()->addMonths(CheckResult::KEEP_MONTHS)->timezone('Europe/Berlin')->format('d.m.Y'))
+            ->where('result.keptUntil', '18.10.2027')
             ->where('keepMonths', CheckResult::KEEP_MONTHS));
 
-    // A day short of the twelve months it stays; past them, the nightly prune takes it, figures and all.
-    $this->travel(CheckResult::KEEP_MONTHS)->months();
-    $this->travel(-1)->days();
-    $this->artisan('model:prune', ['--model' => [CheckResult::class]])->assertSuccessful();
+    // The night of its last day: still there, still opened — never taken at 03:30 on the day it promised.
+    $this->travelTo(Carbon::parse('2027-10-18 03:30', 'Europe/Berlin'));
+    $prune();
     expect(CheckResult::query()->count())->toBe(1);
+    $this->get('/rimify-check/ergebnis/'.$result->token)->assertInertia(fn (AssertableInertia $page) => $page->has('result.status'));
 
-    $this->travel(2)->days();
-    $this->artisan('model:prune', ['--model' => [CheckResult::class]])->assertSuccessful();
-    expect(CheckResult::query()->count())->toBe(0);
-
+    // The day after, before the prune has run: past its last day it is gone all the same, its figures with it.
+    $this->travelTo(Carbon::parse('2027-10-19 00:30', 'Europe/Berlin'));
     $this->get('/rimify-check/ergebnis/'.$result->token)
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('result', null));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('result', null)->where('unreadable', false));
+
+    // And the night after its last day, the prune takes it.
+    $this->travelTo(Carbon::parse('2027-10-19 03:30', 'Europe/Berlin'));
+    $prune();
+    expect(CheckResult::query()->count())->toBe(0);
 });
 
 it('is written once: the database refuses every change', function (): void {

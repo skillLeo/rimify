@@ -375,19 +375,10 @@ final readonly class Basket
             $verdict = $verdict->forRimAlone() ?? $verdict;
         }
 
-        // Selected on the status, never through one "not sellable" branch (R-07): only
-        // NOT_PERMITTED means "we checked and your car may not have this".
-        if ($verdict !== null && ! $verdict->isSellable()) {
-            // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
-            if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
-                return match (true) {
-                    $verdict->status === VerdictStatus::NotPermitted => self::TYRES_NOT_PERMITTED,
-                    $verdict->tyre?->awaitsPapers() === true => self::TYRES_AWAIT_PAPERS,
-                    default => self::TYRES_UNKNOWN,
-                };
-            }
+        $refusal = $verdict === null ? null : self::verdictRefusal($verdict);
 
-            return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
+        if ($refusal !== null) {
+            return $refusal;
         }
 
         // Mischbereifung: `quantity` wheels on each of the two axles, all on this one rim size.
@@ -920,7 +911,10 @@ final readonly class Basket
             return $this->renderMixed($config, $tyreId, $rearId, $tyre, $colour, $quantity, $verdict, $colours, $held);
         }
 
-        $blockReasons = $isSet ? $this->blockReasons($verdict, $tyre, $colour, $quantity) : [];
+        // A rim that stopped selling says why in the add's own words — the tyres open, the papers missing — never the
+        // basket's „kein Gutachten“ over a wheel its Gutachten approves (R-17).
+        $rimRefusal = ! $isSet && $verdict !== null ? self::verdictRefusal($verdict) : null;
+        $blockReasons = $isSet ? $this->blockReasons($verdict, $tyre, $colour, $quantity) : ($rimRefusal === null ? [] : [$rimRefusal]);
 
         return [$this->line($this->key($config->id, $tyreId), $config, $isSet, $tyre, $colour, $quantity, $quantity, $verdict, $blockReasons, $colours, $held)];
     }
@@ -1176,6 +1170,30 @@ final readonly class Basket
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Why an answer does not sell, in one sentence — selected on the status, never through one "not sellable" branch
+     * (R-07): only NOT_PERMITTED means "we checked and your car may not have this". The add's refusal and a rim line's
+     * reason in the basket are this one sentence, so a line never reads „kein Gutachten“ over a wheel its Gutachten
+     * approves (R-17, the interaction review of D-289). Null where it sells.
+     */
+    private static function verdictRefusal(FitmentVerdict $verdict): ?string
+    {
+        if ($verdict->isSellable()) {
+            return null;
+        }
+
+        // The wheel approved and the tyres not (R-03 split): said as it is, never „kein Gutachten“.
+        if (in_array($verdict->wheelStatus, [VerdictStatus::Permitted, VerdictStatus::Conditional], true)) {
+            return match (true) {
+                $verdict->status === VerdictStatus::NotPermitted => self::TYRES_NOT_PERMITTED,
+                $verdict->tyre?->awaitsPapers() === true => self::TYRES_AWAIT_PAPERS,
+                default => self::TYRES_UNKNOWN,
+            };
+        }
+
+        return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
     }
 
     /**

@@ -8,6 +8,12 @@
  */
 export function installNumberWheelGuard(root: Document = document): () => void {
     const onWheel = (event: WheelEvent): void => {
+        // Only a vertical turn steps a field: a pinch or Ctrl+wheel zooms, a sideways swipe scrolls — neither takes the
+        // keyboard away mid-entry (the interaction review).
+        if (event.ctrlKey || event.deltaY === 0) {
+            return
+        }
+
         const field = root.activeElement
 
         if (field instanceof HTMLInputElement && field.type === 'number' && event.target === field) {

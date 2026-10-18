@@ -741,6 +741,8 @@ export interface CheckErgebnisProps {
     result: CheckResultView | null
     /** How long a result is kept, in months (CheckResult::KEEP_MONTHS, D-292). */
     keepMonths: number
+    /** Kept, but its frozen answer can no longer be read: said as that, never as the expiry. Additive. */
+    unreadable?: boolean
 }
 
 export interface BasketProps {

@@ -108,13 +108,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 export function useOcr(): { read: (file: File) => Promise<string>; dispose: () => void } {
     let worker: OcrWorker | null = null
+    /* Counted up by every dispose: a worker that finishes loading after it is nobody's, and is ended at once. */
+    let generation = 0
 
     async function recognise(file: File): Promise<string> {
+        const mine = generation
         const canvas = await preprocess(file)
         const { createWorker, PSM } = await import('tesseract.js')
 
         if (worker === null) {
-            worker = await createWorker('deu', 1, {
+            const created = await createWorker('deu', 1, {
                 workerPath: `${OCR_BASE}/worker.min.js`,
                 corePath: OCR_BASE,
                 langPath: OCR_BASE,
@@ -123,6 +126,15 @@ export function useOcr(): { read: (file: File) => Promise<string>; dispose: () =
                 gzip: true,
                 errorHandler: () => {},
             })
+
+            // Disposed while it loaded — the page left, the scan given up: never kept running (the interaction review).
+            if (mine !== generation) {
+                void created.terminate()
+
+                throw new Error('Abgebrochen.')
+            }
+
+            worker = created
             await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO, ...OCR_PARAMETERS })
         }
 
@@ -132,6 +144,7 @@ export function useOcr(): { read: (file: File) => Promise<string>; dispose: () =
     }
 
     function dispose(): void {
+        generation++
         void worker?.terminate()
         worker = null
     }

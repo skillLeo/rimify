@@ -53,6 +53,8 @@ final class CheckoutShown
                 $verdict['requiresEntry'] ?? null,
                 $verdict['conditions'] ?? [],
                 $verdict['basis'] ?? [],
+                // A rim sold alone: its own sentence is part of what was shown (D-289) — a line without one hashes as before.
+                ...(is_string($verdict['rimAloneNote'] ?? null) ? [$verdict['rimAloneNote']] : []),
             ];
         }, $summary['lines']);
 

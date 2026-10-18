@@ -6,6 +6,7 @@ use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Storefront\PapersBook;
 use App\Domain\Storefront\VehicleContext;
+use App\Http\Requests\Storefront\VehiclePapersRequest;
 use App\Models\Vehicle;
 use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
@@ -158,6 +159,17 @@ it('lets go of a figure whose field was emptied, keeps one it was not shown, and
         ->post("/fahrzeug/{$vehicle->id}/papiere", ['top_speed_kmh' => '', 'index_front' => '', 'index_rear' => ''])
         ->assertSessionHasErrorsIn('papiere', ['top_speed_kmh' => 'Trag die Höchstgeschwindigkeit aus Feld T ein.']);
     expect(papersCookie($nothing))->toBeNull();
+
+    // Nothing but 15.1 and 15.2 shown — our data holds every figure —, and both empty: said under 15.1, where the form
+    // can show it (the interaction review of D-291) — with figures of the customer's on record, how to delete them too.
+    $this->withUnencryptedCookie(PapersBook::COOKIE, $before)
+        ->post("/fahrzeug/{$vehicle->id}/papiere", ['index_front' => '', 'index_rear' => ''])
+        ->assertSessionHasErrorsIn('papiere', ['index_front' => VehiclePapersRequest::NOTHING_GIVEN.' '.VehiclePapersRequest::DELETE_ALL]);
+
+    // Another car, nothing of the customer's on record: only what to type, or how to leave.
+    $other = Vehicle::factory()->create();
+    $this->post("/fahrzeug/{$other->id}/papiere", ['index_front' => '', 'index_rear' => ''])
+        ->assertSessionHasErrorsIn('papiere', ['index_front' => VehiclePapersRequest::NOTHING_GIVEN]);
 
     // An answer that asks for nothing is not a way round the fields: „asked“ names only fields of the papers.
     $this->post("/fahrzeug/{$vehicle->id}/papiere", ['asked' => ['X'], 'top_speed_kmh' => '250'])

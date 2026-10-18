@@ -162,6 +162,15 @@ it('sells nothing where the document itself limits the axle load and the car\'s 
         ->post('/warenkorb', rimAloneAdd($this))
         ->assertSessionHasErrors(['wheelConfigId' => Basket::TYRES_AWAIT_PAPERS]);
 
+    // A rim line already in the basket says the same, in the add's words — never „kein Gutachten“ over a wheel its
+    // Gutachten approves (R-17, the interaction review).
+    $line = ['kind' => 'WHEEL', 'wheelConfigId' => $this->fx->config->id, 'tyreVariantId' => null, 'quantity' => 4];
+    $basket = $this->withCookies($this->fx->cookies())->withSession([Basket::SESSION_KEY => ['wheel:'.$this->fx->config->id => $line]])
+        ->get('/warenkorb')->viewData('page')['props']['lines'][0];
+
+    expect($basket['verdict']['sellable'])->toBeFalse()
+        ->and($basket['blockReasons'])->toBe([Basket::TYRES_AWAIT_PAPERS]);
+
     // The axle loads given, the top speed still owed: the wheel's approval no longer waits — T decides the tyres alone.
     $axles = rimAlonePayload($this, "{$this->fx->vehicle->id}.800.800.-")['verdict'];
 

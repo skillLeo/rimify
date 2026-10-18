@@ -21,7 +21,7 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import PapersFacsimile from '../Art/PapersFacsimile.vue'
 import Icon from '../Ui/Icon.vue'
 import { useOcr } from '../../composables/useOcr'
@@ -56,12 +56,30 @@ const askedFields = computed(() => props.asked ?? [])
 const waits = computed(() => askedFields.value.length > 0)
 const open = ref(!props.startClosed && waits.value)
 
+/* Whether the customer has typed into the open form since it opened: a size change never shuts what they are writing. */
+const touched = ref(false)
+
 /* Where the answer comes to wait for the figures — another size, the figures deleted —, the form is the way on again. */
 watch(waits, (now, before) => {
     if (now && !before && !props.startClosed) {
         open.value = true
     }
 })
+
+/*
+ * Another size on the product page: where the rim now sells alone the form steps behind its button again, untouched
+ * (it would push the price off the screen); where nothing sells without the figures it opens (the interaction review).
+ */
+watch(
+    () => props.startClosed,
+    (closed) => {
+        if (!closed && waits.value) {
+            open.value = true
+        } else if (closed && open.value && !touched.value && !busy.value) {
+            open.value = false
+        }
+    }
+)
 
 /* Where the figures are kept — said wherever the form asks for them. */
 const KEPT = 'Wir speichern die Werte zu diesem Fahrzeug als Cookie in deinem Browser.'
@@ -71,11 +89,28 @@ const errors = ref<Record<string, string>>({})
 /* Offline, an expired page, too many tries, a fault: said at the form, the page and what was typed kept (G-05). */
 const failure = ref('')
 
-/* The keyboard to the first of these that stands on the page: a form that closed must not drop it to the page's end. */
+/* This form's own element: the keyboard is sent within it, never to another form's field on the page. */
+const root = ref<HTMLElement | null>(null)
+
+/* Gone from the page — another wheel opened while a photo was read: nothing it was doing lands anywhere. */
+let alive = true
+onBeforeUnmount(() => {
+    alive = false
+})
+
+/*
+ * The keyboard to the first of these that stands in the form: a form that closed must not drop it to the page's end.
+ * Only the page's own heading (`[data-focus-after-papers]`) is looked for outside it.
+ */
 function focusFirst(...selectors: string[]): void {
     void nextTick(() => {
+        if (!alive) {
+            return
+        }
+
         for (const selector of selectors) {
-            const target = document.querySelector<HTMLElement>(selector)
+            const scope = selector.startsWith('[data-focus-after-papers]') ? document : root.value
+            const target = scope?.querySelector<HTMLElement>(selector) ?? null
 
             if (target !== null) {
                 target.focus()
@@ -101,19 +136,29 @@ const FROM_DATA = 'aus unseren Fahrzeugdaten'
 const FROM_THEM = 'von dir eingetragen'
 
 type Row =
-    | { kind: 'input'; key: FieldKey; label: string; unit: string; required: boolean }
-    | { kind: 'known'; key: FigureKey; label: string; shown: string; source: string }
+    /** `ours`: our data's figure, said under a field the customer opened because their papers state another. */
+    | { kind: 'input'; key: FieldKey; label: string; unit: string; required: boolean; ours?: string }
+    /** `mayDiffer`: our data's figure — the customer may say their papers state another (an Auflastung). */
+    | { kind: 'known'; key: FigureKey; label: string; shown: string; source: string; mayDiffer: boolean }
 
 /* `1.160 kg`, `250 km/h`: a figure and its unit through the one helper (R-10). */
 const figure = (n: number, unit: string): string => withUnit(formatNumber(n), unit)
 
 /*
+ * Figures our data holds that the customer says their papers state otherwise — an Auflastung, a heavier variant: a
+ * field then, and the larger of the two governs, as ever (PapersFigures::applyTo). Read-only by default, as asked; never
+ * a way closed to a stricter answer (CLAUDE.md §2, the interaction review of D-291).
+ */
+const differs = reactive(new Set<FigureKey>())
+
+/*
  * Each figure one of three things (D-291). Asked: the answer waits for it — a field, required. Known and not asked: shown
- * with where it came from — our data, or what the customer gave before —, never asked again. Neither: while the answer
- * asks for something, not shown at all; otherwise a field, voluntary. The customer's own figures stay theirs to change
- * where nothing is asked. P.2 is asked only where the vehicle data has no power — a car typed from a Gutachten —,
- * because a size's kW band is read against it (Block D); voluntary, like the rest. The unit sits in the field's frame;
- * the label keeps it for a screen reader.
+ * with where it came from, never asked again — the figure that governs, the larger of ours and the customer's, as the
+ * engine reads it; ours with a way to say the papers differ. Neither: while the answer asks for something, not shown at
+ * all; otherwise a field, voluntary. The customer's own figures stay theirs to change where nothing is asked. P.2 is
+ * asked only where the vehicle data has no power — a car typed from a Gutachten —, because a size's kW band is read
+ * against it (Block D); voluntary, like the rest. The unit sits in the field's frame; the label keeps it for a screen
+ * reader.
  */
 const rows = computed<Row[]>(() => {
     const asking = askedFields.value.length > 0
@@ -122,13 +167,16 @@ const rows = computed<Row[]>(() => {
     for (const f of FIGURES) {
         const ours = props.known?.[f.prop] ?? null
         const theirs = props.papers?.[f.prop] ?? null
+        const theirsGovern = theirs !== null && (ours === null || theirs > ours)
 
         if (askedFields.value.includes(f.field)) {
             out.push({ kind: 'input', key: f.key, label: f.label, unit: f.unit, required: true })
-        } else if (theirs !== null && asking) {
-            out.push({ kind: 'known', key: f.key, label: f.label, shown: figure(theirs, f.unit), source: FROM_THEM })
-        } else if (theirs === null && ours !== null) {
-            out.push({ kind: 'known', key: f.key, label: f.label, shown: figure(ours, f.unit), source: FROM_DATA })
+        } else if (differs.has(f.key)) {
+            out.push({ kind: 'input', key: f.key, label: f.label, unit: f.unit, required: false, ...(ours === null ? {} : { ours: figure(ours, f.unit) }) })
+        } else if (asking && theirsGovern && theirs !== null) {
+            out.push({ kind: 'known', key: f.key, label: f.label, shown: figure(theirs, f.unit), source: FROM_THEM, mayDiffer: false })
+        } else if (ours !== null && (asking || theirs === null)) {
+            out.push({ kind: 'known', key: f.key, label: f.label, shown: figure(ours, f.unit), source: FROM_DATA, mayDiffer: true })
         } else if (!asking) {
             out.push({ kind: 'input', key: f.key, label: f.label, unit: f.unit, required: false })
         }
@@ -205,7 +253,7 @@ const summary = computed(() => {
     ].filter((part): part is string => part !== null).join(' · ')
 })
 
-/** The form as the kept figures say, nothing typed since — for „Ändern“ and „Abbrechen“. */
+/** The form as the kept figures say, nothing typed since — for „Ändern“ and „Abbrechen“; a photo's reading goes too. */
 function fromPapers(): void {
     form.axle_front_kg = typed(props.papers?.axleFrontKg)
     form.axle_rear_kg = typed(props.papers?.axleRearKg)
@@ -214,6 +262,17 @@ function fromPapers(): void {
     index.index_front = props.papers?.index?.front ?? ''
     index.index_rear = props.papers?.index?.rear ?? ''
     errors.value = {}
+    differs.clear()
+    scan.value = 'idle'
+    readPowerKw.value = null
+    touched.value = false
+}
+
+/** „Steht in deinen Papieren ein anderer Wert?“: our figure becomes a field, the keyboard in it — the larger governs. */
+function differ(key: FigureKey): void {
+    differs.add(key)
+    touched.value = true
+    focusFirst(`#pp-${key}`)
 }
 
 // Figures kept or removed on the server (this tab or another): the closed form follows them.
@@ -291,15 +350,17 @@ function save(): void {
             const first = ['axle_front_kg', 'axle_rear_kg', 'top_speed_kmh', 'power_kw', 'index_front', 'index_rear'].find((key) => errors.value[key])
             // A refused 15.1 or 15.2 is not left folded away.
             moreOpen.value = moreOpen.value || first === 'index_front' || first === 'index_rear'
-            focusFirst(first ? `#pp-${first}` : '#pp-save')
+            focusFirst(first ? `#pp-${first}` : '#pp-save', '#pp-save')
         },
         onSuccess: () => {
             // Every answer about this car changed with its figures: a page fetched ahead on a hover would show the old one.
             router.flushAll()
             errors.value = {}
             open.value = false
-            // The form gives way to the summary: focus goes where the reader can change it again.
-            focusFirst('#pp-change')
+            touched.value = false
+            // The form gives way to the summary: focus goes where the reader can change it again — or, where more is asked,
+            // to its button; where the block itself went, to the page's heading, never the page's end.
+            focusFirst('#pp-change', '#pp-open', '[data-focus-after-papers]')
         },
         onFinish: () => {
             busy.value = false
@@ -331,13 +392,31 @@ async function onPhoto(event: Event): Promise<void> {
 
     try {
         const found = parsePapers(await ocr.read(file))
-        // Only the fields the form shows: a figure we know is not replaced by a reading (D-291).
+
+        // Gone from the page meanwhile: nothing read lands anywhere.
+        if (!alive) {
+            return
+        }
+
         const read: Partial<Record<FieldKey, number | null>> = {
             axle_front_kg: found.axleFrontKg,
             axle_rear_kg: found.axleRearKg,
             top_speed_kmh: found.topSpeedKmh,
             power_kw: found.powerKw,
         }
+
+        // A figure we know that the photo reads otherwise — an Auflastung, or a misreading — becomes a field with the
+        // reading in it, our figure said beside it: never dropped in silence (the interaction review of D-291).
+        for (const f of FIGURES) {
+            const ours = props.known?.[f.prop] ?? null
+            const value = read[f.key]
+
+            if (value != null && ours !== null && value !== ours && !fieldKeys.value.includes(f.key)) {
+                differs.add(f.key)
+            }
+        }
+
+        // Only the fields the form shows are filled.
         const filled = fieldKeys.value.filter((key) => read[key] != null)
 
         // P.2 is checked against the variant where the data knows it, whatever else was read.
@@ -396,7 +475,7 @@ function clear(): void {
 </script>
 
 <template>
-    <div class="pp">
+    <div ref="root" class="pp">
         <!-- Given, and nothing more asked: what was given, one press from changing. Asked for more, the form says both. -->
         <template v-if="papers && !open && !askedFields.length">
             <p class="pp__summary">
@@ -444,16 +523,22 @@ function clear(): void {
                                 :aria-required="row.required ? 'true' : undefined"
                                 :aria-invalid="errors[row.key] ? 'true' : undefined"
                                 :aria-describedby="`pp-${row.key}-err`"
+                                @input="touched = true"
                             >
                             <span class="input-group__suffix" aria-hidden="true" translate="no">{{ row.unit }}</span>
                         </div>
-                        <p :id="`pp-${row.key}-err`" class="form-field__error">{{ errors[row.key] }}</p>
+                        <p v-if="errors[row.key] || !row.ours" :id="`pp-${row.key}-err`" class="form-field__error">{{ errors[row.key] }}</p>
+                        <!-- Opened because the papers state another figure than ours: ours said beside it, and which one counts. -->
+                        <p v-else :id="`pp-${row.key}-err`" class="pp__source">In unseren Fahrzeugdaten: {{ row.ours }}. Wir rechnen mit dem höheren der beiden Werte.</p>
                     </div>
-                    <!-- Known: shown, never asked again — with where it came from (D-291). -->
+                    <!-- Known: shown, never asked again — with where it came from (D-291); ours with a way to say the papers
+                         state another figure (an Auflastung): read-only by default, never a way closed to a stricter answer. -->
                     <div v-else class="form-field pp__known" :data-pp-known="row.key">
                         <span class="form-field__label">{{ row.label }}</span>
                         <span class="pp__value">{{ row.shown }}</span>
-                        <span class="pp__source">{{ row.source }}</span>
+                        <span class="pp__source">
+                            {{ row.source }}<template v-if="row.mayDiffer"> · <button class="link pp__differ" type="button" @click="differ(row.key)">Steht in deinen Papieren ein anderer Wert?</button></template>
+                        </span>
                     </div>
                 </template>
             </div>
@@ -522,6 +607,7 @@ function clear(): void {
                                 placeholder="z. B. 225/45 R17 91W"
                                 :aria-invalid="errors[field.key] ? 'true' : undefined"
                                 :aria-describedby="`pp-${field.key}-err`"
+                                @input="touched = true"
                             >
                             <p :id="`pp-${field.key}-err`" class="form-field__error">{{ errors[field.key] }}</p>
                         </div>
@@ -655,9 +741,22 @@ function clear(): void {
 }
 
 .pp__source {
+    margin: 0;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     color: var(--c-ink-2);
+}
+
+/* „In deinen Papieren steht ein anderer Wert?“: a link in the source line's own size, a 44 px target under a finger. */
+.pp__differ {
+    font-size: inherit;
+    line-height: inherit;
+}
+
+@media (pointer: coarse) {
+    .pp__differ {
+        min-height: 44px;
+    }
 }
 
 .pp__index {

@@ -57,15 +57,28 @@ class CheckResult extends Model
         ];
     }
 
-    /** @return Builder<static> */
+    /**
+     * In whole days in Berlin: a check stays through the last day its page names („Link gültig bis …“) and goes in the
+     * night after it — never at 03:30 on the day it promised (the interaction review of D-292).
+     *
+     * @return Builder<static>
+     */
     public function prunable(): Builder
     {
-        return static::query()->where('computed_at', '<', now()->subMonths(self::KEEP_MONTHS));
+        $threshold = now()->timezone('Europe/Berlin')->startOfDay()->subMonthsNoOverflow(self::KEEP_MONTHS)->utc();
+
+        return static::query()->where('computed_at', '<', $threshold);
     }
 
-    /** The last day the link still opens this check. */
+    /** The last day, in Berlin, the link still opens this check. */
     public function keptUntil(): Carbon
     {
-        return $this->computed_at->copy()->addMonths(self::KEEP_MONTHS);
+        return $this->computed_at->copy()->timezone('Europe/Berlin')->startOfDay()->addMonthsNoOverflow(self::KEEP_MONTHS);
+    }
+
+    /** Past its last day: treated as gone, whether or not the nightly prune has taken it yet. */
+    public function expired(): bool
+    {
+        return $this->keptUntil()->lt(now()->timezone('Europe/Berlin')->startOfDay());
     }
 }

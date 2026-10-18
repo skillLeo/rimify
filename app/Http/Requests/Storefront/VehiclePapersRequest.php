@@ -7,6 +7,7 @@ namespace App\Http\Requests\Storefront;
 use App\Domain\Fitment\Data\PapersFigures;
 use App\Domain\Fitment\Data\PapersIndex;
 use App\Domain\Fitment\Verdict\TyreCheck;
+use App\Domain\Storefront\PapersBook;
 use App\Models\Vehicle;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -98,10 +99,23 @@ class VehiclePapersRequest extends FormRequest
                 }
             }
 
-            $first = array_values(array_filter(array_keys(self::FIGURES), fn (string $key): bool => $this->exists($key)))[0] ?? 'axle_front_kg';
-            $validator->errors()->add($first, $this->messages()["{$first}.required"]);
+            // Where the form shows no figure — our data holds them all —, 15.1 is the field it shows (the interaction review);
+            // „Werte löschen“ is named only where there is something of the customer's to delete, as the form shows it.
+            $first = array_values(array_filter(array_keys(self::FIGURES), fn (string $key): bool => $this->exists($key)))[0] ?? null;
+            $raw = $this->cookie(PapersBook::COOKIE);
+            $given = PapersBook::decode(is_string($raw) ? $raw : null)->for((int) $this->vehicle()->id) !== null;
+
+            $first === null
+                ? $validator->errors()->add('index_front', self::NOTHING_GIVEN.($given ? ' '.self::DELETE_ALL : ''))
+                : $validator->errors()->add($first, $this->messages()["{$first}.required"]);
         }];
     }
+
+    /** An empty save where only 15.1 and 15.2 are shown: what to type, or how to leave — the fields are voluntary. */
+    public const NOTHING_GIVEN = 'Trag die Reifen aus den Feldern 15.1 und 15.2 ein oder schließ das Formular mit „Abbrechen“.';
+
+    /** …and where the customer gave figures before, how to remove them all; ours stay. */
+    public const DELETE_ALL = 'Willst du alle deine Werte löschen, wähl „Werte löschen“.';
 
     /** A field 15.1 or 15.2 whose index and symbol cannot be read is refused in words, never half read. */
     private static function readable(string $field): Closure

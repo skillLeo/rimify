@@ -332,10 +332,17 @@ it('refuses the wheel when half an axle it may go on is more than its tested loa
 
     expect($verdict->status)->toBe(VerdictStatus::NotPermitted)
         ->and($verdict->reason?->code)->toBe(VerdictReason::WHEEL_LOAD_EXCEEDED)
-        ->and($verdict->reason?->textDe)->toBe('Die Felge ist für '.kg('700').' je Rad geprüft. Maßgeblich ist die Hinterachse mit '.kg('1.500').': '.kg('750').' je Rad – mehr, als die Felge tragen darf.');
+        ->and($verdict->reason?->textDe)->toBe('Die Felge ist für '.kg('700').' je Rad geprüft. Maßgeblich ist die zulässige Achslast der Hinterachse: '.kg('1.500').' aus unseren Fahrzeugdaten, also '.kg('750').' je Rad – mehr, als die Felge tragen darf.');
 
     // Exactly the tested load is fine.
     expect(decideFor(bmw4er3C(1250, 1400, 250))->status)->not->toBe(VerdictStatus::NotPermitted);
+
+    // Where the binding load is the customer's own, the refusal says so: a mistyped figure is theirs to correct (the
+    // interaction review of D-291).
+    $typed = decideFor((PapersFigures::tryFrom(1610, null, 250) ?? throw new LogicException)->applyTo(bmw4er3C(1100, 1100)));
+
+    expect($typed->status)->toBe(VerdictStatus::NotPermitted)
+        ->and($typed->reason?->textDe)->toBe('Die Felge ist für '.kg('700').' je Rad geprüft. Maßgeblich ist die zulässige Achslast der Vorderachse: '.kg('1.610').' nach deiner Angabe aus Feld 8.1, also '.kg('805').' je Rad – mehr, als die Felge tragen darf.');
 });
 
 it('judges a rear-only size against the rear axle alone', function (): void {
