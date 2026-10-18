@@ -8,7 +8,7 @@
  */
 
 import { Head, Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import { useShared } from '../../composables/useShared'
@@ -20,6 +20,7 @@ type Block =
     | { type: 'prose'; data: { heading?: string; text?: string } }
     | { type: 'figure'; data: { src: string; alt: string; caption?: string; width?: number | null; height?: number | null } }
     | { type: 'table'; data: { caption: string; head: string[]; rows: string[][] } }
+    | { type: 'quote'; data: { text: string; source?: string } }
 
 const props = defineProps<{
     guide: {
@@ -38,6 +39,39 @@ const description = computed(() => props.guide.metaDescription || props.guide.te
 const canonical = computed(() => (typeof shared.value.canonical === 'string' ? shared.value.canonical : ''))
 /* The first figure of the article is its picture when it is shared; an article without one shares its words only. */
 const image = computed(() => props.guide.blocks.find((b): b is Extract<Block, { type: 'figure' }> => b.type === 'figure')?.data ?? null)
+
+/* A shared link's picture needs its full address: a crawler reads `/storage/…` against nothing (SEI-31). */
+const shareImage = computed(() => {
+    const src = image.value?.src ?? ''
+
+    if (/^https?:\/\//i.test(src)) {
+        return src
+    }
+
+    try {
+        return src !== '' && canonical.value !== '' ? new URL(src, canonical.value).href : null
+    } catch {
+        return null
+    }
+})
+
+/*
+ * A picture whose file is gone is left out, never shown as a broken image (SEI-34). One that failed before the page
+ * came alive is found on mounting; one that fails later says so itself.
+ */
+const failed = ref<Set<number>>(new Set())
+
+function broken(index: number): void {
+    failed.value = new Set(failed.value).add(index)
+}
+
+onMounted(() => {
+    for (const img of document.querySelectorAll<HTMLImageElement>('.guide__figure img[data-block]')) {
+        if (img.complete && img.naturalWidth === 0) {
+            broken(Number(img.dataset.block))
+        }
+    }
+})
 </script>
 
 <template>
@@ -50,8 +84,8 @@ const image = computed(() => props.guide.blocks.find((b): b is Extract<Block, { 
         <meta property="og:title" :content="guide.title" head-key="og:title">
         <meta property="og:description" :content="description" head-key="og:description">
         <meta v-if="canonical" property="og:url" :content="canonical" head-key="og:url">
-        <meta v-if="image" property="og:image" :content="image.src" head-key="og:image">
-        <meta v-if="image" property="og:image:alt" :content="image.alt" head-key="og:image:alt">
+        <meta v-if="image && shareImage" property="og:image" :content="shareImage" head-key="og:image">
+        <meta v-if="image && shareImage" property="og:image:alt" :content="image.alt" head-key="og:image:alt">
     </Head>
 
     <article class="container guide" aria-labelledby="guide-title">
@@ -71,8 +105,17 @@ const image = computed(() => props.guide.blocks.find((b): b is Extract<Block, { 
                     <h2 v-if="block.data.heading" class="h3">{{ block.data.heading }}</h2>
                     <p v-for="(paragraph, p) in paragraphs(block.data.text)" :key="p" class="guide__para">{{ paragraph }}</p>
                 </template>
-                <figure v-else-if="block.type === 'figure'" class="guide__figure">
-                    <img :src="block.data.src" :alt="block.data.alt" :width="block.data.width ?? undefined" :height="block.data.height ?? undefined" loading="lazy" decoding="async">
+                <figure v-else-if="block.type === 'figure' && !failed.has(index)" class="guide__figure">
+                    <img
+                        :src="block.data.src"
+                        :alt="block.data.alt"
+                        :width="block.data.width ?? undefined"
+                        :height="block.data.height ?? undefined"
+                        :data-block="index"
+                        loading="lazy"
+                        decoding="async"
+                        @error="broken(index)"
+                    >
                     <figcaption v-if="block.data.caption" class="small muted">{{ block.data.caption }}</figcaption>
                 </figure>
                 <div v-else-if="block.type === 'table'" class="guide__table" role="region" :aria-label="block.data.caption" tabindex="0">
@@ -90,6 +133,13 @@ const image = computed(() => props.guide.blocks.find((b): b is Extract<Block, { 
                         </tbody>
                     </table>
                 </div>
+                <!-- A quote with its source, when the article names one (D-306). -->
+                <figure v-else-if="block.type === 'quote'" class="guide__quote">
+                    <blockquote>
+                        <p v-for="(paragraph, p) in paragraphs(block.data.text)" :key="p" class="body-l guide__para">{{ paragraph }}</p>
+                    </blockquote>
+                    <figcaption v-if="block.data.source" class="small muted">{{ block.data.source }}</figcaption>
+                </figure>
             </template>
         </div>
 
@@ -198,6 +248,25 @@ const image = computed(() => props.guide.blocks.find((b): b is Extract<Block, { 
 .guide__table th {
     color: var(--c-ink-2);
     font-weight: 600;
+}
+
+/* Set off by its size and a quiet rule at its edge, as the shop's other quotes — never a box, never the ink bar of an alert. */
+.guide__quote {
+    display: grid;
+    gap: var(--sp-8);
+    margin: var(--sp-24) 0;
+    padding-left: var(--sp-20);
+    border-left: 2px solid var(--c-line-2);
+}
+
+.guide__quote blockquote {
+    display: grid;
+    gap: var(--sp-16);
+    margin: 0;
+}
+
+.guide__quote p {
+    margin: 0;
 }
 
 .guide__foot {

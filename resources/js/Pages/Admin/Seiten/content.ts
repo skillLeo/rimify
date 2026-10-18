@@ -49,9 +49,32 @@ export function emptyItem(fields: SchemaField[]): Record<string, string | number
     return item
 }
 
+/** A table's bounds, PageSchema's COLUMNS_MIN, COLUMNS_MAX and ROWS_MAX: the buttons stop where the check would refuse. */
+export const COLUMNS_MIN = 2
+export const COLUMNS_MAX = 6
+export const ROWS_MAX = 30
+
+/** A table starts with two columns and one row, as the server's skeleton does (PageSchema::emptyValues). */
+const NEW_TABLE_COLUMNS = COLUMNS_MIN
+
 /** A new, empty block of a type, including an empty list where the type has one. */
 export function emptyBlock(block: SchemaBlock): ContentBlock {
-    const data: BlockData = { ...emptyItem(block.fields) }
+    const data: BlockData = {}
+
+    for (const field of block.fields) {
+        if (field.kind === 'grid') {
+            // A table: its headings under the field's key, its rows beside them.
+            data[field.key] = Array.from({ length: NEW_TABLE_COLUMNS }, () => '')
+            data.rows = [Array.from({ length: NEW_TABLE_COLUMNS }, () => '')]
+        } else if (field.kind === 'image') {
+            // A picture: its address, and its size as the upload measures it.
+            data[field.key] = ''
+            data.width = null
+            data.height = null
+        } else {
+            data[field.key] = emptyValue(field)
+        }
+    }
 
     if (block.list) {
         data[block.list.key] = [emptyItem(block.list.fields)]
@@ -60,9 +83,9 @@ export function emptyBlock(block: SchemaBlock): ContentBlock {
     return { type: block.type, data }
 }
 
-/** The one repeatable block type of a page, if it has one (guide and legal sections). */
-export function repeatable(schema: PageSchema): SchemaBlock | null {
-    return schema.blocks.find((block) => block.repeat) ?? null
+/** The repeatable block types of a page, in the schema's order: a legal page's sections, an article's building blocks. */
+export function repeatables(schema: PageSchema): SchemaBlock[] {
+    return schema.blocks.filter((block) => block.repeat)
 }
 
 /** „Abschnitt 3" for a repeatable block, the plain label for a fixed one. */
@@ -83,12 +106,15 @@ export function blockLabel(schema: PageSchema, blocks: ContentBlock[], index: nu
     return `${definition.label} ${nth}`
 }
 
-/* Equal as the server will store them: a trailing space typed into a field is no change. */
+/* Equal as the server will store them: a trailing space typed into a field is no change — in a table's cells too. */
 function same(a: unknown, b: unknown): boolean {
-    const x = typeof a === 'string' ? normalised(a) : (a ?? null)
-    const y = typeof b === 'string' ? normalised(b) : (b ?? null)
+    const stored = (value: unknown): unknown => (typeof value === 'string' ? normalised(value) : (value ?? null))
 
-    return x === y
+    if ((a !== null && typeof a === 'object') || (b !== null && typeof b === 'object')) {
+        return JSON.stringify(a, (_key, value: unknown) => stored(value)) === JSON.stringify(b, (_key, value: unknown) => stored(value))
+    }
+
+    return stored(a) === stored(b)
 }
 
 /** One changed place, with its words before and after — empty where the place is new or gone. */
@@ -102,11 +128,16 @@ function words(value: unknown): string {
     return value === null || value === undefined ? '' : String(value)
 }
 
+/** A field's value as two versions are compared: a table's headings and rows together, anything else as stored. */
+function comparable(field: SchemaField, data: Record<string, unknown> | undefined): unknown {
+    return field.kind === 'grid' ? { head: data?.head ?? [], rows: data?.rows ?? [] } : data?.[field.key]
+}
+
 /** A block's or an item's words in reading order, for a place that is new or gone as a whole. */
 function allWords(data: Record<string, unknown> | undefined, fields: SchemaField[]): string {
     return fields
         .filter((field) => field.kind !== 'icon')
-        .map((field) => words(data?.[field.key]))
+        .map((field) => shown(field, comparable(field, data)))
         .filter((text) => text !== '')
         .join('\n\n')
 }
@@ -116,10 +147,39 @@ export function changes(schema: PageSchema, before: PageContent, after: PageCont
     return diff(schema, before, after).map((change) => change.label)
 }
 
+/** A place among its own kind (`prose#3`), its label („Abschnitt 3") and its block. */
+interface Place {
+    definition: SchemaBlock
+    label: string
+    data: Record<string, unknown>
+}
+
+/** A version's blocks by their place among their own kind, in reading order — PageSchema::placed on the server. */
+function placed(schema: PageSchema, blocks: ContentBlock[]): Map<string, Place> {
+    const out = new Map<string, Place>()
+    const seen: Record<string, number> = {}
+
+    for (const block of blocks) {
+        const definition = schema.blocks.find((b) => b.type === block.type)
+
+        if (!definition) {
+            continue
+        }
+
+        seen[block.type] = (seen[block.type] ?? 0) + 1
+        const nth = seen[block.type] ?? 1
+        out.set(`${block.type}#${nth}`, { definition, label: definition.repeat ? `${definition.label} ${nth}` : definition.label, data: block.data })
+    }
+
+    return out
+}
+
 /**
- * Every place where `after` differs from `before`, in reading order, with its words: „Titel",
- * „Einstieg · Überschrift", „Abschnitt 3 · Text", „Abschnitt 7 (neu)", „Versprechen 2 (entfernt)".
- * Positional, like the server: a section moved up reads as the two places it changed.
+ * Every place where `after` differs from `before`, with its words: „Titel", „Einstieg · Überschrift",
+ * „Abschnitt 3 · Text", „Abschnitt 7 (neu)", „Zitat 1 (entfernt)". Each kind of block is compared among
+ * its own, by its place, like the server: a section moved up reads as the two places it changed, a quote
+ * removed between two sections as the quote's removal (SEI-25), and another order of the kinds as
+ * „Reihenfolge der Bausteine".
  */
 export function diff(schema: PageSchema, before: PageContent, after: PageContent): Change[] {
     const out: Change[] = []
@@ -132,35 +192,27 @@ export function diff(schema: PageSchema, before: PageContent, after: PageContent
         }
     }
 
-    const seen: Record<string, number> = {}
-    const total = Math.max(before.blocks.length, after.blocks.length)
+    const was = placed(schema, before.blocks)
+    const is = placed(schema, after.blocks)
 
-    for (let i = 0; i < total; i++) {
-        const old = before.blocks[i]
-        const now = after.blocks[i]
-        const type = (now ?? old)?.type ?? ''
-        const definition = schema.blocks.find((b) => b.type === type)
+    for (const [key, place] of is) {
+        const { definition, label: where } = place
+        const now = { data: place.data }
+        const kept = was.get(key)
 
-        if (!definition) {
+        if (!kept) {
+            out.push({ label: `${where} (neu)`, before: '', after: allWords(now.data, definition.fields) })
             continue
         }
 
-        seen[type] = (seen[type] ?? 0) + 1
-        const where = definition.repeat ? `${definition.label} ${seen[type]}` : definition.label
-
-        if (!old || old.type !== type) {
-            out.push({ label: `${where} (neu)`, before: '', after: allWords(now?.data, definition.fields) })
-            continue
-        }
-
-        if (!now) {
-            out.push({ label: `${where} (entfernt)`, before: allWords(old.data, definition.fields), after: '' })
-            continue
-        }
+        const old = { data: kept.data }
 
         for (const field of definition.fields) {
-            if (!same(old.data[field.key], now.data[field.key])) {
-                out.push({ label: `${where} · ${field.label}`, before: shown(field, old.data[field.key]), after: shown(field, now.data[field.key]) })
+            const a = comparable(field, old.data)
+            const b = comparable(field, now.data)
+
+            if (!same(a, b)) {
+                out.push({ label: `${where} · ${field.label}`, before: shown(field, a), after: shown(field, b) })
             }
         }
 
@@ -191,6 +243,24 @@ export function diff(schema: PageSchema, before: PageContent, after: PageContent
         }
     }
 
+    for (const [key, place] of was) {
+        if (!is.has(key)) {
+            out.push({ label: `${place.label} (entfernt)`, before: allWords(place.data, place.definition.fields), after: '' })
+        }
+    }
+
+    // The blocks both versions have, in each version's order: a quote moved above a section changes no words.
+    const kept = [...was.keys()].filter((key) => is.has(key))
+    const now = [...is.keys()].filter((key) => was.has(key))
+
+    if (kept.join('|') !== now.join('|')) {
+        out.push({
+            label: 'Reihenfolge der Bausteine',
+            before: kept.map((key) => was.get(key)?.label ?? '').join(', '),
+            after: now.map((key) => is.get(key)?.label ?? '').join(', '),
+        })
+    }
+
     return out
 }
 
@@ -198,6 +268,22 @@ export function diff(schema: PageSchema, before: PageContent, after: PageContent
 function shown(field: SchemaField, value: unknown): string {
     if (field.kind === 'icon' || field.kind === 'choice') {
         return field.options?.find((option) => option.value === value)?.label ?? words(value)
+    }
+
+    // A picture by its file's name, as a person would recognise it.
+    if (field.kind === 'image') {
+        return typeof value === 'string' && value !== '' ? (value.split('?')[0]?.split('/').pop() ?? '') : ''
+    }
+
+    // A table as its lines read: the headings, then each row, cells apart.
+    if (field.kind === 'grid' && value !== null && typeof value === 'object') {
+        const table = value as { head?: unknown; rows?: unknown }
+        const rows = Array.isArray(table.rows) ? (table.rows as unknown[]) : []
+
+        return [table.head, ...rows]
+            .map((row) => (Array.isArray(row) ? row.filter((cell): cell is string => typeof cell === 'string').join(' | ') : ''))
+            .join('\n')
+            .trim()
     }
 
     return words(value)
@@ -236,7 +322,8 @@ export function placeOf(schema: PageSchema, blocks: ContentBlock[], path: string
         return `${definition.list.itemLabel} ${Number(match[3]) + 1}${field ? ` · ${field.label}` : ''}`
     }
 
-    const field = definition.fields.find((f) => f.key === match[2])
+    // A table's rows are said at the table, under the field that holds its headings.
+    const field = definition.fields.find((f) => f.key === match[2] || (match[2] === 'rows' && f.kind === 'grid'))
 
     return field ? `${where} · ${field.label}` : where
 }
@@ -244,6 +331,35 @@ export function placeOf(schema: PageSchema, blocks: ContentBlock[], path: string
 /** The id a field's input carries, stable per position, so a server error can find its field. */
 export function fieldId(path: string): string {
     return `pg-${path.replace(/[^a-zA-Z0-9]+/g, '-')}`
+}
+
+/**
+ * A guard for buttons that change a list's structure. The second click of a double-click lands on whatever just moved
+ * into the place — it would remove that one too, or move it back (SEI-24, SEI-33). A pointer's click within 400 ms of
+ * the last change is taken once; a key press (`detail` 0) always, since focus follows what it moved.
+ */
+export function clickGuard(): (event?: MouseEvent) => boolean {
+    let last = Number.NEGATIVE_INFINITY
+
+    return (event?: MouseEvent): boolean => {
+        const now = performance.now()
+
+        if (event !== undefined && event.detail > 0 && (event.detail > 1 || now - last < 400)) {
+            return false
+        }
+
+        last = now
+
+        return true
+    }
+}
+
+/** A list with one element put in at a place: `at` past the end appends. */
+export function insertAt<T>(list: T[], at: number, item: T): T[] {
+    const next = [...list]
+    next.splice(Math.min(at, next.length), 0, item)
+
+    return next
 }
 
 /** Moves one element of a list by one place; out of bounds leaves the list as it is. */

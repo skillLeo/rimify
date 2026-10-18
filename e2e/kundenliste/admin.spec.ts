@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { expect, test, type Page } from '../fixtures'
 import { REVIEW_PASSWORD } from '../support'
 import { ABNAHME, PRODUCT, consent, open, pageProps, shotAround } from './support'
@@ -195,6 +196,60 @@ test('the Blog lists every published article, for every visitor — two guides, 
     await expect(main).not.toContainText('weitere folgen')
 
     await shotAround(page, [main.getByRole('heading', { level: 1 }), articles.last()], 212, info)
+})
+
+/** A test picture for the article's draft: a plain card, drawn here — never published, never a photograph. */
+async function card(): Promise<Buffer> {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#eef0f2"/>'
+        + '<rect x="160" y="140" width="880" height="520" rx="12" fill="#dfe6dc" stroke="#9aa59a" stroke-width="4"/>'
+        + '<rect x="220" y="220" width="320" height="36" fill="#9aa59a"/><rect x="220" y="300" width="520" height="24" fill="#b8c2b8"/>'
+        + '<rect x="220" y="350" width="460" height="24" fill="#b8c2b8"/><rect x="620" y="210" width="140" height="56" fill="none" stroke="#b3261e" stroke-width="6"/></svg>'
+
+    return sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer()
+}
+
+test('a Blog article built from blocks: a picture uploaded with its description, a table typed cell by cell, a quote', { tag: '@admin-211' }, async ({ page }, info) => {
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/seiten`, { waitUntil: 'networkidle' })
+    await page.locator('a.sn__link', { hasText: 'HSN und TSN finden' }).first().click()
+    await page.waitForURL(/\/admin\/seiten\/\d+$/)
+
+    const blocks = page.locator('section[id^="pg-section-"]')
+    const before = await blocks.count()
+
+    // A table: its caption, its headings, a row added — typed cell by cell.
+    await page.locator('#pg-add-table').click()
+    const table = blocks.nth(before)
+    await table.locator('input[id$="-data-caption"]').fill('Wo HSN und TSN stehen')
+    await table.getByLabel('Spaltenkopf 1', { exact: true }).fill('Feld')
+    await table.getByLabel('Spaltenkopf 2', { exact: true }).fill('Steht dort')
+    await table.getByLabel('Zeile 1, Feld', { exact: true }).fill('2.1')
+    await table.getByLabel('Zeile 1, Steht dort', { exact: true }).fill('HSN, vier Ziffern')
+    await table.getByRole('button', { name: 'Zeile hinzufügen' }).click()
+    await table.getByLabel('Zeile 2, Feld', { exact: true }).fill('2.2')
+    await table.getByLabel('Zeile 2, Steht dort', { exact: true }).fill('TSN, die ersten drei Zeichen')
+
+    // A picture: uploaded at once into our storage, with its description for screen readers.
+    await page.locator('#pg-add-figure').click()
+    const figure = blocks.nth(before + 1)
+    await figure.locator('input[type="file"]').setInputFiles({ name: 'zulassungsbescheinigung.jpg', mimeType: 'image/jpeg', buffer: await card() })
+    await expect(figure.locator('figure img')).toBeVisible()
+    await figure.locator('input[id$="-data-alt"]').fill('Zulassungsbescheinigung Teil I, die Felder 2.1 und 2.2 markiert')
+
+    // A quote, with who said it.
+    await page.locator('#pg-add-quote').click()
+    const quote = blocks.nth(before + 2)
+    await quote.locator('textarea[id$="-data-text"]').fill('Erst die Schlüsselnummern, dann die Felge.')
+    await quote.locator('input[id$="-data-source"]').fill('Aus dem RIMIFY-Team')
+    await shotAround(page, [table, figure], 211, info)
+
+    // Before anything goes live, the dialog names each new block — nothing is published here.
+    await page.locator('.adm-page__actions').getByRole('button', { name: 'Veröffentlichen' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText('Tabelle 1 (neu)')
+    await expect(dialog).toContainText('Bild 1 (neu)')
+    await expect(dialog).toContainText('Zitat 1 (neu)')
+    await dialog.getByRole('button', { name: 'Abbrechen' }).click()
 })
 
 /**

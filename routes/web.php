@@ -728,6 +728,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber(['page', 'revision'])
             ->middleware(EnsureAdminMay::class.':content,view')
             ->name('seiten.vergleich');
+        // A picture for an article's building block (his admin item 11, D-306): into our storage, answered as JSON.
+        Route::post('/seiten/{page}/bild', [SeitenController::class, 'image'])
+            ->whereNumber('page')
+            ->middleware('throttle:30,1,seiten-bild')
+            ->name('seiten.bild');
 
         // Inhalte › FAQ: no draft — a visible entry changes on the shop when saved, so changing
         // one takes the right to publish (FaqEntryPolicy). `/reihenfolge` is a fixed segment.

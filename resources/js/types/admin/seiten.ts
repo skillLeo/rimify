@@ -4,7 +4,8 @@
  * same numbers.
  */
 
-export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice'
+/** `image` and `grid` are an article's building blocks (D-306): a picture from our storage, a table. */
+export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice' | 'image' | 'grid'
 
 export interface SchemaField {
     key: string
@@ -37,6 +38,9 @@ export interface SchemaBlock {
     max: number
     fields: SchemaField[]
     list?: SchemaList
+    /** A repeatable block's count words: „ein Bild“, „Bilder“. */
+    one?: string
+    many?: string
 }
 
 export interface PageSchema {
@@ -44,7 +48,8 @@ export interface PageSchema {
     blocks: SchemaBlock[]
 }
 
-export type BlockData = Record<string, string | number | null | Record<string, string | number | null>[]>
+/** A table's headings are a row of cells (`head: string[]`), its body rows of rows (`rows: string[][]`). */
+export type BlockData = Record<string, string | number | null | string[] | string[][] | Record<string, string | number | null>[]>
 
 /* Type aliases, not interfaces: Inertia's form accepts a shape only with an index signature, and
    TypeScript gives aliases one implicitly. */

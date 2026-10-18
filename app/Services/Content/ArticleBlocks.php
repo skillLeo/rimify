@@ -15,14 +15,12 @@ namespace App\Services\Content;
  *                figure is left out: a picture that says nothing to a screen reader is not shown half.
  *   - `table`  — a caption (required), the header cells (at least one), and rows of as many cells as there are header
  *                cells. The page writes `<caption>`, `<th scope="col">` and `<td>`.
+ *   - `quote`  — the quoted words (required) and who said or wrote them (optional); the page writes `<blockquote>`.
  *
- * The richer editing (the client's admin item 11) comes in the admin round, on these same shapes.
+ * The editor builds these same shapes (the client's admin item 11, D-306: PageSchema's article blocks).
  */
 final class ArticleBlocks
 {
-    /** Images only from our own storage: no request to another site from an article (D-183). */
-    private const OWN_IMAGE = '#^(/storage/|https://[a-z0-9.-]+\.amazonaws\.com/)#i';
-
     /**
      * The block as the page renders it, or null where it is not a shape the page knows or misses what it requires.
      *
@@ -35,8 +33,20 @@ final class ArticleBlocks
             'prose' => self::prose($data),
             'figure' => self::figure($data),
             'table' => self::table($data),
+            'quote' => self::quote($data),
             default => null,
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{type: string, data: array<string, mixed>}|null
+     */
+    private static function quote(array $data): ?array
+    {
+        $text = self::text($data['text'] ?? null, multiline: true);
+
+        return $text === '' ? null : ['type' => 'quote', 'data' => ['text' => $text, 'source' => self::text($data['source'] ?? null)]];
     }
 
     /**
@@ -60,7 +70,8 @@ final class ArticleBlocks
         $src = self::text($data['src'] ?? null);
         $alt = self::text($data['alt'] ?? null);
 
-        if ($src === '' || $alt === '' || preg_match(self::OWN_IMAGE, $src) !== 1) {
+        // Images only from our own storage — the site's disk, the bucket or its CDN: no request to another site (D-183).
+        if ($src === '' || $alt === '' || ! PageSchema::ownImage($src)) {
             return null;
         }
 
@@ -92,6 +103,11 @@ final class ArticleBlocks
 
             if (count($cells) !== count($head)) {
                 return null;
+            }
+
+            // A row added and left empty is not printed: an empty line in a table reads as a fault (SEI-37).
+            if (implode('', $cells) === '') {
+                continue;
             }
 
             $rows[] = $cells;

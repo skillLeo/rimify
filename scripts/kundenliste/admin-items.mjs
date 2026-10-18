@@ -78,8 +78,8 @@ export const ITEMS = [
     {
         nr: 211,
         wish: 'Blog: Fotos hochladen und HTML für Abschnitte, z. B. für Tabellen',
-        now: 'Noch nicht gebaut: ein Editor mit Bausteinen – Tabelle mit Spaltenköpfen, Bild mit Pflicht-Alternativtext, Zitat – statt freiem HTML, über das fremder Code auf die Seite gelangen könnte.',
-        state: 'offen',
+        now: 'Ein Artikel besteht jetzt aus Bausteinen, in beliebiger Reihenfolge: Abschnitt, Bild, Tabelle, Zitat. Ein Bild lädst du direkt im Artikel hoch. Es wird in unserem Speicher abgelegt und braucht eine Bildbeschreibung für Screenreader. Eine Tabelle tippst du Zelle für Zelle, mit Spaltenköpfen, 2 bis 6 Spalten. Freies HTML gibt es bewusst nicht: Darüber könnte fremder Code auf die Seite gelangen. Fehlt etwas, zeigt die Prüfung vor dem Veröffentlichen die Stelle.',
+        state: 'anders gelöst',
     },
     {
         nr: 212,
@@ -142,7 +142,7 @@ export const NOTES = {
     208: 'Each Gutachten has a „Bereifungskombinationen“ section: you enter the list as printed (number, front, rear, page), and from then on the shop offers only those pairs. Conditions per axle are entered with each tyre size and its axle; codes are typed as printed, brackets included: 0), R), 13), 16a). We still need to confirm with you whether your document lists three or four combinations.',
     209: 'Beside each tyre size, load index and speed symbol now have two fields of their own: the load index as a number, the symbol from the list L to (Y). A size pasted as the Gutachten prints it („245/35 R19 93Y“) splits into the fields by itself, and a front-and-rear pair becomes two lines. Both are checked when you save and again at release.',
     210: 'Catalogue › Reifen: each tyre is one size of one profile — brand, profile, season, size with load and speed index, the EU tyre label (fuel efficiency, wet grip, rolling noise, snow and ice grip, EPREL number), price and availability. „Weitere Größe anlegen“ copies brand, profile and season. A tyre is offered as part of a complete wheel only while it is available and its EU tyre label is complete; above the list stands how many tyres still lack part of their label, and one click shows only those. Tyres are no longer counted either: a tyre is available or not, like a rim.',
-    211: 'Not built yet: an editor with building blocks — a table with header cells, an image with required alt text, a quote — instead of free HTML, which could put someone else\'s code on the site.',
+    211: 'Solved differently: an article is now built from blocks in any order — section, image, table, quote. An image is uploaded right in the article, stored in our own storage, and needs a description for screen readers. A table is typed cell by cell, with header cells, 2 to 6 columns. There is deliberately no free HTML: it could put someone else\'s code on the site. The check before publishing names anything missing at the place it is missing.',
     212: 'The blog page /blog lists every published article, newest first, linked from the footer. Two guides are published; the third — ABE, Teilegutachten, ECE — appears once the law firm has checked it.',
     213: 'The title composes itself from brand, model and Radtypenbezeichnung. A title typed otherwise under „Titel im Shop“ stays, even when the parts change later; the rim list flags it „Titel weicht ab“, and in the form the composed title is one click away.',
     214: 'Every rim page carries its structured data for Google (JSON-LD) in its head: the rim with brand, name, description and photos, and each size and colour as a product of its own with SKU, EAN, price and availability. Ratings only where buyers left real reviews; the shipping cost once you have entered it under Einstellungen › Verkäufer & Versand. The delivery time is not in it yet: Google wants handling and transit time apart, and the settings hold one range. Returns go in once your details for them are in. Example rims get none.',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Content;
 
 use App\Models\Page;
+use App\Services\Storage\StorageSettings;
 use App\Support\HeroPhotos;
 
 /**
@@ -21,14 +22,49 @@ use App\Support\HeroPhotos;
  *
  * Blocks come in schema order: every fixed block once, then the page's repeatable sections.
  *
+ * A field's `kind` is text, textarea, number, icon or choice — and for an article's building blocks (D-306) `image` (the
+ * picture's address in our storage, its `width` and `height` kept beside it) and `grid` (a table: `head`, the column
+ * headings, and `rows`, each as many cells as there are headings).
+ *
+ * After the fixed blocks a page holds its repeatable ones in any order; each type keeps its own bounds, named with
+ * `one` and `many` („einen Abschnitt“, „Abschnitte“).
+ *
  * @phpstan-type Field array{key: string, label: string, kind: string, required: bool, max: int|null, min?: int, help?: string, options?: list<array{value: string, label: string}>, default?: string}
  * @phpstan-type ItemList array{key: string, label: string, itemLabel: string, one: string, min: int, max: int, fields: list<Field>}
- * @phpstan-type Block array{type: string, label: string, repeat: bool, min: int, max: int, fields: list<Field>, list?: ItemList}
+ * @phpstan-type Block array{type: string, label: string, repeat: bool, min: int, max: int, fields: list<Field>, list?: ItemList, one?: string, many?: string}
  * @phpstan-type Schema array{page: list<Field>, blocks: list<Block>}
  * @phpstan-type Content array{title: string, metaDescription: string, blocks: list<array{type: string, data: array<string, mixed>}>}
  */
 final class PageSchema
 {
+    /** A table's bounds (D-306): enough for a size chart, never a spreadsheet the article's measure cannot hold. */
+    public const COLUMNS_MIN = 2;
+
+    public const COLUMNS_MAX = 6;
+
+    public const ROWS_MAX = 30;
+
+    public const CELL_MAX = 200;
+
+    /** A picture from our own storage only (ArticleBlocks reads the same): no request to another site from an article. */
+    public const OWN_IMAGE = '#^(/storage/|https://[a-z0-9.-]+\.amazonaws\.com/)#i';
+
+    /**
+     * Whether a picture's address is our storage's: the site's own disk or the bucket, and the public base the bucket
+     * is read from where one is set under Einstellungen › Medien und Speicher — a CDN (SEI-26). What SeitenController::
+     * image answers, this accepts.
+     */
+    public static function ownImage(string $src): bool
+    {
+        if (preg_match(self::OWN_IMAGE, $src) === 1) {
+            return true;
+        }
+
+        $storage = app(StorageSettings::class)->current();
+
+        return $storage->isBucket() && str_starts_with($src, $storage->publicBase().'/');
+    }
+
     /**
      * The promise row's glyphs, from the storefront's own icon set (resources/js/icons), each with
      * the word a person would use for it.
@@ -148,15 +184,59 @@ final class PageSchema
                         ['key' => 'minutes', 'label' => 'Lesezeit in Minuten', 'kind' => 'number', 'required' => true, 'max' => 60, 'min' => 1],
                     ],
                 ],
+                // The article's building blocks (his admin item 11, D-306), in any order: text, a picture, a table, a
+                // quote — structured, never HTML (ArticleBlocks prints every value as text).
                 [
                     'type' => 'prose',
                     'label' => 'Abschnitt',
+                    'one' => 'einen Abschnitt',
+                    'many' => 'Abschnitte',
                     'repeat' => true,
                     'min' => 1,
                     'max' => 30,
                     'fields' => [
                         self::text('heading', 'Zwischenüberschrift', 90, true),
                         self::textarea('text', 'Text', 5000, true, 'Eine Leerzeile beginnt einen neuen Absatz.'),
+                    ],
+                ],
+                [
+                    'type' => 'figure',
+                    'label' => 'Bild',
+                    'one' => 'ein Bild',
+                    'many' => 'Bilder',
+                    'repeat' => true,
+                    'min' => 0,
+                    'max' => 12,
+                    'fields' => [
+                        ['key' => 'src', 'label' => 'Bild', 'kind' => 'image', 'required' => true, 'max' => null, 'help' => 'JPG, PNG, WebP oder AVIF, höchstens 10 MB. Das Bild wird in unserem Speicher abgelegt.'],
+                        self::text('alt', 'Bildbeschreibung', 200, true, 'Was das Bild zeigt, für alle, die es nicht sehen – Screenreader lesen diesen Text vor.'),
+                        self::text('caption', 'Bildunterschrift', 200, false),
+                    ],
+                ],
+                [
+                    'type' => 'table',
+                    'label' => 'Tabelle',
+                    'one' => 'eine Tabelle',
+                    'many' => 'Tabellen',
+                    'repeat' => true,
+                    'min' => 0,
+                    'max' => 10,
+                    'fields' => [
+                        self::text('caption', 'Tabellenüberschrift', 120, true, 'Sagt, was die Tabelle zeigt. Screenreader lesen diese Überschrift als Erstes vor.'),
+                        ['key' => 'head', 'label' => 'Inhalt', 'kind' => 'grid', 'required' => true, 'max' => self::CELL_MAX, 'help' => 'In die erste Zeile kommen die Spaltenköpfe. 2 bis '.self::COLUMNS_MAX.' Spalten, bis '.self::ROWS_MAX.' Zeilen.'],
+                    ],
+                ],
+                [
+                    'type' => 'quote',
+                    'label' => 'Zitat',
+                    'one' => 'ein Zitat',
+                    'many' => 'Zitate',
+                    'repeat' => true,
+                    'min' => 0,
+                    'max' => 10,
+                    'fields' => [
+                        self::textarea('text', 'Zitat', 600, true),
+                        self::text('source', 'Quelle', 120, false, 'Wer es gesagt oder geschrieben hat.'),
                     ],
                 ],
             ],
@@ -179,6 +259,8 @@ final class PageSchema
                 [
                     'type' => 'legal_body',
                     'label' => 'Abschnitt',
+                    'one' => 'einen Abschnitt',
+                    'many' => 'Abschnitte',
                     'repeat' => true,
                     'min' => 1,
                     'max' => 60,
@@ -204,7 +286,9 @@ final class PageSchema
         $blocks = [];
 
         foreach ($schema['blocks'] as $block) {
-            for ($i = 0; $i < max(1, $block['min']); $i++) {
+            // A fixed block once; a repeatable one as often as its type needs — a new article starts with a section, not
+            // with an empty picture or table.
+            for ($i = 0; $i < ($block['repeat'] ? $block['min'] : max(1, $block['min'])); $i++) {
                 $data = self::emptyValues($block['fields']);
 
                 if (isset($block['list'])) {
@@ -231,8 +315,19 @@ final class PageSchema
                 'number' => $field['min'] ?? 1,
                 'icon' => $field['options'][0]['value'] ?? '',
                 'choice' => $field['default'] ?? ($field['options'][0]['value'] ?? ''),
+                // A table starts with two columns and one row, every cell empty.
+                'grid' => array_fill(0, self::COLUMNS_MIN, ''),
                 default => '',
             };
+
+            if ($field['kind'] === 'grid') {
+                $data['rows'] = [array_fill(0, self::COLUMNS_MIN, '')];
+            }
+
+            if ($field['kind'] === 'image') {
+                $data['width'] = null;
+                $data['height'] = null;
+            }
         }
 
         return $data;
@@ -313,30 +408,60 @@ final class PageSchema
 
         $blocks = $content['blocks'];
         $index = 0;
+        $repeatable = [];
 
+        // The fixed blocks first, each once, in the schema's order.
         foreach ($schema['blocks'] as $block) {
-            $count = 0;
+            if ($block['repeat']) {
+                $repeatable[$block['type']] = $block;
 
-            while (isset($blocks[$index]) && $blocks[$index]['type'] === $block['type'] && ($block['repeat'] || $count === 0)) {
-                foreach (self::blockErrors($block, $blocks[$index]['data']) as $path => $message) {
-                    $errors['blocks.'.$index.'.data.'.$path] = $message;
-                }
-
-                $index++;
-                $count++;
+                continue;
             }
 
-            if ($count < $block['min']) {
-                $errors['blocks'] = $block['repeat']
-                    ? 'Die Seite braucht mindestens '.self::countWord($block['min'], 'einen Abschnitt', 'Abschnitte').'.'
-                    : 'Der Bereich „'.$block['label'].'“ fehlt.';
-            } elseif ($count > $block['max']) {
-                $errors['blocks'] = 'Höchstens '.self::countWord($block['max'], 'einen Abschnitt', 'Abschnitte').' pro Seite.';
+            if (($blocks[$index]['type'] ?? null) !== $block['type']) {
+                if ($block['min'] > 0) {
+                    $errors['blocks'] = 'Der Bereich „'.$block['label'].'“ fehlt.';
+                }
+
+                continue;
+            }
+
+            foreach (self::blockErrors($block, $blocks[$index]['data']) as $path => $message) {
+                $errors['blocks.'.$index.'.data.'.$path] = $message;
+            }
+
+            $index++;
+        }
+
+        // Then the repeatable ones in any order the editor set them (D-306), each type within its own bounds.
+        $counts = [];
+
+        for (; $index < count($blocks); $index++) {
+            $block = $repeatable[$blocks[$index]['type']] ?? null;
+
+            if ($block === null) {
+                $errors['blocks'] = 'Die Abschnitte stehen nicht in der erwarteten Reihenfolge. Bitte lade die Seite neu.';
+
+                break;
+            }
+
+            $counts[$block['type']] = ($counts[$block['type']] ?? 0) + 1;
+
+            foreach (self::blockErrors($block, $blocks[$index]['data']) as $path => $message) {
+                $errors['blocks.'.$index.'.data.'.$path] = $message;
             }
         }
 
-        if ($index < count($blocks)) {
-            $errors['blocks'] = 'Die Abschnitte stehen nicht in der erwarteten Reihenfolge. Bitte lade die Seite neu.';
+        foreach ($repeatable as $type => $block) {
+            $count = $counts[$type] ?? 0;
+            $one = $block['one'] ?? 'einen Abschnitt';
+            $many = $block['many'] ?? 'Abschnitte';
+
+            if ($count < $block['min']) {
+                $errors['blocks'] = 'Die Seite braucht mindestens '.self::countWord($block['min'], $one, $many).'.';
+            } elseif ($count > $block['max']) {
+                $errors['blocks'] = 'Höchstens '.self::countWord($block['max'], $one, $many).' pro Seite.';
+            }
         }
 
         return $errors;
@@ -357,9 +482,12 @@ final class PageSchema
 
     /**
      * Every place in a content where two versions differ, named for a person, with its words before
-     * and after: „Einstieg · Überschrift", „Abschnitt 3 · Text", „Abschnitt 7 (neu)". Positional: a
-     * section moved up reads as the two places it changed, which is what a reader comparing them
-     * sees. The editor's own diff (Seiten/content.ts) names places the same way.
+     * and after: „Einstieg · Überschrift", „Abschnitt 3 · Text", „Abschnitt 7 (neu)", „Zitat 1 (entfernt)".
+     * Each kind of block is compared among its own, by its place: Abschnitt 3 with Abschnitt 3, Zitat 1
+     * with Zitat 1 — a section moved up reads as the two places it changed, which is what a reader
+     * comparing them sees, and a quote removed between two sections is the quote's removal, not theirs
+     * (SEI-25). Where the kinds stand in another order, „Reihenfolge der Bausteine" says so. The editor's
+     * own diff (Seiten/content.ts) names places the same way.
      *
      * @param  Schema  $schema
      * @param  Content  $before
@@ -379,43 +507,24 @@ final class PageSchema
             }
         }
 
-        $byType = [];
+        $was = self::placed($schema, $before['blocks']);
+        $is = self::placed($schema, $after['blocks']);
 
-        foreach ($schema['blocks'] as $block) {
-            $byType[$block['type']] = $block;
-        }
+        foreach ($is as $key => $place) {
+            $block = $place['block'];
+            $where = $place['label'];
+            $new = $place['data'];
+            $old = $was[$key]['data'] ?? null;
 
-        $seen = [];
-        $total = max(count($before['blocks']), count($after['blocks']));
-
-        for ($i = 0; $i < $total; $i++) {
-            $old = $before['blocks'][$i] ?? null;
-            $new = $after['blocks'][$i] ?? null;
-            $type = ($new ?? $old)['type'] ?? '';
-            $block = $byType[$type] ?? null;
-
-            if ($block === null) {
-                continue;
-            }
-
-            $seen[$type] = ($seen[$type] ?? 0) + 1;
-            $where = $block['repeat'] ? $block['label'].' '.$seen[$type] : $block['label'];
-
-            if ($old === null || $old['type'] !== $type) {
-                $changed[] = ['label' => $where.' (neu)', 'before' => '', 'after' => self::allWords($new['data'] ?? [], $block['fields'])];
-
-                continue;
-            }
-
-            if ($new === null) {
-                $changed[] = ['label' => $where.' (entfernt)', 'before' => self::allWords($old['data'], $block['fields']), 'after' => ''];
+            if ($old === null) {
+                $changed[] = ['label' => $where.' (neu)', 'before' => '', 'after' => self::allWords($new, $block['fields'])];
 
                 continue;
             }
 
             foreach ($block['fields'] as $field) {
-                $a = $old['data'][$field['key']] ?? null;
-                $b = $new['data'][$field['key']] ?? null;
+                $a = self::comparable($field, $old);
+                $b = self::comparable($field, $new);
 
                 if ($a !== $b) {
                     $changed[] = ['label' => $where.' · '.$field['label'], 'before' => self::shown($field, $a), 'after' => self::shown($field, $b)];
@@ -424,8 +533,8 @@ final class PageSchema
 
             if (isset($block['list'])) {
                 $list = $block['list'];
-                $oldItems = is_array($old['data'][$list['key']] ?? null) ? array_values($old['data'][$list['key']]) : [];
-                $newItems = is_array($new['data'][$list['key']] ?? null) ? array_values($new['data'][$list['key']]) : [];
+                $oldItems = is_array($old[$list['key']] ?? null) ? array_values($old[$list['key']]) : [];
+                $newItems = is_array($new[$list['key']] ?? null) ? array_values($new[$list['key']]) : [];
                 $items = max(count($oldItems), count($newItems));
 
                 for ($j = 0; $j < $items; $j++) {
@@ -452,7 +561,63 @@ final class PageSchema
             }
         }
 
+        foreach ($was as $key => $place) {
+            if (! isset($is[$key])) {
+                $changed[] = ['label' => $place['label'].' (entfernt)', 'before' => self::allWords($place['data'], $place['block']['fields']), 'after' => ''];
+            }
+        }
+
+        // The blocks both versions have, in each version's order: a quote moved above a section changes no words.
+        $kept = array_values(array_filter(array_keys($was), static fn (string $key): bool => isset($is[$key])));
+        $now = array_values(array_filter(array_keys($is), static fn (string $key): bool => isset($was[$key])));
+
+        if ($kept !== $now) {
+            $changed[] = [
+                'label' => 'Reihenfolge der Bausteine',
+                'before' => implode(', ', array_map(static fn (string $key): string => $was[$key]['label'], $kept)),
+                'after' => implode(', ', array_map(static fn (string $key): string => $is[$key]['label'], $now)),
+            ];
+        }
+
         return $changed;
+    }
+
+    /**
+     * A version's blocks by their place among their own kind (`prose#3`), in reading order, each with its label —
+     * „Abschnitt 3", „Einstieg" — and its data. A block of a kind the schema does not know is left out.
+     *
+     * @param  Schema  $schema
+     * @param  array<mixed>  $blocks
+     * @return array<string, array{block: Block, label: string, data: array<mixed>}>
+     */
+    private static function placed(array $schema, array $blocks): array
+    {
+        $byType = [];
+
+        foreach ($schema['blocks'] as $block) {
+            $byType[$block['type']] = $block;
+        }
+
+        $placed = [];
+        $seen = [];
+
+        foreach ($blocks as $entry) {
+            $type = is_array($entry) && is_string($entry['type'] ?? null) ? $entry['type'] : '';
+            $block = $byType[$type] ?? null;
+
+            if ($block === null) {
+                continue;
+            }
+
+            $seen[$type] = ($seen[$type] ?? 0) + 1;
+            $placed[$type.'#'.$seen[$type]] = [
+                'block' => $block,
+                'label' => $block['repeat'] ? $block['label'].' '.$seen[$type] : $block['label'],
+                'data' => is_array($entry['data'] ?? null) ? $entry['data'] : [],
+            ];
+        }
+
+        return $placed;
     }
 
     /**
@@ -466,7 +631,7 @@ final class PageSchema
         $texts = [];
 
         foreach ($fields as $field) {
-            $text = $field['kind'] === 'icon' ? '' : self::shown($field, $data[$field['key']] ?? null);
+            $text = $field['kind'] === 'icon' ? '' : self::shown($field, self::comparable($field, $data));
 
             if ($text !== '') {
                 $texts[] = $text;
@@ -474,6 +639,21 @@ final class PageSchema
         }
 
         return implode("\n\n", $texts);
+    }
+
+    /**
+     * A field's value as two versions are compared: a table's headings and rows together, anything else as stored.
+     *
+     * @param  Field  $field
+     * @param  array<mixed>  $data
+     */
+    private static function comparable(array $field, array $data): mixed
+    {
+        if ($field['kind'] === 'grid') {
+            return ['head' => $data['head'] ?? [], 'rows' => $data['rows'] ?? []];
+        }
+
+        return $data[$field['key']] ?? null;
     }
 
     /**
@@ -495,14 +675,26 @@ final class PageSchema
             }
         }
 
+        // A picture by its file's name, as a person would recognise it.
+        if ($field['kind'] === 'image') {
+            return is_string($value) && $value !== '' ? basename((string) parse_url($value, PHP_URL_PATH)) : '';
+        }
+
+        // A table as its lines read: the headings, then each row, cells apart.
+        if ($field['kind'] === 'grid' && is_array($value)) {
+            $lines = [];
+
+            foreach ([$value['head'] ?? [], ...(is_array($value['rows'] ?? null) ? $value['rows'] : [])] as $row) {
+                $cells = is_array($row) ? array_filter($row, 'is_string') : [];
+                $lines[] = implode(' | ', $cells);
+            }
+
+            return trim(implode("\n", $lines));
+        }
+
         return is_scalar($value) ? (string) $value : '';
     }
 
-    /**
-     * @param  Block  $block
-     * @param  array<string, mixed>  $data
-     * @return array<string, string>
-     */
     /**
      * @param  Block  $block
      * @param  array<string, mixed>  $data
@@ -513,6 +705,12 @@ final class PageSchema
         $errors = [];
 
         foreach ($block['fields'] as $field) {
+            if ($field['kind'] === 'grid') {
+                $errors += self::gridErrors($data);
+
+                continue;
+            }
+
             $message = self::fieldError($field, $data[$field['key']] ?? null);
 
             if ($message !== null) {
@@ -570,6 +768,15 @@ final class PageSchema
             return in_array($value, array_column($field['options'] ?? [], 'value'), true) ? null : 'Bitte wähl einen Eintrag aus der Liste.';
         }
 
+        // A picture from our own storage, uploaded here — never an address on another site.
+        if ($field['kind'] === 'image') {
+            if (! is_string($value) || $value === '') {
+                return 'Bitte wähl ein Bild aus.';
+            }
+
+            return self::ownImage($value) ? null : 'Dieses Bild liegt nicht in unserem Speicher. Wähl es über „Anderes Bild auswählen“ neu aus.';
+        }
+
         $text = is_string($value) ? $value : '';
 
         if ($text === '') {
@@ -602,11 +809,84 @@ final class PageSchema
                 'icon' => is_string($value) ? $value : '',
                 // Content from before the field existed reads as the default, never as „none chosen“.
                 'choice' => $value === null || $value === '' ? ($field['default'] ?? '') : (is_string($value) ? $value : ''),
+                // The column headings, each as text; the rows beside them.
+                'grid' => self::cells($value),
                 default => self::string($value),
             };
+
+            if ($field['kind'] === 'grid') {
+                $rows = $raw['rows'] ?? [];
+                $data['rows'] = array_values(array_map(static fn (mixed $row): array => self::cells($row), is_array($rows) ? $rows : []));
+            }
+
+            // The picture's size as the upload measured it, so the page reserves its room before it loads.
+            if ($field['kind'] === 'image') {
+                $data['width'] = self::dimension($raw['width'] ?? null);
+                $data['height'] = self::dimension($raw['height'] ?? null);
+            }
         }
 
         return $data;
+    }
+
+    /**
+     * What is wrong with a table: its headings (`head`) and its rows (`rows`), each said under the table — headings for
+     * every column, 2 to 6 of them, rows of as many cells, every cell within its length (D-306).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, string>
+     */
+    private static function gridErrors(array $data): array
+    {
+        $head = is_array($data['head'] ?? null) ? array_values($data['head']) : [];
+        $rows = is_array($data['rows'] ?? null) ? array_values($data['rows']) : [];
+        $errors = [];
+
+        if (count($head) < self::COLUMNS_MIN || count($head) > self::COLUMNS_MAX) {
+            $errors['head'] = 'Eine Tabelle hat '.self::COLUMNS_MIN.' bis '.self::COLUMNS_MAX.' Spalten.';
+        } elseif (in_array('', $head, true)) {
+            $errors['head'] = 'Jede Spalte braucht einen Spaltenkopf.';
+        }
+
+        $tooLong = array_filter($head, static fn (mixed $cell): bool => is_string($cell) && mb_strlen($cell) > self::CELL_MAX) !== [];
+        $uneven = false;
+        $filled = false;
+
+        foreach ($rows as $row) {
+            $row = is_array($row) ? array_values($row) : [];
+            $uneven = $uneven || count($row) !== count($head);
+
+            foreach ($row as $cell) {
+                $filled = $filled || (is_string($cell) && $cell !== '');
+                $tooLong = $tooLong || (is_string($cell) && mb_strlen($cell) > self::CELL_MAX);
+            }
+        }
+
+        // One message for the rows, the first that applies.
+        $rowError = match (true) {
+            $rows === [] || count($rows) > self::ROWS_MAX => 'Eine Tabelle hat 1 bis '.self::ROWS_MAX.' Zeilen.',
+            $uneven => 'Jede Zeile hat so viele Zellen, wie die Tabelle Spalten hat.',
+            $tooLong => 'Höchstens '.self::CELL_MAX.' Zeichen je Zelle. Kürz die markierte Zelle.',
+            ! $filled => 'Unter den Spaltenköpfen steht noch nichts. Füll mindestens eine Zelle aus.',
+            default => null,
+        };
+
+        if ($rowError !== null) {
+            $errors['rows'] = $rowError;
+        }
+
+        return $errors;
+    }
+
+    /** @return list<string> a row of a table, each cell as text */
+    private static function cells(mixed $value): array
+    {
+        return array_values(array_map(static fn (mixed $cell): string => self::string($cell), is_array($value) ? $value : []));
+    }
+
+    private static function dimension(mixed $value): ?int
+    {
+        return is_int($value) && $value > 0 && $value <= 20_000 ? $value : (is_string($value) && preg_match('/^\d{1,5}$/', $value) === 1 && (int) $value > 0 ? (int) $value : null);
     }
 
     private static function string(mixed $value): string
