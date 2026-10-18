@@ -47,20 +47,25 @@ function indexAdmin(): AdminUser
 }
 
 /**
- * A draft with one row — one car, one wheel — on these tyre sizes, each with the speed symbol typed beside it ('' for none).
+ * A draft with one row — one car, one wheel — on these tyre sizes, each with the index typed beside it as the document
+ * prints it: „91Y“, „Y“, „91“, or '' for none.
  *
- * @param  list<string>  $symbols
+ * @param  list<string>  $printed
  */
-function indexDraft(?TyreIndexSource $source, array $symbols = ['']): ApprovalDocument
+function indexDraft(?TyreIndexSource $source, array $printed = ['']): ApprovalDocument
 {
     $document = ApprovalDocument::factory()->draft()->tyreIndex($source)->create(['page_count' => 12]);
     $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0]);
     $sizes = array_map(
-        fn (string $symbol, int $i): array => ['width_mm' => 225 + 10 * $i, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => $symbol, 'axle' => 'ALL', 'codes' => []],
-        $symbols,
-        array_keys($symbols),
+        function (string $index, int $i): array {
+            preg_match('/^(\d*)([A-Z]*)$/', $index, $m);
+
+            return ['width_mm' => 225 + 10 * $i, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => $m[1] === '' ? null : (int) $m[1], 'min_speed_symbol' => $m[2], 'axle' => 'ALL', 'codes' => []];
+        },
+        $printed,
+        array_keys($printed),
     );
 
     test()->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
@@ -134,13 +139,15 @@ it('holds „Tabelle“ to a table typed from this document — the demo seed’
     expect(app(DocumentRelease::class)->check($document))->toBe([]);
 });
 
-it('holds „bei jeder Reifengröße“ to a speed symbol at every size', function (): void {
-    $sentence = fn (string $sizes): string => "{$sizes} das Geschwindigkeitssymbol, obwohl das Gutachten es laut den Angaben bei jeder Größe nennt. Trag es nach oder ändere die Angabe.";
+it('holds „bei jeder Reifengröße“ to both figures at every size — load index and symbol (D-285)', function (): void {
+    $sentence = fn (string $sizes): string => "{$sizes} der Lastindex oder das Geschwindigkeitssymbol, obwohl das Gutachten laut den Angaben beide bei jeder Größe nennt. Trag sie nach oder ändere die Angabe.";
 
-    expect(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['Y', '', ''])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['Y', 'W', ''])))->toBe([$sentence('Bei einer Reifengröße fehlt')])
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['Y', 'W'])))->toBe([])
-        // The papers ask nothing of the sizes: a symbol printed at some of them is a minimum, not the answer.
+    expect(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '', ''])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
+        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '93W', ''])))->toBe([$sentence('Bei einer Reifengröße fehlt')])
+        // A symbol without its load index, or a load index without its symbol, is half the answer.
+        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', 'W', '93'])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
+        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '93W'])))->toBe([])
+        // The papers ask nothing of the sizes: an index printed at some of them is a minimum, not the answer.
         ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Papers, ['Y', ''])))->toBe([]);
 });
 
