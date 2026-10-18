@@ -97,8 +97,9 @@ export const ITEMS = [
     {
         nr: 214,
         wish: 'Für jede Felge automatisch ein Google-JSON-LD (Product)',
-        now: 'Noch nicht gebaut. Bewertungen kommen nur hinein, wo es echte gibt; Versandkosten und Rückgabe, sobald deine Angaben dazu da sind.',
-        state: 'offen',
+        pictures: false,
+        now: 'Jede Felgenseite trägt im Kopf ihre strukturierten Daten für Google (JSON-LD): die Felge mit Marke, Namen, Beschreibung und Fotos, darunter jede Größe und Farbe als eigenes Produkt mit Artikelnummer, EAN, Preis und Verfügbarkeit. Bewertungen stehen nur darin, wo Käufer echte abgegeben haben, die Versandkosten, sobald du sie unter Einstellungen › Verkäufer & Versand eingetragen hast. Die Lieferzeit steht noch nicht darin: Google will Bearbeitungs- und Versandzeit getrennt, die Einstellungen kennen eine Spanne. Rückgaberegeln kommen hinein, sobald deine Angaben dazu da sind. Beispielfelgen bekommen keine.',
+        state: 'erledigt',
     },
     {
         nr: 215,
@@ -144,7 +145,7 @@ export const NOTES = {
     211: 'Not built yet: an editor with building blocks — a table with header cells, an image with required alt text, a quote — instead of free HTML, which could put someone else\'s code on the site.',
     212: 'The blog page /blog lists every published article, newest first, linked from the footer. Two guides are published; the third — ABE, Teilegutachten, ECE — appears once the law firm has checked it.',
     213: 'The title composes itself from brand, model and Radtypenbezeichnung. A title typed otherwise under „Titel im Shop“ stays, even when the parts change later; the rim list flags it „Titel weicht ab“, and in the form the composed title is one click away.',
-    214: 'Not built yet. Ratings only where real reviews exist; shipping and returns once your details for them are in.',
+    214: 'Every rim page carries its structured data for Google (JSON-LD) in its head: the rim with brand, name, description and photos, and each size and colour as a product of its own with SKU, EAN, price and availability. Ratings only where buyers left real reviews; the shipping cost once you have entered it under Einstellungen › Verkäufer & Versand. The delivery time is not in it yet: Google wants handling and transit time apart, and the settings hold one range. Returns go in once your details for them are in. Example rims get none.',
     215: 'Solved differently: the table now appears only on a Gutachten that, according to the details entered, prints one — there the release requires it. Everywhere else it is folded to one line, „Keine Tabelle hinterlegt“. We did not remove it: on a document that prints one, like ABE 55255, it decides which tyres are permitted on cars with a top speed above 210 km/h.',
     216: 'The shop now tells the browser and the host not to store any of its pages. Every change to the catalogue applies at once, including the vehicle list, the counts and the search. A page the Back button shows again checks with the shop and reloads if anything changed.',
     217: 'Not done yet: we need your answer on who issues the invoice and whether the shop keeps a copy.',

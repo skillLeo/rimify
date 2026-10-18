@@ -37,6 +37,7 @@ use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\ProductCards;
+use App\Services\Storefront\ProductJsonLd;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
@@ -373,6 +374,7 @@ class FelgenController extends Controller
         }
 
         $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'));
+        $jsonLd = ProductJsonLd::for($wheel, url('/felgen/'.$wheel->slug));
 
         return Inertia::render('Produkt/Index', [
             'product' => [
@@ -415,6 +417,9 @@ class FelgenController extends Controller
             // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
             'shipping' => Shipping::current()->summary(),
             'komplettradOptions' => $this->komplettradOptions($request, $colours),
+        ])->withViewData([
+            // For search engines, in the document's head only — never a prop the page carries (ProductJsonLd, D-305).
+            'productJsonLd' => $jsonLd === null ? null : ProductJsonLd::encode($jsonLd),
         ]);
     }
 
