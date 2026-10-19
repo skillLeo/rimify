@@ -62,6 +62,9 @@ export const ITEMS = [
         now: 'Am Gutachten trägst du unter „Bereifungskombinationen“ die Liste ein, wie sie gedruckt ist – Nummer, vorne, hinten, Seite –, und sobald sie da ist, bietet der Shop nur diese Paare an. Die Auflagen je Achse stehen an den Reifengrößen der Zeile, jede mit ihrer Achse; die Codes nimmst du so, wie das Gutachten sie druckt, auch mit Klammer: 0), R), 13), 16a). Ob dein Gutachten drei oder vier Kombinationen nennt, klären wir noch mit dir.',
         state: 'erledigt',
         commits: ['16b758ae', '174634cb'],
+        // His preview's example ABE 55255 predates the section (seeded 14.10, D-256 on 16.10): nothing is entered there, and
+        // entering it takes a draft — a write. The pass checks the section and its empty state and records the list not measured.
+        previewNote: 'Built and tested on our test shop. On your preview the section is there, but the example ABE 55255 predates it and has no combinations entered, and entering them needs a draft, which our tests never create there: enter your document’s combinations in a draft to see the shop offer only those.',
     },
     {
         nr: 209,

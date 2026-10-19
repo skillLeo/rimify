@@ -1,5 +1,5 @@
 import { propsOf } from '../../e2e/teardown'
-import { BASE, VISITOR, hasCredentials, statePath } from './instance'
+import { BASE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, expect, open, test } from './fixtures'
 import { PRODUCT } from './shop'
 
@@ -125,7 +125,17 @@ test.describe('as the Super-Admin', () => {
 
         const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
         await expect(card).toContainText('Dann bietet der Shop zu diesem Gutachten nur diese an')
-        await expect(card.locator('table.kb-table tbody tr').first(), 'no combination is entered on this Gutachten').toBeVisible()
+        const rows = card.locator('table.kb-table tbody tr')
+
+        // On his preview the example ABE 55255 was seeded on 14.10, before this section existed (D-256, 16.10): no
+        // combination is entered there, and entering one takes a draft — a write this pass never makes. What can be
+        // checked is that the page says so; whether the shop then offers only the listed pairs is not measured there.
+        if (PREVIEW && (await rows.count()) === 0) {
+            await expect(card).toContainText('Zu diesem Gutachten sind keine Bereifungskombinationen hinterlegt.')
+            test.skip(true, 'not measured on the preview: ABE 55255 there has no combinations entered, and entering them takes a draft')
+        }
+
+        await expect(rows.first(), 'no combination is entered on this Gutachten').toBeVisible()
         await expect(card).toContainText(/Seite \d+ im Gutachten\./)
         await evidenceAround(page, [card], 208, info)
     })
