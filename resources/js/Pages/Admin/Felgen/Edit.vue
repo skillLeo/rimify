@@ -17,6 +17,7 @@ import AdminPage, { type AdminPageAction } from '../../../Components/Admin/Admin
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { composedTitle, shopTitle, titleDiverges } from '../../../lib/wheelTitle'
 import type { AdminFelgeProps, FinishForm, SizeForm, WheelForm } from '../../../types/admin/felgen'
 import FinishPhotos from './FinishPhotos.vue'
 import MatrixPanel from './MatrixPanel.vue'
@@ -37,6 +38,7 @@ function fromProps(): WheelForm {
         brand_new: '',
         name: model?.name ?? '',
         type_designation: model?.typeDesignation ?? '',
+        title: model?.title ?? '',
         spoke_count: model?.spokeCount ?? 5,
         description: model?.description ?? '',
         seo_title: model?.seoTitle ?? '',
@@ -86,7 +88,7 @@ const editable = computed(() => (props.model ? props.can.edit : props.can.create
 const readonly = computed(() => !editable.value)
 const locked = computed(() => props.configs.flatMap((c) => (c.locked && c.id !== null ? [c.id] : [])))
 
-const title = computed(() => (props.model ? `${props.model.brand} ${props.model.name}` : 'Neue Felge'))
+const title = computed(() => (props.model ? props.model.fullTitle : 'Neue Felge'))
 const context = computed(() => {
     if (!props.model) {
         return 'Entwurf, noch nicht gespeichert'
@@ -188,7 +190,7 @@ function addSize(): void {
         ean: '',
         kba: '',
         price: last?.price ?? '',
-        stock: 0,
+        available: true,
         weight_g: null,
     }
 
@@ -214,7 +216,24 @@ function removeSize(index: number): void {
 
 /* ── Search engines ─────────────────────────────────────────────────────────── */
 
-const seoTitlePreview = computed(() => form.seo_title || `${brandName.value} ${form.name}`.trim() || 'Titel der Felge')
+/* ── The title in the shop (D-298) ──────────────────────────────────────────── */
+
+/** What brand, model and Radtypenbezeichnung make — the title while none is typed. */
+const composed = computed(() => composedTitle(brandName.value, form.name, form.type_designation))
+/** What the shop will show: the brand, then the typed title's rest or the composition's. */
+const inShop = computed(() => shopTitle(brandName.value, form.name, form.type_designation, form.title))
+/** A typed title the parts no longer make: said, and the composition offered — never overwritten unasked. */
+const diverges = computed(() => titleDiverges(brandName.value, form.name, form.type_designation, form.title))
+/** Saved before the rule (D-298): a Felge without its Radtypenbezeichnung saves, the list names it, and it is not published (D-300). Read from the saved record, not the field being typed. */
+const designationMissing = computed(() => props.model !== null && props.model.typeDesignation.trim() === '')
+
+/* The button leaves with the difference it names; the keyboard lands in the field it emptied, not on the page. */
+function useComposedTitle(): void {
+    form.title = ''
+    document.getElementById('fe-title')?.focus()
+}
+
+const seoTitlePreview = computed(() => form.seo_title || inShop.value || 'Titel der Felge')
 const seoDescriptionPreview = computed(() => form.seo_description || form.description.slice(0, 160) || 'Beschreibung der Felge für Suchmaschinen.')
 
 /* ── Into the shop and out of it ───────────────────────────────────────────── */
@@ -375,10 +394,25 @@ const more = computed<AdminPageAction[]>(() => {
                         <p id="fe-name-err" class="form-field__error">{{ err('name') }}</p>
                     </div>
                     <div class="form-field">
-                        <label class="form-field__label" for="fe-type">Typbezeichnung <span class="fe-optional">(optional)</span></label>
-                        <input id="fe-type" v-model="form.type_designation" class="input" type="text" maxlength="80" :readonly="readonly" aria-describedby="fe-type-help fe-type-err">
-                        <p id="fe-type-help" class="form-field__help">So, wie sie im Gutachten steht.</p>
+                        <label class="form-field__label" for="fe-type">Radtypenbezeichnung</label>
+                        <input id="fe-type" v-model="form.type_designation" class="input" type="text" maxlength="80" spellcheck="false" :readonly="readonly" :aria-invalid="err('type_designation') ? 'true' : undefined" aria-describedby="fe-type-help fe-type-err">
+                        <p id="fe-type-help" class="form-field__help">
+                            So, wie das Gutachten sie druckt. Ohne eigenen Titel im Shop steht sie im Namen der Felge – so findet ein Kunde die Felge im Gutachten wieder.
+                            <template v-if="designationMissing"> Diese Felge ist noch ohne Radtypenbezeichnung gespeichert und lässt sich so nicht veröffentlichen. Trag sie nach, sobald du das Gutachten zur Hand hast.</template>
+                        </p>
                         <p id="fe-type-err" class="form-field__error">{{ err('type_designation') }}</p>
+                    </div>
+                    <div class="form-field">
+                        <label class="form-field__label" for="fe-title">Titel im Shop <span class="fe-optional">(optional)</span></label>
+                        <input id="fe-title" v-model="form.title" class="input" type="text" maxlength="160" :readonly="readonly" :aria-invalid="err('title') ? 'true' : undefined" aria-describedby="fe-title-help fe-title-err">
+                        <p id="fe-title-help" class="form-field__help">
+                            Bleibt das Feld leer, setzt der Shop den Titel aus Marke, Modell und Radtypenbezeichnung zusammen. Die Marke steht immer vorn. Im Shop: „{{ inShop || '–' }}“.
+                        </p>
+                        <div v-if="diverges" class="fe-title-diverges" role="status">
+                            <p class="adm-note">Dieser Titel weicht vom zusammengesetzten ab: <span class="fe-title-composed">„{{ composed }}“</span>.</p>
+                            <button v-if="!readonly" class="btn btn--ghost btn--sm fe-title-use" type="button" @click="useComposedTitle">Zusammengesetzten Titel verwenden</button>
+                        </div>
+                        <p id="fe-title-err" class="form-field__error">{{ err('title') }}</p>
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="fe-spokes">Speichen</label>
@@ -622,8 +656,32 @@ const more = computed<AdminPageAction[]>(() => {
     background: var(--c-band);
 }
 
+/* Where the page body already spaces its parts (a form with its save bar), the check adds no second gap. */
+:global(.adm-page__body:has(> .adm-savebar) > .fe-check) {
+    margin-bottom: 0;
+}
+
 .fe-check--blocked {
     background: var(--c-warn-tint);
+}
+
+/* A title typed otherwise: the note, then on its own line the way back — its text on the note's edge, the composed
+   title never broken across lines. */
+.fe-title-diverges {
+    display: grid;
+    justify-items: start;
+    gap: var(--sp-4);
+}
+
+/* From 768 px; on a phone a long title may wrap rather than run past the screen. */
+@media (min-width: 768px) {
+    .fe-title-composed {
+        white-space: nowrap;
+    }
+}
+
+.fe-title-use {
+    margin-inline-start: calc(-1 * var(--sp-12));
 }
 
 .fe-check__title {

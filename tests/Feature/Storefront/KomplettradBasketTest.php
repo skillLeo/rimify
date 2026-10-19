@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Http\Controllers\Storefront\FelgenController;
 use App\Models\BalanceWeightColour;
 use App\Services\Storefront\Basket;
 use App\Support\GermanFormat;
@@ -277,9 +278,20 @@ it('keeps a Felge and a Komplettrad of the same rim as two lines', function (): 
         );
 });
 
-it('refuses four Kompletträder against one tyre in stock at the click, not at the checkout', function (): void {
+it('refuses a tyre marked „nicht verfügbar“ at the click, not at the checkout — and never one for a count (D-301) @admin-210', function (): void {
     $set = KomplettradFixture::permitted();
+    // A count of one, from before: it is no longer read, so four go in.
     $tyre = $set->tyre(['stock_qty' => 1]);
+
+    $this->withCookies($set->cookies())
+        ->from('/felgen/x')
+        ->post('/warenkorb', komplettradPost($set->config->id, $tyre->id, 4))
+        ->assertSessionHasNoErrors();
+
+    expect(session(Basket::SESSION_KEY))->toHaveCount(1);
+
+    $tyre->update(['available' => false]);
+    session()->forget(Basket::SESSION_KEY);
 
     $this->withCookies($set->cookies())
         ->from('/felgen/x')
@@ -287,25 +299,21 @@ it('refuses four Kompletträder against one tyre in stock at the click, not at t
         ->assertSessionHasErrors(['tyreVariantId' => KomplettradRefusal::OutOfStock->sentenceDe()]);
 
     expect(session(Basket::SESSION_KEY))->toBeNull();
-
-    // One is what the shelf holds, so one may be added.
-    $this->withCookies($set->cookies())
-        ->post('/warenkorb', komplettradPost($set->config->id, $tyre->id, 1))
-        ->assertSessionHasNoErrors();
-
-    expect(session(Basket::SESSION_KEY))->toHaveCount(1);
 });
 
-it('refuses more wheels than are in stock for a Felgen-only line too', function (): void {
+it('refuses a Felgen-only line of a size marked „nicht verfügbar“ — and never one for a count (D-299) @admin-207', function (): void {
     $set = KomplettradFixture::permitted();
+    // A count of three, from before: it is no longer read, so four go in.
     $set->config->update(['stock_qty' => 3]);
 
-    $this->withCookies($set->cookies())
-        ->from('/felgen/x')
-        ->post('/warenkorb', komplettradPost($set->config->id, null, 4))
-        ->assertSessionHasErrors(['wheelConfigId' => Basket::WHEEL_SOLD_OUT]);
+    $this->withCookies($set->cookies())->from('/felgen/x')->post('/warenkorb', komplettradPost($set->config->id, null, 4))
+        ->assertSessionHasNoErrors();
 
-    expect(session(Basket::SESSION_KEY))->toBeNull();
+    $set->config->update(['available' => false]);
+    session()->forget(Basket::SESSION_KEY);
+
+    $this->withCookies($set->cookies())->from('/felgen/x')->post('/warenkorb', komplettradPost($set->config->id, null, 4))
+        ->assertSessionHasErrors(['wheelConfigId' => Basket::WHEEL_SOLD_OUT]);
 });
 
 it('refuses a colour that is not active, and any Komplettrad while no colour is active at all', function (): void {
@@ -359,8 +367,9 @@ it('refuses a tyre that no longer exists, deleted or never there', function (): 
 it('offers on the product page exactly what the basket takes, priced per wheel, and only with a vehicle', function (): void {
     $set = KomplettradFixture::permitted();
     $tyre = $set->tyre();
-    // In stock for one wheel, not for the set of four the page sells.
-    $short = $set->tyre(['stock_qty' => 2]);
+    // Not offered: a real tyre whose EU label is not on record (D-303), and one marked not available (D-301).
+    $short = $set->tyre(['eprel_id' => null]);
+    $unavailable = $set->tyre(['available' => false]);
     $slug = $set->config->wheelModel->slug;
 
     $config = pdpConfig($this->withCookies($set->cookies())->get('/felgen/'.$slug)->assertOk()->viewData('page'), $set->config->id);
@@ -372,6 +381,7 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
         ->and($offer['quantity'])->toBe(4)
         ->and($ids)->toContain($tyre->id)
         ->and($ids)->not->toContain($short->id)
+        ->and($ids)->not->toContain($unavailable->id)
         ->and($offer['minSentence'])->toStartWith('Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex')
         // While the mounting fee is unconfigured the figure is the known sum, and the page says so.
         ->and($offer['priceOpen'])->toBeTrue()
@@ -391,7 +401,11 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
         ->and($card['perWheel'])->toBe(GermanFormat::money($perWheel))
         ->and($card['forFourCents'])->toBe($perWheel * 4)
         ->and($card['forFour'])->toBe(GermanFormat::money($perWheel * 4))
-        ->and($card['label'])->toBeNull();
+        // Offered with its EU label, as on record (D-303) — the pictograms included (D-302).
+        ->and($card['label'])->toBe([
+            'fuel' => $tyre->eu_fuel_class, 'wetGrip' => $tyre->eu_wet_grip_class, 'noiseDb' => $tyre->eu_noise_db,
+            'noiseClass' => $tyre->eu_noise_class, 'snowGrip' => false, 'iceGrip' => false, 'eprelId' => $tyre->eprel_id,
+        ]);
 
     // Once the client names the fee it is in the per-wheel price and the price is no longer open.
     config(['rimify.komplettrad.mounting_per_wheel_cents' => 1_900]);
@@ -409,5 +423,18 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
 
     expect($offer['refusalCode'])->toBe(KomplettradRefusal::NoVehicle->value)
         ->and($offer['refusal'])->toBe(KomplettradRefusal::NoVehicle->sentenceDe())
+        ->and($offer['tyres'])->toBe([]);
+});
+
+it('offers no Komplettrad on a size marked not available, and never the rim alone in its place (D-304)', function (): void {
+    $set = KomplettradFixture::permitted();
+    $set->tyre();
+    $set->config->update(['available' => false]);
+
+    $offer = pdpConfig($this->withCookies($set->cookies())->get('/felgen/'.$set->config->wheelModel->slug)->assertOk()->viewData('page'), $set->config->id)['komplettrad'];
+
+    expect($offer['refusalCode'])->toBe(FelgenController::RIM_NOT_AVAILABLE)
+        ->and($offer['refusal'])->toBe(FelgenController::RIM_NOT_AVAILABLE_SENTENCE)
+        ->and($offer['refusal'])->not->toContain('Felge allein')
         ->and($offer['tyres'])->toBe([]);
 });

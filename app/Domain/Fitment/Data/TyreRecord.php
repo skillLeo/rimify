@@ -12,6 +12,9 @@ use App\Support\GermanFormat;
  * `speedRank` is the integer the filter compares; `speedSymbol` is display only. There is no
  * method here that compares symbols as letters, because H sits between U and V and letter
  * comparison is wrong in the permissive direction.
+ *
+ * `sellable` is whether the shop sells this tyre now — available, never a count (D-301), and with its EU label complete
+ * on record or a demonstration row (D-303). The catalogue decides it; the engine only reads it.
  */
 final readonly class TyreRecord
 {
@@ -24,7 +27,7 @@ final readonly class TyreRecord
         public string $speedSymbol,
         public int $speedRank,
         public int $priceCents,
-        public int $stockQty,
+        public bool $sellable,
         public ?string $brandName = null,
         public ?string $name = null,
         public ?string $season = null,
@@ -33,11 +36,6 @@ final readonly class TyreRecord
     public function size(): TyreSize
     {
         return new TyreSize($this->widthMm, $this->aspect, $this->diameterIn);
-    }
-
-    public function isInStock(): bool
-    {
-        return $this->stockQty > 0;
     }
 
     /** Does this tyre satisfy an axle's minimum? Both halves, by number, never by letter. */

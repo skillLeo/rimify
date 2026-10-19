@@ -9,21 +9,26 @@ use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GuideStoreRequest;
 use App\Http\Requests\Admin\PageContentRequest;
+use App\Http\Requests\Admin\PageImageRequest;
 use App\Http\Requests\Admin\PagePublishRequest;
 use App\Models\AdminUser;
 use App\Models\NavItem;
 use App\Models\Page;
 use App\Models\PageRevision;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\AuditTrail;
 use App\Services\Content\NavigationSchema;
 use App\Services\Content\PageChangedMeanwhile;
 use App\Services\Content\PageContent;
 use App\Services\Content\PagePublisher;
 use App\Services\Content\PageSchema;
+use App\Services\Storage\ImageUpload;
+use App\Services\Storage\UploadRejected;
 use App\Support\GermanFormat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -68,6 +73,33 @@ class SeitenController extends Controller
     ];
 
     public function __construct(private readonly PagePublisher $publisher) {}
+
+    /**
+     * A picture for an article's building block (his admin item 11, D-306), into our own storage: the editor puts its
+     * address, width and height into the block — nothing is published until the article is. Answered as JSON, so the
+     * form keeps everything typed around it.
+     */
+    public function image(PageImageRequest $request, Page $page, ImageUpload $uploads): JsonResponse
+    {
+        try {
+            $stored = $uploads->store($request->picture(), 'media_site', 'blog/'.$page->slug);
+        } catch (UploadRejected $e) {
+            throw ValidationException::withMessages(['image' => $e->getMessage()]);
+        }
+
+        $url = Storage::disk($stored['disk'])->url($stored['path']);
+        $app = rtrim((string) config('app.url'), '/');
+
+        // On the site's own disk the address is kept root-relative, as a Felge's photograph: the page loads it under
+        // whichever name it was opened, and the policy's 'self' covers it.
+        if ($app !== '' && str_starts_with($url, $app.'/')) {
+            $url = substr($url, strlen($app));
+        }
+
+        AuditTrail::record($request->admin(), 'page.image_uploaded', ['page' => $page->title, 'file' => basename($stored['path'])], $page);
+
+        return response()->json(['src' => $url, 'width' => $stored['width'], 'height' => $stored['height']]);
+    }
 
     public function index(Request $request): Response
     {

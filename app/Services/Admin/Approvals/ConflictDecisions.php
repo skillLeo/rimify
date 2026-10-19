@@ -15,6 +15,7 @@ use App\Models\FitmentTyreSize;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Dashboard\Coverage;
 use App\Services\Storage\DocumentFiles;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -110,7 +111,8 @@ final class ConflictDecisions
             ], $first);
         });
 
-        // What the shop may show changed: the Abdeckung is counted again.
+        // What the shop may show changed: the Abdeckung is counted again, and the catalogue has a new version (D-294).
+        CatalogueVersion::changed();
         Coverage::forget();
     }
 

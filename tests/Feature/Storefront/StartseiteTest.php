@@ -188,8 +188,9 @@ it('answers for the chosen vehicle in the first paint', function (): void {
 
 it('shows the EU label of a real tyre and at most five answers', function (): void {
     // The seeded tyres are invented and carry no label; one gets its registration and values here.
-    DB::table('tyre_variants')->where('stock_qty', '>', 0)->orderByDesc('id')->limit(1)->update([
+    DB::table('tyre_variants')->where('available', true)->orderByDesc('id')->limit(1)->update([
         'eprel_id' => '123456', 'eu_fuel_class' => 'C', 'eu_wet_grip_class' => 'A', 'eu_noise_db' => 72, 'eu_noise_class' => 'B',
+        'eu_snow_grip' => false, 'eu_ice_grip' => false,
     ]);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page

@@ -7,7 +7,7 @@ import { chooseCar } from './c-support';
  * `rimify_wf_e2e`), where the payment is the review's sandbox: no money moves.
  *
  * What they write: the car is chosen by key numbers (a cookie), the basket lives in the session. PAY-01 places test
- * orders on this database — the brief allows it — and says in its header which stock they hold. PAY-02 writes nothing.
+ * orders on this database — the brief allows it — and says in its header which. PAY-02 writes nothing.
  */
 
 /** Where the Block G payment bug tests leave their evidence. Relative to the project root, where Playwright runs. */
@@ -24,7 +24,7 @@ export const CUSTOMER = {
 };
 
 const ADDED = 'Zum Warenkorb hinzugefügt.';
-const SOLD_OUT = 'Diese Größe ist derzeit ausverkauft.';
+const SOLD_OUT = 'Diese Größe ist zurzeit nicht verfügbar.';
 
 /** The product pages the listing links to for the chosen car, in the listing's order. */
 async function productPaths(page: Page): Promise<string[]> {
@@ -39,7 +39,7 @@ async function productPaths(page: Page): Promise<string[]> {
 
 /**
  * Chooses the Golf (HSN 0603, TSN BGU) and puts one wheel into the basket with „In den Warenkorb" — from the
- * `from`-th product of the listing on (the first is kasse.spec's), passing over any whose size is sold out.
+ * `from`-th product of the listing on (the first is kasse.spec's), passing over any whose size is not available.
  */
 export async function basketWithAWheel(page: Page, from = 0): Promise<string> {
     await chooseCar(page);
@@ -66,44 +66,6 @@ export async function basketWithAWheel(page: Page, from = 0): Promise<string> {
     }
 
     throw new Error(`no product from the ${from + 1}. on could be put into the basket: ${paths.join(', ')}`);
-}
-
-/**
- * Finds the stock of the basket line's size the way a customer would: „Anzahl erhöhen" until the basket marks the
- * line „Nicht mehr verfügbar" (the stock is one below), then „Anzahl verringern" down to `pick(stock)`.
- */
-export async function quantityAgainstStock(page: Page, pick: (stock: number) => number): Promise<{ stock: number; quantity: number }> {
-    await open(page, '/warenkorb');
-
-    const line = page.locator('.bl__line').first();
-    const shown = line.locator('.bl__n');
-    const more = line.getByRole('button', { name: 'Anzahl erhöhen' });
-    const less = line.getByRole('button', { name: 'Anzahl verringern' });
-    const soldOut = line.getByText('Nicht mehr verfügbar', { exact: true });
-
-    await expect(soldOut, 'precondition: the line is marked sold out before its quantity was touched').toHaveCount(0);
-
-    let n = Number((await shown.textContent())?.trim());
-
-    while (!(await soldOut.isVisible())) {
-        expect(n, 'the size has 99 or more in stock: no quantity can outrun it').toBeLessThan(99);
-        await more.click();
-        n += 1;
-        await expect(shown).toHaveText(String(n));
-    }
-
-    const stock = n - 1;
-    const quantity = pick(stock);
-
-    while (n > quantity) {
-        await less.click();
-        n -= 1;
-        await expect(shown).toHaveText(String(n));
-    }
-
-    await expect(soldOut, `${quantity} of ${stock} must be in stock`).toHaveCount(0);
-
-    return { stock, quantity };
 }
 
 /** Types the address step, field by field. */

@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**79 sentences: 1 open, 22 backed by a recorded field, 54 about the shop itself, 2 not sentences.**
+**78 sentences: 1 open, 22 backed by a recorded field, 53 about the shop itself, 2 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -64,7 +64,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Entferne sie dort zuerst; ein echtes Gutachten verliert keine Zeile als Nebenwirkung.“ | customer / operator | `Services/Demo/DemoCatalogue.php` | R-05, said to whoever removes demo data |
 | „Platzhalter – kein echtes Gutachten“ | customer / operator | `Services/Demo/PlaceholderTables.php` | the issuer name of a demo document: says what our row is |
 | „Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the state of the record, on the go-live check |
-| „Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php`, `Services/GoLive/GoLiveChecks.php` | counts wheels and versions without a row in a released document |
+| „Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php`, `Services/GoLive/GoLiveChecks.php` | counts wheels and versions without a row in a released document |
 | „Kein Entwicklungsfahrzeug in einem freigegebenen Gutachten“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the name of a go-live check on our rows |
 | „Noch nennt kein freigegebenes Gutachten ein Fahrzeug.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the state of the record, on the go-live check |
 | „Keine der {$pairs} in freigegebenen Gutachten steht auf „Felge freigegeben · Reifengröße noch nicht bestätigt“.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | counted from the engine's answers on our rows (D-217) |
@@ -81,7 +81,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Einen Code bitte so, wie das Gutachten ihn druckt: Buchstaben und Ziffern, höchstens 32 Zeichen – zum Beispiel A01, 16a) oder „Nicht 330D“.“ | admin | `Services/Admin/Approvals/DocumentConditions.php` | an instruction for entering a code |
 | „Im Shop wird die Felge bei keinem Fahrzeug als passend gezeigt, bis ein Gutachten für sie freigegeben ist.“ | admin | `Services/Admin/Catalogue/PublishCheck.php` | what the shop does until a release |
 | „steht in einem Gutachten und kann nicht entfernt werden.“ | admin | `Services/Admin/Catalogue/WheelEditor.php` | R-05, said to whoever edits a wheel |
-| „Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | admin | `Services/Admin/Dashboard/RoleFigures.php` | counts versions without a row in a released document |
+| „Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | admin | `Services/Admin/Dashboard/RoleFigures.php` | counts versions without a row in a released document |
 | „Das Dokument ist nicht mehr auffindbar.“ | admin | `Services/Admin/Orders/OrderDetail.php` | a file of ours that is gone |
 | „Gutachten-PDF nicht gefunden“ | customer / operator | `Services/Storage/DocumentFiles.php` | a log line: our file was looked for on both disks and is on neither (DocumentFiles::locate) |
 | „Entfernt nur die Beispieldaten, nicht deine eigenen Felgen, Gutachten und Bestellungen.“ | admin | `composables/admin/useDemoStrip.ts` | what the button removes |
@@ -91,8 +91,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben.“ | admin | `Services/Admin/Approvals/DocumentRelease.php` | the state of a record: only a released one can be taken back (D-225) |
 | „Ein Nachtrag ohne eigene Angabe übernimmt es, sobald sein Grundgutachten freigegeben ist.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | a rule of the record |
 | „}: Buchstaben und Ziffern, höchstens 32 Zeichen, so wie im Gutachten.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
-| „Den kW-Bereich, den das Gutachten neben die Größe druckt, trägst du daneben ein – 85-195; nur für diese Leistung gilt die Größe.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering a kW band |
-| „Codes, die das Gutachten nur bei dieser Größe druckt, stehen dahinter.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
+| „Codes, die das Gutachten nur bei dieser Größe druckt, trägst du ins Feld für die Codes ein.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
 | „Die Zeile bleibt „Noch nicht bestätigt“ und das Gutachten nicht freigebbar, bis der Code dort steht.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | a rule of the release |
 | „Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern.“ | admin | `Pages/Admin/Gutachten/Show.vue` | R-12's neighbour: a released record is not edited; a correction is a new revision (D-250) |
 | „Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten.“ | admin | `Services/Admin/Approvals/DocumentRevision.php` | a rule of the record: a revision is started from the released one (D-250) |

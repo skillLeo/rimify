@@ -30,6 +30,7 @@ const guide = {
         { type: 'prose' as const, data: { heading: 'Was die ET misst', text: 'Erster Absatz.\n\n<script>alert(1)</script> bleibt Text.' } },
         { type: 'figure' as const, data: { src: '/storage/website-images/et.webp', alt: 'Schnitt durch eine Felge mit der Einpresstiefe', caption: 'Die ET in Millimetern' } },
         { type: 'table' as const, data: { caption: 'ET und Spur', head: ['ET', 'Wirkung'], rows: [['< 30', 'breitere Spur'], ['45', 'schmalere Spur']] } },
+        { type: 'quote' as const, data: { text: 'Zuerst die Papiere,\n\ndann die Felge.', source: 'Eine Prüferin beim TÜV' } },
     ],
 }
 
@@ -52,6 +53,24 @@ describe('a Blog article', () => {
         expect(table.find('tbody td').text()).toBe('< 30')
         expect(wrapper.find('figure img').attributes('alt')).toBe('Schnitt durch eine Felge mit der Einpresstiefe')
         expect(wrapper.find('figcaption').text()).toBe('Die ET in Millimetern')
+    })
+
+    // SEI-34: a picture whose file is gone is left out, never shown broken.
+    it('leaves out a picture whose file does not load', async () => {
+        const wrapper = mount(Article, { props: { guide, others: [] } })
+
+        await wrapper.find('figure.guide__figure img').trigger('error')
+
+        expect(wrapper.find('figure.guide__figure').exists()).toBe(false)
+        expect(wrapper.find('table').exists()).toBe(true)
+    })
+
+    it('sets a quote as a blockquote, its paragraphs apart and its source beneath', () => {
+        const wrapper = mount(Article, { props: { guide, others: [] } })
+        const quote = wrapper.find('figure.guide__quote')
+
+        expect(quote.findAll('blockquote p').map((p) => p.text())).toEqual(['Zuerst die Papiere,', 'dann die Felge.'])
+        expect(quote.find('figcaption').text()).toBe('Eine Prüferin beim TÜV')
     })
 
     it('leads back to the Blog', () => {

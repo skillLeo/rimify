@@ -206,7 +206,6 @@ describe('ProductTile', () => {
             fromPriceCents: 18900,
             fromPrice: '',
             inStock: true,
-            stockQty: 8,
             diameters: ['18', '19', '20'],
             fitment: null,
             ...overrides,

@@ -22,9 +22,10 @@ use Throwable;
 final class CatalogueFile
 {
     /**
+     * @param  string  $what  what the rows are, for the sentence about an empty file: `Felgen`, or `Fahrzeuge` (D-297)
      * @return array{name: string, format: string, sha256: string, headers: list<string>, rows: list<array<string, string>>}
      */
-    public static function read(UploadedFile $file): array
+    public static function read(UploadedFile $file, string $what = 'Felgen'): array
     {
         $path = (string) $file->getRealPath();
         $name = $file->getClientOriginalName();
@@ -54,7 +55,7 @@ final class CatalogueFile
         }
 
         if ($rows === []) {
-            throw self::refuse('Unter der ersten Zeile steht nichts. Die Datei enthält keine Felgen.');
+            throw self::refuse('Unter der ersten Zeile steht nichts. Die Datei enthält keine '.$what.'.');
         }
 
         if (count($rows) > CatalogueImporter::MAX_ROWS) {
@@ -84,6 +85,12 @@ final class CatalogueFile
     /** @return array{0: list<mixed>, 1: list<list<mixed>>} */
     private static function csv(string $bytes): array
     {
+        // Excel's „Unicode-Text“ is UTF-16 with its byte order mark: read as such, never as Windows-1252 with a NUL
+        // after every letter.
+        if (str_starts_with($bytes, "\xFF\xFE") || str_starts_with($bytes, "\xFE\xFF")) {
+            $bytes = (string) mb_convert_encoding(substr($bytes, 2), 'UTF-8', str_starts_with($bytes, "\xFF\xFE") ? 'UTF-16LE' : 'UTF-16BE');
+        }
+
         $bytes = (string) preg_replace('/^\xEF\xBB\xBF/', '', $bytes);
 
         if (! mb_check_encoding($bytes, 'UTF-8')) {

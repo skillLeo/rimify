@@ -1,6 +1,6 @@
 /**
  * The Größen-Matrix: sizes made from lists — finishes × diameters × widths × ETs — sharing one bolt
- * pattern, bore, price and stock, each with an SKU built from its parts (the review release §4.2).
+ * pattern, bore, price and availability, each with an SKU built from its parts (the review release §4.2).
  *
  * Values stay the German text a person types (`8,5`); the server reads them (GermanNumber, Money).
  * Here they are only compared, so a size that already exists is not made twice.
@@ -17,7 +17,7 @@ export interface MatrixInput {
     bolt_circle: string
     bore: string
     price: string
-    stock: number
+    available: boolean
 }
 
 /**
@@ -121,7 +121,7 @@ export function generate(input: MatrixInput, finishes: FinishForm[], existing: S
                         ean: '',
                         kba: '',
                         price: input.price.trim(),
-                        stock: input.stock,
+                        available: input.available,
                         weight_g: null,
                     }
 

@@ -9,6 +9,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Models\AuditLog;
+use App\Models\TyreVariant;
 use App\Services\Admin\Approvals\CountFigures;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Orders\OrderList;
@@ -109,6 +110,7 @@ final class AuditDescriber
         'demand.unmarked' => 'gutachten',
         'page.created' => 'inhalte',
         'page.draft_saved' => 'inhalte',
+        'page.image_uploaded' => 'inhalte',
         'page.draft_discarded' => 'inhalte',
         'page.published' => 'inhalte',
         'page.withdrawn' => 'inhalte',
@@ -131,6 +133,9 @@ final class AuditDescriber
         'wheel.image_removed' => 'katalog',
         'wheel.images_reordered' => 'katalog',
         'wheel.image_relabelled' => 'katalog',
+        'tyre.created' => 'katalog',
+        'tyre.updated' => 'katalog',
+        'tyre.deleted' => 'katalog',
         'brand.created' => 'katalog',
         'brand.restored' => 'katalog',
         'brand.updated' => 'katalog',
@@ -174,6 +179,8 @@ final class AuditDescriber
         'vehicle.created_from_document' => 'fahrzeuge',
         'vehicle.merged_from_dataset' => 'fahrzeuge',
         'vehicle.merge_applied' => 'fahrzeuge',
+        'vehicle.created_manually' => 'fahrzeuge',
+        'vehicle.import_applied' => 'fahrzeuge',
     ];
 
     /**
@@ -421,6 +428,7 @@ final class AuditDescriber
             'demand.unmarked' => ['Die Markierung der Nachfrage-Lücke '.self::q(self::text($p, 'gap') ?? 'ohne Namen').' wurde aufgehoben. Sie ist wieder offen.', []],
             'page.created' => ['Der Ratgeber-Artikel '.self::page($p).' wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => ['Für die Seite '.self::page($p).' wurde ein Entwurf gespeichert.', []],
+            'page.image_uploaded' => ['Für den Ratgeber-Artikel '.self::page($p).' wurde ein Bild hochgeladen ('.self::q(self::text($p, 'file') ?? 'ohne Namen').'). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
             'page.published' => self::pagePublished($p),
             'page.withdrawn' => ['Der Ratgeber-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
@@ -450,6 +458,9 @@ final class AuditDescriber
             'wheel.image_removed' => ['Das Foto der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde entfernt.', []],
             'wheel.images_reordered' => ['Die Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurden neu geordnet.', []],
             'wheel.image_relabelled' => ['Der Alternativtext eines Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde geändert.', []],
+            'tyre.created' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde angelegt'.self::tyreOffered($p), []],
+            'tyre.updated' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde geändert'.self::tyreChanged($p).self::tyreOffered($p), []],
+            'tyre.deleted' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde entfernt.', []],
             'brand.created' => ['Die Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde angelegt.', []],
             'brand.restored' => ['Die entfernte Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde wieder angelegt'.(($p['with_logo'] ?? false) === true ? ', mit ihrem früheren Logo.' : '.'), []],
             'brand.updated' => ['Die Marke '.self::q(self::text(self::map($p, 'new'), 'name') ?? 'ohne Namen').' wurde geändert.', self::brandChanges($p)],
@@ -549,11 +560,38 @@ final class AuditDescriber
                     .(($p['complete'] ?? false) === true ? '; das Fahrzeug ist vollständig.' : '; es fehlen noch Angaben.'),
                 [],
             ],
+            'vehicle.created_manually' => [
+                'Das Fahrzeug '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurde von Hand aus den Fahrzeugpapieren angelegt, mit der EG-Typgenehmigungsnummer '
+                    .self::q(self::text($p, 'eg') ?? '–').(($p['complete'] ?? false) === true ? '; es ist vollständig.' : '; es fehlen noch Angaben.'),
+                [],
+            ],
+            'vehicle.import_applied' => [self::vehicleImport($p), []],
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
             ],
         };
+    }
+
+    /**
+     * A vehicle dataset imported (D-297): the file, and each count that is not nought — what came in new, what its own
+     * source updated, what it completed, and what it refused.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function vehicleImport(array $p): string
+    {
+        $summary = self::map($p, 'summary');
+        $n = static fn (string $key): int => is_numeric($summary[$key] ?? null) ? (int) $summary[$key] : 0;
+        $parts = array_filter([
+            $n('create') > 0 ? self::count($n('create'), 'Fahrzeug neu', 'Fahrzeuge neu') : null,
+            $n('update') > 0 ? GermanFormat::integer($n('update')).' geändert' : null,
+            $n('merge') > 0 ? GermanFormat::integer($n('merge')).' ergänzt' : null,
+            $n('refused') > 0 ? GermanFormat::integer($n('refused')).' abgelehnt' : null,
+        ]);
+
+        return 'Der Fahrzeugdatensatz '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde importiert'
+            .($parts === [] ? '.' : ': '.implode(', ', $parts).'.');
     }
 
     /** @param  array<array-key, mixed>  $p */
@@ -1219,6 +1257,40 @@ final class AuditDescriber
         }
 
         return $changes;
+    }
+
+    /**
+     * What a tyre's save left the shop doing with it (D-301, D-303) — said only where the entry recorded it.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function tyreOffered(array $p): string
+    {
+        return match ($p['offered'] ?? null) {
+            true => '; der Shop bietet ihn an.',
+            false => '; der Shop bietet ihn nicht an – er ist nicht verfügbar oder sein EU-Reifenlabel ist unvollständig.',
+            default => '.',
+        };
+    }
+
+    /**
+     * The fields a tyre's save changed, by the names the form gives them.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function tyreChanged(array $p): string
+    {
+        $names = [
+            'brand_id' => 'Marke', 'name' => 'Profil', 'season' => 'Saison', 'width_mm' => 'Breite', 'aspect' => 'Querschnitt',
+            'diameter_in' => 'Durchmesser', 'load_index' => 'Lastindex', 'speed_symbol' => 'Geschwindigkeitssymbol',
+            ...TyreVariant::LABEL_FIELDS, 'price_cents' => 'Preis', 'available' => 'Verfügbarkeit',
+        ];
+        $changed = array_values(array_filter(array_map(
+            static fn (mixed $key): ?string => is_string($key) ? ($names[$key] ?? null) : null,
+            is_array($p['changed'] ?? null) ? $p['changed'] : [],
+        )));
+
+        return $changed === [] ? '' : ' ('.implode(', ', $changed).')';
     }
 
     /**

@@ -146,6 +146,9 @@ export interface EuTyreLabel {
     wet: TyreClass
     noiseDb: number
     noiseClass: 'A' | 'B' | 'C'
+    /** The label's pictograms, as on record (D-302). */
+    snowGrip: boolean
+    iceGrip: boolean
     eprelId: string | null
 }
 
@@ -418,7 +421,7 @@ export interface ProduktConfig {
     priceForFour?: string
     /** The price of each amount the page offers (1–8), from LinePrice on the server (D-102): the browser only picks. */
     amounts?: AmountPrice[]
-    stockQty: number
+    /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
     kbaNumber: string | null
     weightG: number | null
@@ -579,6 +582,20 @@ export type KomplettradRefusalCode =
     | 'SIZE_NOT_A_COMBINATION'
     | 'NO_WEIGHT_COLOUR'
 
+/**
+ * A tyre's EU label as the server sends it (Basket::euLabel): a class not on record is null, never invented; the
+ * snow and ice pictograms true only where „ja“ is on record (D-302).
+ */
+export interface TyreLabelProp {
+    fuel: string | null
+    wetGrip: string | null
+    noiseDb: number | null
+    noiseClass: string | null
+    snowGrip: boolean | null
+    iceGrip: boolean | null
+    eprelId: string
+}
+
 /** One tyre the verdict permits on the chosen configuration, priced per wheel on the server. */
 export interface KomplettradTyreProp {
     id: number
@@ -589,7 +606,6 @@ export interface KomplettradTyreProp {
     seasonLabel: string
     /** `245/45 R18 100Y` */
     sizeLabel: string
-    stockQty: number
     /** The tyre alone, per tyre. */
     tyrePriceCents: number
     tyrePrice: string
@@ -602,7 +618,7 @@ export interface KomplettradTyreProp {
     /** The set priced with each active Wuchtgewichte colour (#15): the page picks the one chosen, never adds a surcharge. */
     prices?: { colourId: number; perWheel: string; forFourCents: number; forFour: string }[]
     /** The EU label, only where the tyre carries a verified EPREL id (ACCURACY D7). */
-    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
+    label: TyreLabelProp | null
     isDemo: boolean
     /** The answer with this tyre fitted (#18): its size's Auflagen and Eintragung, as the basket line says them. Additive. */
     answer?: ConditionGroupsView | null

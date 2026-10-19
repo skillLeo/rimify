@@ -56,7 +56,7 @@ const serverError = computed(() => {
 
 const ACTIONS: Record<ImportPlanRow['action'], { label: string; tag: string | null }> = {
     create: { label: 'Neu', tag: null },
-    update: { label: 'Wird geändert', tag: null },
+    update: { label: 'Geändert', tag: null },
     unchanged: { label: 'Unverändert', tag: 'adm-tag adm-tag--neutral' },
     refused: { label: 'Abgelehnt', tag: 'adm-tag adm-tag--bad' },
 }
@@ -158,19 +158,19 @@ function runStep(): void {
                 <h2 id="ir-h-result" class="adm-section__title">{{ run.status === 'previewed' ? 'Probelauf' : 'Ergebnis' }}</h2>
             </div>
             <dl class="ir-counts">
-                <div class="ir-count">
+                <div class="ir-count" :class="{ 'ir-count--none': (s.create ?? 0) === 0 }">
                     <dt>Neue Größen</dt>
                     <dd>{{ decimal(s.create ?? 0, 0) }}</dd>
                 </div>
-                <div class="ir-count">
+                <div class="ir-count" :class="{ 'ir-count--none': (s.update ?? 0) === 0 }">
                     <dt>Geänderte Größen</dt>
                     <dd>{{ decimal(s.update ?? 0, 0) }}</dd>
                 </div>
-                <div class="ir-count">
+                <div class="ir-count" :class="{ 'ir-count--none': (s.unchanged ?? 0) === 0 }">
                     <dt>Unverändert</dt>
                     <dd>{{ decimal(s.unchanged ?? 0, 0) }}</dd>
                 </div>
-                <div class="ir-count" :class="{ 'ir-count--bad': (s.refused ?? 0) > 0 }">
+                <div class="ir-count" :class="{ 'ir-count--none': (s.refused ?? 0) === 0, 'ir-count--bad': (s.refused ?? 0) > 0 }">
                     <dt>Abgelehnt</dt>
                     <dd>{{ decimal(s.refused ?? 0, 0) }}</dd>
                 </div>
@@ -299,7 +299,11 @@ function runStep(): void {
     margin: 0 0 var(--sp-16);
 }
 
+/* A label that wraps on a phone keeps its figure on the row's line. */
 .ir-count {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     padding-top: var(--sp-8);
     border-top: 1px solid var(--c-line);
 }
@@ -318,8 +322,17 @@ function runStep(): void {
     font-variant-numeric: tabular-nums;
 }
 
+/* A nought is quiet; what was refused is an error (DIRECTION §2) — as on the vehicle import's run. */
+.ir-count--none dd {
+    color: var(--c-ink-3);
+}
+
 .ir-count--bad {
     border-top-color: var(--c-bad);
+}
+
+.ir-count--bad dd {
+    color: var(--c-bad);
 }
 
 .ir-rows {

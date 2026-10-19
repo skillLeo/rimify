@@ -6,12 +6,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\FitmentStatus;
 use App\Enums\TyreIndexSource;
+use App\Enums\VehicleSource;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ManualVehicleRequest;
 use App\Http\Requests\Admin\VehicleRequest;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Models\Vehicle;
+use App\Models\VehicleImport;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
 use App\Support\GermanFormat;
@@ -24,8 +28,9 @@ use Inertia\Response;
 
 /**
  * Fahrzeuge — every vehicle variant the shop knows, the ones waiting for their legal data (Zur
- * Prüfung), and one vehicle with the Gutachten rows that name it. Vehicles arrive by import and are
- * never deleted here (R-04); what the team completes is the legal data a verdict needs (R-03).
+ * Prüfung), and one vehicle with the Gutachten rows that name it. Vehicles arrive by import, from a
+ * Gutachten or typed by hand from their papers (D-296), and are never deleted here (R-04); what the
+ * team completes is the legal data a verdict needs (R-03).
  */
 class FahrzeugeController extends Controller
 {
@@ -94,6 +99,10 @@ class FahrzeugeController extends Controller
                 'prev' => $page->currentPage() > 1 ? $url($page->currentPage() - 1) : null,
                 'next' => $page->hasMorePages() ? $url($page->currentPage() + 1) : null,
             ],
+            'can' => [
+                'create' => $request->admin()->canQuietly('create', Vehicle::class),
+                'import' => $request->admin()->canQuietly('viewAny', VehicleImport::class),
+            ],
         ]);
     }
 
@@ -150,6 +159,57 @@ class FahrzeugeController extends Controller
             ])->values()->all(),
             'can' => ['edit' => $request->admin()->canQuietly('update', $vehicle)],
         ]);
+    }
+
+    /** Fahrzeuge › Neues Fahrzeug (his admin items 1 and 3, D-296): the form, with the lists a car may name. */
+    public function create(VehicleRequest $request): Response
+    {
+        // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
+        request()->attributes->set(AdminNavigation::RECORD, 'Neues Fahrzeug');
+
+        return Inertia::render('Admin/Fahrzeuge/Neu', [
+            'bodyForms' => DocumentConditions::BODY_FORMS,
+            'drives' => array_values(array_diff(DocumentConditions::DRIVES, ['Allradlenkung'])),
+        ]);
+    }
+
+    /**
+     * A car typed by hand from its papers: `manuell_geprueft`, never `entwicklung` — a person checked it against the
+     * Zulassungsbescheinigung. Without its axle loads and top speed it waits under „Zur Prüfung“ (R-03). One Protokoll
+     * entry; the catalogue's version moves with the save (CatalogueVersion), so the selector has it at once.
+     */
+    public function store(ManualVehicleRequest $request): RedirectResponse
+    {
+        $car = $request->car();
+        $admin = $request->admin();
+        $complete = $car['axle_load_front_kg'] !== null && $car['axle_load_rear_kg'] !== null && $car['max_speed_kmh'] !== null;
+
+        $vehicle = DB::transaction(static function () use ($car, $admin, $complete): Vehicle {
+            $vehicle = Vehicle::query()->create([
+                ...$car,
+                'source' => VehicleSource::ManuellGeprueft->value,
+                'source_vehicle_id' => null,
+                'needs_review' => ! $complete,
+                // What was typed, as typed: the record of where this car came from.
+                'raw' => ['manuell' => $car],
+            ]);
+
+            AuditTrail::record($admin, 'vehicle.created_manually', [
+                'vehicle' => VehicleName::from($vehicle).' · '.GermanFormat::keyNumbers($vehicle->hsn, $vehicle->tsn),
+                'eg' => $car['eg_nummer_raw'],
+                'complete' => $complete,
+            ], $vehicle);
+
+            return $vehicle;
+        });
+
+        $toast = match (true) {
+            $complete => 'Angelegt. Das Fahrzeug ist vollständig.',
+            $car['axle_load_front_kg'] === null || $car['axle_load_rear_kg'] === null => 'Angelegt. Es fehlt noch mindestens eine Achslast – das Fahrzeug steht unter „Zur Prüfung“.',
+            default => 'Angelegt. Die Höchstgeschwindigkeit fehlt noch – das Fahrzeug steht unter „Zur Prüfung“. Ob ein freigegebenes Gutachten sie für die Reifen braucht, zeigt dir die Seite des Fahrzeugs.',
+        };
+
+        return redirect('/admin/fahrzeuge/'.$vehicle->id)->with('toast', $toast);
     }
 
     public function update(VehicleRequest $request, Vehicle $vehicle): RedirectResponse

@@ -99,7 +99,6 @@ function config(overrides: Partial<ProduktConfig> = {}): ProduktConfig {
             { quantity: 1, cents: 22_900, text: '229,00 €' },
             { quantity: 4, cents: 91_600, text: '916,00 €' },
         ],
-        stockQty: 12,
         inStock: true,
         kbaNumber: null,
         weightG: null,
@@ -118,7 +117,6 @@ function config(overrides: Partial<ProduktConfig> = {}): ProduktConfig {
                     season: 'sommer',
                     seasonLabel: 'Sommerreifen',
                     sizeLabel: '245/45 R19 100Y',
-                    stockQty: 8,
                     tyrePriceCents: 15_000,
                     tyrePrice: '150,00 €',
                     perWheelCents: 40_400,
@@ -313,13 +311,13 @@ describe('RIMIFY-Check', () => {
         await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
 
         // The refusal: the same size again, a new object, with the sentence under the button.
-        ;(forms[0]?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        ;(forms[0]?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
         await wrapper.setProps({ answer: JSON.parse(JSON.stringify(twoTyres)) as CheckAnswer })
         await flushPromises()
 
         expect((wrapper.find('input[name="kc-tyre"][value="8"]').element as HTMLInputElement).checked).toBe(true)
         expect((wrapper.find('input[name="kc-weights"][value="2"]').element as HTMLInputElement).checked).toBe(true)
-        expect(wrapper.find('.chk__error').text()).toContain('Diesen Reifen haben wir gerade nicht')
+        expect(wrapper.find('.chk__error').text()).toContain('Dieser Reifen ist zurzeit nicht verfügbar')
     })
 
     it('leads to the product page on the size answered (CHECK-13)', () => {
@@ -442,7 +440,7 @@ describe('RIMIFY-Check', () => {
     it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {
         shared.vehicle = VEHICLE
         const wrapper = mountCheck({ answer: answer() })
-        ;(forms[0]?.errors as Record<string, string>).wheelConfigId = 'Diese Größe ist derzeit ausverkauft.'
+        ;(forms[0]?.errors as Record<string, string>).wheelConfigId = 'Diese Größe ist zurzeit nicht verfügbar.'
         await flushPromises()
         expect(wrapper.find('.chk__error').exists()).toBe(true)
 
@@ -450,19 +448,24 @@ describe('RIMIFY-Check', () => {
         expect(wrapper.find('.chk__error').exists()).toBe(false)
     })
 
-    it('says why a Komplettrad cannot be bought when fewer rims than a set are on the shelf', async () => {
+    it('sells a set of four of an available rim — no count stands between them (D-299) @admin-207', async () => {
         shared.vehicle = VEHICLE
-        const wrapper = mountCheck({ answer: answer({ stockQty: 2 }) })
+        const wrapper = mountCheck({ answer: answer() })
 
-        // Two rims: „Nur Felgen“ sells the two.
         expect(wrapper.find('.chk__go').text()).toBe('Jetzt kaufen')
-        expect(wrapper.find('.chk__why').exists()).toBe(false)
 
         await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
 
+        expect(wrapper.find('.chk__go').attributes('disabled')).toBeUndefined()
+        expect(wrapper.find('.chk__go').text()).not.toBe('Komplettrad gerade nicht möglich')
+    })
+
+    it('says „Nicht verfügbar“ on the button of a size marked so @admin-207', () => {
+        shared.vehicle = VEHICLE
+        const wrapper = mountCheck({ answer: answer({ inStock: false }) })
+
+        expect(wrapper.find('.chk__go').text()).toBe('Nicht verfügbar')
         expect(wrapper.find('.chk__go').attributes('disabled')).toBeDefined()
-        expect(wrapper.find('.chk__go').text()).toBe('Komplettrad gerade nicht möglich')
-        expect(wrapper.find('.chk__why').text()).toBe('Von dieser Felge haben wir nur noch 2 Stück auf Lager – für einen Satz Kompletträder brauchen wir 4.')
     })
 
     it('says so when a shared link names a wheel or a size the shop no longer has', () => {

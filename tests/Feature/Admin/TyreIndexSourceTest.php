@@ -176,3 +176,24 @@ it('reads the client’s two documents as the team entered them: ABE 55255 by it
         ->and($read('abe-55255.json'))->toBe('table')
         ->and($read('366-0350-21-WIRD-N1.json'))->toBe('papers');
 });
+
+// His admin item 9: the minimum in two fields of its own — what the form sends, the server takes apart and checks apart.
+it('takes load index and speed symbol as two fields, and refuses either one the tables do not hold @admin-209', function (): void {
+    $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 12]);
+    $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
+    $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
+    $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 19.0]);
+    $vehicle = Vehicle::factory()->create();
+    $row = fn (mixed $loadIndex, string $symbol) => test()->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
+        'vehicle_ids' => [$vehicle->id], 'config_ids' => [$config->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 4, 'conditions' => [],
+        'tyre_sizes' => [['width_mm' => 245, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => $loadIndex, 'min_speed_symbol' => $symbol, 'axle' => 'ALL', 'codes' => []]],
+    ]);
+
+    $row(999, 'Y')->assertSessionHasErrors(['tyre_sizes.0.min_load_index' => 'Diesen Tragfähigkeitsindex gibt es nicht.']);
+    $row(93, 'X')->assertSessionHasErrors(['tyre_sizes.0.min_speed_symbol' => 'Dieses Geschwindigkeitssymbol gibt es nicht.']);
+    $row(93, 'Y')->assertSessionHasNoErrors();
+
+    $size = DB::table('fitment_tyre_sizes')->orderByDesc('id')->first();
+    expect($size?->min_load_index)->toBe(93)
+        ->and($size?->min_speed_symbol)->toBe('Y');
+});

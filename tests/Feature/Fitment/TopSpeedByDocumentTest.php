@@ -110,7 +110,7 @@ it('sells only a tyre that meets or exceeds both figures the document names — 
     $speedSymbols = app(SpeedSymbolDeriver::class);
     $tyre = static fn (int $loadIndex, string $symbol): TyreRecord => new TyreRecord(
         id: 1, widthMm: 225, aspect: 40, diameterIn: 18.0, loadIndex: $loadIndex, speedSymbol: $symbol,
-        speedRank: (int) $speedSymbols->rankOf($symbol), priceCents: 15_000, stockQty: 8,
+        speedRank: (int) $speedSymbols->rankOf($symbol), priceCents: 15_000, sellable: true,
     );
 
     expect($eligibility->permits($verdict, $tyre(91, 'V')))->toBe(KomplettradRefusal::BelowMinimum)

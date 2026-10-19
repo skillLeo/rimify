@@ -1,83 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-type Listener = (event: { detail: { page: { url: string; props?: Record<string, unknown> } } }) => void
-
-const listeners: Record<string, Listener[]> = {}
-const reload = vi.fn()
-
-vi.mock('@inertiajs/vue3', () => ({
-    router: {
-        on: (event: string, cb: Listener) => {
-            ;(listeners[event] ??= []).push(cb)
-
-            return () => undefined
-        },
-        reload: (...args: unknown[]) => reload(...args),
-    },
-}))
-
-const { installVehicleMemory, namesVehicle, vehicleVisitOptions } = await import('./vehicleMemory')
+import { describe, expect, it } from 'vitest'
+import { namesVehicle, vehicleVisitOptions } from './vehicleMemory'
 
 const E46_LISTING = 'http://shop.test/felgen?zoll=19.0&fahrzeug=0005-Z46-00001'
 
-/* What Inertia does on Back: the browser's popstate, then the restored page's navigation — no request. */
-function back(url: string, props?: Record<string, unknown>): void {
-    window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
-    listeners.navigate?.forEach((l) => l({ detail: { page: { url, ...(props ? { props } : {}) } } }))
-}
-
-/** The partial reload's answer, as Inertia hands it to `onSuccess`. */
-function answer(props: Record<string, unknown>): void {
-    const options = reload.mock.calls.at(-1)?.[0] as { onSuccess?: (page: { props: Record<string, unknown> }) => void }
-
-    options.onSuccess?.({ props })
-}
-
-function visit(url: string): void {
-    listeners.before?.forEach((l) => l({ detail: { page: { url } } }))
-    listeners.navigate?.forEach((l) => l({ detail: { page: { url } } }))
-}
-
+// What Back and Forward do with the car: restoredPages.test.ts.
 describe('vehicleMemory', () => {
-    installVehicleMemory()
-    installVehicleMemory()
-
-    beforeEach(() => reload.mockClear())
-
-    it('tells the server the car of a page restored by Back or Forward, once @kunde-08', () => {
-        back('/felgen?zoll=19&fahrzeug=0005-Z46-00001')
-
-        expect(reload).toHaveBeenCalledTimes(1)
-        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['vehicle'] }))
-        // Registered once, however often the app starts it.
-        expect(listeners.navigate).toHaveLength(1)
-    })
-
-    // The interaction review of D-286: figures entered on another page, then Back — the restored page carried the answers
-    // of the figures before. Asked again whole where what they rest on changed; left as it is where it did not.
-    it('asks a restored page again whole where the car’s papers or build changed while it lay in history', () => {
-        const car = { id: 127, papers: null, build: null }
-
-        back('/felgen', { vehicle: car })
-        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['vehicle'] }))
-
-        answer({ vehicle: { ...car, papers: { axleFrontKg: 1130, axleRearKg: 1240, topSpeedKmh: 198 } } })
-        expect(reload).toHaveBeenCalledTimes(2)
-        expect(reload.mock.calls[1]).toEqual([])
-
-        reload.mockClear()
-        back('/felgen', { vehicle: car })
-        answer({ vehicle: car })
-        expect(reload).toHaveBeenCalledTimes(1)
-    })
-
-    it('leaves a restored page that names no car, and every ordinary visit, alone @kunde-08', () => {
-        back('/warenkorb')
-        visit('/felgen?fahrzeug=0005-Z90-00001')
-
-        expect(reload).not.toHaveBeenCalled()
-    })
-
     it('reads the car from the address alone', () => {
         expect(namesVehicle('/felgen/borbet-db8gt2?ausfuehrung=7&fahrzeug=0005-Z46-00001')).toBe(true)
         expect(namesVehicle('/felgen?zoll=19')).toBe(false)

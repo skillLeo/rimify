@@ -15,6 +15,7 @@
         "qa": "node scripts/qa/third-party.mjs && node scripts/qa/overflow.mjs && node scripts/qa/console.mjs && node scripts/qa/axe.mjs && node scripts/qa/style-inventory.mjs",
         "qa:shots": "node scripts/qa/review-shots.mjs",
         "kundenliste": "node scripts/kundenliste/run.mjs",
+        "adminliste": "node scripts/kundenliste/run.mjs --liste=admin",
         "qa:lighthouse": "node scripts/qa/lighthouse.mjs",
         "ocr:assets": "node scripts/ocr-assets.mjs",
         "3d:assets": "node scripts/3d/decoders.mjs && node scripts/3d/build-wheel.mjs",

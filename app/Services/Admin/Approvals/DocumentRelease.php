@@ -17,6 +17,7 @@ use App\Services\GoLive\TyreConfirmations;
 use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -292,6 +293,8 @@ final class DocumentRelease
 
             // The one entry point for a publish: caches forgotten, subscribers told (the event).
             $document->publish();
+            // The rows above changed status in bulk, past their models: the catalogue's new version once it commits (D-294).
+            CatalogueVersion::changed();
 
             AuditTrail::record($admin, 'approval.released', [
                 'document' => FitmentRows::label($document),
@@ -422,6 +425,7 @@ final class DocumentRelease
         });
 
         // What a publish forgets (ForgetCoverage, NotifyFitmentSubscribers), forgotten the other way round — no mail.
+        CatalogueVersion::changed();
         Coverage::forget();
         HomeStats::forget();
         MegaMenu::forget();

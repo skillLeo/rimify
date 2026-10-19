@@ -59,7 +59,7 @@ function kombinationenPayload(): array
     ];
 }
 
-it('saves the list as printed, in its numbering, and records it — and saving none takes it away', function (): void {
+it('saves the list as printed, in its numbering, and records it — and saving none takes it away @admin-208', function (): void {
     $document = kombinationenDraft();
 
     $this->actingAs(kombinationenAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/bereifungskombinationen", kombinationenPayload())
@@ -148,7 +148,7 @@ it('lets no one change the list of a released document, nor a role that may only
     expect(DocumentTyreCombination::query()->count())->toBe(0);
 });
 
-it('hands the released document\'s list to the shop\'s engine, in its numbering and on its page', function (): void {
+it('hands the released document\'s list to the shop\'s engine, in its numbering and on its page @admin-208', function (): void {
     $document = kombinationenDraft();
     $admin = kombinationenAdmin();
     $this->actingAs($admin, 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", ['codes' => 0, 'codes_page' => 3, 'sizes' => 2, 'sizes_page' => 3, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'none', 'abnahme_page' => null])->assertSessionHasNoErrors();

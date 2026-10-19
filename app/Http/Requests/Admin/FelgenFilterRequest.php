@@ -48,6 +48,8 @@ class FelgenFilterRequest extends FormRequest
             'marke' => ['nullable', 'integer', 'min:1'],
             'freigaben' => ['nullable', Rule::in(WheelList::COVERAGE)],
             'demo' => ['nullable', 'in:ja,nein'],
+            // The Felgen still without their Radtypenbezeichnung (D-298): the list to fill it in from.
+            'radtyp' => ['nullable', 'in:fehlt'],
             'sort' => ['nullable', Rule::in(WheelList::SORTS)],
             'richtung' => ['nullable', 'in:auf,ab'],
             'seite' => ['nullable', 'integer', 'min:1', 'max:1000000'],
@@ -64,6 +66,7 @@ class FelgenFilterRequest extends FormRequest
             'marke.*' => 'Diese Marke gibt es nicht. Wähl bitte eine aus der Liste.',
             'freigaben.*' => 'Diesen Filter gibt es nicht. Wähl bitte einen aus der Liste.',
             'demo.*' => 'Diesen Filter gibt es nicht. Wähl bitte einen aus der Liste.',
+            'radtyp.*' => 'Diesen Filter gibt es nicht. Wähl bitte einen aus der Liste.',
             'sort.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
             'richtung.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
             'seite.*' => 'Diese Seite gibt es nicht.',
@@ -83,6 +86,7 @@ class FelgenFilterRequest extends FormRequest
             'marke' => $this->filled('marke') ? (int) $this->validated('marke') : null,
             'freigaben' => $text('freigaben'),
             'demo' => $text('demo'),
+            'radtyp' => $text('radtyp'),
             'sort' => $text('sort') ?? 'name',
             'richtung' => $text('richtung') ?? 'auf',
         ];
@@ -98,7 +102,7 @@ class FelgenFilterRequest extends FormRequest
     {
         $query = [];
 
-        foreach (['q', 'status', 'marke', 'freigaben', 'demo'] as $key) {
+        foreach (['q', 'status', 'marke', 'freigaben', 'demo', 'radtyp'] as $key) {
             if ($this->filled($key)) {
                 $query[$key] = trim((string) $this->validated($key));
             }

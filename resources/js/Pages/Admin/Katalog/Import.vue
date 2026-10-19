@@ -87,7 +87,12 @@ function counts(run: ImportRunRow): string {
         parts.push(`${decimal(s.refused, 0)} abgelehnt`)
     }
 
-    return parts.length ? parts.join(' · ') : 'Zuordnung unvollständig'
+    // An empty summary is a run whose columns are not all mapped; a counted one with nothing to bring in says so.
+    if (parts.length > 0) {
+        return parts.join(' · ')
+    }
+
+    return Object.keys(s).length === 0 ? 'Zuordnung unvollständig' : 'Nichts zu importieren'
 }
 
 const required = props.fields.filter((field) => field.required)
@@ -115,7 +120,7 @@ const optional = props.fields.filter((field) => !field.required)
                     <dd>{{ optional.map((f) => f.label).join(', ') }}</dd>
                 </div>
             </dl>
-            <p class="adm-note im-rules">Der Import erkennt die Spalten an ihrem Namen; im nächsten Schritt kannst du sie auch selbst zuordnen. Eine bekannte SKU ändert nur Preis, Bestand, EAN, KBA-Nummer und Gewicht. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
+            <p class="adm-note im-rules">Der Import erkennt die Spalten an ihrem Namen; im nächsten Schritt kannst du sie auch selbst zuordnen. Bei einer bekannten SKU ändert der Import nur Preis, Verfügbarkeit, EAN, KBA-Nummer und Gewicht; die Radtypenbezeichnung übernimmt er nur für neue Felgen. Maße ändert ein Import nie, Demodaten fasst er nicht an, und neue Felgen sind Entwürfe.</p>
 
             <p class="visually-hidden" aria-live="assertive">{{ upload.errors.file ?? upload.errors.lieferant ?? '' }}</p>
 

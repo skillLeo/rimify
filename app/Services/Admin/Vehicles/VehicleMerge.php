@@ -109,14 +109,17 @@ final class VehicleMerge
             return [...$entry, 'reason' => 'Ohne EG-Nummer und Fahrzeugtyp wird nichts zusammengeführt.'];
         }
 
-        // Same approval and Fahrzeugtyp, and the car's range takes in this dataset car's extension (EgNumber).
+        // Same approval and Fahrzeugtyp, and the car's range takes in this dataset car's extension (EgNumber). A car
+        // that carries key numbers — typed from its papers, or completed before — is that one car: a dataset car under
+        // other key numbers is another, and never fills its axle loads (D-297).
         $candidates = Vehicle::query()
             ->whereIn('source', [VehicleSource::Gutachten->value, VehicleSource::ManuellGeprueft->value])
             ->where('eg_nummer_norm', 'like', addcslashes($eg->base, '%_\\').'%')
             ->where('type_designation', $row->typeDesignation)
             ->orderBy('id')
             ->get()
-            ->filter(static fn (Vehicle $v): bool => EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->covers($eg) ?? false)
+            ->filter(static fn (Vehicle $v): bool => ($v->hsn === null || ($v->hsn === $row->hsn && $v->tsn === $row->tsn))
+                && (EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->covers($eg) ?? false))
             ->values();
 
         if ($candidates->count() > 1) {

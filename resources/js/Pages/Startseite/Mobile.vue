@@ -350,6 +350,8 @@ onBeforeUnmount(() => {
                 :wet="tyre.wet as TyreClass"
                 :noise-db="tyre.noiseDb"
                 :noise-class="tyre.noiseClass"
+                :snow-grip="tyre.snowGrip"
+                :ice-grip="tyre.iceGrip"
                 :eprel-id="tyre.eprelId"
                 class="home-komplett__label"
             />

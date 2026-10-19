@@ -16,7 +16,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import type { AxleValue, DocumentConditionView, RowForm } from '../../../types/admin/gutachten'
-import { badCodes, derivedEntry, emptySize, parseCodes, parseKwBand, parseTyre, sentIndex } from './rows'
+import { SPEED_SYMBOLS, badCodes, derivedEntry, emptySize, loadIndex, parseCodes, parseKwBand, parseTyre, sentIndex, settleSize } from './rows'
 
 const props = defineProps<{
     /** This document's own Auflagenverzeichnis. */
@@ -45,6 +45,28 @@ watch(
 
 function leave(index: number): void {
     left.value = new Set([...left.value, index])
+}
+
+/*
+ * A size or load index field left: a size pasted with its minimum — `245/35 R19 93Y`, as the PDF prints it — or a load
+ * index typed with its symbol puts the two into their own fields (his admin item 9); a front-and-rear pair in one field
+ * becomes two lines (settleSize).
+ */
+function leaveSize(index: number): void {
+    const line = form.value.tyre_sizes[index]
+    const settled = line === undefined ? [] : settleSize(line)
+
+    if (line !== undefined && (settled.length > 1 || JSON.stringify(settled[0]) !== JSON.stringify(line))) {
+        form.value.tyre_sizes.splice(index, 1, ...settled)
+
+        if (settled.length > 1) {
+            // The lines after it moved down by one: what was said of them moves with them.
+            left.value = new Set([...left.value].map((i) => (i > index ? i + 1 : i)).concat([index + 1]))
+            emit('sizes-changed')
+        }
+    }
+
+    leave(index)
 }
 
 const AXLES: { value: AxleValue; label: string }[] = [
@@ -105,7 +127,27 @@ function textError(index: number): string {
     // The server counts only the sizes it was sent.
     const sent = sentIndex(form.value, index)
 
-    return sent === null ? '' : (['width_mm', 'aspect', 'diameter', 'min_load_index', 'min_speed_symbol', 'axle'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean) ?? '')
+    return sent === null ? '' : (['width_mm', 'aspect', 'diameter', 'axle'].map((f) => err(`tyre_sizes.${sent}.${f}`)).find(Boolean) ?? '')
+}
+
+/** What is wrong with a size line's load index — marked on its own field (his admin item 9). */
+function loadIndexError(index: number): string {
+    const size = form.value.tyre_sizes[index]
+
+    if (size !== undefined && loadIndex(size.min_load_index) === undefined) {
+        return left.value.has(index) ? 'Diesen Lastindex können wir nicht lesen. Trag nur die ganze Zahl ein, etwa 93; das Geschwindigkeitssymbol hat ein eigenes Feld.' : ''
+    }
+
+    const sent = sentIndex(form.value, index)
+
+    return sent === null ? '' : err(`tyre_sizes.${sent}.min_load_index`)
+}
+
+/** What the server said of a size line's speed symbol — marked on its own field. */
+function symbolError(index: number): string {
+    const sent = sentIndex(form.value, index)
+
+    return sent === null ? '' : err(`tyre_sizes.${sent}.min_speed_symbol`)
 }
 
 /** What is wrong with a size line's kW band — marked on its field (Block D). */
@@ -130,7 +172,7 @@ function sizeCodesError(index: number): string {
 }
 
 function sizeError(index: number): string {
-    return textError(index) || kwError(index) || sizeCodesError(index)
+    return textError(index) || loadIndexError(index) || symbolError(index) || kwError(index) || sizeCodesError(index)
 }
 
 /* ── Codes ─────────────────────────────────────────────────────────────────── */
@@ -258,6 +300,8 @@ function removeSize(index: number): void {
             <!-- The columns named once, above the lines; each field keeps its own label for a screen reader. -->
             <div class="rf-sizes-head" aria-hidden="true">
                 <span>Größe</span>
+                <span>Lastindex</span>
+                <span>Symbol</span>
                 <span>kW-Bereich</span>
                 <span>Achse</span>
                 <span>Codes nur dieser Größe</span>
@@ -275,8 +319,39 @@ function removeSize(index: number): void {
                         autocomplete="off"
                         :aria-invalid="textError(index) ? 'true' : undefined"
                         :aria-describedby="`${id(`size-${index}`)}-err`"
-                        @blur="leave(index)"
+                        @blur="leaveSize(index)"
                     >
+                </div>
+                <!-- The document's minimum for this size, in two fields of its own (his admin item 9): `93` and `Y`. -->
+                <div class="form-field rf-size__li">
+                    <label class="visually-hidden" :for="id(`size-${index}-li`)">Mindest-Lastindex der Reifengröße {{ index + 1 }}</label>
+                    <input
+                        :id="id(`size-${index}-li`)"
+                        v-model="size.min_load_index"
+                        class="input num"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="3"
+                        placeholder="Lastindex"
+                        autocomplete="off"
+                        :aria-invalid="loadIndexError(index) ? 'true' : undefined"
+                        :aria-describedby="`${id(`size-${index}`)}-err`"
+                        @blur="leaveSize(index)"
+                    >
+                </div>
+                <div class="form-field rf-size__symbol">
+                    <label class="visually-hidden" :for="id(`size-${index}-symbol`)">Mindest-Geschwindigkeitssymbol der Reifengröße {{ index + 1 }}</label>
+                    <select
+                        :id="id(`size-${index}-symbol`)"
+                        v-model="size.min_speed_symbol"
+                        class="input"
+                        :aria-invalid="symbolError(index) ? 'true' : undefined"
+                        :aria-describedby="`${id(`size-${index}`)}-err`"
+                    >
+                        <!-- Stacked on a phone, the field names itself: no column head stands over it there. -->
+                        <option value="">Symbol</option>
+                        <option v-for="symbol in SPEED_SYMBOLS" :key="symbol" :value="symbol">{{ symbol }}</option>
+                    </select>
                 </div>
                 <!-- The kW band the document prints beside the size (Block D): `85-195`, or empty. -->
                 <div class="form-field rf-size__kw">
@@ -323,7 +398,7 @@ function removeSize(index: number): void {
                 </p>
                 <p :id="`${id(`size-${index}`)}-err`" class="form-field__error rf-size__err">{{ sizeError(index) }}</p>
             </div>
-            <p class="form-field__help">Nennt das Gutachten einen Mindest-Lastindex oder ein Geschwindigkeitssymbol, steht es hinter der Größe: 245/35 R19 93Y oder 245/35 R19 93. Den kW-Bereich, den das Gutachten neben die Größe druckt, trägst du daneben ein – 85-195; nur für diese Leistung gilt die Größe. Codes, die das Gutachten nur bei dieser Größe druckt, stehen dahinter.</p>
+            <p class="form-field__help">Mindest-Lastindex und Geschwindigkeitssymbol, die das Gutachten zur Größe nennt, trägst du in ihre eigenen Felder ein: 93 und Y. Fügst du die Größe so ein, wie das Gutachten sie druckt – 245/35 R19 93Y –, verteilt das Formular die Angaben, sobald du das Feld verlässt. Ein Paar für vorne und hinten – 225/40 R18 92Y / 255/35 R18 94Y – wird zu zwei Zeilen. Druckt das Gutachten neben der Größe einen kW-Bereich, trägst du ihn ins kW-Feld ein, etwa 85-195; die Größe gilt dann nur für Fahrzeuge in diesem Bereich. Codes, die das Gutachten nur bei dieser Größe druckt, trägst du ins Feld für die Codes ein.</p>
             <div>
                 <button class="btn btn--ghost" type="button" @click="addSize">
                     <Icon name="plus" :size="20" />
@@ -481,7 +556,7 @@ function removeSize(index: number): void {
 .rf-size,
 .rf-sizes-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 12ch) minmax(0, 14ch) minmax(0, 16ch) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, calc(9 * var(--ch-text))) minmax(0, calc(10 * var(--ch-text))) minmax(0, 12ch) minmax(0, 14ch) minmax(0, 16ch) auto;
     align-items: center;
     gap: var(--sp-8);
 }
@@ -624,6 +699,8 @@ function removeSize(index: number): void {
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
+    .rf-size__li,
+    .rf-size__symbol,
     .rf-size__kw,
     .rf-size__axle,
     .rf-size__codes {

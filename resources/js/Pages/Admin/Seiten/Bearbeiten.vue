@@ -12,7 +12,7 @@
  */
 
 import { router, usePage } from '@inertiajs/vue3'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, toRaw } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage, { type AdminPageAction } from '../../../Components/Admin/AdminPage.vue'
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
@@ -24,8 +24,10 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminSeiteProps, PageContent, SchemaBlock, SchemaField, SeitenRevision } from '../../../types/admin/seiten'
 import DiffList from './DiffList.vue'
 import FieldInput from './FieldInput.vue'
+import GridField from './GridField.vue'
+import ImageField from './ImageField.vue'
 import PreviewFrame from './PreviewFrame.vue'
-import { blockLabel, diff, emptyBlock, emptyItem, fieldId, move, placeOf, repeatable, type Change } from './content'
+import { blockLabel, clickGuard, diff, emptyBlock, emptyItem, fieldId, move, placeOf, repeatables, type Change } from './content'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -95,8 +97,15 @@ const errorList = computed(() =>
     Object.entries(errors.value).filter((entry): entry is [string, string] => entry[0] !== 'page' && typeof entry[1] === 'string' && entry[1] !== '')
 )
 
+/** What takes the focus for a field: a picture's button (FilePick hides the file input behind it), else the field. */
+function focusTarget(path: string): string {
+    const id = fieldId(path)
+
+    return document.getElementById(`${id}-button`) ? `${id}-button` : id
+}
+
 function focusField(path: string): void {
-    document.getElementById(fieldId(path))?.focus()
+    document.getElementById(focusTarget(path))?.focus()
 }
 
 /* ── Reading and writing values by position ──────────────────────────────────────────── */
@@ -145,20 +154,108 @@ function schemaOf(index: number): SchemaBlock | undefined {
     return props.schema.blocks.find((b) => b.type === form.blocks[index]?.type)
 }
 
+/* A table's headings and rows, and a picture's address and size, are kept in the block's data beside each other. */
+function cellsOf(index: number, key: string): string[] {
+    const value = form.blocks[index]?.data[key]
+
+    return Array.isArray(value) ? value.map((cell) => (typeof cell === 'string' ? cell : '')) : []
+}
+
+function rowsOf(index: number): string[][] {
+    const value = form.blocks[index]?.data.rows
+
+    return Array.isArray(value) ? value.map((row) => (Array.isArray(row) ? row.map((cell) => (typeof cell === 'string' ? cell : '')) : [])) : []
+}
+
+function setTable(index: number, key: string, table: { head: string[]; rows: string[][] }): void {
+    const block = form.blocks[index]
+
+    if (block) {
+        block.data[key] = table.head
+        block.data.rows = table.rows
+    }
+}
+
+function setImage(index: number, key: string, image: { src: string; width: number | null; height: number | null }): void {
+    const block = form.blocks[index]
+
+    if (block) {
+        block.data[key] = image.src
+        block.data.width = image.width
+        block.data.height = image.height
+    }
+}
+
+function textOf(index: number, key: string): string {
+    const value = form.blocks[index]?.data[key]
+
+    return typeof value === 'string' ? value : ''
+}
+
 /* ── Sections: add, remove, move ─────────────────────────────────────────────────────── */
 
-const sectionType = computed(() => repeatable(props.schema))
+/* A legal page has one kind of section; an article has its building blocks — text, picture, table, quote (D-306). */
+const sectionTypes = computed(() => repeatables(props.schema))
 
-const sectionIndexes = computed(() =>
-    form.blocks.map((block, index) => (block.type === sectionType.value?.type ? index : -1)).filter((index) => index >= 0)
+function isSection(type: string | undefined): boolean {
+    return sectionTypes.value.some((definition) => definition.type === type)
+}
+
+const sectionIndexes = computed(() => form.blocks.map((block, index) => (isSection(block.type) ? index : -1)).filter((index) => index >= 0))
+
+const fixedIndexes = computed(() => form.blocks.map((block, index) => (isSection(block.type) ? -1 : index)).filter((index) => index >= 0))
+
+function countOf(type: string): number {
+    return form.blocks.filter((block) => block.type === type).length
+}
+
+function mayAdd(definition: SchemaBlock): boolean {
+    return countOf(definition.type) < definition.max
+}
+
+function mayRemove(index: number): boolean {
+    const definition = schemaOf(index)
+
+    return definition !== undefined && countOf(definition.type) > definition.min
+}
+
+/** The add button of a block type: the first keeps the id it always had. */
+function addId(definition: SchemaBlock): string {
+    return definition === sectionTypes.value[0] ? 'pg-add-section' : `pg-add-${definition.type}`
+}
+
+/** The kinds at their limit, said under the add buttons — a greyed button alone does not say why (SEI-32). */
+const limitsReached = computed(() =>
+    sectionTypes.value.filter((definition) => !mayAdd(definition)).map((definition) => `Höchstens ${definition.max} ${definition.many ?? definition.label} pro Seite.`)
 )
 
-const fixedIndexes = computed(() =>
-    form.blocks.map((block, index) => (block.type !== sectionType.value?.type ? index : -1)).filter((index) => index >= 0)
-)
+/*
+ * A block keeps its identity while it moves: keyed by the block itself, not by its place, its fields — a picture still
+ * uploading among them — go where it goes (SEI-23). The same objects travel through move(), remove and Rückgängig.
+ */
+const blockKeys = new WeakMap<object, number>()
+let lastKey = 0
 
-const mayAddSection = computed(() => sectionType.value !== null && sectionIndexes.value.length < sectionType.value.max)
-const mayRemoveSection = computed(() => sectionType.value !== null && sectionIndexes.value.length > sectionType.value.min)
+function keyOf(index: number): number {
+    const block = form.blocks[index]
+
+    if (!block) {
+        return -index
+    }
+
+    const raw = toRaw(block)
+    let key = blockKeys.get(raw)
+
+    if (key === undefined) {
+        key = ++lastKey
+        blockKeys.set(raw, key)
+    }
+
+    return key
+}
+
+/* One click of a double-click per change of structure (content.ts › clickGuard; SEI-24, SEI-33). */
+const settled = clickGuard()
 
 /* Focus follows what the keyboard just moved. A button that became disabled at the first or last
    place cannot hold focus; its section (or item) takes it instead, so a second Enter does not undo
@@ -185,28 +282,30 @@ function structureChanged(): void {
     form.clearErrors()
 }
 
-function addSection(): void {
-    if (!sectionType.value || !mayAddSection.value) {
+function addSection(definition: SchemaBlock): void {
+    if (!mayAdd(definition)) {
         return
     }
 
-    form.blocks = [...form.blocks, emptyBlock(sectionType.value)]
+    form.blocks = [...form.blocks, emptyBlock(definition)]
     structureChanged()
     const index = form.blocks.length - 1
-    const first = sectionType.value.fields[0]
+    const first = definition.fields[0]
 
     if (first) {
-        focusAfter(fieldId(`blocks.${index}.data.${first.key}`))
+        const id = fieldId(`blocks.${index}.data.${first.key}`)
+        focusAfter(first.kind === 'image' ? `${id}-button` : id)
     }
 }
 
-function removeSection(index: number): void {
-    if (!mayRemoveSection.value) {
+function removeSection(index: number, event?: MouseEvent): void {
+    if (!mayRemove(index) || !settled(event)) {
         return
     }
 
     const label = blockLabel(props.schema, form.blocks, index)
     const removed = form.blocks[index]
+    const definition = schemaOf(index)
     const position = sectionIndexes.value.indexOf(index)
     form.blocks = form.blocks.filter((_, i) => i !== index)
     structureChanged()
@@ -221,8 +320,15 @@ function removeSection(index: number): void {
             action: {
                 label: 'Rückgängig',
                 run: () => {
+                    // Not past the kind's limit: one added meanwhile may have taken its room (SEI-29).
+                    if (definition && !mayAdd(definition)) {
+                        toast.show({ text: `${label} kommt nicht zurück: Mehr als ${definition.max} ${definition.many ?? definition.label} hat eine Seite nicht.`, icon: 'info' })
+
+                        return
+                    }
+
                     const blocks = [...form.blocks]
-                    blocks.splice(index, 0, removed)
+                    blocks.splice(Math.min(index, blocks.length), 0, removed)
                     form.blocks = blocks
                     structureChanged()
                     focusAfter(`pg-section-${index}`)
@@ -232,11 +338,11 @@ function removeSection(index: number): void {
     }
 }
 
-function moveSection(index: number, by: -1 | 1): void {
+function moveSection(index: number, by: -1 | 1, event?: MouseEvent): void {
     const position = sectionIndexes.value.indexOf(index)
     const target = sectionIndexes.value[position + by]
 
-    if (target === undefined) {
+    if (target === undefined || !settled(event)) {
         return
     }
 
@@ -263,10 +369,10 @@ function addItem(index: number, block: SchemaBlock): void {
     }
 }
 
-function removeItem(index: number, block: SchemaBlock, item: number): void {
+function removeItem(index: number, block: SchemaBlock, item: number, event?: MouseEvent): void {
     const list = block.list
 
-    if (!list || items(index, list.key).length <= list.min) {
+    if (!list || items(index, list.key).length <= list.min || !settled(event)) {
         return
     }
 
@@ -275,10 +381,10 @@ function removeItem(index: number, block: SchemaBlock, item: number): void {
     focusAfter(`pg-add-item-${index}`)
 }
 
-function moveItem(index: number, block: SchemaBlock, item: number, by: -1 | 1): void {
+function moveItem(index: number, block: SchemaBlock, item: number, by: -1 | 1, event?: MouseEvent): void {
     const list = block.list
 
-    if (!list) {
+    if (!list || !settled(event)) {
         return
     }
 
@@ -618,7 +724,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                         type="button"
                                         :disabled="j === 0"
                                         :aria-label="`${schemaOf(index)!.list!.itemLabel} ${j + 1} nach oben`"
-                                        @click="moveItem(index, schemaOf(index)!, j, -1)"
+                                        @click="moveItem(index, schemaOf(index)!, j, -1, $event)"
                                     >
                                         <Icon name="chevron-up" :size="20" />
                                     </button>
@@ -628,7 +734,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                         type="button"
                                         :disabled="j === items(index, schemaOf(index)!.list!.key).length - 1"
                                         :aria-label="`${schemaOf(index)!.list!.itemLabel} ${j + 1} nach unten`"
-                                        @click="moveItem(index, schemaOf(index)!, j, 1)"
+                                        @click="moveItem(index, schemaOf(index)!, j, 1, $event)"
                                     >
                                         <Icon name="chevron-down" :size="20" />
                                     </button>
@@ -637,7 +743,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                         type="button"
                                         :disabled="items(index, schemaOf(index)!.list!.key).length <= schemaOf(index)!.list!.min"
                                         :aria-label="`${schemaOf(index)!.list!.itemLabel} ${j + 1} entfernen`"
-                                        @click="removeItem(index, schemaOf(index)!, j)"
+                                        @click="removeItem(index, schemaOf(index)!, j, $event)"
                                     >
                                         <Icon name="delete" :size="20" />
                                     </button>
@@ -673,14 +779,14 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                     </template>
                 </section>
 
-                <!-- Repeatable sections: a Ratgeber article's or a legal page's. -->
-                <template v-if="sectionType">
+                <!-- Repeatable sections: a legal page's, or a Ratgeber article's building blocks in any order. -->
+                <template v-if="sectionTypes.length">
                     <p v-if="err('blocks')" class="form-field__error">{{ err('blocks') }}</p>
 
                     <section
                         v-for="(index, position) in sectionIndexes"
                         :id="`pg-section-${index}`"
-                        :key="`section-${index}`"
+                        :key="`section-${keyOf(index)}`"
                         class="pg__block"
                         tabindex="-1"
                         :aria-labelledby="`pg-block-${index}`"
@@ -694,7 +800,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                     type="button"
                                     :disabled="position === 0"
                                     :aria-label="`${blockLabel(schema, form.blocks, index)} nach oben`"
-                                    @click="moveSection(index, -1)"
+                                    @click="moveSection(index, -1, $event)"
                                 >
                                     <Icon name="chevron-up" :size="20" />
                                 </button>
@@ -704,45 +810,77 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                                     type="button"
                                     :disabled="position === sectionIndexes.length - 1"
                                     :aria-label="`${blockLabel(schema, form.blocks, index)} nach unten`"
-                                    @click="moveSection(index, 1)"
+                                    @click="moveSection(index, 1, $event)"
                                 >
                                     <Icon name="chevron-down" :size="20" />
                                 </button>
                                 <button
                                     class="adm-iconbtn"
                                     type="button"
-                                    :disabled="!mayRemoveSection"
+                                    :disabled="!mayRemove(index)"
                                     :aria-label="`${blockLabel(schema, form.blocks, index)} entfernen`"
-                                    @click="removeSection(index)"
+                                    @click="removeSection(index, $event)"
                                 >
                                     <Icon name="delete" :size="20" />
                                 </button>
                             </div>
                         </div>
 
-                        <FieldInput
-                            v-for="field in sectionType.fields"
-                            :id="fieldId(`blocks.${index}.data.${field.key}`)"
-                            :key="field.key"
-                            :field="field"
-                            :model-value="blockValue(index, field.key)"
-                            :error="err(`blocks.${index}.data.${field.key}`)"
-                            :readonly="readonly"
-                            @update:model-value="setBlockValue(index, field.key, $event)"
-                        />
+                        <template v-for="field in schemaOf(index)?.fields ?? []" :key="field.key">
+                            <ImageField
+                                v-if="field.kind === 'image'"
+                                :id="fieldId(`blocks.${index}.data.${field.key}`)"
+                                :label="field.label"
+                                :help="field.help"
+                                :page-id="page.id"
+                                :src="textOf(index, field.key)"
+                                :alt="textOf(index, 'alt')"
+                                :error="err(`blocks.${index}.data.${field.key}`)"
+                                :readonly="readonly"
+                                @uploaded="setImage(index, field.key, $event)"
+                            />
+                            <GridField
+                                v-else-if="field.kind === 'grid'"
+                                :id="fieldId(`blocks.${index}.data.${field.key}`)"
+                                :rows-id="fieldId(`blocks.${index}.data.rows`)"
+                                :label="field.label"
+                                :help="field.help"
+                                :head="cellsOf(index, field.key)"
+                                :rows="rowsOf(index)"
+                                :max="field.max ?? 200"
+                                :head-error="err(`blocks.${index}.data.${field.key}`)"
+                                :rows-error="err(`blocks.${index}.data.rows`)"
+                                :readonly="readonly"
+                                @change="setTable(index, field.key, $event)"
+                            />
+                            <FieldInput
+                                v-else
+                                :id="fieldId(`blocks.${index}.data.${field.key}`)"
+                                :field="field"
+                                :model-value="blockValue(index, field.key)"
+                                :error="err(`blocks.${index}.data.${field.key}`)"
+                                :readonly="readonly"
+                                @update:model-value="setBlockValue(index, field.key, $event)"
+                            />
+                        </template>
                     </section>
 
-                    <button
-                        v-if="!readonly"
-                        id="pg-add-section"
-                        class="btn btn--secondary pg__add"
-                        type="button"
-                        :disabled="!mayAddSection"
-                        @click="addSection"
-                    >
-                        <Icon name="plus" :size="20" />
-                        {{ sectionType.label }} hinzufügen
-                    </button>
+                    <!-- One button per kind of block; each stops at its own limit. -->
+                    <div v-if="!readonly" class="pg__adds">
+                        <button
+                            v-for="definition in sectionTypes"
+                            :id="addId(definition)"
+                            :key="definition.type"
+                            class="btn btn--secondary"
+                            type="button"
+                            :disabled="!mayAdd(definition)"
+                            @click="addSection(definition)"
+                        >
+                            <Icon name="plus" :size="20" />
+                            {{ definition.label }} hinzufügen
+                        </button>
+                    </div>
+                    <p v-if="!readonly && limitsReached.length" class="form-field__help">{{ limitsReached.join(' ') }}</p>
                 </template>
 
                 <!-- Every published state, newest first. -->
@@ -932,6 +1070,12 @@ function isLive(revision: SeitenRevision, index: number): boolean {
 
 .pg__add {
     justify-self: start;
+}
+
+.pg__adds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
 }
 
 .pg__problems ul {

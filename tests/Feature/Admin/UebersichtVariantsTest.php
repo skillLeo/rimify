@@ -61,17 +61,18 @@ it('gives each seeded role the Übersicht of its work', function (string $role, 
 ]);
 
 describe('Katalog', function (): void {
-    it('counts stock, what is sold out, what no Gutachten names and what is incomplete — no revenue', function (): void {
+    it('counts what can be bought, what not, what no Gutachten names and what is incomplete — no revenue @admin-207', function (): void {
         $photo = ['image_manifest' => ['src' => 'x.webp']];
         $model = WheelModel::factory()->create(['name' => 'CH-R']);
         $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id, ...$photo]);
         $complete = ['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'max_load_kg' => 750];
 
-        $approved = WheelConfig::factory()->create([...$complete, 'stock_qty' => 12]);
-        WheelConfig::factory()->create([...$complete, 'stock_qty' => 0]);
-        WheelConfig::factory()->create([...$complete, 'stock_qty' => 3, 'price_cents' => 0, 'weight_g' => null]);
+        // Available or not, never a count (D-299): the old figures in `stock_qty` are kept and no longer read.
+        $approved = WheelConfig::factory()->create([...$complete, 'stock_qty' => 0, 'available' => true]);
+        WheelConfig::factory()->create([...$complete, 'stock_qty' => 12, 'available' => false]);
+        WheelConfig::factory()->create([...$complete, 'available' => true, 'price_cents' => 0, 'weight_g' => null]);
         // A draft model is not in the shop: none of its configurations count.
-        WheelConfig::factory()->create(['wheel_model_id' => WheelModel::factory()->draft()->create()->id, 'stock_qty' => 99]);
+        WheelConfig::factory()->create(['wheel_model_id' => WheelModel::factory()->draft()->create()->id, 'available' => true]);
 
         Fitment::factory()->create([
             'wheel_config_id' => $approved->id,
@@ -83,8 +84,8 @@ describe('Katalog', function (): void {
         $kpis = variantKpis('catalogue-manager');
 
         expect(array_keys($kpis))->toBe(['bestand', 'ausverkauft', 'ohne-freigabe', 'unvollstaendig'])
-            ->and($kpis['bestand']['value'])->toBe(15)
-            ->and($kpis['bestand']['sub']['text'])->toBe('in 3 Ausführungen')
+            ->and($kpis['bestand']['value'])->toBe(2)
+            ->and($kpis['bestand']['sub']['text'])->toBe('von 3 Größen')
             ->and($kpis['ausverkauft']['value'])->toBe(1)
             ->and($kpis['ohne-freigabe']['value'])->toBe(2)
             ->and($kpis['unvollstaendig']['value'])->toBe(1);
@@ -101,7 +102,7 @@ describe('Katalog', function (): void {
         $kpis = variantKpis('catalogue-manager');
 
         expect($kpis['bestand']['value'])->toBe(0)
-            ->and($kpis['bestand']['sub']['text'])->toBe('keine Felge auf Lager')
+            ->and($kpis['bestand']['sub']['text'])->toBe('keine Größe verfügbar')
             ->and($kpis['unvollstaendig']['sub']['text'])->toBe('alle Daten gepflegt');
     });
 });

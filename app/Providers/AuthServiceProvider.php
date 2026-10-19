@@ -20,6 +20,7 @@ use App\Models\ReviewFeedback;
 use App\Models\SavedView;
 use App\Models\StorageSetting;
 use App\Models\TpmsSensorPrice;
+use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Policies\AdminNotificationPolicy;
@@ -43,6 +44,7 @@ use App\Policies\SellerSettingsPolicy;
 use App\Policies\StorageSettingPolicy;
 use App\Policies\TestResetPolicy;
 use App\Policies\TpmsSensorPricePolicy;
+use App\Policies\TyreVariantPolicy;
 use App\Policies\VehiclePolicy;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\PermissionMatrix;
@@ -100,6 +102,8 @@ final class AuthServiceProvider extends ServiceProvider
         // Not a model: the shop's error pages, opened on purpose in a test environment (D-243).
         ErrorPage::class => ErrorPagePolicy::class,
         WheelModel::class => WheelModelPolicy::class,
+        // Katalog › Reifen (his admin item 10, D-302).
+        TyreVariant::class => TyreVariantPolicy::class,
         Brand::class => BrandPolicy::class,
         CatalogueImport::class => CatalogueImportPolicy::class,
         ApprovalDocument::class => ApprovalDocumentPolicy::class,

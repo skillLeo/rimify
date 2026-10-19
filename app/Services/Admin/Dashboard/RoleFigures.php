@@ -35,30 +35,32 @@ final class RoleFigures
     public function __construct(private readonly Demand $demand) {}
 
     /**
-     * Katalog: what is in stock, what cannot be sold, and what is missing.
+     * Katalog: what can be bought, what cannot be sold, and what is missing.
      *
      * @return list<Tile>
      */
     public function catalogue(): array
     {
         $inShop = $this->inShop();
-        $units = (int) (clone $inShop)->sum('wc.stock_qty');
+        // Available or not, never a count (his admin item 7, D-299).
         $variants = (clone $inShop)->count();
-        $soldOut = (clone $inShop)->where('wc.stock_qty', 0)->count();
+        $available = (clone $inShop)->where('wc.available', true)->count();
+        $soldOut = $variants - $available;
         $unapproved = (clone $inShop)
             ->whereNotIn('wc.id', Fitment::query()->visibleToCustomers()->select('fitments.wheel_config_id')->toBase())
             ->count();
         $incomplete = $this->incompleteQuery()->count();
 
         return [
-            self::state('bestand', 'Felgen auf Lager', 'Stück aller Ausführungen, die im Shop stehen — Stand jetzt.',
-                $units, 'keine Felge auf Lager', null,
-                $variants > 0 ? 'in '.GermanFormat::integer($variants).($variants === 1 ? ' Ausführung' : ' Ausführungen') : null),
-            self::state('ausverkauft', 'Nicht auf Lager', 'Ausführungen im Shop, von denen kein Stück auf Lager ist.',
-                $soldOut, 'jede Ausführung lieferbar', null),
-            self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Ausführungen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.',
+            // Größen, as the Felge form names a size — „Ausführung“ there is the finish.
+            self::state('bestand', 'Verfügbar', 'Größen im Shop, die man kaufen kann – Stand jetzt.',
+                $available, 'keine Größe verfügbar', null,
+                $variants > 0 ? 'von '.GermanFormat::integer($variants).($variants === 1 ? ' Größe' : ' Größen') : null),
+            self::state('ausverkauft', 'Nicht verfügbar', 'Größen im Shop, die als nicht verfügbar markiert sind.',
+                $soldOut, 'jede Größe verfügbar', null),
+            self::state('ohne-freigabe', 'Ohne Freigabe', 'Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.',
                 $unapproved, 'jede mit einer Freigabe', null),
-            self::state('unvollstaendig', 'Unvollständige Daten', 'Ausführungen im Shop ohne Preis, Foto, Gewicht oder Traglast.',
+            self::state('unvollstaendig', 'Unvollständige Daten', 'Größen im Shop ohne Preis, Foto, Gewicht oder Traglast.',
                 $incomplete, 'alle Daten gepflegt', null),
         ];
     }

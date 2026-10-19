@@ -333,7 +333,7 @@ function counts(brand: BrandRow): string {
     <AdminPage title="Marken" :context="context" :read-only="!canWrite">
         <p class="adm-note mk__lead">
             Eine Marke entsteht hier, beim Import oder beim Anlegen einer Felge. Ein Logo lädst du nur hier hoch. Marken
-            mit Häkchen „Markenwand“ stehen auf der Startseite – als Link erst, wenn sie eine Felge auf Lager haben.
+            mit Häkchen „Markenwand“ stehen auf der Startseite – als Link erst, wenn eine ihrer Felgen verfügbar ist.
         </p>
 
         <section v-if="canWrite && !manufacturing" class="adm-section" aria-labelledby="mk-form-title">

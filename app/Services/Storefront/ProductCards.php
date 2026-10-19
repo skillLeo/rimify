@@ -14,6 +14,7 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Support\DemoWheels;
 use App\Support\GermanFormat;
+use App\Support\WheelTitle;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -292,7 +293,7 @@ final readonly class ProductCards
             ->when($withImageOnly, fn ($q) => $q->whereNotNull('wf.image_manifest'))
             ->tap(fn ($q) => self::applyFilters($q, $filters))
             ->groupBy(
-                'wm.id', 'wm.name', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
+                'wm.id', 'wm.name', 'wm.type_designation', 'wm.title', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
                 'wm.is_demo', 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish', 'wf.image_manifest',
             )
             ->when($maxPriceCents !== null, fn ($q) => $q->havingRaw('MIN(wc.price_cents) <= ?', [(int) $maxPriceCents]))
@@ -314,6 +315,8 @@ final readonly class ProductCards
             ->get([
                 'wm.id as model_id',
                 'wm.name as model_name',
+                'wm.type_designation as model_designation',
+                'wm.title as model_title',
                 'wm.slug as model_slug',
                 'wm.spoke_count',
                 'wm.rating',
@@ -325,7 +328,8 @@ final readonly class ProductCards
                 'wf.art_finish',
                 'wf.image_manifest',
                 DB::raw('MIN(wc.price_cents) as from_price_cents'),
-                DB::raw('MAX(wc.stock_qty) as best_stock_qty'),
+                // Available or not, never a count (D-299): a card can be bought where any of its sizes can.
+                DB::raw('MAX(wc.available) as any_available'),
                 DB::raw('GROUP_CONCAT(DISTINCT wc.diameter_in ORDER BY wc.diameter_in) as diameters'),
             ]);
 
@@ -334,7 +338,8 @@ final readonly class ProductCards
         foreach ($rows as $row) {
             $cards[] = $this->card(
                 modelId: (int) $row->model_id,
-                modelName: (string) $row->model_name,
+                // What follows the brand: model and Radtypenbezeichnung, or the title typed (D-298).
+                modelName: WheelTitle::nameFor((string) $row->brand_name, (string) $row->model_name, $row->model_designation === null ? null : (string) $row->model_designation, $row->model_title),
                 modelSlug: (string) $row->model_slug,
                 brandName: (string) $row->brand_name,
                 finishId: (int) $row->finish_id,
@@ -344,7 +349,7 @@ final readonly class ProductCards
                 rating: $row->rating === null ? null : (float) $row->rating,
                 ratingCount: (int) $row->rating_count,
                 fromPriceCents: (int) $row->from_price_cents,
-                stockQty: (int) $row->best_stock_qty,
+                available: (bool) $row->any_available,
                 diameters: $this->diameters(is_string($row->diameters) ? $row->diameters : ''),
                 fitment: null,
                 image: $this->manifest($row->image_manifest),
@@ -446,7 +451,8 @@ final readonly class ProductCards
 
         return $this->card(
             modelId: $modelId,
-            modelName: (string) ($row['model_name'] ?? ''),
+            // What follows the brand: model and Radtypenbezeichnung, or the title typed (D-298).
+            modelName: WheelTitle::nameFor((string) ($row['brand_name'] ?? ''), (string) ($row['model_name'] ?? ''), is_string($row['model_designation'] ?? null) ? $row['model_designation'] : null, $row['model_title'] ?? null),
             modelSlug: (string) ($row['model_slug'] ?? ''),
             brandName: (string) ($row['brand_name'] ?? ''),
             finishId: $finishId,
@@ -456,7 +462,7 @@ final readonly class ProductCards
             rating: $look['rating'],
             ratingCount: $look['rating_count'],
             fromPriceCents: (int) ($row['from_price_cents'] ?? 0),
-            stockQty: (int) ($row['best_stock_qty'] ?? 0),
+            available: (bool) ($row['any_available'] ?? false),
             diameters: $diameters[$key] ?? [],
             fitment: $claim,
             image: $look['image'],
@@ -484,7 +490,7 @@ final readonly class ProductCards
         ?float $rating,
         int $ratingCount,
         int $fromPriceCents,
-        int $stockQty,
+        bool $available,
         array $diameters,
         ?array $fitment,
         ?array $image,
@@ -512,8 +518,8 @@ final readonly class ProductCards
             'ratingLabel' => $rating === null ? null : GermanFormat::rating($rating, $ratingCount),
             'fromPriceCents' => $fromPriceCents,
             'fromPrice' => GermanFormat::money($fromPriceCents),
-            'inStock' => $stockQty > 0,
-            'stockQty' => $stockQty,
+            // Available or not (his admin item 7, D-299): the shop sells no count.
+            'inStock' => $available,
             'diameters' => $diameters,
             // With a vehicle: the subset of `diameters` a document permits on it, same spelling.
             // Null without a vehicle — no size is claimed to fit anything.

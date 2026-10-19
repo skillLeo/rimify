@@ -48,7 +48,6 @@ describe('MoneyDisplay', () => {
             fromPriceCents: RIM,
             fromPrice: '229,00\u202F€',
             inStock: true,
-            stockQty: 8,
             diameters: ['18'],
             fitment: null,
         }

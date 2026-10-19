@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CatalogueStatus;
+use App\Http\Requests\Admin\WheelModelRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Brand;
@@ -13,6 +14,7 @@ use App\Models\WheelFinishImage;
 use App\Models\WheelModel;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\Catalogue\FinishImages;
+use App\Services\Admin\Catalogue\PublishCheck;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -69,7 +71,7 @@ function felgePayload(WheelModel $wheel): array
             'id' => $c->id, 'finish' => 'f'.$c->wheel_finish_id,
             'diameter' => str_replace('.', ',', (string) (float) $c->diameter_in), 'width' => str_replace('.', ',', (string) (float) $c->width_in),
             'et' => (string) $c->et_mm, 'bolt_holes' => 5, 'bolt_circle' => '112', 'bore' => '66,6',
-            'sku' => $c->getAttribute('sku'), 'ean' => '', 'kba' => '', 'price' => '189,00', 'stock' => 4, 'weight_g' => null,
+            'sku' => $c->getAttribute('sku'), 'ean' => '', 'kba' => '', 'price' => '189,00', 'available' => true, 'weight_g' => null,
         ])->all(),
     ];
 }
@@ -87,8 +89,8 @@ function newFelgePayload(array $override = []): array
         'seo_description' => '',
         'finishes' => [['key' => 'n1', 'id' => null, 'name' => 'Silber', 'hex' => '#C0C4C8', 'art_finish' => 'silver']],
         'configs' => [
-            ['id' => null, 'finish' => 'n1', 'diameter' => '18', 'width' => '8,5', 'et' => '35', 'bolt_holes' => 5, 'bolt_circle' => '112', 'bore' => '66,6', 'sku' => 'PM-KONTUR-18X8.5-ET35-S', 'ean' => '', 'kba' => '', 'price' => '1.189,50', 'stock' => 3, 'weight_g' => 10400],
-            ['id' => null, 'finish' => 'n1', 'diameter' => '19', 'width' => '9', 'et' => '-5', 'bolt_holes' => 5, 'bolt_circle' => '112', 'bore' => '66,6', 'sku' => 'PM-KONTUR-19X9-ET-5-S', 'ean' => '4012345678901', 'kba' => '', 'price' => '219', 'stock' => 0, 'weight_g' => null],
+            ['id' => null, 'finish' => 'n1', 'diameter' => '18', 'width' => '8,5', 'et' => '35', 'bolt_holes' => 5, 'bolt_circle' => '112', 'bore' => '66,6', 'sku' => 'PM-KONTUR-18X8.5-ET35-S', 'ean' => '', 'kba' => '', 'price' => '1.189,50', 'available' => true, 'weight_g' => 10400],
+            ['id' => null, 'finish' => 'n1', 'diameter' => '19', 'width' => '9', 'et' => '-5', 'bolt_holes' => 5, 'bolt_circle' => '112', 'bore' => '66,6', 'sku' => 'PM-KONTUR-19X9-ET-5-S', 'ean' => '4012345678901', 'kba' => '', 'price' => '219', 'available' => false, 'weight_g' => null],
         ],
     ], $override);
 }
@@ -115,7 +117,9 @@ describe('the list', function (): void {
                 ->where('wheels.0.sizes', 2)
                 ->where('wheels.0.diameters', "18\u{2013}19 Zoll")
                 ->where('wheels.0.fromCents', 18_900)
-                ->where('wheels.0.stock', 8)
+                // Available or not, never a count (D-299): both sizes can be bought.
+                ->where('wheels.0.available', 2)
+                ->where('wheels.0.designationMissing', false)
                 ->where('wheels.0.statusLabel', 'Entwurf')
                 ->where('wheels.0.demo', false)
                 ->where('wheels.0.coverage.label', 'Freigaben noch nicht hinterlegt'));
@@ -386,7 +390,8 @@ describe('into the shop', function (): void {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/Felgen/Edit')
-                ->where('admin.breadcrumbs.2.label', $wheel->brand->name.' Testmodell')
+                // Named as the shop names it: brand, model, Radtypenbezeichnung (D-298).
+                ->where('admin.breadcrumbs.2.label', $wheel->brand->name.' Testmodell '.$wheel->type_designation)
                 ->where('brands', fn ($brands) => collect($brands)->contains('value', $wheel->brand_id))
                 ->where('check.blockers', [WheelModelPolicy::DEMO_REFUSED])
                 ->where('check.hints', fn ($hints) => collect($hints)->contains(fn (string $h): bool => str_starts_with($h, 'Freigaben noch nicht hinterlegt')))
@@ -550,5 +555,106 @@ describe('several photographs of one colour (COMPLIANCE row 23)', function (): v
         $this->actingAs($reader, 'admin')->delete("/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/{$id}")->assertForbidden();
 
         expect(WheelFinishImage::query()->count())->toBe(1);
+    });
+});
+
+/*
+ * His admin items 4, 5, 6, 13 and 7 (Group D, D-298, D-299): the Radtypenbezeichnung required for a new Felge and part of
+ * its name, a typed name kept and flagged rather than overwritten, a Felge from before the rule saving and listed for the
+ * backfill; and a size available or not, never counted.
+ */
+describe('name and availability', function (): void {
+    it('refuses a new Felge without its Radtypenbezeichnung, under its own field @admin-204', function (): void {
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', newFelgePayload(['type_designation' => '']))
+            ->assertSessionHasErrors(['type_designation' => WheelModelRequest::DESIGNATION_REQUIRED]);
+
+        expect(WheelModel::query()->count())->toBe(0);
+    });
+
+    it('keeps saving a Felge from before the rule, and lists it to be filled in @admin-204', function (): void {
+        $old = felgeWith(model: ['type_designation' => null]);
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$old->id, [...felgePayload($old), 'type_designation' => ''])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen?radtyp=fehlt')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('wheels', 1)
+                ->where('wheels.0.designationMissing', true)
+                ->where('filters.radtyp', 'fehlt')
+                ->where('missingDesignation', 1));
+    });
+
+    it('publishes no Felge without its Radtypenbezeichnung, and publishes it once entered (D-300) @admin-204', function (): void {
+        $old = felgeWith(model: ['type_designation' => null]);
+
+        $this->actingAs(felgenAdmin(), 'admin')->post("/admin/felgen/{$old->id}/veroeffentlichen")
+            ->assertSessionHasErrors(['publish' => 'Noch nicht veröffentlichbar: '.PublishCheck::DESIGNATION_MISSING]);
+
+        expect($old->refresh()->status)->toBe(CatalogueStatus::Draft);
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$old->id, [...felgePayload($old), 'type_designation' => 'KT85'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs(felgenAdmin(), 'admin')->post("/admin/felgen/{$old->id}/veroeffentlichen")->assertSessionHasNoErrors();
+
+        expect($old->refresh()->status)->toBe(CatalogueStatus::Published);
+    });
+
+    it('names the missing Radtypenbezeichnung when a bulk step leaves a Felge out @admin-204', function (): void {
+        $old = felgeWith(model: ['type_designation' => null]);
+        $old->loadMissing('brand');
+
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen/sammelaktion', ['action' => 'publish', 'ids' => [$old->id]])
+            ->assertSessionHas('toast', 'Keine Felge veröffentlicht. Nicht veröffentlicht: '.$old->brand->name.' '.$old->name.' (Radtypenbezeichnung fehlt).');
+
+        expect($old->refresh()->status)->toBe(CatalogueStatus::Draft);
+    });
+
+    it('keeps a Radtypenbezeichnung once entered: an existing Felge cannot be saved without it again @admin-204', function (): void {
+        $wheel = felgeWith();
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, [...felgePayload($wheel), 'type_designation' => ''])
+            ->assertSessionHasErrors(['type_designation' => WheelModelRequest::DESIGNATION_REQUIRED]);
+
+        expect($wheel->refresh()->type_designation)->not->toBe('');
+    });
+
+    it('composes the title from brand, model and Radtypenbezeichnung, and keeps a typed one without overwriting it @admin-205 @admin-206 @admin-213', function (): void {
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', newFelgePayload(['title' => '']))->assertSessionHasNoErrors();
+        $model = WheelModel::query()->with('brand')->sole();
+
+        // Typed as the parts make it, nothing is stored: the title follows its parts.
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$model->id, [...felgePayload($model), 'title' => $model->brand->name.' '.$model->name.' KT85'])
+            ->assertSessionHasNoErrors();
+
+        expect($model->refresh()->title)->toBeNull();
+
+        // Typed otherwise, it stays — also when the Radtypenbezeichnung changes later — and the list flags it.
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$model->id, [...felgePayload($model), 'title' => 'Kontur Black Edition'])
+            ->assertSessionHasNoErrors();
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$model->id, [...felgePayload($model->refresh()), 'type_designation' => 'KT86', 'title' => 'Kontur Black Edition'])
+            ->assertSessionHasNoErrors();
+
+        expect($model->refresh()->title)->toBe('Kontur Black Edition');
+
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('wheels.0.titleDiverges', true));
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen/'.$model->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('model.title', 'Kontur Black Edition')
+                ->where('model.fullTitle', $model->brand->name.' Kontur Black Edition'));
+    });
+
+    it('saves a size as available or not — the count is gone from the form @admin-207', function (): void {
+        $wheel = felgeWith();
+        $payload = felgePayload($wheel);
+        $payload['configs'][0]['available'] = false;
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$wheel->id, $payload)->assertSessionHasNoErrors();
+
+        expect(WheelConfig::query()->where('wheel_model_id', $wheel->id)->sole()->available)->toBeFalse();
+
+        $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen/'.$wheel->id)
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('configs.0.available', false)->missing('configs.0.stock'));
     });
 });

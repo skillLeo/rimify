@@ -37,6 +37,7 @@ use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\ProductCards;
+use App\Services\Storefront\ProductJsonLd;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
@@ -44,6 +45,7 @@ use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
 use App\Support\ShopPath;
+use App\Support\WheelTitle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -61,6 +63,11 @@ class FelgenController extends Controller
 {
     /** What one click on `Als Komplettrad in den Warenkorb` adds: a set of four. */
     private const SET_OF = 4;
+
+    /** The Komplettrad of a size marked „Nicht verfügbar“ (D-304): not the refusals that offer the rim alone. */
+    public const RIM_NOT_AVAILABLE = 'RIM_NOT_AVAILABLE';
+
+    public const RIM_NOT_AVAILABLE_SENTENCE = 'Diese Größe ist zurzeit nicht verfügbar, auch nicht als Komplettrad.';
 
     /** The amounts the product page offers beside the price, four preselected (#17); each priced by LinePrice. */
     public const AMOUNTS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -336,8 +343,8 @@ class FelgenController extends Controller
             'priceForFour' => LinePrice::total($this->rimPrice($config), self::SET_OF)->format(),
             // The figure for every amount the page offers, so the browser only picks one (D-102).
             'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
-            'stockQty' => (int) $config->stock_qty,
-            'inStock' => $config->stock_qty > 0,
+            // Available or not (his admin item 7, D-299): no count, so the amount a customer picks is never capped by one.
+            'inStock' => $config->available,
             'kbaNumber' => $config->kba_number,
             'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
             // The load rating per wheel, from the approval document; null when nobody has
@@ -372,12 +379,14 @@ class FelgenController extends Controller
         }
 
         $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'));
+        $jsonLd = ProductJsonLd::for($wheel, url('/felgen/'.$wheel->slug));
 
         return Inertia::render('Produkt/Index', [
             'product' => [
                 'modelId' => $wheel->id,
                 'slug' => $wheel->slug,
-                'modelName' => $wheel->name,
+                // What follows the brand in the wheel's name: model and Radtypenbezeichnung, or the title typed (D-298).
+                'modelName' => WheelTitle::name($wheel),
                 'brandName' => $wheel->brand->name,
                 'typeDesignation' => $wheel->type_designation,
                 'descriptionDe' => $wheel->description_de,
@@ -404,7 +413,7 @@ class FelgenController extends Controller
             'finishes' => $finishes,
             'configs' => $configs,
             'hasVehicle' => $vehicleId !== null,
-            // A seeded demonstration model: the page shows "Beispielbestand" rather than "Auf
+            // A seeded demonstration model: the page shows "Beispielsortiment" rather than "Auf
             // Lager" and says it cannot be ordered yet. The basket stays walkable; the checkout
             // refuses the order on the server (ACCURACY.md D4). The acceptance set's is sold with the test payment,
             // off production, and says that it is demo data (`acceptance`).
@@ -413,6 +422,9 @@ class FelgenController extends Controller
             // Delivery time and shipping, as Einstellungen › Verkäufer & Versand gives them; null while nothing is.
             'shipping' => Shipping::current()->summary(),
             'komplettradOptions' => $this->komplettradOptions($request, $colours),
+        ])->withViewData([
+            // For search engines, in the document's head only — never a prop the page carries (ProductJsonLd, D-305).
+            'productJsonLd' => $jsonLd === null ? null : ProductJsonLd::encode($jsonLd),
         ]);
     }
 
@@ -493,6 +505,11 @@ class FelgenController extends Controller
      */
     private function komplettradFor(WheelConfig $config, ?FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): array
     {
+        // A size not available is not one as a Komplettrad either; the refusals below would offer the rim alone (D-304).
+        if (! $config->available) {
+            return $this->komplettradRefused(self::RIM_NOT_AVAILABLE, self::RIM_NOT_AVAILABLE_SENTENCE, null);
+        }
+
         // Without a vehicle there is no verdict, so there is no permitted-size list (D-033).
         if ($verdict === null) {
             return $this->komplettradRefused(KomplettradRefusal::NoVehicle->value, KomplettradRefusal::NoVehicle->sentenceDe(), null);
@@ -544,7 +561,6 @@ class FelgenController extends Controller
                 'season' => (string) $variant->season,
                 'seasonLabel' => TyreSeason::from((string) $variant->season)->longLabelDe(),
                 'sizeLabel' => $variant->label(),
-                'stockQty' => (int) $variant->stock_qty,
                 'tyrePriceCents' => (int) $variant->price_cents,
                 'tyrePrice' => Money::fromMinor((int) $variant->price_cents, $price->currency)->format(),
                 // The known components per wheel; an unconfigured mounting fee is left out and

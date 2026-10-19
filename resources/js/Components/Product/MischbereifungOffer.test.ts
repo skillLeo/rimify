@@ -155,7 +155,7 @@ describe('MischbereifungOffer', () => {
 
         expect(wrapper.text()).toContain('Kombination Nr. 13')
         expect(wrapper.find('.mix-card').exists()).toBe(false)
-        expect(wrapper.text()).toContain('Reifen für diese Kombination haben wir gerade nicht vorrätig.')
+        expect(wrapper.text()).toContain('Reifen für diese Kombination können wir dir gerade nicht anbieten.')
     })
 
     it('shows the server’s sentence instead of pairs when it refuses, and offers nothing to click', () => {

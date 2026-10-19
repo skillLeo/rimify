@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 /*
  * The engine's tyre catalogue against real MySQL (spec §3.1). The unit tests exercise
  * TyreEligibility through an in-memory fake that mirrors this contract; these tests hold the
- * real implementation to the same contract — size identity, the in-stock filter, soft deletes,
+ * real implementation to the same contract — size identity, the sellable filter, soft deletes,
  * cheapest first — and to R-14: every size value is bound, never written into the SQL.
  */
 
@@ -83,10 +83,10 @@ it('binds every size value rather than writing it into the SQL', function (): vo
 
     ['query' => $sql, 'bindings' => $bindings] = $queries[0];
 
-    // Three bound equalities per size plus the bound stock threshold; nothing else carries a value.
-    expect($bindings)->toBe([245, 45, 18.0, 0])
+    // Three bound equalities per size plus the sellable filter's own values (D-301, D-303); nothing else carries a value.
+    expect($bindings)->toBe([245, 45, 18.0, true, true, ''])
         ->and($sql)->not->toMatch('/\b(245|45|18)\b/')
-        ->and($sql)->toContain('`width_mm` = ?', '`aspect` = ?', '`diameter_in` = ?', '`stock_qty` > ?')
+        ->and($sql)->toContain('`width_mm` = ?', '`aspect` = ?', '`diameter_in` = ?', '`available` = ?', '`eprel_id` <> ?')
         ->and($sql)->not->toContain('(width_mm, aspect, diameter_in)');
 });
 
@@ -113,26 +113,29 @@ it('orders cheapest first, then by id, so the offer is stable between renders', 
         ->and($found[2]->priceCents)->toBe(15_900);
 });
 
-it('leaves out-of-stock tyres out unless asked for them', function (): void {
-    $inStock = TyreVariant::factory()->size(245, 45, 18.0)->create(['stock_qty' => 4]);
-    $soldOut = TyreVariant::factory()->size(245, 45, 18.0)->outOfStock()->create();
+it('leaves out a tyre the shop does not sell — not available, or a real one without its EU label — unless asked for them', function (): void {
+    $sold = TyreVariant::factory()->size(245, 45, 18.0)->create(['price_cents' => 10_000]);
+    $notAvailable = TyreVariant::factory()->size(245, 45, 18.0)->outOfStock()->create(['price_cents' => 11_000]);
+    $unlabelled = TyreVariant::factory()->size(245, 45, 18.0)->unlabelled()->create(['price_cents' => 12_000]);
+    // A demonstration tyre carries no label by design and is offered as the demonstration it is (D-303).
+    $demo = TyreVariant::factory()->size(245, 45, 18.0)->unlabelled()->create(['price_cents' => 13_000, 'is_demo' => true]);
+    // A count is never read (D-301): nought on the old column, available on the new, and it is sold.
+    $noughtCounted = TyreVariant::factory()->size(245, 45, 18.0)->create(['price_cents' => 14_000, 'stock_qty' => 0]);
 
     $offered = tyreCatalogue()->inSizes([size245()]);
-    $listed = tyreCatalogue()->inSizes([size245()], inStockOnly: false);
+    $listed = tyreCatalogue()->inSizes([size245()], sellableOnly: false);
 
-    expect(array_map(static fn (TyreRecord $tyre): int => $tyre->id, $offered))->toBe([$inStock->id])
+    expect(array_map(static fn (TyreRecord $tyre): int => $tyre->id, $offered))->toBe([$sold->id, $demo->id, $noughtCounted->id])
         ->and(array_map(static fn (TyreRecord $tyre): int => $tyre->id, $listed))
-        ->toContain($inStock->id, $soldOut->id)
-        ->and($listed)->toHaveCount(2);
+        ->toBe([$sold->id, $notAvailable->id, $unlabelled->id, $demo->id, $noughtCounted->id]);
 
-    // The record carries the truth the caller then compares against the quantity.
-    $soldOutRecord = array_values(array_filter($listed, static fn (TyreRecord $t): bool => $t->id === $soldOut->id))[0];
+    // The record carries the answer for rule 9.
+    $sellable = array_column(array_map(static fn (TyreRecord $t): array => ['id' => $t->id, 'sellable' => $t->sellable], $listed), 'sellable', 'id');
 
-    expect($soldOutRecord->stockQty)->toBe(0)
-        ->and($soldOutRecord->isInStock())->toBeFalse();
+    expect($sellable)->toBe([$sold->id => true, $notAvailable->id => false, $unlabelled->id => false, $demo->id => true, $noughtCounted->id => true]);
 });
 
-it('never returns a soft-deleted tyre, with or without the stock filter', function (): void {
+it('never returns a soft-deleted tyre, with or without the sellable filter', function (): void {
     $live = TyreVariant::factory()->size(245, 45, 18.0)->create(['stock_qty' => 4]);
     $gone = TyreVariant::factory()->size(245, 45, 18.0)->create(['stock_qty' => 4]);
     $gone->delete();
@@ -141,10 +144,10 @@ it('never returns a soft-deleted tyre, with or without the stock filter', functi
     expect(TyreVariant::find($gone->id))->toBeNull()
         ->and(TyreVariant::withTrashed()->find($gone->id))->not->toBeNull();
 
-    foreach ([true, false] as $inStockOnly) {
+    foreach ([true, false] as $sellableOnly) {
         $ids = array_map(
             static fn (TyreRecord $tyre): int => $tyre->id,
-            tyreCatalogue()->inSizes([size245()], $inStockOnly),
+            tyreCatalogue()->inSizes([size245()], $sellableOnly),
         );
 
         expect($ids)->toBe([$live->id]);
@@ -179,7 +182,7 @@ it('carries brand, name, season and the comparison fields onto the record', func
         ->and($found[0]->speedSymbol)->toBe('Y')
         ->and($found[0]->speedRank)->toBe($tyre->speed_rank)
         ->and($found[0]->priceCents)->toBe(18_900)
-        ->and($found[0]->stockQty)->toBe(12)
+        ->and($found[0]->sellable)->toBeTrue()
         ->and($found[0]->size()->matches(size245()))->toBeTrue()
         ->and($found[0]->label())->toBe('245/45 R18 100Y');
 });

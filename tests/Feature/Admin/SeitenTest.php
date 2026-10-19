@@ -19,7 +19,9 @@ use App\Support\HeroPhotos;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
@@ -636,4 +638,125 @@ it('never lets a release write the seeded copy over a page the team has taken ov
         ->toBe(['Der Text der Kanzlei.', 'Ein zweiter Abschnitt.'])
         ->and(seite('hsn-und-tsn-finden')->isPublished())->toBeFalse()
         ->and($datenschutz->refresh()->blocks()->first()?->data['placeholder'] ?? null)->toBeTrue();
+});
+
+/*
+ * His admin item 11 (D-306): an article built from blocks in any order — text, a picture from our own storage with its
+ * description, a table with headings, a quote — structured, never HTML; the publish check names what is missing where it
+ * is, and a picture is uploaded into our storage by who may edit the article, never linked from elsewhere.
+ */
+/** @return array{type: string, data: array<string, mixed>} */
+function bildBlock(string $src = '/storage/blog/hsn-und-tsn-finden/schein.jpg'): array
+{
+    return ['type' => 'figure', 'data' => ['src' => $src, 'width' => 1200, 'height' => 800, 'alt' => 'Die Zulassungsbescheinigung Teil I, Felder 2.1 und 2.2 markiert', 'caption' => '']];
+}
+
+/**
+ * @param  list<string>  $head
+ * @param  list<list<string>>  $rows
+ * @return array{type: string, data: array<string, mixed>}
+ */
+function tabellenBlock(array $head = ['Feld', 'Inhalt'], array $rows = [['2.1', 'HSN'], ['2.2', 'TSN']]): array
+{
+    return ['type' => 'table', 'data' => ['caption' => 'Wo HSN und TSN stehen', 'head' => $head, 'rows' => $rows]];
+}
+
+describe('an article’s building blocks', function (): void {
+    it('publishes text, a picture, a table and a quote in any order, and the article prints each @admin-211', function (): void {
+        $guide = seite('hsn-und-tsn-finden');
+        $content = seitenInhalt($guide);
+        $content['blocks'] = [
+            $content['blocks'][0],
+            ['type' => 'quote', 'data' => ['text' => 'Zuerst die Papiere, dann die Felge.', 'source' => 'Eine Prüferin beim TÜV']],
+            $content['blocks'][1],
+            bildBlock(),
+            tabellenBlock(),
+        ];
+
+        veroeffentlichen($guide, $content)->assertSessionHasNoErrors();
+
+        // The lead is the article's teaser; the blocks follow it in the order they were put.
+        $this->get('/ratgeber/hsn-und-tsn-finden')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('guide.blocks.0.type', 'quote')
+            ->where('guide.blocks.0.data', ['text' => 'Zuerst die Papiere, dann die Felge.', 'source' => 'Eine Prüferin beim TÜV'])
+            ->where('guide.blocks.1.type', 'prose')
+            ->where('guide.blocks.2.type', 'figure')
+            ->where('guide.blocks.2.data.src', '/storage/blog/hsn-und-tsn-finden/schein.jpg')
+            ->where('guide.blocks.2.data.width', 1200)
+            ->where('guide.blocks.3.data.head', ['Feld', 'Inhalt'])
+            ->where('guide.blocks.3.data.rows', [['2.1', 'HSN'], ['2.2', 'TSN']]));
+    });
+
+    it('names a picture from elsewhere, an empty heading, an uneven row and an empty quote where they are @admin-211', function (): void {
+        $guide = seite('hsn-und-tsn-finden');
+        $content = seitenInhalt($guide);
+        $content['blocks'] = [
+            $content['blocks'][0],
+            $content['blocks'][1],
+            bildBlock('https://example.com/fremd.jpg'),
+            tabellenBlock(['Feld', ''], [['2.1', 'HSN', 'zu viel']]),
+            ['type' => 'quote', 'data' => ['text' => '', 'source' => 'Niemand']],
+        ];
+
+        veroeffentlichen($guide, $content)->assertSessionHasErrors([
+            'blocks.2.data.src' => 'Dieses Bild liegt nicht in unserem Speicher. Wähl es über „Anderes Bild auswählen“ neu aus.',
+            'blocks.3.data.head' => 'Jede Spalte braucht einen Spaltenkopf.',
+            'blocks.3.data.rows' => 'Jede Zeile hat so viele Zellen, wie die Tabelle Spalten hat.',
+            'blocks.4.data.text' => 'Bitte ausfüllen.',
+        ]);
+
+        // Nothing went live.
+        $this->get('/ratgeber/hsn-und-tsn-finden')->assertInertia(fn (AssertableInertia $page) => $page->where('guide.blocks.1.type', 'prose'));
+    });
+
+    // SEI-37: a row added and left empty is not printed — an empty line in a table reads as a fault.
+    it('prints no table row left empty @admin-211', function (): void {
+        $guide = seite('hsn-und-tsn-finden');
+        $content = seitenInhalt($guide);
+        $content['blocks'] = [$content['blocks'][0], $content['blocks'][1], tabellenBlock(rows: [['2.1', 'HSN'], ['', ' '], ['2.2', 'TSN']])];
+
+        veroeffentlichen($guide, $content)->assertSessionHasNoErrors();
+
+        $this->get('/ratgeber/hsn-und-tsn-finden')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('guide.blocks.1.data.rows', [['2.1', 'HSN'], ['2.2', 'TSN']]));
+    });
+
+    it('stops at each kind’s limit: no more than 12 pictures @admin-211', function (): void {
+        $guide = seite('hsn-und-tsn-finden');
+        $content = seitenInhalt($guide);
+        $content['blocks'] = [$content['blocks'][0], $content['blocks'][1], ...array_fill(0, 13, bildBlock())];
+
+        veroeffentlichen($guide, $content)->assertSessionHasErrors(['blocks' => 'Höchstens 12 Bilder pro Seite.']);
+    });
+
+    it('stores an uploaded picture in our storage, answers its address and size, and writes the Protokoll @admin-211', function (): void {
+        Storage::fake('media_site');
+        $guide = seite('hsn-und-tsn-finden');
+
+        $answer = $this->actingAs(seitenAdmin(), 'admin')
+            ->post('/admin/seiten/'.$guide->id.'/bild', ['image' => UploadedFile::fake()->image('schein.jpg', 1200, 800)], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->json();
+
+        expect($answer['src'])->toStartWith('/storage/')->not->toContain('://')
+            ->and($answer['width'])->toBe(1200)
+            ->and($answer['height'])->toBe(800)
+            ->and(preg_match(PageSchema::OWN_IMAGE, $answer['src']))->toBe(1)
+            ->and(AuditLog::query()->where('description', 'page.image_uploaded')->exists())->toBeTrue();
+    });
+
+    it('takes pictures only for an article, only from who may edit it, and only pictures @admin-211', function (): void {
+        Storage::fake('media_site');
+        $guide = seite('hsn-und-tsn-finden');
+        $file = fn (): UploadedFile => UploadedFile::fake()->image('schein.jpg', 600, 400);
+        $json = ['Accept' => 'application/json'];
+
+        $this->actingAs(seitenAdmin(), 'admin')->post('/admin/seiten/'.seite('impressum')->id.'/bild', ['image' => $file()], $json)->assertNotFound();
+        $this->actingAs(seitenAdmin('support-agent'), 'admin')->post('/admin/seiten/'.$guide->id.'/bild', ['image' => $file()], $json)->assertForbidden();
+        $this->actingAs(seitenAdmin(), 'admin')->post('/admin/seiten/'.$guide->id.'/bild', ['image' => UploadedFile::fake()->create('notiz.pdf', 20, 'application/pdf')], $json)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['image']);
+
+        expect(Storage::disk('media_site')->allFiles())->toBe([]);
+    });
 });

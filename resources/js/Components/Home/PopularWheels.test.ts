@@ -34,7 +34,6 @@ function card(n: number, overrides: Partial<ProductCardProp> = {}): ProductCardP
         fromPriceCents: 18900 + n * 100,
         fromPrice: '',
         inStock: true,
-        stockQty: 8,
         diameters: ['17', '18'],
         fitment: null,
         ...overrides,

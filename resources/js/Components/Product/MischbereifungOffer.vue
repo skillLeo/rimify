@@ -166,7 +166,7 @@ function add(key: string, frontId: number, rearId: number): void {
                 </ul>
                 <p v-else class="notice mix__notice">
                     <Icon name="info" :size="20" />
-                    <span>Reifen für diese Kombination haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.</span>
+                    <span>Reifen für diese Kombination können wir dir gerade nicht anbieten. Die Felge allein kannst du bestellen.</span>
                 </p>
             </template>
 

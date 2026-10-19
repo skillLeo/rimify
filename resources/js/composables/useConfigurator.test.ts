@@ -32,7 +32,6 @@ function config(overrides: Partial<ProduktConfig>): ProduktConfig {
         centreBore: '66,6 mm',
         priceCents: 100000,
         price: '1.000,00 €',
-        stockQty: 4,
         inStock: true,
         kbaNumber: null,
         weightG: null,
@@ -194,7 +193,7 @@ describe('useConfigurator', () => {
 
     it('opens on a permitted size that is in stock before a cheaper one that is sold out', () => {
         const configs = [
-            config({ id: 1, priceCents: 80000, inStock: false, stockQty: 0 }),
+            config({ id: 1, priceCents: 80000, inStock: false }),
             config({ id: 2, diameterIn: 19, priceCents: 90000 }),
         ]
 

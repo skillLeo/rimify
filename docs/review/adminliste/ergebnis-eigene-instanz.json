@@ -1,0 +1,98 @@
+{
+  "instance": "eigene-instanz",
+  "where": "unser lokaler Abnahme-Shop (127.0.0.1)",
+  "commit": "a7df75c1 mit lokalen Änderungen",
+  "at": "2026-10-18T23:03:35.866Z",
+  "items": {
+    "201": {
+      "passed": true,
+      "tests": 11,
+      "failed": 0
+    },
+    "202": {
+      "passed": true,
+      "tests": 16,
+      "failed": 0
+    },
+    "203": {
+      "passed": true,
+      "tests": 9,
+      "failed": 0
+    },
+    "204": {
+      "passed": true,
+      "tests": 10,
+      "failed": 0
+    },
+    "205": {
+      "passed": true,
+      "tests": 7,
+      "failed": 0
+    },
+    "206": {
+      "passed": true,
+      "tests": 9,
+      "failed": 0
+    },
+    "207": {
+      "passed": true,
+      "tests": 22,
+      "failed": 0
+    },
+    "208": {
+      "passed": true,
+      "tests": 7,
+      "failed": 0
+    },
+    "209": {
+      "passed": true,
+      "tests": 7,
+      "failed": 0
+    },
+    "210": {
+      "passed": true,
+      "tests": 41,
+      "failed": 0
+    },
+    "211": {
+      "passed": true,
+      "tests": 25,
+      "failed": 0
+    },
+    "212": {
+      "passed": true,
+      "tests": 4,
+      "failed": 0
+    },
+    "213": {
+      "passed": true,
+      "tests": 11,
+      "failed": 0
+    },
+    "214": {
+      "passed": true,
+      "tests": 4,
+      "failed": 0
+    },
+    "215": {
+      "passed": true,
+      "tests": 5,
+      "failed": 0
+    },
+    "216": {
+      "passed": true,
+      "tests": 9,
+      "failed": 0
+    },
+    "217": {
+      "passed": false,
+      "tests": 0,
+      "failed": 0
+    },
+    "218": {
+      "passed": true,
+      "tests": 5,
+      "failed": 0
+    }
+  }
+}

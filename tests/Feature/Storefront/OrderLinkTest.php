@@ -25,7 +25,7 @@ beforeEach(function (): void {
     $this->order = Order::factory()->create(['customer_id' => $this->customer->id]);
 });
 
-it('signs the mail\'s link for twelve months', function (): void {
+it('signs the mail\'s link for twelve months @admin-218', function (): void {
     parse_str((string) parse_url(OrderLinks::link($this->order), PHP_URL_QUERY), $query);
     $content = (new OrderConfirmationMail($this->order, null))->content();
 
@@ -44,7 +44,7 @@ it('opens the order through its link within twelve months, and shows the address
         ->assertInertia(fn (AssertableInertia $page) => $page->where('payment.email', 'erika@beispiel.de'));
 });
 
-it('leads an expired link — and one from before links expired — to the way back, and a forged one nowhere', function (): void {
+it('leads an expired link — and one from before links expired — to the way back, and a forged one nowhere @admin-218', function (): void {
     $link = OrderLinks::link($this->order);
     $this->travel(12)->months();
     $this->travel(1)->days();

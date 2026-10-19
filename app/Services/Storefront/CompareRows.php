@@ -314,7 +314,8 @@ final readonly class CompareRows
                 $diameters[] = $diameter;
             }
 
-            if ($config->stock_qty > 0) {
+            // Available or not, never a count (D-299).
+            if ($config->available) {
                 $inStock[] = $config;
             }
 

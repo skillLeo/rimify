@@ -11,6 +11,7 @@ use App\Services\Demo\DemoCatalogue;
 use App\Services\Demo\DemoPurge;
 use App\Services\Demo\DemoPurgeRefused;
 use App\Services\Demo\DemoTables;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -1126,6 +1127,8 @@ class TestReset
         }
 
         DemoTables::forget();
+        // A new catalogue: a new version — written through the request's own memory of the store, which a flush leaves (D-294).
+        CatalogueVersion::changed();
     }
 
     /** @return array<string, mixed> */

@@ -397,8 +397,8 @@ const VERDICT_TONE: Record<string, string> = {
                     <!-- Fails closed: a line that cannot be sold stops the checkout, and says why. -->
                     <template v-if="blocked">
                         <p class="cart__stop">
-                            Entferne zuerst die markierte Position – sie ist nicht lieferbar oder für
-                            dein Fahrzeug nicht freigegeben.
+                            Entferne zuerst die markierte Position. Warum sie so nicht bestellt werden kann,
+                            steht direkt bei ihr.
                         </p>
                         <button class="btn btn--primary btn--block btn--lg cart__go" type="button" disabled>
                             Zur Kasse

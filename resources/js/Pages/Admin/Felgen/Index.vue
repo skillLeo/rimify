@@ -2,7 +2,7 @@
 /**
  * Katalog › Felgen: every wheel model, found by brand, name, SKU or EAN (the review release §4.2).
  *
- * A row is a model with what its sizes add up to — how many, from which price, how much stock, and
+ * A row is a model with what its sizes add up to — how many, from which price, how many available, and
  * how many of them an approval document already covers. „Freigaben noch nicht hinterlegt“ is counted
  * from published fitment rows, never a flag. Filters and sort live in the URL, so a view is a link.
  *
@@ -41,7 +41,8 @@ const COLUMNS: { id: string; key: WheelSort | null; label: string; num?: boolean
     { id: 'status', key: null, label: 'Status' },
     { id: 'groessen', key: 'groessen', label: 'Größen' },
     { id: 'preis', key: 'preis', label: 'Preis ab', num: true },
-    { id: 'bestand', key: null, label: 'Bestand', num: true },
+    // Available or not, never a count (D-299); the id stays, as saved views name it.
+    { id: 'bestand', key: null, label: 'Verfügbar' },
     { id: 'freigaben', key: null, label: 'Freigaben' },
     { id: 'aktualisiert', key: 'aktualisiert', label: 'Geändert' },
 ]
@@ -124,7 +125,7 @@ watch(
 
 const context = computed(() => (props.filtered ? `${felgen(props.pagination.total)} · gefiltert` : felgen(props.pagination.total)))
 
-const FILTER_KEYS = ['q', 'status', 'marke', 'freigaben', 'demo', 'sort', 'richtung', 'seite', 'ansicht']
+const FILTER_KEYS = ['q', 'status', 'marke', 'freigaben', 'demo', 'radtyp', 'sort', 'richtung', 'seite', 'ansicht']
 
 const refusals = computed<string[]>(() => {
     const raw: unknown = page.props.errors
@@ -174,7 +175,7 @@ function apply(): void {
 
 function reset(): void {
     search.value = ''
-    form.value = { status: '', marke: '', freigaben: '', demo: '' }
+    form.value = { status: '', marke: '', freigaben: '', demo: '', radtyp: '' }
     sheetOpen.value = false
     visit(sortQuery(sort.value), false)
 }
@@ -303,6 +304,12 @@ function runBulk(): void {
             <p v-for="message in refusals" :key="message" class="fg-refusal">{{ message }}</p>
         </div>
 
+        <!-- The backfill (D-298): the Felgen without their Radtypenbezeichnung, one click away — none is published without (D-300). -->
+        <p v-if="missingDesignation > 0 && filters.radtyp !== 'fehlt'" class="adm-note fg-backfill">
+            {{ felgen(missingDesignation) }} ohne Radtypenbezeichnung. Sie gehört in den Namen der Felge im Shop, und ohne sie wird keine Felge veröffentlicht.
+            <Link href="/admin/felgen?radtyp=fehlt">Nur diese anzeigen</Link>
+        </p>
+
         <form class="fg-search" role="search" :action="BASE" method="get" @submit.prevent="apply">
             <label class="visually-hidden" for="fg-q">Felgen durchsuchen</label>
             <input id="fg-q" v-model="search" class="input" type="search" name="q" maxlength="120" placeholder="Marke, Modell, SKU oder EAN" autocomplete="off">
@@ -340,6 +347,13 @@ function runBulk(): void {
                         <option value="">Alle</option>
                         <option value="nein">Echte Felgen</option>
                         <option value="ja">Demodaten</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" for="fg-radtyp">Radtypenbezeichnung</label>
+                    <select id="fg-radtyp" v-model="form.radtyp" class="input">
+                        <option value="">Alle</option>
+                        <option value="fehlt">Fehlt noch</option>
                     </select>
                 </div>
                 <div class="fg-filters__actions">
@@ -399,6 +413,13 @@ function runBulk(): void {
                         <option value="">Alle</option>
                         <option value="nein">Echte Felgen</option>
                         <option value="ja">Demodaten</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label class="form-field__label" for="fg-s-radtyp">Radtypenbezeichnung</label>
+                    <select id="fg-s-radtyp" v-model="form.radtyp" class="input">
+                        <option value="">Alle</option>
+                        <option value="fehlt">Fehlt noch</option>
                     </select>
                 </div>
                 <button class="btn btn--primary btn--block" type="submit" :disabled="busy">Anwenden</button>
@@ -468,6 +489,8 @@ function runBulk(): void {
                                         <span class="fg-sub">
                                             {{ wheel.finishes === 1 ? '1 Ausführung' : `${decimal(wheel.finishes, 0)} Ausführungen` }}
                                             <span v-if="wheel.demo" class="adm-tag adm-tag--neutral fg-demo">Demodaten</span>
+                                            <span v-if="wheel.designationMissing" class="adm-tag adm-tag--warn fg-demo">Radtypen&shy;bezeichnung fehlt</span>
+                                            <span v-if="wheel.titleDiverges" class="adm-tag adm-tag--neutral fg-demo">Titel weicht ab</span>
                                         </span>
                                         <span v-if="wheel.internalNote" class="fg-memo">Notiz: {{ wheel.internalNote }}</span>
                                     </span>
@@ -484,7 +507,7 @@ function runBulk(): void {
                                 </span>
                             </td>
                             <td v-if="has('preis')" data-label="Preis ab" class="num">{{ wheel.fromCents === null ? '–' : formatMoney(wheel.fromCents) }}</td>
-                            <td v-if="has('bestand')" data-label="Bestand" class="num">{{ decimal(wheel.stock, 0) }}</td>
+                            <td v-if="has('bestand')" data-label="Verfügbar">{{ wheel.sizes === 0 ? '–' : `${decimal(wheel.available, 0)} von ${decimal(wheel.sizes, 0)} ${wheel.sizes === 1 ? 'Größe' : 'Größen'}` }}</td>
                             <td v-if="has('freigaben')" data-label="Freigaben">
                                 <span v-if="tagClass(wheel.coverage)" class="fg-coverage" :class="tagClass(wheel.coverage)">{{ wheel.coverage.label }}</span>
                                 <span v-else class="fg-covered" :class="{ 'fg-covered--partial': wheel.covered < wheel.sizes }">{{ wheel.coverage.label }}</span>
@@ -524,6 +547,11 @@ function runBulk(): void {
 <style scoped>
 .fg-refusal {
     margin: 0;
+}
+
+.fg-backfill {
+    max-width: var(--adm-form-max);
+    margin: 0 0 var(--sp-16);
 }
 
 .fg-search {
@@ -742,8 +770,14 @@ function runBulk(): void {
     overflow-wrap: anywhere;
 }
 
+/* Its words may wrap, as the Freigaben tag's do (KATALOG-10): „Radtypenbezeichnung fehlt“ on one line widened the
+   Felge column past the panel at 768 px. The long word carries a soft hyphen, used only where the column is narrow. */
 .fg-demo {
+    height: auto;
+    min-height: 20px;
     margin-left: var(--sp-4);
+    padding-block: 2px;
+    white-space: normal;
 }
 
 .fg-date {

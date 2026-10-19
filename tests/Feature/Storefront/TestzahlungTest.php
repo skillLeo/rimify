@@ -116,7 +116,7 @@ it('writes the order with its verdict frozen and sends the customer to the test 
         ->and(OrderList::paymentLabel('sandbox'))->toBe('Testzahlung');
 });
 
-it('pays the test order: paid, the stock taken, the basket empty, the confirmation open', function (): void {
+it('pays the test order: paid, no rim counted (D-299), the basket empty, the confirmation open', function (): void {
     [$order, $location] = testzahlungPlace($this);
     $stock = (int) $this->config->stock_qty;
 
@@ -133,7 +133,7 @@ it('pays the test order: paid, the stock taken, the basket empty, the confirmati
     $order->refresh();
     expect($order->status)->toBe(OrderStatus::Paid)
         ->and($order->paid_at)->not->toBeNull()
-        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - 4)
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock)
         ->and(session(Basket::SESSION_KEY, []))->toBe([]);
 
     // The browser that placed it sees its confirmation; paid once, the payment page is gone.
@@ -142,52 +142,49 @@ it('pays the test order: paid, the stock taken, the basket empty, the confirmati
     $this->post($location, ['outcome' => 'bezahlt'])->assertForbidden();
 });
 
-// Block G: the stock is reserved when the order is written. A declined payment keeps it for the retry until the
-// order expires; a cancelled one puts it back at once.
-it('keeps the stock for a declined test payment and gives it back for a cancelled one', function (string $outcome, OrderStatus $status, int $taken): void {
+// Block G, and since D-299: a rim is available or not and never counted — neither when the order is written, nor when
+// a declined payment keeps it for the retry, nor when a cancelled one lets it go.
+it('counts no rim for a declined or a cancelled test payment @admin-207', function (string $outcome, OrderStatus $status): void {
     $stock = (int) $this->config->stock_qty;
     [$order, $location] = testzahlungPlace($this);
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe($stock - 4);
+    expect((int) $this->config->fresh()->stock_qty)->toBe($stock);
 
     $this->post($location, ['outcome' => $outcome])->assertRedirect();
 
     expect($order->fresh()->status)->toBe($status)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock - $taken);
+        ->and((int) $this->config->fresh()->stock_qty)->toBe($stock);
 })->with([
-    'abgelehnt' => ['abgelehnt', OrderStatus::Failed, 4],
-    'abgebrochen' => ['abgebrochen', OrderStatus::Cancelled, 0],
+    'abgelehnt' => ['abgelehnt', OrderStatus::Failed],
+    'abgebrochen' => ['abgebrochen', OrderStatus::Cancelled],
 ]);
 
 // PAY-04: one open order per basket on the sandbox path too — a second press is the same order; after a decline the
-// retry replaces it (its page takes only an open one), and its goods go back first: never held twice. The whole cycle
-// — reserve, decline, retry, succeed — with the last four wheels on the shelf, as PAY-01 runs it on the Stripe path.
-it('takes the last wheels through reserve, a second press, decline, retry and payment without holding them twice', function (): void {
+// retry replaces it (its page takes only an open one). The whole cycle — write, decline, retry, succeed — as PAY-01
+// runs it on the Stripe path; since D-299 with no rim counted at any step, the old figure untouched throughout.
+it('takes an order through a second press, decline, retry and payment — one open order, no rim counted (PAY-04, D-299)', function (): void {
     Storage::fake('local');
     $this->config->forceFill(['stock_qty' => 4])->save();
 
-    // Reserve.
     [$order, $location] = testzahlungPlace($this);
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe(0);
+    expect((int) $this->config->fresh()->stock_qty)->toBe(4);
 
-    // A second press: the same order, nothing more taken.
+    // A second press: the same order.
     $again = $this->withCookies(testzahlungCookies($this->vehicle))->from('/kasse')->post('/kasse', testzahlungForm());
 
     expect((string) $again->headers->get('Location'))->toContain('/kasse/testzahlung/'.$order->order_number)
-        ->and(Order::query()->where('payment_method', 'sandbox')->where('status', OrderStatus::PendingPayment->value)->count())->toBe(1)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe(0);
+        ->and(Order::query()->where('payment_method', 'sandbox')->where('status', OrderStatus::PendingPayment->value)->count())->toBe(1);
 
-    // Decline: the wheels stay held for this customer, and the Kasse still offers them.
+    // Decline: the Kasse still offers the wheels.
     $this->post($location, ['outcome' => 'abgelehnt'])->assertRedirect();
 
-    expect($order->fresh()->status)->toBe(OrderStatus::Failed)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe(0);
+    expect($order->fresh()->status)->toBe(OrderStatus::Failed);
 
     $this->withCookies(testzahlungCookies($this->vehicle))->get('/kasse')->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.inStock', true)->where('orderRefusal', null));
 
-    // Retry: the declined order gives its wheels back first, the new one takes them.
+    // Retry: the declined order is cancelled, a new one written.
     $retry = $this->withCookies(testzahlungCookies($this->vehicle))->from('/kasse')->post('/kasse', testzahlungForm());
     $retry->assertSessionHasNoErrors();
     $new = Order::query()->latest('id')->firstOrFail();
@@ -195,24 +192,21 @@ it('takes the last wheels through reserve, a second press, decline, retry and pa
 
     expect($new->order_number)->not->toBe($order->order_number)
         ->and($newLocation)->toContain('/kasse/testzahlung/'.$new->order_number)
-        ->and($order->fresh()->status)->toBe(OrderStatus::Cancelled)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe(0);
+        ->and($order->fresh()->status)->toBe(OrderStatus::Cancelled);
 
-    // Succeed: paid, the four sold once, the basket empty, a test invoice for the new order and none for the old.
+    // Succeed: paid, the basket empty, a test invoice for the new order and none for the old.
     $this->post($newLocation, ['outcome' => 'bezahlt'])->assertRedirect(route('bestellung.show', ['order' => $new->order_number]));
 
     expect($new->fresh()->status)->toBe(OrderStatus::Paid)
         ->and($order->fresh()->status)->toBe(OrderStatus::Cancelled)
-        ->and((int) $this->config->fresh()->stock_qty)->toBe(0)
         ->and(session(Basket::SESSION_KEY, []))->toBe([])
         ->and(Invoice::query()->where('order_id', $new->id)->sole()->number)->toStartWith('TEST-RE-')
         ->and(Invoice::query()->where('order_id', $order->id)->exists())->toBeFalse();
 
-    // Nothing is left for the expiry to hand back.
     $this->travel(25)->hours();
     $this->artisan('orders:expire')->assertSuccessful();
 
-    expect((int) $this->config->fresh()->stock_qty)->toBe(0);
+    expect((int) $this->config->fresh()->stock_qty)->toBe(4);
 });
 
 it('refuses an unsigned or tampered payment address and an unknown outcome', function (): void {

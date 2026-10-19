@@ -10,10 +10,11 @@ use App\Domain\Fitment\Data\TyreSize;
 interface TyreCatalogue
 {
     /**
-     * Tyres available in the given sizes.
+     * Tyres in the given sizes — only the ones the shop sells now (TyreRecord::$sellable), unless `$sellableOnly` is
+     * false: then also the rest, for a check that must see them to refuse them.
      *
      * @param  list<TyreSize>  $sizes
      * @return list<TyreRecord>
      */
-    public function inSizes(array $sizes, bool $inStockOnly = true): array;
+    public function inSizes(array $sizes, bool $sellableOnly = true): array;
 }

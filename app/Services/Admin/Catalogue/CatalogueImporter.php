@@ -14,6 +14,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\AuditTrail;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use App\Support\GermanNumber;
 use App\Support\Money;
@@ -55,6 +56,9 @@ final class CatalogueImporter
         'sku' => ['label' => 'SKU (Artikelnummer)', 'required' => true, 'headers' => ['sku', 'artikelnummer', 'artnr', 'artikelnr', 'article', 'articlenumber', 'itemnumber', 'herstellernummer']],
         'marke' => ['label' => 'Marke', 'required' => true, 'headers' => ['marke', 'hersteller', 'brand', 'manufacturer']],
         'modell' => ['label' => 'Modell', 'required' => true, 'headers' => ['modell', 'model', 'design', 'modellname']],
+        // Taken for a model the file makes (D-298); a model already in the catalogue keeps its own. A supplier's file seldom
+        // carries it, so a new model without one is made as a draft and stands in the Felgen list's backfill.
+        'radtyp' => ['label' => 'Radtypenbezeichnung', 'required' => false, 'headers' => ['radtypenbezeichnung', 'radtyp', 'radtypbezeichnung', 'typenbezeichnung', 'typbezeichnung']],
         'ausfuehrung' => ['label' => 'Ausführung (Farbe)', 'required' => true, 'headers' => ['ausfuehrung', 'farbe', 'color', 'colour', 'finish', 'oberflaeche']],
         'durchmesser' => ['label' => 'Durchmesser (Zoll)', 'required' => true, 'headers' => ['durchmesser', 'zoll', 'diameter', 'felgendurchmesser', 'rimdiameter']],
         'breite' => ['label' => 'Breite (Zoll)', 'required' => true, 'headers' => ['breite', 'width', 'felgenbreite', 'maulweite']],
@@ -63,7 +67,9 @@ final class CatalogueImporter
         'lochkreis' => ['label' => 'Lochkreis (mm) oder Lochbild (5x112)', 'required' => true, 'headers' => ['lochkreis', 'lk', 'pcd', 'lochbild', 'boltpattern', 'boltcircle']],
         'mittenloch' => ['label' => 'Mittenlochbohrung (mm)', 'required' => true, 'headers' => ['mittenloch', 'mittenlochbohrung', 'mlb', 'nabenbohrung', 'centerbore', 'centrebore', 'cb']],
         'preis' => ['label' => 'Preis je Felge (€)', 'required' => true, 'headers' => ['preis', 'price', 'vk', 'verkaufspreis', 'vkpreis']],
-        'bestand' => ['label' => 'Bestand', 'required' => false, 'headers' => ['bestand', 'lager', 'lagerbestand', 'stock', 'qty', 'menge']],
+        // Available or not, never a count (his admin item 7, D-299): „ja“ or „nein“, or a supplier's count — above nought
+        // is available. The field keeps its key, as the suppliers' remembered mappings name it.
+        'bestand' => ['label' => 'Verfügbarkeit (ja/nein oder Stückzahl)', 'required' => false, 'headers' => ['verfuegbar', 'verfuegbarkeit', 'lieferbar', 'available', 'availability', 'bestand', 'lager', 'lagerbestand', 'stock', 'qty', 'menge']],
         'ean' => ['label' => 'EAN', 'required' => false, 'headers' => ['ean', 'gtin', 'barcode']],
         'kba' => ['label' => 'KBA-Nummer', 'required' => false, 'headers' => ['kba', 'kbanummer', 'kbanr']],
         'gewicht' => ['label' => 'Gewicht (g)', 'required' => false, 'headers' => ['gewicht', 'weight', 'gewichtg']],
@@ -73,7 +79,7 @@ final class CatalogueImporter
     /** What a known size may have changed by an import, with how each value reads. */
     private const UPDATABLE = [
         'price_cents' => 'Preis',
-        'stock_qty' => 'Bestand',
+        'available' => 'Verfügbarkeit',
         'ean' => 'EAN',
         'kba_number' => 'KBA-Nummer',
         'weight_g' => 'Gewicht',
@@ -295,7 +301,7 @@ final class CatalogueImporter
     public function apply(CatalogueImport $import, AdminUser $admin): CatalogueImport
     {
         if (self::missing($import->mapping, $import->source['headers']) !== []) {
-            throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und mach den Probelauf.']);
+            throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und wähl „Neu prüfen“.']);
         }
 
         if ((int) ($import->summary['create'] ?? 0) + (int) ($import->summary['update'] ?? 0) === 0) {
@@ -305,7 +311,7 @@ final class CatalogueImporter
         [$plan] = $this->plan($import->rows);
 
         if (self::fingerprint($plan) !== self::fingerprint($import->plan)) {
-            throw ValidationException::withMessages(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Mach bitte einen neuen Probelauf, bevor du importierst.']);
+            throw ValidationException::withMessages(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.']);
         }
 
         return DB::transaction(function () use ($import, $plan, $admin): CatalogueImport {
@@ -328,6 +334,9 @@ final class CatalogueImporter
                 'file' => $import->file_name,
                 'summary' => $import->summary,
             ], $import);
+
+            // One new version for the whole file, once it commits (D-294).
+            CatalogueVersion::changed();
 
             return $import;
         });
@@ -406,6 +415,9 @@ final class CatalogueImporter
                     'file' => $import->file_name,
                     'summary' => $import->summary,
                 ], $import);
+
+                // The rows above went in bulk, past their models: a new version once it commits (D-294).
+                CatalogueVersion::changed();
 
                 return $import;
             });
@@ -696,7 +708,18 @@ final class CatalogueImporter
             return $value;
         };
 
-        $stock = $optional('bestand', static fn (string $r): ?int => ($n = GermanNumber::integer($r)) !== null && $n <= 100000 ? $n : null, 'Den Bestand können wir nicht lesen (ganze Zahl ab 0).');
+        // Available or not (D-299): a word, or a supplier's count — above nought is available, nought is not.
+        $available = $optional('bestand', static function (string $r): ?bool {
+            $word = mb_strtolower(trim($r));
+
+            return match (true) {
+                in_array($word, ['ja', 'verfügbar', 'verfuegbar', 'lieferbar', 'yes', 'x'], true) => true,
+                in_array($word, ['nein', 'nicht verfügbar', 'nicht verfuegbar', 'nicht lieferbar', 'ausverkauft', 'no'], true) => false,
+                ($n = GermanNumber::integer($r)) !== null && $n >= 0 => $n > 0,
+                default => null,
+            };
+        }, 'Die Verfügbarkeit können wir nicht lesen. Erlaubt sind „ja“, „nein“ oder eine Zahl ab 0.');
+        $designation = $optional('radtyp', static fn (string $r): ?string => mb_strlen($r) <= 80 ? $r : null, 'Die Radtypenbezeichnung ist länger als 80 Zeichen.');
         $ean = $optional('ean', static fn (string $r): ?string => preg_match('/^\d{8,14}$/', $r) === 1 ? $r : null, 'Die EAN besteht aus 8 bis 14 Ziffern.');
         $kba = $optional('kba', static fn (string $r): ?string => mb_strlen($r) <= 32 ? $r : null, 'Die KBA-Nummer ist länger als 32 Zeichen.');
         $weight = $optional('gewicht', static fn (string $r): ?int => ($n = GermanNumber::integer($r)) !== null && $n >= 1000 && $n <= 40000 ? $n : null, 'Das Gewicht bitte in Gramm, zwischen 1.000 und 40.000.');
@@ -724,7 +747,8 @@ final class CatalogueImporter
                 'bolt_circle_mm' => $circle,
                 'centre_bore_mm' => $bore,
                 'price_cents' => $price,
-                'stock_qty' => $stock,
+                'available' => $available,
+                'type_designation' => $designation,
                 'ean' => $ean,
                 'kba_number' => $kba,
                 'weight_g' => $weight,
@@ -773,6 +797,7 @@ final class CatalogueImporter
             $model = WheelModel::query()->create([
                 'brand_id' => $brand->id,
                 'name' => $v['model'],
+                'type_designation' => $v['type_designation'],
                 'slug' => WheelEditor::slug($brand->name.' '.$v['model']),
                 'spoke_count' => $v['spoke_count'] ?? 5,
                 // An import never publishes.
@@ -808,7 +833,8 @@ final class CatalogueImporter
             'kba_number' => $v['kba_number'],
             'price_cents' => $v['price_cents'],
             'currency' => 'EUR',
-            'stock_qty' => $v['stock_qty'] ?? 0,
+            // Available unless the file says otherwise (D-299).
+            'available' => $v['available'] ?? true,
             'weight_g' => $v['weight_g'],
         ]);
         $undo['configs'][] = (int) $config->id;
@@ -873,7 +899,7 @@ final class CatalogueImporter
 
         return match ($field) {
             'price_cents' => GermanFormat::money((int) $value),
-            'stock_qty' => GermanFormat::integer((int) $value),
+            'available' => (bool) $value ? 'Verfügbar' : 'Nicht verfügbar',
             'weight_g' => GermanFormat::integer((int) $value).' g',
             default => (string) $value,
         };

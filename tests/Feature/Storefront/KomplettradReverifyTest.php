@@ -110,9 +110,9 @@ it('keeps a Komplettrad whose vehicle was cleared, marks it, and blocks the chec
     expect(reverifyRowCounts())->toBe($before);
 });
 
-it('marks a Komplettrad whose tyre has gone out of stock and keeps it in the basket', function (): void {
+it('marks a Komplettrad whose tyre has been marked not available and keeps it in the basket (D-301)', function (): void {
     [$set, $tyre, $colour] = reverifiedSet();
-    $tyre->update(['stock_qty' => 2]);
+    $tyre->update(['available' => false]);
 
     $this->withCookies($set->cookies())
         ->withSession([Basket::SESSION_KEY => $set->sessionLine($tyre, $colour->id)])

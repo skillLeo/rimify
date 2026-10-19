@@ -120,11 +120,11 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await page.waitForURL(/\/admin\/felgen\/\d+$/)
     await waitForApp(page)
 
-    // Each run's paid order takes four from the stand-in's stock: topped up here, as the team would.
-    const stock = page.getByLabel('Bestand, Zeile 1')
+    // The stand-in's size must be available to be bought — available or not, never counted (D-299).
+    const available = page.getByLabel('Verfügbarkeit, Zeile 1')
 
-    if ((await stock.count()) > 0 && Number(await stock.inputValue()) < 20) {
-        await stock.fill('100')
+    if ((await available.count()) > 0 && (await available.evaluate((select: HTMLSelectElement) => select.options[select.selectedIndex]?.text ?? '')) !== 'Verfügbar') {
+        await available.selectOption({ label: 'Verfügbar' })
         await page.getByRole('button', { name: 'Speichern', exact: true }).click()
         await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled({ timeout: 20_000 })
     }

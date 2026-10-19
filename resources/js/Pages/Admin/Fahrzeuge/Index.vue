@@ -22,6 +22,7 @@ const props = defineProps<{
     makes: string[]
     counts: { all: number; review: number }
     pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
+    can: { create: boolean; import: boolean }
 }>()
 
 const BASE = computed(() => (props.review ? '/admin/fahrzeuge/pruefung' : '/admin/fahrzeuge'))
@@ -59,6 +60,17 @@ function reset(): void {
 
 <template>
     <AdminPage :title="review ? 'Zur Prüfung' : 'Fahrzeuge'" :context="context">
+        <template v-if="can.import || can.create" #primary>
+            <Link v-if="can.import" href="/admin/fahrzeuge/import" class="btn btn--secondary">
+                <Icon name="imports" :size="20" />
+                Importieren
+            </Link>
+            <Link v-if="can.create" href="/admin/fahrzeuge/neu" class="btn btn--primary">
+                <Icon name="plus" :size="20" />
+                Neues Fahrzeug
+            </Link>
+        </template>
+
         <p v-if="review" class="adm-note fz-intro">Diesen Fahrzeugen fehlen Achslasten oder die Höchstgeschwindigkeit. Die Felgen zeigt der Shop trotzdem mit ihrer Freigabe. Wo er die fehlenden Werte für die Reifen braucht, kann er die Reifen nur für Kunden bestätigen, die ihre Werte aus der Zulassungsbescheinigung Teil I (Felder 8.1, 8.2 und T) eintragen. Ohne bestätigte Reifen verkauft er kein Komplettrad. Die Felge allein verkauft er trotzdem – es sei denn, ihre Freigabe hängt an einer fehlenden Achslast: an einer zum Gutachten erfassten Achslastgrenze oder an einer Auflage, die eine Achslast ohne Lastindex nennt.</p>
 
         <nav class="fz-tabs" aria-label="Fahrzeuge">
@@ -80,8 +92,9 @@ function reset(): void {
 
         <AdminState v-if="vehicles.length === 0 && filtered" kind="filtered" :total="review ? counts.review : counts.all" @reset="reset" />
         <AdminState v-else-if="vehicles.length === 0 && review" kind="empty" text="Kein Fahrzeug wartet auf seine Angaben." />
-        <!-- Empty, the way on is the Gutachten: its rows put the cars in, until the vehicle dataset is loaded. -->
-        <AdminState v-else-if="vehicles.length === 0" kind="empty" text="Fahrzeuge erscheinen hier, sobald sie in einem Gutachten eingetragen sind oder der Fahrzeugdatensatz eingespielt ist.">
+        <!-- Empty, three ways in: typed from the papers, a vehicle dataset, or a Gutachten's rows (D-296, D-297). -->
+        <AdminState v-else-if="vehicles.length === 0" kind="empty" text="Fahrzeuge erscheinen hier, sobald du eins aus den Fahrzeugpapieren anlegst, einen Fahrzeugdatensatz importierst oder die Zeilen eines Gutachtens erfasst.">
+            <Link v-if="can.create" href="/admin/fahrzeuge/neu" class="btn btn--primary">Neues Fahrzeug</Link>
             <Link href="/admin/gutachten" class="btn btn--secondary">Zu den Gutachten</Link>
         </AdminState>
 

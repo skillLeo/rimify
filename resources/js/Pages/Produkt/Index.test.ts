@@ -7,7 +7,7 @@ import type { AmountPrice, ConfigVerdict, KomplettradOfferProp, ProduktConfig, P
 
 /*
  * The product page's own states (ACCURACY.md D4, finding #48/#59): a demo model shows
- * "Beispielbestand" and says it cannot be ordered yet, while its basket button stays usable; a
+ * "Beispielsortiment" and says it cannot be ordered yet, while its basket button stays usable; a
  * verified load rating adds a "Traglast" row; the main photograph opens large in a dialog that
  * Escape closes; and the selected size is offered as a Komplettrad — the tyres the server sent,
  * or one sentence with a route forward (docs/specs/komplettrad.md §9.3).
@@ -83,7 +83,6 @@ function config(overrides: Partial<RatedConfig> = {}): RatedConfig {
         hump: 'H2',
         priceCents: 79_600,
         price: '796,00 €',
-        stockQty: 8,
         inStock: true,
         kbaNumber: '53810',
         weightG: null,
@@ -157,7 +156,6 @@ function komplettrad(overrides: Partial<KomplettradOfferProp> = {}): Komplettrad
                 season: 'sommer',
                 seasonLabel: 'Sommerreifen',
                 sizeLabel: '245/45 R19 100Y',
-                stockQty: 8,
                 tyrePriceCents: 15_000,
                 tyrePrice: '150,00 €',
                 perWheelCents: 96_500,
@@ -235,9 +233,19 @@ describe('Produkt page', () => {
         expect(block.find('h2').text()).toBe('Hersteller und Produktsicherheit')
         expect(block.text()).toContain('Beispiel Räder GmbH')
         expect(block.text()).toContain('info@beispiel-raeder.test')
-        expect(block.text()).toContain('MOTEC MCR4 Ultimate · Typ MCR4')
+        // The name already holds the Radtypenbezeichnung (D-298): never said twice.
+        expect(block.text()).toContain('MOTEC MCR4 Ultimate · Artikelnummer')
+        expect(block.text()).not.toContain('Radtypenbezeichnung MCR4')
+        // Nor under the heading: the line beside the name is only for a name that does not hold it.
+        expect(wrapper.find('.pdp__type').exists()).toBe(false)
         expect(block.text()).toContain('Montage nur durch eine Fachwerkstatt.')
         expect(block.text()).not.toContain('Verantwortliche Person in der EU')
+
+        // A name typed without it: the designation stands beside the name, under its own word.
+        const apart = mountPage({ product: { ...base, typeDesignation: 'KBA 49121', manufacturer: { name: 'Beispiel Räder GmbH', address: 'Werkstraße 1', contact: 'info@beispiel-raeder.test', euResponsible: null, safetyNote: null } } })
+
+        expect(apart.find('.pdp__gpsr').text()).toContain('MOTEC MCR4 Ultimate · Radtypenbezeichnung KBA 49121')
+        expect(apart.find('.pdp__type').text()).toBe('Radtypenbezeichnung KBA 49121')
     })
 
     it('says the manufacturer’s details are still to come rather than invent them', () => {
@@ -247,10 +255,10 @@ describe('Produkt page', () => {
         expect(block.text()).toContain('Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor.')
     })
 
-    it('says "Auf Lager" for a real model in stock, and nothing about a demo range', () => {
+    it('says "Verfügbar" for a real model that can be bought, and nothing about a demo range @admin-207', () => {
         const wrapper = mountPage()
 
-        expect(wrapper.find('.pdp__stock').text()).toBe('Auf Lager')
+        expect(wrapper.find('.pdp__stock').text()).toBe('Verfügbar')
         expect(wrapper.find('.pdp__stock').classes()).toContain('tag--ok')
         expect(wrapper.find('.pdp__demo').exists()).toBe(false)
     })
@@ -274,11 +282,38 @@ describe('Produkt page', () => {
         expect(focusPapers).toHaveBeenCalledTimes(1)
         expect(post).not.toHaveBeenCalled()
 
-        // Sold out stays sold out: the figures would not change that.
-        const gone = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false, stockQty: 0 })] }).find('button.pdp__add')
+        // Not available stays not available: the figures would not change that.
+        const gone = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] }).find('button.pdp__add')
 
-        expect(gone.text()).toBe('Ausverkauft')
+        // Switched off under its own words; the tag says „Nicht verfügbar“ and the sentence under it the way on.
+        const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] })
+        expect(gone.text()).toBe('In den Warenkorb')
         expect(gone.attributes('disabled')).toBeDefined()
+        expect(goneWrapper.find('.pdp__unavailable').text()).toBe('Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.')
+        expect(goneWrapper.find('button.pdp__add').attributes('aria-describedby')).toBe('pdp-unavailable')
+    })
+
+    // The interaction review of Groups D/E: „Wähl eine andere Größe“ only where another size sells for the car — a size
+    // struck through for it, however available, is no way on.
+    it('sends to another size only where one sells for the chosen car @admin-207', async () => {
+        const refused = verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false, reason: 'Nicht freigegeben.' })
+        const gone = config({ id: 11, inStock: false, verdict: verdict() })
+        const struck = config({ id: 12, diameterIn: 20, inStock: true, verdict: refused })
+        const open = config({ id: 13, diameterIn: 18, inStock: true, verdict: verdict() })
+
+        const onlyStruck = mountPage({ hasVehicle: true, configs: [gone, struck] })
+        expect(onlyStruck.find('.pdp__unavailable').text()).toBe('Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.')
+
+        const withOpen = mountPage({ hasVehicle: true, configs: [gone, struck, open] })
+        // The page opens on the size that sells; the unavailable one, chosen, points to it.
+        expect(withOpen.find('.pdp__unavailable').exists()).toBe(false)
+
+        const nineteen = withOpen.findAll('.pdp__chips .chip').find((chip) => chip.text().trim() === '19')
+        await nineteen!.trigger('click')
+        expect(withOpen.find('.pdp__unavailable').text()).toBe('Wähl eine andere Größe oder Farbe.')
+
+        const noCar = mountPage({ configs: [config({ inStock: false, verdict: null }), config({ id: 14, diameterIn: 20, inStock: true, verdict: null })] })
+        expect(noCar.find('.pdp__unavailable').exists()).toBe(false)
     })
 
     // D-289: where the document does not itself limit the axle load, the rim alone sells while the tyres wait for the
@@ -301,12 +336,12 @@ describe('Produkt page', () => {
         expect(focusPapers).not.toHaveBeenCalled()
     })
 
-    it('shows a demo model as Beispielbestand, says it cannot be ordered yet, and keeps the basket usable', async () => {
+    it('shows a demo model as Beispielsortiment, says it cannot be ordered yet, and keeps the basket usable', async () => {
         const wrapper = mountPage({ demo: true })
 
-        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielbestand')
+        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielsortiment')
         expect(wrapper.find('.pdp__stock').classes()).not.toContain('tag--ok')
-        expect(wrapper.text()).not.toContain('Auf Lager')
+        expect(wrapper.find('.pdp__stock').text()).not.toContain('Verfügbar')
         expect(wrapper.find('.pdp__demo').text()).toContain('Beispielsortiment')
         expect(wrapper.find('.pdp__demo').text()).toContain('bestellen kannst du sie noch nicht')
 
@@ -321,7 +356,7 @@ describe('Produkt page', () => {
     })
 
     it('preselects four, prices the four beside the stepper as „4 × 229,00 € = 916,00 €“, and adds exactly the amount on screen @kunde-17 @kunde-14', async () => {
-        const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, stockQty: 5, amounts: AMOUNTS })] })
+        const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, amounts: AMOUNTS })] })
         const less = wrapper.find('button[aria-label="Anzahl verringern"]')
         const more = wrapper.find('button[aria-label="Anzahl erhöhen"]')
 
@@ -342,27 +377,27 @@ describe('Produkt page', () => {
         expect(post).toHaveBeenCalledTimes(1)
         expect(forms.find((f) => f.kind === 'WHEEL')?.quantity).toBe(1)
 
-        // Up to what is on the shelf, and no further.
-        for (let i = 0; i < 6; i++) {
+        // Up to the largest amount the page offers, and no further — never capped by a count (D-299).
+        for (let i = 0; i < 9; i++) {
             await more.trigger('click')
         }
 
-        expect(wrapper.find('.amt output').text()).toBe('5')
-        expect(wrapper.find('.pdp__total').text()).toBe(`1.145,00${NNBSP}€`)
+        expect(wrapper.find('.amt output').text()).toBe('8')
+        expect(wrapper.find('.pdp__total').text()).toBe(`1.832,00${NNBSP}€`)
         expect(more.attributes('disabled')).toBeDefined()
     })
 
-    it('brings the amount down to what is on the shelf @kunde-17', () => {
-        const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, stockQty: 2, amounts: AMOUNTS })] })
+    it('never brings the amount down to a count: a size is available or not @kunde-17 @admin-207', () => {
+        const wrapper = mountPage({ configs: [config({ priceCents: 22_900, price: `229,00${NNBSP}€`, amounts: AMOUNTS })] })
 
-        expect(wrapper.find('.amt output').text()).toBe('2')
-        expect(wrapper.find('.pdp__total').text()).toBe(`458,00${NNBSP}€`)
+        expect(wrapper.find('.amt output').text()).toBe('4')
+        expect(wrapper.find('.pdp__total').text()).toBe(`916,00${NNBSP}€`)
     })
 
     it('never shows demo stock as sold-out stock in the positive colour', () => {
-        const wrapper = mountPage({ demo: true, configs: [config({ inStock: false, stockQty: 0 })] })
+        const wrapper = mountPage({ demo: true, configs: [config({ inStock: false })] })
 
-        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielbestand · ausverkauft')
+        expect(wrapper.find('.pdp__stock').text()).toBe('Beispielsortiment · nicht verfügbar')
         expect(wrapper.find('.pdp__stock').classes()).toContain('tag--unknown')
     })
 
@@ -639,7 +674,7 @@ describe('Produkt page', () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })
         const form = forms.find((f) => f.kind === 'WHEEL')
 
-        ;(form?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        ;(form?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
         await nextTick()
         expect(wrapper.find('.pdp__add-error').exists()).toBe(true)
 
@@ -648,7 +683,7 @@ describe('Produkt page', () => {
     })
 
     it('starts another amount clean too: a refusal about the shelf was about the amount it was made with (PDP-09)', async () => {
-        const wrapper = mountPage({ configs: [config({ stockQty: 12, amounts: AMOUNTS })] })
+        const wrapper = mountPage({ configs: [config({ amounts: AMOUNTS })] })
         const form = forms.find((f) => f.kind === 'WHEEL')
 
         ;(form?.errors as Record<string, string>).wheelConfigId = 'Von dieser Felge haben wir 12 Stück auf Lager, davon hast du schon 12 im Warenkorb.'
@@ -666,17 +701,17 @@ describe('Produkt page', () => {
         await chooseSet(wrapper)
 
         expect(wrapper.find('.pdp__total').exists()).toBe(false)
-        expect(wrapper.find('.pdp__stock').text()).toBe('Auf Lager')
+        expect(wrapper.find('.pdp__stock').text()).toBe('Verfügbar')
     })
 
     it('prints the server\'s refusal of an add under the button', async () => {
         const wrapper = mountPage()
         const form = forms.find((f) => f.kind === 'WHEEL')
 
-        ;(form?.errors as Record<string, string>).tyreVariantId = 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.'
+        ;(form?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
         await nextTick()
 
         expect(wrapper.find('.pdp__add-error').attributes('role')).toBe('alert')
-        expect(wrapper.find('.pdp__add-error').text()).toBe('Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.')
+        expect(wrapper.find('.pdp__add-error').text()).toBe('Dieser Reifen ist zurzeit nicht verfügbar.')
     })
 })

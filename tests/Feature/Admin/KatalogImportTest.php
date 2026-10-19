@@ -110,24 +110,36 @@ it('imports the Probelauf: new models are drafts, prices read the German way, th
         ->and(AuditLog::query()->where('description', 'catalogue.imported')->count())->toBe(1);
 });
 
-it('changes a known size’s price and stock, and shows before and after first', function (): void {
+it('changes a known size’s price and availability, and shows before and after first @admin-207', function (): void {
     $this->actingAs(importAdmin(), 'admin')->post('/admin/katalog/import/'.probelauf(supplierCsv(feedRows()))->id.'/importieren');
 
+    // A count is read as available or not (D-299): 12 to 0 makes the size unavailable; the second row's 0 stays 0.
     $rows = feedRows();
     $rows[0][9] = '199,00';
-    $rows[0][10] = '3';
+    $rows[0][10] = '0';
     $run = probelauf(supplierCsv($rows));
 
     expect($run->summary)->toMatchArray(['create' => 0, 'update' => 1, 'unchanged' => 1])
         // Compared as sets of keys: the JSON column keeps its own key order.
         ->and(collect($run->plan)->firstWhere('action', 'update')['changes'])->toEqual([
             ['field' => 'Preis', 'from' => GermanFormat::money(18_900), 'to' => GermanFormat::money(19_900)],
-            ['field' => 'Bestand', 'from' => '12', 'to' => '3'],
+            ['field' => 'Verfügbarkeit', 'from' => 'Verfügbar', 'to' => 'Nicht verfügbar'],
         ]);
 
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/importieren");
 
-    expect(WheelConfig::query()->where('sku', 'TST-18-80-35')->value('price_cents'))->toBe(19_900);
+    $config = WheelConfig::query()->where('sku', 'TST-18-80-35')->firstOrFail();
+
+    expect($config->price_cents)->toBe(19_900)
+        ->and($config->available)->toBeFalse();
+});
+
+it('takes the Radtypenbezeichnung for a model the file makes, and a word for availability @admin-204 @admin-207', function (): void {
+    $run = probelauf(supplierCsv([['TST-R1', 'Prüfmarke', 'Rad', 'Silber', '18', '8', '35', '5x112', '66,6', '189,00', 'nein', 'PM 18']], 'SKU;Marke;Modell;Ausführung;Durchmesser;Breite;ET;Lochkreis;Mittenloch;Preis;Verfügbar;Radtypenbezeichnung'));
+    $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/importieren")->assertSessionHasNoErrors();
+
+    expect(WheelModel::query()->where('name', 'Rad')->value('type_designation'))->toBe('PM 18')
+        ->and(WheelConfig::query()->where('sku', 'TST-R1')->firstOrFail()->available)->toBeFalse();
 });
 
 it('refuses, row by row, what an import never does — and imports the rest', function (): void {
@@ -286,7 +298,7 @@ it('refuses to apply a Probelauf the catalogue has moved away from', function ()
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$first->id}/importieren")->assertSessionHasNoErrors();
 
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$second->id}/importieren")
-        ->assertSessionHasErrors(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Mach bitte einen neuen Probelauf, bevor du importierst.']);
+        ->assertSessionHasErrors(['import' => 'Der Katalog hat sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.']);
 
     expect(WheelConfig::query()->count())->toBe(2);
 });
@@ -352,7 +364,7 @@ it('will not take back an import whose new sizes were changed since', function (
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/importieren");
 
     $this->travel(1)->minutes();
-    WheelConfig::query()->where('sku', 'TST-18-80-35')->firstOrFail()->forceFill(['stock_qty' => 99])->save();
+    WheelConfig::query()->where('sku', 'TST-18-80-35')->firstOrFail()->forceFill(['available' => false])->save();
 
     $this->actingAs(importAdmin(), 'admin')->post("/admin/katalog/import/{$run->id}/zuruecknehmen")
         ->assertSessionHasErrors(['import' => 'Der Import lässt sich nicht mehr zurücknehmen: Importierte Größen wurden seit dem Import geändert.']);

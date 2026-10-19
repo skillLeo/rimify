@@ -16,6 +16,7 @@ use App\Models\WheelModel;
 use App\Services\Storefront\CheckResults;
 use App\Services\Storefront\VehicleTree;
 use App\Support\GermanFormat;
+use App\Support\WheelTitle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -96,8 +97,9 @@ class CheckController extends Controller
                 ->where('brand_id', $brand->id)
                 ->where('status', CatalogueStatus::Published->value)
                 ->orderBy('name')
-                ->get(['slug', 'name'])
-                ->map(static fn (WheelModel $m): array => ['slug' => $m->slug, 'name' => $m->name])
+                ->get(['slug', 'name', 'type_designation', 'title'])
+                // Each by its name in the shop: model and Radtypenbezeichnung, as the Gutachten identify it (D-298).
+                ->map(static fn (WheelModel $m): array => ['slug' => $m->slug, 'name' => WheelTitle::nameFor((string) $brand->name, $m->name, $m->type_designation, $m->title)])
                 ->all(),
             'wheelFinishes' => $finishes->map(static fn ($f): array => ['id' => (int) $f->id, 'name' => (string) $f->name_de])->all(),
             'wheelSizes' => $sizes->map(static fn (WheelConfig $c): array => [
@@ -114,7 +116,8 @@ class CheckController extends Controller
                 'product' => [
                     'slug' => $wheel->slug,
                     'brandName' => $wheel->brand->name,
-                    'modelName' => $wheel->name,
+                    // What follows the brand: model and Radtypenbezeichnung, or the title typed (D-298).
+                    'modelName' => WheelTitle::name($wheel),
                     'finishId' => (int) $config->wheel_finish_id,
                     'finishName' => $config->wheelFinish->name_de,
                 ],

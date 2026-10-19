@@ -533,6 +533,10 @@ describe('putting every entry into words', function (): void {
             'wheel.image_removed' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Das Foto der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde entfernt.', []],
             'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
             'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
+            'page.image_uploaded' => [['page' => 'Felgen richtig auswählen', 'file' => '01jabc.jpg'], 'Für den Ratgeber-Artikel „Felgen richtig auswählen“ wurde ein Bild hochgeladen („01jabc.jpg“). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
+            'tyre.created' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'offered' => false], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde angelegt; der Shop bietet ihn nicht an – er ist nicht verfügbar oder sein EU-Reifenlabel ist unvollständig.', []],
+            'tyre.updated' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'changed' => ['eprel_id', 'price_cents'], 'offered' => true], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde geändert (EPREL-Nummer, Preis); der Shop bietet ihn an.', []],
+            'tyre.deleted' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y'], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde entfernt.', []],
             'brand.created' => [['name' => 'Borbet'], 'Die Marke „Borbet“ wurde angelegt.', []],
             'brand.restored' => [['name' => 'Borbet', 'with_logo' => true], 'Die entfernte Marke „Borbet“ wurde wieder angelegt, mit ihrem früheren Logo.', []],
             'brand.updated' => [
@@ -643,6 +647,16 @@ describe('putting every entry into words', function (): void {
             'vehicle.legal_data_updated' => [
                 ['vehicle' => 'BMW 3er Limousine', 'complete' => true],
                 'Die Achslasten und die Höchstgeschwindigkeit von „BMW 3er Limousine“ wurden eingetragen; das Fahrzeug ist vollständig.',
+                [],
+            ],
+            'vehicle.created_manually' => [
+                ['vehicle' => 'Beispielmarke Muster 1.6 Limousine · HSN 0000 · TSN AAA', 'eg' => 'e1*2007/46*0001*00', 'complete' => false],
+                'Das Fahrzeug „Beispielmarke Muster 1.6 Limousine · HSN 0000 · TSN AAA“ wurde von Hand aus den Fahrzeugpapieren angelegt, mit der EG-Typgenehmigungsnummer „e1*2007/46*0001*00“; es fehlen noch Angaben.',
+                [],
+            ],
+            'vehicle.import_applied' => [
+                ['file' => 'fahrzeuge.csv', 'source' => 'import_kba', 'summary' => ['create' => 2, 'update' => 0, 'unchanged' => 4, 'merge' => 1, 'kept' => 3, 'refused' => 1, 'unread' => 1]],
+                'Der Fahrzeugdatensatz „fahrzeuge.csv“ wurde importiert: 2 Fahrzeuge neu, 1 ergänzt, 1 abgelehnt.',
                 [],
             ],
             'order.shipped' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Bestellung „RMF-2026-1001“ wurde als versendet markiert, Sendungsnummer „00340434 1234“.', []],

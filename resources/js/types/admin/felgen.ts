@@ -25,7 +25,12 @@ export interface WheelRow {
     diameters: string | null
     /** Minor units; the smallest price of its sizes. */
     fromCents: number | null
-    stock: number
+    /** How many of its sizes can be bought (D-299). */
+    available: number
+    /** Saved before the Radtypenbezeichnung was required, still without it (D-298). */
+    designationMissing: boolean
+    /** A typed title its brand, model and Radtypenbezeichnung no longer make (D-298). */
+    titleDiverges: boolean
     /** Sizes a published fitment row names. */
     covered: number
     coverage: WheelState
@@ -42,6 +47,8 @@ export interface WheelFilters {
     marke: string
     freigaben: string
     demo: string
+    /** `fehlt`: the Felgen still without their Radtypenbezeichnung (D-298). */
+    radtyp?: string
     sort: WheelSort
     richtung: 'auf' | 'ab'
 }
@@ -70,6 +77,8 @@ export interface AdminFelgenProps {
     views: ListViewsProps
     columns: ListColumnsProps
     can: WheelCan
+    /** Felgen outside the archive without their Radtypenbezeichnung: the backfill (D-298). */
+    missingDesignation: number
 }
 
 /* ── One Felge ─────────────────────────────────────────────────────────────── */
@@ -113,7 +122,8 @@ export interface SizeForm {
     ean: string
     kba: string
     price: string
-    stock: number
+    /** Available or not, never a count (his admin item 7, D-299). */
+    available: boolean
     weight_g: number | null
 }
 
@@ -121,7 +131,10 @@ export interface WheelForm {
     brand_id: number | null
     brand_new: string
     name: string
+    /** The Radtypenbezeichnung (D-298): required for a new Felge. */
     type_designation: string
+    /** The title in the shop as typed; empty: brand, model and Radtypenbezeichnung (lib/wheelTitle). */
+    title: string
     spoke_count: number
     description: string
     seo_title: string
@@ -144,6 +157,10 @@ export interface AdminFelgeProps {
         brand: string
         name: string
         typeDesignation: string
+        /** The title as typed; empty when the shop composes it (D-298). */
+        title: string
+        /** The title the shop shows now. */
+        fullTitle: string
         spokeCount: number
         description: string
         seoTitle: string

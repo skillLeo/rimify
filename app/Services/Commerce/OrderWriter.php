@@ -261,7 +261,11 @@ final class OrderWriter
             return $wheel;
         }
 
-        $tyre = is_array($line['tyre'] ?? null) ? (string) ($line['tyre']['label'] ?? $line['tyre']['name'] ?? '') : '';
+        // The tyre as the workshop fits it: brand, profile and size. Its `label` is the EU label, an array — read as text
+        // it stopped every Komplettrad whose tyre carries one (found with D-303, where every offered tyre does).
+        $tyre = is_array($line['tyre'] ?? null)
+            ? trim(implode(' ', array_filter([$line['tyre']['brandName'] ?? '', $line['tyre']['name'] ?? '', $line['tyre']['sizeLabel'] ?? ''], static fn (mixed $part): bool => is_string($part) && $part !== '')))
+            : '';
         // `Komplettrad Vorderachse: …` — the axle in the frozen words, where the workshop reads it (D-105).
         $axle = is_array($line['mixed'] ?? null) ? ' '.$line['mixed']['axleLabel'] : '';
 

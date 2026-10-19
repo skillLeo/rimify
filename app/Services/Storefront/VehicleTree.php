@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Storefront;
 
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  * import must stop appearing, or the customer taps into an empty list and concludes the site does
  * not know their car (R-04 keeps the rows for the orders that reference them, not for the picker).
  *
- * Cached, because the tree changes when an import runs and at no other time.
+ * Cached under the catalogue's version (CatalogueVersion, D-294): a vehicle written — imported, entered by hand, merged —
+ * stands in the tree at once, not when the quarter of an hour runs out.
  */
 final readonly class VehicleTree
 {
@@ -27,7 +29,7 @@ final readonly class VehicleTree
     public function makes(): array
     {
         /** @var list<array{make: string, models: int}> $makes */
-        $makes = Cache::remember('vehicle-tree.makes', self::TTL, function (): array {
+        $makes = Cache::remember(CatalogueVersion::key('vehicle-tree.makes'), self::TTL, function (): array {
             $rows = DB::table('vehicles')
                 ->whereNull('deleted_at')
                 ->groupBy('make')

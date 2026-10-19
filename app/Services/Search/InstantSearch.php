@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Search;
 
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -67,7 +68,8 @@ final readonly class InstantSearch
         }
 
         /** @var array{total: int, suggestion: string|null, groups: list<array{key: string, label: string, items: list<array{label: string, sub: string|null, href: string}>}>} $result */
-        $result = Cache::remember('search.'.md5($q), self::TTL, function () use ($q): array {
+        // Under the catalogue's version (D-294): a wheel just published is found at once.
+        $result = Cache::remember(CatalogueVersion::key('search.'.md5($q)), self::TTL, function () use ($q): array {
             $groups = array_values(array_filter([
                 ['key' => 'felgen', 'label' => 'Felgen', 'items' => $this->wheels($q)],
                 ['key' => 'marken', 'label' => 'Marken', 'items' => $this->brands($q)],

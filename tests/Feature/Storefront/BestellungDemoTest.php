@@ -149,7 +149,7 @@ it('pairs a seeded Komplettrad through TyreEligibility, the rule every surface a
         ->and($eligibility->permits($verdict, $tyre(['diameter_in' => $size->diameterIn + 1])))->toBe(KomplettradRefusal::DiameterMismatch)
         ->and($eligibility->permits($verdict, $tyre(['width_mm' => $size->widthMm + 100])))->toBe(KomplettradRefusal::SizeNotPermitted)
         ->and($eligibility->permits($verdict, $tyre(['load_index' => $minLoad - 1])))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and($eligibility->permits($verdict, $tyre(['stock_qty' => 3]), 4))->toBe(KomplettradRefusal::OutOfStock);
+        ->and($eligibility->permits($verdict, $tyre(['available' => false]), 4))->toBe(KomplettradRefusal::OutOfStock);
 
     if ($slower !== null) {
         expect($eligibility->permits($verdict, $tyre(['speed_symbol' => $slower, 'speed_rank' => $ranks[$slower]])))

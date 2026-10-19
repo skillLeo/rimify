@@ -58,7 +58,7 @@ function swatchStyle(hex: string | null): Record<string, string> | undefined {
 }
 
 /* What the server refuses everything else with, should it ever send neither tyres nor a sentence. */
-const FALLBACK_REFUSAL = 'Passende Reifen für diese Größe haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.'
+const FALLBACK_REFUSAL = 'Passende Reifen für diese Größe können wir dir gerade nicht anbieten. Die Felge allein kannst du bestellen.'
 
 /* Four tyres in sight; the rest one press away, so the basket button never drifts below a long list. */
 const SHOWN = 4
@@ -95,6 +95,8 @@ interface EuLabel {
     wet: TyreClass
     noiseDb: number
     noiseClass: 'A' | 'B' | 'C'
+    snowGrip: boolean | null
+    iceGrip: boolean | null
     eprelId: string
     title: string
 }
@@ -112,6 +114,8 @@ function labelOf(tyre: KomplettradTyreProp): EuLabel | null {
         wet: label.wetGrip,
         noiseDb: label.noiseDb,
         noiseClass: label.noiseClass,
+        snowGrip: label.snowGrip,
+        iceGrip: label.iceGrip,
         eprelId: label.eprelId,
         title: `${tyre.brandName} ${tyre.name} · ${tyre.sizeLabel}`,
     }

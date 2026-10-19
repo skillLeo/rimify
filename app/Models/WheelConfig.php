@@ -23,7 +23,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property float $width_in
  * @property int $et_mm
  * @property int $price_cents
- * @property int $stock_qty
+ * @property int $stock_qty kept from before D-299 and no longer read: a size is available or not
+ * @property bool $available „verfügbar“ or „nicht verfügbar“ (his admin item 7, D-299)
  * @property int|null $weight_g
  * @property int|null $max_load_kg Radlast from the wheel's own approval; NULL when not verified
  * @property string|null $kba_number
@@ -38,7 +39,12 @@ class WheelConfig extends Model
     protected $fillable = [
         'wheel_model_id', 'wheel_finish_id', 'diameter_in', 'width_in', 'et_mm',
         'bolt_holes', 'bolt_circle_mm', 'centre_bore_mm', 'hump', 'bead_profile',
-        'kba_number', 'ean', 'sku', 'price_cents', 'currency', 'stock_qty', 'weight_g', 'max_load_kg',
+        'kba_number', 'ean', 'sku', 'price_cents', 'currency', 'stock_qty', 'available', 'weight_g', 'max_load_kg',
+    ];
+
+    /** As the column's own default: a new size can be bought until someone says otherwise. */
+    protected $attributes = [
+        'available' => true,
     ];
 
     /** @return array<string, string> */
@@ -53,14 +59,16 @@ class WheelConfig extends Model
             'centre_bore_mm' => 'float',
             'price_cents' => 'integer',
             'stock_qty' => 'integer',
+            'available' => 'boolean',
             'weight_g' => 'integer',
             'max_load_kg' => 'integer',
         ];
     }
 
+    /** Available or not, never a count (D-299). */
     public function isInStock(): bool
     {
-        return $this->stock_qty > 0;
+        return $this->available;
     }
 
     /** `8,5J × 18 · ET 35 · 5/112 · 66,6 mm` — the label the customer sees. */

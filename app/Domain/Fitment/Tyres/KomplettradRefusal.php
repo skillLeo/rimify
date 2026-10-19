@@ -65,8 +65,9 @@ enum KomplettradRefusal: string
             self::DiameterMismatch => 'Dieser Reifen hat nicht den Durchmesser dieser Felge.',
             self::SizeNotPermitted => 'Diese Reifengröße ist für dein Fahrzeug mit dieser Felge nicht freigegeben.',
             self::BelowMinimum => 'Dieser Reifen erfüllt die Mindestwerte für dein Fahrzeug nicht.',
-            self::OutOfStock => 'Diesen Reifen haben wir gerade nicht in der benötigten Menge auf Lager.',
-            self::NoTyreAvailable => 'Passende Reifen für diese Größe haben wir gerade nicht vorrätig. Die Felge allein kannst du bestellen.',
+            // Available or not, never a count (D-301) — and a tyre without its EU label is not offered (D-303).
+            self::OutOfStock => 'Dieser Reifen ist zurzeit nicht verfügbar.',
+            self::NoTyreAvailable => 'Passende Reifen für diese Größe können wir dir gerade nicht anbieten. Die Felge allein kannst du bestellen.',
             self::AxleLoadAboveLimit => 'Für die zulässige Achslast deines Fahrzeugs ist in dieser Reifengröße kein Tragfähigkeitsindex hinterlegt.',
             self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten sind für dein Fahrzeug mit dieser Felge nicht hinterlegt.',
             self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten sind für dein Fahrzeug nicht als Kombination hinterlegt.',

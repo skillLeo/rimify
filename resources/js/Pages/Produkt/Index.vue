@@ -20,7 +20,7 @@
  * On a phone the price and the button follow the customer down the page once the main button has
  * scrolled away — the one persistent bar the storefront uses, because it is the page's next action.
  *
- * A seeded demonstration model (`demo`) shows "Beispielbestand" rather than "Auf Lager" and says it
+ * A seeded demonstration model (`demo`) shows "Beispielsortiment" rather than "Auf Lager" and says it
  * cannot be ordered yet. Its basket button stays usable, so the flow can be reviewed; the server
  * refuses the order at the checkout (ACCURACY.md D4).
  *
@@ -42,7 +42,7 @@ import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageView } from '../../Components/Ui/Picture.vue'
 import ValueText from '../../Components/Ui/ValueText.vue'
-import { useConfigurator } from '../../composables/useConfigurator'
+import { sellable, useConfigurator } from '../../composables/useConfigurator'
 import { priceTerms } from '../../composables/usePriceTerms'
 import { useShared } from '../../composables/useShared'
 import { claimBottomEdge } from '../../composables/useShell'
@@ -277,14 +277,21 @@ watch([mode, () => selected.value?.id, tyreId, colourId], () => basket.clearErro
  */
 const amount = ref(4)
 
-const maxAmount = computed(() => {
-    const offered = selected.value?.amounts?.map((a) => a.quantity) ?? []
-    const top = offered.length > 0 ? Math.max(...offered) : 1
+/* The Radtypenbezeichnung beside the name only where the name does not already hold it (D-298). */
+const designationApart = computed(() => {
+    const designation = props.product.typeDesignation?.trim() ?? ''
 
-    return Math.max(1, Math.min(top, selected.value?.stockQty ?? top))
+    return designation !== '' && !`${props.product.brandName} ${props.product.modelName}`.toLocaleLowerCase('de-DE').includes(designation.toLocaleLowerCase('de-DE'))
 })
 
-// A size with fewer on the shelf than the amount chosen brings the amount down to what there is.
+/* No count caps the amount (his admin item 7, D-299): a size is available or not, and any amount the page offers goes. */
+const maxAmount = computed(() => {
+    const offered = selected.value?.amounts?.map((a) => a.quantity) ?? []
+
+    return Math.max(1, ...offered)
+})
+
+// A size that offers fewer amounts than the one chosen brings the amount down to what it offers.
 watch(maxAmount, (max) => {
     amount.value = Math.min(Math.max(1, amount.value), max)
 }, { immediate: true })
@@ -310,17 +317,37 @@ const amountNote = computed(() => {
 })
 
 /*
- * The stock tag. Demo stock is example data, so it never reads as "Auf Lager" — and never in the
- * colour that means a positive answer.
+ * The availability tag — available or not, never a count (his admin item 7, D-299). Demo stock is example data, so it
+ * never reads as „Verfügbar“ — and never in the colour that means a positive answer.
  */
 const stockLabel = computed(() => {
     const inStock = selected.value?.inStock === true
 
     if (props.demo === true) {
-        return inStock ? 'Beispielbestand' : 'Beispielbestand · ausverkauft'
+        return inStock ? 'Beispielsortiment' : 'Beispielsortiment · nicht verfügbar'
     }
 
-    return inStock ? 'Auf Lager' : 'Ausverkauft'
+    return inStock ? 'Verfügbar' : 'Nicht verfügbar'
+})
+
+/*
+ * A size not available: the way on, in one sentence under its tag — another size or colour, where one can be bought
+ * (D-304). With a car chosen, only one the shop sells for that car counts: a struck size is no way on.
+ */
+const unavailableHint = computed(() => {
+    const current = selected.value
+
+    if (current === null || current.inStock) {
+        return ''
+    }
+
+    if (props.configs.some((c) => c.id !== current.id && c.inStock && sellable(c))) {
+        return 'Wähl eine andere Größe oder Farbe.'
+    }
+
+    return current.verdict === null
+        ? 'Diese Felge ist zurzeit in keiner Größe oder Farbe verfügbar.'
+        : 'Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.'
 })
 
 const stockTone = computed(() => {
@@ -366,10 +393,10 @@ const canBuy = computed(() => {
         return false
     }
 
-    // A Komplettrad needs a tyre the server offered — which it does only with a car and a verdict that sells — and a
-    // set's worth of rims on the shelf. The server asks the fitment engine again on the add (R-11).
+    // A Komplettrad needs a tyre the server offered — which it does only with a car and a verdict that sells; the rims
+    // are available or not, never counted (D-299). The server asks the fitment engine again on the add (R-11).
     if (isSet.value) {
-        return tyre.value !== null && current.stockQty >= (offer.value?.quantity ?? 4)
+        return tyre.value !== null
     }
 
     // With no vehicle the wheel can still be bought — RIMIFY simply makes no claim about it. With a
@@ -392,8 +419,10 @@ const buyLabel = computed(() => {
         return 'Wird hinzugefügt …'
     }
 
+    // Not available: the tag above says so and the sentence under it the way on, so the button keeps its own words
+    // and is only switched off — never „Nicht verfügbar“ said twice.
     if (selected.value !== null && !selected.value.inStock) {
-        return 'Ausverkauft'
+        return 'In den Warenkorb'
     }
 
     if (papersFirst.value) {
@@ -577,7 +606,8 @@ claimBottomEdge(() => stickyShown.value)
                     <!-- The brand, the model and the type designation are names and codes, never
                          words: a page translator would turn them into English. -->
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
-                    <p v-if="product.typeDesignation" class="data pdp__type">Typ <ValueText :text="product.typeDesignation" whole /></p>
+                    <!-- Only where the name does not hold it already (a title typed otherwise): never said twice. -->
+                    <p v-if="designationApart" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation ?? ''" whole /></p>
                     <!-- The buyers' stars, computed from their reviews alone (D-103), leading to them; until there are
                          any, what the page can prove instead — never an empty row of stars. -->
                     <a v-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
@@ -688,6 +718,7 @@ claimBottomEdge(() => stickyShown.value)
                         <!-- Einstellungen › Verkäufer & Versand: only what is given, never a placeholder (Shipping::summary). -->
                         <p v-if="shipping" class="price-note pdp__shipping">{{ shipping }}</p>
                         <span class="tag pdp__stock" :class="stockTone">{{ stockLabel }}</span>
+                        <p v-if="unavailableHint" id="pdp-unavailable" class="t-small pdp__unavailable">{{ unavailableHint }}</p>
                         <p v-if="demo" class="t-small pdp__demo">
                             Beispielsortiment: Diese Felge kannst du dir ansehen und in den Warenkorb
                             legen, bestellen kannst du sie noch nicht.
@@ -705,6 +736,7 @@ claimBottomEdge(() => stickyShown.value)
                             type="button"
                             :disabled="!canBuy && !papersFirst"
                             :aria-busy="basket.processing ? 'true' : undefined"
+                            :aria-describedby="unavailableHint ? 'pdp-unavailable' : undefined"
                             @click="addToBasket"
                         >
                             {{ buyLabel }}
@@ -862,7 +894,7 @@ claimBottomEdge(() => stickyShown.value)
                     <div class="pdp__gpsr-row">
                         <dt>Produkt</dt>
                         <dd class="pdp__gpsr-value">
-                            {{ product.brandName }} {{ product.modelName }}<template v-if="product.typeDesignation"> · Typ {{ product.typeDesignation }}</template><template v-if="selected"> · Artikelnummer {{ selected.sku }}</template>
+                            {{ product.brandName }} {{ product.modelName }}<template v-if="designationApart"> · Radtypenbezeichnung {{ product.typeDesignation }}</template><template v-if="selected"> · Artikelnummer {{ selected.sku }}</template>
                         </dd>
                     </div>
                     <div v-if="product.manufacturer.safetyNote" class="pdp__gpsr-row">
@@ -894,7 +926,8 @@ claimBottomEdge(() => stickyShown.value)
             :aria-busy="basket.processing ? 'true' : undefined"
             @click="addToBasket"
         >
-            {{ isSet && canBuy && !basket.processing ? 'In den Warenkorb' : buyLabel }}
+            <!-- The bar stands away from the tag and its sentence: here the button says it itself. -->
+            {{ unavailableHint ? 'Nicht verfügbar' : isSet && canBuy && !basket.processing ? 'In den Warenkorb' : buyLabel }}
         </button>
     </div>
 </template>
@@ -1228,6 +1261,12 @@ a.pdp__rating {
 
 .pdp__stock {
     margin-top: var(--space-2);
+}
+
+/* The way on under a size marked not available, quiet beside the tag that says so. */
+.pdp__unavailable {
+    margin: var(--space-2) 0 0;
+    color: var(--ink2);
 }
 
 .pdp__demo {

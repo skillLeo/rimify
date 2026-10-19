@@ -57,7 +57,8 @@ it('matches on EG number and Fahrzeugtyp and, in a dry run, only says what it wo
         ->and($entry['vehicle']?->id)->toBe($car->id)
         ->and($entry['fills'])->toBe([
             'hsn' => '0005', 'tsn' => 'CDA', 'axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1180,
-            'max_speed_kmh' => 236, 'build_from' => '2013-07-01', 'build_to' => '2020-06-01', 'power_kw' => 135,
+            // The last month built is built whole: a build end given as a month ends on its last day (R-02, D-297).
+            'max_speed_kmh' => 236, 'build_from' => '2013-07-01', 'build_to' => '2020-06-30', 'power_kw' => 135,
         ])
         ->and($car->fresh()?->toArray())->toBe($before);
 });
@@ -162,7 +163,8 @@ it('takes in a dataset car whose extension lies in a document’s printed range,
 it('fills both key numbers or neither, and reads nothing it cannot read', function (): void {
     mergeCar();
 
-    [$entry] = app(VehicleMerge::class)->plan([datasetRow(['tsn' => 'C?', 'achslast_vorn_kg' => '1.100', 'baubeginn' => '07/2013'])]);
+    // `1.100` and `07/2013` read now, as a German spreadsheet writes them (D-297); a guess never does.
+    [$entry] = app(VehicleMerge::class)->plan([datasetRow(['tsn' => 'C?', 'achslast_vorn_kg' => 'ca. 1100', 'baubeginn' => 'Sommer 2013'])]);
 
     expect($entry['fills'])->not->toHaveKey('hsn')
         ->and($entry['fills'])->not->toHaveKey('tsn')

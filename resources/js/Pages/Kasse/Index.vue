@@ -707,8 +707,7 @@ function verdictSentence(line: BasketLine): string {
                 <Icon name="info" :size="24" />
                 <p class="state__title">Eine Position im Warenkorb kann so nicht bestellt werden.</p>
                 <p class="t-body">
-                    Sie ist nicht lieferbar oder für dein Fahrzeug nicht freigegeben. Im Warenkorb
-                    siehst du, welche es ist.
+                    Im Warenkorb siehst du, welche es ist und warum.
                 </p>
                 <Link href="/warenkorb" class="btn btn--primary">Zum Warenkorb</Link>
             </div>

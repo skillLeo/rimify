@@ -48,7 +48,6 @@ function card(n = 1, overrides: Partial<ProductCardProp> = {}): ProductCardProp 
         fromPriceCents: 17225,
         fromPrice: '',
         inStock: true,
-        stockQty: 8,
         diameters: ['18', '19', '20'],
         fitment: null,
         ...overrides,
@@ -298,10 +297,10 @@ describe('ProductTile', () => {
         expect(unknown.find('[data-tyres="open"]').exists()).toBe(false)
     })
 
-    it('says Ausverkauft above the actions and keeps the CTA', () => {
-        const wrapper = mountTile({ card: card(1, { inStock: false, stockQty: 0 }) })
+    it('says „Nicht verfügbar“ above the actions and keeps the CTA @admin-207', () => {
+        const wrapper = mountTile({ card: card(1, { inStock: false }) })
 
-        expect(wrapper.find('.stock--out').text()).toBe('Ausverkauft')
+        expect(wrapper.find('.stock--out').text()).toBe('Nicht verfügbar')
         expect(wrapper.find('.tile__cta').text()).toBe('Details ansehen')
         expect(wrapper.find('.stock--out').element.compareDocumentPosition(wrapper.find('.tile__actions').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })

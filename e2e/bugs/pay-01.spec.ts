@@ -1,7 +1,7 @@
 import { expect, test } from '../fixtures';
 import { SHOP } from '../shop';
 import { open } from '../support';
-import { CUSTOMER, SHOTS, basketWithAWheel, fillAddress, orderToTestPayment, quantityAgainstStock, toPayment } from './pay-support';
+import { CUSTOMER, SHOTS, basketWithAWheel, fillAddress, orderToTestPayment, toPayment } from './pay-support';
 
 // The shop with wheels in it (e2e/shop.ts); its payment is the review's sandbox.
 test.use({ baseURL: SHOP });
@@ -9,32 +9,21 @@ test.use({ baseURL: SHOP });
 /*
  * PAY-01 (S1) — Block G review: after a declined payment the customer cannot pay again for the same basket.
  *
- * The order takes its goods off the shelf when it is written (OrderPayments::reserve, inside OrderWriter), and a
- * declined payment keeps them („the order keeps its stock for a retry until it expires" — Failed releases nothing).
- * But the basket reads the shelf as if that order did not exist: Basket::summary sets `inStock` to
- * `stock_qty >= quantity`, and Basket::refusalOf / the page's `blocked` stop the Kasse on it. So wherever the
- * customer's own declined order leaves fewer than they ordered — every size with less than twice the quantity in
- * stock, i.e. the last sets — „Zurück zur Kasse und noch einmal bezahlen" leads to „Eine Position im Warenkorb kann
- * so nicht bestellt werden", and the basket calls their wheel „Nicht mehr verfügbar". The same holds for Stripe
- * (KasseZahlungController asks refusalOf before it looks for the pending order it would reuse), not testable here.
- *
- * Expected: the page the decline leads to takes the payment again, with everything typed still there.
- *
- * The whole cycle, as a customer meets it: reserve, decline, retry, succeed — the retry replaces the declined order
- * (its goods go back first, the new order takes them) and is paid; the basket is empty afterwards.
+ * Found when the order took its goods off the shelf as it was written and a declined payment kept them, while the
+ * basket read the shelf as if that order did not exist — so the customer's own declined order made their last wheels
+ * „Nicht mehr verfügbar". Since his admin item 7 a rim is not counted any more (D-299): it is available or not. The
+ * cycle stays the test, as a customer meets it: decline, back to the Kasse with everything typed
+ * still there, pay again — the retry replaces the declined order and is paid; the basket is empty afterwards.
  *
  * Writes (the brief allows test orders on rimify_wf_e2e): one declined test order, cancelled by the retry, and one paid
- * test order that keeps `quantity` of one size of the second-or-later product sold. One run only (desktop-1440): the
- * bug is on the server and knows no width, and every run sells stock (`composer e2e:shop` restocks the shop).
+ * test order. One run only (desktop-1440): the bug was on the server and knows no width.
  */
 
 test('PAY-01 after a declined test payment the same basket can be paid again, and is', async ({ page }, info) => {
-    test.skip(info.project.name !== 'desktop-1440', 'server-side and width-free; one run, because every run holds stock');
+    test.skip(info.project.name !== 'desktop-1440', 'server-side and width-free; one run, because every run places orders');
     test.slow();
 
-    // More than half of the size's stock: after the first order holds it, fewer than that are left on the shelf.
     await basketWithAWheel(page, 1);
-    const { stock, quantity } = await quantityAgainstStock(page, (s) => Math.floor(s / 2) + 1);
 
     await open(page, '/kasse');
     await fillAddress(page);
@@ -54,8 +43,7 @@ test('PAY-01 after a declined test payment the same basket can be paid again, an
 
     await expect(
         page.getByText('Eine Position im Warenkorb kann so nicht bestellt werden.'),
-        `after the test payment for ${quantity} of the ${stock} in stock was declined, the Kasse refuses the same basket: ` +
-            `the declined order ${declined} still holds its ${quantity}, and the basket counts them as gone`,
+        `after the test payment was declined, the Kasse refuses the same basket (declined order ${declined})`,
     ).toHaveCount(0);
     await expect(page.locator('#ko-mail'), 'what was typed is still there after the decline').toHaveValue(CUSTOMER.email);
 

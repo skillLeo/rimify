@@ -112,6 +112,11 @@
         </script>
     @endif
     @inertiaHead
+    {{-- A Felge's structured data for search engines (App\Services\Storefront\ProductJsonLd, D-305): a data block, never
+         run, so the policy's script rules do not govern it; encoded so no `</script>` in a text can end it early. --}}
+    @if (! empty($productJsonLd))
+        <script type="application/ld+json">{!! $productJsonLd !!}</script>
+    @endif
 </head>
 {{-- The device split is decided on the server (R-08); the class lets stylesheets follow it. --}}
 <body class="{{ ($page['props']['isMobile'] ?? false) ? 'is-mobile' : 'is-desktop' }}">

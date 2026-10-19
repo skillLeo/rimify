@@ -6,6 +6,7 @@ namespace App\Services\Demo;
 
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Services\Reset\TestEnvironment;
+use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\CatalogueSeeder;
@@ -213,6 +214,9 @@ final class DemoCatalogue
         // The development cars are hidden, never removed (R-04): an order or an Anfrage that named one
         // still reads, and the next development seed brings them back.
         self::rows('vehicles')->update(['deleted_at' => now(), 'updated_at' => now()]);
+
+        // All of it past the models: the catalogue's new version once it commits (D-294).
+        CatalogueVersion::changed();
     }
 
     /**

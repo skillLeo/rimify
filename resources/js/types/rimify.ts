@@ -179,6 +179,8 @@ export interface SharedProps {
     previewRibbon?: boolean
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
+    /** The catalogue's version the page was computed from (App\Support\CatalogueVersion, D-294; restoredPages.ts). */
+    catalogue?: string
     flash: { toast: string | null; added?: AddedToBasket | null }
     /**
      * The search by key numbers — HSN/TSN and the Fahrzeugschein scan — while no vehicle dataset is loaded: the one
@@ -229,8 +231,8 @@ export interface ProductCardProp {
     ratingLabel: string | null
     fromPriceCents: number
     fromPrice: string
+    /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
-    stockQty: number
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
     /**
@@ -306,10 +308,10 @@ export interface BasketTyre {
     sizeLabel: string
     unitPriceCents: number
     unitPrice: string
-    /** Enough of this tyre for the line's quantity. */
+    /** The shop sells this tyre now: available, its EU label on record (D-301, D-303) — never a count. */
     inStock: boolean
     /** Shipped only when the tyre carries a verified EPREL id (ACCURACY D7). */
-    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; eprelId: string } | null
+    label: { fuel: string | null; wetGrip: string | null; noiseDb: number | null; noiseClass: string | null; snowGrip: boolean | null; iceGrip: boolean | null; eprelId: string } | null
 }
 
 /** The Wuchtgewichte colour on a Komplettrad line: per wheel, surcharge 0 unless the admin set one. */

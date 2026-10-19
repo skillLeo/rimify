@@ -22,8 +22,10 @@ const props = withDefaults(
         invalid?: boolean
         describedby?: string
         disabled?: boolean
+        /** The line while nothing is chosen here — e.g. the name of the file already kept. */
+        current?: string
     }>(),
-    { label: 'Datei auswählen', invalid: false, describedby: undefined, disabled: false }
+    { label: 'Datei auswählen', invalid: false, describedby: undefined, disabled: false, current: '' }
 )
 
 const file = defineModel<File | null>({ default: null })
@@ -38,7 +40,7 @@ const summary = computed(() => {
     const chosen = file.value
 
     if (chosen === null) {
-        return 'Noch keine Datei gewählt'
+        return props.current || 'Noch keine Datei gewählt'
     }
 
     const kb = chosen.size / 1024
@@ -137,7 +139,7 @@ function drop(event: DragEvent): void {
         >
             {{ label }}
         </label>
-        <span :id="`${id}-name`" class="adm-filepick__name" :class="{ 'adm-filepick__name--empty': file === null }">{{ summary }}</span>
+        <span :id="`${id}-name`" class="adm-filepick__name" :class="{ 'adm-filepick__name--empty': file === null && !current }">{{ summary }}</span>
     </div>
 </template>
 

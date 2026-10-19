@@ -64,9 +64,10 @@ test('GUTACHTEN-02b „Zeile ändern" keeps a minimum Lastindex stored without a
     const dialog = page.getByRole('dialog', { name: 'Zeile ändern' });
     await expect(dialog).toBeVisible();
 
-    const text = await page.locator('#gs-edit-size-0').inputValue();
+    // The load index stands in a field of its own since his admin item 9 (`#…-size-0-li`), the size alone in its field.
+    const loadIndex = await page.locator('#gs-edit-size-0-li').inputValue();
 
     await dialog.screenshot({ path: `${SHOTS}/gutachten-02b-edit-${info.project.name}.png` });
 
-    expect(text, `the row stores ${stored}; „Zeile ändern" shows „${text}" — saving it would drop the 93`).toMatch(/\b93\b/);
+    expect(loadIndex, `the row stores ${stored}; „Zeile ändern" shows „${loadIndex}" as its load index — saving it would drop the 93`).toBe('93');
 });

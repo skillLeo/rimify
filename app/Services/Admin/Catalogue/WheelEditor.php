@@ -12,6 +12,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\AuditTrail;
+use App\Support\WheelTitle;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,8 @@ use Illuminate\Validation\ValidationException;
  *
  * A size an approval document names is compliance data (CLAUDE.md §1): its measurements decide which
  * cars it fits. So a size with fitment rows keeps its measurements and cannot be removed here; the
- * team is told why, under the row, and the whole save is refused rather than half made. Price, stock,
- * SKU and EAN stay free to change — they are not what a Gutachten approves.
+ * team is told why, under the row, and the whole save is refused rather than half made. Price,
+ * availability, SKU and EAN stay free to change — they are not what a Gutachten approves.
  *
  * A save never publishes. A new model is a draft; a model in the shop stays there with its new values.
  *
@@ -37,7 +38,7 @@ final class WheelEditor
     private const MEASUREMENTS = ['diameter_in', 'width_in', 'et_mm', 'bolt_holes', 'bolt_circle_mm', 'centre_bore_mm'];
 
     /**
-     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note?: string|null}  $attributes
+     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note?: string|null, title?: string|null}  $attributes
      * @param  list<FinishInput>  $finishes
      * @param  list<ConfigInput>  $configs
      */
@@ -52,7 +53,7 @@ final class WheelEditor
     }
 
     /**
-     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note?: string|null}  $attributes
+     * @param  array{brand_id: int|null, brand_new: string|null, name: string, type_designation: string|null, spoke_count: int, description_de: string|null, seo_title: string|null, seo_description: string|null, internal_note?: string|null, title?: string|null}  $attributes
      * @param  list<FinishInput>  $finishes
      * @param  list<ConfigInput>  $configs
      */
@@ -71,6 +72,9 @@ final class WheelEditor
                 'seo_description' => $attributes['seo_description'],
                 // Only when the caller sends it: a save that does not know the note leaves it as it is.
                 ...(array_key_exists('internal_note', $attributes) ? ['internal_note' => $attributes['internal_note']] : []),
+                // The title in the shop (D-298): stored only where it is not the one the parts make — then it follows
+                // them; a title typed otherwise stays, whatever its parts become (WheelTitle).
+                ...(array_key_exists('title', $attributes) ? ['title' => WheelTitle::stored($attributes['title'], $brand->name, $attributes['name'], $attributes['type_designation'])] : []),
             ];
 
             if ($model === null) {
@@ -100,37 +104,10 @@ final class WheelEditor
         });
     }
 
+    /** A wheel brand stands on the homepage's brand wall (CatalogueBrands, the Reifen form's lookup too). */
     private function brand(?int $id, ?string $new): Brand
     {
-        if ($id !== null) {
-            return Brand::query()->findOrFail($id);
-        }
-
-        $name = trim((string) $new);
-        $existing = Brand::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
-
-        if ($existing instanceof Brand) {
-            return $existing;
-        }
-
-        // A removed brand of that name comes back — its id, its slug and its logo — as on the Marken
-        // page, rather than a second row as „rotiform-2" (K2-01).
-        $removed = Brand::onlyTrashed()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->latest('deleted_at')->first();
-
-        // Only while no live brand holds its address: a brand renamed to „Rotiform.“ keeps the slug
-        // `rotiform`, and a restored twin would collide with it (K2-44) — a new brand is made instead.
-        if ($removed instanceof Brand && ! Brand::query()->where('slug', $removed->slug)->exists()) {
-            $removed->restore();
-
-            return $removed;
-        }
-
-        return Brand::query()->create([
-            'name' => $name,
-            'slug' => self::brandSlug($name),
-            'is_wheel_brand' => true,
-            'sort_order' => (int) Brand::query()->max('sort_order') + 10,
-        ]);
+        return CatalogueBrands::resolve($id, $new, wheelBrand: true);
     }
 
     /**
@@ -221,7 +198,8 @@ final class WheelEditor
                 'ean' => $config['ean'],
                 'kba_number' => $config['kba_number'],
                 'price_cents' => $config['price_cents'],
-                'stock_qty' => $config['stock_qty'],
+                // Available or not (D-299); the old count stays in its column, unread.
+                'available' => $config['available'],
                 'weight_g' => $config['weight_g'],
             ];
 
@@ -389,19 +367,6 @@ final class WheelEditor
         $n = 2;
 
         while (WheelModel::withTrashed()->where('slug', $slug)->exists()) {
-            $slug = $base.'-'.$n++;
-        }
-
-        return $slug;
-    }
-
-    private static function brandSlug(string $name): string
-    {
-        $base = Str::slug($name, '-', 'de') ?: 'marke';
-        $slug = $base;
-        $n = 2;
-
-        while (Brand::withTrashed()->where('slug', $slug)->exists()) {
             $slug = $base.'-'.$n++;
         }
 

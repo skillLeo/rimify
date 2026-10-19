@@ -292,11 +292,15 @@ export interface AdminGutachtenShowProps {
     levelFloorSentence?: string
 }
 
-/** One tyre size as typed: `225/40 R18`, the axle, an optional minimum and its own codes (`A01 T88`). */
+/**
+ * One tyre size as typed: `225/40 R18`, the axle, the document's minimum in two fields of its own — load index and speed
+ * symbol (his admin item 9) — and its own codes (`A01 T88`).
+ */
 export interface TyreSizeForm {
     text: string
     axle: AxleValue
-    min_load_index: number | null
+    /** The load index as typed — a number once read back from a saved row, the field's text while typed. */
+    min_load_index: number | string | null
     min_speed_symbol: string
     /** The kW band as typed: `85-195`, `85–195 kW`; empty when the document prints none. */
     kw: string

@@ -146,10 +146,11 @@ class KatalogImportController extends Controller
      */
     public function sample(CatalogueImportRequest $request): StreamedResponse
     {
-        $header = ['SKU', 'Marke', 'Modell', 'Ausführung', 'Durchmesser', 'Breite', 'ET', 'Lochkreis', 'Mittenloch', 'Preis', 'Bestand', 'EAN', 'KBA-Nummer', 'Gewicht', 'Speichen'];
+        // The Radtypenbezeichnung a new model needs (D-298), and availability as „ja“ or „nein“ (D-299).
+        $header = ['SKU', 'Marke', 'Modell', 'Radtypenbezeichnung', 'Ausführung', 'Durchmesser', 'Breite', 'ET', 'Lochkreis', 'Mittenloch', 'Preis', 'Verfügbar', 'EAN', 'KBA-Nummer', 'Gewicht', 'Speichen'];
         $rows = [
-            ['BEISPIEL-18-80-35-GM', 'Beispielmarke', 'Muster 5', 'Graphit matt', '18', '8', '35', '5x112', '66,6', '189,00', '12', '', '', '10400', '5'],
-            ['BEISPIEL-19-85-40-GM', 'Beispielmarke', 'Muster 5', 'Graphit matt', '19', '8,5', '40', '5x112', '66,6', '219,00', '8', '', '', '11200', '5'],
+            ['BEISPIEL-18-80-35-GM', 'Beispielmarke', 'Muster 5', 'BM 5', 'Graphit matt', '18', '8', '35', '5x112', '66,6', '189,00', 'ja', '', '', '10400', '5'],
+            ['BEISPIEL-19-85-40-GM', 'Beispielmarke', 'Muster 5', 'BM 5', 'Graphit matt', '19', '8,5', '40', '5x112', '66,6', '219,00', 'nein', '', '', '11200', '5'],
         ];
 
         return ListExport::download('felgen-import-beispiel', 'csv', $header, $rows);

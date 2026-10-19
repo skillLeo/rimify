@@ -63,7 +63,8 @@ function onClick(event: MouseEvent): void {
 
 function onPress(): void {
     if (props.href && !props.external && !props.disabled) {
-        router.prefetch(props.href, { method: 'get' }, { cacheFor: 30_000 })
+        // Kept as long as any prefetch (app.ts: five seconds, D-294) — the press's own tap follows within it.
+        router.prefetch(props.href, { method: 'get' }, {})
     }
 }
 </script>
