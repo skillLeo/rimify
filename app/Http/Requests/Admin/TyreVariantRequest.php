@@ -86,7 +86,8 @@ class TyreVariantRequest extends FormRequest
             'width_mm' => ['required', 'integer', 'between:125,355'],
             'aspect' => ['required', 'integer', 'between:25,85', 'multiple_of:5'],
             'diameter_in' => ['required', 'integer', 'between:13,24'],
-            // The load index from the shop's own table (70 to 109): a tyre beyond it could never be compared.
+            // The load index from the shop's own table (70 to 120, Annex IV of UN/ECE Regulation No 30 — D-310): a tyre
+            // beyond it has no capacity on record, so it could never be compared and is not offered.
             'load_index' => ['required', 'integer', Rule::in(array_keys(ReferenceTables::LOAD_INDEX_CAPACITY_KG))],
             'speed_symbol' => ['required', 'string', Rule::in(array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol'))],
 
@@ -120,7 +121,7 @@ class TyreVariantRequest extends FormRequest
             'diameter_in.required' => 'Bitte gib den Durchmesser in Zoll an, zum Beispiel 18.',
             'diameter_in.*' => 'Den Durchmesser bitte in ganzen Zoll, zwischen 13 und 24.',
             'load_index.required' => 'Bitte gib den Lastindex an, zum Beispiel 95.',
-            'load_index.*' => 'Der Shop kennt bisher die Lastindizes 70 bis 109. Prüf die Zahl auf der Reifenflanke. Reifen mit höherem Lastindex lassen sich erst anlegen, wenn die Tragfähigkeiten über 109 freigegeben sind.',
+            'load_index.*' => 'Der Shop rechnet mit den Lastindizes 70 bis 120. Prüf die Zahl auf der Reifenflanke. Für einen Lastindex über 120 hat der Shop keine Tragfähigkeit hinterlegt, deshalb lässt sich ein solcher Reifen hier nicht anlegen.',
             'speed_symbol.*' => 'Bitte wähl das Geschwindigkeitssymbol aus der Liste.',
             'eu_fuel_class.*' => 'Die Kraftstoffeffizienz hat eine Klasse von A bis E.',
             'eu_wet_grip_class.*' => 'Die Nasshaftung hat eine Klasse von A bis E.',

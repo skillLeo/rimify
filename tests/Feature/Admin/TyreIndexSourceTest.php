@@ -189,7 +189,9 @@ it('takes load index and speed symbol as two fields, and refuses either one the 
         'tyre_sizes' => [['width_mm' => 245, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => $loadIndex, 'min_speed_symbol' => $symbol, 'axle' => 'ALL', 'codes' => []]],
     ]);
 
-    $row(999, 'Y')->assertSessionHasErrors(['tyre_sizes.0.min_load_index' => 'Diesen Tragfähigkeitsindex gibt es nicht.']);
+    $row(999, 'Y')->assertSessionHasErrors(['tyre_sizes.0.min_load_index' => 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.']);
+    // D-310: past 120 Regulation No 30 prints no capacity — the row waits rather than taking an estimate.
+    $row(121, 'Y')->assertSessionHasErrors(['tyre_sizes.0.min_load_index']);
     $row(93, 'X')->assertSessionHasErrors(['tyre_sizes.0.min_speed_symbol' => 'Dieses Geschwindigkeitssymbol gibt es nicht.']);
     $row(93, 'Y')->assertSessionHasNoErrors();
 

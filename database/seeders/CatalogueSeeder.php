@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Enums\CatalogueStatus;
 use App\Models\Brand;
 use App\Models\LoadIndexEntry;
+use App\Models\SpeedSymbolEntry;
 use App\Models\TyreVariant;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -397,8 +398,8 @@ class CatalogueSeeder extends Seeder
         // Guarded on the data, never on `callOnce`. Laravel tracks callOnce in a PROCESS-STATIC
         // array, so under RefreshDatabase the second test in a run is told the seeder already ran
         // while its transaction has just rolled the rows away — leaving an empty catalogue and a
-        // failure nowhere near its cause.
-        if (LoadIndexEntry::query()->doesntExist()) {
+        // failure nowhere near its cause. Both tables: either one empty and every verdict refuses to start.
+        if (LoadIndexEntry::query()->doesntExist() || SpeedSymbolEntry::query()->doesntExist()) {
             $this->call(ReferenceDataSeeder::class);
         }
 

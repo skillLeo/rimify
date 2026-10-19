@@ -18,6 +18,25 @@ it('holds every cookie the notice names', function (): void {
         ->and(array_values(array_diff($named[1], $held)))->toBe([]);
 });
 
+it('has the notice name every cookie the live shop can set, with the same lifetime (D-313)', function (): void {
+    // The cookie settings say „Alle Cookies mit Laufzeit stehen in der Datenschutzerklärung“ — that table is this list.
+    $source = (string) file_get_contents(dirname(__DIR__, 3).'/resources/js/legal/cookies.ts');
+    preg_match_all("/name:\s*'([^']+)'[^}]*?lifetime:\s*'([^']+)'/s", $source, $named);
+    $notice = array_combine($named[1], $named[2]);
+
+    $live = array_filter(
+        CookieInventory::ENTRIES,
+        static fn (array $entry): bool => $entry['kind'] === CookieInventory::COOKIE && ($entry['where'] ?? '') !== 'nur Vorschau',
+    );
+
+    expect($live)->not->toBeEmpty();
+
+    foreach ($live as $entry) {
+        expect($notice)->toHaveKey($entry['name'])
+            ->and($notice[$entry['name']])->toBe($entry['lifetime'], $entry['name']);
+    }
+});
+
 it('says for every entry what it is for, how long it stays and why it is or is not necessary', function (): void {
     foreach (CookieInventory::ENTRIES as $entry) {
         expect(mb_strlen($entry['purpose']))->toBeGreaterThan(15, $entry['name'])

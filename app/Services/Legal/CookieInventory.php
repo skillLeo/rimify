@@ -46,7 +46,7 @@ final class CookieInventory
         ],
         [
             'name' => 'rmf_papiere', 'kind' => self::COOKIE, 'lifetime' => '1 Jahr', 'necessary' => false,
-            'purpose' => 'Achslasten (8.1, 8.2), Höchstgeschwindigkeit (T), wo gefragt die Leistung (P.2) und die Reifen (15.1, 15.2), Karosserieform und Antrieb, die der Besucher aus seiner Zulassungsbescheinigung eingetragen hat – für bis zu fünf Fahrzeuge.',
+            'purpose' => 'Achslasten (8.1, 8.2), Höchstgeschwindigkeit (T), wo gefragt die Leistung (P.2) und die Reifen (15.1, 15.2), die der Besucher aus seiner Zulassungsbescheinigung eingetragen hat, für bis zu fünf Fahrzeuge; getrennt davon Karosserieform und Antrieb, wo der Shop danach fragt, ebenfalls für bis zu fünf.',
             'why' => 'Während des Besuchs braucht die Antwort die eingetragenen Werte; ein Jahr lang und für fünf Fahrzeuge ist mehr, als die Antwort braucht.',
         ],
         [
@@ -61,8 +61,8 @@ final class CookieInventory
         ],
         [
             'name' => 'rmf_view', 'kind' => self::COOKIE, 'lifetime' => '7 Tage', 'necessary' => true,
-            'purpose' => 'Die Ansicht (Telefon oder Desktop), die der Besucher selbst gewählt hat.',
-            'why' => 'Gesetzt nur, wenn er eine Ansicht ausdrücklich wählt.',
+            'purpose' => 'Die Ansicht (Telefon oder Desktop), die ein Link mit „?view=mobile“ oder „?view=desktop“ festlegt – solche Links verwenden wir für Vorführungen; einen Schalter dafür hat der Shop nicht.',
+            'why' => 'Gesetzt nur, wenn jemand einen solchen Link öffnet und damit diese Ansicht anfordert. Ob dafür 7 Tage nötig sind oder die Sitzung genügt, entscheidet die Kanzlei.',
         ],
         [
             'name' => 'rmf_vorschau', 'kind' => self::COOKIE, 'lifetime' => '30 Tage', 'necessary' => true,
@@ -73,7 +73,7 @@ final class CookieInventory
         [
             'name' => '__stripe_mid, __stripe_sid', 'kind' => self::COOKIE, 'lifetime' => '1 Jahr, 30 Minuten', 'necessary' => true,
             'purpose' => 'Betrugsschutz des Zahlungsdienstes Stripe auf der Kasse.',
-            'why' => 'Gesetzt von Stripe.js, nur auf der Kasse und nur, wenn mit Stripe bezahlt wird – für die Zahlung, die der Besucher anstößt. Stripe ist im Datenschutz zu nennen.',
+            'why' => 'Gesetzt von Stripe.js, sobald an der Kasse der Schritt „Zahlung“ öffnet – vor der Zahlung, auch wenn der Besucher dann nicht bezahlt –, für die Zahlung, die er dort anstößt. Stripe ist in der Datenschutzerklärung zu nennen.',
             'where' => 'nur Kasse, nur mit Stripe',
         ],
         [

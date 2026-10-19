@@ -27,7 +27,8 @@ test.describe('D-290 a mouse wheel never moves a figure', () => {
         await page.mouse.wheel(0, -120);
         await expect(bare, 'precondition: this browser does not step a focused number field under the wheel').not.toHaveValue('35');
 
-        // The shop: the Felgenrechner's ET, typed and focused, the wheel turned over it both ways.
+        // The shop: the Felgenrechner's ET, typed and focused, the wheel turned over it twice the same way — never up and
+        // then down, which on an unguarded field steps there and back and passes without any guard (19.10.2026).
         await consentGiven(page.context(), SHOP);
         await open(page, '/felgenrechner');
         const et = page.locator('input[type="number"]').first();
@@ -35,7 +36,7 @@ test.describe('D-290 a mouse wheel never moves a figure', () => {
         await et.focus();
         await et.hover();
         await page.mouse.wheel(0, -120);
-        await page.mouse.wheel(0, 120);
+        await page.mouse.wheel(0, -120);
 
         await expect(et).toHaveValue('35');
     });
@@ -53,7 +54,7 @@ test.describe('D-290 a mouse wheel never moves a figure', () => {
         await field.focus();
         await field.hover();
         await page.mouse.wheel(0, -120);
-        await page.mouse.wheel(0, 120);
+        await page.mouse.wheel(0, -120);
 
         await expect(field).toHaveValue('1160');
     });

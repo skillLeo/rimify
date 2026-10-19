@@ -17,7 +17,8 @@ export const OPEN = 'Open'
 export const INSTANCES = { ours: 'eigene-instanz', preview: 'vorschau' }
 
 const YOUR_VERDICT = 'Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width.'
-const NOT_ON_PREVIEW_YET = 'Built and tested on our side. Not on your preview yet.'
+// True whether or not the release that carries it is on the preview: what is missing is a test passing there.
+const NOT_ON_PREVIEW_YET = 'Built and tested on our test shop. Not yet checked by a test on your preview.'
 const IN_PROGRESS = 'In progress.'
 
 /** What each item does now, in one sentence he can check on the site. */
@@ -61,8 +62,9 @@ export const NOTES = {
 /**
  * One row of his sheet.
  *
- * @param {{nr: number, state: string, tick?: boolean}} item  the item as items.mjs holds it (`state`: what it can become
- *                                                           at best; `tick`: its column is ours though its state is not)
+ * @param {{nr: number, state: string, tick?: boolean, previewNote?: string}} item  the item as items.mjs holds it (`state`:
+ *        what it can become at best; `tick`: its column is ours though its state is not; `previewNote`: why a test on his
+ *        preview cannot show it, where only a write there could)
  * @param {{passed: boolean}|null} ours           its result on our own instance, if it ran there
  * @param {{passed: boolean}|null} preview        its result on the preview, if it ran there
  * @param {Record<number, string>} notes          the list's notes: his storefront list's (above) or his admin list's
@@ -81,7 +83,7 @@ export function sheetRow(item, ours, preview, notes = NOTES) {
         return { nr: item.nr, value: DONE, note }
     }
 
-    return { nr: item.nr, value: OPEN, note: ours?.passed === true ? NOT_ON_PREVIEW_YET : IN_PROGRESS }
+    return { nr: item.nr, value: OPEN, note: ours?.passed === true ? (item.previewNote ?? NOT_ON_PREVIEW_YET) : IN_PROGRESS }
 }
 
 /** RFC 4180: a field with a comma, a quote or a line break is quoted, quotes doubled. */

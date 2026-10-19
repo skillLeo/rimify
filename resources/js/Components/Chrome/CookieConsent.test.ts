@@ -88,7 +88,8 @@ describe('CookieConsent — no statistics option while no service exists', () =>
         expect(cookies).toHaveLength(2)
         expect(cookies[0]).toContain('rmf_papiere')
         expect(cookies[0]).toContain('Zulassungsbescheinigung')
-        expect(cookies[0]).toContain('Löschen: Beim Fahrzeug auf „Werte löschen“ tippen.')
+        // Two buttons, because the cookie holds two things: the figures, and the body style and drive (PapersBook).
+        expect(cookies[0]).toContain('Löschen: Beim Fahrzeug auf „Werte löschen“ tippen; Karosserieform und Antriebsart löscht „Meine Angaben zu Karosserieform und Antriebsart löschen“.')
         expect(cookies[1]).toContain('rmf_geraet')
         expect(cookies[1]).toContain('zufällige Kennung')
         expect(cookies[1]).toContain('Löschen: Lösch die Cookies für diese Seite in deinem Browser')
