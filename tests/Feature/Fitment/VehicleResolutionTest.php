@@ -126,7 +126,8 @@ it('builds the index tables from the seeded rows, not from constants', function 
 
     $tables = app(IndexTables::class);
 
-    expect($tables->loadIndices)->toHaveCount(40)
+    // 70 to 120, as Regulation No 30 prints them (D-310).
+    expect($tables->loadIndices)->toHaveCount(51)
         ->and($tables->speedSymbols)->toHaveCount(14)
         ->and($tables->speedSymbol('H')?->rank)->toBeGreaterThan($tables->speedSymbol('U')?->rank);
 });

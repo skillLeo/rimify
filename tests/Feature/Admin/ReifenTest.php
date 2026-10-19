@@ -145,7 +145,7 @@ it('refuses what does not read, under its own field, and never guesses @admin-21
     'a noise class D' => [['eu_noise_class' => 'D'], 'eu_noise_class'],
     'a noise no tyre makes' => [['eu_noise_db' => '120'], 'eu_noise_db'],
     'an EPREL number with letters' => [['eprel_id' => 'EU-381090'], 'eprel_id'],
-    'a load index beyond the table' => [['load_index' => '112'], 'load_index'],
+    'a load index beyond the table (Regulation No 30 prints up to 120, D-310)' => [['load_index' => '121'], 'load_index'],
     'a speed symbol not on the list' => [['speed_symbol' => 'Z'], 'speed_symbol'],
     'an aspect between the steps' => [['aspect' => '42'], 'aspect'],
     'a diameter in halves' => [['diameter_in' => '16,5'], 'diameter_in'],
@@ -153,6 +153,15 @@ it('refuses what does not read, under its own field, and never guesses @admin-21
     'no season' => [['season' => ''], 'season'],
     'no brand at all' => [['brand_new' => ''], 'brand_id'],
 ]);
+
+it('takes a tyre with a load index above 109, as a heavy car needs, up to the 120 the table prints (D-310) @admin-210', function (): void {
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload(['width_mm' => '285', 'aspect' => '40', 'diameter_in' => '22', 'load_index' => '110']))
+        ->assertSessionHasNoErrors();
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload(['width_mm' => '285', 'aspect' => '45', 'diameter_in' => '22', 'load_index' => '120', 'eprel_id' => '381091']))
+        ->assertSessionHasNoErrors();
+
+    expect(TyreVariant::query()->orderBy('load_index')->pluck('load_index')->all())->toBe([110, 120]);
+});
 
 it('refuses one tyre twice, and one EPREL number on two tyres @admin-210', function (): void {
     $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload())->assertSessionHasNoErrors();

@@ -148,7 +148,8 @@ class FitmentRowsRequest extends FormRequest
             'tyre_sizes.*.width_mm.*' => 'Die Reifenbreite bitte in Millimetern, zwischen 125 und 355.',
             'tyre_sizes.*.aspect.*' => 'Den Querschnitt bitte als Zahl zwischen 25 und 85.',
             'tyre_sizes.*.diameter.*' => 'Den Felgendurchmesser des Reifens bitte in Zoll, zwischen 12 und 26.',
-            'tyre_sizes.*.min_load_index.*' => 'Diesen Tragfähigkeitsindex gibt es nicht.',
+            // „gibt es nicht“ said more than we know: an index above 120 exists, only its capacity is not on record (D-310).
+            'tyre_sizes.*.min_load_index.*' => 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.',
             'tyre_sizes.*.min_speed_symbol.*' => 'Dieses Geschwindigkeitssymbol gibt es nicht.',
             'tyre_sizes.*.axle.*' => 'Bitte wähl die Achse der Reifengröße.',
             'tyre_sizes.*.kw_min.*' => 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: zwei ganze Zahlen, etwa 85-195.',

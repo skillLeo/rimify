@@ -1,0 +1,41 @@
+# UN/ECE Regulation No 30, Annex IV "Load-capacity indices" - the text as printed, extracted by pdf.js from the
+# Official Journal of the European Union L 201, 30.7.2008, p. 90 (CELEX 42008X0730(01)).
+# Source: https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX:42008X0730(01)
+# Retrieved 2026-10-19; the PDF's SHA-256: 57E770F9F79C70E18FB0D7795AC5EDCC3F63CC3597E022B661D4D26A57FFE67A
+# Machine-extracted, never typed by hand. tests/Unit/Fitment/LoadIndexSourceTest.php reads it (D-310).
+ANNEX IV
+Load-capacity indices
+Li  = Load-capacity index
+kg = Corresponding mass of the vehicle which is to be carried.
+Li  kg  Li  kg  Li  kg  Li  kg
+0  45  31  109  61  257  91  615
+1  46,2  32  112  62  265  92  630
+2  47,5  33  115  63  272  93  650
+3  48,7  34  118  64  280  94  670
+4  50  35  121  65  290  95  690
+5  51,5  36  125  66  300  96  710
+6  53  37  128  67  307  97  730
+7  54,5  38  132  68  315  98  750
+8  56  39  136  69  325  99  775
+9  58  40  140  70  335  100  800
+10  60  41  145  71  345  101  825
+11  61,5  42  150  72  355  102  850
+12  63  43  155  73  365  103  875
+13  65  44  160  74  375  104  900
+14  67  45  165  75  387  105  925
+15  69  46  170  76  400  106  950
+16  71  47  175  77  412  107  975
+17  73  48  180  78  425  108  1 000
+18  75  49  185  79  437  109  1 030
+19  77,5  50  190  80  450  110  1 060
+20  80  51  195  81  462  111  1 090
+21  82,5  52  200  82  475  112  1 120
+22  85  53  206  83  487  113  1 150
+23  87,5  54  212  84  500  114  1 180
+24  90  55  218  85  515  115  1 215
+25  92,5  56  224  86  530  116  1 250
+26  95  57  230  87  545  117  1 285
+27  97,5  58  236  88  560  118  1 320
+28  100  59  243  89  580  119  1 360
+29  103  60  250  90  600  120  1 400
+30  106

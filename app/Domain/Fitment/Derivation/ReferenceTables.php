@@ -19,6 +19,16 @@ final class ReferenceTables
     /**
      * Load index => capacity per tyre in kilograms. Passenger-car range, ascending.
      *
+     * The figures are those printed in Annex IV „Load-capacity indices“ of UN/ECE Regulation No 30 (passenger-car
+     * tyres; Official Journal of the European Union L 201, 30.7.2008, p. 90), index by index — never extrapolated,
+     * interpolated or computed from a neighbour (D-310, the operator's brief of 19.10.2026 §1). The table ends where
+     * that annex ends, at 120: an index it does not print has no capacity here, and a tyre or a document row naming one
+     * is refused rather than estimated. Annex IV of Regulation No 54 (OJ L 183, 11.7.2008, pp. 57–60) prints the same
+     * values; LoadIndexSourceTest holds every entry to both, from their text as extracted (tests/Fixtures/reference).
+     *
+     * A capacity here grants no permission: a Gutachten still has to name the size for the car. The table only states
+     * what a tyre of an index carries, so that a heavy car is not refused for a limit of our own (D-310).
+     *
      * @var array<int, int>
      */
     public const LOAD_INDEX_CAPACITY_KG = [
@@ -27,6 +37,8 @@ final class ReferenceTables
         86 => 530, 87 => 545, 88 => 560, 89 => 580, 90 => 600, 91 => 615, 92 => 630, 93 => 650,
         94 => 670, 95 => 690, 96 => 710, 97 => 730, 98 => 750, 99 => 775, 100 => 800, 101 => 825,
         102 => 850, 103 => 875, 104 => 900, 105 => 925, 106 => 950, 107 => 975, 108 => 1000, 109 => 1030,
+        110 => 1060, 111 => 1090, 112 => 1120, 113 => 1150, 114 => 1180, 115 => 1215, 116 => 1250, 117 => 1285,
+        118 => 1320, 119 => 1360, 120 => 1400,
     ];
 
     /**
