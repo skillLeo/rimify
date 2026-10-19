@@ -112,6 +112,14 @@ describe('restoredPages', () => {
         expect(reload).toHaveBeenCalledTimes(2)
     })
 
+    // BELL-02: the answer to this reload is a page from the server, and the bell takes its count as the freshest — so an
+    // admin page asks for its shell too, or the bell would fall back to the count the page was left with.
+    it('asks a restored admin page for its shell as well, so the bell and the rail count afresh @admin-216', () => {
+        back('/admin/felgen', { catalogue: 'k1', admin: { notifications: { unread: 3 } } })
+
+        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['catalogue', 'admin'] }))
+    })
+
     it('checks a page the back/forward cache brought back whole, and none loaded the ordinary way @admin-216', () => {
         window.history.replaceState({ page: { url: '/felgen', props: { catalogue: 'k1' } } }, '')
 

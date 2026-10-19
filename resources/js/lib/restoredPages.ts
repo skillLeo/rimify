@@ -29,11 +29,19 @@ function catalogueOf(props: Props): string | null {
     return typeof props?.catalogue === 'string' ? props.catalogue : null
 }
 
-/** Asks the server whether the page on screen still holds; asks for it again whole where it does not. */
+/**
+ * Asks the server whether the page on screen still holds; asks for it again whole where it does not. An admin page asks
+ * for its shell too — the bell's count and the rail's are as old as the page, and the answer to this reload is a page
+ * from the server, which the bell takes as the freshest count there is (useAlertCount; BELL-02).
+ */
 export function recheck(page: { url: string; props?: Record<string, unknown> }): void {
     const car = carOf(page.props)
     const catalogue = catalogueOf(page.props)
-    const only = [...(namesVehicle(page.url) || car !== null ? ['vehicle'] : []), ...(catalogue !== null ? ['catalogue'] : [])]
+    const only = [
+        ...(namesVehicle(page.url) || car !== null ? ['vehicle'] : []),
+        ...(catalogue !== null ? ['catalogue'] : []),
+        ...(catalogue !== null && page.props?.admin !== undefined ? ['admin'] : []),
+    ]
 
     if (only.length === 0) {
         return

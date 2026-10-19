@@ -59,8 +59,9 @@ test('KATALOG-02 removing a size and adding it again in one save is not a server
             bore: await value('bore'),
             sku: await value('sku'),
             price: await value('price'),
-            stock: await value('stock'),
         };
+        // Available or not, by its words (D-299: a size is no longer counted).
+        const available = await page.locator(`#fe-size-${index}-available`).evaluate((select: HTMLSelectElement) => select.options[select.selectedIndex]?.text ?? '');
 
         await page.locator(`button[aria-label="Zeile ${index + 1} entfernen"]`).click();
         await expect(rows).toHaveCount(count - 1);
@@ -71,9 +72,11 @@ test('KATALOG-02 removing a size and adding it again in one save is not a server
         await page.locator(`#fe-size-${last}-finish`).selectOption(size.finish);
         await page.locator(`#fe-size-${last}-bolt_holes`).selectOption(size.bolt_holes);
 
-        for (const field of ['diameter', 'width', 'et', 'bolt_circle', 'bore', 'sku', 'price', 'stock'] as const) {
+        for (const field of ['diameter', 'width', 'et', 'bolt_circle', 'bore', 'sku', 'price'] as const) {
             await page.locator(`#fe-size-${last}-${field}`).fill(size[field]);
         }
+
+        await page.locator(`#fe-size-${last}-available`).selectOption({ label: available });
 
         story = `row ${index + 1} (${size.sku}) removed and added again`;
     } else {

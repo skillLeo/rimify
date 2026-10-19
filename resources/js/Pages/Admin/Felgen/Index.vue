@@ -489,7 +489,7 @@ function runBulk(): void {
                                         <span class="fg-sub">
                                             {{ wheel.finishes === 1 ? '1 Ausführung' : `${decimal(wheel.finishes, 0)} Ausführungen` }}
                                             <span v-if="wheel.demo" class="adm-tag adm-tag--neutral fg-demo">Demodaten</span>
-                                            <span v-if="wheel.designationMissing" class="adm-tag adm-tag--warn fg-demo">Radtypenbezeichnung fehlt</span>
+                                            <span v-if="wheel.designationMissing" class="adm-tag adm-tag--warn fg-demo">Radtypen&shy;bezeichnung fehlt</span>
                                             <span v-if="wheel.titleDiverges" class="adm-tag adm-tag--neutral fg-demo">Titel weicht ab</span>
                                         </span>
                                         <span v-if="wheel.internalNote" class="fg-memo">Notiz: {{ wheel.internalNote }}</span>
@@ -770,8 +770,14 @@ function runBulk(): void {
     overflow-wrap: anywhere;
 }
 
+/* Its words may wrap, as the Freigaben tag's do (KATALOG-10): „Radtypenbezeichnung fehlt“ on one line widened the
+   Felge column past the panel at 768 px. The long word carries a soft hyphen, used only where the column is narrow. */
 .fg-demo {
+    height: auto;
+    min-height: 20px;
     margin-left: var(--sp-4);
+    padding-block: 2px;
+    white-space: normal;
 }
 
 .fg-date {
