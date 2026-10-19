@@ -281,6 +281,44 @@ it('reads his demo data’s `fahrzeug_max_kmh` as field T, and never a zero, a b
     ]);
 });
 
+it('counts what the file lacks over all its rows, as counts and as shares of the file — the figures a purchase is decided on (D-317) @admin-202', function (): void {
+    $import = vehicleProbelauf($this, vehicleFile([
+        datasetLine(),
+        datasetLine(['tsn' => 'ZB2', 'variant' => '2.0 B', 'speed' => '']),
+        // An axle load that does not read is as missing as one left out.
+        datasetLine(['tsn' => 'ZB3', 'variant' => '2.0 C', 'rear' => 'viel']),
+        // Refused for want of key numbers, and counted all the same: the file lacks what it lacks.
+        datasetLine(['hsn' => '', 'tsn' => '', 'variant' => '2.0 D', 'eg' => '']),
+        datasetLine(['tsn' => 'ZB5', 'variant' => '2.0 E', 'eg' => 'e1-falsch', 'speed' => '0']),
+    ]));
+
+    expect($import->summary)->toMatchArray(['rows' => 5, 'refused' => 1, 'without_speed' => 2, 'without_axle' => 1, 'without_keys' => 1, 'without_eg' => 2]);
+
+    $percent = static fn (string $figure): string => $figure."\u{00A0}%";
+
+    $this->actingAs(vehicleImportAdmin(), 'admin')->get('/admin/fahrzeuge/import/'.$import->id)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('gaps', [
+            ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => 2, 'share' => $percent('40')],
+            ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => 1, 'share' => $percent('20')],
+            ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 1, 'share' => $percent('20')],
+            ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 2, 'share' => $percent('40')],
+        ]));
+
+    // A third, as the brief has it: one decimal place where the share is not whole.
+    // Four gaps, counted first: a sequence over an empty list would pass and prove nothing (docs/dev/TEST-SMELLS.md, 2).
+    expect(VehicleImporter::gaps(['rows' => 3, 'without_speed' => 1, 'without_axle' => 2, 'without_keys' => 0, 'without_eg' => 3]))
+        ->toHaveCount(4)
+        ->sequence(
+            fn ($gap) => $gap->share->toBe($percent('33,3')),
+            fn ($gap) => $gap->share->toBe($percent('66,7')),
+            fn ($gap) => $gap->share->toBe($percent('0')),
+            fn ($gap) => $gap->share->toBe($percent('100')),
+        )
+        // A run checked before the gaps were counted has none to show.
+        ->and(VehicleImporter::gaps(['create' => 2, 'refused' => 0]))->toBe([]);
+});
+
 it('applies nothing when the cars changed since the Probelauf @admin-202', function (): void {
     $import = vehicleProbelauf($this, vehicleFile([datasetLine()]));
     Vehicle::factory()->create(['hsn' => '0005', 'tsn' => 'ZA1', 'variant' => '2.0 Limousine', 'source' => VehicleSource::ManuellGeprueft->value]);

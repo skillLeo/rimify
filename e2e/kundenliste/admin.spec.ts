@@ -316,7 +316,17 @@ test('a vehicle dataset: the Probelauf counts before anything is written, then t
     await expect(count('Neue Fahrzeuge')).toHaveText('2')
     await expect(count('Abgelehnt')).toHaveText('1')
     await expect(page.locator('.fr-rows')).toContainText('HSN oder TSN fehlt oder ist nicht lesbar')
-    await shotAround(page, [counts, page.locator('.fr-rows')], 202, info)
+
+    // What the file lacks, over all three rows, refused one included (D-317): the figures a purchase is decided on.
+    const gaps = page.locator('.fr-gaps')
+    const gap = (label: string) => gaps.locator('tbody tr').filter({ hasText: label })
+    await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('2 von 3')
+    await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('66,7 %')
+    await expect(gap('Achslast vorn oder hinten (8.1 oder 8.2)')).toContainText('2 von 3')
+    await expect(gap('HSN oder TSN (2.1 oder 2.2)')).toContainText('1 von 3')
+    await expect(gap('HSN oder TSN (2.1 oder 2.2)')).toContainText('33,3 %')
+    await expect(gap('EG-Typgenehmigungsnummer (K)')).toContainText('1 von 3')
+    await shotAround(page, [counts, gaps, page.locator('.fr-rows')], 202, info)
 
     await page.getByRole('button', { name: 'Importieren' }).first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Importieren' }).click()

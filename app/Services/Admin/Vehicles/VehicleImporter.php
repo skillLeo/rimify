@@ -89,6 +89,18 @@ final class VehicleImporter
         'fahrzeug_id' => ['label' => 'Nummer des Fahrzeugs im Datensatz', 'required' => false, 'headers' => ['fahrzeugid', 'datensatzid', 'id']],
     ];
 
+    /**
+     * What the file lacks, counted over every row of it, whatever becomes of the row — the figures a purchase of the
+     * full dataset is decided on (the operator's brief of 20.10.2026, D-317). A value that is missing or does not read
+     * counts as missing: for the shop it is the same.
+     */
+    public const GAPS = [
+        'without_speed' => 'Höchstgeschwindigkeit (T)',
+        'without_axle' => 'Achslast vorn oder hinten (8.1 oder 8.2)',
+        'without_keys' => 'HSN oder TSN (2.1 oder 2.2)',
+        'without_eg' => 'EG-Typgenehmigungsnummer (K)',
+    ];
+
     /** The columns of a car an import writes, and the dataset field each comes from. */
     private const COLUMNS = [
         'make' => 'make',
@@ -240,10 +252,15 @@ final class VehicleImporter
         $seen = [];
         $numbers = [];
         $open = [];
+        $gaps = array_fill_keys(array_keys(self::GAPS), 0);
 
         foreach ($rows as $i => $row) {
             $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$row]);
             $line = (string) ($row['_line'] ?? $i + 2);
+            $gaps['without_speed'] += $car->maxSpeedKmh === null ? 1 : 0;
+            $gaps['without_axle'] += $car->axleLoadFrontKg === null || $car->axleLoadRearKg === null ? 1 : 0;
+            $gaps['without_keys'] += $car->hsn === null || $car->tsn === null ? 1 : 0;
+            $gaps['without_eg'] += $car->egNumber === null ? 1 : 0;
             // Without both key numbers the row has none to show: its reason says what is missing (the page shows „–“).
             $keys = $car->hsn === null || $car->tsn === null ? null : GermanFormat::keyNumbers($car->hsn, $car->tsn);
             $entry = ['line' => $line, 'label' => $car->label(), 'keys' => $keys, 'status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'notes' => self::unread($row, $car), 'reason' => null];
@@ -338,8 +355,34 @@ final class VehicleImporter
         }
 
         $summary['unread'] = count(array_filter($plan, static fn (array $e): bool => $e['notes'] !== []));
+        $summary['rows'] = count($rows);
 
-        return [$plan, $summary];
+        return [$plan, $summary + $gaps];
+    }
+
+    /**
+     * The file's gaps as the Probelauf shows them: each with its count and its share of the file's rows. A run checked
+     * before the gaps were counted has none to show.
+     *
+     * @param  array<string, mixed>  $summary
+     * @return list<array{key: string, label: string, count: int, share: string}>
+     */
+    public static function gaps(array $summary): array
+    {
+        $rows = (int) ($summary['rows'] ?? 0);
+
+        if ($rows === 0 || ! array_key_exists('without_speed', $summary)) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (self::GAPS as $key => $label) {
+            $count = (int) ($summary[$key] ?? 0);
+            $out[] = ['key' => $key, 'label' => $label, 'count' => $count, 'share' => GermanFormat::percent($count / $rows * 100, false)];
+        }
+
+        return $out;
     }
 
     /** What a merge fills, as the row says it: the car by its origin, and that only its empty fields are written. */

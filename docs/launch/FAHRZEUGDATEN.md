@@ -56,5 +56,9 @@ Every other column of his file is still unknown: his twenty-row sample is the fi
 3. **T from `fahrzeug_max_kmh`**, kilometres per hour as a whole number.
 4. HSN and TSN on every row; the variant; the build start as month and year.
 5. The EG number with its extension — the join to the Gutachten.
-6. Run it as a Probelauf, which writes nothing: the counts of new, refused and unread rows, and the reason of each
-   refused one, are the report — before anyone buys the full set.
+6. Run it as a Probelauf, which writes nothing. Under its counts it shows **what the file lacks**, over every row of
+   the file whatever becomes of the row: rows without a usable T, without 8.1 or 8.2, without HSN or TSN, without K —
+   each as a count and as a share of the file (D-317). A value that is missing and one that does not read count
+   alike. Those shares, with the counts of new, refused and unread rows and the reason of each refused one, are the
+   report — before anyone buys the full set. If a third of the rows come without axle loads, that is the number he
+   decides on.

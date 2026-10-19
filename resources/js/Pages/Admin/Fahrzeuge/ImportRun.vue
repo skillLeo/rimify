@@ -48,6 +48,8 @@ const props = defineProps<{
     examples: Record<string, string>
     mapping: Record<string, string>
     missing: string[]
+    /** What the file lacks over all its rows, with each count's share of the file (VehicleImporter::gaps, D-317). */
+    gaps: { key: string; label: string; count: number; share: string }[]
     rows: PlanRow[]
     hiddenRows: number
     /** The fingerprint of the Probelauf on screen, sent back with „Importieren“ (VehicleImporter::fingerprint). */
@@ -201,6 +203,33 @@ function runImport(): void {
             <p v-if="run.status === 'previewed' && (s.refused ?? 0) > 0" class="adm-note">Abgelehnte Zeilen übernimmt der Import nicht. Korrigier sie in der Datei und starte einen neuen Probelauf.</p>
             <p v-if="run.status === 'previewed' && importable > 0 && !can.apply" class="adm-note">Importieren kann, wer Fahrzeuge anlegen und ändern darf. Den Probelauf siehst du trotzdem.</p>
 
+            <!-- What the file lacks, over every row: the figures a purchase of the full dataset is decided on (D-317). -->
+            <div v-if="gaps.length" class="fr-gaps">
+                <h3 id="fr-h-gaps" class="fr-gaps__title">Was in der Datei fehlt</h3>
+                <p class="adm-note">
+                    Gezählt über {{ run.rowCount === 1 ? 'die eine Zeile' : `alle ${decimal(run.rowCount, 0)} Zeilen` }} der Datei, unabhängig davon, was der Import mit einer Zeile macht.
+                    Ein nicht lesbarer Wert zählt wie ein fehlender. Ein Feld ohne Spalte aus der Datei fehlt in jeder Zeile.
+                </p>
+                <div class="adm-panel">
+                    <table class="adm-table" aria-labelledby="fr-h-gaps">
+                        <thead>
+                            <tr>
+                                <th scope="col">Angabe</th>
+                                <th scope="col" class="num">Fehlt in</th>
+                                <th scope="col" class="num">Anteil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="gap in gaps" :key="gap.key" :class="{ 'fr-gap--none': gap.count === 0 }">
+                                <td data-label="Angabe" class="fr-gap__label">{{ gap.label }}</td>
+                                <td data-label="Fehlt in" class="num">{{ decimal(gap.count, 0) }} von {{ decimal(run.rowCount, 0) }}</td>
+                                <td data-label="Anteil" class="num">{{ gap.share }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div v-if="rows.length" class="adm-panel fr-rows">
                 <table class="adm-table">
                     <caption class="visually-hidden">Zeilen der Datei, die sich ändern, bleiben oder abgelehnt sind</caption>
@@ -333,6 +362,29 @@ function runImport(): void {
 
 .fr-rows {
     margin-top: var(--sp-16);
+}
+
+.fr-gaps {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: var(--adm-form-max);
+    margin-top: var(--sp-16);
+}
+
+.fr-gaps__title {
+    margin: 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+}
+
+.fr-gap__label {
+    overflow-wrap: anywhere;
+}
+
+/* A field the whole file carries is quiet, as a nought among the counts is. */
+.fr-gap--none td {
+    color: var(--c-ink-3);
 }
 
 .fr-keys {
