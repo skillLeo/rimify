@@ -1,0 +1,140 @@
+{
+  "instance": "vorschau",
+  "where": "https://rimify.skillleo.com",
+  "commit": "86a7c177",
+  "at": "2026-10-19T04:38:02.703Z",
+  "items": {
+    "201": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "203": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "204": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "205": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "206": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "207": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "208": {
+      "passed": false,
+      "ran": 0,
+      "engines": {
+        "chromium 1440×900": "skipped",
+        "webkit 390×844": "skipped"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "210": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "212": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "213": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "214": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    },
+    "216": {
+      "passed": true,
+      "ran": 2,
+      "engines": {
+        "chromium 1440×900": "bestanden",
+        "webkit 390×844": "bestanden"
+      },
+      "tests": 2,
+      "commit": "86a7c177",
+      "at": "2026-10-19T04:38:02.703Z"
+    }
+  }
+}
