@@ -249,6 +249,38 @@ it('refuses a row twice in the file and says which figures it could not read @ad
         ->and($plan->firstWhere('line', '4')['notes'])->toBe(['Achslast vorn in kg (8.1) nicht lesbar: „viel“']);
 });
 
+it('reads his demo data’s `fahrzeug_max_kmh` as field T, and never a zero, a blank or an implausible speed as a number (D-287, R-03) @admin-202', function (): void {
+    // His dataset's own column name for T (his message of 19.10.2026): found without being told.
+    $header = ['HSN', 'TSN', 'Hersteller', 'Handelsname', 'Variante', 'Baubeginn', 'Achslast vorn kg', 'Achslast hinten kg', 'fahrzeug_max_kmh'];
+    $rows = [['0005', 'ZM1', 'Testmarke', 'Modell', '2.0 A', '03.2015', '1.050', '1.120', '250'], ['0005', 'ZM2', 'Testmarke', 'Modell', '2.0 B', '03.2015', '1.050', '1.120', '0'], ['0005', 'ZM3', 'Testmarke', 'Modell', '2.0 C', '03.2015', '1.050', '1.120', ''], ['0005', 'ZM4', 'Testmarke', 'Modell', '2.0 D', '03.2015', '1.050', '1.120', '999'], ['0005', 'ZM5', 'Testmarke', 'Modell', '2.0 E', '03.2015', '1.050', '1.120', '250 km/h']];
+    $file = UploadedFile::fake()->createWithContent('demo.csv', implode("\n", array_map(static fn (array $cells): string => implode(';', $cells), [$header, ...$rows]))."\n");
+
+    $import = vehicleProbelauf($this, $file);
+    $notes = collect($import->plan)->pluck('notes', 'line');
+
+    expect($import->mapping['hoechstgeschwindigkeit_kmh'] ?? null)->toBe('fahrzeug_max_kmh')
+        ->and($import->summary)->toMatchArray([VehicleImporter::CREATE => 5, VehicleImporter::REFUSED => 0])
+        ->and($notes['2'])->toBe([])
+        // Given and not a plausible top speed: said, and stored as nothing.
+        ->and($notes['3'])->toBe(['Höchstgeschwindigkeit in km/h (T) nicht lesbar: „0“'])
+        ->and($notes['4'])->toBe([])
+        ->and($notes['5'])->toBe(['Höchstgeschwindigkeit in km/h (T) nicht lesbar: „999“'])
+        ->and($notes['6'])->toBe(['Höchstgeschwindigkeit in km/h (T) nicht lesbar: „250 km/h“']);
+
+    $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')->assertSessionHasNoErrors();
+
+    $speeds = Vehicle::query()->orderBy('tsn')->get()->mapWithKeys(fn (Vehicle $v): array => [$v->tsn => [$v->max_speed_kmh, $v->needs_review]]);
+
+    // The car without a readable top speed is kept with none and waits under „Zur Prüfung“ (R-03): never 0, never 999.
+    expect($speeds->all())->toBe([
+        'ZM1' => [250, false],
+        'ZM2' => [null, true],
+        'ZM3' => [null, true],
+        'ZM4' => [null, true],
+        'ZM5' => [null, true],
+    ]);
+});
+
 it('applies nothing when the cars changed since the Probelauf @admin-202', function (): void {
     $import = vehicleProbelauf($this, vehicleFile([datasetLine()]));
     Vehicle::factory()->create(['hsn' => '0005', 'tsn' => 'ZA1', 'variant' => '2.0 Limousine', 'source' => VehicleSource::ManuellGeprueft->value]);

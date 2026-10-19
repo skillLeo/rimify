@@ -84,7 +84,8 @@ final class VehicleImporter
         'antrieb' => ['label' => 'Antrieb', 'required' => false, 'headers' => ['antrieb', 'antriebsart', 'drive']],
         'achslast_vorn_kg' => ['label' => 'Achslast vorn in kg (8.1)', 'required' => false, 'headers' => ['achslastvornkg', 'achslastvorn', 'achslastvorne', '81', 'feld81']],
         'achslast_hinten_kg' => ['label' => 'Achslast hinten in kg (8.2)', 'required' => false, 'headers' => ['achslasthintenkg', 'achslasthinten', '82', 'feld82']],
-        'hoechstgeschwindigkeit_kmh' => ['label' => 'Höchstgeschwindigkeit in km/h (T)', 'required' => false, 'headers' => ['hoechstgeschwindigkeitkmh', 'hoechstgeschwindigkeit', 'vmax', 'feldt', 't']],
+        // `fahrzeug_max_kmh` is his demo data's column for T (his message of 19.10.2026, D-287); docs/launch/FAHRZEUGDATEN.md.
+        'hoechstgeschwindigkeit_kmh' => ['label' => 'Höchstgeschwindigkeit in km/h (T)', 'required' => false, 'headers' => ['hoechstgeschwindigkeitkmh', 'fahrzeugmaxkmh', 'hoechstgeschwindigkeit', 'vmax', 'feldt', 't']],
         'fahrzeug_id' => ['label' => 'Nummer des Fahrzeugs im Datensatz', 'required' => false, 'headers' => ['fahrzeugid', 'datensatzid', 'id']],
     ];
 
