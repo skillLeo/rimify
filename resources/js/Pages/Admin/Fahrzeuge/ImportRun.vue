@@ -48,8 +48,11 @@ const props = defineProps<{
     examples: Record<string, string>
     mapping: Record<string, string>
     missing: string[]
-    /** What the file lacks over all its rows, with each count's share of the file (VehicleImporter::gaps, D-317). */
-    gaps: { key: string; label: string; count: number; share: string }[]
+    /**
+     * What the file lacks over all its rows, with each count's share of the file (VehicleImporter::gaps, D-317) — or, for
+     * a field without a column, `unmapped` and no count: what was not read is never reported as missing (R-17).
+     */
+    gaps: { key: string; label: string; count: number | null; share: string | null; unmapped: string | null }[]
     rows: PlanRow[]
     hiddenRows: number
     /** The fingerprint of the Probelauf on screen, sent back with „Importieren“ (VehicleImporter::fingerprint). */
@@ -208,7 +211,8 @@ function runImport(): void {
                 <h3 id="fr-h-gaps" class="fr-gaps__title">Was in der Datei fehlt</h3>
                 <p class="adm-note">
                     Gezählt über {{ run.rowCount === 1 ? 'die eine Zeile' : `alle ${decimal(run.rowCount, 0)} Zeilen` }} der Datei, unabhängig davon, was der Import mit einer Zeile macht.
-                    Ein nicht lesbarer Wert zählt wie ein fehlender. Ein Feld ohne Spalte aus der Datei fehlt in jeder Zeile.
+                    Ein nicht lesbarer Wert zählt wie ein fehlender. Ist einem Feld keine Spalte zugeordnet, hat der Import es nicht gelesen. Statt der Zahlen
+                    steht dann „Keine Spalte zugeordnet“ – ob die Werte in der Datei fehlen, bleibt offen.
                 </p>
                 <div class="adm-panel">
                     <table class="adm-table" aria-labelledby="fr-h-gaps">
@@ -220,10 +224,10 @@ function runImport(): void {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="gap in gaps" :key="gap.key" :class="{ 'fr-gap--none': gap.count === 0 }">
+                            <tr v-for="gap in gaps" :key="gap.key" :class="{ 'fr-gap--none': gap.count === 0, 'fr-gap--unmapped': gap.unmapped !== null }">
                                 <td data-label="Angabe" class="fr-gap__label">{{ gap.label }}</td>
-                                <td data-label="Fehlt in" class="num">{{ decimal(gap.count, 0) }} von {{ decimal(run.rowCount, 0) }}</td>
-                                <td data-label="Anteil" class="num">{{ gap.share }}</td>
+                                <td data-label="Fehlt in" class="num">{{ gap.unmapped ?? `${decimal(gap.count ?? 0, 0)} von ${decimal(run.rowCount, 0)}` }}</td>
+                                <td data-label="Anteil" class="num">{{ gap.share ?? '–' }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -385,6 +389,11 @@ function runImport(): void {
 /* A field the whole file carries is quiet, as a nought among the counts is. */
 .fr-gap--none td {
     color: var(--c-ink-3);
+}
+
+/* Not read is not a count: the sentence stands in the figures' place, in the page's secondary ink. */
+.fr-gap--unmapped td:not(.fr-gap__label) {
+    color: var(--c-ink-2);
 }
 
 .fr-keys {

@@ -27,7 +27,7 @@ const { default: ImportRun } = await import('./ImportRun.vue')
 
 const NBSP = ' '
 
-type Gap = { key: string; label: string; count: number; share: string }
+type Gap = { key: string; label: string; count: number | null; share: string | null; unmapped: string | null }
 
 function page(gaps: Gap[]) {
     return mount(ImportRun, {
@@ -72,10 +72,10 @@ function page(gaps: Gap[]) {
 describe('Fahrzeuge › Import › Probelauf', () => {
     it('shows what the file lacks over all its rows, each as a count and a share of the file @admin-202', () => {
         const wrapper = page([
-            { key: 'without_speed', label: 'Höchstgeschwindigkeit (T)', count: 2, share: `66,7${NBSP}%` },
-            { key: 'without_axle', label: 'Achslast vorn oder hinten (8.1 oder 8.2)', count: 2, share: `66,7${NBSP}%` },
-            { key: 'without_keys', label: 'HSN oder TSN (2.1 oder 2.2)', count: 1, share: `33,3${NBSP}%` },
-            { key: 'without_eg', label: 'EG-Typgenehmigungsnummer (K)', count: 0, share: `0${NBSP}%` },
+            { key: 'without_speed', label: 'Höchstgeschwindigkeit (T)', count: 2, share: `66,7${NBSP}%`, unmapped: null },
+            { key: 'without_axle', label: 'Achslast vorn oder hinten (8.1 oder 8.2)', count: 2, share: `66,7${NBSP}%`, unmapped: null },
+            { key: 'without_keys', label: 'HSN oder TSN (2.1 oder 2.2)', count: 1, share: `33,3${NBSP}%`, unmapped: null },
+            { key: 'without_eg', label: 'EG-Typgenehmigungsnummer (K)', count: 0, share: `0${NBSP}%`, unmapped: null },
         ])
         const rows = wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))
 
@@ -91,6 +91,24 @@ describe('Fahrzeuge › Import › Probelauf', () => {
         // The table is named by its heading.
         const heading = wrapper.find('.fr-gaps h3')
         expect(wrapper.find('.fr-gaps table').attributes('aria-labelledby')).toBe(heading.attributes('id'))
+    })
+
+    it('shows a field without a column as „Keine Spalte zugeordnet“, never as a count of missing values (R-17) @admin-202', () => {
+        const wrapper = page([
+            { key: 'without_speed', label: 'Höchstgeschwindigkeit (T)', count: null, share: null, unmapped: 'Keine Spalte zugeordnet' },
+            { key: 'without_axle', label: 'Achslast vorn oder hinten (8.1 oder 8.2)', count: null, share: null, unmapped: 'Keine Spalte für Feld 8.2 zugeordnet' },
+            { key: 'without_keys', label: 'HSN oder TSN (2.1 oder 2.2)', count: 0, share: `0${NBSP}%`, unmapped: null },
+            { key: 'without_eg', label: 'EG-Typgenehmigungsnummer (K)', count: 1, share: `33,3${NBSP}%`, unmapped: null },
+        ])
+        const rows = wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))
+
+        expect(rows).toEqual([
+            ['Höchstgeschwindigkeit (T)', 'Keine Spalte zugeordnet', '–'],
+            ['Achslast vorn oder hinten (8.1 oder 8.2)', 'Keine Spalte für Feld 8.2 zugeordnet', '–'],
+            ['HSN oder TSN (2.1 oder 2.2)', '0 von 3', `0${NBSP}%`],
+            ['EG-Typgenehmigungsnummer (K)', '1 von 3', `33,3${NBSP}%`],
+        ])
+        expect(wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.classes('fr-gap--unmapped'))).toEqual([true, true, false, false])
     })
 
     it('shows no gaps for a run checked before they were counted', () => {

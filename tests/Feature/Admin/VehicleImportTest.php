@@ -299,15 +299,19 @@ it('counts what the file lacks over all its rows, as counts and as shares of the
     $this->actingAs(vehicleImportAdmin(), 'admin')->get('/admin/fahrzeuge/import/'.$import->id)
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('gaps', [
-            ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => 2, 'share' => $percent('40')],
-            ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => 1, 'share' => $percent('20')],
-            ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 1, 'share' => $percent('20')],
-            ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 2, 'share' => $percent('40')],
+            // Over all five rows, the refused one included: a half-refused file must not show flattering shares.
+            ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => 2, 'share' => $percent('40'), 'unmapped' => null],
+            ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
+            ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
+            ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 2, 'share' => $percent('40'), 'unmapped' => null],
         ]));
+
+    $mapped = ['hoechstgeschwindigkeit_kmh' => 'T', 'achslast_vorn_kg' => 'V', 'achslast_hinten_kg' => 'H', 'hsn' => 'HSN', 'tsn' => 'TSN', 'eg_nummer' => 'K'];
+    $headers = ['T', 'V', 'H', 'HSN', 'TSN', 'K'];
 
     // A third, as the brief has it: one decimal place where the share is not whole.
     // Four gaps, counted first: a sequence over an empty list would pass and prove nothing (docs/dev/TEST-SMELLS.md, 2).
-    expect(VehicleImporter::gaps(['rows' => 3, 'without_speed' => 1, 'without_axle' => 2, 'without_keys' => 0, 'without_eg' => 3]))
+    expect(VehicleImporter::gaps(['rows' => 3, 'without_speed' => 1, 'without_axle' => 2, 'without_keys' => 0, 'without_eg' => 3], $mapped, $headers))
         ->toHaveCount(4)
         ->sequence(
             fn ($gap) => $gap->share->toBe($percent('33,3')),
@@ -316,7 +320,25 @@ it('counts what the file lacks over all its rows, as counts and as shares of the
             fn ($gap) => $gap->share->toBe($percent('100')),
         )
         // A run checked before the gaps were counted has none to show.
-        ->and(VehicleImporter::gaps(['create' => 2, 'refused' => 0]))->toBe([]);
+        ->and(VehicleImporter::gaps(['create' => 2, 'refused' => 0], $mapped, $headers))->toBe([]);
+});
+
+it('names a field without a column „Keine Spalte zugeordnet“ and counts nothing for it — never „missing“ for what was not read (R-17) @admin-202', function (): void {
+    // No column for T and none for 8.2: the file may well hold both in a column nobody mapped.
+    $header = ['HSN', 'TSN', 'Hersteller', 'Handelsname', 'Variante', 'Baubeginn', 'Achslast vorn kg', 'EG-Nummer'];
+    $rows = [['0005', 'ZN1', 'Testmarke', 'Modell', '2.0 A', '03.2015', '1.050', 'e1*2007/46*0316*12'], ['0005', 'ZN2', 'Testmarke', 'Modell', '2.0 B', '03.2015', '', '']];
+    $file = UploadedFile::fake()->createWithContent('ohne-t.csv', implode("\n", array_map(static fn (array $cells): string => implode(';', $cells), [$header, ...$rows]))."\n");
+
+    $import = vehicleProbelauf($this, $file);
+
+    $this->actingAs(vehicleImportAdmin(), 'admin')->get('/admin/fahrzeuge/import/'.$import->id)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('gaps', [
+            ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => null, 'share' => null, 'unmapped' => 'Keine Spalte zugeordnet'],
+            ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => null, 'share' => null, 'unmapped' => 'Keine Spalte für Feld 8.2 zugeordnet'],
+            ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 0, 'share' => "0\u{00A0}%", 'unmapped' => null],
+            ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 1, 'share' => "50\u{00A0}%", 'unmapped' => null],
+        ]));
 });
 
 it('applies nothing when the cars changed since the Probelauf @admin-202', function (): void {

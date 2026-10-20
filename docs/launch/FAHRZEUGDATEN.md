@@ -56,9 +56,33 @@ Every other column of his file is still unknown: his twenty-row sample is the fi
 3. **T from `fahrzeug_max_kmh`**, kilometres per hour as a whole number.
 4. HSN and TSN on every row; the variant; the build start as month and year.
 5. The EG number with its extension — the join to the Gutachten.
-6. Run it as a Probelauf, which writes nothing. Under its counts it shows **what the file lacks**, over every row of
-   the file whatever becomes of the row: rows without a usable T, without 8.1 or 8.2, without HSN or TSN, without K —
-   each as a count and as a share of the file (D-317). A value that is missing and one that does not read count
-   alike. Those shares, with the counts of new, refused and unread rows and the reason of each refused one, are the
-   report — before anyone buys the full set. If a third of the rows come without axle loads, that is the number he
-   decides on.
+6. Run it as a Probelauf on our own shop, which writes nothing — never a release for it. Under its counts it shows
+   **what the file lacks**, over every row of the file whatever becomes of the row: rows without a usable T, without
+   8.1 or 8.2, without HSN or TSN, without K — each as a count and as a share of the file (D-317). A value that is
+   missing and one that does not read count alike. Those shares, with the counts of new, refused and unread rows and
+   the reason of each refused one, are the report — before anyone buys the full set. If a third of the rows come
+   without axle loads, that is the number he decides on.
+7. Write the four shares into the record below, with the date and the file's name.
+
+Two rules hold for these shares and for every share of a file the shop shows (D-318):
+
+- **The denominator is every row of the file, refused rows included.** Without them a half-refused file would show
+  flattering shares.
+- **„Keine Spalte zugeordnet“ is not „fehlt im Datensatz“.** A field without a column was never read: its row says
+  „Keine Spalte zugeordnet“ and carries no count and no share. We report what we mapped and what we read, never what
+  his file does or does not contain (R-17).
+
+## The sample and the full dataset, on record
+
+Each run of his data is a Probelauf on our own shop. Its shares go here as the Probelauf shows them, with the date and
+the file's name. When the full dataset has run, it is compared with the sample, and the comparison is written down
+either way, a match included: a sample at 0 % missing axle loads beside a full file at 30 % was not representative
+of what he bought, and he gets that in writing.
+
+| Run | Date | File | Rows | No usable T | No 8.1 or 8.2 | No HSN or TSN | No K |
+|---|---|---|---|---|---|---|---|
+| The sample (twenty rows) | — | — | — | — | — | — | — |
+| The full dataset | — | — | — | — | — | — | — |
+
+**Comparison:** not yet — written when the full dataset has run, share by share against the sample, with whether the
+sample was representative of what he bought.

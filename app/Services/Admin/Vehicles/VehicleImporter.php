@@ -101,6 +101,18 @@ final class VehicleImporter
         'without_eg' => 'EG-Typgenehmigungsnummer (K)',
     ];
 
+    /**
+     * The fields each gap is read from, by their number in the papers. A field without a column was never read, so its
+     * gap is not counted but named as unmapped: „Keine Spalte zugeordnet“ is not „fehlt im Datensatz“ — the shop says
+     * what it mapped and read, never what his file does or does not contain (R-17, the operator's rule of 20.10.2026).
+     */
+    private const GAP_FIELDS = [
+        'without_speed' => ['hoechstgeschwindigkeit_kmh' => 'T'],
+        'without_axle' => ['achslast_vorn_kg' => '8.1', 'achslast_hinten_kg' => '8.2'],
+        'without_keys' => ['hsn' => '2.1', 'tsn' => '2.2'],
+        'without_eg' => ['eg_nummer' => 'K'],
+    ];
+
     /** The columns of a car an import writes, and the dataset field each comes from. */
     private const COLUMNS = [
         'make' => 'make',
@@ -361,13 +373,17 @@ final class VehicleImporter
     }
 
     /**
-     * The file's gaps as the Probelauf shows them: each with its count and its share of the file's rows. A run checked
-     * before the gaps were counted has none to show.
+     * The file's gaps as the Probelauf shows them: each with its count and its share of the file's rows — every row,
+     * refused ones included, or a half-refused file would show flattering shares (the operator's rule of 20.10.2026).
+     * A gap read from a field without a column has no count, only `unmapped`: what was not read is not reported as
+     * missing. A run checked before the gaps were counted has none to show.
      *
      * @param  array<string, mixed>  $summary
-     * @return list<array{key: string, label: string, count: int, share: string}>
+     * @param  array<string, string>  $mapping  the run's mapping, field → header
+     * @param  list<string>  $headers  the file's headers
+     * @return list<array{key: string, label: string, count: int|null, share: string|null, unmapped: string|null}>
      */
-    public static function gaps(array $summary): array
+    public static function gaps(array $summary, array $mapping, array $headers): array
     {
         $rows = (int) ($summary['rows'] ?? 0);
 
@@ -378,8 +394,19 @@ final class VehicleImporter
         $out = [];
 
         foreach (self::GAPS as $key => $label) {
+            $fields = self::GAP_FIELDS[$key];
+            $unread = array_values(array_filter($fields, static fn (string $field): bool => ! in_array($mapping[$field] ?? null, $headers, true), ARRAY_FILTER_USE_KEY));
+
+            if ($unread !== []) {
+                $out[] = ['key' => $key, 'label' => $label, 'count' => null, 'share' => null, 'unmapped' => count($unread) === count($fields)
+                    ? 'Keine Spalte zugeordnet'
+                    : 'Keine Spalte für Feld '.implode(' und Feld ', $unread).' zugeordnet'];
+
+                continue;
+            }
+
             $count = (int) ($summary[$key] ?? 0);
-            $out[] = ['key' => $key, 'label' => $label, 'count' => $count, 'share' => GermanFormat::percent($count / $rows * 100, false)];
+            $out[] = ['key' => $key, 'label' => $label, 'count' => $count, 'share' => GermanFormat::percent($count / $rows * 100, false), 'unmapped' => null];
         }
 
         return $out;

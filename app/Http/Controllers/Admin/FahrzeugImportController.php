@@ -97,7 +97,7 @@ class FahrzeugImportController extends Controller
             'mapping' => (object) $import->mapping,
             'missing' => VehicleImporter::missing($import->mapping, $headers),
             // What the file lacks, as counts and shares of its rows: the figures he decides a purchase on (D-317).
-            'gaps' => VehicleImporter::gaps((array) ($import->summary ?? [])),
+            'gaps' => VehicleImporter::gaps((array) ($import->summary ?? []), (array) ($import->mapping ?? []), $headers),
             'rows' => array_slice($listed, 0, self::SHOWN_ROWS),
             'hiddenRows' => max(0, count($listed) - self::SHOWN_ROWS),
             // Sent back with „Importieren“: the import applies this Probelauf, not one another tab has checked since.
