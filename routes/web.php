@@ -721,6 +721,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/seiten/{page}/entwurf', [SeitenController::class, 'discardDraft'])->whereNumber('page')->name('seiten.entwurf.verwerfen');
         Route::post('/seiten/{page}/veroeffentlichen', [SeitenController::class, 'publish'])->whereNumber('page')->name('seiten.veroeffentlichen');
         Route::post('/seiten/{page}/zurueckziehen', [SeitenController::class, 'withdraw'])->whereNumber('page')->name('seiten.zurueckziehen');
+        // A legal text's placeholder flag, and the Muster-Widerrufsformular's beside the Widerrufsbelehrung (D-319).
+        Route::post('/seiten/{page}/platzhalter', [SeitenController::class, 'placeholder'])->whereNumber('page')->name('seiten.platzhalter');
         Route::post('/seiten/{page}/versionen/{revision}', [SeitenController::class, 'restore'])
             ->whereNumber(['page', 'revision'])
             ->name('seiten.wiederherstellen');

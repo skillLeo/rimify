@@ -13,6 +13,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Page;
 use App\Models\PaymentEvent;
+use App\Models\Setting;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Services\Commerce\CheckoutShown;
@@ -278,6 +279,8 @@ it('pays nothing at the return address: the order waits for the webhook, and so 
 });
 
 it('is paid by the signed webhook: basket emptied, invoice = order = intent to the cent, the mail with AGB and Widerruf', function (): void {
+    // The Muster-Widerrufsformular's flag off (D-319): the mail carries the form's words.
+    Setting::set(LegalTexts::FORM_SETTING, false);
     $number = checkoutPay($this)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
     $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
@@ -326,9 +329,9 @@ function checkoutMailFiles(OrderConfirmationMail $mail): array
 }
 
 // The operator's brief of 05.10.2026, §6 (§ 312f Abs. 2 BGB): the AGB and the Widerrufsbelehrung with the Formular
-// attached as PDFs — once their pages hold the Kanzlei's text. A placeholder is never sent as terms, and the mail names
-// only what is attached.
-it('attaches the AGB and the Widerrufsbelehrung as PDFs once their pages hold the Kanzlei’s text, never a placeholder', function (): void {
+// attached as PDFs — once their flags are off (D-319). A placeholder is never sent as terms: in the mail's text it is the
+// one notice, and the mail names only what is attached.
+it('attaches the AGB and the Widerrufsbelehrung as PDFs once their flags are off, never a placeholder', function (): void {
     $number = checkoutPay($this)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
     $intent = $this->stripe->intents[$order->stripe_payment_intent_id];
@@ -347,34 +350,52 @@ it('attaches the AGB and the Widerrufsbelehrung as PDFs once their pages hold th
         'agb' => ['Allgemeine Geschäftsbedingungen', 'Diese AGB gelten für jede Bestellung bei RIMIFY.'],
         'widerrufsbelehrung' => ['Widerrufsbelehrung', 'Du hast das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.'],
     ];
-    // The legal pages as ContentSeeder writes them: published, one section holding the marked placeholder.
-    $section = static function (string $slug, array $data) use ($pages): void {
+    // The legal pages as ContentSeeder writes them: published, one section holding the marked placeholder, the flag on.
+    $section = static function (string $slug, array $data, bool $placeholder) use ($pages): void {
         $page = Page::query()->firstOrCreate(['slug' => $slug], ['locale' => 'de', 'kind' => Page::KIND_LEGAL, 'title' => $pages[$slug][0], 'status' => Page::STATUS_PUBLISHED, 'published_at' => now()]);
         $page->blocks()->delete();
         $page->blocks()->create(['type' => 'legal_body', 'sort_order' => 10, 'data' => ['heading' => $pages[$slug][0]] + $data]);
+        $page->forceFill(['is_placeholder' => $placeholder])->save();
     };
 
     foreach (array_keys($pages) as $slug) {
-        $section($slug, ['text' => '[Rechtstext folgt von der Kanzlei]', 'placeholder' => true]);
+        $section($slug, ['text' => '[Rechtstext folgt von der Kanzlei]', 'placeholder' => true], true);
     }
 
-    // While the pages hold the placeholder: the invoice alone, no sentence claiming more — and in the text, who prepares
-    // the terms, never the seeded marker (the brief's §8).
+    // While the flags are on: the invoice alone, no sentence claiming more — and in the text the one notice in place of
+    // each, never the seeded marker and never a clause.
     expect(array_keys(checkoutMailFiles($mail)))->toBe([$invoicePdf])
         ->and($mail->render())->not->toContain('als PDF an dieser Mail')
-        ->and($mail->render())->toContain(LegalTexts::PREPARING)
-        ->and($mail->render())->not->toContain('[Rechtstext folgt');
+        ->and(substr_count($mail->render(), LegalTexts::NOTICE))->toBe(3)
+        ->and($mail->render())->not->toContain('[Rechtstext folgt')
+        ->and($mail->render())->not->toContain('Hiermit widerrufe');
 
-    // The Kanzlei's texts arrive.
+    // The Kanzlei's texts are pasted, but the flags are still on: still nothing of them goes out.
     foreach ($pages as $slug => [, $text]) {
-        $section($slug, ['text' => $text]);
+        $section($slug, ['text' => $text], true);
     }
 
+    expect(array_keys(checkoutMailFiles($mail)))->toBe([$invoicePdf])
+        ->and($mail->render())->not->toContain('Diese AGB gelten');
+
+    // The flags of the two pages off; the form's still on: the Belehrung goes out without the form, and says so.
+    foreach ($pages as $slug => [, $text]) {
+        $section($slug, ['text' => $text], false);
+    }
+
+    expect(array_keys(checkoutMailFiles($mail)))->toBe([$invoicePdf, LegalPdf::AGB, LegalPdf::WIDERRUF])
+        ->and($mail->render())->toContain('Die AGB und die Widerrufsbelehrung hängen ebenfalls als PDF an dieser Mail.')
+        ->and(substr_count($mail->render(), LegalTexts::NOTICE))->toBe(1);
+
+    // The form's flag off too.
+    Setting::set(LegalTexts::FORM_SETTING, false);
     $files = checkoutMailFiles($mail);
 
     expect(array_keys($files))->toBe([$invoicePdf, LegalPdf::AGB, LegalPdf::WIDERRUF])
         ->and(array_map(static fn (string $bytes): string => substr($bytes, 0, 5), $files))->each->toBe('%PDF-')
-        ->and($mail->render())->toContain('Die AGB und die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängen ebenfalls als PDF an dieser Mail.');
+        ->and($mail->render())->toContain('Die AGB und die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängen ebenfalls als PDF an dieser Mail.')
+        ->and($mail->render())->toContain('Hiermit widerrufe(n) ich/wir')
+        ->and($mail->render())->not->toContain(LegalTexts::NOTICE);
 });
 
 // The brief's §6: the idempotency key proven by a forced retry, not only by a double click. The first press reaches

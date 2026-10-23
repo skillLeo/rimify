@@ -671,6 +671,11 @@ describe('putting every entry into words', function (): void {
             'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
             'review.replied' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde geantwortet.', []],
             'review.reply_removed' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Die Antwort auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde entfernt.', []],
+            'page.placeholder_switched' => [
+                ['page' => 'Muster-Widerrufsformular', 'slug' => 'widerrufsbelehrung', 'part' => 'formular', 'placeholder' => ['old' => false, 'new' => true]],
+                'Beim Muster-Widerrufsformular wurde der Platzhalter eingeschaltet: Besucher sehen statt des Textes nur noch den Hinweis, dass der Text der Kanzlei folgt.',
+                [],
+            ],
             'page.revision_restored' => [
                 ['page' => 'Startseite', 'slug' => 'startseite', 'revision' => 3, 'revision_at' => '2026-09-26T12:00:00+00:00'],
                 'Für die Seite „Startseite“ wurde die Version vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-09-26T12:00:00+00:00')).' als Entwurf geladen.',

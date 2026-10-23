@@ -406,7 +406,15 @@ it('keeps the placeholder mark only on the placeholder text, and the lawyer mark
 
     $impressum->refresh();
     expect($impressum->blocks()->first()?->data)->not->toHaveKey('placeholder')
-        ->and($impressum->lawyer_reviewed)->toBeTrue();
+        ->and($impressum->lawyer_reviewed)->toBeTrue()
+        // Publishing never makes a text real: the flag stays on until someone switches it off (D-319).
+        ->and($impressum->is_placeholder)->toBeTrue();
+
+    $this->get('/rechtliches/impressum')->assertInertia(fn (AssertableInertia $page) => $page->where('placeholder', true)->where('blocks', []));
+
+    $this->actingAs(seitenAdmin(), 'admin')->from('/admin/seiten/'.$impressum->id)
+        ->post('/admin/seiten/'.$impressum->id.'/platzhalter', ['part' => 'text', 'placeholder' => false])
+        ->assertSessionHasNoErrors();
 
     $this->get('/rechtliches/impressum')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('blocks.0.data.text', 'Der Text, den die Kanzlei geliefert hat.'));

@@ -13,6 +13,7 @@ use App\Providers\AppServiceProvider;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
+use App\Services\Content\LegalReadiness;
 use App\Services\Content\LegalTexts;
 use App\Services\Demo\DemoTables;
 use App\Services\Reset\TestEnvironment;
@@ -367,15 +368,18 @@ final class Preflight extends Command
             : ['Versand und Lieferzeit', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (Einstellungen › Verkäufer & Versand) – ohne sie nimmt der Shop keine echte Bestellung an'];
     }
 
-    /** @return array{0: string, 1: string, 2: string} */
+    /**
+     * The legal texts and the Impressum, as the three locks read them (LegalReadiness, D-319): one answer everywhere.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
     private function legalTexts(bool $production): array
     {
-        $legal = app(LegalTexts::class);
-        $open = array_values(array_filter(['impressum', 'datenschutz', 'agb', 'widerrufsbelehrung'], static fn (string $slug): bool => $legal->placeholder($slug)));
+        $open = app(LegalReadiness::class)->missing();
 
         return $open === []
-            ? ['Rechtstexte', 'ok', 'Impressum, Datenschutz, AGB, Widerrufsbelehrung hinterlegt']
-            : ['Rechtstexte', $production ? 'fail' : 'warn', 'noch Platzhalter: '.implode(', ', $open).' (BLOCKED #4)'];
+            ? ['Rechtstexte', 'ok', implode(', ', LegalTexts::TEXTS).': kein Platzhalter mehr; im Impressum jede Angabe eingetragen oder als „Entfällt“ vermerkt']
+            : ['Rechtstexte', $production ? 'fail' : 'warn', 'noch offen: '.implode(', ', $open).' (BLOCKED #4)'];
     }
 
     /**

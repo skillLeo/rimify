@@ -121,7 +121,8 @@ it('refuses a production without the seller, shipping and delivery time, the leg
     $this->artisan('rimify:preflight', ['--skip-s3' => true])
         ->expectsOutputToContain('Verkäuferangaben')
         ->expectsOutputToContain('fehlt: Versandkosten, Lieferzeit')
-        ->expectsOutputToContain('noch Platzhalter')
+        // The legal texts as the three locks read them (D-319): each placeholder named.
+        ->expectsOutputToContain('AGB (Platzhalter)')
         ->expectsOutputToContain('fehlen für: Ohneangaben')
         ->expectsOutputToContain('nicht eröffnet – jede Rechnung ist eine Testrechnung')
         ->assertFailed();

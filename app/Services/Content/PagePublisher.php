@@ -116,7 +116,12 @@ final class PagePublisher
 
             PageBlock::query()->where('page_id', $page->id)->delete();
 
-            foreach (self::withPlaceholders($content, $live)['blocks'] as $i => $block) {
+            $blocks = self::withPlaceholders($content, $live)['blocks'];
+            // The seeded marker published again makes the page a placeholder again; publishing never makes it real —
+            // only switching the flag off over the Kanzlei's words does (LegalPlaceholderRequest, D-319).
+            $markerLeft = array_filter($blocks, static fn (array $block): bool => ($block['data']['placeholder'] ?? false) === true) !== [];
+
+            foreach ($blocks as $i => $block) {
                 PageBlock::query()->create([
                     'page_id' => $page->id,
                     'type' => $block['type'],
@@ -137,6 +142,7 @@ final class PagePublisher
                 'draft_updated_at' => null,
                 'draft_author_email' => null,
                 'lawyer_reviewed' => $reviewed,
+                'is_placeholder' => $page->kind === Page::KIND_LEGAL && ($page->is_placeholder || $markerLeft),
             ]);
             $this->bump($page);
 

@@ -106,7 +106,12 @@ export interface AdminSeiteProps {
         published: boolean
         publishedAt: string | null
         lawyerReviewed: boolean | null
+        /** A legal text's flag (D-319): on, visitors read one notice in place of the text. */
         placeholder: boolean
+        /** The live words are still the seeder's marker: the flag cannot go off over them. */
+        markerLeft: boolean
+        /** The Muster-Widerrufsformular's own flag — on the Widerrufsbelehrung only, else null. */
+        formPlaceholder: boolean | null
     }
     schema: PageSchema
     content: PageContent

@@ -2,10 +2,10 @@
 /**
  * The legal pages: five sections over one route, and the text of the selected one.
  *
- * The bodies are placeholders until the client's Kanzlei supplies the text (D-024), and each one
- * says so visibly with the marker it was seeded with. We do not draft German legal copy: an
- * Impressum written by a developer is a liability the client carries. This page renders exactly
- * what the `page_blocks` rows hold — nothing is filled in here.
+ * The bodies are placeholders until the client's Kanzlei supplies the text (D-024): while a page's
+ * flag is on, the server sends no words, and the page shows one notice that cannot be read as the
+ * text (D-319). We do not draft German legal copy: an Impressum written by a developer is a
+ * liability the client carries. This page renders exactly what the `page_blocks` rows hold.
  *
  * The section list is a sticky rail beside the text from 900px and a wrapped row of links above
  * it on a phone — the same links either way, one DOM.
@@ -42,7 +42,6 @@ const blocks = computed(() =>
             id: block.id,
             heading: heading !== null && heading.trim() !== title.value ? heading : null,
             text,
-            placeholder: block.data.placeholder === true,
         }
     })
 )
@@ -85,21 +84,22 @@ const blocks = computed(() =>
                     <dl class="rec__facts">
                         <div v-for="row in provider.rows" :key="row.label" class="rec__fact">
                             <dt>{{ row.label }}</dt>
-                            <dd v-if="row.value" class="rec__para">{{ row.value }}</dd>
+                            <!-- A field not given shows its marker, „[FIRMENNAME]“: never a guess (D-319). -->
+                            <dd v-if="row.missing" class="rec__para rec__marker">{{ row.value }}</dd>
+                            <dd v-else-if="row.value" class="rec__para">{{ row.value }}</dd>
                             <dd v-else class="rec__missing">noch nicht angegeben</dd>
                         </div>
                     </dl>
                 </section>
 
-                <div v-for="block in blocks" :key="block.id" class="rec__block">
-                    <h2 v-if="block.heading" class="t-h3">{{ block.heading }}</h2>
-                    <!-- The Kanzlei's text outstanding: who prepares it, in one sentence — never the seeded marker. -->
-                    <p v-if="block.placeholder" class="t-body rec__placeholder">{{ preparing }}</p>
-                    <!-- The Kanzlei's text as its paragraphs: a blank line typed in the admin is a new one. -->
-                    <p v-for="(paragraph, p) in paragraphs(block.text)" v-else :key="p" class="t-body rec__para">{{ paragraph }}</p>
-                </div>
+                <!-- A placeholder's one notice, and nothing that reads like a clause: its words never reach the page (D-319). -->
+                <p v-if="placeholder" class="t-body rec__placeholder">{{ notice }}</p>
 
-                <p v-if="blocks.length === 0" class="t-body rec__placeholder">{{ preparing }}</p>
+                <!-- The Kanzlei's text as its paragraphs: a blank line typed in the admin is a new one. -->
+                <div v-for="block in blocks" v-else :key="block.id" class="rec__block">
+                    <h2 v-if="block.heading" class="t-h3">{{ block.heading }}</h2>
+                    <p v-for="(paragraph, p) in paragraphs(block.text)" :key="p" class="t-body rec__para">{{ paragraph }}</p>
+                </div>
 
                 <!--
                     The cookies as facts, from the list the cookie settings show (legal/cookies.ts) — beside the
@@ -234,6 +234,16 @@ const blocks = computed(() =>
 .rec__missing {
     color: var(--ink2);
     font-style: italic;
+}
+
+/* A marker in place of a field not given: unmistakably not a value — the placeholder's ground, its own ink. */
+.rec__marker {
+    justify-self: start;
+    padding: 0 var(--space-1);
+    background: var(--field);
+    border-radius: var(--radius-sm);
+    color: var(--ink2);
+    font-weight: 700;
 }
 
 @media (min-width: 600px) {

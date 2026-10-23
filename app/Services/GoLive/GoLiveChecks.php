@@ -63,11 +63,6 @@ final class GoLiveChecks
     /** What a customer is told when live payment is refused: it names no check — those are for the admin. */
     public const LIVE_REFUSAL = 'Bestellen ist gerade nicht möglich. Es wird nichts abgebucht. Schreib uns – wir melden uns bei dir.';
 
-    /** The legal forms that are entered in a register and, but for the e. K., act through a named representative. */
-    private const REGISTERED = '/\b(GmbH|gGmbH|UG|AG|SE|KGaA|KG|OHG|eG|e\.\s?K\.?|e\.\s?Kfm\.?|e\.\s?Kfr\.?)(\s|$|\b)/u';
-
-    private const SOLE_REGISTERED = '/\be\.\s?(K|Kfm|Kfr)\.?(\s|$|\b)/u';
-
     /**
      * The 27 member states of the EU, nothing else — a server in the UK or an EEA state is not in it. Only Germany passes
      * the server's place (D-181); the list lets the sentence say whether another place is at least in the EU.
@@ -92,9 +87,9 @@ final class GoLiveChecks
     {
         return [
             $this->impressum(),
-            $this->legalPage('agb', 'AGB', 'Die AGB sind noch ein Platzhalter: Der Text der Kanzlei fehlt.', 'Die AGB stehen im Shop, im Wortlaut der Kanzlei.'),
+            $this->legalPage('agb', 'AGB', 'Die AGB sind noch ein Platzhalter: Besucher sehen statt des Textes nur den Hinweis, dass der Text der Kanzlei folgt.', 'Die AGB stehen im Shop; der Platzhalter ist aus.'),
             $this->withdrawal(),
-            $this->legalPage('datenschutz', 'Datenschutzerklärung', 'Die Datenschutzerklärung ist noch ein Platzhalter: Der Text der Kanzlei fehlt.', 'Die Datenschutzerklärung steht im Shop, im Wortlaut der Kanzlei.'),
+            $this->legalPage('datenschutz', 'Datenschutzerklärung', 'Die Datenschutzerklärung ist noch ein Platzhalter: Besucher sehen statt des Textes nur den Hinweis, dass der Text der Kanzlei folgt.', 'Die Datenschutzerklärung steht im Shop; der Platzhalter ist aus.'),
             $this->shipping(),
             $this->vat(),
             $this->invoiceFields(),
@@ -164,23 +159,19 @@ final class GoLiveChecks
             return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Die Verkäuferangaben sind noch Platzhalter: Name, Anschrift, Vertretung, Register und Umsatzsteuer-Identifikationsnummer fehlen.', $place);
         }
 
-        $registered = $seller->name !== null && preg_match(self::REGISTERED, $seller->name) === 1;
-        $missing = array_keys(array_filter([
-            'Name des Unternehmens' => $seller->name === null,
-            'Anschrift' => $seller->street === null || $seller->zip === null || $seller->city === null,
-            'Vertretungsberechtigte' => $registered && preg_match(self::SOLE_REGISTERED, (string) $seller->name) !== 1 && $seller->managingDirector === null,
-            'Registergericht und -nummer' => $registered && $seller->register === null,
-            'Umsatzsteuer-Identifikationsnummer' => $seller->vatId === null,
-            'E-Mail-Adresse' => $seller->email === null,
-            'Text der Kanzlei' => $this->legal->placeholder('impressum'),
-        ]));
+        // Every field the Impressum shows, each given or declared „entfällt“, and its own text no placeholder (D-319): the
+        // same answer that keeps the live shop out of search and out of live payments (LegalReadiness).
+        $missing = [
+            ...$seller->impressumMissing(),
+            ...($this->legal->placeholder('impressum') ? ['Text der Kanzlei (Platzhalter)'] : []),
+        ];
 
         if ($missing !== []) {
             return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Im Impressum fehlen: '.implode(', ', $missing).'.', $place);
         }
 
-        return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::OK, 'Name, Anschrift, Umsatzsteuer-Identifikationsnummer und E-Mail stehen im Impressum; Vertretung und Register ebenso, wo die Rechtsform sie verlangt.'
-            .($seller->phone === null ? ' Eine Telefonnummer ist nicht angegeben; der zweite schnelle Kontaktweg ist das Kontaktformular.' : ''), $place);
+        return $this->check('impressum', self::LEGAL, 'Impressum (§ 5 DDG)', GoLiveCheck::CLIENT, GoLiveCheck::OK, 'Jede Angabe des Impressums ist eingetragen oder als „Entfällt“ vermerkt.'
+            .(in_array('phone', $seller->notApplicable, true) ? ' Für die Telefonnummer ist „Entfällt“ vermerkt; der zweite schnelle Kontaktweg ist das Kontaktformular.' : ''), $place);
     }
 
     /** A legal page: there, published, and the Kanzlei's text rather than the seeded placeholder. */
@@ -196,19 +187,25 @@ final class GoLiveChecks
     {
         $seller = Seller::current();
         $missing = array_keys(array_filter([
-            'der Text der Kanzlei' => $this->legal->placeholder('widerrufsbelehrung'),
+            'Widerrufsbelehrung (Platzhalter)' => $this->legal->placeholder('widerrufsbelehrung'),
+            // The form's own flag (D-319): its words are the statute's, but visitors read them only once it is off.
+            'Muster-Widerrufsformular (Platzhalter)' => $this->legal->placeholder(LegalTexts::FORM),
             'Name und Anschrift des Verkäufers für das Formular' => $seller->name === null || $seller->street === null || $seller->zip === null || $seller->city === null,
         ]));
 
         return $this->check('widerruf', self::LEGAL, 'Widerrufsbelehrung und Muster-Widerrufsformular', GoLiveCheck::CLIENT, $missing === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $missing === []
             ? 'Die Widerrufsbelehrung steht im Shop; das Formular nennt den Verkäufer mit Anschrift.'
-            : 'Noch offen: '.implode(' und ', $missing).'.', $this->pagePlace('widerrufsbelehrung'));
+            : 'Noch offen: '.implode(', ', $missing).'.', $this->pagePlace('widerrufsbelehrung'));
     }
 
     private function shipping(): GoLiveCheck
     {
         $shipping = Shipping::current();
-        $missing = $shipping->missing();
+        $missing = [
+            ...$shipping->missing(),
+            // The Versand page is a legal text with its flag too (D-319).
+            ...($this->legal->placeholder('versand') ? ['Text der Seite Versand (Platzhalter)'] : []),
+        ];
 
         return $this->check('versand', self::LEGAL, 'Versandkosten und Lieferzeit', GoLiveCheck::CLIENT, $missing === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $missing === []
             ? 'Vor dem Bestellknopf stehen '.(string) $shipping->summary().'.'

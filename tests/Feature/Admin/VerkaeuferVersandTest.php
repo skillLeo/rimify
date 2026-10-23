@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\EnsureSudo;
+use App\Http\Requests\Admin\SellerShippingRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Setting;
@@ -43,9 +44,11 @@ function vvForm(array $seller = [], array $shipping = []): array
 {
     return [
         'seller' => [
-            'name' => 'Beispiel Räder GmbH', 'street' => 'Werkstraße 4', 'zip' => '80331', 'city' => 'München',
+            'name' => 'Beispiel Räder GmbH', 'legal_form' => 'GmbH', 'street' => 'Werkstraße 4', 'zip' => '80331', 'city' => 'München',
             'managing_director' => 'Erika Beispiel', 'register_court' => 'Amtsgericht München', 'register_number' => 'HRB 204711',
             'vat_id' => 'DE 204 711 815', 'tax_number' => '', 'email' => 'rechnung@beispiel.de', 'phone' => '', 'placeholder' => false,
+            // As the form posts the „Entfällt“ boxes: one per field that may not apply (D-319).
+            'not_applicable' => ['managing_director' => false, 'register' => false, 'vat_id' => false, 'phone' => true],
             ...$seller,
         ],
         'shipping' => ['cost' => '4,90', 'free_from' => '500,00', 'min_days' => '3', 'max_days' => '5', 'placeholder' => false, ...$shipping],
@@ -179,15 +182,53 @@ it('prints the seller as the page holds it: the Impressum with its Geschäftsfü
     $this->get('/rechtliches/impressum')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('provider.placeholder', false)
         ->where('provider.complete', true)
-        ->where('provider.rows', fn ($rows): bool => collect($rows)->pluck('value', 'label')->only(['Anbieter', 'Vertreten durch', 'Registereintrag', 'Umsatzsteuer-Identifikationsnummer'])->all() === [
+        ->where('provider.rows', fn ($rows): bool => collect($rows)->pluck('value', 'label')->all() === [
             'Anbieter' => 'Beispiel Räder GmbH',
+            'Rechtsform' => 'GmbH',
+            'Anschrift' => "Werkstraße 4\n80331 München\nDeutschland",
             'Vertreten durch' => 'Erika Beispiel',
-            'Registereintrag' => 'Amtsgericht München, HRB 204711',
+            'Registergericht' => 'Amtsgericht München',
+            'Registernummer' => 'HRB 204711',
             'Umsatzsteuer-Identifikationsnummer' => 'DE204711815',
+            // Telefon is declared „entfällt“: the row is left out.
+            'E-Mail' => 'rechnung@beispiel.de',
         ]));
 
     // The line under every invoice and order mail (§ 14 UStG, § 35a GmbHG): one place, the page's values.
     expect(Seller::current()->documentLine())->toBe(
         'Beispiel Räder GmbH · Werkstraße 4 · 80331 München · rechnung@beispiel.de · Geschäftsführung: Erika Beispiel · Amtsgericht München, HRB 204711 · USt-IdNr. DE204711815'
     );
+});
+
+// D-319: a field that does not apply is declared „Entfällt“ — never a value and the box at once, since which is meant is
+// not ours to guess. The error stands beside the field that was filled in.
+it('refuses a field filled in and declared „entfällt“ at once, beside the field, and stores nothing', function (): void {
+    vvSave(vvForm(['phone' => '+49 89 123456']))->assertSessionHasErrors(['seller.phone' => SellerShippingRequest::BOTH['phone']]);
+    vvSave(vvForm(['not_applicable' => ['managing_director' => false, 'register' => true, 'vat_id' => false, 'phone' => true]]))
+        ->assertSessionHasErrors(['seller.register_court' => SellerShippingRequest::BOTH['register']]);
+
+    expect(Setting::query()->where('key', Seller::KEY)->count())->toBe(0);
+});
+
+it('stores the Rechtsform and each „Entfällt“, and names what the Impressum still shows as a marker', function (): void {
+    vvSave(vvForm(['legal_form' => '', 'managing_director' => '', 'not_applicable' => ['managing_director' => true, 'register' => false, 'vat_id' => false, 'phone' => true]]))
+        ->assertSessionHasNoErrors();
+
+    $seller = Seller::stored();
+
+    expect($seller->legalForm)->toBeNull()
+        ->and($seller->notApplicable)->toBe(['managing_director', 'phone'])
+        ->and($seller->impressumMissing())->toBe(['Rechtsform']);
+
+    $this->actingAs(vvAdmin(), 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->get(VV_URL)
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('seller.legal_form', '')
+            ->where('seller.not_applicable', ['managing_director' => true, 'register' => false, 'vat_id' => false, 'phone' => true])
+            ->where('impressumMissing', ['Rechtsform']));
+
+    vvSave(vvForm(['managing_director' => '', 'not_applicable' => ['managing_director' => true, 'register' => false, 'vat_id' => false, 'phone' => true]]))
+        ->assertSessionHasNoErrors();
+
+    expect(Seller::stored()->legalForm)->toBe('GmbH')
+        ->and(Seller::stored()->impressumMissing())->toBe([]);
 });

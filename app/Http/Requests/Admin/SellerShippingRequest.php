@@ -21,7 +21,15 @@ use Illuminate\Validation\Validator;
 class SellerShippingRequest extends FormRequest
 {
     /** The seller's text fields, as the form posts them. */
-    public const SELLER = ['name', 'street', 'zip', 'city', 'managing_director', 'register_court', 'register_number', 'vat_id', 'tax_number', 'email', 'phone'];
+    public const SELLER = ['name', 'legal_form', 'street', 'zip', 'city', 'managing_director', 'register_court', 'register_number', 'vat_id', 'tax_number', 'email', 'phone'];
+
+    /** A field declared „entfällt“ and filled in at once: which one is meant is not ours to guess (D-319). */
+    public const BOTH = [
+        'managing_director' => 'Geschäftsführung und „Entfällt“ schließen sich aus. Lösch den Eintrag oder nimm das Häkchen bei „Entfällt“ heraus.',
+        'register' => 'Registereintrag und „Entfällt“ schließen sich aus. Lösch Registergericht und Registernummer oder nimm das Häkchen bei „Entfällt“ heraus.',
+        'vat_id' => 'USt-IdNr. und „Entfällt“ schließen sich aus. Lösch die Nummer oder nimm das Häkchen bei „Entfällt“ heraus.',
+        'phone' => 'Telefonnummer und „Entfällt“ schließen sich aus. Lösch die Nummer oder nimm das Häkchen bei „Entfällt“ heraus.',
+    ];
 
     public function authorize(): bool
     {
@@ -44,6 +52,12 @@ class SellerShippingRequest extends FormRequest
         // The tax numbers are compared without the spaces people type into them: `DE 123 456 789`.
         $clean['vat_id'] = strtoupper((string) preg_replace('/\s+/', '', $clean['vat_id']));
         $clean['placeholder'] = filter_var($seller['placeholder'] ?? false, FILTER_VALIDATE_BOOL);
+        // The Impressum's fields declared „entfällt“, each a box ticked or not; anything else is not a declaration.
+        $declared = is_array($seller['not_applicable'] ?? null) ? $seller['not_applicable'] : [];
+        $clean['not_applicable'] = array_values(array_filter(
+            Seller::MAY_NOT_APPLY,
+            static fn (string $field): bool => filter_var($declared[$field] ?? false, FILTER_VALIDATE_BOOL),
+        ));
 
         $money = static fn (mixed $typed): string => is_scalar($typed) ? trim((string) $typed) : '';
         $days = static fn (mixed $typed): mixed => is_scalar($typed) && trim((string) $typed) !== '' ? trim((string) $typed) : null;
@@ -66,6 +80,7 @@ class SellerShippingRequest extends FormRequest
         return [
             'seller' => ['required', 'array'],
             'seller.name' => ['nullable', 'string', 'max:160'],
+            'seller.legal_form' => ['nullable', 'string', 'max:80'],
             'seller.street' => ['nullable', 'string', 'max:160'],
             'seller.zip' => ['nullable', 'string', 'regex:/^\d{5}$/'],
             'seller.city' => ['nullable', 'string', 'max:120'],
@@ -77,6 +92,8 @@ class SellerShippingRequest extends FormRequest
             'seller.email' => ['nullable', 'string', 'email:rfc', 'max:190'],
             'seller.phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[\d ()\/-]{6,30}$/'],
             'seller.placeholder' => ['boolean'],
+            'seller.not_applicable' => ['array'],
+            'seller.not_applicable.*' => ['string', 'in:'.implode(',', Seller::MAY_NOT_APPLY)],
             'shipping' => ['required', 'array'],
             'shipping.cost' => ['nullable', 'string', 'max:32'],
             'shipping.free_from' => ['nullable', 'string', 'max:32'],
@@ -91,6 +108,7 @@ class SellerShippingRequest extends FormRequest
     {
         return [
             'seller.name.max' => 'Der Name darf höchstens 160 Zeichen lang sein.',
+            'seller.legal_form.max' => 'Die Rechtsform darf höchstens 80 Zeichen lang sein.',
             'seller.street.max' => 'Straße und Hausnummer dürfen höchstens 160 Zeichen lang sein.',
             'seller.zip.regex' => 'Die PLZ hat fünf Ziffern.',
             'seller.city.max' => 'Der Ort darf höchstens 120 Zeichen lang sein.',
@@ -124,14 +142,29 @@ class SellerShippingRequest extends FormRequest
                         $validator->errors()->add("shipping.{$field}", $sentence);
                     }
                 }
+
+                // „Entfällt“ beside a value: the error stands at the field the admin filled in.
+                $declared = (array) $this->input('seller.not_applicable', []);
+
+                foreach (self::BOTH as $field => $sentence) {
+                    $filled = $field === 'register'
+                        ? ['register_court' => (string) $this->input('seller.register_court'), 'register_number' => (string) $this->input('seller.register_number')]
+                        : [$field => (string) $this->input("seller.{$field}")];
+                    $filled = array_filter($filled, static fn (string $value): bool => $value !== '');
+
+                    if (in_array($field, $declared, true) && $filled !== []) {
+                        $validator->errors()->add('seller.'.array_key_first($filled), $sentence);
+                    }
+                }
             },
         ];
     }
 
     /**
-     * The seller as it is stored: every text field (null where empty) and the placeholder mark.
+     * The seller as it is stored: every text field (null where empty), the placeholder mark and the Impressum's fields
+     * declared „entfällt“.
      *
-     * @return array<string, string|bool|null>
+     * @return array<string, string|bool|list<string>|null>
      */
     public function seller(): array
     {
@@ -143,6 +176,8 @@ class SellerShippingRequest extends FormRequest
         }
 
         $out['placeholder'] = $this->validated('seller.placeholder') === true;
+        $declared = $this->validated('seller.not_applicable');
+        $out['not_applicable'] = array_values(array_intersect(Seller::MAY_NOT_APPLY, is_array($declared) ? $declared : []));
 
         return $out;
     }

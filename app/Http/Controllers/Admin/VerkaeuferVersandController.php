@@ -41,6 +41,7 @@ class VerkaeuferVersandController extends Controller
         return Inertia::render('Admin/Einstellungen/VerkaeuferVersand', [
             'seller' => [
                 'name' => $seller->name ?? '',
+                'legal_form' => $seller->legalForm ?? '',
                 'street' => $seller->street ?? '',
                 'zip' => $seller->zip ?? '',
                 'city' => $seller->city ?? '',
@@ -52,8 +53,15 @@ class VerkaeuferVersandController extends Controller
                 'email' => $seller->ownEmail ?? '',
                 'phone' => $seller->phone ?? '',
                 'placeholder' => $seller->placeholder,
+                // Each Impressum field that may not apply, ticked where it was declared „entfällt“ (D-319).
+                'not_applicable' => array_combine(Seller::MAY_NOT_APPLY, array_map(
+                    static fn (string $field): bool => in_array($field, $seller->notApplicable, true),
+                    Seller::MAY_NOT_APPLY,
+                )),
             ],
             'sellerSource' => $seller->source,
+            // What the Impressum still shows as a marker — what keeps the shop out of search and live payments (D-319).
+            'impressumMissing' => $seller->impressumMissing(),
             // The `.env` register line, where it was written as one: shown so nobody types it in twice.
             'legacyRegister' => $seller->source === '.env' && $seller->registerCourt === null ? $seller->register : null,
             'sellerMissing' => $seller->missing(),

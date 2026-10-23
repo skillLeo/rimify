@@ -137,10 +137,10 @@ class OrderConfirmationMail extends Mailable
                 // Signed: the page opens on any device the customer reads this mail on, not only where they ordered —
                 // for twelve months, then the way back to a fresh link (OrderLinks, D-240).
                 'orderUrl' => OrderLinks::link($order),
-                // While the Kanzlei's text is outstanding, who prepares it — never the seeded marker (LegalTexts::PREPARING).
-                'agb' => $legal->placeholder('agb') ? LegalTexts::PREPARING : $legal->text('agb'),
-                'widerruf' => $legal->placeholder('widerrufsbelehrung') ? LegalTexts::PREPARING : $legal->text('widerrufsbelehrung'),
-                'form' => WithdrawalForm::text(Seller::current()),
+                // A placeholder's one notice in its place — never the seeded marker, never words still under the flag (D-319).
+                'agb' => $legal->placeholder('agb') ? LegalTexts::NOTICE : $legal->text('agb'),
+                'widerruf' => $legal->placeholder('widerrufsbelehrung') ? LegalTexts::NOTICE : $legal->text('widerrufsbelehrung'),
+                'form' => $legal->placeholder(LegalTexts::FORM) ? LegalTexts::NOTICE : WithdrawalForm::text(Seller::current()),
                 'legalAttached' => self::legalAttachedSentence($legal),
             ],
         );
@@ -172,11 +172,13 @@ class OrderConfirmationMail extends Mailable
     {
         $agb = ! $legal->placeholder('agb');
         $widerruf = ! $legal->placeholder('widerrufsbelehrung');
+        // The PDF carries the form only once its own flag is off (LegalPdf, D-319): the sentence names it only then.
+        $belehrung = $legal->placeholder(LegalTexts::FORM) ? 'die Widerrufsbelehrung' : 'die Widerrufsbelehrung mit dem Muster-Widerrufsformular';
 
         return match (true) {
-            $agb && $widerruf => 'Die AGB und die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängen ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
+            $agb && $widerruf => 'Die AGB und '.$belehrung.' hängen ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
             $agb => 'Die AGB hängen ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
-            $widerruf => 'Die Widerrufsbelehrung mit dem Muster-Widerrufsformular hängt ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
+            $widerruf => ucfirst($belehrung).' hängt ebenfalls als PDF an dieser Mail. Den Wortlaut findest du auch unten.',
             default => null,
         };
     }

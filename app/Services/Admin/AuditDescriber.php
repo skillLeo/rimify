@@ -114,6 +114,7 @@ final class AuditDescriber
         'page.draft_discarded' => 'inhalte',
         'page.published' => 'inhalte',
         'page.withdrawn' => 'inhalte',
+        'page.placeholder_switched' => 'inhalte',
         'page.revision_restored' => 'inhalte',
         'faq.created' => 'inhalte',
         'faq.updated' => 'inhalte',
@@ -432,6 +433,7 @@ final class AuditDescriber
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
             'page.published' => self::pagePublished($p),
             'page.withdrawn' => ['Der Ratgeber-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.placeholder_switched' => [self::placeholderSwitched($p), []],
             'page.revision_restored' => [self::revisionRestored($p), []],
             'faq.created' => [
                 'Die Frage '.self::q(self::text($p, 'question') ?? 'ohne Text').' wurde angelegt'
@@ -1028,6 +1030,21 @@ final class AuditDescriber
         }
 
         return $changes;
+    }
+
+    /**
+     * A legal text's placeholder flag (D-319): on, visitors read only the notice; off, they read the published text.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function placeholderSwitched(array $p): string
+    {
+        $state = self::map($p, 'placeholder');
+        $on = ($state['new'] ?? null) === true;
+        $form = self::text($p, 'part') === 'formular';
+        $what = $form ? 'Beim Muster-Widerrufsformular' : 'Bei der Seite '.self::page($p);
+
+        return $what.' wurde der Platzhalter '.($on ? 'eingeschaltet: Besucher sehen statt des Textes nur noch den Hinweis, dass der Text der Kanzlei folgt.' : 'ausgeschaltet: Besucher sehen den Text statt des Hinweises.');
     }
 
     /** @param  array<array-key, mixed>  $p */

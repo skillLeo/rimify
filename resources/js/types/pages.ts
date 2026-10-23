@@ -853,11 +853,16 @@ export interface RechtlichesProps {
     tabs: { slug: string; title: string }[]
     active: string
     blocks: { id: number; type: string; data: Record<string, unknown> }[]
-    /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
-    /** `placeholder`: the values are the admin's placeholders, shown here only, and marked. */
-    provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean; notice?: string } | null
-    /** What the page says while the Kanzlei's text is outstanding: one sentence naming who prepares it (LegalTexts::PREPARING). */
-    preparing: string
+    /**
+     * The Impressum's facts from the seller data (§ 5 DDG); null on every other tab. A field not given carries its
+     * marker as `value` and `missing` (D-319); the test environment's operator rows give `value` null instead.
+     * `placeholder`: the values are the admin's placeholders, shown here only, and marked.
+     */
+    provider?: { rows: { label: string; value: string | null; missing?: boolean }[]; complete: boolean; placeholder?: boolean; notice?: string } | null
+    /** The page's text is a placeholder (D-319): `blocks` is empty and the page shows `notice` alone. */
+    placeholder: boolean
+    /** The placeholder's one notice (LegalTexts::NOTICE). */
+    notice: string
 }
 
 export interface AdminAnmeldenProps {

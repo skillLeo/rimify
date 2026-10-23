@@ -5,6 +5,9 @@
  * same words). The addressee is the seller's own data where given, else the e-mail address alone.
  *
  * Laid out like a form on paper: each line with room to write, the footnote under it — printable as it stands.
+ *
+ * While its placeholder flag is on (D-319) the page holds the one notice and nothing that reads like the form; the
+ * server sends no form text at all.
  */
 
 import { Head, Link } from '@inertiajs/vue3'
@@ -14,10 +17,12 @@ defineOptions({ layout: AppLayout, inheritAttrs: false })
 
 defineProps<{
     title: string
-    intro: string
-    addressee: string
+    placeholder: boolean
+    notice: string | null
+    intro: string | null
+    addressee: string | null
     fields: string[]
-    footnote: string
+    footnote: string | null
 }>()
 </script>
 
@@ -30,17 +35,22 @@ defineProps<{
                 <Link href="/rechtliches/widerrufsbelehrung">Zur Widerrufsbelehrung</Link>
             </p>
             <h1 class="t-h1">{{ title }}</h1>
-            <p class="t-body wf__intro">{{ intro }}</p>
 
-            <ul class="wf__lines">
-                <li class="wf__line wf__line--to">{{ addressee }}</li>
-                <li v-for="field in fields" :key="field" class="wf__line">
-                    <span>{{ field }}</span>
-                    <span class="wf__space" aria-hidden="true" />
-                </li>
-            </ul>
+            <p v-if="placeholder" class="t-body wf__placeholder">{{ notice }}</p>
 
-            <p class="t-small wf__note">{{ footnote }}</p>
+            <template v-else>
+                <p class="t-body wf__intro">{{ intro }}</p>
+
+                <ul class="wf__lines">
+                    <li class="wf__line wf__line--to">{{ addressee }}</li>
+                    <li v-for="field in fields" :key="field" class="wf__line">
+                        <span>{{ field }}</span>
+                        <span class="wf__space" aria-hidden="true" />
+                    </li>
+                </ul>
+
+                <p class="t-small wf__note">{{ footnote }}</p>
+            </template>
         </div>
     </section>
 </template>
@@ -58,6 +68,15 @@ defineProps<{
 
 .wf__intro {
     margin-top: var(--space-3);
+    color: var(--ink2);
+}
+
+/* The placeholder's one notice, as the other legal pages show theirs (D-319). */
+.wf__placeholder {
+    margin-top: var(--space-5);
+    padding: var(--space-4);
+    background: var(--field);
+    border-radius: var(--radius-sm);
     color: var(--ink2);
 }
 

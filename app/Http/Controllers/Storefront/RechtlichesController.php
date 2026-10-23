@@ -27,7 +27,7 @@ class RechtlichesController extends Controller
     /** The rail, in the order the footer lists them. */
     private const TABS = ['impressum', 'datenschutz', 'agb', 'widerrufsbelehrung', 'versand'];
 
-    public function __construct(private readonly PageContent $content) {}
+    public function __construct(private readonly PageContent $content, private readonly LegalTexts $legal) {}
 
     public function __invoke(Request $request, ?string $slug = null): Response
     {
@@ -57,8 +57,13 @@ class RechtlichesController extends Controller
             $present = $present || $tab === $slug;
         }
 
+        // A placeholder (D-319) shows its one notice and nothing else: its words — whatever was pasted meanwhile — never
+        // reach a visitor's browser until the flag is off. The signed preview shows them, so the team can read before. A
+        // page that is not there at all is a placeholder too.
+        $placeholder = $present ? $this->legal->placeholder($slug) && ! $this->content->isPreview($slug) : true;
+
         // The words — live, or the draft in a signed preview (PageContent).
-        $blocks = $present ? ($this->content->page($slug)['blocks'] ?? []) : [];
+        $blocks = $present && ! $placeholder ? ($this->content->page($slug)['blocks'] ?? []) : [];
 
         // The Impressum's facts from the seller data (§ 5 DDG), from the one place the invoice and the order mail read
         // too — beside the Kanzlei's text, never instead of it. What is not given yet says so; values the admin marked as
@@ -76,11 +81,11 @@ class RechtlichesController extends Controller
                 'notice' => Operator::NOT_IN_OPERATION,
             ];
         } elseif ($slug === 'impressum') {
+            // From the fields entered once in the admin; a field not given shows its marker, „[FIRMENNAME]“ (D-319).
             $seller = Seller::stored();
-            $rows = $seller->impressum();
             $provider = [
-                'rows' => $rows,
-                'complete' => ! $seller->placeholder && ! in_array(null, array_column($rows, 'value'), true),
+                'rows' => $seller->impressum(),
+                'complete' => $seller->impressumMissing() === [],
                 'placeholder' => $seller->placeholder,
             ];
         }
@@ -90,8 +95,9 @@ class RechtlichesController extends Controller
             'active' => $slug,
             'blocks' => $blocks,
             'provider' => $provider,
-            // Where the Kanzlei's text is outstanding, the page says who prepares it, in one sentence.
-            'preparing' => LegalTexts::PREPARING,
+            'placeholder' => $placeholder,
+            // A placeholder's one notice, which nobody can take for the text itself (D-319).
+            'notice' => LegalTexts::NOTICE,
         ]);
     }
 }

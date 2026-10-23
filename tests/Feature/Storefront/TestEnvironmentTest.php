@@ -10,6 +10,7 @@ use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\LegalFixture;
 
 /*
  * The test environment (staging), D-088: nothing stands between a visitor and the shop — no password, no entry page;
@@ -49,6 +50,10 @@ it('sends /admin to the normal sign-in, and nowhere else', function (): void {
 });
 
 it('keeps the test environment out of search, and lets every crawler into the live shop', function (): void {
+    // Every legal text the Kanzlei's and every Impressum field given: the live shop's own lock is open (D-319,
+    // LegalLocksTest). The test environment stays out of search all the same.
+    LegalFixture::ready();
+
     onStaging();
     $this->get('/robots.txt')->assertOk()->assertSee("Disallow: /\n", false);
 

@@ -5,7 +5,7 @@
  *
  * One primary action, *Ratgeber-Artikel anlegen* — the only kind of page a team adds; the others
  * are fixed by the shop's structure. A row says what differs from the normal state and nothing
- * else: not published, a draft waiting, the Kanzlei's text still missing.
+ * else: not published, a draft waiting, a legal text still a placeholder (D-319).
  */
 
 import { Link, router, usePage } from '@inertiajs/vue3'
@@ -32,7 +32,7 @@ const context = computed(() => {
     return drafts === 0 ? pages : `${pages} · ${drafts === 1 ? '1 Entwurf wartet' : `${drafts} Entwürfe warten`}`
 })
 
-/* When every page of a group still waits for the Kanzlei, that is one fact about the group, said
+/* When every page of a group is still a placeholder (D-319), that is one fact about the group, said
    once — not the same tag on every row. */
 function allPlaceholders(group: SeitenGroup): boolean {
     return group.pages.length > 1 && group.pages.every((p) => p.placeholder)
@@ -43,7 +43,7 @@ const NUMBER_WORDS = ['null', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 
 function placeholderNote(group: SeitenGroup): string {
     const n = group.pages.length
 
-    return `Bei allen ${NUMBER_WORDS[n] ?? String(n)} Seiten fehlt noch der Text der Kanzlei.`
+    return `Alle ${NUMBER_WORDS[n] ?? String(n)} Seiten sind noch Platzhalter.`
 }
 
 /* ── Ratgeber-Artikel anlegen ────────────────────────────────────────────────────────── */
@@ -119,7 +119,7 @@ function create(): void {
                         <td data-label="Seite">
                             <span class="adm-table__key sn__name">
                                 <Link :href="`/admin/seiten/${row.id}`" class="sn__link">{{ row.title }}</Link>
-                                <span v-if="row.placeholder && !allPlaceholders(group)" class="adm-tag adm-tag--warn">Text der Kanzlei fehlt</span>
+                                <span v-if="row.placeholder && !allPlaceholders(group)" class="adm-tag adm-tag--warn">Platzhalter</span>
                             </span>
                             <span class="adm-table__sub">
                                 {{ row.href }}<template v-if="row.lawyerReviewed"> · vom Anwalt geprüft</template>
