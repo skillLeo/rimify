@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\SavedViewDestroyRequest;
 use App\Http\Requests\Admin\SavedViewRules;
 use App\Http\Requests\Admin\SavedViewStoreRequest;
@@ -100,7 +101,20 @@ class SavedViewsController extends Controller
             $view->delete();
         }
 
-        return back();
+        // The list it was opened on, its filters kept — not the address of the view just deleted, which the page would
+        // read as an old link: „Die verlinkte Ansicht gibt es nicht mehr …“ beside one's own „gelöscht“ (the admin audit's F-22).
+        return redirect()->to(self::withoutView(url()->previous()));
+    }
+
+    /** An admin address without its `ansicht`, the rest of its query kept; the Übersicht where the address is not the admin's. */
+    private static function withoutView(string $url): string
+    {
+        $path = EnsureSudo::adminPath($url) ?? '/admin';
+        [$base, $query] = array_pad(explode('?', $path, 2), 2, '');
+        parse_str($query, $params);
+        unset($params['ansicht']);
+
+        return $base.($params === [] ? '' : '?'.http_build_query($params));
     }
 
     /**
@@ -127,8 +141,9 @@ class SavedViewsController extends Controller
 
         $view->restore();
 
-        // Renamed on the way back: said, so nobody wonders why the tab reads differently.
-        return back()->with('toast', $view->name === $was ? "Ansicht „{$was}“ ist wieder da." : "Ansicht „{$was}“ ist wieder da, jetzt als „{$view->name}“.");
+        // Opened again, as it was before „Löschen“ (F-22); renamed on the way back: said, so nobody wonders why the tab
+        // reads differently.
+        return redirect()->to(self::href($view))->with('toast', $view->name === $was ? "Ansicht „{$was}“ ist wieder da." : "Ansicht „{$was}“ ist wieder da, jetzt als „{$view->name}“.");
     }
 
     /** The role a view is shared with, as the team reads it (its German label, else its name). */
