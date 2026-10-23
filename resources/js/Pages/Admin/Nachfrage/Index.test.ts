@@ -1,6 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, reactive } from 'vue'
+import { reactive } from 'vue'
 import type { AdminNachfrageProps } from '../../../types/admin/nachfrage'
 import type { DemandGap } from '../../../types/admin/uebersicht'
 
@@ -14,11 +14,8 @@ const get = vi.fn()
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
-    Head: defineComponent({ setup: () => () => null }),
-    Link: defineComponent({
-        props: { href: { type: String, required: true } },
-        setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
-    }),
+    Head: { render: () => null },
+    Link: { props: ['href'], template: '<a :href="href"><slot /></a>' },
     router: { get: (...a: unknown[]) => get(...a), post: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
 }))
 
