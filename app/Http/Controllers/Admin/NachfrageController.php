@@ -41,8 +41,18 @@ class NachfrageController extends Controller
         $canMark = $admin->canQuietly('mark', DemandMark::class);
 
         // Ranked over every gap, then shown fifty at a time: 1.116 rows on one page took seconds to draw (the admin
-        // audit's F-04, F-31). The pages keep the period and the state.
+        // audit's F-04, F-31). The pages keep the period, the state and the search.
         $ranked = $demand->ranked($period, $state, $admin->name);
+        // Each gap keeps its place in the whole ranking, on any page and in any search (F-41).
+        $ranked['rows'] = array_map(static fn (array $gap, int $i): array => $gap + ['rank' => $i + 1], $ranked['rows'], array_keys($ranked['rows']));
+        $search = $request->search();
+
+        // By its car or its key numbers — what the row shows (F-31). The chips keep counting every gap of the Zeitraum.
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $ranked['rows'] = array_values(array_filter($ranked['rows'], static fn (array $gap): bool => str_contains(mb_strtolower($gap['title'].' '.$gap['detail']), $needle)));
+        }
+
         $current = ListPaging::requested($request->query('seite'));
         $page = new LengthAwarePaginator(array_slice($ranked['rows'], ($current - 1) * ListPaging::PER_PAGE, ListPaging::PER_PAGE), count($ranked['rows']), ListPaging::PER_PAGE, $current);
         $ranked['rows'] = $page->items();
@@ -50,12 +60,14 @@ class NachfrageController extends Controller
         return Inertia::render('Admin/Nachfrage/Index', [
             'period' => [...$period->toArray(), 'compare' => false],
             'state' => $state,
+            'search' => $search,
             'demand' => $ranked,
             'pagination' => ListPaging::props($page, '/admin/nachfrage', [
                 'zeitraum' => $period->key,
                 'von' => $period->key === 'eigen' ? $period->from->format('Y-m-d') : null,
                 'bis' => $period->key === 'eigen' ? $period->to->format('Y-m-d') : null,
                 'stand' => $state === 'offen' ? null : $state,
+                'q' => $search === '' ? null : $search,
             ]),
             'searches' => $demand->searches($period),
             'weighting' => [

@@ -13,6 +13,8 @@ export interface SearchMiss {
 export interface AdminNachfrageProps {
     period: DashboardPeriod
     state: DemandState
+    /** What the list is searched for — a car or key numbers (the admin audit's F-31); '' for none. */
+    search?: string
     demand: DemandList
     searches: SearchMiss[]
     /** How the order is made, for the sentence that says so. */

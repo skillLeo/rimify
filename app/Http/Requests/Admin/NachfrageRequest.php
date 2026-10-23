@@ -28,17 +28,23 @@ class NachfrageRequest extends UebersichtRequest
     /** @return array<string, list<string>> */
     public function rules(): array
     {
-        return [...parent::rules(), 'stand' => ['nullable', 'in:'.implode(',', array_keys(Demand::STATES))]];
+        return [...parent::rules(), 'stand' => ['nullable', 'in:'.implode(',', array_keys(Demand::STATES))], 'q' => ['nullable', 'string', 'max:100']];
     }
 
     /** @return array<string, string> */
     public function messages(): array
     {
-        return [...parent::messages(), 'stand.*' => 'Diese Auswahl gibt es nicht. Gezeigt werden die offenen Lücken.'];
+        return [...parent::messages(), 'stand.*' => 'Diese Auswahl gibt es nicht. Gezeigt werden die offenen Lücken.', 'q.*' => 'Der Suchbegriff ist zu lang. Such bitte nach Fahrzeug, HSN oder TSN.'];
     }
 
     public function state(): string
     {
         return $this->filled('stand') ? (string) $this->validated('stand') : 'offen';
+    }
+
+    /** What the list is searched for — a car or key numbers (the admin audit's F-31); '' for none. */
+    public function search(): string
+    {
+        return $this->filled('q') ? trim((string) $this->validated('q')) : '';
     }
 }
