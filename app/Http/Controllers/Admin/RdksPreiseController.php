@@ -15,6 +15,7 @@ use App\Models\TpmsSensorPrice;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Commerce\KomplettradSettings;
 use App\Services\Storefront\VehicleTree;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,9 @@ use Inertia\Response;
 class RdksPreiseController extends Controller
 {
     public const SAVED_TOAST = 'Gespeichert.';
+
+    /** What the price form writes — and so what its stamp covers (EditStamp, the admin audit's F-25). */
+    private const FIELDS = ['make_key', 'make_label_de', 'price_cents', 'active'];
 
     public const DELETED_TOAST = 'Gelöscht.';
 
@@ -133,7 +137,10 @@ class RdksPreiseController extends Controller
         $attributes = $request->priceAttributes();
         $admin = $request->admin();
 
-        DB::transaction(function () use ($attributes, $admin, $price): void {
+        DB::transaction(function () use ($attributes, $admin, $price, $request): void {
+            // The price as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $price = TpmsSensorPrice::query()->lockForUpdate()->findOrFail($price->getKey());
+            EditStamp::guard($request, $price->only(self::FIELDS));
             $before = $price->price_cents;
 
             $price->fill($attributes)->save();
@@ -177,6 +184,8 @@ class RdksPreiseController extends Controller
             'price' => GermanFormat::money($price->price_cents, $price->currency),
             'active' => $price->active,
             'demo' => (bool) $price->getAttribute('is_demo'),
+            // The price as loaded: „Bearbeiten“ sends it back, a save against an older state is refused (F-25).
+            'stamp' => EditStamp::of($price->only(self::FIELDS)),
         ];
     }
 

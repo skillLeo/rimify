@@ -27,7 +27,7 @@ class MailSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from_address' => ['required', 'string', 'email:rfc', 'max:254'],
+            'from_address' => ['required', 'string', 'email:rfc,filter_unicode', 'max:254'],
             'from_name' => ['nullable', 'string', 'max:120'],
             'access_key' => ['nullable', 'string', 'min:16', 'max:128', 'regex:/^[A-Z0-9]+$/'],
             'secret' => ['nullable', 'string', 'min:30', 'max:128'],

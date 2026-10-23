@@ -22,6 +22,7 @@ import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminSectionTabs from '../../../Components/Admin/AdminSectionTabs.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import { ZUBEHOER_TABS } from '../../../Components/Admin/sectionTabs'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminWuchtgewichteProps } from '../../../types/pages'
 
@@ -56,6 +57,8 @@ const form = reactive<ColourForm>(blank())
 const nameField = ref<HTMLInputElement | null>(null)
 /** The id being edited, or null while the form makes a new colour. */
 const editing = ref<number | null>(null)
+/* The colour as its form opened on (EditStamp, the admin audit's F-25): sent with the save. */
+const editingStamp = ref<string | undefined>(undefined)
 /** True once a request went out from this form: only then do the server's messages belong to it. */
 const sent = ref(false)
 const busy = ref(false)
@@ -137,6 +140,7 @@ function swatchStyle(hex: string | null): Record<string, string> | undefined {
 function reset(): void {
     Object.assign(form, blank())
     editing.value = null
+    editingStamp.value = undefined
     sent.value = false
 }
 
@@ -148,6 +152,7 @@ function edit(colour: Colour): void {
     form.active = colour.active
     form.sortOrder = colour.sortOrder
     editing.value = colour.id
+    editingStamp.value = colour.stamp
     sent.value = false
     nameField.value?.focus()
 }
@@ -167,7 +172,8 @@ function submit(): void {
     if (editing.value === null) {
         router.post(BASE, { ...form }, options)
     } else {
-        router.patch(`${BASE}/${editing.value}`, { ...form }, options)
+        // The colour as it was when its form opened: changed meanwhile, the save is refused (EditStamp, F-25).
+        router.patch(`${BASE}/${editing.value}`, { ...form }, { ...options, headers: stampHeaders(editingStamp.value) })
     }
 }
 
@@ -239,6 +245,8 @@ function remove(): void {
         <section v-if="canWrite" class="adm-section" aria-labelledby="wg-form-title">
             <form class="wg__form" :aria-busy="busy ? 'true' : undefined" @submit.prevent="submit">
                 <h2 id="wg-form-title" class="adm-section__title wg__form-title">{{ formTitle }}</h2>
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
 
                 <div class="adm-fields wg__fields">
                     <div class="form-field">

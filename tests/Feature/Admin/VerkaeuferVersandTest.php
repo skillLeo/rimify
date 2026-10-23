@@ -140,6 +140,9 @@ it('checks every field for its form, and names the fix', function (): void {
 
     vvSave(vvForm([], ['min_days' => '3', 'max_days' => '']))->assertSessionHasErrors(['shipping.max_days' => 'Die Lieferzeit braucht beide Werte: von und bis.']);
 
+    // The address the Impressum prints needs a domain with a dot (the admin audit's F-30).
+    vvSave(vvForm(['email' => 'info@rimify']))->assertSessionHasErrors(['seller.email' => 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.']);
+
     expect(Setting::query()->whereIn('key', [Seller::KEY, Shipping::KEY])->count())->toBe(0);
 });
 

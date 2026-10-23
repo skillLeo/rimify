@@ -22,7 +22,7 @@ const props = defineProps<AdminSpeicherProps>()
 
 const editor = useDirtyForm(
     { ...props.form, access_key: '', secret: '' },
-    { method: 'put', url: '/admin/einstellungen/speicher' }
+    { method: 'put', url: '/admin/einstellungen/speicher', stamp: () => props.stamp }
 )
 const form = editor.form
 

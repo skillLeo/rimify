@@ -1,5 +1,7 @@
 /** Einstellungen › Zahlung (ZahlungController::edit). Never a key: only the last four characters, masked. */
 export interface AdminZahlungProps {
+    /** What the form was opened on (EditStamp): a save against an older state is refused. */
+    stamp: string
     form: { mode: 'test' | 'live' }
     publishableMasked: string | null
     secretMasked: string | null

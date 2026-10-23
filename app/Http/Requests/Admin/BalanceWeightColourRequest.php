@@ -41,7 +41,7 @@ class BalanceWeightColourRequest extends FormRequest
             'nameDe' => $nameDe,
             // The column is NOT NULL with no default and MySQL runs in strict mode: a create() with
             // no slug is a 500, not a validation error. It is derived here and never posted.
-            'slug' => Str::slug($nameDe),
+            'slug' => Str::slug($nameDe, '-', 'de'),
             'swatchHex' => $this->hex(),
             'surchargeCents' => Money::fromGerman($this->text('surcharge', '0')),
         ]);

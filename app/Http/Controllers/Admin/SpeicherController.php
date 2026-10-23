@@ -14,7 +14,9 @@ use App\Services\Storage\StorageConfig;
 use App\Services\Storage\StorageSettings;
 use App\Services\Storage\StorageSettingsWriter;
 use App\Services\Storage\StorageTester;
+use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -54,11 +56,15 @@ class SpeicherController extends Controller
             // „Buckets von AWS laden“: the names the key may list, or why it may not.
             'buckets' => $request->session()->get('storage_buckets'),
             'disks' => config('media.disks'),
+            // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
+            'stamp' => EditStamp::of(self::state()),
         ]);
     }
 
     public function update(StorageSettingsRequest $request, StorageSettingsWriter $writer): RedirectResponse
     {
+        // Checked before the save tries the bucket: nothing is tested for a form opened on an older state.
+        EditStamp::guard($request, self::state());
         $result = $writer->save($request->values(), $request->admin());
 
         return back()
@@ -66,6 +72,19 @@ class SpeicherController extends Controller
             ->with('toast', $result['active']
                 ? 'Gespeichert und geprüft. Die Dateien liegen ab jetzt in diesem Bucket.'
                 : 'Gespeichert, aber die Verbindung klappt nicht. Es gelten weiter die bisherigen Einstellungen.');
+    }
+
+    /**
+     * The stored sets as far as a stale save must notice them — every column but the key and the secret themselves
+     * (encrypted, and different on every write; their last four stand for them).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function state(): array
+    {
+        return StorageSetting::query()->orderBy('id')->get()
+            ->map(static fn (StorageSetting $row): array => Arr::except($row->getAttributes(), ['access_key', 'secret']))
+            ->all();
     }
 
     /**

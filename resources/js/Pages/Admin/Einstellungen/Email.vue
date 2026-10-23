@@ -7,11 +7,13 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
+import { decimal } from '../../../format'
 import type { AdminEmailProps } from '../../../types/admin/email'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -20,7 +22,7 @@ const props = defineProps<AdminEmailProps>()
 
 const editor = useDirtyForm(
     { ...props.form, access_key: '', secret: '' },
-    { method: 'put', url: '/admin/einstellungen/e-mail' }
+    { method: 'put', url: '/admin/einstellungen/e-mail', stamp: () => props.stamp }
 )
 const form = editor.form
 
@@ -51,13 +53,73 @@ function testConnection(): void {
 
 const releasing = ref<number | null>(null)
 
-function release(id: number): void {
-    if (releasing.value !== null) {
+type Suppression = AdminEmailProps['suppressions'][number]
+
+/**
+ * The address asked about before its block is lifted — it acted on one click, and nothing here sets a block again
+ * (the admin audit's F-24). Every other such action asks first.
+ */
+const lifting = ref<Suppression | null>(null)
+const liftOpen = ref(false)
+
+function askRelease(row: Suppression): void {
+    lifting.value = row
+    liftOpen.value = true
+}
+
+const liftBody = computed(() =>
+    (lifting.value?.reason === 'Beschwerde'
+        ? 'Von dieser Adresse kam eine Beschwerde: Eine Mail des Shops wurde als Spam gemeldet. Jede weitere Beschwerde schadet dem Absender bei Amazon SES.'
+        : 'Amazon SES hat die Adresse als dauerhaft unzustellbar gemeldet. Stimmt sie weiterhin nicht, meldet SES sie erneut.') +
+    ' Nach dem Aufheben schickt der Shop ihr wieder Mails. Von Hand sperren lässt sie sich hier nicht.'
+)
+
+/*
+ * The block list shows the newest addresses; any other is found by its search, run on the server and answered with the
+ * list alone, so the settings typed above stay as they are (the admin audit's sweep after F-26).
+ */
+const SHOWN = 50
+const blockedQuery = ref(props.suppressionSearch ?? '')
+const blockedSearchShown = computed(() => (props.suppressionsTotal ?? 0) > SHOWN || (props.suppressionSearch ?? '') !== '')
+
+const blockedNote = computed(() => {
+    const total = props.suppressionsTotal ?? props.suppressions.length
+    const search = props.suppressionSearch ?? ''
+    const found = props.suppressionsFound ?? props.suppressions.length
+
+    if (search !== '') {
+        return found === 0
+            ? `Keine gesperrte Adresse passt zu „${search}“.`
+            : `${found === 1 ? 'Eine gesperrte Adresse passt' : `${decimal(found, 0)} gesperrte Adressen passen`} zu „${search}“${found > props.suppressions.length ? `, hier stehen die neuesten ${decimal(props.suppressions.length, 0)}` : ''}.`
+    }
+
+    return total > props.suppressions.length ? `Hier stehen die neuesten ${decimal(props.suppressions.length, 0)} von ${decimal(total, 0)} gesperrten Adressen. Eine ältere findest du über die Suche.` : ''
+})
+
+function findBlocked(): void {
+    const typed = blockedQuery.value.trim()
+
+    router.get('/admin/einstellungen/e-mail', typed === '' ? {} : { sperre: typed }, {
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+        only: ['suppressions', 'suppressionsFound', 'suppressionsTotal', 'suppressionSearch'],
+    })
+}
+
+function release(): void {
+    const row = lifting.value
+
+    if (row === null || releasing.value !== null) {
         return
     }
 
-    releasing.value = id
-    router.delete(`/admin/einstellungen/e-mail/sperren/${id}`, { preserveScroll: true, onFinish: () => (releasing.value = null) })
+    releasing.value = row.id
+    router.delete(`/admin/einstellungen/e-mail/sperren/${row.id}`, {
+        preserveScroll: true,
+        onSuccess: () => (liftOpen.value = false),
+        onFinish: () => (releasing.value = null),
+    })
 }
 
 const context = props.sending
@@ -189,8 +251,18 @@ const context = props.sending
                     <p id="em-topic-error" class="form-field__error">{{ form.errors.topic_arn }}</p>
                 </div>
 
-                <p v-if="!suppressions.length" class="adm-form__note">Keine Adresse gesperrt.</p>
-                <div v-else class="adm-panel">
+                <!-- Inside the settings form: no form of its own, and Enter searches rather than saves the settings. -->
+                <div v-if="blockedSearchShown" class="form-field em-blocked-search" role="search">
+                    <label class="form-field__label" for="em-blocked-q">Gesperrte Adresse suchen</label>
+                    <div class="em-blocked-search__row">
+                        <input id="em-blocked-q" v-model="blockedQuery" class="input" type="search" maxlength="190" autocomplete="off" spellcheck="false" placeholder="Adresse oder ein Teil davon" @keydown.enter.prevent="findBlocked">
+                        <button class="btn btn--secondary" type="button" @click="findBlocked">Suchen</button>
+                    </div>
+                </div>
+                <p v-if="blockedNote" class="adm-form__note em-blocked-note" role="status">{{ blockedNote }}</p>
+
+                <p v-if="!(suppressionsTotal ?? suppressions.length)" class="adm-form__note">Keine Adresse gesperrt.</p>
+                <div v-else-if="suppressions.length" class="adm-panel">
                     <table class="adm-table">
                         <caption class="visually-hidden">Gesperrte Adressen</caption>
                         <thead>
@@ -207,7 +279,7 @@ const context = props.sending
                                 <td data-label="Grund">{{ row.reason }}<template v-if="row.detail"> ({{ row.detail }})</template></td>
                                 <td data-label="Gemeldet">{{ row.at }}</td>
                                 <td data-label="Aktion">
-                                    <button class="btn btn--secondary btn--sm" type="button" :aria-busy="releasing === row.id ? 'true' : undefined" @click="release(row.id)">Sperre aufheben</button>
+                                    <button class="btn btn--secondary btn--sm" type="button" :aria-busy="releasing === row.id ? 'true' : undefined" @click="askRelease(row)">Sperre aufheben</button>
                                 </td>
                             </tr>
                         </tbody>
@@ -217,10 +289,30 @@ const context = props.sending
         </form>
 
         <AdminSaveBar :editor="editor" />
+
+        <AdminConfirm
+            v-model:open="liftOpen"
+            :title="`Sperre für ${lifting?.email ?? ''} aufheben?`"
+            :body="liftBody"
+            confirm-label="Sperre aufheben"
+            :busy="releasing !== null"
+            @confirm="release"
+        />
     </AdminPage>
 </template>
 
 <style scoped>
+.em-blocked-search__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+}
+
+.em-blocked-search__row .input {
+    flex: 1 1 calc(24 * var(--ch-text));
+    max-width: calc(40 * var(--ch-text));
+}
+
 .em-masked {
     display: flex;
     flex-wrap: wrap;

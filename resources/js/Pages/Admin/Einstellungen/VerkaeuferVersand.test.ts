@@ -26,6 +26,7 @@ const { default: Page } = await import('./VerkaeuferVersand.vue')
 
 function props(over: Partial<AdminVerkaeuferVersandProps> = {}): AdminVerkaeuferVersandProps {
     return {
+        stamp: 'stand-1',
         seller: {
             name: 'Beispiel Räder GmbH',
             legal_form: '',

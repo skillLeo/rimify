@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\StorageSetting;
 use App\Services\Storage\StorageConfig;
 use App\Services\Storage\StorageSettings;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -225,4 +226,19 @@ describe('the bucket list and the test button', function (): void {
         expect(StorageSetting::query()->count())->toBe(0)
             ->and(AuditLog::query()->where('description', 'storage.settings_updated')->count())->toBe(0);
     });
+});
+
+it('refuses a save from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    test()->actingAs(speicherAdmin(), 'admin')->withSession(speicherSudo())->put(SPEICHER_URL, speicherForm())->assertSessionHasNoErrors();
+    $stale = speicherProps()['stamp'];
+
+    // Another tab saves another public address.
+    test()->actingAs(speicherAdmin(), 'admin')->withSession(speicherSudo())->put(SPEICHER_URL, speicherForm(['public_url' => 'https://bilder.rimify.de']))
+        ->assertSessionHasNoErrors();
+
+    test()->actingAs(speicherAdmin(), 'admin')->withSession(speicherSudo())->from(SPEICHER_URL)
+        ->withHeader(EditStamp::HEADER, $stale)->put(SPEICHER_URL, speicherForm(['public_url' => 'https://alt.rimify.de']))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect(StorageSetting::query()->orderByDesc('id')->value('public_url'))->toBe('https://bilder.rimify.de');
 });

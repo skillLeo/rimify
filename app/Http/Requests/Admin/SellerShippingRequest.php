@@ -89,7 +89,7 @@ class SellerShippingRequest extends FormRequest
             'seller.register_number' => ['nullable', 'string', 'max:40', 'regex:/^[A-Za-zÄÖÜäöü. ]{2,8}\s?\d{1,7}(\s?[A-Z]{1,2})?$/u'],
             'seller.vat_id' => ['nullable', 'string', 'regex:/^DE\d{9}$/'],
             'seller.tax_number' => ['nullable', 'string', 'max:20', 'regex:/^\d[\d\/ ]{8,18}\d$/'],
-            'seller.email' => ['nullable', 'string', 'email:rfc', 'max:190'],
+            'seller.email' => ['nullable', 'string', 'email:rfc,filter_unicode', 'max:190'],
             'seller.phone' => ['nullable', 'string', 'max:30', 'regex:/^\+?[\d ()\/-]{6,30}$/'],
             'seller.placeholder' => ['boolean'],
             'seller.not_applicable' => ['array'],

@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\SellerShippingRequest;
 use App\Models\AdminUser;
 use App\Models\Setting;
 use App\Services\Admin\AuditTrail;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\Seller;
 use App\Support\Shipping;
@@ -79,6 +80,8 @@ class VerkaeuferVersandController extends Controller
             'shippingPreview' => $preview->summary(),
             'countries' => Shipping::COUNTRIES,
             'contactEmail' => is_string($mail = config('rimify.contact.email')) && $mail !== '' ? $mail : null,
+            // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
+            'stamp' => EditStamp::of(self::state()),
         ]);
     }
 
@@ -88,8 +91,11 @@ class VerkaeuferVersandController extends Controller
         $shipping = $request->shipping();
         $admin = $request->admin();
 
-        DB::transaction(static function () use ($seller, $shipping, $admin): void {
-            $before = [Setting::get(Seller::KEY), Setting::get(Shipping::KEY)];
+        DB::transaction(static function () use ($request, $seller, $shipping, $admin): void {
+            // Read under a lock: two saves at once are taken one after the other, and the second is compared with the first's result.
+            Setting::query()->whereIn('key', [Seller::KEY, Shipping::KEY])->lockForUpdate()->get();
+            $before = self::state();
+            EditStamp::guard($request, $before);
 
             Setting::set(Seller::KEY, $seller);
             Setting::set(Shipping::KEY, $shipping);
@@ -102,6 +108,16 @@ class VerkaeuferVersandController extends Controller
         return back()->with('toast', $open === []
             ? 'Gespeichert. Impressum, Rechnungen, Shop und Bestellmail zeigen jetzt diese Angaben.'
             : 'Gespeichert. Für den Live-Shop fehlt noch: '.implode(', ', $open).'.');
+    }
+
+    /**
+     * The two stored values this page edits, as they are now.
+     *
+     * @return array{0: mixed, 1: mixed}
+     */
+    private static function state(): array
+    {
+        return [Setting::get(Seller::KEY), Setting::get(Shipping::KEY)];
     }
 
     /**

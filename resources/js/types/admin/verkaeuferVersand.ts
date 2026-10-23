@@ -49,4 +49,6 @@ export interface AdminVerkaeuferVersandProps {
     countries: Record<string, string>
     /** The shop's contact address (`RIMIFY_CONTACT_EMAIL`), which answers where the seller's own is empty. */
     contactEmail: string | null
+    /** What the form was opened on (EditStamp): a save against an older state is refused. */
+    stamp: string
 }

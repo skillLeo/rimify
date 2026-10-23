@@ -27,7 +27,7 @@ const props = defineProps<AdminVerkaeuferVersandProps>()
 
 const editor = useDirtyForm(
     { seller: { ...props.seller, not_applicable: { ...props.seller.not_applicable } }, shipping: { ...props.shipping } },
-    { method: 'put', url: '/admin/einstellungen/verkaeufer-versand' }
+    { method: 'put', url: '/admin/einstellungen/verkaeufer-versand', stamp: () => props.stamp }
 )
 const form = editor.form
 

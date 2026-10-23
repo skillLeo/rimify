@@ -27,7 +27,7 @@ const props = defineProps<AdminZahlungProps>()
 
 const editor = useDirtyForm(
     { mode: props.form.mode, publishable_key: '', secret_key: '', webhook_secret: '' },
-    { method: 'put', url: '/admin/einstellungen/zahlung' }
+    { method: 'put', url: '/admin/einstellungen/zahlung', stamp: () => props.stamp }
 )
 const form = editor.form
 

@@ -16,8 +16,10 @@ use App\Services\Mail\MailSettingsWriter;
 use App\Services\Mail\SenderDns;
 use App\Services\Mail\SesProbe;
 use App\Services\Storage\StorageConfig;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,6 +32,9 @@ use Inertia\Response;
  */
 class EmailController extends Controller
 {
+    /** The blocked addresses the page lists, newest first; any other is found by its search. */
+    public const SUPPRESSIONS_SHOWN = 50;
+
     public function edit(MailSettingsViewRequest $request, MailSettings $settings, SenderDns $dns): Response
     {
         $active = MailSetting::query()->where('state', MailSetting::ACTIVE)->first();
@@ -38,6 +43,9 @@ class EmailController extends Controller
         /** @var array<string, mixed>|null $test */
         $test = $request->session()->get('mail_test') ?? $shown?->last_test;
         $domain = MailSetting::domainOf($shown->from_address ?? null);
+        $search = $request->blockedSearch();
+        $blocked = MailSuppression::query()->inForce()
+            ->when($search !== '', static fn ($q) => $q->where('email', 'like', '%'.addcslashes($search, '%_\\').'%'));
 
         return Inertia::render('Admin/Einstellungen/Email', [
             'form' => [
@@ -61,7 +69,12 @@ class EmailController extends Controller
             ),
             'domain' => $domain,
             'webhookUrl' => route('webhooks.ses'),
-            'suppressions' => MailSuppression::query()->inForce()->latest('occurred_at')->limit(50)->get()
+            // The newest SUPPRESSIONS_SHOWN, and a search for any other: the list stopped at 50 without a word, and an
+            // older address could not be released (the admin audit's sweep after F-26).
+            'suppressionsTotal' => MailSuppression::query()->inForce()->count(),
+            'suppressionSearch' => $search,
+            'suppressionsFound' => $blocked->count(),
+            'suppressions' => $blocked->latest('occurred_at')->limit(self::SUPPRESSIONS_SHOWN)->get()
                 ->map(static fn (MailSuppression $s): array => [
                     'id' => $s->id,
                     'email' => $s->email,
@@ -69,11 +82,15 @@ class EmailController extends Controller
                     'detail' => $s->detail,
                     'at' => GermanFormat::dateTime($s->occurred_at),
                 ])->all(),
+            // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
+            'stamp' => EditStamp::of(self::state()),
         ]);
     }
 
     public function update(MailSettingsRequest $request, MailSettingsWriter $writer): RedirectResponse
     {
+        // Checked before the save asks SES: nothing is probed for a form opened on an older state.
+        EditStamp::guard($request, self::state());
         $result = $writer->save($request->values(), $request->admin());
 
         return back()
@@ -83,6 +100,19 @@ class EmailController extends Controller
                 MailSettings::cleared($result['test']) => 'Gespeichert und geprüft. Der Shop verschickt seine Mails ab jetzt über Amazon SES.',
                 default => 'Gespeichert. Der Zugang klappt; verschickt wird über SES, sobald die Prüfung unten keine offenen Punkte mehr nennt.',
             });
+    }
+
+    /**
+     * The stored sets as far as a stale save must notice them — every column but the key and the secret themselves
+     * (encrypted, and different on every write; their last four stand for them).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function state(): array
+    {
+        return MailSetting::query()->orderBy('id')->get()
+            ->map(static fn (MailSetting $row): array => Arr::except($row->getAttributes(), ['access_key', 'secret']))
+            ->all();
     }
 
     /** „Verbindung testen“ with the values on the form — nothing is saved, nothing is sent. */
