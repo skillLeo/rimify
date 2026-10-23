@@ -3,7 +3,7 @@
  * Inhalte › Seiten — every page of the shop whose words the team edits: the homepage, the Ratgeber
  * articles and the legal pages (docs/admin/inhalte-build-plan.md).
  *
- * One primary action, *Ratgeber-Artikel anlegen* — the only kind of page a team adds; the others
+ * One primary action, *Blog-Artikel anlegen* — the only kind of page a team adds; the others
  * are fixed by the shop's structure. A row says what differs from the normal state and nothing
  * else: not published, a draft waiting, a legal text still a placeholder (D-319).
  */
@@ -46,7 +46,7 @@ function placeholderNote(group: SeitenGroup): string {
     return `Alle ${NUMBER_WORDS[n] ?? String(n)} Seiten sind noch Platzhalter.`
 }
 
-/* ── Ratgeber-Artikel anlegen ────────────────────────────────────────────────────────── */
+/* ── Blog-Artikel anlegen ────────────────────────────────────────────────────────── */
 
 const creating = ref(false)
 const title = ref('')
@@ -66,7 +66,7 @@ function openCreate(): void {
     creating.value = true
 }
 
-// „Neu › Ratgeber-Artikel anlegen“ from the rail's foot or the palette lands here with ?neu=1.
+// „Neu › Blog-Artikel anlegen“ from the rail's foot or the palette lands here with ?neu=1.
 useOpenOnArrival('neu', openCreate, () => props.can.create)
 
 function create(): void {
@@ -91,7 +91,7 @@ function create(): void {
 <template>
     <AdminPage title="Seiten" :context="context">
         <template v-if="can.create" #primary>
-            <button class="btn btn--primary" type="button" @click="openCreate">Ratgeber-Artikel anlegen</button>
+            <button class="btn btn--primary" type="button" @click="openCreate">Blog-Artikel anlegen</button>
         </template>
 
         <!-- One table, one header, a row group per kind of page: the lists line up because they
@@ -139,7 +139,7 @@ function create(): void {
 
         <AdminState v-else kind="empty" text="Noch keine Seite, deren Text du hier bearbeiten kannst." />
 
-        <Dialog v-model:open="creating" title="Ratgeber-Artikel anlegen" content-class="adm-dialog adm-dialog--narrow">
+        <Dialog v-model:open="creating" title="Blog-Artikel anlegen" content-class="adm-dialog adm-dialog--narrow">
             <form id="sn-create" class="adm-fields" novalidate @submit.prevent="create">
                 <div class="form-field">
                     <label class="form-field__label" for="sn-title">Titel</label>

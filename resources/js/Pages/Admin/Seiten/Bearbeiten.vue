@@ -1105,7 +1105,7 @@ function isLive(revision: SeitenRevision, index: number): boolean {
         <AdminConfirm
             v-model:open="withdrawing"
             :title="`${page.title} zurückziehen?`"
-            body="Der Artikel verschwindet aus dem Shop und aus der Liste der Ratgeber. Seine Texte bleiben hier, und du kannst ihn jederzeit wieder veröffentlichen."
+            body="Der Artikel verschwindet aus dem Shop und aus dem Blog. Seine Texte bleiben hier, und du kannst ihn jederzeit wieder veröffentlichen."
             confirm-label="Zurückziehen"
             :busy="busy"
             @confirm="withdraw"

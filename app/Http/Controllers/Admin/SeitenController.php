@@ -67,7 +67,7 @@ class SeitenController extends Controller
 
     public const CREATED = 'Artikel angelegt. Er ist noch nicht veröffentlicht.';
 
-    public const NOT_WITHDRAWABLE = 'Zurückziehen geht nur bei einem veröffentlichten Ratgeber-Artikel.';
+    public const NOT_WITHDRAWABLE = 'Zurückziehen geht nur bei einem veröffentlichten Blog-Artikel.';
 
     public const UNCHANGED = 'Der Shop zeigt schon genau diesen Stand. Es ist keine neue Version entstanden.';
 
@@ -76,7 +76,7 @@ class SeitenController extends Controller
 
     private const GROUPS = [
         Page::KIND_MARKETING => 'Startseite',
-        Page::KIND_GUIDE => 'Ratgeber',
+        Page::KIND_GUIDE => 'Blog',
         Page::KIND_LEGAL => 'Rechtliches',
     ];
 
@@ -159,14 +159,10 @@ class SeitenController extends Controller
         $admin = self::admin($request);
 
         $revisions = [];
-        $history = $page->revisions()->limit(20)->get();
-
-        // The wording the admin first replaced stays reachable however many versions follow it.
-        $first = $page->revisions()->reorder()->orderBy('id')->first();
-
-        if ($first !== null && ! $history->contains('id', $first->id)) {
-            $history->push($first);
-        }
+        // Every published state, newest first, the wording the admin first replaced last. The list stopped at the latest
+        // 20 and the first, and the ones between could not be loaded back (the admin audit's sweep after F-26). Only what
+        // the list shows is read — never a version's content.
+        $history = $page->revisions()->get(['id', 'page_id', 'created_at', 'author_email', 'note']);
 
         $names = self::names([...$history->pluck('author_email')->filter()->all(), $page->draft_author_email]);
 

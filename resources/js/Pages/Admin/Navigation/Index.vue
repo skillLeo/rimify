@@ -19,6 +19,7 @@ import Icon from '../../../Components/Admin/AdminIcon.vue'
 import StoreIcon from '../../../Components/Ui/Icon.vue'
 import { isIconName, type IconName } from '../../../icons'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import type { AdminNavigationProps, NavEntry, NavMenu } from '../../../types/admin/navigation'
 import type { SchemaField } from '../../../types/admin/seiten'
 import FieldInput from '../Seiten/FieldInput.vue'
@@ -218,7 +219,8 @@ function save(): void {
     if (target === 'new') {
         router.post('/admin/navigation', payload, options)
     } else {
-        router.put(`/admin/navigation/${target.id}`, payload, options)
+        // The entry as it was when the dialog opened: changed meanwhile, the save is refused (EditStamp, F-25).
+        router.put(`/admin/navigation/${target.id}`, payload, { ...options, headers: stampHeaders(target.stamp) })
     }
 }
 
@@ -306,6 +308,8 @@ function move(entry: NavEntry, by: -1 | 1): void {
     router.put('/admin/navigation/reihenfolge', { menu: menu.key, ids: items.map((item) => item.id) }, {
         preserveScroll: true,
         preserveState: true,
+        // The order this menu shows: moved meanwhile elsewhere, the move is refused (EditStamp, F-25).
+        headers: stampHeaders(menu.orderStamp),
         onSuccess: () => markFresh(entry.id),
         onError: refused(menu.key),
         onFinish: () => {
@@ -438,6 +442,8 @@ function move(entry: NavEntry, by: -1 | 1): void {
 
         <Dialog v-model:open="dialogOpen" :title="title" content-class="adm-dialog" @close-auto-focus="restoreFocus">
             <form id="nav-form" class="adm-fields" novalidate @submit.prevent="save">
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
                 <div v-if="editing === 'new'" class="form-field">
                     <label class="form-field__label" for="nav-menu">Menü</label>
                     <select
@@ -473,7 +479,7 @@ function move(entry: NavEntry, by: -1 | 1): void {
                         <option value="" disabled>Ziel wählen</option>
                         <option v-for="option in targets" :key="option.value" :value="option.value">{{ option.label }}</option>
                     </select>
-                    <p id="nav-target-help" class="form-field__help">Nur Seiten dieses Shops. Einen Ratgeber-Artikel legst du unter Seiten an.</p>
+                    <p id="nav-target-help" class="form-field__help">Nur Seiten dieses Shops. Einen Blog-Artikel legst du unter Seiten an.</p>
                     <p id="nav-target-err" class="form-field__error">{{ errors.target ?? '' }}</p>
                 </div>
 

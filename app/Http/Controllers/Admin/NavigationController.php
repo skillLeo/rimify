@@ -15,6 +15,7 @@ use App\Models\NavItem;
 use App\Services\Admin\AuditTrail;
 use App\Services\Content\NavigationSchema;
 use App\Services\Storefront\Chrome;
+use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,9 @@ class NavigationController extends Controller
 
     public const LAST_ITEM = 'Ein Menü braucht mindestens einen Eintrag. Leg zuerst einen anderen an.';
 
+    /** What the entry form writes — and so what its stamp covers (EditStamp, the admin audit's F-25). */
+    private const FIELDS = ['menu', 'label', 'route_name', 'href', 'icon', 'visible'];
+
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', NavItem::class);
@@ -60,10 +64,13 @@ class NavigationController extends Controller
                     'icon' => $item->icon,
                     'visible' => $item->visible,
                     'locked' => NavigationSchema::isLocked($item),
+                    // The entry as loaded: „Bearbeiten“ sends it back, a save against an older state is refused (F-25).
+                    'stamp' => EditStamp::of($item->only(self::FIELDS)),
                 ];
             }
 
-            $menus[] = ['key' => $key] + $menu + ['items' => $rows];
+            // The menu's order as loaded: a move sends it back, a move from an older order is refused (F-25).
+            $menus[] = ['key' => $key] + $menu + ['items' => $rows, 'orderStamp' => EditStamp::of(array_column($rows, 'id'))];
         }
 
         $options = [];
@@ -114,7 +121,10 @@ class NavigationController extends Controller
         $attributes = $request->itemAttributes();
         $admin = $request->admin();
 
-        DB::transaction(function () use ($attributes, $admin, $item): void {
+        DB::transaction(function () use ($attributes, $admin, $item, $request): void {
+            // The entry as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $item = NavItem::query()->lockForUpdate()->findOrFail($item->id);
+            EditStamp::guard($request, $item->only(self::FIELDS));
             $before = ['label' => $item->label, 'target' => NavigationSchema::targetLabel($item), 'icon' => $item->icon, 'visible' => $item->visible];
 
             $item->fill($attributes)->save();
@@ -162,7 +172,10 @@ class NavigationController extends Controller
         $menu = $request->menu();
         $admin = $request->admin();
 
-        DB::transaction(function () use ($ids, $menu, $admin): void {
+        DB::transaction(function () use ($ids, $menu, $admin, $request): void {
+            // The menu's order as it is now, held: a move from a list in an older order is refused (EditStamp, F-25).
+            EditStamp::guard($request, NavItem::query()->where('menu', $menu)->orderBy('sort_order')->orderBy('id')->lockForUpdate()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all());
+
             foreach ($ids as $index => $id) {
                 NavItem::query()->whereKey($id)->update(['sort_order' => ($index + 1) * 10]);
             }

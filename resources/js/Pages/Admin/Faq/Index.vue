@@ -18,6 +18,7 @@ import AdminState from '../../../Components/Admin/AdminState.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import type { AdminFaqProps, FaqEntryRow } from '../../../types/admin/faq'
 import type { SchemaField } from '../../../types/admin/seiten'
 import FieldInput from '../Seiten/FieldInput.vue'
@@ -222,7 +223,8 @@ function save(): void {
     if (target === 'new') {
         router.post('/admin/faq', { ...draft }, options)
     } else {
-        router.put(`/admin/faq/${target.id}`, { ...draft }, options)
+        // The entry as it was when the dialog opened: changed meanwhile, the save is refused (EditStamp, F-25).
+        router.put(`/admin/faq/${target.id}`, { ...draft }, { ...options, headers: stampHeaders(target.stamp) })
     }
 }
 
@@ -321,6 +323,8 @@ function move(entry: FaqEntryRow, by: -1 | 1): void {
     router.put('/admin/faq/reihenfolge', { ids }, {
         preserveScroll: true,
         preserveState: true,
+        // The order this list shows: moved meanwhile elsewhere, the move is refused (EditStamp, F-25).
+        headers: stampHeaders(props.orderStamp),
         onSuccess: () => markFresh(entry.id),
         onError: refused,
         onFinish: () => {
@@ -451,6 +455,8 @@ function move(entry: FaqEntryRow, by: -1 | 1): void {
 
         <Dialog v-model:open="dialogOpen" :title="title" content-class="adm-dialog" @close-auto-focus="restoreFocus">
             <form id="faq-form" class="adm-fields" novalidate @submit.prevent="save">
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
                 <div class="form-field">
                     <label class="form-field__label" for="faq-group">Gruppe</label>
                     <select id="faq-group" v-model="draft.group" class="input" :aria-invalid="errors.group ? 'true' : undefined" aria-describedby="faq-group-err">

@@ -40,6 +40,9 @@ final class NavigationSchema
         'felgenrechner.index' => 'Felgenrechner',
         'vergleich.index' => 'Vergleich',
         'faq' => 'Fragen und Antworten',
+        // The Blog's index (D-230): the footer's „Blog“ leads here, and without it in this list its entry could not be
+        // saved and read „führt zu blog.index“ (the admin audit's F-19).
+        'blog.index' => 'Blog',
         'kontakt' => 'Kontakt',
         'warenkorb.index' => 'Warenkorb',
     ];
@@ -90,7 +93,7 @@ final class NavigationSchema
                 continue;
             }
 
-            $targets['page:'.$page->href()] = ($page->kind === Page::KIND_GUIDE ? 'Ratgeber: ' : 'Rechtliches: ').$page->title;
+            $targets['page:'.$page->href()] = ($page->kind === Page::KIND_GUIDE ? 'Blog: ' : 'Rechtliches: ').$page->title;
         }
 
         return $targets;

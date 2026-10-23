@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\FaqEntry;
 use App\Services\Admin\AdminErrorPage;
 use App\Services\Admin\AuditDescriber;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
@@ -234,4 +235,34 @@ it('never brings the seeded questions back over the team\'s', function (): void 
     expect(FaqEntry::query()->where('question_de', 'Was ist RIMIFY?')->exists())->toBeFalse()
         ->and(FaqEntry::query()->where('question_de', 'Wer ist RIMIFY?')->exists())->toBeTrue()
         ->and(FaqEntry::query()->count())->toBe(8);
+});
+
+it('refuses a question saved from a dialog opened before the last save of it, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $entry = faqEntry('Kann ich Felgen zurückgeben?');
+    $stale = collect($this->actingAs(faqAdmin(), 'admin')->get('/admin/faq')->viewData('page')['props']['groups'])
+        ->flatMap(static fn (array $group): array => $group['entries'])->firstWhere('id', $entry->id)['stamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+
+    $form = ['group' => $entry->group_key, 'question' => $entry->question_de, 'published' => true];
+    $this->actingAs(faqAdmin(), 'admin')->from('/admin/faq')->put('/admin/faq/'.$entry->id, ['answer' => 'Ja, innerhalb von 14 Tagen.'] + $form)->assertSessionHasNoErrors();
+    $this->actingAs(faqAdmin(), 'admin')->from('/admin/faq')->withHeader(EditStamp::HEADER, $stale)
+        ->put('/admin/faq/'.$entry->id, ['question' => 'Kann ich Felgen umtauschen?', 'answer' => $entry->answer_de] + $form)
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($entry->fresh()->only(['question_de', 'answer_de']))->toBe(['question_de' => 'Kann ich Felgen zurückgeben?', 'answer_de' => 'Ja, innerhalb von 14 Tagen.']);
+});
+
+it('refuses a move from a list in an older order, and keeps the move made meanwhile (the admin audit\'s F-25)', function (): void {
+    $stale = $this->actingAs(faqAdmin(), 'admin')->get('/admin/faq')->viewData('page')['props']['orderStamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+    $ids = FaqEntry::query()->orderBy('sort_order')->orderBy('id')->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all();
+
+    // Tab A swaps the first two; tab B, still on the older order, swaps the third and fourth.
+    $moved = [$ids[1], $ids[0], ...array_slice($ids, 2)];
+    $this->actingAs(faqAdmin(), 'admin')->from('/admin/faq')->put('/admin/faq/reihenfolge', ['ids' => $moved])->assertSessionHasNoErrors();
+    $this->actingAs(faqAdmin(), 'admin')->from('/admin/faq')->withHeader(EditStamp::HEADER, $stale)
+        ->put('/admin/faq/reihenfolge', ['ids' => [$ids[0], $ids[1], $ids[3], $ids[2], ...array_slice($ids, 4)]])
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect(FaqEntry::query()->orderBy('sort_order')->orderBy('id')->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all())->toBe($moved);
 });

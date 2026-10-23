@@ -8,6 +8,7 @@ use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\NavItem;
 use App\Services\Admin\AuditDescriber;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\ContentSeeder;
@@ -240,4 +241,47 @@ it('never lets a release write the seeded menus over the team\'s', function (): 
     expect(NavItem::query()->where('menu', 'header')->pluck('label')->all())->toBe(['Felgen', 'RIMIFY-Check', 'Hilfe'])
         // A menu nobody touched still follows the seed.
         ->and(NavItem::query()->where('menu', 'footer_legal')->count())->toBe(4);
+});
+
+it('keeps the footer\'s „Blog“ editable: its target is the Blog, offered and named (the admin audit\'s F-19)', function (): void {
+    $blog = navItem('footer_shop', 'Blog');
+    expect($blog->targetKey())->toBe('route:blog.index');
+
+    $targets = $this->actingAs(navAdmin(), 'admin')->get('/admin/navigation')->assertOk()->viewData('page')['props']['targets'];
+    expect(collect($targets)->firstWhere('value', 'route:blog.index')['label'] ?? null)->toBe('Blog');
+
+    $this->actingAs(navAdmin(), 'admin')->from('/admin/navigation')
+        ->put('/admin/navigation/'.$blog->id, navPayload($blog, ['label' => 'Ratgeber & Blog']))
+        ->assertSessionHasNoErrors();
+
+    expect($blog->refresh()->label)->toBe('Ratgeber & Blog')->and($blog->targetKey())->toBe('route:blog.index');
+});
+
+it('refuses an entry saved from a dialog opened before the last save of it, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $item = navItem('header', 'Kontakt');
+    $menus = $this->actingAs(navAdmin(), 'admin')->get('/admin/navigation')->viewData('page')['props']['menus'];
+    $stale = collect($menus)->firstWhere('key', 'header')['items'][array_search($item->id, array_column(collect($menus)->firstWhere('key', 'header')['items'], 'id'), true)]['stamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+
+    $this->actingAs(navAdmin(), 'admin')->from('/admin/navigation')->put('/admin/navigation/'.$item->id, navPayload($item, ['label' => 'Hilfe']))->assertSessionHasNoErrors();
+    $this->actingAs(navAdmin(), 'admin')->from('/admin/navigation')->withHeader(EditStamp::HEADER, $stale)
+        ->put('/admin/navigation/'.$item->id, navPayload($item, ['label' => 'Kontakt', 'visible' => false]))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($item->refresh()->only(['label', 'visible']))->toBe(['label' => 'Hilfe', 'visible' => true]);
+});
+
+it('refuses a move from a menu in an older order, and keeps the move made meanwhile (the admin audit\'s F-25)', function (): void {
+    $stale = collect($this->actingAs(navAdmin(), 'admin')->get('/admin/navigation')->viewData('page')['props']['menus'])->firstWhere('key', 'header')['orderStamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+    $ids = NavItem::query()->where('menu', 'header')->orderBy('sort_order')->orderBy('id')->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all();
+    expect(count($ids))->toBeGreaterThanOrEqual(4);
+
+    $moved = [$ids[1], $ids[0], ...array_slice($ids, 2)];
+    $this->actingAs(navAdmin(), 'admin')->from('/admin/navigation')->put('/admin/navigation/reihenfolge', ['menu' => 'header', 'ids' => $moved])->assertSessionHasNoErrors();
+    $this->actingAs(navAdmin(), 'admin')->from('/admin/navigation')->withHeader(EditStamp::HEADER, $stale)
+        ->put('/admin/navigation/reihenfolge', ['menu' => 'header', 'ids' => [$ids[0], $ids[1], $ids[3], $ids[2], ...array_slice($ids, 4)]])
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect(NavItem::query()->where('menu', 'header')->orderBy('sort_order')->orderBy('id')->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all())->toBe($moved);
 });
