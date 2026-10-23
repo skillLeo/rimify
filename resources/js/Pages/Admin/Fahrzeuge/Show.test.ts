@@ -67,6 +67,31 @@ describe('Fahrzeuge › Show', () => {
         )
     })
 
+    it('says where the list of rows is cut, and counts them all (the admin audit’s F-37)', () => {
+        const rows = Array.from({ length: 3 }, (_, i) => ({ id: i + 1, documentId: 4, document: 'ABE 55255', documentHref: '/admin/gutachten/4', wheel: 'Borbet Y', size: '8J × 18 ET 35', status: 'published', requiresEntry: false, conditions: 0 }))
+
+        expect(page({ rows, rowsTotal: 1_204 }).find('.fs-cut').text()).toBe('Hier stehen die ersten 3 von 1.204 Zeilen, nach Gutachten geordnet. Die übrigen stehen auf der Seite ihres Gutachtens.')
+        expect(page({ rows, rowsTotal: 3 }).find('.fs-cut').exists()).toBe(false)
+    })
+
+    it('corrects a car typed by hand that nothing refers to, and says why another stays as it is (the admin audit’s F-17)', async () => {
+        const values = { make: 'Prüfwerk', model: 'Größe Eins', variant: '1.6 Limousine', type_designation: 'PW1', hsn: '0005', tsn: 'ZZ8', eg_number: 'e1*2007/46*0999*02', power_kw: '90', build_from: '03.2019', build_to: '', body_form: '', drive_axle: '' }
+        const open = page({ identity: { correctable: true, why: null, form: values, stamp: 'id-1' }, bodyForms: ['Limousine'], drives: ['Allrad'] })
+
+        expect(open.find('.fs-rule').text()).toBe('Ein Fahrzeug wird nie gelöscht. Seine Angaben kannst du korrigieren, solange nichts darauf verweist.')
+        await open.findAll('button').find((b) => b.text() === 'Angaben korrigieren')!.trigger('click')
+        expect((open.find('#fk-make').element as HTMLInputElement).value).toBe('Prüfwerk')
+        expect(open.find('label[for="fk-kw"]').text()).toContain('(Feld P.2)')
+
+        sent.length = 0
+        await open.find('form.fk-form').trigger('submit')
+        expect(sent).toEqual(['/admin/fahrzeuge/9/angaben'])
+
+        const kept = page({ identity: { correctable: false, why: 'Auf dieses Fahrzeug verweist schon eine Zeile eines Gutachtens. Seine Angaben lassen sich deshalb nicht mehr ändern, damit erklärbar bleibt, was darauf beruht.', form: null, stamp: null } })
+        expect(kept.findAll('button').some((b) => b.text() === 'Angaben korrigieren')).toBe(false)
+        expect(kept.find('.fs-rule').text()).toBe('Ein Fahrzeug wird nie gelöscht. Auf dieses Fahrzeug verweist schon eine Zeile eines Gutachtens. Seine Angaben lassen sich deshalb nicht mehr ändern, damit erklärbar bleibt, was darauf beruht.')
+    })
+
     // D-291: each axle on its own, as the shop asks the customer.
     it('names the one axle that is missing, and both where both are', () => {
         expect(page({ owed: ['8.2'] }).find('.fs-warn').text()).toBe(

@@ -42,6 +42,15 @@ function page() {
     })
 }
 
+/** Every field the server requires (ManualVehicleRequest), filled as the papers print them; the axle loads left out. */
+async function fillCar(wrapper: ReturnType<typeof page>): Promise<void> {
+    const car: [string, string][] = [['#fn-make', 'BMW'], ['#fn-model', '3er'], ['#fn-variant', '320i Limousine'], ['#fn-hsn', '0005'], ['#fn-tsn', 'AFD'], ['#fn-eg', 'e1*2007/46*0316*12'], ['#fn-kw', '135'], ['#fn-from', '03.2015']]
+
+    for (const [id, value] of car) {
+        await wrapper.find(id).setValue(value)
+    }
+}
+
 /*
  * His admin items 1 and 3 (D-296): a car typed from its Zulassungsbescheinigung, each field with its number in the
  * papers; without an axle load the form says first what that costs, naming only what is missing.
@@ -62,9 +71,30 @@ describe('Fahrzeuge › Neues Fahrzeug', () => {
         expect(label('fn-speed')).toContain('(Feld T, optional)')
     })
 
+    it('sends an empty form at once, so each required field says what it needs before any question (the admin audit’s F-02)', async () => {
+        const wrapper = page()
+
+        await wrapper.find('form').trigger('submit')
+
+        expect(wrapper.find('[data-dialog]').exists()).toBe(false)
+        expect(posted).toEqual(['/admin/fahrzeuge'])
+    })
+
+    it('does not ask about the axle loads while one required field is blank — the server refuses that save anyway', async () => {
+        const wrapper = page()
+
+        await fillCar(wrapper)
+        await wrapper.find('#fn-hsn').setValue(' ')
+        await wrapper.find('form').trigger('submit')
+
+        expect(wrapper.find('[data-dialog]').exists()).toBe(false)
+        expect(posted).toEqual(['/admin/fahrzeuge'])
+    })
+
     it('says what missing axle loads cost before it saves, and saves only on yes @admin-201', async () => {
         const wrapper = page()
 
+        await fillCar(wrapper)
         await wrapper.find('form').trigger('submit')
 
         const dialog = wrapper.find('[data-dialog]')
@@ -81,6 +111,7 @@ describe('Fahrzeuge › Neues Fahrzeug', () => {
     it('names only the axle load that is missing, and offers to enter it rather than save @admin-201', async () => {
         const wrapper = page()
 
+        await fillCar(wrapper)
         await wrapper.find('#fn-front').setValue('1.160')
         await wrapper.find('form').trigger('submit')
 
@@ -97,6 +128,7 @@ describe('Fahrzeuge › Neues Fahrzeug', () => {
     it('saves at once with both axle loads — the top speed is not asked for before a Gutachten needs it (D-287) @admin-201', async () => {
         const wrapper = page()
 
+        await fillCar(wrapper)
         await wrapper.find('#fn-front').setValue('1.160')
         await wrapper.find('#fn-rear').setValue('1.240')
         await wrapper.find('form').trigger('submit')

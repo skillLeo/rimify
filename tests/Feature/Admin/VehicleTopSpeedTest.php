@@ -8,6 +8,7 @@ use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\FitmentRows;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Inertia\Testing\AssertableInertia;
 
@@ -97,4 +98,19 @@ it('names no reason it does not have: without a released Gutachten T is optional
             ->where('topSpeed.documents.0.id', $unanswered->id)
             ->where('topSpeed.documents.0.why', 'Wie das Gutachten Lastindex und Geschwindigkeitssymbol angibt, ist unter „Angaben“ noch nicht erfasst.')
             ->where('owed', ['8.1', '8.2', 'T']));
+});
+
+it('refuses the papers\' figures saved from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $vehicle = topSpeedVehicle(['max_speed_kmh' => 210, 'needs_review' => false]);
+    $url = "/admin/fahrzeuge/{$vehicle->id}";
+    $stale = $this->actingAs(topSpeedAdmin(), 'admin')->get($url)->viewData('page')['props']['stamp'];
+
+    // Another tab corrects the rear axle; this tab still holds the old one beside its own change.
+    $this->actingAs(topSpeedAdmin(), 'admin')->from($url)->put($url, ['axle_load_front_kg' => '1100', 'axle_load_rear_kg' => '1.150', 'max_speed_kmh' => '210'])
+        ->assertSessionHasNoErrors();
+    $this->actingAs(topSpeedAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)
+        ->put($url, ['axle_load_front_kg' => '1100', 'axle_load_rear_kg' => '1100', 'max_speed_kmh' => '220'])
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($vehicle->refresh()->axle_load_rear_kg)->toBe(1150)->and($vehicle->max_speed_kmh)->toBe(210);
 });

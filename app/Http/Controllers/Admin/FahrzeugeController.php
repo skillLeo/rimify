@@ -9,6 +9,7 @@ use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ManualVehicleRequest;
+use App\Http\Requests\Admin\VehicleCorrectionRequest;
 use App\Http\Requests\Admin\VehicleRequest;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
@@ -18,11 +19,15 @@ use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
+use App\Services\Admin\Vehicles\VehicleCorrection;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\VehicleName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,6 +40,9 @@ use Inertia\Response;
 class FahrzeugeController extends Controller
 {
     public const PER_PAGE = 30;
+
+    /** The Gutachten rows one vehicle's page draws; more are counted and named, never dropped silently (F-37). */
+    public const ROWS_SHOWN = 500;
 
     public function index(VehicleRequest $request): Response
     {
@@ -116,10 +124,14 @@ class FahrzeugeController extends Controller
             ->where('vehicle_id', $vehicle->id)
             ->orderBy('approval_document_id')
             ->orderBy('wheel_config_id')
-            ->limit(500)
+            ->limit(self::ROWS_SHOWN)
             ->get();
+        // Past ROWS_SHOWN the rest was dropped without a word (the admin audit's F-37): counted, and the page names the cut.
+        $rowsTotal = $rows->count() < self::ROWS_SHOWN ? $rows->count() : Fitment::query()->where('vehicle_id', $vehicle->id)->count();
 
         $speed = self::topSpeed($vehicle);
+        // Why the papers' details stay as they are; null where „Angaben korrigieren“ is open (F-17).
+        $kept = VehicleCorrection::refusal($vehicle);
 
         return Inertia::render('Admin/Fahrzeuge/Show', [
             'vehicle' => [
@@ -157,8 +169,33 @@ class FahrzeugeController extends Controller
                 'requiresEntry' => $f->requires_entry,
                 'conditions' => (int) $f->getAttribute('condition_codes_count'),
             ])->values()->all(),
+            'rowsTotal' => $rowsTotal,
+            // The papers' own details (the admin audit's F-17): correctable on a car typed by hand that nothing refers
+            // to yet, with the form's values and what it was opened on — otherwise why not. A car is never deleted (R-04).
+            'identity' => [
+                'correctable' => $kept === null,
+                'why' => $kept,
+                'form' => $kept === null ? VehicleCorrection::form($vehicle) : null,
+                'stamp' => $kept === null ? EditStamp::of(VehicleCorrection::state($vehicle->id)) : null,
+            ],
+            'bodyForms' => DocumentConditions::BODY_FORMS,
+            'drives' => array_values(array_diff(DocumentConditions::DRIVES, ['Allradlenkung'])),
             'can' => ['edit' => $request->admin()->canQuietly('update', $vehicle)],
+            // The three figures the form was opened on: a save against older ones is refused (EditStamp, F-25).
+            'stamp' => EditStamp::of(self::legalState($vehicle->id)),
         ]);
+    }
+
+    /**
+     * The figures the page edits, as stored now.
+     *
+     * @return array{0: int|null, 1: int|null, 2: int|null}|null
+     */
+    private static function legalState(int $id, bool $lock = false): ?array
+    {
+        $row = Vehicle::query()->whereKey($id)->when($lock, static fn ($q) => $q->lockForUpdate())->first(['id', 'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh']);
+
+        return $row === null ? null : [$row->axle_load_front_kg, $row->axle_load_rear_kg, $row->max_speed_kmh];
     }
 
     /** Fahrzeuge › Neues Fahrzeug (his admin items 1 and 3, D-296): the form, with the lists a car may name. */
@@ -212,12 +249,43 @@ class FahrzeugeController extends Controller
         return redirect('/admin/fahrzeuge/'.$vehicle->id)->with('toast', $toast);
     }
 
+    /**
+     * „Angaben korrigieren“ (the admin audit's F-17): the papers' own details of a car typed by hand, while nothing
+     * refers to it — asked again under the lock, so an order or a Gutachten row arriving meanwhile still keeps it as it is.
+     */
+    public function correct(VehicleCorrectionRequest $request, Vehicle $vehicle): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $vehicle): void {
+            $locked = Vehicle::query()->lockForUpdate()->findOrFail($vehicle->id);
+            $refusal = VehicleCorrection::refusal($locked);
+
+            if ($refusal !== null) {
+                throw ValidationException::withMessages(['_vehicle' => $refusal]);
+            }
+
+            EditStamp::guard($request, VehicleCorrection::state($locked->id));
+            $changes = Arr::only($request->car(), VehicleCorrection::FIELDS);
+            $before = array_map(static fn (mixed $value): mixed => $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value, $locked->only(array_keys($changes)));
+
+            $locked->forceFill($changes)->save();
+
+            AuditTrail::record($request->admin(), 'vehicle.corrected', [
+                'vehicle' => VehicleName::from($locked).' · '.GermanFormat::keyNumbers($locked->hsn, $locked->tsn),
+                'old' => $before,
+                'new' => $changes,
+            ], $locked);
+        });
+
+        return back()->with('toast', 'Angaben korrigiert.');
+    }
+
     public function update(VehicleRequest $request, Vehicle $vehicle): RedirectResponse
     {
         $data = $request->legalData();
         $wasComplete = $vehicle->hasCompleteLegalData();
 
         DB::transaction(function () use ($vehicle, $data, $request): void {
+            EditStamp::guard($request, self::legalState($vehicle->id, lock: true));
             $before = $vehicle->only(array_keys($data));
             $complete = ! in_array(null, $data, true);
             // Complete legal data ends the review; anything missing keeps it (R-03).

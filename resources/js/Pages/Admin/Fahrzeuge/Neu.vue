@@ -67,6 +67,15 @@ const warning = computed(() => {
     }
 })
 
+/**
+ * The fields ManualVehicleRequest requires. While one is empty the server refuses the save anyway, so the form is sent
+ * without the question and each field says what it needs — the empty form asked about axle loads first, and named
+ * Hersteller, HSN … only after „Ohne Achslasten anlegen“ (the admin audit's F-02).
+ */
+const REQUIRED = ['make', 'model', 'variant', 'hsn', 'tsn', 'eg_number', 'power_kw', 'build_from'] as const
+
+const requiredEmpty = computed(() => REQUIRED.some((field) => form[field].trim() === ''))
+
 const warnOpen = ref(false)
 
 /** Where the focus goes when the dialog closes on „… eintragen“: the first empty axle load, not the button that opened it. */
@@ -77,7 +86,7 @@ function submit(): void {
         return
     }
 
-    if (missingAxles.value.length > 0) {
+    if (missingAxles.value.length > 0 && !requiredEmpty.value) {
         warnOpen.value = true
 
         return

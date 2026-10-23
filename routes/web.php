@@ -377,6 +377,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/fahrzeuge/pruefung', [FahrzeugeController::class, 'review'])->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.pruefung');
         Route::get('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'show'])->whereNumber('vehicle')->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.show');
         Route::put('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'update'])->whereNumber('vehicle')->name('fahrzeuge.update');
+        // „Angaben korrigieren“ (the admin audit's F-17): a car typed by hand, while nothing refers to it (VehicleCorrection).
+        Route::put('/fahrzeuge/{vehicle}/angaben', [FahrzeugeController::class, 'correct'])->whereNumber('vehicle')->middleware('throttle:30,1,fahrzeuge-korrigieren')->name('fahrzeuge.korrigieren');
         // Fahrzeuge › Neues Fahrzeug (his admin items 1 and 3, D-296): a car typed from its papers, checked by hand.
         Route::get('/fahrzeuge/neu', [FahrzeugeController::class, 'create'])->middleware(EnsureAdminMay::class.':vehicles,create')->name('fahrzeuge.create');
         Route::post('/fahrzeuge', [FahrzeugeController::class, 'store'])->middleware('throttle:30,1,fahrzeuge-anlegen')->name('fahrzeuge.store');
