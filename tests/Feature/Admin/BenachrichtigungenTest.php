@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Admin\BenachrichtigungenController;
 use App\Models\AdminUser;
 use App\Notifications\AdminAlert;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Notifications\DatabaseNotification;
 use Inertia\Testing\AssertableInertia;
@@ -207,5 +208,19 @@ describe('Was du bekommst', function (): void {
             ->put('/admin/benachrichtigungen/einstellungen', ['kinds' => [['kind' => 'alles', 'inApp' => true, 'email' => true]]])
             ->assertRedirect('/admin/benachrichtigungen')
             ->assertSessionHasErrors(['kinds.0.kind' => 'Diese Auswahl können wir nicht speichern. Lade die Seite neu und versuch es noch einmal.']);
+    });
+
+    it('refuses a flip from a page opened before the last flip in another tab, and keeps that one (the admin audit\'s F-25)', function (): void {
+        $me = bellAdmin('order-manager');
+        $stale = $this->actingAs($me, 'admin')->get('/admin/benachrichtigungen')->viewData('page')['props']['kindsStamp'] ?? null;
+        expect($stale)->toBeString()->not->toBe('');
+
+        $this->actingAs($me, 'admin')->from('/admin/benachrichtigungen')
+            ->put('/admin/benachrichtigungen/einstellungen', ['kinds' => [['kind' => 'order_paid', 'inApp' => true, 'email' => true]]])->assertSessionHasNoErrors();
+        $this->actingAs($me, 'admin')->from('/admin/benachrichtigungen')->withHeader(EditStamp::HEADER, $stale)
+            ->put('/admin/benachrichtigungen/einstellungen', ['kinds' => [['kind' => 'order_paid', 'inApp' => false, 'email' => false]]])
+            ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+        expect($me->fresh()?->preferences['alerts']['order_paid'] ?? null)->toEqualCanonicalizing(['in_app' => true, 'email' => true]);
     });
 });

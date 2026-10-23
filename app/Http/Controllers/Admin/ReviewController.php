@@ -10,6 +10,7 @@ use App\Models\AdminUser;
 use App\Models\ReviewFeedback;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Review\ReviewBoard;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class ReviewController extends Controller
 {
+    /** What the answer form writes — and so what its stamp covers (EditStamp, the admin audit's F-25). */
+    private const ANSWER_FIELDS = ['status', 'answer', 'assignee_id'];
+
     public function board(ReviewRequest $request, ReviewBoard $board, AdminNavigation $navigation): Response
     {
         // Linked only where the reader's rail reaches: a screen this role may not open is listed, not linked.
@@ -80,6 +84,8 @@ class ReviewController extends Controller
                 'assignee' => $f->assignee?->name,
                 'closedAt' => GermanFormat::date($f->closed_at),
                 'image' => $f->screenshot_path === null ? null : '/admin/review/rueckmeldungen/'.$f->id.'/bild',
+                // The answer as loaded: its form sends it back, a save against an older state is refused (F-25).
+                'stamp' => EditStamp::of($f->only(self::ANSWER_FIELDS)),
             ])->values()->all(),
             'filters' => ['typ' => $type ?? '', 'seite' => $screen ?? '', 'status' => $status],
             // Everything there is, before the filters: nothing matching is not the same as nothing sent.
@@ -128,13 +134,19 @@ class ReviewController extends Controller
         $status = (string) $request->validated('status');
         $answer = $request->validated('answer');
 
-        $feedback->forceFill([
-            'status' => $status,
-            'answer' => is_string($answer) && $answer !== '' ? $answer : null,
-            'assignee_id' => $request->validated('assignee_id'),
-            // Closed once, when it leaves the open states; reopened, it is open again.
-            'closed_at' => in_array($status, ['erledigt', 'abgelehnt'], true) ? ($feedback->closed_at ?? now()) : null,
-        ])->save();
+        DB::transaction(static function () use ($request, $feedback, $status, $answer): void {
+            // The point as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $feedback = ReviewFeedback::query()->lockForUpdate()->findOrFail($feedback->getKey());
+            EditStamp::guard($request, $feedback->only(self::ANSWER_FIELDS));
+
+            $feedback->forceFill([
+                'status' => $status,
+                'answer' => is_string($answer) && $answer !== '' ? $answer : null,
+                'assignee_id' => $request->validated('assignee_id'),
+                // Closed once, when it leaves the open states; reopened, it is open again.
+                'closed_at' => in_array($status, ['erledigt', 'abgelehnt'], true) ? ($feedback->closed_at ?? now()) : null,
+            ])->save();
+        });
 
         return back()->with('toast', 'Gespeichert.');
     }

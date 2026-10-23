@@ -25,6 +25,8 @@ export interface RollenRole {
     rights: string[]
     /** The viewer holds this role and is not a Super-Admin: rights may go, not come. */
     raiseBlocked: boolean
+    /** Name and description as loaded (EditStamp): the rename dialog sends it, an older state is refused. */
+    nameStamp?: string
 }
 
 export interface RollenModule {
@@ -41,6 +43,8 @@ export interface RollenAction {
 }
 
 export interface AdminRollenPageProps {
+    /** The selected role's rights the matrix was opened on (EditStamp): a save against older ones is refused. */
+    stamp: string | null
     roles: RollenRole[]
     /** Distinct accounts holding any role. */
     accounts: number

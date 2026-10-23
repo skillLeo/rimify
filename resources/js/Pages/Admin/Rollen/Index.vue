@@ -29,7 +29,7 @@ import Dialog from '../../../Components/Ui/Dialog.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import RightBox from './RightBox.vue'
 import RoleDiffList from './RoleDiffList.vue'
-import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
+import { stampHeaders, useDirtyForm } from '../../../composables/admin/useDirtyForm'
 import { matchModules, moduleState, realCells, rightKey, roleDiff, withModule } from '../../../composables/admin/roleDiff'
 import { decimal } from '../../../format'
 import type { AdminRollenPageProps, RollenModule, RollenRole } from '../../../types/admin/rollen'
@@ -69,6 +69,7 @@ const editor = useDirtyForm(
     {
         method: 'put',
         url: () => `/admin/rollen/${props.selected ?? 0}/rechte`,
+        stamp: () => props.stamp,
         beforeSave: (proceed) => {
             send = proceed
             confirmOpen.value = true
@@ -234,9 +235,12 @@ function submitCreate(): void {
 const renameOpen = ref(false)
 const renameForm = ref({ label: '', description: '' })
 const renameBusy = ref(false)
+/* Name and description as the dialog opened on (EditStamp, the admin audit's F-25): sent with the save. */
+const renameStamp = ref<string | undefined>(undefined)
 
 function openRename(): void {
     renameForm.value = { label: role.value?.label ?? '', description: role.value?.description ?? '' }
+    renameStamp.value = role.value?.nameStamp
     sentFrom.value = null
     renameOpen.value = true
 }
@@ -256,6 +260,7 @@ function submitRename(): void {
         { label: renameForm.value.label, description: renameForm.value.description || null },
         {
             preserveScroll: true,
+            headers: stampHeaders(renameStamp.value),
             onSuccess: () => (renameOpen.value = false),
             onFinish: () => (renameBusy.value = false),
         }
@@ -440,6 +445,14 @@ function pickBlur(): void {
                 <p v-else-if="role.raiseBlocked && editable" class="adm-note rol__note">
                     Du hast diese Rolle selbst. Rechte kannst du ihr nehmen, aber nicht geben – das macht eine andere Person.
                 </p>
+                <!-- A rule, not a missing menu item (the admin audit's rules): nobody is left without a role by a delete. -->
+                <p v-if="can.delete && !role.isSystem && role.users > 0" class="adm-note rol__note rol__held">
+                    Löschen lässt sich eine Rolle erst, wenn kein Konto sie mehr hat. Gib {{ role.users === 1 ? 'dem Konto' : `den ${decimal(role.users, 0)} Konten` }} unter Benutzer zuerst eine andere Rolle.
+                </p>
+                <!-- The same for the shop's own roles (the admin audit's F-40): the menu leaves the two out, this says why. -->
+                <p v-if="role.isSystem && !role.isSuperAdmin" class="adm-note rol__note rol__standard">
+                    Diese Standardrolle lässt sich weder umbenennen noch löschen.{{ editable ? ' Ihre Rechte und ihre Beschreibung kannst du ändern.' : '' }}
+                </p>
 
                 <!-- The one refusal the server made: above the grid, read before the retry. -->
                 <p v-if="refusal" class="adm-alert" role="alert">{{ refusal }}</p>
@@ -613,6 +626,8 @@ function pickBlur(): void {
 
         <Dialog v-model:open="renameOpen" :title="role?.isSystem ? 'Beschreibung ändern' : 'Rolle umbenennen'" content-class="adm-dialog adm-dialog--narrow">
             <form id="rol-rename" class="rol__form" novalidate @submit.prevent="submitRename">
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="dialogError('rename', '_stamp')" class="adm-alert" role="alert">{{ dialogError('rename', '_stamp') }}</p>
                 <div v-if="!role?.isSystem" class="form-field">
                     <label class="form-field__label" for="rol-edit-label">Bezeichnung</label>
                     <input

@@ -378,6 +378,11 @@ describe('inviting', function (): void {
                 'email' => 'Das sieht nicht nach einer E-Mail-Adresse aus.',
             ]);
 
+        // An address without a dot in its domain reaches nobody (the admin audit's F-30).
+        $this->actingAs(benutzerAdmin(), 'admin')->from('/admin/benutzer')
+            ->post('/admin/benutzer/einladungen', ['email' => 'jana@winter', 'role_id' => benutzerRoleId('support-agent')])
+            ->assertSessionHasErrors(['email' => 'Das sieht nicht nach einer E-Mail-Adresse aus.']);
+
         $this->actingAs(benutzerAdmin(), 'admin')->from('/admin/benutzer')
             ->post('/admin/benutzer/einladungen', ['email' => 'x@example.test', 'role_id' => 99999])
             ->assertSessionHasErrors(['role_id' => BenutzerController::ROLE_UNKNOWN]);

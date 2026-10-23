@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * „Passwort bestätigen“ (sudo mode, EnsureSudo): the own password once more before a screen that
- * holds the shop's keys. It holds for `minutes`, then the question comes again.
+ * holds the shop's keys, the company data or the reset, and before a refund — `reason` says which.
+ * It holds for `minutes`, then the question comes again.
  */
 
 import { useForm } from '@inertiajs/vue3'
@@ -10,7 +11,7 @@ import AdminPage from '../../../Components/Admin/AdminPage.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
-const props = defineProps<{ minutes: number; weiter?: string | null }>()
+const props = defineProps<{ minutes: number; weiter?: string | null; /** Why the password is asked, for where the person is going (F-12). */ reason: string }>()
 
 // The way back travels with the answer (EnsureSudo), not only in the session a parallel request may overwrite.
 const form = useForm({ password: '', weiter: props.weiter ?? null })
@@ -23,7 +24,7 @@ function confirm(): void {
 </script>
 
 <template>
-    <AdminPage title="Passwort bestätigen" :context="`Dieser Bereich verwaltet die Zugänge des Shops. Dein Passwort gilt danach ${minutes} Minuten lang.`">
+    <AdminPage title="Passwort bestätigen" :context="`${reason} Die Bestätigung gilt danach ${minutes} Minuten.`">
         <form class="adm-form" novalidate @submit.prevent="confirm">
             <section class="adm-form__group" aria-labelledby="sudo-heading">
                 <h2 id="sudo-heading" class="adm-form__heading">Bevor es weitergeht</h2>

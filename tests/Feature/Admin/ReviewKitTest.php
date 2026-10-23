@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\AdminUser;
 use App\Models\ReviewFeedback;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReviewAccountsSeeder;
 use Illuminate\Support\Collection;
@@ -88,6 +89,20 @@ it('lets the lead answer, and asks for a reason when a point is refused', functi
         ->assertSessionHasNoErrors();
 
     expect($point->refresh()->closed_at)->not->toBeNull()->and($point->assignee_id)->toBe(reviewer()->id);
+});
+
+it('refuses an answer saved from a list opened before the last answer to that point, and keeps that one (the admin audit\'s F-25)', function (): void {
+    $point = ReviewFeedback::query()->create(['type' => 'wunsch', 'sentence' => 'Dunkler Modus.', 'url' => '/admin', 'screen' => 'Übersicht', 'viewport' => '1440×900', 'browser' => 'Chrome 128', 'status' => 'neu']);
+    $stale = collect($this->actingAs(reviewer(), 'admin')->get('/admin/review/rueckmeldungen')->viewData('page')['props']['items'])->firstWhere('id', $point->id)['stamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+
+    $this->actingAs(reviewer(), 'admin')->from('/admin/review/rueckmeldungen')
+        ->patch("/admin/review/rueckmeldungen/{$point->id}", ['status' => 'angenommen', 'answer' => 'Kommt nach dem Start.'])->assertSessionHasNoErrors();
+    $this->actingAs(reviewer(), 'admin')->from('/admin/review/rueckmeldungen')->withHeader(EditStamp::HEADER, $stale)
+        ->patch("/admin/review/rueckmeldungen/{$point->id}", ['status' => 'erledigt', 'answer' => ''])
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($point->refresh()->only(['status', 'answer']))->toBe(['status' => 'angenommen', 'answer' => 'Kommt nach dem Start.']);
 });
 
 it('filters the list by kind, screen and state', function (): void {

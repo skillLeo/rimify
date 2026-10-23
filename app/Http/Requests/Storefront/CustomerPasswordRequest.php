@@ -25,7 +25,8 @@ class CustomerPasswordRequest extends FormRequest
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
-        return ['password' => ['required', 'string', 'confirmed', Password::min(10), 'max:200']];
+        // The length first, the repeat last: the form shows the first sentence (the admin audit's F-29).
+        return ['password' => ['required', 'string', Password::min(10), 'max:200', 'confirmed']];
     }
 
     /** @return array<string, string> */

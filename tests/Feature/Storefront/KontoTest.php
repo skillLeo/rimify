@@ -11,6 +11,7 @@ use App\Models\CustomerAccount;
 use App\Models\Order;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\ViewErrorBag;
 use Inertia\Testing\AssertableInertia;
 
 /*
@@ -78,6 +79,18 @@ it('sets the password by the link once, signs in, and lists the address’s orde
     $this->post('/konto/abmelden');
     $this->get($link)->assertInertia(fn (AssertableInertia $page) => $page->where('refusal', CustomerPasswordRequest::USED));
     $this->post($link, ['password' => 'noch-ein-passwort', 'password_confirmation' => 'noch-ein-passwort'])->assertSessionHasErrors(['password' => CustomerPasswordRequest::USED]);
+});
+
+it('names the length first when a new password is too short and its repeat empty (the admin audit\'s F-29)', function (): void {
+    $account = CustomerAccount::query()->create(['email' => 'kunde@beispiel.de']);
+
+    $this->post($account->passwordLink(), ['password' => 'kurz', 'password_confirmation' => '']);
+
+    // The form shows the first sentence; the session keeps the bag as an array here.
+    $errors = session('errors');
+    $first = $errors instanceof ViewErrorBag ? $errors->first('password') : ($errors['default']['messages']['password'][0] ?? null);
+
+    expect($first)->toBe('Dein Passwort braucht mindestens 10 Zeichen.');
 });
 
 it('signs in with the password, says nothing about which half was wrong, and sends a stranger to the sign-in', function (): void {

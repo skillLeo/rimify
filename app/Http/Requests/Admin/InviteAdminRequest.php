@@ -42,7 +42,7 @@ class InviteAdminRequest extends FormRequest
     {
         return [
             'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255'],
+            'email' => ['required', 'string', 'email:rfc,filter_unicode', 'max:255'],
             'role_id' => ['required', 'integer'],
         ];
     }

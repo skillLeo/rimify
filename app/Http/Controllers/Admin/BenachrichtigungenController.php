@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AlertPreferencesRequest;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminAlerts;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +70,8 @@ class BenachrichtigungenController extends Controller
                 'next' => $page->hasMorePages() ? self::url($unreadOnly, $page->currentPage() + 1) : null,
             ],
             'kinds' => $alerts->kindsFor($admin),
+            // The switches as loaded: a flip sends it back, and one from an older page is refused (F-25).
+            'kindsStamp' => EditStamp::of(self::switches($alerts, $admin)),
         ]);
     }
 
@@ -119,9 +122,28 @@ class BenachrichtigungenController extends Controller
 
     public function preferences(AlertPreferencesRequest $request, AdminAlerts $alerts): RedirectResponse
     {
+        // Every switch is sent with each flip: one from a page opened before the last flip elsewhere would switch
+        // that one back, so it is refused (EditStamp, the admin audit's F-25).
+        EditStamp::guard($request, self::switches($alerts, $request->admin()));
         $alerts->remember($request->admin(), $request->choices());
 
         return back()->with('toast', self::SAVED);
+    }
+
+    /**
+     * The reader's switches, kind by kind — what a flip rewrites.
+     *
+     * @return array<string, array{0: bool, 1: bool}>
+     */
+    private static function switches(AdminAlerts $alerts, AdminUser $admin): array
+    {
+        $switches = [];
+
+        foreach ($alerts->kindsFor($admin) as $kind) {
+            $switches[$kind['kind']] = [$kind['inApp'], $kind['email']];
+        }
+
+        return $switches;
     }
 
     /**

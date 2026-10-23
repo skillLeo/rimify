@@ -46,28 +46,31 @@ enum PermissionModule: string
     }
 
     /**
-     * The actions this module really has, in the grid's column order.
+     * The actions this module really has, in the grid's column order — only those the shop checks somewhere. A cell
+     * nothing asks for would tell the person setting rights of an effect that is not there (D-247): Katalog, Fahrzeuge,
+     * Gutachten and Kunden have no export, vehicles and documents are never deleted (R-04, R-05), customers are only
+     * read, and „Medien“ has no page of its own — its files are Einstellungen › Medien und Speicher (the admin audit's
+     * F-21).
      *
      * @return list<PermissionAction>
      */
     public function actions(): array
     {
         return match ($this) {
-            self::Catalogue, self::Approvals => [
+            self::Catalogue => [
                 PermissionAction::View, PermissionAction::Create, PermissionAction::Edit,
-                PermissionAction::Delete, PermissionAction::Publish, PermissionAction::Export,
+                PermissionAction::Delete, PermissionAction::Publish,
             ],
-            self::Vehicles => [
-                PermissionAction::View, PermissionAction::Create, PermissionAction::Edit,
-                PermissionAction::Delete, PermissionAction::Export,
-            ],
+            self::Approvals => [PermissionAction::View, PermissionAction::Create, PermissionAction::Edit, PermissionAction::Publish],
+            self::Vehicles => [PermissionAction::View, PermissionAction::Create, PermissionAction::Edit],
             self::Orders => [PermissionAction::View, PermissionAction::Edit, PermissionAction::Export],
-            self::Customers => [PermissionAction::View, PermissionAction::Edit, PermissionAction::Delete, PermissionAction::Export],
+            self::Customers => [PermissionAction::View],
             self::Content => [
                 PermissionAction::View, PermissionAction::Create, PermissionAction::Edit,
                 PermissionAction::Delete, PermissionAction::Publish,
             ],
-            self::Media, self::Roles => [PermissionAction::View, PermissionAction::Create, PermissionAction::Edit, PermissionAction::Delete],
+            self::Roles => [PermissionAction::View, PermissionAction::Create, PermissionAction::Edit, PermissionAction::Delete],
+            self::Media => [],
             self::Imports => [PermissionAction::View, PermissionAction::Create],
             self::Reports, self::AuditLog => [PermissionAction::View, PermissionAction::Export],
             self::Settings => [PermissionAction::View, PermissionAction::Edit],

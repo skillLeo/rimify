@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\ViewErrorBag;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -241,6 +242,19 @@ describe('accepting', function (): void {
             ->assertSessionHasErrors(['password' => 'Die beiden Passwörter stimmen nicht überein.']);
 
         expect(AdminUser::query()->where('email', 'jana.winter@example.test')->exists())->toBeFalse();
+    });
+
+    it('names the length first when the password is too short and its repeat empty (the admin audit\'s F-29)', function (): void {
+        [, $token] = einladung();
+
+        $this->from('/admin/einladung/'.$token)
+            ->post('/admin/einladung/'.$token, einladungForm(['password' => 'kurz', 'password_confirmation' => '']));
+
+        // The form shows the first sentence: the length is what to fix first. (The session keeps the bag as an array.)
+        $errors = session('errors');
+        $first = $errors instanceof ViewErrorBag ? $errors->first('password') : ($errors['default']['messages']['password'][0] ?? null);
+
+        expect($first)->toBe('Das Passwort braucht mindestens 12 Zeichen.');
     });
 
     it('refuses the link while somebody is signed in, so nobody accepts one in a colleague\'s session', function (): void {
