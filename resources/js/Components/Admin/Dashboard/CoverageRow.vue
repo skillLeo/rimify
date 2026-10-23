@@ -36,7 +36,8 @@ const props = defineProps<{
 const emit = defineEmits<{ retry: [] }>()
 
 /**
- * A lead line and five rows: the list's box, loaded or not. A row is two lines — the car, its key numbers — and on a
+ * A lead line and five rows: the list's box, loaded or not — the skeleton's, and the loaded list's least height, so a
+ * list of fewer gaps keeps it too (UEB-02, 24.10.2026). A row is two lines — the car, its key numbers — and on a
  * phone three, where a car's name may wrap (UEB-02, 14.10.2026: „Mercedes-Benz C-Klasse C 43 AMG“ grew the loaded list
  * past its skeleton). The row's height is one variable, set below for the widget and read by DemandGaps' rows.
  */
@@ -117,11 +118,15 @@ const skeleton = computed<Matrix>(() => {
             :body-height="DEMAND_HEIGHT"
             :empty="charts.demand.rows.length ? null : 'Im Zeitraum hat niemand nach einem Auto gefragt, für das der Shop keine Felge zeigen kann.'"
         >
-            <p class="demand-lead">
-                {{ formatNumber(charts.demand.counts.offen) }} {{ charts.demand.counts.offen === 1 ? 'offene Lücke' : 'offene Lücken' }},
-                {{ formatNumber(charts.demand.asks) }}-mal gefragt<template v-if="charts.demand.waiting">, {{ formatNumber(charts.demand.waiting) }} {{ charts.demand.waiting === 1 ? 'Person wartet' : 'Personen warten' }}</template>.
-            </p>
-            <DemandGaps :rows="charts.demand.rows" />
+            <!-- Loaded, the list keeps the box its skeleton stood in: fewer than five gaps leave room at its foot, and
+                 nothing under the card moves (UEB-02, 24.10.2026: four gaps shrank it by a row when the charts landed). -->
+            <div class="demand-body" :style="{ minHeight: DEMAND_HEIGHT }" data-demand-body>
+                <p class="demand-lead">
+                    {{ formatNumber(charts.demand.counts.offen) }} {{ charts.demand.counts.offen === 1 ? 'offene Lücke' : 'offene Lücken' }},
+                    {{ formatNumber(charts.demand.asks) }}-mal gefragt<template v-if="charts.demand.waiting">, {{ formatNumber(charts.demand.waiting) }} {{ charts.demand.waiting === 1 ? 'Person wartet' : 'Personen warten' }}</template>.
+                </p>
+                <DemandGaps :rows="charts.demand.rows" />
+            </div>
         </DashWidget>
     </template>
 </template>
