@@ -33,3 +33,8 @@ pass, or missing data read as a defect.
   entered, no defect.
 - **Catch it:** check the precondition first; when it is absent, record „not measured“ with the reason. A skipped test
   is not a pass and not a fail (`scripts/kundenliste/abnahme-ergebnis.mjs`).
+- **Found again:** the admin audit's t6 (24.10.2026) read the mail log right after confirming a refund and missed the
+  refund's mail: `waitForLoadState('networkidle')` returns at once on a page that has loaded, so it never waited for the
+  refund's own request. The refund was there a moment later. **Catch it:** wait for the request's own answer
+  (`waitForResponse`) and for the state it leads to on the page before reading what it produces
+  (`e2e/audit/t6-testbestellung.spec.ts`).

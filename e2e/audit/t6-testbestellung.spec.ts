@@ -81,8 +81,12 @@ test('Aufgabe 6: eine Testbestellung, im Admin gefunden, versendet, zugestellt, 
     await page.locator('#bs-refund-amount').fill('10,00');
     await page.locator('#bs-refund-reason').fill('Kratzer an einer Felge – Teilerstattung aus Kulanz.');
     await page.getByRole('button', { name: 'Erstatten …' }).click();
+    // The refund's own answer, then the page it leads to: a load state reached once never waits for this request, and
+    // the mails were once read before the refund had written its own (a precondition, docs/dev/TEST-SMELLS.md §3).
+    const refunded = page.waitForResponse((r) => r.request().method() === 'POST' && /\/erstattung$/.test(new URL(r.url()).pathname));
     await confirm(page, '10,00 € erstatten');
-    await page.waitForLoadState('networkidle');
+    expect((await refunded).status(), 'the refund is answered with a redirect').toBeLessThan(400);
+    await expect(page.getByText('Teilweise erstattet').first(), 'the order shows the refund').toBeVisible({ timeout: 20_000 });
     const mails = mailsSince(logStart);
     record('t6.jsonl', { step: 'bearbeitet', text: (await page.locator('main').innerText()).slice(0, 2000), mails });
 
