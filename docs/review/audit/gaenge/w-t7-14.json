@@ -1,0 +1,17 @@
+{ "name": "t7-14-zeile-aendern", "start": "/admin/gutachten/1061", "full": true, "steps": [
+  { "click": "css=table:has(caption:has-text(\"Straßenversion\")) button[title=\"Ändern\"] >> nth=0" },
+  { "wait": 600 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] input, [role=dialog] select')).map(e => (e.id || e.name || e.getAttribute('aria-label') || '?') + ':' + e.type + '=' + (e.type === 'checkbox' || e.type === 'radio' ? e.checked : e.value)).slice(0, 40)" },
+  { "click": "[role=dialog] >> role=button[name=\"Reifengröße 2 entfernen\"]" },
+  { "wait": 300 },
+  { "click": "[role=dialog] >> role=button[name=\"Speichern\"]" },
+  { "wait": 2000 },
+  { "eval": "[document.querySelector('[role=dialog]')?.innerText?.slice(0, 600) ?? null, Array.from(document.querySelectorAll('.form-field__error')).map(e => e.textContent.trim()).filter(Boolean)]" },
+  { "click": "css=table:has(caption:has-text(\"Straßenversion\")) button[title=\"Ändern\"] >> nth=1" },
+  { "wait": 600 },
+  { "click": "[role=dialog] >> role=button[name=\"Reifengröße 2 entfernen\"]" },
+  { "wait": 300 },
+  { "click": "[role=dialog] >> role=button[name=\"Speichern\"]" },
+  { "wait": 2000 },
+  { "eval": "Array.from(document.querySelectorAll('main table')).filter(t => /Straßenversion/.test(t.querySelector('caption')?.textContent || '')).map(t => Array.from(t.querySelectorAll('tbody tr')).map(r => r.innerText.replace(/\\s+/g, ' ').trim()))" }
+] }

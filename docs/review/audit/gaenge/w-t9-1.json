@@ -1,0 +1,8 @@
+{ "name": "t9-1-einladen", "start": "/admin/benutzer", "full": true, "steps": [
+  { "click": "role=button[name=\"Person einladen\"]" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('form.bn-invite input, form.bn-invite select, [role=dialog] input, [role=dialog] select')).map(e => (e.id || e.name) + ':' + e.type + (e.maxLength > 0 ? ' max' + e.maxLength : ''))" },
+  { "click": "[role=dialog] >> role=button[name=/einladen|senden/i]" },
+  { "wait": 1200 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] .form-field__error')).map(e => e.textContent.trim()).filter(Boolean)" }
+] }

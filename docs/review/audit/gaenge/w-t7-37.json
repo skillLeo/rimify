@@ -1,0 +1,7 @@
+{ "name": "t7-37-email-import", "start": "/admin/einstellungen/e-mail", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main h2')).map(h => h.textContent.trim())" },
+  { "eval": "Array.from(document.querySelectorAll('main section')).filter(s => /Sperr/.test(s.textContent)).map(s => s.innerText.slice(0, 500))" },
+  { "goto": "/admin/katalog/import" },
+  { "wait": 800 },
+  { "text": "main", "max": 1500 }
+] }

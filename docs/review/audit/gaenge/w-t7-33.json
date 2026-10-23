@@ -1,0 +1,16 @@
+{ "name": "t7-33-rdks", "start": "/admin/zubehoerpreise/rdks", "full": true, "steps": [
+  { "fill": "#rd-make", "value": "Prüfwerk" },
+  { "fill": "#rd-price", "value": "39,9" },
+  { "click": "role=button[name=\"Preis anlegen\"]" },
+  { "wait": 1500 },
+  { "eval": "Array.from(document.querySelectorAll('main tbody tr')).map(r => r.innerText.replace(/\\s+/g, ' ').trim())" },
+  { "fill": "#rd-make", "value": "prüfwerk" },
+  { "fill": "#rd-price", "value": "12,00" },
+  { "click": "role=button[name=\"Preis anlegen\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#rd-make')?.value, document.querySelector('#rd-make-err')?.textContent?.trim(), Array.from(document.querySelectorAll('main tbody tr')).length]" },
+  { "eval": "Array.from(document.querySelectorAll('main tbody button, main tbody [role=button]')).map(b => (b.getAttribute('aria-label') || b.textContent).trim())" },
+  { "click": "role=button[name=/Bearbeiten.*Prüfwerk/]" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('main input, [role=dialog] input')).map(e => (e.id || e.name) + '=' + e.value)" }
+] }

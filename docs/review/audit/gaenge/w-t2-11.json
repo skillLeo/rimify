@@ -1,0 +1,9 @@
+{ "name": "t2-11-vorschau-200-kombi", "start": "/admin/gutachten/1060?fahrzeug=1276", "steps": [
+  { "click": "role=button[name=\"Vorschau zeigen\"]" },
+  { "wait": 2500 },
+  { "text": "section[aria-labelledby=\"gs-preview-h\"] .gs-verdict", "max": 1400 },
+  { "select": "#gs-preview-vehicle", "label": "Prüfwerk Größe Zwei Kombi 1.5 · 110 kW · HSN 0005 · TSN ZZ7" },
+  { "click": "role=button[name=\"Vorschau zeigen\"]" },
+  { "wait": 2500 },
+  { "text": "section[aria-labelledby=\"gs-preview-h\"] .gs-verdict", "max": 1400 }
+] }

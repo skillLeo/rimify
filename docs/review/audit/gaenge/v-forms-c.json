@@ -1,0 +1,8 @@
+{ "name": "v-forms-c", "start": "/admin/rollen", "full": false, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('nav.rol__list a')).map(a => a.textContent.replace(/\\s+/g, ' ').trim() + ' -> ' + a.getAttribute('href'))" },
+  { "click": "css=nav.rol__list a:has-text(\"Katalog\")" },
+  { "wait": 1200 },
+  { "eval": "[location.search, Array.from(document.querySelectorAll('.rol__held')).map(e => e.textContent.replace(/\\s+/g, ' ').trim())]" },
+  { "goto": "/admin/benutzer" },
+  { "eval": "Array.from(document.querySelectorAll('main button, main a.btn')).map(b => b.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 8)" }
+] }

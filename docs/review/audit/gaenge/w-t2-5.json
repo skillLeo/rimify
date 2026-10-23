@@ -1,0 +1,8 @@
+{ "name": "t2-5-code-form", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "#av-new" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('#av-kind option')).map(o => o.value + '=' + o.textContent.trim())" },
+  { "eval": "Array.from(document.querySelectorAll('#av-axle option')).map(o => o.value + '=' + o.textContent.trim())" },
+  { "eval": "Array.from(document.querySelectorAll('#av-drive-mode option')).map(o => o.value + '=' + o.textContent.trim())" },
+  { "shot": "t2-5-code-form" }
+] }

@@ -1,0 +1,7 @@
+{ "name": "t5-2-felder", "start": "/admin/seiten/12", "steps": [
+  { "click": "role=button[name=\"Bild hinzufügen\"]" },
+  { "wait": 400 },
+  { "click": "role=button[name=\"Tabelle hinzufügen\"]" },
+  { "wait": 400 },
+  { "eval": "Array.from(document.querySelectorAll('main input, main textarea, main select')).map(e => (e.id || e.name || '?') + ':' + e.type)" }
+] }

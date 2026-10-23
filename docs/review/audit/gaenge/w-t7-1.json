@@ -1,0 +1,6 @@
+{ "name": "t7-1-marken", "start": "/admin/marken", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main button, main a')).map(b => b.textContent.trim()).filter(t => t && t.length < 40).slice(0, 25)" },
+  { "eval": "Array.from(document.querySelectorAll('main input, main select')).map(e => (e.id || e.name || '?') + ':' + e.type).slice(0, 25)" },
+  { "eval": "document.querySelectorAll('main table tbody tr').length" },
+  { "text": "main", "max": 900 }
+] }

@@ -1,0 +1,9 @@
+{ "name": "f-2-meldungen-rahmenwerk", "start": "/admin/profil", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main input')).map(e => (e.id || e.name) + ':' + e.type)" },
+  { "fill": "input[type=password] >> nth=0", "value": "rimify-dev-2026" },
+  { "fill": "input[type=password] >> nth=1", "value": "kurz" },
+  { "fill": "input[type=password] >> nth=2", "value": "kurz" },
+  { "click": "main >> role=button[name=/Passwort ändern|Speichern/] >> nth=-1" },
+  { "wait": 1500 },
+  { "eval": "Array.from(document.querySelectorAll('.form-field__error, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)" }
+] }

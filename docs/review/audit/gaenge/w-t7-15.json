@@ -1,0 +1,9 @@
+{ "name": "t7-15-vorschau-entwurf", "start": "/admin/gutachten/1061", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelector('#gs-preview-vehicle').options).map(o => o.value + ':' + o.textContent.trim())" },
+  { "select": "#gs-preview-vehicle", "value": "1275" },
+  { "wait": 2500 },
+  { "text": ".gs-verdicts", "max": 1500 },
+  { "select": "#gs-preview-vehicle", "value": "1277" },
+  { "wait": 2500 },
+  { "eval": "[document.querySelector('.gs-preview-for')?.textContent?.trim(), document.querySelector('.gs-verdicts')?.innerText ?? null, Array.from(document.querySelectorAll('#gs-preview-h ~ .adm-note, section[aria-labelledby=gs-preview-h] .adm-note')).map(p => p.textContent.trim())]" }
+] }

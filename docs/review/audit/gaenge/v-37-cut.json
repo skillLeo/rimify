@@ -1,0 +1,9 @@
+{ "name": "v-37-cut", "start": "/admin/gutachten/10", "full": false, "steps": [
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelector('.adm-page__context')?.textContent?.replace(/\\s+/g, ' ').trim(), document.querySelectorAll('main tbody tr').length, Array.from(document.querySelectorAll('main .adm-note, main [role=status], main .gs-cut')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 6)]" },
+  { "click": "main >> role=button[name=/Freigeben/]", "timeout": 4000 },
+  { "wait": 800 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog]')).map(d => d.textContent.replace(/\\s+/g, ' ').trim().slice(0, 600))" },
+  { "press": "Escape" },
+  { "goto": "/admin/fahrzeuge/1274" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelectorAll('main tbody tr').length, Array.from(document.querySelectorAll('main .adm-note, main [role=status], main .fs-cut')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 6)]" }
+] }

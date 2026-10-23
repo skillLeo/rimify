@@ -1,0 +1,9 @@
+{ "name": "t7-27-rollen-lesen", "start": "/admin/rollen", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main button, main a')).map(b => b.textContent.trim()).filter(t => t && t.length < 50).slice(0, 30)" },
+  { "eval": "Array.from(document.querySelectorAll('main [aria-label]')).map(b => b.getAttribute('aria-label')).slice(0, 20)" },
+  { "text": "main", "max": 1200 },
+  { "goto": "/admin/benutzer" },
+  { "wait": 800 },
+  { "eval": "Array.from(document.querySelectorAll('main [aria-label]')).map(b => b.getAttribute('aria-label')).slice(0, 20)" },
+  { "text": "main", "max": 1500 }
+] }

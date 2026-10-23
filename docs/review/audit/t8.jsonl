@@ -1,0 +1,4 @@
+{"at":"2026-10-23T20:46:46.172Z","step":"falsche Werte","errors":["Die PLZ hat fünf Ziffern.","Eine deutsche USt-IdNr. besteht aus DE und neun Ziffern.","Die Telefonnummer bitte nur mit Ziffern, Leerzeichen und einem + am Anfang.","Schreib den Preis mit Komma, zum Beispiel 4,90 – oder lass das Feld leer."],"zipKept":"1067"}
+{"at":"2026-10-23T20:46:49.528Z","step":"gespeichert","zip":"01067","vat":"DE123456789","cost":"4,90 €","name":"Prüfwerk Räder GmbH"}
+{"at":"2026-10-23T20:46:52.433Z","step":"zwei Tabs","city":"Dresden-Neustadt","street":"Mühlenstraße 12a"}
+{"at":"2026-10-23T20:46:52.434Z","step":"firmendaten","console":[],"pageErrors":[],"failed":[]}

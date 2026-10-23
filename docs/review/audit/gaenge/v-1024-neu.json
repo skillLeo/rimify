@@ -1,0 +1,18 @@
+{ "name": "v-1024-neu", "start": "/admin/fahrzeuge/1280", "full": true, "steps": [
+  { "click": "role=button[name=\"Angaben korrigieren\"]" },
+  { "wait": 500 },
+  { "eval": "[document.documentElement.scrollWidth - document.documentElement.clientWidth, Array.from(document.querySelectorAll('[id^=fk-]')).filter(e => /INPUT|SELECT/.test(e.tagName)).filter(e => { const r = e.getBoundingClientRect(); return r.right > window.innerWidth || r.width < 60; }).map(e => e.id)]" },
+  { "shot": "v-1024-korrektur" },
+  { "goto": "/admin/gutachten/neu" },
+  { "select": "#gn-kind", "value": "NACHTRAG" },
+  { "wait": 400 },
+  { "eval": "[document.documentElement.scrollWidth - document.documentElement.clientWidth, (() => { const f = document.querySelector('#gn-base-shorten'); const s = document.querySelector('#gn-base'); if (!f || !s) return 'fehlt'; const a = f.getBoundingClientRect(), b = s.getBoundingClientRect(); return [Math.round(a.width), Math.round(b.width), Math.round(b.right) <= window.innerWidth]; })()]" },
+  { "goto": "/admin/einstellungen/e-mail" },
+  { "eval": "[document.documentElement.scrollWidth - document.documentElement.clientWidth, !!document.querySelector('.em-blocked-search'), document.querySelector('.em-blocked-note')?.textContent?.trim()]" },
+  { "goto": "/admin/gutachten/10" },
+  { "eval": "[document.documentElement.scrollWidth - document.documentElement.clientWidth, document.querySelector('.gs-cut')?.textContent?.replace(/\\s+/g, ' ').trim()]" },
+  { "goto": "/admin/rollen?rolle=2" },
+  { "eval": "[document.documentElement.scrollWidth - document.documentElement.clientWidth, document.querySelector('.rol__standard')?.textContent?.replace(/\\s+/g, ' ').trim()]" },
+  { "goto": "/admin/anfragen" },
+  { "eval": "[document.documentElement.scrollWidth - document.documentElement.clientWidth, document.querySelector('.ben__more')?.textContent?.replace(/\\s+/g, ' ').trim()]" }
+] }

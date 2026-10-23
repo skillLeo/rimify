@@ -1,0 +1,5 @@
+{ "name": "v-27-link", "guest": true, "start": "/rechnung/TEST-RE-000001", "full": true, "main": 900, "steps": [
+  { "eval": "[document.title, document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('main a, main button')).map(a => a.textContent.trim()).filter(Boolean)]" },
+  { "goto": "/rechnung/TEST-RE-999999" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim()]" }
+] }

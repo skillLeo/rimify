@@ -1,0 +1,6 @@
+{ "name": "t7-5-felge-felder", "start": "/admin/felgen/1123", "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main input, main textarea, main select')).map(e => (e.id || e.name || '?') + ':' + e.type + '=' + String(e.value).slice(0, 30)).slice(0, 80)" },
+  { "click": "role=button[name=/Weitere Aktionen/]" },
+  { "wait": 300 },
+  { "eval": "Array.from(document.querySelectorAll('[role=menu] [role=menuitem], [role=menu] a')).map(m => m.textContent.trim() + ' ' + (m.getAttribute('href') || ''))" }
+] }

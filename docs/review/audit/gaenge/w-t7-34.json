@@ -1,0 +1,15 @@
+{ "name": "t7-34-rdks-bearbeiten", "start": "/admin/zubehoerpreise/rdks", "full": true, "steps": [
+  { "click": "role=button[name=/Bearbeiten.*Prüfwerk/]" },
+  { "wait": 500 },
+  { "eval": "[document.querySelector('#rd-price')?.value, Array.from(document.querySelectorAll('main form button')).map(b => b.textContent.trim())]" },
+  { "fill": "#rd-price", "value": "44,90 €" },
+  { "click": "main form >> role=button[name=/speichern/i]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#rd-price')?.value, document.querySelector('#rd-price-err')?.textContent?.trim(), Array.from(document.querySelectorAll('main tbody tr')).map(r => r.innerText.replace(/\\s+/g, ' ').trim())]" },
+  { "click": "role=button[name=/Löschen.*Prüfwerk/]" },
+  { "wait": 500 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText ?? null" },
+  { "click": "[role=dialog] >> role=button[name=/Löschen/]" },
+  { "wait": 1500 },
+  { "eval": "Array.from(document.querySelectorAll('main tbody tr')).length" }
+] }

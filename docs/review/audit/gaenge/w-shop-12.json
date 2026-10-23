@@ -1,0 +1,14 @@
+{ "name": "shop-12-bewertung-abschicken", "guest": true, "start": "/bewertung/RMF-2026-1021?expires=1797952250&signature=1c99cb3dcc538aaee7481f0c9593c2db733f262b1579bef4f33326cdf878438c", "full": true, "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "click": "label:has(input[name=\"bw-2145\"][value=\"4\"])" },
+  { "fill": "#bw-text-2145", "value": "Größe passt, Einbau beim Händler problemlos – würde ich wieder kaufen. Grüße aus Weißenfels!" },
+  { "click": "main >> role=button[name=\"Bewertung abschicken\"]" },
+  { "wait": 2000 },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelector('main')?.innerText?.slice(0, 500)]" },
+  { "goto": "/bewertung/RMF-2026-1021?expires=1797952250&signature=1c99cb3dcc538aaee7481f0c9593c2db733f262b1579bef4f33326cdf878438c" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelector('main')?.innerText?.slice(0, 400)]" },
+  { "goto": "/bewertung/RMF-2026-1021?expires=1797952250&signature=0000" },
+  { "wait": 1500 },
+  { "eval": "[document.title, document.querySelector('h1')?.textContent?.trim()]" }
+] }

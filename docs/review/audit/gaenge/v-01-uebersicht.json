@@ -1,0 +1,6 @@
+{ "name": "v-01-uebersicht", "start": "/admin", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main a')).filter(a => /Gutachten|Person|Bestell|warten/.test(a.closest('li, p, div')?.textContent ?? '')).map(a => (a.closest('li, p, div')?.textContent ?? '').replace(/\\s+/g, ' ').trim().slice(0, 110) + ' -> ' + a.getAttribute('href')).filter((v, i, all) => all.indexOf(v) === i).slice(0, 8)" },
+  { "click": "role=link[name=\"Gutachten öffnen\"]" },
+  { "wait": 1200 },
+  { "eval": "[location.pathname + location.search, document.querySelector('h1')?.textContent?.trim(), document.querySelectorAll('main tbody tr').length, document.querySelector('.adm-page__context')?.textContent?.replace(/\\s+/g, ' ').trim()]" }
+] }

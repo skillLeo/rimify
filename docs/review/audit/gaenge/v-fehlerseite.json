@@ -1,0 +1,6 @@
+{ "name": "v-fehlerseite", "start": "/admin", "full": false, "main": 600, "steps": [
+  { "goto": "/admin/gibt-es-nicht" },
+  { "eval": "[document.title, document.querySelector('h1')?.textContent?.trim(), document.querySelector('.adm-page__context')?.textContent?.trim(), Array.from(document.querySelectorAll('main a, main button')).map(a => a.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 4)]" },
+  { "goto": "/admin/bestellungen/999999" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelector('.adm-page__context')?.textContent?.trim()]" }
+] }

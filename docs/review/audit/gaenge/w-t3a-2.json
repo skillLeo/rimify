@@ -1,0 +1,6 @@
+{ "name": "t3a-2-leer-gesendet", "start": "/admin/fahrzeuge/neu", "full": true, "steps": [
+  { "click": "role=button[name=\"Fahrzeug anlegen\"]" },
+  { "click": "role=button[name=\"Ohne Achslasten anlegen\"]" },
+  { "wait": 1200 },
+  { "eval": "document.activeElement && (document.activeElement.id || document.activeElement.tagName)" }
+] }

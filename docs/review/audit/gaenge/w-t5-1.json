@@ -1,0 +1,10 @@
+{ "name": "t5-1-angelegt", "start": "/admin/seiten", "full": true, "main": 2500, "steps": [
+  { "click": "role=button[name=\"Ratgeber-Artikel anlegen\"]" },
+  { "wait": 500 },
+  { "fill": "#sn-title", "value": "Felgen richtig einlagern – Größe, Druck und Pflege" },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] button')).map(b => b.textContent.trim())" },
+  { "click": "[role=dialog] >> role=button[name=/anlegen/i]" },
+  { "wait": 2500 },
+  { "eval": "location.pathname" },
+  { "eval": "Array.from(document.querySelectorAll('main button')).map(b => b.textContent.trim()).filter(t => /hinzufügen|Speichern|Veröffentlichen/.test(t))" }
+] }

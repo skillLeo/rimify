@@ -1,0 +1,14 @@
+{ "name": "t9-4-einladung-fertig", "guest": true, "start": "/admin/einladung/8l0uXXAg4-GG-q28b4pIvpLFp5-AyG6XnEBGV0IWu7Y", "full": true, "steps": [
+  { "click": "main >> role=button[name=\"Konto einrichten\"]" },
+  { "wait": 2500 },
+  { "eval": "Array.from(document.querySelectorAll('main p')).map(e => e.textContent.trim()).filter(t => /Passwort|Zeichen|bitte|Bitte/.test(t))" },
+  { "fill": "#inv-name", "value": "Jürgen Weiß-Größmann" },
+  { "fill": "#inv-pass", "value": "Lagerhalle-Süd-2026!" },
+  { "fill": "#inv-repeat", "value": "Lagerhalle-Süd-2026!" },
+  { "dblclick": "main >> role=button[name=\"Konto einrichten\"]" },
+  { "wait": 3000 },
+  { "eval": "[location.pathname, document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('nav[aria-label=Hauptnavigation] a')).map(a => a.textContent.trim()).slice(0, 14)]" },
+  { "goto": "/admin/einladung/8l0uXXAg4-GG-q28b4pIvpLFp5-AyG6XnEBGV0IWu7Y" },
+  { "wait": 1500 },
+  { "eval": "[location.pathname, document.querySelector('h1')?.textContent?.trim(), document.querySelector('main')?.innerText?.slice(0, 300)]" }
+] }

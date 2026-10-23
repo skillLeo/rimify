@@ -1,0 +1,17 @@
+{ "name": "v-24-email", "start": "/admin/einstellungen/e-mail", "full": true, "steps": [
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelectorAll('main tbody tr').length, document.querySelector('.em-blocked-note')?.textContent?.trim(), !!document.querySelector('.em-blocked-search')]" },
+  { "fill": ".em-blocked-search input", "value": "sperre-07" },
+  { "press": "Enter" },
+  { "wait": 1500 },
+  { "eval": "[location.pathname + location.search, document.querySelectorAll('main tbody tr').length, document.querySelector('.em-blocked-note')?.textContent?.trim(), document.querySelector('#em-from')?.value]" },
+  { "click": "main >> role=button[name=\"Sperre aufheben\"]" },
+  { "wait": 700 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog], [role=alertdialog]')).map(d => d.textContent.replace(/\\s+/g, ' ').trim().slice(0, 500))" },
+  { "click": "role=dialog >> role=button[name=\"Abbrechen\"]" },
+  { "wait": 700 },
+  { "eval": "[document.querySelectorAll('main tbody tr').length, document.querySelectorAll('[role=dialog]').length]" },
+  { "fill": ".em-blocked-search input", "value": "niemand-hier" },
+  { "press": "Enter" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelectorAll('main tbody tr').length, document.querySelector('.em-blocked-note')?.textContent?.trim()]" }
+] }

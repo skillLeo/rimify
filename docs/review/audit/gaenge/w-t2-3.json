@@ -1,0 +1,8 @@
+{ "name": "t2-3-nur-pdf", "start": "/admin/gutachten/neu", "steps": [
+  { "upload": "#gn-pdf", "path": "C:/Users/Admin/Downloads/Borbet DB8GT2_19_ABE_BMW.pdf" },
+  { "wait": 3000 },
+  { "select": "#gn-kind", "label": "Teilegutachten" },
+  { "click": "role=button[name=\"Gutachten anlegen\"]" },
+  { "wait": 2500 },
+  { "eval": "document.activeElement && (document.activeElement.id || document.activeElement.tagName)" }
+] }

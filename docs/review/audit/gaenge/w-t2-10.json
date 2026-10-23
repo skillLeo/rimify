@@ -1,0 +1,8 @@
+{ "name": "t2-10-vorschau", "start": "/admin/gutachten/1060", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('#gs-preview-vehicle option')).map(o => o.value + '=' + o.textContent.trim())" },
+  { "select": "#gs-preview-vehicle", "label": "Prüfwerk Größe Eins 2.0 Limousine Straßenversion · 140 kW · HSN 0005 · TSN ZZ9" },
+  { "click": "role=button[name=\"Vorschau zeigen\"]" },
+  { "wait": 2500 },
+  { "text": "section[aria-labelledby=\"gs-preview-h\"]", "max": 2500 },
+  { "shot": "t2-10-vorschau-250", "full": false }
+] }

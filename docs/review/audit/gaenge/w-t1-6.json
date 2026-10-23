@@ -1,0 +1,7 @@
+{ "name": "t1-6-veroeffentlicht", "start": "/admin/felgen/1123", "steps": [
+  { "click": "main >> role=button[name=\"Veröffentlichen\"]" },
+  { "wait": 600 },
+  { "click": "[role=dialog] >> role=button[name=\"Veröffentlichen\"]" },
+  { "wait": 2500 },
+  { "eval": "document.querySelector('h1')?.nextElementSibling?.textContent?.trim()" }
+] }

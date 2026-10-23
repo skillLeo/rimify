@@ -1,0 +1,3 @@
+{ "name": "t8-1-stufe-lesen", "start": "/admin/gutachten/1060", "steps": [
+  { "eval": "Array.from(document.querySelectorAll('select[id^=av-level-]')).map(s => s.id + ' = ' + s.value + ' | ' + Array.from(s.options).map(o => o.value + ':' + o.textContent.trim()).join(' / '))" }
+] }

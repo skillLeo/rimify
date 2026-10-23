@@ -1,0 +1,5 @@
+{ "name": "t2-2-leer", "start": "/admin/gutachten/neu", "steps": [
+  { "click": "role=button[name=\"Gutachten anlegen\"]" },
+  { "wait": 1500 },
+  { "eval": "document.activeElement && (document.activeElement.id || document.activeElement.tagName)" }
+] }

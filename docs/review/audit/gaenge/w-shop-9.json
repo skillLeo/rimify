@@ -1,0 +1,11 @@
+{ "name": "shop-9-kg-zeichen", "guest": true, "start": "/", "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "click": "role=tab[name=\"HSN/TSN\"]" },
+  { "fill": "role=textbox[name=\"HSN (Feld 2.1)\"]", "value": "0005" },
+  { "fill": "role=textbox[name=\"TSN (Feld 2.2)\"]", "value": "ZZ9" },
+  { "click": ".sel__go" },
+  { "wait": 2500 },
+  { "goto": "/felgen/pruefrad-strasse-18?fahrzeug=1275" },
+  { "wait": 2000 },
+  { "eval": "(() => { const el = Array.from(document.querySelectorAll('.rcheck-panel *')).filter(e => /Hinterachse mit/.test(e.textContent)).pop(); if (!el) return null; const t = el.textContent; const i = t.indexOf('1.240'); return [el.outerHTML.slice(0, 300), Array.from(t.slice(i, i + 9)).map(c => c + '=U+' + c.codePointAt(0).toString(16).padStart(4, '0'))]; })()" }
+] }

@@ -1,0 +1,13 @@
+{ "name": "t6-1-erstattet", "start": "/admin/bestellungen?q=RMF-2026-1021", "main": 2500, "steps": [
+  { "click": ".ob-number:has-text(\"RMF-2026-1021\")" },
+  { "wait": 1500 },
+  { "eval": "location.pathname" },
+  { "fill": "#bs-refund-amount", "value": "10,00" },
+  { "fill": "#bs-refund-reason", "value": "Kratzer an einer Felge – Teilerstattung aus Kulanz." },
+  { "click": "role=button[name=\"Erstatten …\"]" },
+  { "wait": 600 },
+  { "text": "[role=dialog]", "max": 600 },
+  { "click": "[role=dialog] >> role=button[name=\"10,00 € erstatten\"]" },
+  { "wait": 2500 },
+  { "text": "section:has(#bs-money-h)", "max": 1500 }
+] }

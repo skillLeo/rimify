@@ -1,0 +1,7 @@
+{ "name": "t7-9-fahrzeug-zurueck", "start": "/admin/fahrzeuge/1276", "steps": [
+  { "fill": "#fs-front", "value": "980" },
+  { "fill": "#fs-rear", "value": "1.150" },
+  { "click": ".fs-form >> role=button[name=\"Speichern\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#fs-front')?.value, document.querySelector('#fs-rear')?.value, document.querySelector('.fs-warn')?.textContent?.trim() ?? null]" }
+] }

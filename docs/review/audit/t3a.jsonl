@@ -1,0 +1,9 @@
+{"at":"2026-10-23T20:46:01.442Z","step":"leer: fragt erst nach Achslasten","asked":false}
+{"at":"2026-10-23T20:46:01.490Z","step":"leer gesendet","errors":["Trag den Hersteller ein (Feld D.1).","Trag die Handelsbezeichnung ein (Feld D.3).","Trag die Variante ein – so, wie Kunden das Fahrzeug in der Auswahl finden, etwa 320i Limousine.","Trag die HSN ein (Feld 2.1).","Trag die TSN ein: die ersten drei Zeichen aus Feld 2.2.","Trag die Nummer aus Feld K ein.","Trag die Leistung in kW ein (Feld P.2, die erste Zahl).","Trag ein, ab wann das Fahrzeug in dieser Variante gebaut wird: Monat und Jahr, etwa 06.2014."],"wider":-15}
+{"at":"2026-10-23T20:46:04.007Z","step":"ohne #fn-make","error":"Trag den Hersteller ein (Feld D.1).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T20:46:06.473Z","step":"ohne #fn-model","error":"Trag die Handelsbezeichnung ein (Feld D.3).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T20:46:09.930Z","step":"ohne #fn-hsn","error":"Trag die HSN ein (Feld 2.1).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T20:46:11.943Z","step":"ohne #fn-tsn","error":"Trag die TSN ein: die ersten drei Zeichen aus Feld 2.2.","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T20:46:13.933Z","step":"ohne #fn-kw","error":"Trag die Leistung in kW ein (Feld P.2, die erste Zahl).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T20:46:15.882Z","step":"ohne #fn-from","error":"Trag ein, ab wann das Fahrzeug in dieser Variante gebaut wird: Monat und Jahr, etwa 06.2014.","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T20:46:15.909Z","step":"pflichtfelder","console":[],"pageErrors":[],"failed":[]}

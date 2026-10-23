@@ -1,0 +1,23 @@
+{ "name": "shop-8-fassung-2", "guest": true, "start": "/", "full": true, "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "click": "role=tab[name=\"HSN/TSN\"]" },
+  { "fill": "role=textbox[name=\"HSN (Feld 2.1)\"]", "value": "0005" },
+  { "fill": "role=textbox[name=\"TSN (Feld 2.2)\"]", "value": "ZZ9" },
+  { "click": ".sel__go" },
+  { "wait": 2500 },
+  { "goto": "/felgen/pruefrad-strasse-18?fahrzeug=1275" },
+  { "wait": 2000 },
+  { "text": ".rcheck-panel", "max": 1400 },
+  { "click": "text=Kompletträder" },
+  { "wait": 1500 },
+  { "text": "section:has-text(\"Was möchtest du bestellen\")", "max": 1400 },
+  { "goto": "/felgen/pruefrad-strasse-18?fahrzeug=1276" },
+  { "wait": 2000 },
+  { "text": ".rcheck-panel", "max": 1000 },
+  { "click": "text=Kompletträder" },
+  { "wait": 1500 },
+  { "text": "section:has-text(\"Was möchtest du bestellen\")", "max": 1600 },
+  { "goto": "/felgen/pruefrad-strasse-18?fahrzeug=1277" },
+  { "wait": 2000 },
+  { "text": ".rcheck-panel", "max": 1000 }
+] }

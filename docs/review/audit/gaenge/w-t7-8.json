@@ -1,0 +1,15 @@
+{ "name": "t7-8-fahrzeug-achslast", "start": "/admin/fahrzeuge/1276", "full": true, "steps": [
+  { "eval": "[document.querySelector('#fs-front')?.value, document.querySelector('#fs-rear')?.value, document.querySelector('#fs-speed')?.value, document.querySelector('.fs-warn')?.textContent?.trim()]" },
+  { "fill": "#fs-front", "value": "" },
+  { "click": ".fs-form >> role=button[name=\"Speichern\"]" },
+  { "wait": 500 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText" },
+  { "click": "[role=dialog] >> role=button[name=\"Entfernen und speichern\"]" },
+  { "wait": 2000 },
+  { "eval": "[document.querySelector('#fs-front')?.value, document.querySelector('.fs-warn')?.textContent?.trim()]" },
+  { "fill": "#fs-front", "value": "1.050" },
+  { "fill": "#fs-rear", "value": "2,5" },
+  { "click": ".fs-form >> role=button[name=\"Speichern\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#fs-front')?.value, document.querySelector('#fs-rear')?.value, document.querySelector('#fs-front-err')?.textContent?.trim(), document.querySelector('#fs-rear-err')?.textContent?.trim()]" }
+] }

@@ -1,0 +1,18 @@
+{ "name": "v-25-zwei-tabs", "start": "/admin/marken?q=Aventin", "full": false, "steps": [
+  { "click": "css=[data-focus^=\"mk-more-\"]" },
+  { "wait": 400 },
+  { "click": "role=menuitem[name=/Bearbeiten/]" },
+  { "wait": 500 },
+  { "eval": "[document.querySelector('#mk-form-title')?.textContent?.trim(), document.querySelector('#mk-name')?.value, document.querySelector('#mk-sort')?.value]" },
+  { "eval": "(async () => { const id = document.querySelector('[data-focus^=\"mk-more-\"]').dataset.focus.replace('mk-more-', ''); const xsrf = decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || ''); const wall = document.querySelector('.mk__form input[type=checkbox]')?.checked ?? false; const r = await fetch('/admin/marken/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf }, body: JSON.stringify({ name: 'Aventin', isWheelBrand: wall, sortOrder: Number(document.querySelector('#mk-sort').value) + 1 }) }); return 'anderer Tab: ' + r.status; })()" },
+  { "fill": "#mk-name", "value": "Aventin Räder" },
+  { "click": "role=button[name=\"Änderungen speichern\"]" },
+  { "wait": 1800 },
+  { "eval": "[Array.from(document.querySelectorAll('.mk__form .adm-alert')).map(e => e.textContent.trim()), document.querySelector('#mk-name')?.value, document.querySelector('#mk-form-title')?.textContent?.trim()]" },
+  { "goto": "/admin/marken?q=Aventin" },
+  { "eval": "Array.from(document.querySelectorAll('main tbody tr')).map(r => r.textContent.replace(/\\s+/g, ' ').trim().slice(0, 80)).slice(0, 3)" },
+  { "goto": "/admin/rollen?rolle=2" },
+  { "eval": "Array.from(document.querySelectorAll('.rol__standard, .rol__held')).map(e => e.className.split(' ').pop() + ': ' + e.textContent.replace(/\\s+/g, ' ').trim())" },
+  { "goto": "/admin/anfragen?q=Golf" },
+  { "eval": "[Array.from(document.querySelectorAll('section[aria-labelledby=ben-all] .adm-note, section[aria-labelledby=ben-all] .adm-state__heading')).map(e => e.textContent.trim())]" }
+] }

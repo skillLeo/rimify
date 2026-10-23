@@ -1,0 +1,9 @@
+{ "name": "t8-5-zugestellt", "start": "/admin/bestellungen/2123", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main button')).map(b => b.textContent.trim()).filter(t => /versendet|zugestellt/i.test(t))" },
+  { "click": "main >> role=button[name=/zugestellt/i]" },
+  { "wait": 600 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText ?? null" },
+  { "click": "[role=dialog] >> role=button[name=/zugestellt/i]", "timeout": 4000 },
+  { "wait": 1800 },
+  { "eval": "Array.from(document.querySelectorAll('main section')).filter(s => /Stand/.test(s.querySelector('h2')?.textContent || '')).map(s => s.innerText.replace(/\\n+/g, ' | ').slice(0, 500))" }
+] }

@@ -1,0 +1,4 @@
+{ "name": "t9-5-testmail", "start": "/admin/einstellungen/e-mail", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main button')).map(b => b.textContent.trim()).filter(t => t && t.length < 50)" },
+  { "eval": "Array.from(document.querySelectorAll('main input, main select')).map(e => (e.id || e.name) + ':' + e.type + '=' + String(e.value).slice(0, 30))" }
+] }

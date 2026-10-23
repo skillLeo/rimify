@@ -1,0 +1,5 @@
+{ "name": "t3a-1-leer", "start": "/admin/fahrzeuge/neu", "full": true, "steps": [
+  { "shot": "t3a-0-form", "full": true },
+  { "click": "role=button[name=\"Fahrzeug anlegen\"]" },
+  { "wait": 800 }
+] }

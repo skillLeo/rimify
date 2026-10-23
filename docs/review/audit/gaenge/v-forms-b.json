@@ -1,0 +1,14 @@
+{ "name": "v-forms-b", "start": "/admin/profil", "full": false, "steps": [
+  { "fill": "#pw-current", "value": "rimify-dev-2026" },
+  { "fill": "#pw-new", "value": "kurz" },
+  { "fill": "#pw-repeat", "value": "anders" },
+  { "click": "role=button[name=\"Speichern\"]" },
+  { "wait": 1500 },
+  { "eval": "[Array.from(document.querySelectorAll('.form-field__error')).map(e => e.id + ': ' + e.textContent.trim()).filter(t => !/: $/.test(t)), document.querySelector('#pw-current')?.value?.length, document.querySelector('#pw-new')?.value]" },
+  { "goto": "/admin/rollen" },
+  { "click": "nav.rol__list >> text=Katalog" },
+  { "wait": 1200 },
+  { "eval": "[location.search, Array.from(document.querySelectorAll('.rol__held')).map(e => e.textContent.replace(/\\s+/g, ' ').trim())]" },
+  { "goto": "/admin/benutzer" },
+  { "eval": "Array.from(document.querySelectorAll('main button')).map(b => b.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 8)" }
+] }

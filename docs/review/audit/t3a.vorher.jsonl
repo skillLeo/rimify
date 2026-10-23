@@ -1,0 +1,15 @@
+{"at":"2026-10-23T14:00:21.469Z","step":"leer: fragt erst nach Achslasten","asked":true}
+{"at":"2026-10-23T14:00:22.015Z","step":"leer gesendet","errors":["Trag den Hersteller ein (Feld D.1).","Trag die Handelsbezeichnung ein (Feld D.3).","Trag die Variante ein – so, wie Kunden das Fahrzeug in der Auswahl finden, etwa 320i Limousine.","Trag die HSN ein (Feld 2.1).","Trag die TSN ein: die ersten drei Zeichen aus Feld 2.2.","Trag die Nummer aus Feld K ein.","Trag die Leistung in kW ein (Feld P.2, die erste Zahl).","Trag ein, ab wann das Fahrzeug in dieser Variante gebaut wird: Monat und Jahr, etwa 06.2014."],"wider":-15}
+{"at":"2026-10-23T14:00:23.839Z","step":"ohne #fn-make","error":"Trag den Hersteller ein (Feld D.1).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T14:00:25.733Z","step":"ohne #fn-model","error":"Trag die Handelsbezeichnung ein (Feld D.3).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T14:00:27.613Z","step":"ohne #fn-hsn","error":"Trag die HSN ein (Feld 2.1).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T14:00:29.189Z","step":"ohne #fn-tsn","error":"Trag die TSN ein: die ersten drei Zeichen aus Feld 2.2.","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T14:00:31.338Z","step":"ohne #fn-kw","error":"Trag die Leistung in kW ein (Feld P.2, die erste Zahl).","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T14:00:33.083Z","step":"ohne #fn-from","error":"Trag ein, ab wann das Fahrzeug in dieser Variante gebaut wird: Monat und Jahr, etwa 06.2014.","kept":"2.0 Limousine Straßenversion"}
+{"at":"2026-10-23T14:00:33.113Z","step":"pflichtfelder","console":[],"pageErrors":[],"failed":[]}
+{"at":"2026-10-23T14:00:35.645Z","step":"angelegt ZZ9","url":"http://127.0.0.1:8050/admin/fahrzeuge/1275","heading":"Prüfwerk Größe Eins 2.0 Limousine Straßenversion"}
+{"at":"http://127.0.0.1:8050/admin/fahrzeuge/neu","step":"zurück ZZ9"}
+{"at":"2026-10-23T14:00:37.465Z","step":"angelegt ZZ8","url":"http://127.0.0.1:8050/admin/fahrzeuge/1276","heading":"Prüfwerk Größe Eins 1.6 Limousine"}
+{"at":"http://127.0.0.1:8050/admin/fahrzeuge/neu","step":"zurück ZZ8"}
+{"at":"2026-10-23T14:00:38.483Z","step":"liste","rows":30,"text":"Fahrzeuge\n\n1.276 Fahrzeuge\n\nImportieren\nNeues Fahrzeug\nAlle · 1.276\nZur Prüfung · 1\nFahrzeuge durchsuchen\nMarke\nAlle Marken\nAudi\nBMW\nFord\nMercedes-Benz\nOpel\nPorsche\nPrüfwerk\nŠkoda\nVolkswagen\nSuchen\nFahrzeuge, 1.276 Fahrzeuge\nFahrzeug\tHSN/TSN\tBauzeitraum\tFreigaben\tStand\nAudi A3Demodaten\nA3 Limousine 40 TFSI · 140 kW\n\tHSN 0588 · TSN AKB\t09/2020–heute\t45\tVollständig\nAudi A3Demodaten\nA3 Sportback 35 TFSI · 110 kW\n\tHSN 0588 · TSN AKA\t05/2020–heute\t45\tVollständig\nAudi A3Demodaten\nS3 Sportback quattro · 228 kW\n\tHSN 0588 · TSN AKC\t11/2020–heute\t45\tVollständig\nAudi A4Demodaten\nA4 Avant 40 TDI quattro ·"}
+{"at":"2026-10-23T14:00:38.484Z","step":"anlegen","console":[],"pageErrors":[],"failed":[]}

@@ -1,0 +1,22 @@
+{ "name": "t4-2-reifen-angelegt", "start": "/admin/reifen/neu", "full": true, "main": 2000, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('#rf-brand option')).slice(-3).map(o => o.value + '=' + o.textContent.trim())" },
+  { "select": "#rf-brand", "label": "Neue Marke anlegen …" },
+  { "fill": "#rf-brand-new", "value": "Grünland Reifen" },
+  { "fill": "#rf-name", "value": "Sportkontakt Ü6" },
+  { "select": "#rf-season", "value": "sommer" },
+  { "fill": "#rf-width", "value": "225" },
+  { "fill": "#rf-aspect", "value": "40" },
+  { "fill": "#rf-diameter", "value": "18" },
+  { "fill": "#rf-load", "value": "92" },
+  { "select": "#rf-speed", "value": "W" },
+  { "select": "#rf-fuel", "value": "B" },
+  { "select": "#rf-wet", "value": "A" },
+  { "fill": "#rf-noise", "value": "71" },
+  { "select": "#rf-noise-class", "value": "B" },
+  { "eval": "Array.from(document.querySelectorAll('input[type=radio]')).map(i => i.name + '=' + i.value + (i.checked ? '*' : ''))" },
+  { "fill": "#rf-eprel", "value": "1234567" },
+  { "fill": "#rf-price", "value": "129,90" },
+  { "dblclick": "role=button[name=\"Speichern\"]" },
+  { "wait": 2500 },
+  { "eval": "location.pathname" }
+] }

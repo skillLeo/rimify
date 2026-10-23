@@ -1,0 +1,4 @@
+{ "name": "t8-7-wieder-einblenden", "start": "/felgen/pruefrad-strasse-18", "guest": true, "full": true, "steps": [
+  { "wait": 1500 },
+  { "eval": "[document.body.textContent.includes('Weißenfels'), document.body.textContent.includes('Danke für deine Bewertung'), Array.from(document.querySelectorAll('main *')).filter(e => e.children.length === 0 && /Bewertung|Sterne/.test(e.textContent)).map(e => e.textContent.trim()).slice(0, 6)]" }
+] }

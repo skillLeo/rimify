@@ -1,0 +1,7 @@
+{ "name": "t2-18-freigabe-dialog", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "role=button[name=\"Freigeben\"]" },
+  { "wait": 800 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] input, [role=dialog] select')).map(e => (e.id || e.name) + ':' + e.type + '=' + (e.type === 'radio' ? e.value + (e.checked ? '*' : '') : e.value))" },
+  { "text": "[role=dialog]", "max": 2500 },
+  { "shot": "t2-18-freigabe-dialog" }
+] }

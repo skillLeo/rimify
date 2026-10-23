@@ -1,0 +1,6 @@
+{ "name": "t2-13-angaben", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "section[aria-labelledby=\"gs-facts-h\"] >> role=button[name=\"Ändern\"]" },
+  { "wait": 700 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] input, [role=dialog] select, [role=dialog] textarea')).map(e => (e.id || e.name) + ':' + e.type + '=' + (e.type === 'radio' ? e.value + (e.checked ? '*' : '') : e.value))" },
+  { "shot": "t2-13-angaben" }
+] }

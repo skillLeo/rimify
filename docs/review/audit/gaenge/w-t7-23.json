@@ -1,0 +1,13 @@
+{ "name": "t7-23-navigation", "start": "/admin/navigation", "full": true, "steps": [
+  { "click": "role=button[name=\"Aktionen für Blog\"]" },
+  { "wait": 300 },
+  { "eval": "Array.from(document.querySelectorAll('[role=menu] [role=menuitem]')).map(m => m.textContent.trim())" },
+  { "click": "[role=menu] >> role=menuitem[name=\"Bearbeiten\"]" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] input, [role=dialog] select, main form input, main form select')).map(e => (e.id || e.name) + ':' + e.type + '=' + e.value)" },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] select, main form select')).map(s => s.id + ' -> ' + (s.selectedOptions[0]?.textContent?.trim() ?? '(nichts)') + ' | ' + s.options.length + ' Optionen')" },
+  { "fill": "[role=dialog] input[type=text] >> nth=0", "value": "Ratgeber & Blog" },
+  { "click": "[role=dialog] >> role=button[name=/speichern/i]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('[role=dialog]') ? document.querySelector('[role=dialog]').innerText.slice(0, 600) : 'zu', Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)]" }
+] }

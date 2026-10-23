@@ -1,0 +1,6 @@
+{ "name": "t1-8-sku-doppelt", "start": "/admin/felgen/1124", "steps": [
+  { "fill": "#fe-size-0-sku", "value": "PRUEFRAD-STRASSE-18-18X8.5-ET35-SG" },
+  { "click": "role=button[name=\"Speichern\"]" },
+  { "wait": 2000 },
+  { "text": ".fe-sizes, [id^=fe-size-0-err], .adm-alert", "max": 400 }
+] }

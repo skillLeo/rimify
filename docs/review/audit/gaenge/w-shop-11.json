@@ -1,0 +1,7 @@
+{ "name": "shop-11-bewertung-schreiben", "guest": true, "start": "/bewertung/RMF-2026-1021?expires=1797952250&signature=1c99cb3dcc538aaee7481f0c9593c2db733f262b1579bef4f33326cdf878438c", "full": true, "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('main input, main textarea, main button')).map(e => (e.id || e.name || e.textContent.trim()) + ':' + (e.type || '') + (e.maxLength > 0 ? ' max' + e.maxLength : '')).slice(0, 20)]" },
+  { "click": "main >> role=button[name=/absenden|senden|bewerten|abschicken/i]" },
+  { "wait": 1500 },
+  { "eval": "Array.from(document.querySelectorAll('.form-field__error, [role=alert], .error')).map(e => e.textContent.trim()).filter(Boolean)" }
+] }

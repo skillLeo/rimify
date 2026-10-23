@@ -1,0 +1,23 @@
+{ "name": "t7-25-artikel-zurueckziehen", "start": "/admin/navigation", "full": true, "steps": [
+  { "click": "#nav-new" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelector('#nav-menu').options).map(o => o.value + '=' + o.textContent.trim())" },
+  { "select": "#nav-menu", "value": "footer_service" },
+  { "fill": "#nav-label", "value": "Felgen einlagern" },
+  { "select": "#nav-target", "label": "Ratgeber: Felgen richtig einlagern – Größe, Druck und Pflege" },
+  { "click": "[role=dialog] >> role=button[name=\"Anlegen\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('[role=dialog]') ? 'offen' : 'zu', Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)]" },
+  { "goto": "/admin/seiten/12" },
+  { "wait": 1000 },
+  { "eval": "Array.from(document.querySelectorAll('.adm-page__actions button, .adm-page__actions a')).map(b => b.textContent.trim())" },
+  { "click": "role=button[name=/Weitere Aktionen/]", "timeout": 3000 },
+  { "wait": 300 },
+  { "eval": "Array.from(document.querySelectorAll('[role=menu] [role=menuitem], [role=menu] a')).map(m => m.textContent.trim())" },
+  { "click": "[role=menu] >> role=menuitem[name=/Zurückziehen/]" },
+  { "wait": 400 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText ?? null" },
+  { "click": "[role=dialog] >> role=button[name=/Zurückziehen/]" },
+  { "wait": 1800 },
+  { "eval": "[document.querySelector('.adm-page__context')?.textContent?.trim(), Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)]" }
+] }

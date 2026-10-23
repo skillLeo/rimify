@@ -1,0 +1,9 @@
+{ "name": "t2-19-freigegeben", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "role=button[name=\"Freigeben\"]" },
+  { "wait": 800 },
+  { "check": "#rd-c-complete" },
+  { "click": "[role=dialog] >> role=button[name=\"Freigeben\"]" },
+  { "wait": 3000 },
+  { "eval": "document.querySelector('#gs-state-h')?.textContent?.trim()" },
+  { "eval": "document.querySelector('h1')?.nextElementSibling?.textContent?.trim()" }
+] }

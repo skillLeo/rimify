@@ -1,0 +1,18 @@
+{ "name": "t1-4-ausgefuellt", "start": "/admin/felgen/neu", "full": true, "steps": [
+  { "select": "#fe-brand", "label": "Neue Marke anlegen …" },
+  { "fill": "#fe-brand-new", "value": "Prüfrad" },
+  { "fill": "#fe-name", "value": "Straße 18" },
+  { "fill": "#fe-type", "value": "PR18" },
+  { "fill": "#fe-desc", "value": "Fünf Doppelspeichen, schwarz glänzend – für Fahrzeuge mit 5×112, geprüft nach Teilegutachten." },
+  { "fill": "#fe-f-0-name", "value": "Schwarz glänzend" },
+  { "select": "#fe-f-0-art", "label": "Schwarz" },
+  { "fill": "#fe-m-d", "value": "18" },
+  { "fill": "#fe-m-w", "value": "8,5" },
+  { "fill": "#fe-m-et", "value": "35 45" },
+  { "fill": "#fe-m-lk", "value": "112" },
+  { "fill": "#fe-m-bore", "value": "66,6" },
+  { "fill": "#fe-m-price", "value": "389,00" },
+  { "click": "role=button[name=/Größen in die Tabelle/]" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[id^=fe-size-]')).filter(e => /-(sku|diameter|width|et|bore|price)$/.test(e.id)).map(e => e.id + '=' + e.value)" }
+] }

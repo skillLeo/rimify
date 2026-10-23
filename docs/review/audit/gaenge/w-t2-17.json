@@ -1,0 +1,5 @@
+{ "name": "t2-17-vorschau-250-tabelle", "start": "/admin/gutachten/1060?fahrzeug=1275", "steps": [
+  { "click": "role=button[name=\"Vorschau zeigen\"]" },
+  { "wait": 2500 },
+  { "text": "section[aria-labelledby=\"gs-preview-h\"] .gs-verdict", "max": 1400 }
+] }

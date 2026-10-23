@@ -1,0 +1,9 @@
+{ "name": "t7-11-neue-fassung", "start": "/admin/gutachten/1060", "full": true, "steps": [
+  { "click": ".adm-page__actions >> role=button[name=\"Neue Fassung anlegen\"]" },
+  { "wait": 500 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText ?? null" },
+  { "click": "[role=dialog] >> role=button[name=/anlegen/i]" },
+  { "wait": 2500 },
+  { "eval": "[location.pathname, document.querySelector('h1')?.textContent?.trim(), document.querySelector('.adm-page__context')?.textContent?.trim(), Array.from(document.querySelectorAll('.adm-page__actions button, .adm-page__actions a')).map(b => b.textContent.trim())]" },
+  { "text": "main > div > section:first-of-type, .gs-banner, .adm-note", "max": 700 }
+] }

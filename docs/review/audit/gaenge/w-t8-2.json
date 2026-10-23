@@ -1,0 +1,7 @@
+{ "name": "t8-2-stufe-setzen", "start": "/admin/gutachten/1060", "full": true, "steps": [
+  { "eval": "[Array.from(document.querySelector('#av-level-30').options).map(o => o.value + (o.disabled ? ' (gesperrt)' : '')), Array.from(document.querySelectorAll('.av p, .av__floor, [data-floor]')).map(p => p.textContent.trim()).filter(t => /Abnahme|immer/.test(t)).slice(0, 3)]" },
+  { "select": "#av-level-31", "value": "nicht_zulaessig" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#av-level-31')?.value, document.querySelector('[role=dialog]')?.innerText ?? null]" },
+  { "eval": "Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)" }
+] }

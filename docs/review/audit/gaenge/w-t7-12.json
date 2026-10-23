@@ -1,0 +1,4 @@
+{ "name": "t7-12-zeilen-aktionen", "start": "/admin/gutachten/1061", "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main [aria-label^=\"Aktionen\"]')).map(b => b.getAttribute('aria-label'))" },
+  { "eval": "Array.from(document.querySelectorAll('main table')).map(t => (t.querySelector('caption')?.textContent?.trim() || t.closest('section')?.querySelector('h2,h3')?.textContent?.trim() || '?') + ' :: ' + t.querySelectorAll('tbody tr').length)" }
+] }

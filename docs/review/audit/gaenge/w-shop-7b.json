@@ -1,0 +1,11 @@
+{ "name": "shop-7b-kombi-text", "guest": true, "start": "/", "full": true, "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "click": "role=tab[name=\"HSN/TSN\"]" },
+  { "fill": "role=textbox[name=\"HSN (Feld 2.1)\"]", "value": "0005" },
+  { "fill": "role=textbox[name=\"TSN (Feld 2.2)\"]", "value": "ZZ7" },
+  { "click": ".sel__go" },
+  { "wait": 2500 },
+  { "goto": "/felgen/pruefrad-strasse-18" },
+  { "wait": 2000 },
+  { "eval": "Array.from(document.querySelectorAll('main *')).filter(e => e.children.length === 0 && /zulässig|Auflage|Kombi 1\\.5/.test(e.textContent)).map(e => e.tagName + ': ' + e.textContent.trim()).slice(0, 20)" }
+] }

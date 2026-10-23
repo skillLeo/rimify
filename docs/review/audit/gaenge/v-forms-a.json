@@ -1,0 +1,15 @@
+{ "name": "v-forms-a", "start": "/admin/fahrzeuge/neu", "full": false, "steps": [
+  { "click": "role=button[name=\"Fahrzeug anlegen\"]" },
+  { "wait": 1500 },
+  { "eval": "[!!Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Ohne Achslasten anlegen') && b.offsetParent !== null), Array.from(document.querySelectorAll('.form-field__error')).map(e => e.id.replace('fn-', '') + ': ' + e.textContent.trim()).filter(t => !/: $/.test(t))]" },
+  { "goto": "/admin/gutachten/6" },
+  { "click": "role=button[name=\"Vorschau zeigen\"]" },
+  { "wait": 2500 },
+  { "eval": "[document.querySelector('.gs-preview-for')?.textContent?.trim(), Array.from(document.querySelectorAll('.gs-verdict__line')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(t => /Reifen|vorn|hinten/.test(t)).slice(0, 4)]" },
+  { "goto": "/admin/auflagen" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelector('.av__in-use')?.textContent?.replace(/\\s+/g, ' ').trim() ?? 'KEIN av__in-use']" },
+  { "goto": "/admin/rollen" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('.rol__held')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).slice(0, 2)]" },
+  { "goto": "/admin/felgen/1" },
+  { "eval": "Array.from(document.querySelectorAll('[id^=fe-seo]')).filter(e => e.id.endsWith('help')).map(e => e.id + ': ' + e.textContent.replace(/\\s+/g, ' ').trim())" }
+] }
