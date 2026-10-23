@@ -30,9 +30,10 @@ something to compare against. Where this page and the code disagree, the code is
 | `bauende` | Gebaut bis | no | `bauende`, `baubis`, `baujahrbis`, `gebautbis`, `bis`, `buildto` | as Gebaut ab; a month ends on its last day; empty: still built | given and unread, or before the start: row refused |
 | `karosserie` | Karosserie | no | `karosserie`, `karosserieform`, `aufbau`, `body` | one of Limousine, Kombi, Coupe, Cabrio, Schrägheck, SUV, Roadster, Van, in any case | stored empty, the row says so |
 | `antrieb` | Antrieb | no | `antrieb`, `antriebsart`, `drive` | one of Allrad, Vorderachse, Hinterachse, in any case | stored empty, the row says so |
-| `achslast_vorn_kg` | Achslast vorn in kg (8.1) | no | `achslastvornkg`, `achslastvorn`, `achslastvorne`, `81`, `feld81` | a whole number of kilograms, 300 to 4000; a German thousands dot is read (`1.050`) | stored empty, the row says so, the car waits under „Zur Prüfung“ (R-03) |
+| `achslast_vorn_kg` | Achslast vorn in kg (8.1) | no | `achslastvornkg`, `achslastvorn`, `achslastvorne`, `81`, `feld81` | a whole number of kilograms, believed from 400 to 2500; a German thousands dot is read (`1.050`) | no number: stored empty, the row says so; a number outside 400 to 2500: stored empty and shown as implausible, as read; either way the car waits under „Zur Prüfung“ (R-03, D-318) |
 | `achslast_hinten_kg` | Achslast hinten in kg (8.2) | no | `achslasthintenkg`, `achslasthinten`, `82`, `feld82` | as 8.1 | as 8.1 |
-| `hoechstgeschwindigkeit_kmh` | Höchstgeschwindigkeit in km/h (T) | no | `hoechstgeschwindigkeitkmh`, **`fahrzeugmaxkmh`**, `hoechstgeschwindigkeit`, `vmax`, `feldt`, `t` | a whole number of kilometres per hour, 60 to 420 | zero, blank or outside: stored empty — never as a number —, the row says so when a value was given, the car waits under „Zur Prüfung“ (R-03) |
+| `hoechstgeschwindigkeit_kmh` | Höchstgeschwindigkeit in km/h (T) | no | `hoechstgeschwindigkeitkmh`, **`fahrzeugmaxkmh`**, `hoechstgeschwindigkeit`, `vmax`, `feldt`, `t` | a whole number of kilometres per hour, believed from 60 to 420 — the band of the customer's papers form, held once (`PapersFigures`) | blank or no number: stored empty, the row says so when a value was given; a number outside the band — zero included —: stored empty and shown as implausible, never as a number; the car waits under „Zur Prüfung“ (R-03) |
+| `gesamtmasse_kg` | Zulässige Gesamtmasse in kg (F.2) | no | `gesamtmassekg`, `gesamtmasse`, `zulaessigegesamtmasse`, `zulgesamtmasse`, `gesamtgewicht`, `zulaessigesgesamtgewicht`, `zulgesamtgewicht`, `f2`, `feldf2` | a whole number of kilograms — **read only to check 8.1 + 8.2 against it, never stored** | without it the sum check is not run, and says „Keine Spalte zugeordnet“ |
 | `fahrzeug_id` | Nummer des Fahrzeugs im Datensatz | no | `fahrzeugid`, `datensatzid`, `id` | a whole number, 1 to 4294967295 | the shop numbers the car itself; a number another car of this source carries, or twice in the file: row refused |
 
 A car is written with `needs_review` until it has 8.1, 8.2 and T: it waits under Fahrzeuge › „Zur Prüfung“, and
@@ -62,7 +63,19 @@ Every other column of his file is still unknown: his twenty-row sample is the fi
    missing and one that does not read count alike. Those shares, with the counts of new, refused and unread rows and
    the reason of each refused one, are the report — before anyone buys the full set. If a third of the rows come
    without axle loads, that is the number he decides on.
-7. Write the four shares into the record below, with the date and the file's name.
+7. Read **„Gelesen, aber unplausibel“** — the third state beside missing and mapped (D-318). A column mapped to the
+   wrong column reads fine in every row and shows 0 % missing; only these checks show it, each with up to three rows
+   as read:
+   - an axle load (8.1 or 8.2) outside 400 to 2.500 kg;
+   - 8.1 equal to 8.2 in every row — judged only from three rows with both, and naming the one column when both are
+     mapped to it;
+   - 8.1 plus 8.2 outside 95 to 140 % of the total mass (F.2) — a car's sum lies about 100 to 125 %; one axle load
+     mapped to the mass itself gives about 150 to 165 %;
+   - a top speed outside 60 to 420 km/h.
+
+   Each says what was read and what was expected, never what his file contains. It warns and never stops: the fix is
+   a mapping change, then a new Probelauf.
+8. Write the four shares and the implausible counts into the record below, with the date and the file's name.
 
 Two rules hold for these shares and for every share of a file the shop shows (D-318):
 
@@ -79,10 +92,10 @@ the file's name. When the full dataset has run, it is compared with the sample, 
 either way, a match included: a sample at 0 % missing axle loads beside a full file at 30 % was not representative
 of what he bought, and he gets that in writing.
 
-| Run | Date | File | Rows | No usable T | No 8.1 or 8.2 | No HSN or TSN | No K |
-|---|---|---|---|---|---|---|---|
-| The sample (twenty rows) | — | — | — | — | — | — | — |
-| The full dataset | — | — | — | — | — | — | — |
+| Run | Date | File | Rows | No usable T | No 8.1 or 8.2 | No HSN or TSN | No K | Implausible: axle load · same in every row · sum vs. F.2 · T |
+|---|---|---|---|---|---|---|---|---|
+| The sample (twenty rows) | — | — | — | — | — | — | — | — |
+| The full dataset | — | — | — | — | — | — | — | — |
 
 **Comparison:** not yet — written when the full dataset has run, share by share against the sample, with whether the
 sample was representative of what he bought.

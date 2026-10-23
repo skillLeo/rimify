@@ -98,6 +98,8 @@ class FahrzeugImportController extends Controller
             'missing' => VehicleImporter::missing($import->mapping, $headers),
             // What the file lacks, as counts and shares of its rows: the figures he decides a purchase on (D-317).
             'gaps' => VehicleImporter::gaps((array) ($import->summary ?? []), (array) ($import->mapping ?? []), $headers),
+            // Read, but not as what the field can be: most often a column mapped to the wrong column (D-318).
+            'implausible' => VehicleImporter::implausible($import->rows, $import->mapping, $headers),
             'rows' => array_slice($listed, 0, self::SHOWN_ROWS),
             'hiddenRows' => max(0, count($listed) - self::SHOWN_ROWS),
             // Sent back with „Importieren“: the import applies this Probelauf, not one another tab has checked since.
@@ -138,13 +140,13 @@ class FahrzeugImportController extends Controller
         return ListExport::download('fahrzeuge-import-beispiel', 'csv', $header, $rows);
     }
 
-    /** @return list<array{key: string, label: string, required: bool}> */
+    /** @return list<array{key: string, label: string, required: bool, hint: string|null}> */
     private static function fields(): array
     {
         $fields = [];
 
         foreach (VehicleImporter::FIELDS as $key => $spec) {
-            $fields[] = ['key' => $key, 'label' => $spec['label'], 'required' => $spec['required']];
+            $fields[] = ['key' => $key, 'label' => $spec['label'], 'required' => $spec['required'], 'hint' => $spec['hint'] ?? null];
         }
 
         return $fields;

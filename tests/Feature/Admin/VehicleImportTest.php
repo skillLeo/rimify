@@ -261,10 +261,11 @@ it('reads his demo data’s `fahrzeug_max_kmh` as field T, and never a zero, a b
     expect($import->mapping['hoechstgeschwindigkeit_kmh'] ?? null)->toBe('fahrzeug_max_kmh')
         ->and($import->summary)->toMatchArray([VehicleImporter::CREATE => 5, VehicleImporter::REFUSED => 0])
         ->and($notes['2'])->toBe([])
-        // Given and not a plausible top speed: said, and stored as nothing.
-        ->and($notes['3'])->toBe(['Höchstgeschwindigkeit in km/h (T) nicht lesbar: „0“'])
+        // A number, but not a top speed: said as what was read and what was expected (D-318), and stored as nothing.
+        ->and($notes['3'])->toBe(["Höchstgeschwindigkeit in km/h (T): Gelesen: 0\u{00A0}km/h. Erwartet für eine Höchstgeschwindigkeit: 60 bis 420\u{00A0}km/h."])
         ->and($notes['4'])->toBe([])
-        ->and($notes['5'])->toBe(['Höchstgeschwindigkeit in km/h (T) nicht lesbar: „999“'])
+        ->and($notes['5'])->toBe(["Höchstgeschwindigkeit in km/h (T): Gelesen: 999\u{00A0}km/h. Erwartet für eine Höchstgeschwindigkeit: 60 bis 420\u{00A0}km/h."])
+        // No number at all: not read.
         ->and($notes['6'])->toBe(['Höchstgeschwindigkeit in km/h (T) nicht lesbar: „250 km/h“']);
 
     $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')->assertSessionHasNoErrors();
@@ -289,10 +290,11 @@ it('counts what the file lacks over all its rows, as counts and as shares of the
         datasetLine(['tsn' => 'ZB3', 'variant' => '2.0 C', 'rear' => 'viel']),
         // Refused for want of key numbers, and counted all the same: the file lacks what it lacks.
         datasetLine(['hsn' => '', 'tsn' => '', 'variant' => '2.0 D', 'eg' => '']),
+        // A top speed of 0 is a number, just not a top speed: implausible, the third state, not counted as missing (D-318).
         datasetLine(['tsn' => 'ZB5', 'variant' => '2.0 E', 'eg' => 'e1-falsch', 'speed' => '0']),
     ]));
 
-    expect($import->summary)->toMatchArray(['rows' => 5, 'refused' => 1, 'without_speed' => 2, 'without_axle' => 1, 'without_keys' => 1, 'without_eg' => 2]);
+    expect($import->summary)->toMatchArray(['rows' => 5, 'refused' => 1, 'without_speed' => 1, 'without_axle' => 1, 'without_keys' => 1, 'without_eg' => 2]);
 
     $percent = static fn (string $figure): string => $figure."\u{00A0}%";
 
@@ -300,7 +302,7 @@ it('counts what the file lacks over all its rows, as counts and as shares of the
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('gaps', [
             // Over all five rows, the refused one included: a half-refused file must not show flattering shares.
-            ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => 2, 'share' => $percent('40'), 'unmapped' => null],
+            ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
             ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
             ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
             ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 2, 'share' => $percent('40'), 'unmapped' => null],
@@ -339,6 +341,103 @@ it('names a field without a column „Keine Spalte zugeordnet“ and counts noth
             ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 0, 'share' => "0\u{00A0}%", 'unmapped' => null],
             ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 1, 'share' => "50\u{00A0}%", 'unmapped' => null],
         ]));
+});
+
+it('shows what reads but cannot be — said as read and expected, stored as nothing, every row imported all the same (D-318) @admin-202', function (): void {
+    $header = ['HSN', 'TSN', 'Hersteller', 'Handelsname', 'Variante', 'Baubeginn', 'Achslast vorn kg', 'Achslast hinten kg', 'Höchstgeschwindigkeit km/h', 'Gesamtmasse kg'];
+    $rows = [
+        ['0005', 'ZP1', 'Testmarke', 'Modell', '2.0 A', '03.2015', '1.050', '1.120', '225', '2.000'],
+        // An axle load beyond any car's: read, not believed.
+        ['0005', 'ZP2', 'Testmarke', 'Modell', '2.0 B', '03.2015', '2.600', '1.120', '225', '2.000'],
+        // 8.1 on the total mass: each figure believable alone, the sum is not — and a top speed no car has.
+        ['0005', 'ZP3', 'Testmarke', 'Modell', '2.0 C', '03.2015', '1.840', '940', '999', '1.840'],
+        ['0005', 'ZP4', 'Testmarke', 'Modell', '2.0 D', '03.2015', '350', '900', '210', '1.300'],
+    ];
+    $file = UploadedFile::fake()->createWithContent('unplausibel.csv', implode("\n", array_map(static fn (array $cells): string => implode(';', $cells), [$header, ...$rows]))."\n");
+    $kg = static fn (string $n): string => $n."\u{00A0}kg";
+
+    $import = vehicleProbelauf($this, $file);
+
+    $this->actingAs(vehicleImportAdmin(), 'admin')->get('/admin/fahrzeuge/import/'.$import->id)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('implausible', [
+            [
+                'key' => 'axle_range', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'expected' => 'Erwartet für eine Achslast: 400 bis '.$kg('2.500').'.',
+                'count' => 2, 'checked' => 4, 'examples' => ['Zeile 3: Gelesen: '.$kg('2.600').' (8.1)', 'Zeile 5: Gelesen: '.$kg('350').' (8.1)'], 'unmapped' => null, 'unchecked' => null,
+            ],
+            [
+                'key' => 'axle_same', 'label' => 'Achslast vorn gleich hinten (8.1 = 8.2) in jeder geprüften Zeile', 'expected' => 'Erwartet: mindestens eine Zeile mit verschiedenen Werten vorn und hinten.',
+                'count' => 0, 'checked' => 4, 'examples' => [], 'unmapped' => null, 'unchecked' => null,
+            ],
+            [
+                // Two rows carry both axle loads in the band and a mass; one sum is half again the mass.
+                'key' => 'axle_sum', 'label' => 'Achslast vorn plus hinten (8.1 + 8.2) im Verhältnis zur zulässigen Gesamtmasse (F.2)', 'expected' => "Erwartet: 95 bis 140\u{00A0}% der zulässigen Gesamtmasse.",
+                'count' => 1, 'checked' => 2, 'examples' => ['Zeile 4: Gelesen: '.$kg('1.840').' + '.$kg('940').' = '.$kg('2.780').' bei '.$kg('1.840')." Gesamtmasse (151,1\u{00A0}%)"], 'unmapped' => null, 'unchecked' => null,
+            ],
+            [
+                'key' => 'speed_range', 'label' => 'Höchstgeschwindigkeit (T)', 'expected' => "Erwartet für eine Höchstgeschwindigkeit: 60 bis 420\u{00A0}km/h.",
+                'count' => 1, 'checked' => 4, 'examples' => ["Zeile 4: Gelesen: 999\u{00A0}km/h"], 'unmapped' => null, 'unchecked' => null,
+            ],
+        ])->where('fields', fn ($fields): bool => collect($fields)->firstWhere('key', 'gesamtmasse_kg')['hint'] === 'Wird nur zum Abgleich mit 8.1 und 8.2 gelesen und nicht gespeichert.'));
+
+    // A warning, never a stop: every row imports.
+    $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')->assertSessionHasNoErrors();
+
+    $cars = Vehicle::query()->orderBy('tsn')->get()->mapWithKeys(fn (Vehicle $v): array => [$v->tsn => [$v->axle_load_front_kg, $v->max_speed_kmh, $v->needs_review]]);
+
+    expect($cars->all())->toBe([
+        'ZP1' => [1050, 225, false],
+        // What cannot be an axle load or a top speed is stored as nothing: the car waits under „Zur Prüfung“.
+        'ZP2' => [null, 225, true],
+        // Each figure believable alone: kept as read — the sum check warns, the person importing decides.
+        'ZP3' => [1840, null, true],
+        'ZP4' => [null, 210, true],
+    ]);
+});
+
+it('flags 8.1 equal to 8.2 in every row only from three rows on, names one column mapped twice, and says when a check could not run (D-318) @admin-202', function (): void {
+    $row = static fn (string $line, string $front, string $rear): array => ['_line' => $line, 'achslast_vorn_kg' => $front, 'achslast_hinten_kg' => $rear, 'hoechstgeschwindigkeit_kmh' => '', 'gesamtmasse_kg' => ''];
+    $same = ['achslast_vorn_kg' => 'Achslast', 'achslast_hinten_kg' => 'Achslast', 'hoechstgeschwindigkeit_kmh' => 'Vmax', 'gesamtmasse_kg' => 'Masse'];
+    $headers = ['Achslast', 'Vmax', 'Masse'];
+    $check = static fn (array $checks, string $key): array => collect($checks)->firstWhere('key', $key);
+
+    $three = VehicleImporter::implausible([$row('2', '1.050', '1.050'), $row('3', '980', '980'), $row('4', '1.200', '1.200')], $same, $headers);
+
+    expect($check($three, 'axle_same'))->toMatchArray([
+        'count' => 3,
+        'checked' => 3,
+        'examples' => ['Die Spalte „Achslast“ ist sowohl 8.1 als auch 8.2 zugeordnet.', "Zeile 2: Gelesen: 1.050\u{00A0}kg und 1.050\u{00A0}kg", "Zeile 3: Gelesen: 980\u{00A0}kg und 980\u{00A0}kg"],
+    ])
+        // The mass is mapped and read in no row: not checked, said why — never a nought over zero rows.
+        ->and($check($three, 'axle_sum'))->toMatchArray(['count' => null, 'unchecked' => 'Nicht geprüft: keine Zeile, in der eine Gesamtmasse gelesen wurde und beide Achslasten im erwarteten Bereich liegen.'])
+        // T is mapped but no row gives one: „in keiner Zeile“ would be a pass over zero rows — it says so instead.
+        ->and($check($three, 'speed_range'))->toMatchArray(['count' => null, 'checked' => 0, 'unchecked' => 'Nicht geprüft: keine Zeile, in der eine Höchstgeschwindigkeit gelesen wurde.']);
+
+    // The same for the axle loads: mapped, and empty in every row.
+    $empty = VehicleImporter::implausible([$row('2', '', ''), $row('3', '', '')], ['achslast_vorn_kg' => 'V', 'achslast_hinten_kg' => 'H'], ['V', 'H']);
+
+    expect($check($empty, 'axle_range'))->toMatchArray(['count' => null, 'checked' => 0, 'unchecked' => 'Nicht geprüft: keine Zeile, in der eine Achslast gelesen wurde.']);
+
+    // Just above the band: shown with its decimal, never rounded down to the 140 % the band allows.
+    $edge = VehicleImporter::implausible(
+        [['_line' => '2', 'achslast_vorn_kg' => '1.200', 'achslast_hinten_kg' => '1.187', 'hoechstgeschwindigkeit_kmh' => '', 'gesamtmasse_kg' => '1.700']],
+        ['achslast_vorn_kg' => 'V', 'achslast_hinten_kg' => 'H', 'gesamtmasse_kg' => 'M'],
+        ['V', 'H', 'M'],
+    );
+
+    expect($check($edge, 'axle_sum'))->toMatchArray(['count' => 1, 'checked' => 1])
+        ->and($check($edge, 'axle_sum')['examples'][0])->toEndWith("Gesamtmasse (140,4\u{00A0}%)");
+
+    // Two equal rows prove nothing: one or two such cars exist.
+    $two = VehicleImporter::implausible([$row('2', '1.050', '1.050'), $row('3', '980', '980')], $same, $headers);
+
+    expect($check($two, 'axle_same'))->toMatchArray(['count' => null, 'examples' => [], 'unchecked' => 'Nicht geprüft: Dafür sind mindestens 3 Zeilen nötig, in denen beide Achslasten gelesen wurden.']);
+
+    // No column for the mass: the sum is not checked, and the page says which field has none (D-318).
+    $noMass = VehicleImporter::implausible([$row('2', '1.050', '1.120')], ['achslast_vorn_kg' => 'V', 'achslast_hinten_kg' => 'H'], ['V', 'H']);
+
+    expect($check($noMass, 'axle_sum'))->toMatchArray(['count' => null, 'checked' => 0, 'unmapped' => 'Keine Spalte für Feld F.2 zugeordnet', 'unchecked' => null])
+        ->and($check($noMass, 'speed_range'))->toMatchArray(['count' => null, 'unmapped' => 'Keine Spalte zugeordnet']);
 });
 
 it('applies nothing when the cars changed since the Probelauf @admin-202', function (): void {

@@ -301,7 +301,8 @@ test('a vehicle dataset: the Probelauf counts before anything is written, then t
     const csv = [
         'HSN;TSN;Hersteller;Handelsname;Variante;Fahrzeugtyp;EG-Nummer;Leistung kW;Baubeginn;Bauende;Achslast vorn kg;Achslast hinten kg;Höchstgeschwindigkeit km/h',
         `0000;${tsn};Beispielmarke;Muster;2.0 Kombi ${stamp};BM2;e1*2007/46*0002*00;110;06.2016;;1.050;1.120;225`,
-        `0000;${tsn};Beispielmarke;Muster;2.0 Coupé ${stamp};BM2;e1*2007/46*0002*01;110;06.2016;;;;`,
+        // A top speed no car has: read, not believed — the third state beside missing and mapped (D-318).
+        `0000;${tsn};Beispielmarke;Muster;2.0 Coupé ${stamp};BM2;e1*2007/46*0002*01;110;06.2016;;;;999`,
         ';;Beispielmarke;Muster;ohne Schlüsselnummern;BM2;;;;;;;',
     ].join('\n')
 
@@ -320,15 +321,23 @@ test('a vehicle dataset: the Probelauf counts before anything is written, then t
     // What the file lacks, over all three rows, refused one included (D-317): the figures a purchase is decided on.
     const gaps = page.locator('.fr-gaps')
     const gap = (label: string) => gaps.locator('tbody tr').filter({ hasText: label })
-    await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('2 von 3')
-    await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('66,7 %')
+    // The 999 is no missing value: it is counted apart, as implausible.
+    await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('1 von 3')
+    await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('33,3 %')
     await expect(gap('Achslast vorn oder hinten (8.1 oder 8.2)')).toContainText('2 von 3')
     await expect(gap('HSN oder TSN (2.1 oder 2.2)')).toContainText('1 von 3')
-    await expect(gap('HSN oder TSN (2.1 oder 2.2)')).toContainText('33,3 %')
     await expect(gap('EG-Typgenehmigungsnummer (K)')).toContainText('1 von 3')
-    await shotAround(page, [counts, gaps, page.locator('.fr-rows')], 202, info)
+
+    // Read, but not as what the field can be: said as what was read and what was expected (D-318).
+    const odd = page.locator('.fr-odd__check').filter({ hasText: 'Höchstgeschwindigkeit (T)' })
+    await expect(odd.locator('.fr-odd__result')).toHaveText('In einer Zeile · geprüft: 2 von 3 Zeilen')
+    await expect(odd.locator('.fr-odd__examples')).toHaveText('Zeile 3: Gelesen: 999 km/h')
+    await expect(odd.locator('.fr-odd__expected')).toHaveText('Erwartet für eine Höchstgeschwindigkeit: 60 bis 420 km/h.')
+    await shotAround(page, [counts, gaps, page.locator('.fr-odd'), page.locator('.fr-rows')], 202, info)
 
     await page.getByRole('button', { name: 'Importieren' }).first().click()
+    // A warning, never a stop (D-318): the confirmation names it, and the import goes through.
+    await expect(page.getByRole('dialog')).toContainText('Der Probelauf hat unplausible Werte gelesen')
     await page.getByRole('dialog').getByRole('button', { name: 'Importieren' }).click()
     await expect(page.locator('.fr-state')).toContainText('Importiert am')
 })

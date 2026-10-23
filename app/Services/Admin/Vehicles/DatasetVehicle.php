@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Vehicles;
 
+use App\Domain\Fitment\Data\PapersFigures;
 use App\Enums\VehicleSource;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\DocumentConditions;
@@ -17,6 +18,15 @@ use DateTimeImmutable;
  */
 final readonly class DatasetVehicle
 {
+    /**
+     * What a permitted axle load (8.1, 8.2) can physically be for a car (the operator's brief of 20.10.2026, D-318): a
+     * whole number outside it is read but not believed — stored as nothing, and shown in the Probelauf as implausible
+     * with what was read. Most often it means the wrong column is mapped.
+     */
+    public const AXLE_MIN_KG = 400;
+
+    public const AXLE_MAX_KG = 2500;
+
     public function __construct(
         public VehicleSource $source,
         public ?int $sourceVehicleId,
@@ -51,16 +61,10 @@ final readonly class DatasetVehicle
     public static function fromRow(array $row): self
     {
         $text = static fn (string $key): ?string => ($v = trim((string) ($row[$key] ?? ''))) === '' ? null : $v;
-        $number = static function (string $key, int $min, int $max) use ($text): ?int {
-            $v = $text($key);
+        $number = static function (string $key, int $min, int $max) use ($row): ?int {
+            $v = self::whole($row[$key] ?? null);
 
-            if ($v === null) {
-                return null;
-            }
-
-            $v = preg_match('/^\d{1,3}(?:[.\s\x{00A0}\x{202F}]\d{3})+$/u', $v) === 1 ? (string) preg_replace('/\D/', '', $v) : $v;
-
-            return preg_match('/^\d+$/', $v) === 1 && (int) $v >= $min && (int) $v <= $max ? (int) $v : null;
+            return $v !== null && $v >= $min && $v <= $max ? $v : null;
         };
         $date = static function (string $key, bool $end) use ($text): ?DateTimeImmutable {
             $v = $text($key);
@@ -115,13 +119,31 @@ final readonly class DatasetVehicle
             egNumber: $eg !== null && EgNumber::parse($eg) !== null && mb_strlen($eg) <= 255 && mb_strlen((string) Vehicle::normaliseEcNumber($eg)) <= 64 ? $eg : null,
             buildFrom: $date('baubeginn', false),
             buildTo: $date('bauende', true),
-            axleLoadFrontKg: $number('achslast_vorn_kg', 300, 4000),
-            axleLoadRearKg: $number('achslast_hinten_kg', 300, 4000),
-            maxSpeedKmh: $number('hoechstgeschwindigkeit_kmh', 60, 420),
+            axleLoadFrontKg: $number('achslast_vorn_kg', self::AXLE_MIN_KG, self::AXLE_MAX_KG),
+            axleLoadRearKg: $number('achslast_hinten_kg', self::AXLE_MIN_KG, self::AXLE_MAX_KG),
+            // The band the customer's own papers form holds T to — one band for the top speed, never a second.
+            maxSpeedKmh: $number('hoechstgeschwindigkeit_kmh', PapersFigures::SPEED_MIN_KMH, PapersFigures::SPEED_MAX_KMH),
             powerKw: $number('leistung_kw', 10, 1000),
             bodyForm: $listed('karosserie', DocumentConditions::BODY_FORMS),
             driveAxle: $listed('antrieb', array_values(array_diff(DocumentConditions::DRIVES, ['Allradlenkung']))),
         );
+    }
+
+    /**
+     * A whole number as a dataset or a German spreadsheet writes it — `1050`, `1.050`, `1 050` — whatever its size, or
+     * null when the cell holds none. The bands decide afterwards whether it is believed.
+     */
+    public static function whole(?string $cell): ?int
+    {
+        $v = trim((string) $cell);
+
+        if ($v === '') {
+            return null;
+        }
+
+        $v = preg_match('/^\d{1,3}(?:[.\s\x{00A0}\x{202F}]\d{3})+$/u', $v) === 1 ? (string) preg_replace('/\D/', '', $v) : $v;
+
+        return preg_match('/^\d{1,18}$/', $v) === 1 ? (int) $v : null;
     }
 
     public function egNormalised(): ?string

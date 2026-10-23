@@ -19,7 +19,9 @@ indistinguishable from a passing test, and the suite cannot tell you.
 „All of them hold“ over an empty set is true. „14 of 14“ is evidence; „0 of 11“ is none.
 
 - **Found:** D-310. The cross-check of the load index — every printed limit is twice its capacity — had no document
-  printing T10 to T20, so it confirmed none of the eleven new values.
+  printing T10 to T20, so it confirmed none of the eleven new values. Again in D-318, in the product and in its test:
+  the Probelauf's implausibility checks answered „In keiner Zeile“ when no row held a value to check, and the test
+  expected exactly that. Both now say „Nicht geprüft: …“.
 - **Catch it:** report the count beside the verdict, and read 0 checked as not measured, never as passed.
 
 ## 3. A missing precondition read as a result
