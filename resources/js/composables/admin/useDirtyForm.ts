@@ -26,6 +26,8 @@ export interface DirtyFormState {
     saving: ComputedRef<boolean>
     /** The last save came back with errors; cleared by the next save or by discarding. */
     failed: Ref<boolean>
+    /** A refusal about the whole form, not one field: it was changed meanwhile elsewhere (EditStamp). */
+    problem?: ComputedRef<string | null>
     save: () => void
     discard: () => void
     /** The leave dialog is open because a visit was held. */
@@ -57,6 +59,19 @@ export interface DirtyFormOptions {
      * calls it on a yes. Speichern and Strg S both go through it.
      */
     beforeSave?: (send: () => void) => void
+    /**
+     * The stamp of the state the page was opened on (EditStamp, the admin audit's F-25), read at each save: the
+     * server refuses the save when the record was changed meanwhile, instead of undoing that change.
+     */
+    stamp?: () => string | null | undefined
+}
+
+/** The header the stamp travels in — App\Support\EditStamp::HEADER. */
+export const STAMP_HEADER = 'X-Rimify-Stand'
+
+/** The headers a save sends its stamp in, for forms that submit on their own (useForm). */
+export function stampHeaders(stamp: string | null | undefined): Record<string, string> {
+    return stamp ? { [STAMP_HEADER]: stamp } : {}
 }
 
 export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: DirtyFormOptions): DirtyForm<T> {
@@ -65,6 +80,7 @@ export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: Dir
     const dirty = computed(() => form.isDirty)
     const saving = computed(() => form.processing)
     const failed = ref(false)
+    const problem = computed(() => (form.errors as Record<string, string | undefined> | undefined)?._stamp ?? null)
 
     function save(): void {
         if (!form.isDirty || form.processing) {
@@ -95,6 +111,7 @@ export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: Dir
 
         form.submit(method, url, {
             preserveScroll: true,
+            headers: stampHeaders(options.stamp?.()),
             onSuccess: () => {
                 if (options.resetOnSuccess) {
                     form.reset()
@@ -253,5 +270,5 @@ export function useDirtyForm<T extends FormDataType<T>>(initial: T, options: Dir
         window.removeEventListener('keydown', onKeydown)
     })
 
-    return { form, dirty, saving, failed, save, discard, leaving, stay, leave }
+    return { form, dirty, saving, failed, problem, save, discard, leaving, stay, leave }
 }

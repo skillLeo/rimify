@@ -110,13 +110,14 @@ interface Calls {
     leave: number
 }
 
-function editorState(state: { dirty?: boolean; saving?: boolean; failed?: boolean } = {}): DirtyFormState & { calls: Calls } {
+function editorState(state: { dirty?: boolean; saving?: boolean; failed?: boolean; problem?: string } = {}): DirtyFormState & { calls: Calls } {
     const calls: Calls = { save: 0, discard: 0, stay: 0, leave: 0 }
 
     return {
         dirty: computed(() => state.dirty ?? false),
         saving: computed(() => state.saving ?? false),
         failed: ref(state.failed ?? false),
+        problem: computed(() => state.problem ?? null),
         leaving: ref(false),
         save: () => calls.save++,
         discard: () => calls.discard++,
@@ -159,6 +160,15 @@ describe('AdminSaveBar', () => {
         const failed = keep(mount(AdminSaveBar, { props: { editor: editorState({ dirty: true, failed: true }) } }))
         expect(failed.find('.adm-savebar__status').text()).toBe('Die Änderungen konnten nicht gespeichert werden.')
         expect(failed.find('.adm-savebar').attributes('data-state')).toBe('failed')
+        expect(failed.find('.adm-savebar__status').attributes('role')).toBe('status')
+    })
+
+    it('says in the bar itself, as an alert, that the record was changed meanwhile elsewhere (the admin audit’s F-25)', () => {
+        const problem = 'Das wurde inzwischen in einem anderen Tab oder von jemand anderem geändert, deshalb ist nichts gespeichert.'
+        const stale = keep(mount(AdminSaveBar, { props: { editor: editorState({ dirty: true, failed: true, problem }) } }))
+
+        expect(stale.find('.adm-savebar__status').text()).toBe(problem)
+        expect(stale.find('.adm-savebar__status').attributes('role')).toBe('alert')
     })
 
     it('asks before a change is lost, with keeping it as the safe answer', async () => {

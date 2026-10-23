@@ -54,7 +54,7 @@ const { useDirtyForm } = await import('./useDirtyForm')
 
 let mounted: VueWrapper[] = []
 
-function mountForm(options: { resetOnSuccess?: boolean } = {}): ReturnType<typeof useDirtyForm> {
+function mountForm(options: { resetOnSuccess?: boolean; stamp?: () => string | null } = {}): ReturnType<typeof useDirtyForm> {
     let editor!: ReturnType<typeof useDirtyForm>
 
     mounted.push(
@@ -114,6 +114,25 @@ describe('useDirtyForm', () => {
         options.onSuccess()
         expect(form.defaults).toHaveBeenCalledOnce()
         expect(form.reset).not.toHaveBeenCalled()
+    })
+
+    it('sends the stamp of the state the page was opened on with each save, and nothing without one (the admin audit’s F-25)', () => {
+        let stamp = 'stand-1'
+        const editor = mountForm({ stamp: () => stamp })
+        form.isDirty = true
+
+        editor.save()
+        expect((form.submit.mock.calls[0]?.[2] as { headers: Record<string, string> }).headers).toEqual({ 'X-Rimify-Stand': 'stand-1' })
+
+        // Read at each save: after a save the page carries the new state's stamp.
+        stamp = 'stand-2'
+        editor.save()
+        expect((form.submit.mock.calls[1]?.[2] as { headers: Record<string, string> }).headers).toEqual({ 'X-Rimify-Stand': 'stand-2' })
+
+        const unstamped = mountForm()
+        form.isDirty = true
+        unstamped.save()
+        expect((form.submit.mock.calls[0]?.[2] as { headers: Record<string, string> }).headers).toEqual({})
     })
 
     it('clears a form that must not keep its values, such as a password', () => {

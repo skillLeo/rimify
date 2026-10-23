@@ -893,12 +893,27 @@ export interface AdminGutachtenProps {
         demo?: boolean
         href: string
     }[]
+    /** One page of what the search and the chips find (the admin audit's F-31): `found` over every page, `total` on file. */
+    found: number
+    total: number
+    released: number
+    search: string
+    status: string
+    kind: string
+    statusOptions: { value: string; count: number }[]
+    kindOptions: { value: string; count: number }[]
+    pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
     can: { create: boolean }
 }
 
 export interface AdminBenachrichtigungenProps {
-    /** `waiting`: confirmed, still subscribed, not yet told — the rail's count. `limit`: the list's cap. */
-    summary: { waiting: number; total: number; limit: number }
+    /**
+     * `waiting`: confirmed, still subscribed, not yet told — the rail's count. `found`: what the search finds, over every
+     * page. `vehicles`: how many vehicles have someone waiting — the ranking shows the most asked-for of them.
+     */
+    summary: { waiting: number; total: number; found: number; vehicles?: number }
+    search: string
+    pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
     subscriptions: {
         id: number
         email: string
@@ -954,6 +969,8 @@ export interface AdminWuchtgewichteProps {
         sortOrder: number
         /** Seeded as an example: the list says „Demodaten“ beside the name. */
         demo?: boolean
+        /** The colour as loaded (EditStamp): „Bearbeiten“ sends it, a save against an older state is refused. */
+        stamp?: string
     }[]
     /**
      * `Montage und Auswuchten` per wheel — one shop-wide fee, edited on this page (§13, D-032).
@@ -978,6 +995,8 @@ export interface AdminRdksProps {
         active: boolean
         /** Seeded as an example: the list says „Demodaten“ beside the make. */
         demo?: boolean
+        /** The price as loaded (EditStamp): „Bearbeiten“ sends it, a save against an older state is refused. */
+        stamp?: string
     }[]
     /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
     makes: string[]
