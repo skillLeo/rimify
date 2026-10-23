@@ -182,6 +182,22 @@ it('keeps the Befestigungsmittel, the Pflichthinweise and the rework millimetres
     expect(DocumentNotice::query()->count())->toBe(1)->and(DocumentConditionRework::query()->count())->toBe(1);
 });
 
+it('takes a rework’s millimetres away on a draft, as the code’s refusal says, and then the code too (the admin audit’s inventory)', function (): void {
+    $document = ApprovalDocument::factory()->draft()->create(['page_count' => 12]);
+    $rework = DocumentCondition::factory()->kind(ConditionKind::Nacharbeitsprofil, 'Die Radlaufkante ist nach Maßtabelle nachzuarbeiten.')->create(['approval_document_id' => $document->id, 'code' => 'K42']);
+    $base = "/admin/gutachten/{$document->id}";
+    $this->actingAs(recordAdmin(), 'admin')->post("{$base}/nacharbeit", ['document_condition_id' => $rework->id, 'vehicle_type' => '3C', 'axle' => 'REAR', 'from_mm' => '15'])
+        ->assertSessionHasNoErrors();
+    $measure = DocumentConditionRework::query()->sole();
+
+    $this->actingAs(recordAdmin(), 'admin')->delete("{$base}/nacharbeit/{$measure->id}")->assertSessionHasNoErrors();
+    expect(DocumentConditionRework::query()->count())->toBe(0)
+        ->and(AuditLog::query()->where('description', 'approval.rework_removed')->exists())->toBeTrue();
+
+    $this->actingAs(recordAdmin(), 'admin')->delete("{$base}/auflagen/{$rework->id}")->assertSessionHasNoErrors();
+    expect(DocumentCondition::query()->whereKey($rework->id)->exists())->toBeFalse();
+});
+
 it('asks the Gutachten rights on the server, and never touches another document’s entries (R-11)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $stranger = ApprovalDocument::factory()->draft()->create();
