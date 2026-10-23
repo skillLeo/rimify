@@ -7,7 +7,10 @@ namespace Tests;
 use App\Services\Mail\DnsLookup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\ParallelTesting;
+use Tests\Support\PinnedEnvironment;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -40,6 +43,16 @@ abstract class TestCase extends BaseTestCase
                 'rimify.demo.wheels_dir' => config('rimify.demo.wheels_dir').'-'.$token,
                 'rimify.demo.placeholders_dir' => config('rimify.demo.placeholders_dir').'-'.$token,
             ]);
+        }
+
+        // The admin audit's evidence (docs/review/ADMIN-AUDIT.md): with TEST_ROUTE_LOG naming a file, every route a test
+        // reaches is written there — `METHOD uri` — so each row of the inventory names the tests behind it. Off otherwise.
+        $routeLog = getenv(PinnedEnvironment::ROUTE_LOG);
+
+        if (is_string($routeLog) && $routeLog !== '') {
+            Event::listen(RouteMatched::class, static function (RouteMatched $matched) use ($routeLog): void {
+                file_put_contents($routeLog, $matched->request->getMethod().' '.$matched->route->uri()."\n", FILE_APPEND | LOCK_EX);
+            });
         }
     }
 

@@ -46,6 +46,13 @@ final class PinnedEnvironment
      */
     public const LOOKBACK = 'TEST_LOOKBACK';
 
+    /**
+     * Said by the admin audit's coverage run (docs/review/ADMIN-AUDIT.md) — `TEST_ROUTE_LOG=<file>` — and by nothing
+     * else: every route a test reaches is appended to that file (Tests\TestCase). It records which routes the suite
+     * reaches and decides no test. A name the application never reads, as the TEST_DB_* are.
+     */
+    public const ROUTE_LOG = 'TEST_ROUTE_LOG';
+
     /** Files that replace what the pins decide: a cached config skips the environment altogether. */
     public const CACHES = ['bootstrap/cache/config.php', 'bootstrap/cache/routes-v7.php', 'bootstrap/cache/events.php'];
 
