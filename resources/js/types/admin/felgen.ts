@@ -151,6 +151,8 @@ export interface SizeDocument {
 }
 
 export interface AdminFelgeProps {
+    /** What the form was opened on (EditStamp); null for a new Felge. A save against an older state is refused. */
+    stamp: string | null
     model: {
         id: number
         brandId: number
@@ -182,6 +184,8 @@ export interface AdminFelgeProps {
         artFinish: string
         image: FinishImage | null
         photos: FinishPhoto[]
+        /** The photos' order as loaded (EditStamp): a move sends it, a move from an older order is refused. */
+        photoOrderStamp?: string
         sizes: number
     }[]
     configs: (Omit<SizeForm, 'weight_g'> & { weight_g: number | null; locked: boolean })[]

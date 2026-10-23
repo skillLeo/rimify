@@ -6,6 +6,7 @@ use App\Http\Requests\Admin\BrandManufacturerRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Brand;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Inertia\Testing\AssertableInertia;
 
@@ -84,4 +85,17 @@ it('lets only who may edit the catalogue enter it', function (): void {
         ->assertForbidden();
 
     expect($this->brand->fresh()->manufacturer_name)->toBeNull();
+});
+
+it('refuses Herstellerangaben saved from a list opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $stale = collect($this->actingAs(herstellerAdmin(), 'admin')->get('/admin/marken')->viewData('page')['props']['brands'])
+        ->firstWhere('id', $this->brand->id)['manufacturerStamp'];
+
+    $this->actingAs(herstellerAdmin(), 'admin')->from('/admin/marken')
+        ->put('/admin/marken/'.$this->brand->id.'/hersteller', herstellerForm())->assertSessionHasNoErrors();
+    $this->actingAs(herstellerAdmin(), 'admin')->from('/admin/marken')->withHeader(EditStamp::HEADER, $stale)
+        ->put('/admin/marken/'.$this->brand->id.'/hersteller', herstellerForm(['manufacturerName' => 'Alte Räder GmbH']))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($this->brand->fresh()->manufacturer_name)->toBe('Beispiel Räder GmbH');
 });

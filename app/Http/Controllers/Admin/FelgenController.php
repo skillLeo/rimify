@@ -33,6 +33,7 @@ use App\Services\Admin\Lists\AdminLists;
 use App\Services\Admin\Lists\ListViews;
 use App\Services\Storage\ImageUpload;
 use App\Services\Storage\UploadRejected;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\Money;
 use App\Support\WheelTitle;
@@ -149,9 +150,28 @@ class FelgenController extends Controller
 
     public function update(WheelModelRequest $request, WheelModel $model, WheelEditor $editor): RedirectResponse
     {
-        $editor->save($model, $request->modelAttributes(), $request->finishes(), $request->configs(), $request->admin());
+        DB::transaction(static function () use ($request, $model, $editor): void {
+            WheelModel::query()->whereKey($model->id)->lockForUpdate()->first();
+            EditStamp::guard($request, self::state($model));
+            $editor->save($model, $request->modelAttributes(), $request->finishes(), $request->configs(), $request->admin());
+        });
 
         return back()->with('toast', self::SAVED);
+    }
+
+    /**
+     * Everything the form rewrites, as it is stored now — the model, its finishes and its sizes — so a save made on
+     * an older state is refused rather than undoing a change made meanwhile (EditStamp, the admin audit's F-25).
+     *
+     * @return array{0: array<string, mixed>|null, 1: list<array<string, mixed>>, 2: list<array<string, mixed>>}
+     */
+    private static function state(WheelModel $model): array
+    {
+        return [
+            WheelModel::query()->whereKey($model->id)->first()?->getAttributes(),
+            WheelFinish::query()->where('wheel_model_id', $model->id)->orderBy('id')->get()->map(static fn (WheelFinish $f): array => $f->getAttributes())->all(),
+            $model->configs()->reorder()->orderBy('wheel_configs.id')->get()->map(static fn (WheelConfig $c): array => $c->getAttributes())->all(),
+        ];
     }
 
     /** Into the shop, out of it, into the archive, or back to a draft (WheelStatusRequest names the step). */
@@ -319,6 +339,9 @@ class FelgenController extends Controller
     public function reorderImages(WheelPhotoOrderRequest $request, WheelModel $model, WheelFinish $finish, FinishImages $photos): RedirectResponse
     {
         DB::transaction(function () use ($photos, $finish, $request, $model): void {
+            // The order as it is now, held: a move from a page in an older order is refused (EditStamp, F-25).
+            EditStamp::guard($request, WheelFinishImage::query()->where('wheel_finish_id', $finish->id)->orderBy('position')->orderBy('id')->lockForUpdate()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all());
+
             if (! $photos->reorder($finish, $request->ids())) {
                 throw ValidationException::withMessages(['ids' => FinishImages::STALE]);
             }
@@ -397,6 +420,8 @@ class FelgenController extends Controller
                 'shopUrl' => $model->status === CatalogueStatus::Published && ! $model->is_demo ? '/felgen/'.$model->slug : null,
                 'updated' => $model->updated_at === null ? null : GermanFormat::dateTime($model->updated_at),
             ],
+            // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
+            'stamp' => $model === null ? null : EditStamp::of(self::state($model)),
             'finishes' => $finishes->map(static fn (WheelFinish $f): array => [
                 'key' => 'f'.$f->id,
                 'id' => (int) $f->id,
@@ -414,6 +439,8 @@ class FelgenController extends Controller
                     'manifest' => $i->manifest,
                     'alt' => $i->alt_de,
                 ])->values()->all(),
+                // The photos' order as loaded: a move sends it back, a move from an older order is refused (F-25).
+                'photoOrderStamp' => EditStamp::of($f->images->map(static fn (WheelFinishImage $i): int => (int) $i->id)->values()->all()),
                 'sizes' => (int) $f->getAttribute('configs_count'),
             ])->values()->all(),
             'configs' => $configs->map(static fn (WheelConfig $c): array => [

@@ -21,6 +21,7 @@ import Icon from '../../../Components/Admin/AdminIcon.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import Picture from '../../../Components/Ui/Picture.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import { resolveTarget, useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import { FILE_CHANGED, stillReadable } from '../../../lib/file'
 import type { FinishImage, FinishPhoto } from '../../../types/admin/felgen'
@@ -32,6 +33,8 @@ const props = defineProps<{
     /** The cover as the shop reads it — only consulted for the demo set's drawing. */
     image: FinishImage | null
     photos: FinishPhoto[]
+    /** The photos' order as loaded (EditStamp): a move sends it, a move from an older order is refused. */
+    orderStamp?: string
     max: number
     editable: boolean
     /** The model's full name, for the suggested alt text. */
@@ -55,7 +58,7 @@ const errors = computed(() => {
     return {
         image: mine.value === 'upload' ? (bag.image ?? '') : '',
         alt: mine.value === 'upload' || mine.value === 'alt' ? (bag.alt ?? '') : '',
-        order: mine.value === 'order' ? (bag.ids ?? '') : '',
+        order: mine.value === 'order' ? (bag.ids ?? bag._stamp ?? '') : '',
     }
 })
 
@@ -212,6 +215,8 @@ function order(ids: number[], moved: number, keep: string[]): void {
     router.put(`${base.value}/fotos/reihenfolge`, { ids }, {
         preserveScroll: true,
         preserveState: true,
+        // The order this page shows: moved meanwhile elsewhere, the move is refused (EditStamp, F-25).
+        headers: stampHeaders(props.orderStamp),
         onSuccess: () => {
             mine.value = null
             fresh.value = moved

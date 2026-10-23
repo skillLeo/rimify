@@ -67,6 +67,8 @@ export interface TyreRecordProp {
 }
 
 export interface AdminReifenEditProps {
+    /** What the form was opened on (EditStamp); null for a new tyre. A save against an older state is refused. */
+    stamp: string | null
     tyre: TyreRecordProp | null
     /** „Weitere Größe“: what a new tyre starts from. */
     template: { brandId: number; name: string; season: string } | null

@@ -167,6 +167,18 @@ it('refuses, row by row, what an import never does — and imports the rest', fu
         ->and($reasons[6])->toBe(['Die SKU steht doppelt in der Datei (zuerst in Zeile 5).']);
 });
 
+it('says a value is missing where its cell is empty, and unreadable where the cell says something else (the admin audit\'s F-23)', function (): void {
+    $run = probelauf(supplierCsv([
+        ['TST-LEER', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', '8', '', '5x112', '', '', '1'],
+        ['TST-WORT', 'Prüfmarke', 'Kontur', 'Graphit matt', '18', '8', 'ET35', '5x112', '66,6', '189,00', '1'],
+    ]));
+
+    $reasons = collect($run->plan)->mapWithKeys(fn (array $e): array => [$e['line'] => $e['reasons']]);
+
+    expect($reasons[2])->toBe(['Die Einpresstiefe fehlt.', 'Die Mittenlochbohrung fehlt.', 'Der Preis fehlt.'])
+        ->and($reasons[3])->toBe(['Die Einpresstiefe können wir nicht lesen (ganze Millimeter, zwischen −99 und 99).']);
+});
+
 it('remembers the mapping per supplier, and one supplier’s never steers another’s file (COMPLIANCE row 25)', function (): void {
     // Borbet's file names its columns its own way; mapped by hand once and imported.
     $header = 'Nr;Fabrikat;Design;Oberfläche;D;B;Offset;PCD;Bohrung;EK;Menge';

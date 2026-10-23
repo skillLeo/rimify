@@ -20,6 +20,7 @@ use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\CatalogueBrands;
 use App\Services\Admin\Catalogue\TyreList;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
@@ -129,7 +130,9 @@ class ReifenController extends Controller
         $attributes = $request->tyreAttributes();
         $admin = $request->admin();
 
-        DB::transaction(static function () use ($attributes, $admin, $tyre): void {
+        DB::transaction(static function () use ($request, $attributes, $admin, $tyre): void {
+            // A save made on an older state is refused rather than undoing a change made meanwhile (EditStamp, F-25).
+            EditStamp::guard($request, TyreVariant::query()->whereKey($tyre->id)->lockForUpdate()->first()?->getAttributes());
             $before = $tyre->only(self::AUDITED);
             $brand = CatalogueBrands::resolve($attributes['brand_id'], $attributes['brand_new'], wheelBrand: false);
             $tyre->fill(self::columns($attributes, $brand))->save();
@@ -203,13 +206,20 @@ class ReifenController extends Controller
                 'missingLabel' => $tyre->is_demo ? [] : $tyre->missingLabel(),
                 'updated' => $tyre->updated_at === null ? null : GermanFormat::dateTime($tyre->updated_at),
             ],
+            // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
+            'stamp' => $tyre === null ? null : EditStamp::of(TyreVariant::query()->whereKey($tyre->id)->first()?->getAttributes()),
             // „Weitere Größe“: brand, profile and season of the tyre it starts from — never its size or its label.
             'template' => $template === null || $template->is_demo ? null : [
                 'brandId' => (int) $template->brand_id,
                 'name' => (string) $template->name,
                 'season' => (string) $template->season,
             ],
-            'brands' => Brand::query()->orderBy('name')->get(['id', 'name'])
+            // Tyre makers: a brand that is not a wheel brand, or one that already has a tyre — never AEZ or BBS for a
+            // Reifen (the admin audit's F-09). The brand of the tyre shown, and of the one it starts from, always stand.
+            'brands' => Brand::query()
+                ->where(static fn ($q) => $q->where('is_wheel_brand', false)->orWhereHas('tyreVariants'))
+                ->when($tyre !== null || $template !== null, static fn ($q) => $q->orWhereIn('id', array_values(array_filter([$tyre?->brand_id, $template?->brand_id]))))
+                ->orderBy('name')->get(['id', 'name'])
                 ->map(static fn (Brand $b): array => ['value' => (int) $b->id, 'label' => (string) $b->name])->values()->all(),
             'options' => [
                 'seasons' => array_map(static fn (TyreSeason $s): array => ['value' => $s->value, 'label' => $s->longLabelDe()], TyreSeason::cases()),
