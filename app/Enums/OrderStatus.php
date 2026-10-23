@@ -48,7 +48,9 @@ enum OrderStatus: string
             self::InFulfilment => [self::Shipped, self::PartiallyRefunded, self::Refunded],
             self::Shipped => [self::Completed, self::PartiallyRefunded, self::Refunded],
             self::Completed => [self::PartiallyRefunded, self::Refunded],
-            self::PartiallyRefunded => [self::PartiallyRefunded, self::InFulfilment, self::Shipped, self::Completed, self::Refunded],
+            // A partial refund is the money half and stays: sending and delivering the rest are dates on the order
+            // (OrderFulfilment), never a move back to „Versendet“ or „Abgeschlossen“ that would drop the refund (F-15).
+            self::PartiallyRefunded => [self::PartiallyRefunded, self::Refunded],
             self::Expired, self::Cancelled, self::Refunded => [],
         };
     }
@@ -115,18 +117,23 @@ enum OrderStatus: string
 
     /**
      * The goods half: whether the wheels have left. An order that was never paid has nothing to send,
-     * and says so with a dash rather than "offen", which would read as work waiting.
+     * and says so with a dash rather than "offen", which would read as work waiting. A partly refunded
+     * order keeps its money status, so its goods half is read from the dates the team recorded.
      *
      * @return array{label: string, tone: 'plain'|'warn'|'bad'|'neutral'}
      */
-    public function fulfilmentState(): array
+    public function fulfilmentState(bool $shipped = false, bool $delivered = false): array
     {
         return match ($this) {
             self::Paid => ['label' => 'Zu versenden', 'tone' => 'warn'],
             self::InFulfilment => ['label' => 'In Bearbeitung', 'tone' => 'plain'],
             self::Shipped => ['label' => 'Versendet', 'tone' => 'plain'],
             self::Completed => ['label' => 'Abgeschlossen', 'tone' => 'plain'],
-            self::PartiallyRefunded => ['label' => 'Zu prüfen', 'tone' => 'warn'],
+            self::PartiallyRefunded => match (true) {
+                $delivered => ['label' => 'Abgeschlossen', 'tone' => 'plain'],
+                $shipped => ['label' => 'Versendet', 'tone' => 'plain'],
+                default => ['label' => 'Zu versenden', 'tone' => 'warn'],
+            },
             self::Draft, self::PendingPayment, self::Processing, self::Failed, self::Expired, self::Cancelled, self::Refunded => ['label' => '–', 'tone' => 'plain'],
         };
     }
