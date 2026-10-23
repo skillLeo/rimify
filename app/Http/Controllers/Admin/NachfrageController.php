@@ -12,7 +12,9 @@ use App\Models\Brand;
 use App\Models\DemandMark;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Dashboard\Demand;
+use App\Services\Admin\Lists\ListPaging;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -38,10 +40,23 @@ class NachfrageController extends Controller
         $state = $request->state();
         $canMark = $admin->canQuietly('mark', DemandMark::class);
 
+        // Ranked over every gap, then shown fifty at a time: 1.116 rows on one page took seconds to draw (the admin
+        // audit's F-04, F-31). The pages keep the period and the state.
+        $ranked = $demand->ranked($period, $state, $admin->name);
+        $current = ListPaging::requested($request->query('seite'));
+        $page = new LengthAwarePaginator(array_slice($ranked['rows'], ($current - 1) * ListPaging::PER_PAGE, ListPaging::PER_PAGE), count($ranked['rows']), ListPaging::PER_PAGE, $current);
+        $ranked['rows'] = $page->items();
+
         return Inertia::render('Admin/Nachfrage/Index', [
             'period' => [...$period->toArray(), 'compare' => false],
             'state' => $state,
-            'demand' => $demand->ranked($period, $state, $admin->name),
+            'demand' => $ranked,
+            'pagination' => ListPaging::props($page, '/admin/nachfrage', [
+                'zeitraum' => $period->key,
+                'von' => $period->key === 'eigen' ? $period->from->format('Y-m-d') : null,
+                'bis' => $period->key === 'eigen' ? $period->to->format('Y-m-d') : null,
+                'stand' => $state === 'offen' ? null : $state,
+            ]),
             'searches' => $demand->searches($period),
             'weighting' => [
                 'halfLife' => Demand::HALF_LIFE_DAYS,

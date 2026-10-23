@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Admin\Lists\ListPaging;
 use App\Support\GermanFormat;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -22,23 +23,40 @@ use Inertia\Response;
  */
 class AnfragenController extends Controller
 {
-    /** The newest this many; the page says so when there are more. */
-    public const LIST_LIMIT = 200;
+    /** The most asked-for vehicles the ranking shows; every request stands in the list below it. */
+    public const DEMAND_SHOWN = 20;
 
     public function index(Request $request): Response
     {
-        $rows = DB::table('fitment_subscriptions as s')
+        $query = DB::table('fitment_subscriptions as s')
             ->join('vehicles as v', 'v.id', '=', 's.vehicle_id')
             ->orderByDesc('s.created_at')
-            ->limit(self::LIST_LIMIT)
-            ->get([
-                's.id', 's.email', 's.confirmed_at', 's.unsubscribed_at', 's.notified_at', 's.created_at',
-                'v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn',
-            ]);
+            ->orderByDesc('s.id');
+
+        // By the address, the car, or its key numbers as the papers print them (`0005/ZZ8`, `0005 ZZ8`).
+        $search = is_string($request->query('q')) ? mb_substr(trim((string) $request->query('q')), 0, 100) : '';
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $keys = preg_match('/^(\d{4})\s*[\/\s-]?\s*([A-Za-z0-9]{3})?$/', $search, $m) === 1 ? $m : null;
+            $query->where(static function ($where) use ($like, $keys): void {
+                $where->where('s.email', 'like', $like)->orWhere('v.make', 'like', $like)->orWhere('v.model', 'like', $like)->orWhere('v.variant', 'like', $like);
+
+                if ($keys !== null) {
+                    $where->orWhere(static fn ($q) => $q->where('v.hsn', $keys[1])->when(($keys[2] ?? '') !== '', static fn ($q) => $q->where('v.tsn', strtoupper($keys[2]))));
+                }
+            });
+        }
+
+        // Every subscription reachable, page by page — the list once stopped at the newest 200 (the admin audit's F-26).
+        $page = $query->paginate(ListPaging::PER_PAGE, [
+            's.id', 's.email', 's.confirmed_at', 's.unsubscribed_at', 's.notified_at', 's.created_at',
+            'v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn',
+        ], 'seite', ListPaging::requested($request->query('seite')));
 
         $subscriptions = [];
 
-        foreach ($rows as $row) {
+        foreach ($page->items() as $row) {
             $subscriptions[] = [
                 'id' => (int) $row->id,
                 'email' => (string) $row->email,
@@ -54,15 +72,19 @@ class AnfragenController extends Controller
             ->join('vehicles as v', 'v.id', '=', 's.vehicle_id')
             ->groupBy('v.id', 'v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn')
             ->orderByDesc(DB::raw('COUNT(*)'))
-            ->limit(20)
+            ->limit(self::DEMAND_SHOWN)
             ->get(['v.make', 'v.model', 'v.variant', 'v.hsn', 'v.tsn', DB::raw('COUNT(*) as waiting')]);
 
         return Inertia::render('Admin/Anfragen/Index', [
             'summary' => [
                 'waiting' => $this->waiting()->count(),
+                // The ranking shows the DEMAND_SHOWN most asked-for; the page says of how many (the sweep after F-26).
+                'vehicles' => $this->waiting()->distinct()->count('s.vehicle_id'),
                 'total' => DB::table('fitment_subscriptions')->count(),
-                'limit' => self::LIST_LIMIT,
+                'found' => $page->total(),
             ],
+            'search' => $search,
+            'pagination' => ListPaging::props($page, '/admin/anfragen', ['q' => $search]),
             'subscriptions' => $subscriptions,
             'demand' => $demand->map(static fn (object $row): array => [
                 'vehicle' => trim($row->make.' '.$row->variant),

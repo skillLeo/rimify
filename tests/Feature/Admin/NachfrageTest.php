@@ -332,3 +332,30 @@ it('puts the five open gaps most in demand on the Übersicht, for the Gutachten 
     $this->actingAs(nfAdmin('order-manager'), 'admin')->get('/admin')
         ->assertInertia(fn (AssertableInertia $page) => $page->loadDeferredProps(fn (AssertableInertia $reload) => $reload->where('charts.demand', false)));
 });
+
+it('ranks every gap but shows fifty to a page, and asks the catalogue for all typed key numbers at once (the admin audit\'s F-04, F-31)', function (): void {
+    $known = nfVehicle('Prüfwerk', 'Größe Eins', '1.6', ['hsn' => '0005', 'tsn' => 'ZZ8']);
+    nfCover($known);
+    $now = CarbonImmutable::now();
+    $rows = [];
+
+    // 130 key numbers nobody knows, one already approved by now (closed), each asked once.
+    for ($i = 0; $i < 130; $i++) {
+        $rows[] = ['vehicle_id' => null, 'hsn' => sprintf('%04d', 7000 + $i), 'tsn' => 'AB'.chr(65 + $i % 26), 'reason_code' => 'UNKNOWN_KEYS', 'surface' => 'selector', 'occurred_at' => $now];
+    }
+    $rows[] = ['vehicle_id' => null, 'hsn' => '0005', 'tsn' => 'ZZ8', 'reason_code' => 'UNKNOWN_KEYS', 'surface' => 'selector', 'occurred_at' => $now];
+    DB::table('catalogue_gap_events')->insert($rows);
+
+    DB::enableQueryLog();
+    $props = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30')->assertOk()->viewData('page')['props'];
+    $queries = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($props['demand']['counts']['alle'])->toBe(130)
+        ->and($props['demand']['rows'])->toHaveCount(50)
+        ->and($props['pagination'])->toMatchArray(['current' => 1, 'last' => 3, 'total' => 130, 'next' => '/admin/nachfrage?zeitraum=30&seite=2'])
+        // One page view, a handful of queries — never one or two per key number.
+        ->and($queries)->toBeLessThan(60);
+
+    expect($this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&seite=3')->viewData('page')['props']['demand']['rows'])->toHaveCount(30);
+});

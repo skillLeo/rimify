@@ -14,6 +14,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import ListPager from '../../../Components/Admin/Lists/ListPager.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
 import StateChip from '../../../Components/Admin/Dashboard/StateChip.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
@@ -287,6 +288,8 @@ function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
             </div>
 
             <AdminState v-else kind="empty" :text="EMPTY[state]" />
+
+            <ListPager :pagination="pagination" label="Seiten der Lücken" />
 
             <section class="nf__searches" aria-labelledby="nf-searches">
                 <div class="adm-section__head">

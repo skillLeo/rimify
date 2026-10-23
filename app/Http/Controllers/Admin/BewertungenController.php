@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ReviewModerationRequest;
 use App\Models\AdminUser;
 use App\Models\Review;
+use App\Services\Admin\Lists\ListPaging;
 use App\Services\Admin\Reviews\ReviewModeration;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
@@ -39,10 +40,26 @@ class BewertungenController extends Controller
             $query->whereNotNull('hidden_at');
         }
 
+        // By the order number, the Felge and its brand, or a word of the review (umlauts as typed).
+        $search = is_string($request->query('q')) ? mb_substr(trim((string) $request->query('q')), 0, 100) : '';
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(static fn ($where) => $where->where('body', 'like', $like)
+                ->orWhereHas('order', static fn ($order) => $order->where('order_number', 'like', $like))
+                ->orWhereHas('wheelModel', static fn ($model) => $model->where('name', 'like', $like)
+                    ->orWhereHas('brand', static fn ($brand) => $brand->where('name', 'like', $like))));
+        }
+
+        // Every review reachable, page by page — the list once stopped at the newest 200 (the admin audit's F-26).
+        $page = $query->paginate(ListPaging::PER_PAGE, ['*'], 'seite', ListPaging::requested($request->query('seite')));
         $admin = $request->user('admin');
 
         return Inertia::render('Admin/Bewertungen/Index', [
-            'items' => $query->limit(200)->get()->map(static fn (Review $review): array => self::row($review))->all(),
+            'items' => collect($page->items())->map(static fn (Review $review): array => self::row($review))->all(),
+            'found' => $page->total(),
+            'search' => $search,
+            'pagination' => ListPaging::props($page, '/admin/bewertungen', ['status' => $filter === 'alle' ? null : $filter, 'q' => $search]),
             'total' => Review::query()->count(),
             'filter' => $filter,
             'filters' => collect(self::FILTERS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),
@@ -67,6 +84,12 @@ class BewertungenController extends Controller
     public function reply(ReviewModerationRequest $request, Review $review, ReviewModeration $moderation): RedirectResponse
     {
         $reply = $request->reply();
+
+        // Nothing to remove and nothing typed: said so, and nothing written (the admin audit's F-28).
+        if (($reply === null || trim($reply) === '') && ($review->reply === null || trim((string) $review->reply) === '')) {
+            return back()->with('toast', 'Die Antwort ist leer – gespeichert wurde nichts.');
+        }
+
         $moderation->reply($review, $reply, $request->admin());
 
         return back()->with('toast', $reply === null || trim($reply) === '' ? 'Antwort entfernt.' : 'Antwort gespeichert. Sie steht im Shop unter der Bewertung.');

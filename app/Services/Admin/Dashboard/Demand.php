@@ -252,10 +252,27 @@ final class Demand
 
         $gaps = [];
 
-        foreach ($pairs as $key => [$hsn, $tsn]) {
-            $known = DB::table('vehicles')->whereNull('deleted_at')->where('hsn', $hsn)->where('tsn', $tsn)->get(['id', 'make', 'model']);
+        if ($pairs === []) {
+            return $gaps;
+        }
 
-            if ($known->isNotEmpty() && Fitment::query()->visibleToCustomers()->whereIn('fitments.vehicle_id', $known->pluck('id'))->exists()) {
+        // The cars the catalogue knows by now, and which of them have an approved wheel: two queries for every pair at
+        // once — one pair at a time took two queries each, and 1.116 gaps four to six seconds (the admin audit's F-04).
+        $catalogue = DB::table('vehicles')->whereNull('deleted_at')
+            ->whereIn('hsn', array_values(array_unique(array_column($pairs, 0))))
+            ->whereIn('tsn', array_values(array_unique(array_column($pairs, 1))))
+            ->orderBy('id')
+            ->get(['id', 'make', 'model', 'hsn', 'tsn'])
+            ->groupBy(static fn (object $v): string => 'k:'.GermanFormat::hsn((string) $v->hsn).'-'.mb_strtoupper(trim((string) $v->tsn)));
+        $covered = $catalogue->isEmpty() ? [] : array_flip(
+            Fitment::query()->visibleToCustomers()->whereIn('fitments.vehicle_id', $catalogue->flatten(1)->pluck('id')->all())->distinct()->pluck('fitments.vehicle_id')
+                ->map(static fn (mixed $id): int => (int) $id)->all()
+        );
+
+        foreach ($pairs as $key => [$hsn, $tsn]) {
+            $known = $catalogue->get($key, collect());
+
+            if ($known->contains(static fn (object $v): bool => isset($covered[(int) $v->id]))) {
                 continue;
             }
 

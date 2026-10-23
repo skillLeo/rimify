@@ -7,10 +7,11 @@
  */
 
 import { Link, router, useForm } from '@inertiajs/vue3'
-import { nextTick, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
+import ListPager, { type ListPagination } from '../../../Components/Admin/Lists/ListPager.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 
@@ -34,6 +35,10 @@ interface Item {
 
 const props = defineProps<{
     items: Item[]
+    /** How many the filter and the search find, over every page (the admin audit's F-26). */
+    found: number
+    search: string
+    pagination: ListPagination
     total: number
     filter: string
     filters: { value: string; label: string }[]
@@ -41,15 +46,34 @@ const props = defineProps<{
 }>()
 
 const status = ref(props.filter)
+const q = ref(props.search)
 
 function apply(): void {
-    router.get('/admin/bewertungen', status.value === 'alle' ? {} : { status: status.value }, { preserveScroll: true, preserveState: true })
+    const query: Record<string, string> = {}
+
+    if (status.value !== 'alle') {
+        query.status = status.value
+    }
+
+    if (q.value.trim() !== '') {
+        query.q = q.value.trim()
+    }
+
+    router.get('/admin/bewertungen', query, { preserveScroll: true, preserveState: true })
 }
 
 function resetFilter(): void {
     status.value = 'alle'
+    q.value = ''
     apply()
 }
+
+/* The true count, over every page — the list once said „200 Bewertungen“ of a thousand (the admin audit's F-26). */
+const context = computed(() => {
+    const count = props.found === 1 ? '1 Bewertung' : `${decimal(props.found, 0)} Bewertungen`
+
+    return props.filter !== 'alle' || props.search !== '' ? `${count} · gefiltert` : count
+})
 
 function stars(n: number): string {
     return n === 1 ? '1 von 5 Sternen' : `${n} von 5 Sternen`
@@ -91,7 +115,7 @@ function reply(item: Item): void {
 </script>
 
 <template>
-    <AdminPage title="Bewertungen" :context="items.length === 1 ? '1 Bewertung' : `${decimal(items.length, 0)} Bewertungen`">
+    <AdminPage title="Bewertungen" :context="context">
         <p class="bwa-lead">
             Hier stehen die Bewertungen der Käuferinnen und Käufer. Sie kommen nur über den Link aus der Einladung, die der
             Shop einige Tage nach „Zugestellt“ verschickt – anlegen kann sie hier niemand. Eine ausgeblendete Bewertung
@@ -99,6 +123,10 @@ function reply(item: Item): void {
         </p>
 
         <form class="bwa-filters" @submit.prevent="apply">
+            <div class="form-field">
+                <label class="form-field__label" for="bwa-q">Suchen</label>
+                <input id="bwa-q" v-model="q" class="input" type="search" maxlength="100" autocomplete="off" placeholder="Bestellnummer, Felge oder ein Wort">
+            </div>
             <div class="form-field">
                 <label class="form-field__label" for="bwa-status">Zeigen</label>
                 <select id="bwa-status" v-model="status" class="input">
@@ -183,6 +211,8 @@ function reply(item: Item): void {
                 </div>
             </li>
         </ol>
+
+        <ListPager :pagination="pagination" label="Seiten der Bewertungen" />
     </AdminPage>
 </template>
 

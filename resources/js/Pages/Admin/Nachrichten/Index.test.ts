@@ -45,7 +45,7 @@ let mounted: VueWrapper[] = []
 
 function mountPage(props: Record<string, unknown> = {}): VueWrapper {
     const wrapper = mount(Page, {
-        props: { items: [ITEM], count: 1, total: 1, filter: 'ungelesen', filters: FILTERS, canMarkRead: true, keepMonths: 12, ...props },
+        props: { items: [ITEM], count: 1, search: '', pagination: { current: 1, last: 1, total: 1, prev: null, next: null }, total: 1, filter: 'ungelesen', filters: FILTERS, canMarkRead: true, keepMonths: 12, ...props },
         attachTo: document.body,
     })
     mounted.push(wrapper)

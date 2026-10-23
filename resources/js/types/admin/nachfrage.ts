@@ -19,5 +19,7 @@ export interface AdminNachfrageProps {
     weighting: { halfLife: number; waiting: number }
     /** Wheel brands a Gutachten can be asked of; empty for a role that may not mark. */
     brands: { id: number; name: string }[]
+    /** The ranked gaps, fifty to a page (the admin audit's F-04, F-31). */
+    pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
     can: { mark: boolean }
 }
