@@ -182,6 +182,8 @@ export interface FitmentRowView {
     tyreSizes: TyreSizeRow[]
     conditions: RowCode[]
     draft: boolean
+    /** The row as the page was loaded (EditStamp): „Zeile ändern“ sends it, a save against an older state is refused. */
+    stamp?: string
 }
 
 /** One entry of this document's own Auflagenverzeichnis (document_conditions). */
@@ -207,11 +209,14 @@ export interface DocumentConditionView {
     limitWarning?: string | null
     /** Confirmed as the document prints it, with the reason — shown on the record, lifts the release blocker. */
     limitConfirmed?: { reason: string; by: string | null; at: string } | null
+    /** The code as the page was loaded (EditStamp): its form sends it, a save against an older state is refused. */
+    stamp?: string
 }
 
 /** The choices of the Auflagenverzeichnis form. */
 export interface ConditionChoices {
-    kinds: { value: string; label: string; section: string }[]
+    /** help: what the kind does, said beside the choice (the admin audit's F-07). */
+    kinds: { value: string; label: string; section: string; help: string }[]
     bodyForms: string[]
     drives: string[]
 }
@@ -260,8 +265,13 @@ export interface CombinationsView {
 }
 
 export interface AdminGutachtenShowProps {
+    /** What each card was opened on (EditStamp): a save against an older state is refused. */
+    stamps: { document: string; derating: string; combinations: string }
     document: DocumentFacts
+    /** The first rows of the document, by vehicle — at most GutachtenController::ROWS_SHOWN. */
     rows: FitmentRowView[]
+    /** Every row of the document, counted: what the release brings into the shop (F-37). */
+    rowsTotal?: number
     vehicles: { id: number; label: string }[]
     blockers: string[]
     preview?: PreviewVerdict[]

@@ -155,3 +155,22 @@ it('asks a draft that already had rows and no count for it at release — with t
         ->and($document->counted_before_entry)->toBeFalse()
         ->and(AuditLog::query()->where('description', 'approval.counted')->sole()->properties['rows'])->toBe(2);
 });
+
+it('says on the draft what the release will refuse about the count, before „Freigeben“ is pressed (the admin audit\'s F-18)', function (): void {
+    $document = ApprovalDocument::factory()->draft()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'page_count' => 8]);
+    $this->actingAs(countAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", hisCount(['axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'none', 'abnahme_page' => null]))
+        ->assertSessionHasNoErrors();
+    enterHisRows($document);
+
+    $blockers = $this->actingAs(countAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")->assertOk()->viewData('page')['props']['blockers'];
+
+    expect($blockers)->toContain('Auflagen-Codes für die erfassten Fahrzeuge laut Verwendungsbereich: 6, erfasst: 1. Trag die fehlenden nach oder zähl noch einmal.')
+        ->toContain('Reifengrößen für die erfassten Fahrzeuge laut Verwendungsbereich: 3, erfasst: 1. Trag die fehlenden nach oder zähl noch einmal.');
+
+    // Counted again to match the entry, the page has nothing left to say about the count.
+    $this->actingAs(countAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", hisCount(['codes' => 1, 'sizes' => 1, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'none', 'abnahme_page' => null]))
+        ->assertSessionHasNoErrors();
+    $after = $this->actingAs(countAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")->viewData('page')['props']['blockers'];
+
+    expect(array_filter($after, static fn (string $b): bool => str_contains($b, 'laut Verwendungsbereich')))->toBe([]);
+});

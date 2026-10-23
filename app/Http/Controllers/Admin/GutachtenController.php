@@ -41,9 +41,11 @@ use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\Approvals\LoadLimitCheck;
 use App\Services\Admin\Approvals\SamePdf;
 use App\Services\Admin\AuditTrail;
+use App\Services\Admin\Lists\ListPaging;
 use App\Services\Storage\DocumentFiles;
 use App\Services\Storage\PdfUpload;
 use App\Services\Storage\UploadRejected;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\VehicleName;
 use Illuminate\Http\RedirectResponse;
@@ -76,6 +78,9 @@ class GutachtenController extends Controller
 
     public const SAVED = 'Gespeichert.';
 
+    /** The rows one page draws; more are counted and named, never dropped silently (F-37). */
+    public const ROWS_SHOWN = 1000;
+
     public function index(Request $request): Response
     {
         // Each document's rows counted first, then joined: grouping every joined row by the document's eleven columns took
@@ -86,24 +91,48 @@ class GutachtenController extends Controller
             ->selectRaw("SUM(status = 'published') as published_count")
             ->groupBy('approval_document_id');
 
-        $documents = DB::table('approval_documents as ad')
+        $query = DB::table('approval_documents as ad')
             ->leftJoinSub($counts, 'f', 'f.approval_document_id', '=', 'ad.id')
             // Drafts first — the documents being worked on — then the newest; a document without its
             // date is not buried at the bottom (MySQL sorts NULL last in a descending order).
             ->orderByRaw("ad.status = 'draft' DESC")
             ->orderByRaw('ad.issued_on IS NULL DESC')
             ->orderByDesc('ad.issued_on')
-            ->orderByDesc('ad.id')
-            ->get([
-                'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
-                'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count', 'ad.is_demo',
-                DB::raw('COALESCE(f.fitment_count, 0) as fitment_count'),
-                DB::raw('COALESCE(f.published_count, 0) as published_count'),
-            ]);
+            ->orderByDesc('ad.id');
+
+        // By any number a document is known by, or its issuer (the admin audit's F-31: a thousand on one page, no search).
+        $search = is_string($request->query('q')) ? mb_substr(trim((string) $request->query('q')), 0, 100) : '';
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(static fn ($where) => $where->where('ad.report_number', 'like', $like)->orWhere('ad.kba_number', 'like', $like)
+                ->orWhere('ad.approval_mark', 'like', $like)->orWhere('ad.issuer', 'like', $like));
+        }
+
+        // Status and kind narrow the list on the server now that it comes in pages: each chip with how many it holds.
+        $statusCounts = DB::table('approval_documents')->select('status')->selectRaw('COUNT(*) as n')->groupBy('status')->pluck('n', 'status');
+        $kindCounts = DB::table('approval_documents')->select('kind')->selectRaw('COUNT(*) as n')->groupBy('kind')->pluck('n', 'kind');
+        $status = is_string($request->query('status')) && $statusCounts->has($request->query('status')) ? (string) $request->query('status') : '';
+        $kind = is_string($request->query('art')) && $kindCounts->has($request->query('art')) ? (string) $request->query('art') : '';
+
+        if ($status !== '') {
+            $query->where('ad.status', $status);
+        }
+
+        if ($kind !== '') {
+            $query->where('ad.kind', $kind);
+        }
+
+        $page = $query->paginate(ListPaging::PER_PAGE, [
+            'ad.id', 'ad.report_number', 'ad.kind', 'ad.issuer', 'ad.kba_number', 'ad.approval_mark',
+            'ad.issued_on', 'ad.revision', 'ad.status', 'ad.page_count', 'ad.is_demo',
+            DB::raw('COALESCE(f.fitment_count, 0) as fitment_count'),
+            DB::raw('COALESCE(f.published_count, 0) as published_count'),
+        ], 'seite', ListPaging::requested($request->query('seite')));
 
         $rows = [];
 
-        foreach ($documents as $row) {
+        foreach ($page->items() as $row) {
             $rows[] = [
                 'id' => (int) $row->id,
                 // The number the document is known by, whichever kind it is.
@@ -129,6 +158,15 @@ class GutachtenController extends Controller
 
         return Inertia::render('Admin/Gutachten/Index', [
             'documents' => $rows,
+            'found' => $page->total(),
+            'total' => (int) $statusCounts->sum(),
+            'released' => (int) ($statusCounts['published'] ?? 0),
+            'search' => $search,
+            'status' => $status,
+            'kind' => $kind,
+            'statusOptions' => $statusCounts->map(static fn (mixed $n, string $value): array => ['value' => $value, 'count' => (int) $n])->values()->all(),
+            'kindOptions' => $kindCounts->map(static fn (mixed $n, string $value): array => ['value' => $value, 'count' => (int) $n])->values()->all(),
+            'pagination' => ListPaging::props($page, '/admin/gutachten', ['q' => $search, 'status' => $status, 'art' => $kind]),
             'can' => ['create' => $admin instanceof AdminUser && $admin->may(PermissionModule::Approvals, PermissionAction::Create)],
         ]);
     }
@@ -182,8 +220,11 @@ class GutachtenController extends Controller
             ->where('approval_document_id', $document->id)
             ->orderBy('vehicle_id')
             ->orderBy('wheel_config_id')
-            ->limit(1000)
+            ->limit(self::ROWS_SHOWN)
             ->get();
+        // Every row, counted: past ROWS_SHOWN the page said „alle 1.000 Zeilen gelten“ of a document that releases more
+        // (the admin audit's F-37). The page names the cut, and every sentence about the release counts them all.
+        $rowsTotal = $rows->count() < self::ROWS_SHOWN ? $rows->count() : Fitment::query()->where('approval_document_id', $document->id)->count();
 
         $vehicles = $rows->pluck('vehicle')->filter()->unique('id')->values();
         $chosen = $request->vehicleId() ?? $vehicles->first()?->id;
@@ -195,8 +236,11 @@ class GutachtenController extends Controller
         return Inertia::render('Admin/Gutachten/Show', [
             'document' => self::documentFacts($document),
             'rows' => $rows->map(static fn (Fitment $row): array => self::row($row, $defined))->values()->all(),
+            'rowsTotal' => $rowsTotal,
             'vehicles' => $vehicles->map(static fn ($v): array => ['id' => (int) $v->id, 'label' => self::vehicleLabel($v)])->all(),
-            'blockers' => $document->status === DocumentStatus::Draft ? $release->check($document) : [],
+            // What the release will refuse, said before „Freigeben“ is pressed: the entry's own checks and its comparison with
+            // the Zählung — the page once said „Kann freigegeben werden“ and the release then refused on the count (F-18).
+            'blockers' => $document->status === DocumentStatus::Draft ? [...$release->check($document), ...self::countBlockers($document, $release)] : [],
             // Lazy: the preview is computed when a vehicle is chosen, and only for it.
             'preview' => Inertia::optional(static fn (): array => $chosen === null ? [] : $preview->for($document, (int) $chosen)),
             'previewVehicle' => $chosen,
@@ -236,6 +280,12 @@ class GutachtenController extends Controller
             'derating' => self::deratingView($document),
             // Its own „Bereifungskombinationen“ (D-256): once there are any, the only tyres the shop offers on it.
             'combinations' => self::combinationsView($document),
+            // What each card was opened on: a save against an older state is refused (EditStamp, the admin audit's F-25).
+            'stamps' => [
+                'document' => EditStamp::of(self::documentState($document->id)),
+                'derating' => EditStamp::of(self::deratingState($document)),
+                'combinations' => EditStamp::of(self::combinationsState($document)),
+            ],
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
                 ->whereIn('candidate_fitment_id', $rows->pluck('id'))->count(),
             // Which buttons to draw: asked, not attempted — a released document's „no“ is no refusal (ADMIN-GEFUNDEN 509).
@@ -254,6 +304,50 @@ class GutachtenController extends Controller
             'levels' => array_map(static fn (ConditionLevel $l): array => ['value' => $l->value, 'label' => $l->labelDe()], ConditionLevel::cases()),
             'levelFloorSentence' => ConditionLevel::FLOOR_SENTENCE,
         ]);
+    }
+
+    /**
+     * Where the entry and its Zählung differ, in the release's own sentences (DocumentRelease::declarationBlockers) — the
+     * completeness question is the dialog's to ask, so it is taken as answered here. Nothing before a count exists: the
+     * page asks for the count first.
+     *
+     * @return list<string>
+     */
+    private static function countBlockers(ApprovalDocument $document, DocumentRelease $release): array
+    {
+        $count = CountFigures::of($document);
+
+        return $count === null ? [] : $release->declarationBlockers($document, $count->declaration(ApprovalDocument::COMPLETE, null));
+    }
+
+    /**
+     * The document's own row as stored now — what „Angaben“ and „Zählung“ rewrite (EditStamp, F-25).
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function documentState(int $id, bool $lock = false): ?array
+    {
+        return ApprovalDocument::query()->whereKey($id)->when($lock, static fn ($q) => $q->lockForUpdate())->first()?->getAttributes();
+    }
+
+    /**
+     * The table of tyre load at speed as stored now (EditStamp, F-25).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function deratingState(ApprovalDocument $document): array
+    {
+        return $document->speedDeratings()->reorder()->orderBy('id')->get()->map(static fn ($cell): array => $cell->getAttributes())->all();
+    }
+
+    /**
+     * The list of tyre combinations as stored now (EditStamp, F-25).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function combinationsState(ApprovalDocument $document): array
+    {
+        return $document->tyreCombinations()->reorder()->orderBy('id')->get()->map(static fn ($c): array => $c->getAttributes())->all();
     }
 
     /**
@@ -313,7 +407,8 @@ class GutachtenController extends Controller
             $this->refuseKnownFile($pdf, $document, is_int($facts['supersedes_id']) ? $facts['supersedes_id'] : null);
         }
 
-        DB::transaction(function () use ($document, $facts, $admin, $pdf): void {
+        DB::transaction(function () use ($request, $document, $facts, $admin, $pdf): void {
+            EditStamp::guard($request, self::documentState($document->id, lock: true));
             $revision = $facts['supersedes_id'] === null ? 1 : (int) ApprovalDocument::query()->whereKey($facts['supersedes_id'])->value('revision') + 1;
             $document->fill($facts + ['revision' => $revision]);
 
@@ -344,7 +439,10 @@ class GutachtenController extends Controller
     public function count(DocumentCountRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
         $counted = $document->isCounted();
-        $release->recordCount($document, $request->admin(), $request->figures());
+        DB::transaction(static function () use ($request, $document, $release): void {
+            EditStamp::guard($request, self::documentState($document->id, lock: true));
+            $release->recordCount($document, $request->admin(), $request->figures());
+        });
 
         return back()->with('toast', $counted ? 'Zählung geändert. Das Protokoll hält fest, was vorher stand.' : 'Zählung gespeichert. Die Freigabe vergleicht die Zeilen mit dieser Zählung.');
     }
@@ -588,7 +686,9 @@ class GutachtenController extends Controller
     }
 
     /**
-     * The documents a Nachtrag may supplement: any that is not itself a Nachtrag.
+     * The documents a Nachtrag may supplement: any that is not itself a Nachtrag — every one, newest first. The
+     * newest 300 only left an older Gutachten unchoosable and „uns nicht vorliegend“ the way on (the admin audit's
+     * F-36); the page shortens the list by typing (DocumentSelect).
      *
      * @return list<array{value: int, label: string}>
      */
@@ -597,7 +697,7 @@ class GutachtenController extends Controller
         return ApprovalDocument::query()
             ->where('kind', '<>', ApprovalKind::Nachtrag->value)
             ->orderByDesc('issued_on')
-            ->limit(300)
+            ->orderByDesc('id')
             ->get()
             ->map(static fn (ApprovalDocument $d): array => ['value' => (int) $d->id, 'label' => FitmentRows::label($d)])
             ->values()
@@ -623,6 +723,8 @@ class GutachtenController extends Controller
             'level' => ($condition->level ?? ConditionLevel::defaultFor($condition->code, $condition->kind, $condition->text_de))->value,
             'levelFloor' => ConditionLevel::floorFor($condition->kind)->value,
             'uses' => $uses,
+            // The code as this page shows it: „Bearbeiten“ sends it back, and a save against an older state is refused (F-25).
+            'stamp' => EditStamp::of(DocumentConditions::state($condition)),
             // A load-index limit that differs from twice its index's capacity: said, and confirmed with a
             // reason before release — the document is kept as it stands (the second review of C9, §3).
             'limitWarning' => app(LoadLimitCheck::class)->warningFor($condition),
@@ -638,7 +740,8 @@ class GutachtenController extends Controller
     public static function conditionChoices(): array
     {
         return [
-            'kinds' => array_map(static fn (ConditionKind $k): array => ['value' => $k->value, 'label' => $k->labelDe(), 'section' => $k->sectionDe()], ConditionKind::cases()),
+            // With what each kind does, said beside the choice (the admin audit's F-07).
+            'kinds' => array_map(static fn (ConditionKind $k): array => ['value' => $k->value, 'label' => $k->labelDe(), 'section' => $k->sectionDe(), 'help' => $k->helpDe()], ConditionKind::cases()),
             'bodyForms' => DocumentConditions::BODY_FORMS,
             'drives' => DocumentConditions::DRIVES,
         ];
@@ -716,6 +819,8 @@ class GutachtenController extends Controller
             ])->values()->all(),
             'conditions' => $row->conditionCodes->map(static fn (FitmentCondition $c): array => $codeView($c->code, $c->note_de))->values()->all(),
             'draft' => $row->status === FitmentStatus::Draft,
+            // The row as this page shows it: „Zeile ändern“ sends it back, and a save against an older state is refused (F-25).
+            'stamp' => EditStamp::of(FitmentRows::state($row)),
         ];
     }
 
@@ -741,7 +846,7 @@ class GutachtenController extends Controller
     }
 
     /**
-     * The released documents a new revision may replace.
+     * The released documents a new revision may replace — every one, newest first, as the Nachtrag's (F-36).
      *
      * @return list<array{value: int, label: string}>
      */
@@ -751,7 +856,7 @@ class GutachtenController extends Controller
             ->where('status', DocumentStatus::Published->value)
             ->when($except !== null, static fn ($q) => $q->whereKeyNot($except?->id))
             ->orderByDesc('issued_on')
-            ->limit(200)
+            ->orderByDesc('id')
             ->get()
             ->map(static fn (ApprovalDocument $d): array => ['value' => (int) $d->id, 'label' => FitmentRows::label($d).' · Fassung '.$d->revision])
             ->values()

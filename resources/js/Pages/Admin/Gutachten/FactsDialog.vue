@@ -8,10 +8,12 @@
 import { useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import DateField from '../../../Components/Admin/DateField.vue'
+import DocumentSelect from '../../../Components/Admin/DocumentSelect.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import { decimal } from '../../../format'
 import { FILE_CHANGED } from '../../../lib/file'
 import type { DocumentFacts, RecordShape } from '../../../types/admin/gutachten'
@@ -22,6 +24,8 @@ const props = defineProps<{
     kinds: { value: string; label: string }[]
     replaceable: { value: number; label: string }[]
     supplementable: { value: number; label: string }[]
+    /** The document as the dialog was opened on (EditStamp): a save against an older state is refused. */
+    stamp?: string
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -101,6 +105,7 @@ async function save(): Promise<void> {
 
     form.transform((data) => ({ ...data, ...shape.value })).put(`/admin/gutachten/${props.document.id}`, {
         preserveScroll: true,
+        headers: stampHeaders(props.stamp),
         onSuccess: () => (open.value = false),
         onError: () => focusRefused('.fd'),
     })
@@ -110,6 +115,8 @@ async function save(): Promise<void> {
 <template>
     <Dialog v-model:open="open" title="Angaben ändern" :description="document.label" content-class="adm-dialog" initial-focus="#fd-kind">
         <form id="fd-form" class="fd" novalidate @submit.prevent="save">
+            <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+            <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
             <div class="form-field">
                 <label class="form-field__label" for="fd-kind">Art</label>
                 <select id="fd-kind" v-model="form.kind" class="input">
@@ -140,10 +147,14 @@ async function save(): Promise<void> {
             </div>
             <div v-if="replaceable.length" class="form-field">
                 <label class="form-field__label" for="fd-supersedes">Ersetzt eine frühere Fassung</label>
-                <select id="fd-supersedes" v-model="form.supersedes_id" class="input" aria-describedby="fd-supersedes-err">
-                    <option :value="null">Nein, ein neues Dokument</option>
-                    <option v-for="doc in replaceable" :key="doc.value" :value="doc.value">{{ doc.label }}</option>
-                </select>
+                <DocumentSelect
+                    id="fd-supersedes"
+                    v-model="form.supersedes_id"
+                    :options="replaceable"
+                    none-label="Nein, ein neues Dokument"
+                    :invalid="Boolean(errors.supersedes_id)"
+                    describedby="fd-supersedes-err"
+                />
                 <p id="fd-supersedes-err" class="form-field__error">{{ errors.supersedes_id }}</p>
             </div>
             <div class="form-field">

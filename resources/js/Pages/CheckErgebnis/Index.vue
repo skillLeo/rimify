@@ -16,6 +16,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
+import { sizesByAxle } from '../../fitment/axles'
 import { PAPERS_EXEMPT, entryBySize, entryLine } from '../../fitment/papers'
 import { withUnit } from '../../format'
 import { contactHref } from '../../lib/contact'
@@ -201,7 +202,7 @@ const papersLine = computed<string | null>(() => {
                 </section>
 
                 <p v-if="result.front.length" class="res__note">
-                    Zulässige Reifengrößen: {{ result.front.join(' · ') }}<template v-if="result.rear.length && result.rear.join() !== result.front.join()"> · hinten {{ result.rear.join(' · ') }}</template>
+                    Zulässige Reifengrößen: {{ sizesByAxle(result.front, result.rear) }}
                 </p>
 
                 <p v-if="result.documentToday" class="notice notice--warn res__today">{{ result.documentToday }}</p>

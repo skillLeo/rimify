@@ -16,6 +16,7 @@ import { computed, nextTick, reactive, ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import { formatNumber } from '../../../lib/num'
 import type { ConditionChoices, DocumentConditionView, UnresolvedCode } from '../../../types/admin/gutachten'
@@ -85,6 +86,10 @@ function blank(): Entry {
 
 const form = reactive<Entry>(blank())
 const editing = ref<number | null>(null)
+/* The code as its form opened on (EditStamp, the admin audit's F-25): sent with the save, not read again from the list. */
+const editingStamp = ref<string | undefined>(undefined)
+/* What the chosen kind does, beside the choice: „Verbot“ excludes no car (the admin audit's F-07). */
+const kindHelp = computed(() => props.choices.kinds.find((kind) => kind.value === form.kind)?.help ?? '')
 const formOpen = ref(false)
 
 interface EntryPayload {
@@ -132,6 +137,7 @@ function openEdit(condition: DocumentConditionView): void {
         axle: condition.axle ?? '',
     })
     editing.value = condition.id
+    editingStamp.value = condition.stamp
     sent.value = false
     formOpen.value = true
     focus.request('av-code', { scroll: true })
@@ -141,6 +147,7 @@ function closeForm(): void {
     const was = editing.value
     formOpen.value = false
     editing.value = null
+    editingStamp.value = undefined
     sent.value = false
     focus.request(was === null ? 'av-new' : [`av-more-${was}`, 'av-new'])
 }
@@ -186,7 +193,8 @@ function save(): void {
     if (target === null) {
         router.post(base.value, payload(form), options)
     } else {
-        router.put(`${base.value}/${target}`, payload(form), options)
+        // The code as it was when its form opened: changed meanwhile, the save is refused (EditStamp, F-25).
+        router.put(`${base.value}/${target}`, payload(form), { ...options, headers: stampHeaders(editingStamp.value) })
     }
 }
 
@@ -429,6 +437,11 @@ function confirmLimit(condition: DocumentConditionView): void {
         </div>
         <p v-else class="adm-note">Noch kein Code. Trag die Auflagen so ein, wie das Gutachten sie druckt – einzeln oder als ganze Legende.</p>
 
+        <!-- A rule, not a missing button (the admin audit's rules): a code a row carries cannot be removed from under it. -->
+        <p v-if="editable && conditions.some((c) => c.uses > 0)" class="adm-note av__in-use">
+            Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet („Zeile ändern“) – wie viele es sind, steht unter „Verwendet“.
+        </p>
+
         <!-- „Im Shop“ (#23, D-104): what each level does there — the label of the answer, no colour of a sentence (D-247) —
              and the one rule that cannot be chosen away. -->
         <p v-if="levels && conditions.length" class="adm-note av__levels-note">
@@ -485,6 +498,8 @@ function confirmLimit(condition: DocumentConditionView): void {
 
         <!-- One entry, added or changed. -->
         <div v-if="formOpen" class="av__form" role="group" :aria-label="editing === null ? 'Neuer Code' : `Code ${form.code} bearbeiten`">
+            <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+            <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
             <div class="av__pair">
                 <div class="form-field">
                     <label class="form-field__label" for="av-code">Code</label>
@@ -497,7 +512,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <option value="" disabled>Bitte wählen</option>
                         <option v-for="kind in choices.kinds" :key="kind.value" :value="kind.value">{{ kind.label }}</option>
                     </select>
-                    <p id="av-kind-help" class="form-field__help">Die Art entscheidet, wo und wie laut der Satz im Shop steht.</p>
+                    <p id="av-kind-help" class="form-field__help">Die Art entscheidet, wo und wie auffällig der Satz im Shop steht.<template v-if="kindHelp"> {{ kindHelp }}</template></p>
                     <p id="av-kind-err" class="form-field__error" aria-live="polite">{{ errors.kind }}</p>
                 </div>
             </div>

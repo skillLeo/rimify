@@ -550,6 +550,21 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
 
         $this->actingAs(erfassung('content-editor'), 'admin')->get('/admin/auflagen')->assertForbidden();
     });
+
+    it('finds the documents that carry a code behind more than 200 drafts without one (the admin audit’s F-33)', function (): void {
+        ApprovalDocument::factory()->draft()->count(201)->create();
+        $released = ApprovalDocument::factory()->create(['issued_on' => '2020-01-01']);
+        DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Die Anbauabnahme durch einen amtlich anerkannten Prüfer ist erforderlich.')
+            ->create(['approval_document_id' => $released->id, 'code' => 'A01']);
+        $onlyRows = ApprovalDocument::factory()->draft()->create(['page_count' => 12]);
+        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$onlyRows->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'T88', 'note' => null]]]));
+
+        $props = $this->actingAs(erfassung(), 'admin')->get('/admin/auflagen')->assertOk()->viewData('page')['props'];
+
+        expect(array_column($props['documents'], 'id'))->toEqualCanonicalizing([$released->id, $onlyRows->id])
+            ->and($props['found'])->toBe(2)
+            ->and($props['pagination']['last'])->toBe(1);
+    });
 });
 
 describe('Fahrzeuge', function (): void {

@@ -11,6 +11,7 @@
 
 import { computed, onMounted, ref, watch } from 'vue'
 import DateField from '../../../Components/Admin/DateField.vue'
+import DocumentSelect from '../../../Components/Admin/DocumentSelect.vue'
 import type { RecordShape } from '../../../types/admin/gutachten'
 
 const props = defineProps<{
@@ -62,10 +63,14 @@ watch(refused, (value) => {
     <div class="rsf">
         <div v-if="kind === 'NACHTRAG'" class="form-field">
             <label class="form-field__label" :for="id('base')">Nachtrag zu</label>
-            <select :id="id('base')" v-model="shape.supplement_to_id" class="input" :aria-describedby="`${id('base')}-help ${id('base')}-err`">
-                <option :value="null">Einem Gutachten, das uns nicht vorliegt</option>
-                <option v-for="doc in supplementable" :key="doc.value" :value="doc.value">{{ doc.label }}</option>
-            </select>
+            <DocumentSelect
+                :id="id('base')"
+                v-model="shape.supplement_to_id"
+                :options="supplementable"
+                none-label="Einem Gutachten, das uns nicht vorliegt"
+                :invalid="Boolean(err('supplement_to_id'))"
+                :describedby="`${id('base')}-help ${id('base')}-err`"
+            />
             <div v-if="shape.supplement_to_id === null" class="form-field rsf-base-number">
                 <label class="form-field__label" :for="id('base-number')">Nummer des Grundgutachtens</label>
                 <input

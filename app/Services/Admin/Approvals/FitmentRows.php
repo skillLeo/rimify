@@ -9,6 +9,7 @@ use App\Enums\FitmentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
+use App\Models\FitmentCondition;
 use App\Models\FitmentTyreSize;
 use App\Services\Admin\AuditTrail;
 use Illuminate\Support\Facades\DB;
@@ -116,6 +117,24 @@ final class FitmentRows
                 ], $document);
             }
         });
+    }
+
+    /**
+     * The row as its form writes it — the columns a person sets, the override with its reason, each tyre size with its
+     * codes, the row's codes with their notes — for EditStamp: a row saved from a form opened on another state is
+     * refused, not written over (the admin audit's F-25). The derived Eintragung is left out: the document's list moves
+     * it, not this form. Expects tyreSizes.conditionCodes and conditionCodes loaded.
+     *
+     * @return array<string, mixed>
+     */
+    public static function state(Fitment $row): array
+    {
+        return [
+            'row' => $row->only(['axle', 'entry_note_de', 'source_page', 'build_from', 'build_to', 'permitted_width_min', 'permitted_width_max', 'permitted_et_min', 'permitted_et_max', 'centre_bore_mm', 'entry_override', 'entry_override_reason']),
+            'sizes' => $row->tyreSizes->sortBy('id')->map(static fn (FitmentTyreSize $size): array => $size->only(['width_mm', 'aspect', 'diameter_in', 'min_load_index', 'min_speed_symbol', 'axle', 'kw_min', 'kw_max'])
+                + ['codes' => $size->conditionCodes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->sort()->values()->all()])->values()->all(),
+            'codes' => $row->conditionCodes->sortBy('code')->map(static fn (FitmentCondition $condition): array => [(string) $condition->code, $condition->note_de])->values()->all(),
+        ];
     }
 
     public function delete(Fitment $row, AdminUser $admin): void

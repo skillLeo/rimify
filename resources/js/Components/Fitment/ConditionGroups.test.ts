@@ -55,6 +55,12 @@ describe('ConditionGroups', () => {
         expect(wrapper.findAll('li').map((li) => li.text())).toEqual([BOLTS])
     })
 
+    it('keeps a space between the size and its axles (the admin audit’s F-05: „R19· Vorder- und Hinterachse“)', () => {
+        const wrapper = mount(ConditionGroups, { props: { groups: x3 } })
+
+        expect(wrapper.findAll('.cgroups__size .cgroups__head')[0]?.text()).toBe('Nur bei 235/45 R19 · Vorder- und Hinterachse')
+    })
+
     it('says a size without Auflagen of its own as such', () => {
         const wrapper = mount(ConditionGroups, { props: { groups: { ...x3, sizes: [...x3.sizes.slice(0, 2), { ...x3.sizes[2]!, conditions: [] }] } } })
 

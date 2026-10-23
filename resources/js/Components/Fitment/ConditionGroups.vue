@@ -38,9 +38,9 @@ withDefaults(defineProps<{
             </template>
 
             <section v-for="size in groups.sizes" :key="size.size" class="cgroups__size" :aria-label="`Auflagen nur bei ${size.size}`">
+                <!-- One line: a line break between the two spans is dropped, and „R18·“ lost its space (the admin audit's F-05). -->
                 <p class="cgroups__head">
-                    Nur bei <span class="data" translate="no">{{ size.size }}</span>
-                    <span class="cgroups__axle">· {{ size.axle }}</span>
+                    Nur bei <span class="data" translate="no">{{ size.size }}</span> <span class="cgroups__axle">· {{ size.axle }}</span>
                 </p>
                 <ul v-if="size.conditions.filter((c) => !omit.includes(c)).length" class="cgroups__list">
                     <li v-for="condition in size.conditions.filter((c) => !omit.includes(c))" :key="condition">{{ condition }}</li>

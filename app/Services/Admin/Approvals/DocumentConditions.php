@@ -145,6 +145,17 @@ final class DocumentConditions
     }
 
     /**
+     * The code as its form writes it, for EditStamp: a code saved from a form opened on another state is refused, not
+     * written over (the admin audit's F-25). How loud it is in the shop has its own save and is left out.
+     *
+     * @return array<string, mixed>
+     */
+    public static function state(DocumentCondition $condition): array
+    {
+        return $condition->only(['code', 'kind', 'text_de', 'source_page', 'body_forms', 'drive', 'max_axle_load_kg', 'axle']);
+    }
+
+    /**
      * How many rows and tyre sizes of its document carry the code.
      */
     public static function uses(DocumentCondition $condition): int

@@ -11,6 +11,7 @@ import { useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import type { DocumentCount } from '../../../types/admin/gutachten'
 
 const props = defineProps<{
@@ -20,6 +21,8 @@ const props = defineProps<{
     pageCount: number | null
     /** Rows already entered: a count taken now is taken after the entry, and says so. */
     rows: number
+    /** The document as this card was opened on (EditStamp): a save against an older state is refused. */
+    stamp?: string
 }>()
 
 const BAG = 'zaehlung'
@@ -76,6 +79,7 @@ function save(): void {
     })).post(`/admin/gutachten/${props.documentId}/zaehlung`, {
         preserveScroll: true,
         errorBag: BAG,
+        headers: stampHeaders(props.stamp),
         onSuccess: () => {
             editing.value = false
             focus.request('zl-edit')
@@ -109,6 +113,8 @@ function save(): void {
         </template>
 
         <form v-else class="zl-form" novalidate aria-labelledby="zl-form-h" @submit.prevent="save">
+            <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and the figures typed stay. -->
+            <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
             <p id="zl-form-h" class="form-field__label">Was der Verwendungsbereich druckt</p>
             <p class="form-field__help">
                 <template v-if="rows === 0">Bevor du Zeilen erfasst: Zähl im PDF, was der Verwendungsbereich für die Fahrzeuge druckt, die du erfassen willst, und schreib zu jeder Zahl die Seite. Die Freigabe vergleicht deine Zeilen später mit dieser Zählung.</template>

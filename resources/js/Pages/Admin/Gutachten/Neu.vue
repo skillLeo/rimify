@@ -12,6 +12,7 @@ import { useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
+import DocumentSelect from '../../../Components/Admin/DocumentSelect.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
@@ -214,10 +215,14 @@ function chose(file: File | null): void {
 
                 <div v-if="replaceable.length" class="form-field">
                     <label class="form-field__label" for="gn-supersedes">Ersetzt eine frühere Fassung <span class="gn-optional">(optional)</span></label>
-                    <select id="gn-supersedes" v-model="form.supersedes_id" class="input" aria-describedby="gn-supersedes-help gn-supersedes-err">
-                        <option :value="null">Nein, ein neues Dokument</option>
-                        <option v-for="doc in replaceable" :key="doc.value" :value="doc.value">{{ doc.label }}</option>
-                    </select>
+                    <DocumentSelect
+                        id="gn-supersedes"
+                        v-model="form.supersedes_id"
+                        :options="replaceable"
+                        none-label="Nein, ein neues Dokument"
+                        :invalid="Boolean(errors.supersedes_id)"
+                        describedby="gn-supersedes-help gn-supersedes-err"
+                    />
                     <p id="gn-supersedes-help" class="form-field__help">Die frühere Fassung gilt bis zur Freigabe dieser weiter; Bestellungen darauf bleiben erklärbar.</p>
                     <p id="gn-supersedes-err" class="form-field__error">{{ errors.supersedes_id }}</p>
                 </div>

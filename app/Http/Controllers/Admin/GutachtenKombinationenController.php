@@ -10,6 +10,7 @@ use App\Models\ApprovalDocument;
 use App\Models\DocumentTyreCombination;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
+use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -32,6 +33,9 @@ class GutachtenKombinationenController extends Controller
         }
 
         DB::transaction(static function () use ($combinations, $page, $document, $request): void {
+            // Saved whole: a list opened before someone else's save would put the old one back — refused instead (F-25).
+            ApprovalDocument::query()->whereKey($document->id)->lockForUpdate()->first();
+            EditStamp::guard($request, GutachtenController::combinationsState($document));
             $before = DocumentTyreCombination::query()->where('approval_document_id', $document->id)->count();
             DocumentTyreCombination::query()->where('approval_document_id', $document->id)->delete();
             $now = now();
