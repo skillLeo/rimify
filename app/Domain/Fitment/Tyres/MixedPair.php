@@ -11,7 +11,7 @@ use App\Support\GermanFormat;
 /**
  * One front/rear pair the document permits for this car on this wheel (#20, D-105): the two sizes as the car's row
  * lists them, what each axle asks of its tyres — worked out from that axle's own load — and the tyre sets that meet
- * it, one maker and one profile front and rear.
+ * it, front and rear as the document's own sentence asks of makers and profile types (D-336).
  *
  * Where the document lists its combinations (D-256), every combination it names is such a pair, the same size on both
  * axles included — the Komplettrad is the combination, never four of one size (D-335). An axle the shop has no tyre for
@@ -21,6 +21,15 @@ use App\Support\GermanFormat;
  */
 final readonly class MixedPair
 {
+    /** No set: every front and rear of one maker is two makers, where the document asks one on every tyre (D-336). */
+    public const NO_SET_MAKER = 'MAKER';
+
+    /** No set: every front and rear is two profile types, where the document asks one type on every tyre (D-336). */
+    public const NO_SET_PROFILE = 'PROFILE';
+
+    /** No set: the ones the document allows are two seasons, and the offer pairs one — ours (D-336). */
+    public const NO_SET_SEASON = 'SEASON';
+
     /**
      * @param  AxleMinimum  $frontMinimum
      * @param  AxleMinimum  $rearMinimum
@@ -38,6 +47,8 @@ final readonly class MixedPair
         public array $missing = [],
         /** A combination of the document's own list (D-256), the same size on both axles included — not a printed table's pair. */
         public bool $listed = false,
+        /** Why both axles have tyres and still no set: the document's rule (`MAKER`, `PROFILE`) or ours (`SEASON`). */
+        public ?string $noSetReason = null,
     ) {}
 
     /** The axle that asks for more: the higher load index; where both ask the same, the heavier axle (as C-09 names it). */
@@ -92,8 +103,10 @@ final readonly class MixedPair
     }
 
     /**
-     * Why this pair has no set, in one sentence — the axle the shop has no tyre for, by name and size; null where it has
-     * one. Ours, not the document's: it says what we can offer, never what the Gutachten permits (R-17).
+     * Why this pair has no set, in one sentence — the axle the shop has no tyre for, by name and size; or, where both axles
+     * have tyres, the rule that parts them: the document's about makers or profile types, as its sentence records it, or
+     * ours about the season (D-336). Null where it has one. It says what we can offer, never what the Gutachten permits
+     * beyond its recorded sentence (R-17).
      */
     public function noSetSentenceDe(): ?string
     {
@@ -109,7 +122,10 @@ final readonly class MixedPair
             $front && $rear => sprintf('Für die Vorderachse (%s) und die Hinterachse (%s) können wir dir gerade keine passenden Reifen anbieten', $this->front->labelDe(), $this->rear->labelDe()),
             $front => sprintf('Für die Vorderachse (%s) können wir dir gerade keinen passenden Reifen anbieten', $this->front->labelDe()),
             $rear => sprintf('Für die Hinterachse (%s) können wir dir gerade keinen passenden Reifen anbieten', $this->rear->labelDe()),
-            default => 'In diesen Größen können wir dir vorne und hinten gerade keine Reifen desselben Herstellers und derselben Profilreihe anbieten',
+            $this->noSetReason === self::NO_SET_SEASON => 'In diesen Größen können wir dir gerade keine Reifen derselben Saison für vorne und hinten anbieten',
+            // The document's rule as its own sentence, then ours — what we can offer (R-17, D-336).
+            $this->noSetReason === self::NO_SET_PROFILE => 'Das Gutachten verlangt, dass die Reifen vorne und hinten vom selben Hersteller sind und dasselbe Profil haben. Solche Reifen können wir dir in diesen Größen gerade nicht anbieten',
+            default => 'Das Gutachten verlangt, dass die Reifen vorne und hinten vom selben Hersteller sind. Solche Reifen können wir dir in diesen Größen gerade nicht anbieten',
         };
 
         return $why.' – ein Komplettrad gibt es in dieser Kombination deshalb nicht. Die Felge allein kannst du bestellen.';

@@ -15,7 +15,15 @@ import ConditionGroups from '../Fitment/ConditionGroups.vue'
 import Icon from '../Ui/Icon.vue'
 import { withUnit } from '../../format'
 import { usePriceTerms } from '../../composables/usePriceTerms'
+import { setNames } from './setNames'
 import type { MischbereifungProp, MischbereifungSetProp } from '../../types/pages'
+
+/* One line on both axles: its name; two lines, or two makers, where the document allows it (D-336): each axle's tyre. */
+function cardName(set: MischbereifungSetProp): string {
+    const names = setNames(set)
+
+    return names.line ?? `vorne ${names.front ?? ''} · hinten ${names.rear ?? ''}`
+}
 
 const props = withDefaults(
     defineProps<{
@@ -152,8 +160,8 @@ function add(key: string, frontId: number, rearId: number): void {
 
                 <ul v-if="chosen.sets.length > 0" class="mix__grid" role="list">
                     <li v-for="set in chosen.sets" :key="set.key" class="mix-card">
-                        <span class="micro">{{ set.brandName }}</span>
-                        <h3 class="mix-card__name">{{ set.name }}</h3>
+                        <span class="micro">{{ setNames(set).brands.join(' · ') }}</span>
+                        <h3 class="mix-card__name">{{ cardName(set) }}</h3>
                         <p class="mix-card__meta">{{ set.seasonLabel }}</p>
                         <p v-for="eu in euLines(set)" :key="eu" class="mix-card__eu num">{{ eu }}</p>
                         <dl class="mix-card__axles">

@@ -756,6 +756,9 @@ class FelgenController extends Controller
                     'rearTyreId' => (int) $rear->id,
                     'brandName' => (string) $front->brand?->name,
                     'name' => (string) $front->name,
+                    // Two profile types, or two makers, where the document allows it (D-336): the page names each axle's tyre.
+                    'rearBrandName' => (string) $rear->brand?->name,
+                    'rearName' => (string) $rear->name,
                     'seasonLabel' => TyreSeason::from((string) $front->season)->longLabelDe(),
                     'frontLabel' => $front->label(),
                     'rearLabel' => $rear->label(),

@@ -584,7 +584,7 @@ export type KomplettradRefusalCode =
     | 'MIXED_NOT_ONE_MAKER'
     | 'AS_COMBINATION'
     | 'NO_COMBINATION'
-    | 'COMBINATION_NOT_ONE_MAKER'
+    | 'MIXED_NOT_ONE_PROFILE'
     | 'NO_WEIGHT_COLOUR'
 
 /**
@@ -661,6 +661,9 @@ export interface MischbereifungSetProp {
     rearTyreId: number
     brandName: string
     name: string
+    /** The rear tyre's maker and line — another where the document allows two (D-336). */
+    rearBrandName?: string
+    rearName?: string
     seasonLabel: string
     /** `235/45 R19 95Y` */
     frontLabel: string

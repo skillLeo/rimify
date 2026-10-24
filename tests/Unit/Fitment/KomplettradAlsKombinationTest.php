@@ -300,7 +300,7 @@ it('answers nothing for a frozen verdict: a snapshot is never the input to a sal
         ->and(alsKombiEngine($t235)->permitsMixed($frozen, $t235, $t235))->toBe(KomplettradRefusal::VerdictRestored);
 });
 
-it('says the one-maker rule beside a list that prints none as ours, never as the document\'s (R-17)', function (): void {
+it('asks nothing of makers beside a list that prints no rule of its own — two makers are a legal combination (D-336)', function (): void {
     $t235 = alsKombiTyre(11, 235, 45, 95);
     $other = new TyreRecord(
         id: 15, widthMm: 255, aspect: 40, diameterIn: 19.0, loadIndex: 99, speedSymbol: 'Y',
@@ -308,6 +308,6 @@ it('says the one-maker rule beside a list that prints none as ours, never as the
         brandName: 'Andere', name: 'Grip', season: 'sommer',
     );
 
-    expect(alsKombiEngine()->permitsMixed(alsKombiVerdict(alsKombiBbs()), $t235, $other))->toBe(KomplettradRefusal::CombinationNotOneMaker)
-        ->and(KomplettradRefusal::CombinationNotOneMaker->sentenceDe())->not->toContain('Gutachten');
+    // Our own one-maker rule refused it before (R-17: never a rule the document does not record).
+    expect(alsKombiEngine()->permitsMixed(alsKombiVerdict(alsKombiBbs()), $t235, $other))->toBeNull();
 });

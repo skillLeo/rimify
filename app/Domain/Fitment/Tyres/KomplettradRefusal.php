@@ -40,8 +40,13 @@ enum KomplettradRefusal: string
     case NoMixedPairing = 'NO_MIXED_PAIRING';
     /** Mischbereifung: this front size with this rear size is not in the document's table for this car. */
     case MixedPairNotListed = 'MIXED_PAIR_NOT_LISTED';
-    /** Mischbereifung: front and rear are not one maker's one tyre line, as the table's own sentence asks. */
+    /**
+     * Front and rear are two makers where the document's own sentence asks one maker on every tyre — ABE 55255's V19, „Es
+     * sind nur Reifen eines Herstellers …“ (TyreLineRule, D-336). Never asked where the document does not say it.
+     */
     case MixedNotOneMaker = 'MIXED_NOT_ONE_MAKER';
+    /** Front and rear are two profile types where the document's own sentence asks one type on every tyre (D-336). */
+    case MixedNotOneProfile = 'MIXED_NOT_ONE_PROFILE';
     /**
      * Four of a kind where the documents list their combinations (D-256): the Komplettrad is the combination, two wheels on
      * each axle, never four of one size (the operator's decision of 24.10.2026 on the client's item 8, D-335).
@@ -49,8 +54,6 @@ enum KomplettradRefusal: string
     case AsCombination = 'AS_COMBINATION';
     /** A listed combination: none of them is carried by the car's row, each size on its own axle. */
     case NoCombination = 'NO_COMBINATION';
-    /** A listed combination with no rules printed beside it: front and rear one maker's one line is our own rule, not the document's. */
-    case CombinationNotOneMaker = 'COMBINATION_NOT_ONE_MAKER';
 
     public function sentenceDe(): string
     {
@@ -76,10 +79,23 @@ enum KomplettradRefusal: string
             self::AxleLoadAboveLimit => 'Für die zulässige Achslast deines Fahrzeugs ist in dieser Reifengröße kein Tragfähigkeitsindex hinterlegt.',
             self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten sind für dein Fahrzeug mit dieser Felge nicht hinterlegt.',
             self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten sind für dein Fahrzeug nicht als Kombination hinterlegt.',
-            self::MixedNotOneMaker => 'Vorne und hinten müssen Reifen desselben Herstellers und derselben Profilreihe sein – so verlangt es das Gutachten.',
+            self::MixedNotOneMaker => 'Die Reifen vorne und hinten müssen vom selben Hersteller sein – so verlangt es das Gutachten für diese Kombination.',
+            self::MixedNotOneProfile => 'Die Reifen vorne und hinten müssen vom selben Hersteller sein und dasselbe Profil haben – so verlangt es das Gutachten für diese Kombination.',
             self::AsCombination => 'Als Komplettrad gibt es diese Felge für dein Fahrzeug nur in den Reifenkombinationen, die das Gutachten nennt – je zwei Räder für die Vorder- und die Hinterachse. Wähl auf der Seite der Felge eine dieser Kombinationen.',
             self::NoCombination => 'Für dein Fahrzeug ist bei uns keine der Reifenkombinationen aus dem Gutachten dieser Felge hinterlegt. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
-            self::CombinationNotOneMaker => 'Vorne und hinten bieten wir dir in einer Kombination nur Reifen desselben Herstellers und derselben Profilreihe an.',
+        };
+    }
+
+    /**
+     * The rule a set broke, plain — said only with the document's own clause quoted after it (TyreEligibility::sentenceFor,
+     * D-336, R-17); null for every refusal that is not about makers or profile types.
+     */
+    public function ruleDe(): ?string
+    {
+        return match ($this) {
+            self::MixedNotOneMaker => 'Die Reifen vorne und hinten müssen vom selben Hersteller sein.',
+            self::MixedNotOneProfile => 'Die Reifen vorne und hinten müssen vom selben Hersteller sein und dasselbe Profil haben.',
+            default => null,
         };
     }
 

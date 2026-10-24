@@ -386,6 +386,25 @@ describe('KomplettradChoice — the Gutachten\'s combinations (D-335)', () => {
         expect(single.find('.kc__pair').text()).toMatch(/^Vorderachse 2 × 225\/40 R18 · Hinterachse 2 × 245\/35 R18 Kombination Nr.\s2$/)
     })
 
+    // D-336: where the document lets the axles differ, each axle names its own tyre — the maker too where there are two.
+    it('names each axle’s tyre where the document lets the lines differ — never one name for two tyres', () => {
+        const twoLines = mountSets(combinations([combination({ sets: [combinationSet({ rearBrandName: 'Bridgestone', rearName: 'Turanza 6' })] })]), '11-12')
+
+        expect(twoLines.find('.kc-row__name').text()).toBe('Bridgestone')
+        expect(twoLines.findAll('.kc-set__line').map((l) => l.text())).toEqual(['Potenza Sport', 'Turanza 6'])
+
+        const twoMakers = mountSets(combinations([combination({ sets: [combinationSet({ rearBrandName: 'Michelin', rearName: 'Pilot Sport 4' })] })]), '11-12')
+
+        expect(twoMakers.find('.kc-row__name').text()).toBe('Bridgestone · Michelin')
+        expect(twoMakers.findAll('.kc-set__line').map((l) => l.text())).toEqual(['Bridgestone Potenza Sport', 'Michelin Pilot Sport 4'])
+
+        // One line on both axles: one name, no line per axle.
+        const one = mountSets(combinations([combination()]), '11-12')
+
+        expect(one.find('.kc-row__name').text()).toBe('Bridgestone Potenza Sport')
+        expect(one.find('.kc-set__line').exists()).toBe(false)
+    })
+
     it('names the axle the shop has no tyre for and offers no set there — the rim alone, never another size @admin-208', () => {
         const noSet = 'Für die Hinterachse (245/35 R18) können wir dir gerade keinen passenden Reifen anbieten – ein Komplettrad gibt es in dieser Kombination deshalb nicht. Die Felge allein kannst du bestellen.'
         const wrapper = mountSets(combinations([combination({ sets: [], noSet })]), null)

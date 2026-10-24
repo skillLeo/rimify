@@ -165,6 +165,33 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
         ->and($frozen[1]['axleLoadKg'])->toBe($fx->vehicle->axle_load_rear_kg);
 });
 
+// D-336: V19 asks one maker on every tyre and one profile type on each axle — nothing more. The engine asked one tyre
+// line front and rear of every document, and refused what V19 allows.
+it('offers and sells two profile types of one maker under V19, and refuses two makers quoting the recorded clause @d-336', function (): void {
+    [$fx, $front, $rear] = mixedSetup();
+    $frontTyre = mixedTyreOf($front);
+    $touring = mixedTyreOf($rear, ['brand_id' => $frontTyre->brand_id, 'name' => 'Touring Contact']);
+    $otherMaker = mixedTyreOf($rear, ['name' => 'Grip']);
+
+    expect($otherMaker->brand_id)->not->toBe($frontTyre->brand_id);
+
+    $page = $this->withCookies($fx->cookies())->get('/felgen/'.$fx->config->wheelModel?->slug)->assertOk()->viewData('page');
+    $sets = collect(collect($page['props']['configs'])->firstWhere('id', $fx->config->id)['mischbereifung']['pairs'][0]['sets']);
+
+    // The maker's two lines are a set, named axle by axle; the other maker's tyre is not paired.
+    expect($sets->map(static fn (array $s): array => [$s['frontTyreId'], $s['rearTyreId']])->all())->toBe([[$frontTyre->id, $touring->id]])
+        ->and([$sets[0]['name'], $sets[0]['rearName']])->toBe(['Sport Contact', 'Touring Contact']);
+
+    $add = fn (int $rearId) => $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
+        'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'tyreVariantId' => $frontTyre->id, 'rearTyreVariantId' => $rearId, 'quantity' => 2,
+    ]);
+
+    $add($touring->id)->assertSessionHasNoErrors();
+    $add($otherMaker->id)->assertSessionHasErrors([
+        'tyreVariantId' => 'Die Reifen vorne und hinten müssen vom selben Hersteller sein. Im Gutachten steht dazu: „Es sind nur Reifen eines Herstellers und achsweise eines Profiltyps zulässig […]“',
+    ]);
+});
+
 it('refuses at the basket a plausible pair the table does not list, and the listed pair the wrong way round — R-11 @kunde-20', function (): void {
     [$fx, $front, $rear, $unlisted] = mixedSetup();
     $frontTyre = mixedTyreOf($front);
