@@ -119,10 +119,15 @@ class Fitment extends Model
         return $this->belongsTo(WheelConfig::class);
     }
 
-    /** @return HasMany<FitmentTyreSize, $this> */
+    /**
+     * In the order they were entered, as the verdict names them — never the order a database plan happens to give, so a
+     * verdict is the same answer every time (LevelsChangeNoAnswerTest on MySQL, 24.10.2026).
+     *
+     * @return HasMany<FitmentTyreSize, $this>
+     */
     public function tyreSizes(): HasMany
     {
-        return $this->hasMany(FitmentTyreSize::class);
+        return $this->hasMany(FitmentTyreSize::class)->orderBy('id');
     }
 
     /**
