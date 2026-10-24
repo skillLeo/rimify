@@ -11,7 +11,9 @@
 
 import { useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
+import ConditionGroups from '../Fitment/ConditionGroups.vue'
 import Icon from '../Ui/Icon.vue'
+import { withUnit } from '../../format'
 import { usePriceTerms } from '../../composables/usePriceTerms'
 import type { MischbereifungProp, MischbereifungSetProp } from '../../types/pages'
 
@@ -65,6 +67,20 @@ function priceOf(set: MischbereifungSetProp): Pick<MischbereifungSetProp, 'forFo
 
 /* The card whose button was pressed: only it says it is busy, the others keep their label. */
 const pressed = ref<string | null>(null)
+
+/*
+ * Each tyre's EU label near the set's price (Regulation (EU) 2020/740, D-303): its three classes, front and rear — one
+ * line where one tyre stands on both axles. A label with a class missing is not shown, never completed.
+ */
+function euLines(set: MischbereifungSetProp): string[] {
+    const line = (label: MischbereifungSetProp['frontEu'], axle: string | null): string | null =>
+        label && label.fuel && label.wetGrip && label.noiseDb !== null && label.noiseClass
+            ? `${axle ? `${axle}: ` : ''}Kraftstoffeffizienz ${label.fuel} · Nasshaftung ${label.wetGrip} · ${withUnit(label.noiseDb, 'dB')}\u00A0(${label.noiseClass})`
+            : null
+    const both = set.frontTyreId === set.rearTyreId
+
+    return [line(set.frontEu, both ? null : 'vorne'), both ? null : line(set.rearEu, 'hinten')].filter((l): l is string => l !== null)
+}
 
 function add(key: string, frontId: number, rearId: number): void {
     if (props.wheelConfigId === null || form.processing) {
@@ -123,6 +139,12 @@ function add(key: string, frontId: number, rearId: number): void {
                 </p>
                 <p class="mix__min">{{ chosen.minSentence }}</p>
 
+                <!-- Each axle's Auflagen under its name (D-335, as each size's are under its own, D-199): both are fitted. -->
+                <div v-if="chosen.answer" class="mix__answer" data-set-answer>
+                    <p class="micro">Das verlangt das Gutachten je Achse</p>
+                    <ConditionGroups :groups="chosen.answer" />
+                </div>
+
                 <p v-if="error" class="notice notice--bad mix__error" role="alert">
                     <Icon name="warning" :size="20" />
                     <span>{{ error }}</span>
@@ -133,6 +155,7 @@ function add(key: string, frontId: number, rearId: number): void {
                         <span class="micro">{{ set.brandName }}</span>
                         <h3 class="mix-card__name">{{ set.name }}</h3>
                         <p class="mix-card__meta">{{ set.seasonLabel }}</p>
+                        <p v-for="eu in euLines(set)" :key="eu" class="mix-card__eu num">{{ eu }}</p>
                         <dl class="mix-card__axles">
                             <div>
                                 <dt>Vorderachse</dt>
@@ -197,6 +220,12 @@ function add(key: string, frontId: number, rearId: number): void {
     line-height: var(--lh-small);
 }
 
+.mix__answer {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: calc(72 * var(--ch-text));
+}
+
 .mix__notice-text {
     margin: 0;
 }
@@ -251,6 +280,13 @@ function add(key: string, frontId: number, rearId: number): void {
 
 .mix-card__meta {
     margin: 0;
+    color: var(--c-ink-2);
+}
+
+.mix-card__eu {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
     color: var(--c-ink-2);
 }
 

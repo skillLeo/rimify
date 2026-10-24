@@ -311,7 +311,8 @@ final readonly class Basket
             'wheelConfigId' => $wheelConfigId,
             'tyreVariantId' => $tyreVariantId,
             'weightColourId' => $tyreVariantId === null ? null : $colourId,
-            'quantity' => min(99, (int) ($existing['quantity'] ?? 0) + $quantity),
+            // A set per axle is 2 + 2, fixed (D-335): added again, it stays the one set — never 4 + 4.
+            'quantity' => $rearTyreVariantId !== null ? TyreEligibility::MIXED_PER_AXLE : min(99, (int) ($existing['quantity'] ?? 0) + $quantity),
         ];
 
         // Mischbereifung (D-105): the rear axle's tyre; `quantity` is then the wheels on EACH axle. Every other entry
@@ -395,11 +396,11 @@ final readonly class Basket
             return self::TYRE_GONE;
         }
 
-        // The one place "may this tyre go on this wheel on this car" is answered (R-13) — for a mixed set, this pair
-        // from the document's table, each tyre on its own axle (D-105).
+        // The one place "may this tyre go on this wheel on this car" is answered (R-13) — for a set per axle, this pair
+        // from the document's table or list, each tyre on its own axle (D-105, D-335), two on each whatever was posted.
         $refusal = $rear === null
             ? $this->eligibility->permits($verdict, EloquentTyreCatalogue::toRecord($tyre), $quantity)
-            : $this->eligibility->permitsMixed($verdict, EloquentTyreCatalogue::toRecord($tyre), EloquentTyreCatalogue::toRecord($rear), $quantity);
+            : $this->eligibility->permitsMixed($verdict, EloquentTyreCatalogue::toRecord($tyre), EloquentTyreCatalogue::toRecord($rear), TyreEligibility::MIXED_PER_AXLE);
 
         if ($refusal !== null) {
             return $refusal->sentenceDe();
@@ -414,7 +415,10 @@ final readonly class Basket
             : self::WEIGHT_COLOUR_GONE;
     }
 
-    /** A quantity of zero is a removal, which is what the stepper's minus reaches at one. */
+    /**
+     * A quantity of zero is a removal, which is what the stepper's minus reaches at one. A set per axle has no stepper: it
+     * is 2 + 2 (D-335), and any other amount leaves it as it is.
+     */
     public function setQuantity(Request $request, string $key, int $quantity): void
     {
         $key = self::entryKey($key);
@@ -426,6 +430,8 @@ final readonly class Basket
 
         if ($quantity < 1) {
             unset($cart[$key]);
+        } elseif ($this->id($cart[$key]['rearTyreVariantId'] ?? null) !== null) {
+            return;
         } else {
             $line = $cart[$key];
             $line['quantity'] = min(99, $quantity);
@@ -441,6 +447,18 @@ final readonly class Basket
         unset($cart[self::entryKey($key)]);
 
         $request->session()->put(self::SESSION_KEY, $cart);
+    }
+
+    /** Whether the basket holds this entry already: a set per axle added again stays the one set (D-335), and says so. */
+    public function holds(Request $request, string $key): bool
+    {
+        return isset($this->rawKeyed($request)[self::entryKey($key)]);
+    }
+
+    /** Whether the entry is a set per axle — two lines, two tyres, sold together (D-105, D-335). */
+    public function isSetPerAxle(Request $request, string $key): bool
+    {
+        return $this->id($this->rawKeyed($request)[self::entryKey($key)]['rearTyreVariantId'] ?? null) !== null;
     }
 
     public function clear(Request $request): void
@@ -501,9 +519,10 @@ final readonly class Basket
 
         $target = $this->key($wheelConfigId);
         $existing = $cart[$target] ?? [];
-        // A mixed set holds its quantity on each axle: both axles' rims stay.
-        $rims = max(1, (int) ($line['quantity'] ?? 1));
-        $rims = $this->id($line['rearTyreVariantId'] ?? null) === null ? $rims : $rims + $rims;
+        // A set per axle is 2 + 2 whatever an older session holds (D-335): both axles' rims stay, four.
+        $rims = $this->id($line['rearTyreVariantId'] ?? null) === null
+            ? max(1, (int) ($line['quantity'] ?? 1))
+            : TyreEligibility::MIXED_PER_AXLE + TyreEligibility::MIXED_PER_AXLE;
 
         $cart[$target] = [
             'kind' => 'WHEEL',
@@ -594,13 +613,16 @@ final readonly class Basket
      * amount just added and that amount's price, and the basket's count and subtotal as they now stand. Every figure is
      * the render's own (LinePrice, R-10); null where the entry did not render (a row gone in between).
      *
-     * @return array{lines: list<array{title: string, detail: string, quantity: int, price: string}>, count: int, subtotal: string}|null
+     * `listed`: the entry is one of the combinations the Gutachten lists (D-335) — a Komplettrad, never „Mischbereifung“.
+     *
+     * @return array{lines: list<array{title: string, detail: string, quantity: int, price: string}>, count: int, subtotal: string, listed: bool}|null
      */
     public function added(Request $request, string $entryKey, int $quantity): ?array
     {
         $summary = $this->summary($request);
         $lines = [];
         $wheels = 0;
+        $listed = false;
 
         foreach ($summary['lines'] as $line) {
             if (self::entryKey((string) $line['key']) !== $entryKey) {
@@ -611,6 +633,7 @@ final readonly class Basket
 
             $tyre = is_array($line['tyre'] ?? null) ? $line['tyre'] : null;
             $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
+            $listed = $listed || ($mixed['listed'] ?? false) === true;
             $detail = array_values(array_filter([
                 $mixed !== null ? 'Komplettrad, '.$mixed['axleLabel'] : $line['setLabel'],
                 $line['sizeLabel'],
@@ -642,6 +665,7 @@ final readonly class Basket
             'lines' => $lines,
             'count' => (int) $summary['totals']['count'],
             'subtotal' => (string) $summary['totals']['subtotal'],
+            'listed' => $listed,
         ];
     }
 
@@ -841,8 +865,9 @@ final readonly class Basket
             $verdict = $verdict->forRimAlone() ?? $verdict;
         }
 
+        // A set per axle is 2 + 2 whatever an older session holds (D-335).
         if ($rearId !== null) {
-            return $this->renderMixed($config, $tyreId, $rearId, $tyre, $colour, $quantity, $verdict, $colours);
+            return $this->renderMixed($config, $tyreId, $rearId, $tyre, $colour, TyreEligibility::MIXED_PER_AXLE, $verdict, $colours);
         }
 
         // A rim that stopped selling says why in the add's own words — the tyres open, the papers missing — never the
@@ -855,14 +880,17 @@ final readonly class Basket
 
     /**
      * A mixed set's two lines: one reason list for both — the axles are sold together — and on each, its axle, its
-     * size, the size it is paired with, the table entry and what that axle asks for.
+     * size, the size it is paired with, the table entry and what that axle asks for. Where the Gutachten lists its
+     * combinations the set is one of them (D-335): each line names it, says the set is 2 + 2, and carries the answer for
+     * its own axle; its Auflagen are said under the axle's name.
      *
      * @param  Collection<array-key, BalanceWeightColour>  $colours
      * @return list<array<string, mixed>>
      */
     private function renderMixed(WheelConfig $config, int $frontId, int $rearId, ?TyreVariant $front, ?BalanceWeightColour $colour, int $quantity, ?FitmentVerdict $verdict, Collection $colours): array
     {
-        $rear = TyreVariant::query()->with('brand')->find($rearId);
+        // One size on both axles: one tyre may be both (D-335).
+        $rear = $rearId === $frontId ? $front : TyreVariant::query()->with('brand')->find($rearId);
         $reasons = [];
 
         if ($front === null || $rear === null) {
@@ -889,17 +917,26 @@ final readonly class Basket
         $lines = [];
 
         foreach (['FRONT' => [$front, $rear], 'REAR' => [$rear, $front]] as $axle => [$tyre, $partner]) {
-            $rendered = $this->line($key.':axle:'.$axle, $config, true, $tyre, $colour, $quantity, $quantity + $quantity, $verdict, $reasons, $colours, mixed: true);
+            $axleLabel = $axle === 'FRONT' ? 'Vorderachse' : 'Hinterachse';
+            // The papers are the set's: the other axle's size goes with this line's (ConditionGroups::entryForSet()).
+            $rendered = $this->line($key.':axle:'.$axle, $config, true, $tyre, $colour, $quantity, $quantity + $quantity, $verdict, $reasons, $colours, mixed: true, axle: $axleLabel, partner: $partner === null ? null : self::sizeOf($partner)->key());
             $minimum = $pair === null ? null : ($axle === 'FRONT' ? $pair->frontMinimum : $pair->rearMinimum);
 
-            $rendered['setLabel'] = $axle === 'FRONT' ? 'Komplettrad Vorderachse' : 'Komplettrad Hinterachse';
+            $rendered['setLabel'] = 'Komplettrad '.$axleLabel;
             $rendered['mixed'] = [
                 'setKey' => $key,
                 'axle' => $axle,
-                'axleLabel' => $axle === 'FRONT' ? 'Vorderachse' : 'Hinterachse',
+                'axleLabel' => $axleLabel,
                 'size' => $tyre === null ? null : self::sizeOf($tyre)->labelDe(),
                 'partnerSize' => $partner === null ? null : self::sizeOf($partner)->labelDe(),
                 'pairing' => $pair?->pairing->number,
+                // One of the combinations the Gutachten lists (D-256), as entered — the Komplettrad itself (D-335).
+                'listed' => $offer?->listed === true,
+                'combinationId' => $pair?->pairing->id,
+                // 2 + 2 and nothing else: no stepper (D-335).
+                'fixed' => true,
+                'frontTyreId' => $frontId,
+                'rearTyreId' => $rearId,
                 'code' => $offer?->code,
                 'sourcePage' => $offer?->sourcePage,
                 'rulesDe' => $offer?->rulesDe,
@@ -925,7 +962,7 @@ final readonly class Basket
      * @param  Collection<array-key, BalanceWeightColour>  $colours
      * @return array<string, mixed>
      */
-    private function line(string $key, WheelConfig $config, bool $isSet, ?TyreVariant $tyre, ?BalanceWeightColour $colour, int $quantity, int $wheels, ?FitmentVerdict $verdict, array $blockReasons, Collection $colours, bool $mixed = false): array
+    private function line(string $key, WheelConfig $config, bool $isSet, ?TyreVariant $tyre, ?BalanceWeightColour $colour, int $quantity, int $wheels, ?FitmentVerdict $verdict, array $blockReasons, Collection $colours, bool $mixed = false, ?string $axle = null, ?string $partner = null): array
     {
         $model = $config->wheelModel;
 
@@ -968,8 +1005,9 @@ final readonly class Basket
             'demo' => $model->refusedAsDemo() || ($tyre !== null && $tyre->refusedAsDemo()),
             // The verdict rests on an example document (decision 6, D-239): refused on production, a born-demo order elsewhere.
             'demoDocument' => $verdict?->document?->isDemo === true,
-            // A Komplettrad's tyre is chosen: its line says that size's Auflagen and no other's.
-            'verdict' => $verdict === null ? null : $this->verdictArray($verdict, $tyre === null ? null : TyreSize::keyOf((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in), $mixed),
+            // A Komplettrad's tyre is chosen: its line says that size's Auflagen and no other's — on a set per axle, under
+            // that axle's name, and the papers the set's (D-335).
+            'verdict' => $verdict === null ? null : $this->verdictArray($verdict, $tyre === null ? null : TyreSize::keyOf((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in), $mixed, $axle, $partner),
             // Mischbereifung (#20): the axle, the pair and what the axle asks for — set by renderMixed().
             'mixed' => null,
             // The Komplettrad half of the line (§4.7).
@@ -1132,7 +1170,7 @@ final readonly class Basket
     /**
      * @return array<string, mixed>
      */
-    private function verdictArray(FitmentVerdict $verdict, ?string $chosenSize = null, bool $mixed = false): array
+    private function verdictArray(FitmentVerdict $verdict, ?string $chosenSize = null, bool $mixed = false, ?string $axle = null, ?string $partner = null): array
     {
         $documents = $verdict->documents !== [] ? $verdict->documents : array_filter([$verdict->document]);
         $groups = $verdict->conditionGroups();
@@ -1149,7 +1187,7 @@ final readonly class Basket
             'papersExempt' => $verdict->papersExempt(),
             // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
             // behind a link, in full, below.
-            'sentence' => self::verdictSentence($verdict, $groups, $chosenSize, $mixed),
+            'sentence' => self::verdictSentence($verdict, $groups, $chosenSize, $mixed, $partner),
             // A rim sold alone (D-289): our own sentence — the sizes it may only be fitted with —, said in the open beside
             // the line, never among the Auflagen from the document (R-17).
             'rimAloneNote' => $verdict->rimAloneNoteDe,
@@ -1161,11 +1199,11 @@ final readonly class Basket
             // (CheckoutShown) — what the customer reads is `conditionGroups`.
             'conditions' => array_map(
                 static fn (Condition $condition): string => $condition->sentenceDe(),
-                $chosenSize === null ? $verdict->conditions : $groups->forSize($chosenSize),
+                $chosenSize === null ? $verdict->conditions : $groups->forSet($chosenSize, $partner),
             ),
             // The Auflagen as the document hangs them: the combination's once, each tyre size's with that size — or,
-            // for a Komplettrad, what applies to its tyre (ConditionGroups).
-            'conditionGroups' => $groups->toArray($chosenSize),
+            // for a Komplettrad, what applies to its tyre, on a set per axle under that axle's name (ConditionGroups).
+            'conditionGroups' => $groups->toArray($chosenSize, $axle, $partner),
         ];
     }
 
@@ -1174,11 +1212,11 @@ final readonly class Basket
      * Auflagen (their text is one link away) and the Eintragung where the document asks for it. Where the Auflagen
      * differ by tyre size and none is chosen, it says so rather than counting sizes that will never be fitted together.
      */
-    private static function verdictSentence(FitmentVerdict $verdict, ?ConditionGroups $groups = null, ?string $chosenSize = null, bool $mixed = false): string
+    private static function verdictSentence(FitmentVerdict $verdict, ?ConditionGroups $groups = null, ?string $chosenSize = null, bool $mixed = false, ?string $partner = null): string
     {
         $groups ??= $verdict->conditionGroups();
         $bySize = $chosenSize === null && ($groups->differBySize() || $groups->entryDiffers());
-        $count = count($chosenSize === null ? $groups->all() : $groups->forSize($chosenSize));
+        $count = count($chosenSize === null ? $groups->all() : $groups->forSet($chosenSize, $partner));
         $sentence = match ($verdict->status) {
             VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
             // The rim sold alone (D-289): what makes it conditional is the tyre sizes — said first —, then the document's.
@@ -1208,9 +1246,9 @@ final readonly class Basket
         }
 
         // The papers, as the product page says them (PapersWording): the Auflagen's line, then the document's — for a
-        // chosen tyre, that size's.
+        // chosen tyre, that size's; on a set per axle, the set's (D-335).
         $papers = array_filter([
-            PapersWording::entryLine($groups->entryFor($chosenSize, $verdict->requiresEntry), $verdict->papersExempt()),
+            PapersWording::entryLine($chosenSize !== null && $partner !== null ? $groups->entryForSet($chosenSize, $partner) : $groups->entryFor($chosenSize, $verdict->requiresEntry), $verdict->papersExempt()),
             PapersWording::papersLine($verdict->papersExempt()),
         ]);
 

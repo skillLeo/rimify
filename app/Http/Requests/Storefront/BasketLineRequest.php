@@ -34,9 +34,10 @@ class BasketLineRequest extends FormRequest
             'kind' => ['required', Rule::in(['WHEEL'])],
             'wheelConfigId' => ['required', 'integer', 'min:1'],
             'tyreVariantId' => ['nullable', 'integer', 'min:1', 'required_with:rearTyreVariantId'],
-            // Mischbereifung (#20): the rear axle's tyre; `quantity` is then the wheels on each axle. Whether the pair
-            // may go on this car is the fitment engine's question, not a validation rule (D-105).
-            'rearTyreVariantId' => ['nullable', 'integer', 'min:1', 'different:tyreVariantId'],
+            // A set per axle (#20, D-105; a combination of the Gutachten's list, D-335): the rear axle's tyre — the front's own
+            // where the combination names one size on both axles. Whether the pair may go on this car, and that it is two
+            // wheels on each axle, is the fitment engine's and the basket's question, not a validation rule.
+            'rearTyreVariantId' => ['nullable', 'integer', 'min:1'],
             'weightColourId' => ['nullable', 'integer', 'min:1'],
             // The RDKS answer given beside a Komplettrad on the product page (#15): recorded as the checkout's own.
             'rdks' => ['nullable', Rule::in(['ja', 'nein'])],
@@ -58,7 +59,6 @@ class BasketLineRequest extends FormRequest
             'tyreVariantId.required_with' => 'Bitte wähle zuerst den Reifen für die Vorderachse.',
             'rearTyreVariantId.integer' => 'Bitte wähle zuerst den Reifen für die Hinterachse.',
             'rearTyreVariantId.min' => 'Bitte wähle zuerst den Reifen für die Hinterachse.',
-            'rearTyreVariantId.different' => 'Bei Mischbereifung sind die Reifen vorne und hinten verschieden.',
             'weightColourId.integer' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'weightColourId.min' => 'Bitte wähle eine Farbe für die Wuchtgewichte.',
             'rdks.in' => 'Bitte sag uns, ob du RDKS-Sensoren brauchst.',

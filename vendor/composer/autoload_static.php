@@ -880,6 +880,8 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Domain\\Fitment\\Resolver\\VehicleResolver' => __DIR__ . '/../..' . '/app/Domain/Fitment/Resolver/VehicleResolver.php',
         'App\\Domain\\Fitment\\Support\\BuildWindow' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/BuildWindow.php',
         'App\\Domain\\Fitment\\Support\\RangeSql' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/RangeSql.php',
+        'App\\Domain\\Fitment\\Tyres\\AxleVerdict' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/AxleVerdict.php',
+        'App\\Domain\\Fitment\\Tyres\\CombinationVerdict' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/CombinationVerdict.php',
         'App\\Domain\\Fitment\\Tyres\\KomplettradOffer' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/KomplettradOffer.php',
         'App\\Domain\\Fitment\\Tyres\\KomplettradRefusal' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/KomplettradRefusal.php',
         'App\\Domain\\Fitment\\Tyres\\MixedOffer' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/MixedOffer.php',

@@ -21,7 +21,7 @@ use App\Domain\Fitment\Data\TyreSize;
  *
  * A document's own list of „Bereifungskombinationen“, entered as such (`document_tyre_combinations`, D-256), is the
  * same table built from its rows instead of a sentence (recorded()): every pair as printed, the same size on both
- * axles included.
+ * axles included, each with its row (`TyrePairing::$id`) — the Komplettrad is then the combination (D-335).
  */
 final readonly class TyrePairingTable
 {
@@ -104,18 +104,6 @@ final readonly class TyrePairingTable
     {
         foreach ($this->pairs as $pair) {
             if (! $pair->front->matches($pair->rear)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** Whether it lists this size on both axles: four of the same tyre. */
-    public function listsSame(TyreSize $size): bool
-    {
-        foreach ($this->pairs as $pair) {
-            if ($pair->front->matches($size) && $pair->rear->matches($size)) {
                 return true;
             }
         }

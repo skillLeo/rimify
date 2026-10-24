@@ -55,6 +55,13 @@ interface Snapshot {
     rear?: string[]
     /** The tyre answer as the customer was shown it, and the whole sum behind it. */
     tyre?: { statusLabel: string; summary: string | null; basis: string | null; lines: string[]; fromPapers: boolean } | null
+    /** A set sold as one of the Gutachten's combinations (D-335), as frozen: what went on which axle, and each axle's answer. */
+    combination?: {
+        number: number
+        sourcePage: number | null
+        statusLabel: string
+        axles: { axle: string; size: string; tyre: string; statusLabel: string; minimum: string | null }[]
+    } | null
     computedAt: string | null
     engine: string
     revision: number
@@ -396,6 +403,15 @@ function tagClass(state: OrderState): string | null {
                             <p v-if="line.snapshot.front && line.snapshot.front.length" class="bs-proof__line">
                                 Reifen: {{ line.snapshot.front.join(', ') }}<template v-if="line.snapshot.rear && line.snapshot.rear.length && line.snapshot.rear.join() !== line.snapshot.front.join()"> · hinten {{ line.snapshot.rear.join(', ') }}</template>
                             </p>
+                            <!-- A set sold as one of the Gutachten's combinations (D-335): what went on which axle, as frozen. -->
+                            <div v-if="line.snapshot.combination" class="bs-proof__combination" data-combination>
+                                <p class="bs-proof__line">
+                                    Kombination Nr.&nbsp;{{ line.snapshot.combination.number }} aus dem Gutachten<template v-if="line.snapshot.combination.sourcePage">, Seite&nbsp;{{ line.snapshot.combination.sourcePage }}</template> – {{ line.snapshot.combination.statusLabel }}
+                                </p>
+                                <p v-for="axle in line.snapshot.combination.axles" :key="axle.axle" class="bs-proof__line">
+                                    {{ axle.axle }}: 2 × {{ axle.tyre || axle.size }} – {{ axle.statusLabel }}<template v-if="axle.minimum">; {{ axle.minimum }}</template>
+                                </p>
+                            </div>
                             <!-- The server's line: per size where the sizes differ, the tyre's for a Komplettrad (PapersWording). -->
                             <p v-if="line.snapshot.entryLine" class="bs-proof__line">{{ line.snapshot.entryLine }}<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
                             <p v-if="line.snapshot.papersLine" class="bs-proof__line">{{ line.snapshot.papersLine }}</p>

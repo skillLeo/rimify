@@ -34,7 +34,7 @@ in plain words, what we checked, what we fixed, and why a few things stay the wa
 
 ## What we fixed
 
-We found 42 problems. 40 are fixed; the other two are explained under "What is still open". Each fix comes with an
+We found 42 problems. 41 are fixed; the last one is explained under "What is still open". Each fix comes with an
 automatic test that fails without the fix and passes with it, so the problem cannot quietly come back. The last one
 was found by the final test run itself: on the overview page, the card with the most-requested cars shrank by a row
 when fewer than five cars were listed, and everything below it jumped. It now keeps its size. The most important:
@@ -58,6 +58,12 @@ when fewer than five cars were listed, and everything below it jumped. It now ke
   nothing in the shop refers to it yet.
 - „Freigeben“ was offered, and only after pressing it did the admin say why the release was refused. Now the reason
   is shown before.
+- A Gutachten with fixed tyre combinations, in which one tyre size is limited to one axle, offered no Komplettrad at
+  all. Following your item 8, the shop now offers the Komplettrad exactly as the combinations the Gutachten lists: two
+  wheels for the front and two for the rear, in the sizes the combination names. Each axle's tyre is checked against
+  that axle's own load and the car's top speed; if one axle fails, the whole set is refused. Each axle's conditions are
+  shown under its name, and the order records which tyre went on which axle. A combination for which the shop sells no
+  tyre on one axle offers the rims only. This came as its own change, with its own full test run.
 
 **Clearer for you and for your customers**
 - When an order is marked as sent, the customer now gets an e-mail with the tracking number you typed. Before, the
@@ -120,12 +126,6 @@ used to just hide a button, it now says why on the screen.
 
 ## What is still open
 
-- **Decided, and built next as its own step.** A Gutachten with fixed tyre combinations, in which one tyre size is
-  limited to one axle, currently offers no Komplettrad at all. Following your item 8, the shop will offer the
-  Komplettrad exactly as the combinations the Gutachten lists: where the front and rear sizes differ, as a fixed set of
-  two wheels for the front and two for the rear, each axle checked against its own load. A combination for which the
-  shop sells no tyre on one axle offers the rims only. Because this changes what a customer is told about the tyres for
-  a car, it is not mixed into the audit: it follows as its own change, with its own full test run.
 - **Small, for a later round.** Tyres, vehicles, the activity log and a few short lists cannot yet be sorted by a
   column; rims and orders can.
 

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Commerce;
 
+use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Tyres\CombinationVerdict;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\OrderLineKind;
@@ -45,7 +48,11 @@ final class OrderWriter
     /** The refs of a test purchase off production, born demo with all it writes (D-239): `testkauf:<random>:<part>`. */
     public const DEMO_PREFIX = 'testkauf:';
 
-    public function __construct(private readonly FitmentResolver $resolver, private readonly OrderPayments $payments) {}
+    public function __construct(
+        private readonly FitmentResolver $resolver,
+        private readonly OrderPayments $payments,
+        private readonly TyreEligibility $eligibility,
+    ) {}
 
     /**
      * @param  CustomerData  $customer
@@ -63,6 +70,7 @@ final class OrderWriter
         // Every wheel line's verdict, resolved now: the snapshot is what the customer is shown at the
         // moment of purchase, and a line that stopped being sellable stops the order.
         $verdicts = [];
+        $combinations = [];
 
         foreach ($summary['lines'] as $i => $line) {
             $verdict = $this->resolver->resolve((int) $vehicle->id, (int) $line['wheelConfigId']);
@@ -77,6 +85,20 @@ final class OrderWriter
             }
 
             $verdicts[$i] = $verdict;
+
+            // A set per axle is answered as the set (D-335): both axles now, the weaker deciding — a rear that fails is never
+            // sold beside a front that passes.
+            $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
+
+            if ($mixed !== null) {
+                $answer = $this->combination($verdict, $mixed);
+
+                if ($answer === null || ! $answer->isSellable()) {
+                    throw new OrderRefused(Basket::BLOCKED_REFUSAL);
+                }
+
+                $combinations[$i] = $answer;
+            }
         }
 
         // An example document never stands behind a real order (decision 6, the operator's brief of 15.10.2026, D-239):
@@ -93,7 +115,7 @@ final class OrderWriter
             ? self::DEMO_PREFIX.Str::lower(Str::random(20))
             : null;
 
-        return DB::transaction(function () use ($customer, $summary, $vehicle, $verdicts, $paymentMethod, $note, $request, $born): Order {
+        return DB::transaction(function () use ($customer, $summary, $vehicle, $verdicts, $combinations, $paymentMethod, $note, $request, $born): Order {
             [$first, $last] = self::split($customer['name']);
             $person = self::row(Customer::class, ['email' => $customer['email'], 'firstname' => $first, 'lastname' => $last, 'phone' => $customer['phone']], $born, 'kunde');
             $delivery = self::row(Address::class, [
@@ -151,7 +173,7 @@ final class OrderWriter
                     'currency' => 'EUR',
                 ], $born, 'position:'.($i + 1));
 
-                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed, $born === null ? null : $born.':nachweis:'.($i + 1));
+                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed, $born === null ? null : $born.':nachweis:'.($i + 1), $combinations[$i] ?? null);
             }
 
             $tpms = $totals['tpms'] ?? [];
@@ -182,18 +204,24 @@ final class OrderWriter
     /**
      * The verdict as the customer is shown it now, frozen onto the line (append-only, R-12). On a Mischbereifung line
      * the axle's own record goes with it (D-105): which axle, its size and the size it was paired with, the document's
-     * table entry and page, and what that axle asked for at its load — each axle separately, on its own line.
+     * table entry and page, and what that axle asked for at its load — each axle separately, on its own line. And the set
+     * as one of the Gutachten's combinations (D-335): its row and number, and both axles — size, tyre, the answer and what
+     * it was measured against, the Auflagen —, so either line shows what was sold where.
      *
      * @param  array<string, mixed>|null  $mixed
      * @param  string|null  $demoRef  the snapshot's own ref where the order is born demo (R-12: fixed at insert)
      */
-    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null, ?string $demoRef = null): void
+    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null, ?string $demoRef = null, ?CombinationVerdict $combination = null): void
     {
         $record = $verdict->toArray();
 
         if ($mixed !== null) {
             unset($mixed['setKey']);
             $record['mixedTyres'] = $mixed;
+        }
+
+        if ($combination !== null) {
+            $record['combination'] = $combination->toArray();
         }
 
         (new OrderLineFitment)->forceFill([
@@ -211,6 +239,25 @@ final class OrderWriter
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => $verdict->snapshot->computedAt,
         ])->save();
+    }
+
+    /**
+     * The set's answer as one of the Gutachten's combinations (D-335), from the verdict frozen with it and both tyres as
+     * they stand now; null where a tyre is gone or the pair is no combination the car's row carries.
+     *
+     * @param  array<string, mixed>  $mixed
+     */
+    private function combination(FitmentVerdict $verdict, array $mixed): ?CombinationVerdict
+    {
+        $tyre = static fn (mixed $id): ?TyreVariant => is_numeric($id) ? TyreVariant::query()->with('brand')->find((int) $id) : null;
+        $front = $tyre($mixed['frontTyreId'] ?? null);
+        $rear = $tyre($mixed['rearTyreId'] ?? null);
+
+        if ($front === null || $rear === null) {
+            return null;
+        }
+
+        return $this->eligibility->combinationVerdict($verdict, EloquentTyreCatalogue::toRecord($front), EloquentTyreCatalogue::toRecord($rear));
     }
 
     /**

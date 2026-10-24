@@ -4,7 +4,7 @@
  * verdict's Auflagen: the combination's once, then each permitted tyre size with its own, under „Nur bei …“ as the
  * full wording says it (D-04). ABE 55255 gives the BMW X3 X83 fine-link snow chains on the rear axle with 235/45R19
  * and 245/40R19 and no chains at all with 255/40R19; in one list the customer would read both and believe neither.
- * With a size chosen (a Komplettrad), just what applies to it.
+ * With a size chosen (a Komplettrad), just what applies to it — on a set sold per axle (D-335), under that axle's name.
  *
  * Only sentences, never codes (R-15). The papers' line (Abnahme, Eintragung) stays the page's own — per size where the
  * sizes differ (fitment/papers.ts entryBySize).
@@ -22,7 +22,11 @@ withDefaults(defineProps<{
 <template>
     <div class="cgroups" data-condition-groups>
         <template v-if="groups.chosen">
-            <p class="cgroups__head">Für {{ groups.chosen }}</p>
+            <!-- On a line of a set per axle, the axle first, as its group head on the product page (D-335). -->
+            <p v-if="groups.axle" class="cgroups__head">
+                {{ groups.axle }} <span class="cgroups__axle">· <span class="data" translate="no">{{ groups.chosen }}</span></span>
+            </p>
+            <p v-else class="cgroups__head">Für <span class="data" translate="no">{{ groups.chosen }}</span></p>
             <ul v-if="groups.combination.filter((c) => !omit.includes(c)).length" class="cgroups__list">
                 <li v-for="condition in groups.combination.filter((c) => !omit.includes(c))" :key="condition">{{ condition }}</li>
             </ul>
@@ -30,16 +34,20 @@ withDefaults(defineProps<{
 
         <template v-else>
             <template v-if="groups.combination.filter((c) => !omit.includes(c)).length">
-                <!-- Labelled only where sizes follow: alone, the list is simply the answer's. -->
-                <p v-if="groups.sizes.length" class="cgroups__head">Für jede zulässige Reifengröße</p>
+                <!-- Labelled only where sizes follow: alone, the list is simply the answer's. A set per axle: both axles (D-335). -->
+                <p v-if="groups.sizes.length" class="cgroups__head">{{ groups.perAxle ? 'Für beide Achsen' : 'Für jede zulässige Reifengröße' }}</p>
                 <ul class="cgroups__list">
                     <li v-for="condition in groups.combination.filter((c) => !omit.includes(c))" :key="condition">{{ condition }}</li>
                 </ul>
             </template>
 
-            <section v-for="size in groups.sizes" :key="size.size" class="cgroups__size" :aria-label="`Auflagen nur bei ${size.size}`">
+            <section v-for="size in groups.sizes" :key="`${size.axle}-${size.size}`" class="cgroups__size" :aria-label="groups.perAxle ? `Auflagen ${size.axle}` : `Auflagen nur bei ${size.size}`">
                 <!-- One line: a line break between the two spans is dropped, and „R18·“ lost its space (the admin audit's F-05). -->
-                <p class="cgroups__head">
+                <!-- A set per axle (D-335): each axle under its name, with the size it carries — both are fitted, so never „Nur bei“. -->
+                <p v-if="groups.perAxle" class="cgroups__head">
+                    {{ size.axle }} <span class="cgroups__axle">· <span class="data" translate="no">{{ size.size }}</span></span>
+                </p>
+                <p v-else class="cgroups__head">
                     Nur bei <span class="data" translate="no">{{ size.size }}</span> <span class="cgroups__axle">· {{ size.axle }}</span>
                 </p>
                 <ul v-if="size.conditions.filter((c) => !omit.includes(c)).length" class="cgroups__list">

@@ -9,7 +9,7 @@ with a test that failed before the fix and passes after it (read against `docs/d
 the R-rules, the append-only tables and the release door are not changed: a finding that would need that is recorded
 and left for the operator. The client's own summary is `ADMIN-AUDIT-CLIENT.md`; the decisions are D-320 to D-334.
 
-**In numbers:** 471 inventory rows, 471 with a result · 42 findings, 40 fixed, 2 open.
+**In numbers:** 471 inventory rows, 471 with a result · 42 findings, 41 fixed, 1 open.
 
 ## Aufbau
 
@@ -63,13 +63,13 @@ see and the walk found is added with its source.
 | Klasse und Stufe | gefunden | behoben | offen |
 |---|---|---|---|
 | Bug S1 | 3 | 3 | 0 |
-| Bug S2 | 3 | 2 | 1 |
+| Bug S2 | 3 | 3 | 0 |
 | Bug S3 | 7 | 7 | 0 |
 | Bug S4 | 10 | 10 | 0 |
 | Friction S3 | 10 | 10 | 0 |
 | Friction S4 | 8 | 7 | 1 |
 | Rule S4 | 1 | 1 | 0 |
-| **Zusammen** | **42** | **40** | **2** |
+| **Zusammen** | **42** | **41** | **1** |
 
 | # | Klasse | Stufe | Wo | Vorher | Nachher | Test | Stand |
 |---|---|---|---|---|---|---|---|
@@ -82,7 +82,7 @@ see and the walk found is added with its source.
 | F-07 | Bug | S1 | Gutachten › Auflagenverzeichnis › Art „Verbot“ | „Verbot“ means a forbidden use (snow chains, A12) and weighs as a restriction; nothing in the admin says so. Entered for „nicht zulässig für Kombi 1.5“, the shop tells the Kombi's owner „Die Felge selbst ist … mit Auflagen freigegeben … Die Felge allein kannst du schon bestellen“ beside the sentence „… nicht zulässig“. Verdict logic untouched (brief): the admin must say what each Art does, and a car a document excludes gets no row | Each Art says beside the choice what it does; „Verbot“ says it excludes no car and which Arten do | ConditionKindHelpTest; Auflagenverzeichnis.test.ts | behoben |
 | F-08 | Friction | S3 | Felgen › Neue Felge | A second Felge with the same brand, model and Radtypenbezeichnung is saved without a word — two identical products in the shop and two identical groups in a Gutachten's row search; Fahrzeuge refuse their duplicate in a sentence | Refused under the Radtypenbezeichnung, naming the existing Felge (letter case aside; a removed Felge is no twin) | FelgenTest | behoben |
 | F-09 | Friction | S4 | Reifen › Marke | The tyre form's brand list is every brand, wheel makers (AEZ, BBS …) included | Tyre makers only — a brand that is not a wheel brand, or one that already has a tyre — and the tyre's own brand | ReifenTest | behoben |
-| F-10 | Bug | S2 | Shop › Komplettrad (engine) | A Gutachten with Bereifungskombinationen and one size scoped to an axle offers no Komplettrad at all: rule 3b (axle-scoped size → StaggeredLayout) fires before rule 4b, so combination 1 (225/40 both axles) never offers four tyres and combination 2 never offers its pair, against D-256; the sentence „vier gleiche Reifen gibt es dafür nicht“ contradicts the record. Engine and customer wording — recorded for the operator, not changed (brief; §9) | Not changed in this audit (verdict logic). Decided by the operator 24.10.2026: the Komplettrad as the combination the Gutachten lists, 2 + 2 per axle — built as its own commit on top | — | offen |
+| F-10 | Bug | S2 | Shop › Komplettrad (engine) | A Gutachten with Bereifungskombinationen and one size scoped to an axle offers no Komplettrad at all: rule 3b (axle-scoped size → StaggeredLayout) fires before rule 4b, so combination 1 (225/40 both axles) never offers four tyres and combination 2 never offers its pair, against D-256; the sentence „vier gleiche Reifen gibt es dafür nicht“ contradicts the record. Engine and customer wording — recorded for the operator, not changed (brief; §9) | Built after the audit as its own commit, as the operator decided on 24.10.2026 (D-335): where the Gutachten lists its combinations, the Komplettrad is one of them — two wheels per axle in the sizes it names, each axle against its own load and the top speed, the set the weaker axle; never four of one size; an axle without a tyre the shop sells offers no set, the rim alone stays | KomplettradAlsKombinationTest; KomplettradKombinationTest; BereifungskombinationenTest; KomplettradChoice.test.ts; Warenkorb/Index.test.ts | behoben |
 | F-11 | Bug | S4 | Bestellung › Erstattung (Testzahlung) | The refund dialog and help say „Das Geld geht über Stripe … zurück“ on an order paid with the Testzahlung, where the page itself says no money moves | Help and confirmation say that with the Testzahlung no money moves, the refund is recorded and the credit note sent | Bestellungen/Show.test.ts | behoben |
 | F-12 | Bug | S4 | Passwort bestätigen | Asked before a refund, the page says „Dieser Bereich verwaltet die Zugänge des Shops.“ — true of Benutzer and Einstellungen, not of a refund | The page names what it guards: a refund, the company data, the shop's keys, the reset | PasswortBestaetigenTest; RefundsAndDisputesTest; Bestaetigen/Index.test.ts | behoben |
 | F-13 | Friction | S3 | Bestellung › Erstattung | After the password prompt the person lands back on the order with the amount and the reason empty, and types both again | Amount and reason are kept across the password prompt and dropped once the refund is made | Bestellungen/Show.test.ts | behoben |
@@ -233,18 +233,23 @@ meets it, in the sentence quoted. Where the admin used to simply not offer a but
 | A save from a page opened before the last save is refused | two people never silently undo each other (F-25) | „Das wurde inzwischen in einem anderen Tab oder von jemand anderem geändert, deshalb ist nichts gespeichert. Deine Eingaben sind noch da …“ |
 | The test environment is reset only outside production | R-04.1 | System › Zurücksetzen says what each level removes and keeps |
 
+## Nach dem Audit gebaut
+
+- **F-10 (Bug, S2) — fixed in its own commit, with its own full pass (D-335).** A Gutachten with Bereifungskombinationen
+  in which one size is scoped to an axle offered no Komplettrad at all: the engine's TyreEligibility applied its rule for
+  an axle-scoped size (3b) before its rule for combinations (4b), so combination 1 (225/40 R18 on both axles) never
+  offered four tyres, and combination 2 never offered its pair — against D-256 — while the shop said „vier gleiche Reifen
+  gibt es dafür nicht“. Fixing it changes verdict logic and what a customer is told about the tyres for a car, so the
+  audit left it to the operator. **Decided by the operator on 24.10.2026**, the source being the client's item 8: the
+  Komplettrad is the combination the Gutachten lists, never four of one size. Built that way: every combination the
+  car's row carries is a set of two wheels per axle in the sizes it names, fixed at 2 + 2; each axle's tyre is checked
+  against that axle's own load (8.1 front, 8.2 rear) and the top speed, the set is the weaker axle — a rear that fails
+  above 210 km/h makes it NOT_PERMITTED whatever the front; each axle's Auflagen stand under „Vorderachse“ and
+  „Hinterachse“; the order line freezes the combination and both axles; a combination without a tyre the shop sells for
+  one axle offers no set, and the rim alone stays buyable.
+
 ## Was offen bleibt
 
-- **F-10 (Bug, S2) — for the operator.** A Gutachten with Bereifungskombinationen in which one size is scoped to an
-  axle offers no Komplettrad at all: the engine's TyreEligibility applies its rule for an axle-scoped size (3b) before
-  its rule for combinations (4b), so combination 1 (225/40 R18 on both axles) never offers four tyres, and combination 2
-  never offers its pair — against D-256 — while the shop says „vier gleiche Reifen gibt es dafür nicht“. Fixing it
-  changes verdict logic and what a customer is told about the tyres for a car; the brief keeps the first, CLAUDE.md §9
-  asks first for the second. Confirmed in the audit data: without the axle scope the Kompletträder appear.
-  **Decided by the operator on 24.10.2026:** the Komplettrad is offered as the combination the Gutachten lists, never as
-  four of one size; a combination with axle-scoped sizes is a fixed 2 + 2, checked per axle; an axle without a tyre the
-  shop sells offers no Komplettrad for that combination. The source is the client's item 8. It is built as its own
-  commit on top of this audit, with its own full pass.
 - **F-32 (Friction, S4).** Reifen, Fahrzeuge, the Protokoll and the short lists have a fixed order; Felgen and
   Bestellungen sort. Adding sorting with its saved-view handling is more than half an hour per list: left for a later
   round, the operator's decision of 24.10.2026.

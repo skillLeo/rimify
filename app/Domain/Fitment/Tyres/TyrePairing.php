@@ -17,6 +17,11 @@ final readonly class TyrePairing
         public int $number,
         public TyreSize $front,
         public TyreSize $rear,
+        /**
+         * The row of the document's own list it was entered as (`document_tyre_combinations.id`, D-256) — what an order
+         * line freezes as the combination it was sold in (D-335). Null for a pair read from an Auflage's sentence.
+         */
+        public ?int $id = null,
     ) {}
 
     /** `235/45/19|255/40/19` — the pair's identity, front first. */
@@ -28,5 +33,11 @@ final readonly class TyrePairing
     public static function keyOf(string $frontKey, string $rearKey): string
     {
         return $frontKey.'|'.$rearKey;
+    }
+
+    /** The same size front and rear: Kombination 1 of BBS's Anlage BMW15, 225/40 R18 on both axles. */
+    public function sameSize(): bool
+    {
+        return $this->front->matches($this->rear);
     }
 }

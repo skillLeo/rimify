@@ -14,6 +14,8 @@ defineProps<{
     rimPrice?: string | null
     /** `533,00 €` — the lowest Komplettrad price per wheel the server offers, or null where there is none. */
     setFrom?: string | null
+    /** What `setFrom` is for: `pro Rad`, or `für 2 + 2` where the Komplettrad is a combination of the Gutachten (D-335). */
+    setFromUnit?: string
     /** Distinguishes two choices on one page; the radios share a name per page. */
     name?: string
 }>()
@@ -39,7 +41,7 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
                 <span class="bmc-tile__name">Kompletträder</span>
                 <span class="bmc-tile__sub">
                     Mit Reifen, fertig montiert
-                    <span v-if="setFrom" class="bmc-tile__price">ab <span class="num" translate="no">{{ setFrom }}</span> pro Rad</span>
+                    <span v-if="setFrom" class="bmc-tile__price">ab <span class="num" translate="no">{{ setFrom }}</span> {{ setFromUnit ?? 'pro Rad' }}</span>
                 </span>
                 <span class="bmc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
             </label>

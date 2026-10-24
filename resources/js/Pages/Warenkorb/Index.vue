@@ -145,7 +145,8 @@ const VERDICT_TONE: Record<string, string> = {
             <div v-if="lines.length > 0" class="cart">
                 <div class="cart__lines">
                     <ul class="bl" aria-label="Artikel im Warenkorb">
-                        <li v-for="line in lines" :key="line.key" class="bl__line">
+                        <!-- A set per axle's second line belongs to its first: no rule between them (D-335). -->
+                        <li v-for="line in lines" :key="line.key" class="bl__line" :class="{ 'bl__line--set-rear': line.mixed?.axle === 'REAR' }">
                             <div class="bl__thumb">
                                 <ProductPhoto
                                     :spokes="line.art.spokes ?? 5"
@@ -177,10 +178,16 @@ const VERDICT_TONE: Record<string, string> = {
                                     </span>
                                 </p>
 
-                                <!-- Mischbereifung (#20): one axle of a set the document pairs; both axles change together. -->
+                                <!-- Mischbereifung (#20), or one of the Gutachten's combinations (D-335): one axle of a set the
+                                     document pairs — two per axle, fixed; removing it removes both axles. -->
                                 <p v-if="line.mixed" class="bl__mixed">
-                                    Mischbereifung – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span> auf der
-                                    {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}. Anzahl und Entfernen gelten für beide Achsen.
+                                    <template v-if="line.mixed.listed">Kombination Nr.&nbsp;{{ line.mixed.pairing }} aus dem Gutachten</template><template v-else>Mischbereifung</template>
+                                    – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span> auf der
+                                    {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}.
+                                    <!-- What holds for the whole set, said once: under its second line. -->
+                                    <template v-if="line.mixed.axle === 'REAR'">
+                                        Zwei Kompletträder je Achse, die Anzahl ist fest. Mit „Entfernen“ nimmst du alle vier Räder aus dem Warenkorb.
+                                    </template>
                                     <template v-if="line.mixed.minLoadIndex !== null">
                                         Auf der {{ line.mixed.axleLabel }} mindestens Tragfähigkeitsindex {{ line.mixed.minLoadIndex }}
                                         und Geschwindigkeitsindex {{ line.mixed.minSpeedSymbol }}.
@@ -270,8 +277,9 @@ const VERDICT_TONE: Record<string, string> = {
                                         </div>
                                     </dl>
 
-                                    <!-- The colour of the Wuchtgewichte: the whole tile is the control. -->
-                                    <fieldset v-if="line.weightOptions && line.weightOptions.length > 0" class="bl__weights">
+                                    <!-- The colour of the Wuchtgewichte: the whole tile is the control. A set per axle has one
+                                         colour for all four wheels: asked once, under its second line (D-335). -->
+                                    <fieldset v-if="line.weightOptions && line.weightOptions.length > 0 && line.mixed?.axle !== 'FRONT'" class="bl__weights">
                                         <legend class="bl__weights-title">Wuchtgewichte</legend>
                                         <p class="bl__weights-hint">
                                             Die Gewichte sitzen innen an der Felge. Such dir die Farbe aus, die dir besser gefällt.
@@ -311,7 +319,12 @@ const VERDICT_TONE: Record<string, string> = {
 
                             <div class="bl__qty">
                                 <span class="visually-hidden" :id="`qty-${line.key}`">Anzahl</span>
-                                <div class="bl__stepper" role="group" :aria-labelledby="`qty-${line.key}`">
+                                <!-- A set per axle is 2 + 2 (D-335): its amount is said, never stepped. -->
+                                <!-- One line: a space between the two spans, so the amount reads „2 Stück“, never „2Stück“. -->
+                                <p v-if="line.mixed?.fixed" class="bl__fixed" :aria-labelledby="`qty-${line.key}`" data-fixed>
+                                    <span class="bl__n tabular">{{ line.quantity }}</span> <span class="bl__fixed-note">Stück</span>
+                                </p>
+                                <div v-else class="bl__stepper" role="group" :aria-labelledby="`qty-${line.key}`">
                                     <button
                                         class="bl__step"
                                         type="button"
@@ -332,7 +345,9 @@ const VERDICT_TONE: Record<string, string> = {
                                         <Icon name="plus" :size="20" />
                                     </button>
                                 </div>
-                                <div class="bl__actions">
+                                <!-- A set per axle is removed, or loses its tyres, as one: its actions stand once, beside the
+                                     sentence under its second line that says what they do (D-335). -->
+                                <div v-if="line.mixed?.axle !== 'FRONT'" class="bl__actions">
                                     <button class="btn btn--quiet bl__remove" type="button" @click="basket.remove(line.key)">
                                         <Icon name="trash" :size="20" />
                                         Entfernen
@@ -344,7 +359,7 @@ const VERDICT_TONE: Record<string, string> = {
                                         type="button"
                                         @click="basket.removeTyre(line.key)"
                                     >
-                                        Reifen entfernen
+                                        {{ line.mixed ? 'Reifen beider Achsen entfernen' : 'Reifen entfernen' }}
                                     </button>
                                 </div>
                             </div>
@@ -478,6 +493,11 @@ const VERDICT_TONE: Record<string, string> = {
 
 .bl__line + .bl__line {
     border-top: 1px solid var(--line);
+}
+
+/* The two axles of one set read as one block (D-335). */
+.bl__line + .bl__line--set-rear {
+    border-top: 0;
 }
 
 .bl__thumb {
@@ -812,6 +832,28 @@ details.bl__auflagen {
     font-family: var(--mono);
     font-weight: 500;
     text-align: center;
+}
+
+/* A set per axle (D-335): the amount said where the stepper stands, as tall, so the line keeps its shape. */
+.bl__fixed {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-height: 44px;
+    margin: 0;
+    align-content: center;
+    line-height: 44px;
+}
+
+.bl__fixed-note {
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+/* The amount starts where a stepper's frame starts, not centred in the stepper's slot. */
+.bl__fixed .bl__n {
+    min-width: 0;
+    text-align: start;
 }
 
 .bl__actions {

@@ -578,8 +578,13 @@ export type KomplettradRefusalCode =
     | 'BELOW_MINIMUM'
     | 'OUT_OF_STOCK'
     | 'NO_TYRE_AVAILABLE'
-    | 'NO_SAME_SIZE_COMBINATION'
-    | 'SIZE_NOT_A_COMBINATION'
+    | 'AXLE_LOAD_ABOVE_LIMIT'
+    | 'NO_MIXED_PAIRING'
+    | 'MIXED_PAIR_NOT_LISTED'
+    | 'MIXED_NOT_ONE_MAKER'
+    | 'AS_COMBINATION'
+    | 'NO_COMBINATION'
+    | 'COMBINATION_NOT_ONE_MAKER'
     | 'NO_WEIGHT_COLOUR'
 
 /**
@@ -638,6 +643,15 @@ export interface KomplettradOfferProp {
     /** What one click adds — a set. */
     quantity: number
     tyres: KomplettradTyreProp[]
+    /**
+     * Where the Gutachten lists its tyre combinations (D-335): the Komplettrad is one of them, two wheels per axle — these
+     * in place of `tyres`, which is then empty. Absent everywhere else.
+     */
+    combinations?: MischbereifungPairProp[]
+    /** Wheels per axle one click adds where `combinations` stands: 2. */
+    perAxle?: number
+    /** The page of the combinations' list in the Gutachten. */
+    sourcePage?: number | null
 }
 
 /** One tyre set of a mixed pair: one maker's one line, front and rear, priced per wheel and for the 2 + 2 on the server. */
@@ -658,10 +672,13 @@ export interface MischbereifungSetProp {
     forFour: string
     /** The set priced with each active Wuchtgewichte colour (PDP-07): the card shows the colour picked above it. */
     prices?: { colourId: number; perWheelFront: string; perWheelRear: string; forFourCents: number; forFour: string }[]
+    /** Each tyre's EU label, where it carries a verified one; `rearEu` null where one tyre stands on both axles. Additive. */
+    frontEu?: TyreLabelProp | null
+    rearEu?: TyreLabelProp | null
     isDemo: boolean
 }
 
-/** One front/rear pair the document's table permits for the car on this rim. */
+/** One front/rear pair the document's table permits for the car on this rim — or one of its combinations (D-335). */
 export interface MischbereifungPairProp {
     key: string
     /** The table's entry number (`Nr. 8`). */
@@ -669,8 +686,14 @@ export interface MischbereifungPairProp {
     /** `235/45 R19` */
     front: string
     rear: string
+    /** One size on both axles: a combination of the Gutachten's list (D-335). Additive. */
+    sameSize?: boolean
     /** Each axle against its own load, and the axle that asks for more. */
     minSentence: string
+    /** Why there is no set: the axle we have no tyre for, by name (D-335). Null where there are sets. Additive. */
+    noSet?: string | null
+    /** The Auflagen for each axle under its name, the Eintragung the set needs (ConditionGroups). Additive. */
+    answer?: ConditionGroupsView
     sets: MischbereifungSetProp[]
 }
 

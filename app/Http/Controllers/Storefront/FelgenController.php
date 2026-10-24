@@ -11,9 +11,12 @@ use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
+use App\Domain\Fitment\Tyres\MixedOffer;
+use App\Domain\Fitment\Tyres\MixedPair;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\AxleRequirement;
 use App\Domain\Fitment\Verdict\Condition;
+use App\Domain\Fitment\Verdict\ConditionGroups;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\VerdictReason;
@@ -517,6 +520,12 @@ class FelgenController extends Controller
 
         $offer = $this->eligibility->offerFor($verdict);
 
+        // Where the Gutachten lists its tyre combinations, the Komplettrad is the combination — two wheels per axle in the
+        // sizes it names, never four of one size (the operator's decision of 24.10.2026 on the client's item 8, D-335).
+        if ($offer->refusal === KomplettradRefusal::AsCombination) {
+            return $this->komplettradAsCombinations($config, $verdict, $colour, $colours);
+        }
+
         if ($offer->refusal !== null) {
             return $this->komplettradRefused($offer->refusal->value, $offer->refusal->sentenceDe(), $offer->minimumSentenceDe);
         }
@@ -622,7 +631,8 @@ class FelgenController extends Controller
 
         $offer = $this->eligibility->mixedOfferFor($verdict);
 
-        if (! $offer->hasTable) {
+        // The Gutachten's own list of combinations is the Komplettrad itself, offered in the panel (D-335): nothing beside it.
+        if (! $offer->hasTable || $offer->listed) {
             return null;
         }
 
@@ -645,6 +655,69 @@ class FelgenController extends Controller
             return $refused(Basket::NO_WEIGHT_COLOUR_CODE, Basket::NO_WEIGHT_COLOUR_REFUSAL);
         }
 
+        [$pairs, $priceOpen] = $this->pricedPairs($config, $verdict, $offer, $colour, $colours);
+
+        return [
+            'refusal' => null,
+            'refusalCode' => null,
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            'rules' => $offer->rulesDe,
+            'sourcePage' => $offer->sourcePage,
+            'rulesPage' => $offer->rulesPage,
+            'priceOpen' => $priceOpen,
+            'pairs' => $pairs,
+        ];
+    }
+
+    /**
+     * The Komplettrad where the Gutachten lists its tyre combinations (the operator's decision of 24.10.2026 on the
+     * client's item 8, D-335): every combination the car's row carries, each as two wheels per axle in the sizes it
+     * names — 2 + 2, fixed —, with the sets the shop sells for it and, for each axle, its Auflagen under its name. A
+     * combination the shop has no tyre for on one axle says so and has no set: nothing fills the gap, and the rim alone
+     * stays buyable. Nothing here decides — the engine offers, and the basket asks it again on the add (R-11, R-13).
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>
+     */
+    private function komplettradAsCombinations(WheelConfig $config, FitmentVerdict $verdict, ?BalanceWeightColour $colour, Collection $colours): array
+    {
+        $offer = $this->eligibility->mixedOfferFor($verdict);
+
+        if ($offer->refusal !== null) {
+            return $this->komplettradRefused($offer->refusal->value, $offer->refusal->sentenceDe(), null);
+        }
+
+        if ($colour === null) {
+            return $this->komplettradRefused(Basket::NO_WEIGHT_COLOUR_CODE, Basket::NO_WEIGHT_COLOUR_REFUSAL, null);
+        }
+
+        [$combinations, $priceOpen] = $this->pricedPairs($config, $verdict, $offer, $colour, $colours);
+
+        return [
+            'refusal' => null,
+            'refusalCode' => null,
+            'minSentence' => null,
+            'priceOpen' => $priceOpen,
+            'quantity' => self::SET_OF,
+            'tyres' => [],
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            // The list's page, where the customer finds „Kombination Nr. 2“ in the PDF.
+            'sourcePage' => $offer->sourcePage,
+            'combinations' => $combinations,
+        ];
+    }
+
+    /**
+     * The pairs of an offer as the page shows them (#20, D-105; D-335): each with its sets priced two per axle by the one
+     * pricer, in every active Wuchtgewichte colour, with each tyre's EU label; why a pair has no set — the axle we have
+     * no tyre for, by name —; and its Auflagen for each axle under the axle's name (ConditionGroups, as each size's are
+     * under its own, D-199), the Eintragung the set as a whole needs. Nothing here decides a pair.
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array{0: list<array<string, mixed>>, 1: bool}
+     */
+    private function pricedPairs(WheelConfig $config, FitmentVerdict $verdict, MixedOffer $offer, BalanceWeightColour $colour, Collection $colours): array
+    {
         $ids = [];
 
         foreach ($offer->pairs as $pair) {
@@ -655,6 +728,7 @@ class FelgenController extends Controller
         }
 
         $variants = TyreVariant::query()->with('brand')->whereIn('id', array_values(array_unique($ids)))->get()->keyBy('id');
+        $groups = $verdict->conditionGroups();
         $priceOpen = false;
         $pairs = [];
 
@@ -704,6 +778,9 @@ class FelgenController extends Controller
                             'forFour' => $forFour->format(),
                         ];
                     })->values()->all(),
+                    // Each tyre's EU label near its price (Regulation (EU) 2020/740, D-303) — one tyre on both axles, one label.
+                    'frontEu' => Basket::euLabel($front),
+                    'rearEu' => (int) $rear->id === (int) $front->id ? null : Basket::euLabel($rear),
                     'isDemo' => $front->refusedAsDemo() || $rear->refusedAsDemo(),
                 ];
             }
@@ -713,20 +790,47 @@ class FelgenController extends Controller
                 'number' => $pair->pairing->number,
                 'front' => $pair->front->labelDe(),
                 'rear' => $pair->rear->labelDe(),
+                'sameSize' => $pair->pairing->sameSize(),
                 'minSentence' => $pair->minimumSentenceDe(),
+                // Why there is no set: the axle we have no tyre for, by name — never another size in its stead (D-335).
+                'noSet' => $pair->noSetSentenceDe(),
+                'answer' => self::pairAnswer($pair, $groups, $verdict->requiresEntry),
                 'sets' => $sets,
             ];
         }
 
+        return [$pairs, $priceOpen];
+    }
+
+    /**
+     * The Auflagen of a set per axle as ConditionGroups.vue says them (D-335): the combination's once, then each axle
+     * under its name with its size's own. One size on both axles is one group, „Vorder- und Hinterachse“, holding all of
+     * it — never „Für beide Achsen“ above a second group for the same axles. `entry` is the set's: the Eintragung is
+     * needed where either axle's size needs it, for both are fitted.
+     *
+     * @return array{combination: list<string>, sizes: list<array{size: string, axle: string, conditions: list<string>, entry: bool}>, chosen: null, entry: bool, perAxle: true}
+     */
+    private static function pairAnswer(MixedPair $pair, ConditionGroups $groups, bool $requiresEntry): array
+    {
+        $sentences = static fn (array $list): array => array_values(array_map(static fn (Condition $c): string => $c->sentenceDe(), $list));
+        $axle = static fn (TyreSize $size, string $name, array $conditions): array => [
+            'size' => $size->labelDe(),
+            'axle' => $name,
+            'conditions' => $sentences($conditions),
+            'entry' => $groups->entryFor($size->key(), $requiresEntry),
+        ];
+        $same = $pair->pairing->sameSize();
+        $axles = $same
+            ? [$axle($pair->front, 'Vorder- und Hinterachse', $groups->forSize($pair->front->key()))]
+            : [$axle($pair->front, 'Vorderachse', $groups->ownFor($pair->front->key())), $axle($pair->rear, 'Hinterachse', $groups->ownFor($pair->rear->key()))];
+
         return [
-            'refusal' => null,
-            'refusalCode' => null,
-            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
-            'rules' => $offer->rulesDe,
-            'sourcePage' => $offer->sourcePage,
-            'rulesPage' => $offer->rulesPage,
-            'priceOpen' => $priceOpen,
-            'pairs' => $pairs,
+            'combination' => $same ? [] : $sentences($groups->combination),
+            'sizes' => $axles,
+            'chosen' => null,
+            'entry' => array_filter($axles, static fn (array $a): bool => $a['entry']) !== [],
+            // Said per axle: „Für beide Achsen“, then „Vorderachse · 235/45 R19“ — never „Nur bei …“, both are fitted.
+            'perAxle' => true,
         ];
     }
 

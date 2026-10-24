@@ -20,9 +20,10 @@ use Tests\Support\Fitment\InMemoryTyreCatalogue;
 
 /*
  * D-256 (his item 8, Group A of the admin round): a Gutachten's own „Bereifungskombinationen“, entered as such. BBS's
- * Anlage BMW15 approves the wheel only „in Verbindung mit“ four combinations, so a list once entered is closed: a mixed
- * set only as a pair it names, four of a kind only in a size it names on both axles — and where an Auflage prints a
- * table too, only what both permit. The car's row still has to list each size on its axle.
+ * Anlage BMW15 approves the wheel only „in Verbindung mit“ four combinations, so a list once entered is closed: the
+ * Komplettrad is one of the combinations it names, 2 + 2, and never four of one size (the operator's decision of
+ * 24.10.2026, D-335) — and where an Auflage prints a table too, only what both permit. The car's row still has to list
+ * each size on its axle.
  */
 
 /** @param list<array{0: int, 1: array{int, int}, 2: array{int, int}}> $entries number, front [width, aspect], rear — all 19″ */
@@ -95,19 +96,21 @@ function kombiBbs(): TyrePairingTable
     return kombiList([[1, [235, 45], [235, 45]], [2, [235, 45], [255, 40]], [3, [245, 40], [255, 40]]]);
 }
 
-it('offers four of a kind only in a size the list names on both axles — though the row lists all three on both @admin-208', function (): void {
+it('offers the list\'s combinations as the Komplettrad and four of a kind never — though the row lists all three on both @admin-208', function (): void {
     [$engine, $t235, $t245, $t255] = kombiEngine();
     $verdict = kombiVerdict(kombiBbs());
-    $offer = $engine->offerFor($verdict);
+    $offer = $engine->mixedOfferFor($verdict);
 
     expect($verdict->isSellable())->toBeTrue()
-        ->and($offer->refusal)->toBeNull()
-        ->and(array_map(static fn (TyreRecord $t): int => $t->id, $offer->tyres))->toBe([11])
-        // The basket's gate, tyre by tyre (R-11).
-        ->and($engine->permits($verdict, $t235, 4))->toBeNull()
-        ->and($engine->permits($verdict, $t245, 4))->toBe(KomplettradRefusal::SizeNotACombination)
-        ->and($engine->permits($verdict, $t255, 4))->toBe(KomplettradRefusal::SizeNotACombination)
-        // Without a list the same row sells all three: the list is what narrows it.
+        ->and($engine->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::AsCombination)
+        // The basket's gate, tyre by tyre (R-11): no size as four of a kind, the one the list pairs with itself neither.
+        ->and($engine->permits($verdict, $t235, 4))->toBe(KomplettradRefusal::AsCombination)
+        ->and($engine->permits($verdict, $t245, 4))->toBe(KomplettradRefusal::AsCombination)
+        ->and($engine->permits($verdict, $t255, 4))->toBe(KomplettradRefusal::AsCombination)
+        // Nr. 1 — 235/45 on both axles — is the combination itself, two of the tyre on each axle (D-335).
+        ->and(array_map(static fn ($set): array => [$set['front']->id, $set['rear']->id], $offer->pairs[0]->sets))->toBe([[11, 11]])
+        ->and($engine->permitsMixed($verdict, $t235, $t235))->toBeNull()
+        // Without a list the same row sells all three as four of a kind: the list is what makes it the combinations.
         ->and(array_map(static fn (TyreRecord $t): int => $t->id, $engine->offerFor(kombiVerdict(null))->tyres))->toEqualCanonicalizing([11, 12, 13]);
 });
 
@@ -117,8 +120,9 @@ it('offers each pair the list names, in its numbering and on its page — and no
     $offer = $engine->mixedOfferFor($verdict);
 
     expect($offer->refusal)->toBeNull()
-        ->and($offer->hasTable)->toBeTrue()
+        ->and([$offer->hasTable, $offer->listed])->toBe([true, true])
         ->and(array_map(static fn ($pair): array => [$pair->pairing->number, $pair->front->labelDe(), $pair->rear->labelDe()], $offer->pairs))->toBe([
+            [1, '235/45 R19', '235/45 R19'],
             [2, '235/45 R19', '255/40 R19'],
             [3, '245/40 R19', '255/40 R19'],
         ])
@@ -131,25 +135,28 @@ it('offers each pair the list names, in its numbering and on its page — and no
         ->and($engine->permitsMixed($verdict, $t255, $t235))->toBe(KomplettradRefusal::MixedPairNotListed);
 });
 
-it('refuses four of a kind in so many words where the list names no size on both axles', function (): void {
+it('refuses four of a kind wherever the list stands — with no size on both axles as with one', function (): void {
     [$engine, $t235] = kombiEngine();
     $verdict = kombiVerdict(kombiList([[1, [235, 45], [255, 40]], [2, [245, 40], [255, 40]]]));
 
-    expect($engine->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::NoSameSizeCombination)
-        ->and($engine->permits($verdict, $t235, 4))->toBe(KomplettradRefusal::NoSameSizeCombination)
-        ->and(KomplettradRefusal::NoSameSizeCombination->sentenceDe())->toBe('Vier gleiche Reifen sind für dein Fahrzeug mit dieser Felge nicht als Kombination hinterlegt. Die Felge allein kannst du sofort bestellen.')
-        // Mischbereifung still stands on the list.
+    expect($engine->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::AsCombination)
+        ->and($engine->permits($verdict, $t235, 4))->toBe(KomplettradRefusal::AsCombination)
+        ->and(KomplettradRefusal::AsCombination->sentenceDe())->toBe('Als Komplettrad gibt es diese Felge für dein Fahrzeug nur in den Reifenkombinationen, die das Gutachten nennt – je zwei Räder für die Vorder- und die Hinterachse. Wähl auf der Seite der Felge eine dieser Kombinationen.')
+        // The combinations stand on the list.
         ->and(count($engine->mixedOfferFor($verdict)->pairs))->toBe(2);
 });
 
-it('says nothing about Mischbereifung where the list pairs no two different sizes', function (): void {
+it('offers a list of one size per combination as those combinations, 2 + 2 — no longer as four of a kind', function (): void {
     [$engine] = kombiEngine();
     $verdict = kombiVerdict(kombiList([[1, [235, 45], [235, 45]], [2, [245, 40], [245, 40]]]));
     $offer = $engine->mixedOfferFor($verdict);
 
-    expect($offer->hasTable)->toBeFalse()
-        ->and($offer->pairs)->toBe([])
-        ->and(array_map(static fn (TyreRecord $t): int => $t->id, $engine->offerFor($verdict)->tyres))->toEqualCanonicalizing([11, 13]);
+    expect([$offer->hasTable, $offer->listed])->toBe([true, true])
+        ->and(array_map(static fn ($pair): array => [$pair->pairing->number, array_map(static fn ($set): array => [$set['front']->id, $set['rear']->id], $pair->sets)], $offer->pairs))->toBe([
+            [1, [[11, 11]]],
+            [2, [[13, 13]]],
+        ])
+        ->and($engine->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::AsCombination);
 });
 
 it('offers only what both permit where an Auflage prints a table beside the list — the list\'s numbers, the Auflage\'s rules and page', function (): void {
@@ -179,7 +186,8 @@ it('reads several documents\' lists together, toward caution: only the pairs eve
     $verdict = kombiVerdict(null)->withDocuments([$first, $second]);
 
     expect(array_map(static fn ($pair): int => $pair->pairing->number, $engine->mixedOfferFor($verdict)->pairs))->toBe([2])
-        // The second names no size on both axles: four of a kind is not on record for both.
-        ->and($engine->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::NoSameSizeCombination)
-        ->and($engine->permits($verdict, $t235, 4))->toBe(KomplettradRefusal::NoSameSizeCombination);
+        // The first's Nr. 1 the second does not name: no combination with 235/45 on both axles, and never four of a kind.
+        ->and($engine->permitsMixed($verdict, $t235, $t235))->toBe(KomplettradRefusal::MixedPairNotListed)
+        ->and($engine->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::AsCombination)
+        ->and($engine->permits($verdict, $t235, 4))->toBe(KomplettradRefusal::AsCombination);
 });

@@ -101,6 +101,8 @@ return array(
     'App\\Domain\\Fitment\\Resolver\\VehicleResolver' => $baseDir . '/app/Domain/Fitment/Resolver/VehicleResolver.php',
     'App\\Domain\\Fitment\\Support\\BuildWindow' => $baseDir . '/app/Domain/Fitment/Support/BuildWindow.php',
     'App\\Domain\\Fitment\\Support\\RangeSql' => $baseDir . '/app/Domain/Fitment/Support/RangeSql.php',
+    'App\\Domain\\Fitment\\Tyres\\AxleVerdict' => $baseDir . '/app/Domain/Fitment/Tyres/AxleVerdict.php',
+    'App\\Domain\\Fitment\\Tyres\\CombinationVerdict' => $baseDir . '/app/Domain/Fitment/Tyres/CombinationVerdict.php',
     'App\\Domain\\Fitment\\Tyres\\KomplettradOffer' => $baseDir . '/app/Domain/Fitment/Tyres/KomplettradOffer.php',
     'App\\Domain\\Fitment\\Tyres\\KomplettradRefusal' => $baseDir . '/app/Domain/Fitment/Tyres/KomplettradRefusal.php',
     'App\\Domain\\Fitment\\Tyres\\MixedOffer' => $baseDir . '/app/Domain/Fitment/Tyres/MixedOffer.php',

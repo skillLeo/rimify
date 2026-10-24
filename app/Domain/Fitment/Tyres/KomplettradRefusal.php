@@ -42,10 +42,15 @@ enum KomplettradRefusal: string
     case MixedPairNotListed = 'MIXED_PAIR_NOT_LISTED';
     /** Mischbereifung: front and rear are not one maker's one tyre line, as the table's own sentence asks. */
     case MixedNotOneMaker = 'MIXED_NOT_ONE_MAKER';
-    /** Four of a kind: the document's own list of combinations (D-256) names none of this row's sizes on both axles. */
-    case NoSameSizeCombination = 'NO_SAME_SIZE_COMBINATION';
-    /** Four of a kind: that list does not name this tyre's size on both axles. */
-    case SizeNotACombination = 'SIZE_NOT_A_COMBINATION';
+    /**
+     * Four of a kind where the documents list their combinations (D-256): the Komplettrad is the combination, two wheels on
+     * each axle, never four of one size (the operator's decision of 24.10.2026 on the client's item 8, D-335).
+     */
+    case AsCombination = 'AS_COMBINATION';
+    /** A listed combination: none of them is carried by the car's row, each size on its own axle. */
+    case NoCombination = 'NO_COMBINATION';
+    /** A listed combination with no rules printed beside it: front and rear one maker's one line is our own rule, not the document's. */
+    case CombinationNotOneMaker = 'COMBINATION_NOT_ONE_MAKER';
 
     public function sentenceDe(): string
     {
@@ -72,8 +77,9 @@ enum KomplettradRefusal: string
             self::NoMixedPairing => 'Unterschiedliche Reifengrößen vorne und hinten sind für dein Fahrzeug mit dieser Felge nicht hinterlegt.',
             self::MixedPairNotListed => 'Diese Reifengrößen für vorne und hinten sind für dein Fahrzeug nicht als Kombination hinterlegt.',
             self::MixedNotOneMaker => 'Vorne und hinten müssen Reifen desselben Herstellers und derselben Profilreihe sein – so verlangt es das Gutachten.',
-            self::NoSameSizeCombination => 'Vier gleiche Reifen sind für dein Fahrzeug mit dieser Felge nicht als Kombination hinterlegt. Die Felge allein kannst du sofort bestellen.',
-            self::SizeNotACombination => 'Vier Reifen dieser Größe sind für dein Fahrzeug mit dieser Felge nicht als Kombination hinterlegt.',
+            self::AsCombination => 'Als Komplettrad gibt es diese Felge für dein Fahrzeug nur in den Reifenkombinationen, die das Gutachten nennt – je zwei Räder für die Vorder- und die Hinterachse. Wähl auf der Seite der Felge eine dieser Kombinationen.',
+            self::NoCombination => 'Für dein Fahrzeug ist bei uns keine der Reifenkombinationen aus dem Gutachten dieser Felge hinterlegt. Ein Komplettrad können wir dir deshalb nicht anbieten – die Felge allein kannst du bestellen.',
+            self::CombinationNotOneMaker => 'Vorne und hinten bieten wir dir in einer Kombination nur Reifen desselben Herstellers und derselben Profilreihe an.',
         };
     }
 
