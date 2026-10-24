@@ -20,9 +20,12 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import ListPager, { type ListPagination } from '../../../Components/Admin/Lists/ListPager.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { decimal } from '../../../format'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -42,6 +45,10 @@ interface BrandRow {
     manufacturer: ManufacturerForm
     /** The product page can name the manufacturer: name, address and contact are all given. */
     manufacturerComplete: boolean
+    /** The Herstellerangaben as the row was loaded (EditStamp): a save against older ones is refused. */
+    manufacturerStamp: string
+    /** Name, wall and position as the row was loaded (EditStamp): „Bearbeiten“ sends it, an older state is refused. */
+    stamp?: string
 }
 
 interface ManufacturerForm {
@@ -55,11 +62,28 @@ interface ManufacturerForm {
 }
 
 const props = defineProps<{
+    /** One page of what the search finds (the admin audit's F-31). */
     brands: BrandRow[]
+    search: string
+    found: number
+    pagination: ListPagination
+    /** Over every brand on file, not the page's own. */
+    summary: { total: number; wall: number; logos: number }
     /** Where a new brand joins the wall: at its end (K2-12). */
     nextSortOrder: number
     can: { create: boolean; update: boolean; delete: boolean }
 }>()
+
+const q = ref(props.search)
+
+function searchBrands(): void {
+    router.get(BASE, q.value.trim() === '' ? {} : { q: q.value.trim() }, { preserveScroll: true, preserveState: true })
+}
+
+function resetSearch(): void {
+    q.value = ''
+    searchBrands()
+}
 
 const BASE = '/admin/marken'
 const LOGO_HINT = 'SVG oder PNG/WebP mit transparentem Hintergrund, höchstens 1 MB. Die Markenwand zeichnet die Form des Logos in der Schriftfarbe des Shops.'
@@ -78,6 +102,8 @@ const page = usePage()
 const focus = useFocusAfter()
 const form = reactive<BrandForm>(blank())
 const editing = ref<number | null>(null)
+/* The brand as its form opened on (EditStamp, the admin audit's F-25): sent with the save. */
+const editingStamp = ref<string | undefined>(undefined)
 const sent = ref(false)
 const busy = ref(false)
 /** The row whose logo was just sent: only it shows the server's word about a logo. */
@@ -104,11 +130,16 @@ const editingBrand = computed(() => props.brands.find((b) => b.id === editing.va
 const formTitle = computed(() => (editingBrand.value === null ? 'Neue Marke' : `Marke bearbeiten: ${editingBrand.value.name}`))
 
 const context = computed(() => {
-    const total = props.brands.length
-    const onWall = props.brands.filter((b) => b.isWheelBrand).length
-    const withLogo = props.brands.filter((b) => b.logo !== null).length
+    const { total, wall, logos } = props.summary
 
-    return total === 0 ? 'Noch keine Marke' : `${total} ${total === 1 ? 'Marke' : 'Marken'} · ${onWall} auf der Markenwand · ${withLogo} mit Logo`
+    if (total === 0) {
+        return 'Noch keine Marke'
+    }
+
+    // Counted over every brand, written the German way: „1.022 Marken“ (R-10).
+    const line = `${decimal(total, 0)} ${total === 1 ? 'Marke' : 'Marken'} · ${decimal(wall, 0)} auf der Markenwand · ${decimal(logos, 0)} mit Logo`
+
+    return props.search === '' ? line : `${line} · ${decimal(props.found, 0)} gefunden`
 })
 
 const confirmOpen = computed({
@@ -125,6 +156,7 @@ const more = (id: number): string => `mk-more-${id}`
 function reset(): void {
     Object.assign(form, blank())
     editing.value = null
+    editingStamp.value = undefined
     sent.value = false
 }
 
@@ -140,6 +172,7 @@ function edit(brand: BrandRow): void {
     form.isWheelBrand = brand.isWheelBrand
     form.sortOrder = brand.sortOrder
     editing.value = brand.id
+    editingStamp.value = brand.stamp
     sent.value = false
     focus.request('mk-name', { scroll: true })
 }
@@ -165,7 +198,7 @@ function submit(): void {
     if (editing.value === null) {
         router.post(BASE, { ...form }, options)
     } else {
-        router.put(`${BASE}/${editing.value}`, { ...form }, options)
+        router.put(`${BASE}/${editing.value}`, { ...form }, { ...options, headers: stampHeaders(editingStamp.value) })
     }
 }
 
@@ -215,6 +248,7 @@ function saveManufacturer(): void {
     busy.value = true
     router.put(`${BASE}/${brand.id}/hersteller`, { ...maker }, {
         preserveScroll: true,
+        headers: stampHeaders(brand.manufacturerStamp),
         onSuccess: () => {
             fresh.value = brand.id
             closeManufacturer()
@@ -341,6 +375,8 @@ function counts(brand: BrandRow): string {
                 <div class="adm-section__head">
                     <h2 id="mk-form-title" class="adm-section__title">{{ formTitle }}</h2>
                 </div>
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
 
                 <div class="adm-fields">
                     <div class="form-field">
@@ -399,6 +435,8 @@ function counts(brand: BrandRow): string {
                 <div class="adm-section__head">
                     <h2 id="mk-maker-title" class="adm-section__title">Herstellerangaben: {{ manufacturing.name }}</h2>
                 </div>
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="makerErrors._stamp" class="adm-alert" role="alert">{{ makerErrors._stamp }}</p>
                 <p class="form-field__help mk__hint">
                     Die Allgemeine Produktsicherheitsverordnung (GPSR) verlangt sie auf jeder Produktseite: Name, Postanschrift und
                     elektronische Adresse des Herstellers – so, wie er sie selbst angibt. Sitzt er außerhalb der EU, dazu die
@@ -461,7 +499,17 @@ function counts(brand: BrandRow): string {
                 <h2 id="mk-list-title" class="adm-section__title mk__list-title" tabindex="-1">Marken</h2>
             </div>
             <p class="form-field__help mk__hint">{{ LOGO_HINT }}</p>
+            <!-- Why „Entfernen“ is missing on a brand in use: its Felgen and tyres keep their brand (BrandPolicy, R-05). -->
+            <p class="form-field__help mk__hint">Entfernen lässt sich nur eine Marke ohne Felgen und Reifen – entfernte Felgen zählen mit.</p>
             <p v-if="brandError" class="adm-alert" role="alert">{{ brandError }}</p>
+
+            <form v-if="summary.total > 0" class="mk-search" role="search" @submit.prevent="searchBrands">
+                <div class="form-field">
+                    <label class="form-field__label" for="mk-q">Marke suchen</label>
+                    <input id="mk-q" v-model="q" class="input" type="search" maxlength="60" autocomplete="off">
+                </div>
+                <button class="btn btn--secondary" type="submit">Suchen</button>
+            </form>
 
             <div v-if="brands.length > 0" class="adm-panel">
                 <table class="adm-table mk__table">
@@ -557,7 +605,10 @@ function counts(brand: BrandRow): string {
                 </table>
             </div>
 
+            <AdminState v-else-if="search !== ''" kind="filtered" :total="summary.total" @reset="resetSearch" />
             <AdminState v-else kind="empty" text="Noch keine Marke. Marken entstehen hier, beim Import einer Lieferantendatei oder beim Anlegen einer Felge." />
+
+            <ListPager :pagination="pagination" label="Seiten der Marken" />
         </section>
 
         <p class="visually-hidden" aria-live="assertive">{{ spoken }}</p>
@@ -645,6 +696,20 @@ function counts(brand: BrandRow): string {
 }
 
 /* The list's heading takes the focus only as the last way out of a removed row; it draws no ring. */
+/* The search above the list: the field takes what room there is, the button beside it, under it on a phone. */
+.mk-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--sp-12);
+    margin-bottom: var(--sp-16);
+}
+
+.mk-search .form-field {
+    flex: 1 1 240px;
+    max-width: 420px;
+}
+
 .mk__list-title:focus {
     outline: none;
 }

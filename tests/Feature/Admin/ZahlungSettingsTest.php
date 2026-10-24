@@ -9,6 +9,7 @@ use App\Models\PaymentSetting;
 use App\Payments\PaymentConfig;
 use App\Payments\Payments;
 use App\Payments\Stripe\StripeGateway;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
@@ -156,4 +157,18 @@ it('says Testmodus on every admin page while Stripe is in test mode, and nowhere
 
     config(['rimify.payments.driver' => 'none']);
     $this->actingAs(zahlungAdmin(), 'admin')->get('/admin')->assertInertia(fn (AssertableInertia $page) => $page->where('admin.paymentsTestMode', false));
+});
+
+it('refuses a save from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    zahlungSave(zahlungForm())->assertSessionHasNoErrors();
+    $stale = test()->actingAs(zahlungAdmin(), 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->get(ZAHLUNG_URL)->viewData('page')['props']['stamp'];
+
+    // Another tab saves a new publishable key.
+    zahlungSave(zahlungForm(['publishable_key' => 'pk_test_neuerKeyZ9y8']))->assertSessionHasNoErrors();
+
+    test()->actingAs(zahlungAdmin(), 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->from(ZAHLUNG_URL)
+        ->withHeader(EditStamp::HEADER, $stale)->put(ZAHLUNG_URL, zahlungForm(['publishable_key' => 'pk_test_alterKeyQ1w2']))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect(PaymentSetting::query()->value('publishable_last4'))->toBe('Z9y8');
 });

@@ -7,6 +7,7 @@ namespace App\Http\Requests\Admin;
 use App\Models\AdminUser;
 use App\Models\PaymentSetting;
 use App\Payments\StripeKeys;
+use App\Services\Content\LegalReadiness;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -53,6 +54,16 @@ class PaymentSettingsRequest extends FormRequest
             $production = app()->environment('production');
             $stored = PaymentSetting::current();
 
+            // No live payment while a legal text is a placeholder or the Impressum lacks a field (D-319): the refusal
+            // names each. Testmodus is never held back.
+            if ($mode === StripeKeys::LIVE) {
+                $missing = app(LegalReadiness::class)->missing();
+
+                if ($missing !== []) {
+                    $validator->errors()->add('mode', self::liveRefused($missing));
+                }
+            }
+
             foreach (['publishable_key' => 'key', 'secret_key' => 'secret', 'webhook_secret' => 'webhook_secret'] as $input => $field) {
                 // A key entered now, or the one stored, if the mode changes under it.
                 $key = self::entered($this->input($input)) ?? ($stored?->getAttribute($input) === null ? null : (string) $stored->getAttribute($input));
@@ -86,6 +97,17 @@ class PaymentSettingsRequest extends FormRequest
             'secret_key' => self::entered($this->input('secret_key')),
             'webhook_secret' => self::entered($this->input('webhook_secret')),
         ];
+    }
+
+    /**
+     * Why Livemodus is refused, naming what is missing.
+     *
+     * @param  list<string>  $missing
+     */
+    public static function liveRefused(array $missing): string
+    {
+        return 'Den Livemodus kannst du erst einschalten, wenn kein Rechtstext mehr ein Platzhalter ist und das Impressum vollständig ist. Noch offen: '
+            .implode(', ', $missing).'. Den Testmodus kannst du weiter nutzen.';
     }
 
     private static function entered(#[SensitiveParameter] mixed $value): ?string

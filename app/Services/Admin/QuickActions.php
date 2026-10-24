@@ -26,7 +26,7 @@ final class QuickActions
         $actions = [];
 
         if ($this->built('/admin/seiten') && $user->may(PermissionModule::Content, PermissionAction::View) && $user->may(PermissionModule::Content, PermissionAction::Create)) {
-            $actions[] = ['key' => 'ratgeber', 'label' => 'Ratgeber-Artikel anlegen', 'href' => '/admin/seiten?neu=1', 'icon' => 'guides'];
+            $actions[] = ['key' => 'ratgeber', 'label' => 'Blog-Artikel anlegen', 'href' => '/admin/seiten?neu=1', 'icon' => 'guides'];
         }
 
         if ($this->built('/admin/benutzer') && $user->may(PermissionModule::Roles, PermissionAction::View) && $user->may(PermissionModule::Roles, PermissionAction::Create)) {

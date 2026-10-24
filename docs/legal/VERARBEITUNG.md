@@ -1,7 +1,7 @@
 # Verarbeitung personenbezogener Daten – Dienstleister und Speicherfristen
 
 > Erzeugt mit `php artisan rimify:verarbeitung` aus der Konfiguration dieser Installation – nicht von Hand geschrieben.
-> Stand: 18.10.2026, 18:08 Uhr · Server: `us-bos-web1780.main-hosting.eu` · Umgebung: `staging`.
+> Stand: 19.10.2026, 06:33 Uhr · Server: `us-bos-web1780.main-hosting.eu` · Umgebung: `staging`.
 > Für den Betreiber und die Kanzlei: was der Shop heute tatsächlich tut. Was offen ist, steht als „offen“ da.
 
 ## 1 · Dienstleister, die personenbezogene Daten für den Shop verarbeiten
@@ -58,7 +58,7 @@
 
 | | |
 |---|---|
-| Stand in dieser Installation | `info@rimify.de`, Mailserver: `mx01.ionos.de`, `mx00.ionos.de`. |
+| Stand in dieser Installation | `info@rimify.de`, Mailserver: `mx00.ionos.de`, `mx01.ionos.de`. |
 | Unternehmen | 1&1 IONOS SE, Elgendorfer Straße 57, 56410 Montabaur, Deutschland |
 | Ort der Verarbeitung | Laut Vertrag des Postfach-Anbieters. |
 | Zweck | Empfang der Mails an den Shop: Kontaktanfragen (der Shop schickt jede auch dorthin), Antworten von Kunden, Meldungen an das Team. |
@@ -104,7 +104,9 @@
 | `rmf_garage` | Die letzten fünf Fahrzeuge, die du gewählt hast, damit du schnell zurückwechseln kannst. | 90 Tage |
 | `rmf_consent` | Dass du diesen Hinweis gelesen hast, und wann. | 12 Monate |
 | `Sitzung und XSRF-TOKEN` | Deinen Warenkorb und den Schutz deiner Eingaben vor fremden Seiten. | 120 Minuten |
-| `rmf_papiere` | Die Werte, die du aus deiner Zulassungsbescheinigung einträgst – Achslasten (8.1, 8.2), Höchstgeschwindigkeit (T) und, wenn du sie angibst, Leistung (P.2) sowie Tragfähigkeits- und Geschwindigkeitsindex der Reifen (15.1, 15.2) –, dazu Karosserieform und Antriebsart, wenn wir danach fragen; für bis zu fünf Fahrzeuge, ohne Namen, Kennzeichen oder Fahrgestellnummer. | 1 Jahr |
+| `rmf_view` | Welche Ansicht ein Link für dich festgelegt hat – Telefon oder Desktop. Es wird nur gesetzt, wenn du einen Link mit „?view=mobile“ oder „?view=desktop“ öffnest; einen Schalter dafür gibt es im Shop nicht. | 7 Tage |
+| `__stripe_mid, __stripe_sid` | Daten für den Betrugsschutz von Stripe, unserem Zahlungsdienst. Stripe setzt sie selbst, sobald du an der Kasse den Schritt „Zahlung“ öffnest – auch wenn du danach nicht bezahlst. | 1 Jahr, 30 Minuten |
+| `rmf_papiere` | Die Werte, die du aus deiner Zulassungsbescheinigung einträgst – Achslasten (8.1, 8.2), Höchstgeschwindigkeit (T) und, wenn du sie angibst, Leistung (P.2) sowie Tragfähigkeits- und Geschwindigkeitsindex der Reifen (15.1, 15.2) –, für bis zu fünf Fahrzeuge; getrennt davon Karosserieform und Antriebsart, wenn wir danach fragen, ebenfalls für bis zu fünf. Ohne Namen, Kennzeichen oder Fahrgestellnummer. | 1 Jahr |
 | `rmf_geraet` | Eine zufällige Kennung für diesen Browser und sonst nichts. Unser Schutz vor zu vielen Anfragen zählt nach ihr statt nach deiner IP-Adresse – so wirst du nicht mit anderen im selben Mobilfunknetz verwechselt. | 1 Jahr |
 
 ### 2.2 · Werte aus der Zulassungsbescheinigung

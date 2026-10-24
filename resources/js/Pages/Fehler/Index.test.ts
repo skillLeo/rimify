@@ -207,6 +207,21 @@ it('keeps a browser translator off the code, the vehicle and the contact details
     expect(marked).toContain(CONTACT.hours)
 })
 
+it('says a link from a mail no longer holds — never that the account may not open the page (the admin audit’s F-27)', () => {
+    current.props = { vehicle: null, contact: CONTACT }
+    const wrapper = mount(Fehler, { props: { status: 403, reason: 'link', failedPath: '/bewertung/RMF-2026-1021' } })
+    mounted.push(wrapper)
+
+    expect(wrapper.find('h1').text()).toBe('Dieser Link gilt nicht mehr.')
+    expect(wrapper.text()).toContain('Links aus unseren Mails gelten nur eine Zeit lang.')
+    expect(wrapper.text()).not.toContain('Am Link liegt es nicht')
+    // No way into the admin for a customer, and still three ways on (R-09).
+    expect(routes(wrapper).map((r) => r.attributes('href'))).not.toContain('/admin/anmelden')
+    expect(routes(wrapper)).toHaveLength(3)
+    // A 403 without a reason stays as it was.
+    expect(page(403).find('h1').text()).toBe('Dafür fehlt dir die Berechtigung.')
+})
+
 it('offers the reload as a plain link, so it works before the bundle has hydrated', () => {
     const reload = routes(page(500))[0]
 

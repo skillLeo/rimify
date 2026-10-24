@@ -1,0 +1,14 @@
+{ "name": "v-38-lists", "start": "/admin/anfragen", "full": false, "steps": [
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelectorAll('main tbody tr').length, Array.from(document.querySelectorAll('main .adm-note, main [role=status], main .adm-form__note')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 5)]" },
+  { "fill": "main input[type=search]", "value": "Golf" },
+  { "press": "Enter" },
+  { "wait": 1500 },
+  { "eval": "[location.search, document.querySelectorAll('main tbody tr').length, Array.from(document.querySelectorAll('main .adm-note, main [role=status], main .adm-form__note')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 5)]" },
+  { "goto": "/admin/fahrzeuge/import" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelectorAll('main tbody tr').length, document.querySelector('.fi-more')?.textContent?.trim() ?? 'kein Hinweis (nicht mehr Läufe als gezeigt)']" },
+  { "goto": "/admin/seiten" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('main h2, main h3, main button, main a.btn')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(t => /Blog|Ratgeber|Artikel/.test(t)).slice(0, 8)]" },
+  { "goto": "/admin/protokoll" },
+  { "eval": "Array.from(document.querySelectorAll('main tbody tr, main li')).map(r => r.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 14)" },
+  { "eval": "Array.from(document.querySelectorAll('main tbody tr, main li')).map(r => r.textContent).filter(t => /\\b[a-z]+\\.[a-z_]+\\b/.test(t) && !/@|\\.(de|test|pdf|csv|png|jpg)\\b/.test(t)).map(t => t.replace(/\\s+/g, ' ').trim().slice(0, 140)).slice(0, 6)" }
+] }

@@ -57,6 +57,29 @@ function protokollEntry(AdminUser $actor, string $event, array $properties = [],
 }
 
 /**
+ * Every event name the application writes with AuditTrail::record or ::system, read from its source.
+ *
+ * @return list<string>
+ */
+function protokollEventsWritten(): array
+{
+    $events = [];
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path(), FilesystemIterator::SKIP_DOTS));
+
+    foreach ($files as $file) {
+        if ($file instanceof SplFileInfo && $file->getExtension() === 'php') {
+            preg_match_all("/AuditTrail::(?:record|system)\\(\\s*[^,]+,\\s*'([a-z_]+\\.[a-z_.]+)'/", (string) file_get_contents($file->getPathname()), $found);
+            $events = [...$events, ...$found[1]];
+        }
+    }
+
+    $events = array_values(array_unique($events));
+    sort($events);
+
+    return $events;
+}
+
+/**
  * @param  TestResponse<Response>  $response
  * @return array<string, mixed>
  */
@@ -498,7 +521,7 @@ describe('putting every entry into words', function (): void {
             ],
             'demand.marked' => [['gap' => 'BMW X3 M40i', 'state' => 'watched', 'brand' => null], 'Die Nachfrage-Lücke „BMW X3 M40i“ wurde als beobachtet markiert.', []],
             'demand.unmarked' => [['gap' => 'HSN 0005 · TSN ABC'], 'Die Markierung der Nachfrage-Lücke „HSN 0005 · TSN ABC“ wurde aufgehoben. Sie ist wieder offen.', []],
-            'page.created' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Ratgeber-Artikel „ET richtig lesen“ wurde angelegt. Er ist noch nicht veröffentlicht.', []],
+            'page.created' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Blog-Artikel „ET richtig lesen“ wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Für die Seite „Impressum“ wurde ein Entwurf gespeichert.', []],
             'page.draft_discarded' => [['page' => 'Impressum', 'slug' => 'impressum'], 'Der Entwurf der Seite „Impressum“ wurde verworfen.', []],
             'page.published' => [
@@ -506,7 +529,7 @@ describe('putting every entry into words', function (): void {
                 'Die Seite „Impressum“ wurde veröffentlicht. Geändert: Abschnitt 1 · Text. Notiz: „Text der Kanzlei“.',
                 ['Vom Anwalt geprüft: nein → ja'],
             ],
-            'page.withdrawn' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Ratgeber-Artikel „ET richtig lesen“ wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.withdrawn' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Blog-Artikel „ET richtig lesen“ wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
             'faq.created' => [['question' => 'Wie lange dauert die Lieferung?', 'published' => false], 'Die Frage „Wie lange dauert die Lieferung?“ wurde angelegt; sie ist noch ausgeblendet.', []],
             'faq.updated' => [
                 ['question' => 'Wie lange dauert der Versand?', 'old_question' => 'Wie lange dauert die Lieferung?', 'changed' => ['question_de', 'answer_de', 'published'], 'published' => ['old' => false, 'new' => true]],
@@ -533,7 +556,7 @@ describe('putting every entry into words', function (): void {
             'wheel.image_removed' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Das Foto der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde entfernt.', []],
             'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
             'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
-            'page.image_uploaded' => [['page' => 'Felgen richtig auswählen', 'file' => '01jabc.jpg'], 'Für den Ratgeber-Artikel „Felgen richtig auswählen“ wurde ein Bild hochgeladen („01jabc.jpg“). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
+            'page.image_uploaded' => [['page' => 'Felgen richtig auswählen', 'file' => '01jabc.jpg'], 'Für den Blog-Artikel „Felgen richtig auswählen“ wurde ein Bild hochgeladen („01jabc.jpg“). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
             'tyre.created' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'offered' => false], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde angelegt; der Shop bietet ihn nicht an – er ist nicht verfügbar oder sein EU-Reifenlabel ist unvollständig.', []],
             'tyre.updated' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'changed' => ['eprel_id', 'price_cents'], 'offered' => true], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde geändert (EPREL-Nummer, Preis); der Shop bietet ihn an.', []],
             'tyre.deleted' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y'], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde entfernt.', []],
@@ -661,6 +684,63 @@ describe('putting every entry into words', function (): void {
             ],
             'order.shipped' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Bestellung „RMF-2026-1001“ wurde als versendet markiert, Sendungsnummer „00340434 1234“.', []],
             'order.delivered' => [['order' => 'RMF-2026-1001'], 'Die Bestellung „RMF-2026-1001“ wurde als zugestellt markiert. Einige Tage danach lädt der Shop zur Bewertung ein.', []],
+            // The admin audit's F-35: written for months, read as „noch nicht in Worten“.
+            'order.status_changed' => [['order' => 'RMF-2026-1001', 'from' => 'PENDING_PAYMENT', 'to' => 'PAID', 'event_id' => 'evt1'], 'Der Status der Bestellung „RMF-2026-1001“ wechselte von „Wartet auf Zahlung“ zu „Bezahlt“.', []],
+            'order.confirmation_sent' => [['order' => 'RMF-2026-1001', 'invoice' => 'TEST-RE-000001'], 'Die Bestellbestätigung zur Bestellung „RMF-2026-1001“ wurde verschickt, mit der Rechnung „TEST-RE-000001“.', []],
+            'order.confirmation_failed' => [['order' => 'RMF-2026-1001', 'error' => 'Connection refused'], 'Die Bestellbestätigung zur Bestellung „RMF-2026-1001“ konnte nicht verschickt werden. Meldung: Connection refused', []],
+            'order.shipping_mail_sent' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Versandmail zur Bestellung „RMF-2026-1001“ wurde verschickt, mit der Sendungsnummer „00340434 1234“.', []],
+            'order.shipping_mail_failed' => [['order' => 'RMF-2026-1001', 'error' => '554 Message rejected'], 'Die Versandmail zur Bestellung „RMF-2026-1001“ konnte nicht verschickt werden. Meldung: 554 Message rejected', []],
+            'order.refunded' => [
+                ['order' => 'RMF-2026-1001', 'amount_cents' => 39_900, 'status' => 'succeeded', 'refund' => 're1', 'reason' => 'Eine Felge zurückgeschickt'],
+                "Zur Bestellung „RMF-2026-1001“ wurden 399,00\u{202F}€ erstattet. Grund: „Eine Felge zurückgeschickt“.",
+                [],
+            ],
+            'order.refund_refused' => [
+                ['order' => 'RMF-2026-1001', 'amount_cents' => 1000, 'error' => 'Charge has already been refunded.'],
+                "Eine Erstattung von 10,00\u{202F}€ zur Bestellung „RMF-2026-1001“ wurde abgelehnt; erstattet wurde nichts. Meldung: Charge has already been refunded.",
+                [],
+            ],
+            'order.refund_paper_failed' => [
+                ['order' => 'RMF-2026-1001', 'error' => 'PDF nicht erzeugt'],
+                'Zur Erstattung der Bestellung „RMF-2026-1001“ ließ sich die Gutschrift nicht erstellen oder die Mail nicht verschicken. Die Erstattung selbst ist gebucht. Meldung: PDF nicht erzeugt',
+                [],
+            ],
+            'invoice.failed' => [['order' => 'RMF-2026-1001', 'error' => 'PDF nicht erzeugt'], 'Zur Bestellung „RMF-2026-1001“ konnte die Rechnung nicht ausgestellt werden; die Bestellung bleibt bezahlt. Meldung: PDF nicht erzeugt', []],
+            'invoice.series_opened' => [
+                ['invoice_first' => 'RE-2026-000001', 'credit_note_first' => 'GS-2026-000001', 'operator' => 'Anna Admin'],
+                'Die echten Rechnungsnummern wurden eröffnet: Die erste Rechnung trägt die Nummer „RE-2026-000001“, die erste Gutschrift „GS-2026-000001“.',
+                [],
+            ],
+            'dispute.evidence_submitted' => [
+                ['dispute' => 'dp1', 'order' => 'RMF-2026-1001', 'files' => ['lieferschein.pdf', 'foto.jpg'], 'receipt' => 'RE-2026-000001'],
+                'Zur Rückbuchung der Bestellung „RMF-2026-1001“ wurden Nachweise an Stripe geschickt: 2 Dateien, die Rechnung „RE-2026-000001“ als Beleg.',
+                [],
+            ],
+            'settings.seller_shipping_updated' => [
+                ['first' => false, 'changes' => [
+                    'seller.city' => ['old' => 'Köln', 'new' => 'Düsseldorf'],
+                    'seller.not_applicable' => ['old' => [], 'new' => ['phone']],
+                    'shipping.zones' => ['old' => ['DE' => ['cost_cents' => null, 'free_from_cents' => null]], 'new' => ['DE' => ['cost_cents' => 490, 'free_from_cents' => 50_000]]],
+                ]],
+                'Die Angaben zu Verkäufer und Versand wurden geändert: Ort, Häkchen bei „Entfällt“, Versandkosten.',
+                ['Ort: Köln → Düsseldorf', 'Häkchen bei „Entfällt“: – → Telefon', "Versandkosten: nicht festgelegt → 4,90\u{202F}€, versandkostenfrei ab 500,00\u{202F}€"],
+            ],
+            'payments.settings_updated' => [
+                ['changed' => ['Modus', 'Geheimer Schlüssel'], 'mode' => ['old' => 'test', 'new' => 'live'], 'publishable_last4' => ['old' => 'ab12', 'new' => 'ab12'], 'signing_key_last4' => ['old' => 'cd34', 'new' => 'ef56'], 'webhook_last4' => ['old' => null, 'new' => null]],
+                'Die Zahlungseinstellungen wurden geändert: Modus, Geheimer Schlüssel.',
+                ['Modus: Testmodus → Livemodus', 'Geheimer Schlüssel: …cd34 → …ef56'],
+            ],
+            'payments.connection_tested' => [['ok' => true, 'account' => 'RIMIFY GmbH', 'error' => null], 'Die Verbindung zu Stripe wurde geprüft und steht (Konto „RIMIFY GmbH“).', []],
+            'vehicle.corrected' => [
+                [
+                    'vehicle' => 'Prüfwerk Größe Eins 1.6 Limousine · HSN 0005 · TSN ZZ8',
+                    'old' => ['make' => 'Prüfwrek', 'power_kw' => 900, 'build_from' => '2019-03-01', 'build_to' => null],
+                    'new' => ['make' => 'Prüfwerk', 'power_kw' => 90, 'build_from' => '2019-03-01', 'build_to' => '2023-12-31'],
+                ],
+                'Die Angaben des Fahrzeugs „Prüfwerk Größe Eins 1.6 Limousine · HSN 0005 · TSN ZZ8“ wurden korrigiert: Hersteller, Leistung in kW, Gebaut bis.',
+                ['Hersteller: Prüfwrek → Prüfwerk', 'Leistung in kW: 900 → 90', 'Gebaut bis: – → 12.2023'],
+            ],
+            'brand.manufacturer_updated' => [['brand_id' => 3, 'name' => 'Borbet', 'changed' => ['manufacturer_name'], 'complete' => false], 'Die Herstellerangaben der Marke „Borbet“ wurden gespeichert; es fehlen noch Angaben.', []],
             'order.test_stock_returned' => [
                 ['order' => 'RMF-2026-1029', 'quantity' => 1],
                 'Die Testbestellung „RMF-2026-1029“ war nur mit der Testzahlung bezahlt; die bestellte Ware (1 Stück) ist wieder auf Lager.',
@@ -671,6 +751,11 @@ describe('putting every entry into words', function (): void {
             'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
             'review.replied' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde geantwortet.', []],
             'review.reply_removed' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Die Antwort auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde entfernt.', []],
+            'page.placeholder_switched' => [
+                ['page' => 'Muster-Widerrufsformular', 'slug' => 'widerrufsbelehrung', 'part' => 'formular', 'placeholder' => ['old' => false, 'new' => true]],
+                'Beim Muster-Widerrufsformular wurde der Platzhalter eingeschaltet: Besucher sehen statt des Textes nur noch den Hinweis, dass der Text der Kanzlei folgt.',
+                [],
+            ],
             'page.revision_restored' => [
                 ['page' => 'Startseite', 'slug' => 'startseite', 'revision' => 3, 'revision_at' => '2026-09-26T12:00:00+00:00'],
                 'Für die Seite „Startseite“ wurde die Version vom '.GermanFormat::dateTime(CarbonImmutable::parse('2026-09-26T12:00:00+00:00')).' als Entwurf geladen.',
@@ -679,7 +764,12 @@ describe('putting every entry into words', function (): void {
         ];
 
         // A new event in the describer without a case here fails this test rather than going unread.
-        expect(array_keys($cases))->toEqualCanonicalizing(AuditDescriber::knownEvents());
+        expect(array_keys($cases))->toEqualCanonicalizing(AuditDescriber::knownEvents())
+            // …and an event the code writes that the describer does not know fails it too (the admin audit's F-35):
+            // thirteen were written for months and read „noch nicht in Worten“, a refund and a key change among them.
+            ->and(array_values(array_diff(protokollEventsWritten(), AuditDescriber::knownEvents())))->toBe([])
+            // The source was read, not skipped: a scan that finds nothing would pass the line above for nothing.
+            ->and(count(protokollEventsWritten()))->toBeGreaterThan(90);
 
         $describer = app(AuditDescriber::class);
 

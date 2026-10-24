@@ -1,0 +1,1 @@
+.fd[data-v-03cab6d5]{gap:var(--sp-16);display:grid}.fd .form-field__error[data-v-03cab6d5]:empty{display:none}.fd-pair[data-v-03cab6d5]{gap:var(--sp-16);grid-template-columns:repeat(2,minmax(0,1fr));display:grid}@media (width<=767px){.fd-pair[data-v-03cab6d5]{grid-template-columns:minmax(0,1fr)}}

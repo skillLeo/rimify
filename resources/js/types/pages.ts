@@ -853,11 +853,16 @@ export interface RechtlichesProps {
     tabs: { slug: string; title: string }[]
     active: string
     blocks: { id: number; type: string; data: Record<string, unknown> }[]
-    /** The Impressum's facts from the seller data (§ 5 DDG), each null while not given; null on every other tab. */
-    /** `placeholder`: the values are the admin's placeholders, shown here only, and marked. */
-    provider?: { rows: { label: string; value: string | null }[]; complete: boolean; placeholder?: boolean; notice?: string } | null
-    /** What the page says while the Kanzlei's text is outstanding: one sentence naming who prepares it (LegalTexts::PREPARING). */
-    preparing: string
+    /**
+     * The Impressum's facts from the seller data (§ 5 DDG); null on every other tab. A field not given carries its
+     * marker as `value` and `missing` (D-319); the test environment's operator rows give `value` null instead.
+     * `placeholder`: the values are the admin's placeholders, shown here only, and marked.
+     */
+    provider?: { rows: { label: string; value: string | null; missing?: boolean }[]; complete: boolean; placeholder?: boolean; notice?: string } | null
+    /** The page's text is a placeholder (D-319): `blocks` is empty and the page shows `notice` alone. */
+    placeholder: boolean
+    /** The placeholder's one notice (LegalTexts::NOTICE). */
+    notice: string
 }
 
 export interface AdminAnmeldenProps {
@@ -888,12 +893,27 @@ export interface AdminGutachtenProps {
         demo?: boolean
         href: string
     }[]
+    /** One page of what the search and the chips find (the admin audit's F-31): `found` over every page, `total` on file. */
+    found: number
+    total: number
+    released: number
+    search: string
+    status: string
+    kind: string
+    statusOptions: { value: string; count: number }[]
+    kindOptions: { value: string; count: number }[]
+    pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
     can: { create: boolean }
 }
 
 export interface AdminBenachrichtigungenProps {
-    /** `waiting`: confirmed, still subscribed, not yet told — the rail's count. `limit`: the list's cap. */
-    summary: { waiting: number; total: number; limit: number }
+    /**
+     * `waiting`: confirmed, still subscribed, not yet told — the rail's count. `found`: what the search finds, over every
+     * page. `vehicles`: how many vehicles have someone waiting — the ranking shows the most asked-for of them.
+     */
+    summary: { waiting: number; total: number; found: number; vehicles?: number }
+    search: string
+    pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
     subscriptions: {
         id: number
         email: string
@@ -949,6 +969,8 @@ export interface AdminWuchtgewichteProps {
         sortOrder: number
         /** Seeded as an example: the list says „Demodaten“ beside the name. */
         demo?: boolean
+        /** The colour as loaded (EditStamp): „Bearbeiten“ sends it, a save against an older state is refused. */
+        stamp?: string
     }[]
     /**
      * `Montage und Auswuchten` per wheel — one shop-wide fee, edited on this page (§13, D-032).
@@ -973,6 +995,8 @@ export interface AdminRdksProps {
         active: boolean
         /** Seeded as an example: the list says „Demodaten“ beside the make. */
         demo?: boolean
+        /** The price as loaded (EditStamp): „Bearbeiten“ sends it, a save against an older state is refused. */
+        stamp?: string
     }[]
     /** The makes present in `vehicles`, for the datalist. Free text stays allowed. */
     makes: string[]

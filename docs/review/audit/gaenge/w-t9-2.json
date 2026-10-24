@@ -1,0 +1,11 @@
+{ "name": "t9-2-einladen-senden", "start": "/admin/benutzer", "full": true, "steps": [
+  { "click": "role=button[name=\"Person einladen\"]" },
+  { "wait": 500 },
+  { "fill": "#bn-invite-name", "value": "Jürgen Weiß" },
+  { "fill": "#bn-invite-email", "value": "juergen.weiss@rimify.test" },
+  { "select": "#bn-invite-role", "value": "2" },
+  { "dblclick": "[role=dialog] >> role=button[name=/einladen|senden/i]" },
+  { "wait": 2000 },
+  { "eval": "[document.querySelector('[role=dialog]') ? 'offen' : 'zu', Array.from(document.querySelectorAll('main section, main')).map(s => s.innerText).join(' ').match(/Einladung[^\\n]*/g)?.slice(0, 5)]" },
+  { "eval": "Array.from(document.querySelectorAll('main tbody tr')).filter(r => /juergen\\.weiss/.test(r.textContent)).map(r => r.innerText.replace(/\\s+/g, ' ').trim())" }
+] }

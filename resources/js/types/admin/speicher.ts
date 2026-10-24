@@ -14,6 +14,8 @@ export interface StorageTest {
 }
 
 export interface AdminSpeicherProps {
+    /** What the form was opened on (EditStamp): a save against an older state is refused. */
+    stamp: string
     form: {
         provider: string
         region: string

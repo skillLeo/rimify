@@ -65,7 +65,8 @@ final readonly class ErrorPage
         return $status >= 400 && $status < 600;
     }
 
-    public function render(Request $request, Response $original): Response
+    /** @param  bool  $expiredLink  a signed link that no longer holds — expired, or cut short on the way (F-27) */
+    public function render(Request $request, Response $original, bool $expiredLink = false): Response
     {
         $status = $original->getStatusCode();
         $retryAfter = $this->retryAfter($original);
@@ -81,7 +82,7 @@ final readonly class ErrorPage
         }
 
         try {
-            $response = $this->page($request, $status, $retryAfter);
+            $response = $this->page($request, $status, $retryAfter, $expiredLink);
         } catch (Throwable) {
             // The Inertia render needs the built manifest and, through the session, the database.
             // When the failure took one of those with it, the page that explains the failure must
@@ -96,12 +97,14 @@ final readonly class ErrorPage
         return $response;
     }
 
-    private function page(Request $request, int $status, ?int $retryAfter): Response
+    private function page(Request $request, int $status, ?int $retryAfter, bool $expiredLink = false): Response
     {
         $this->restoreSharedProps($request);
 
         return Inertia::render('Fehler/Index', [
             'status' => $status,
+            // „Dieser Link gilt nicht mehr.“ in place of a 403's „Dafür fehlt dir die Berechtigung.“ (F-27).
+            'reason' => $expiredLink ? 'link' : null,
             'isMobile' => $this->isMobile($request),
             // Only ever set by the throttler and by a maintenance window; the page stays silent
             // about how long a wait will be whenever the server did not say.

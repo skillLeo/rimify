@@ -153,6 +153,7 @@ function remove(view: ListViewItem): void {
                 icon: 'info',
                 action: {
                     label: 'Rückgängig',
+                    // The server opens the view again (F-22); the focus goes to it.
                     run: () =>
                         router.post(`/admin/ansichten/${view.id}/wiederherstellen`, {}, { preserveScroll: true, onSuccess: () => void nextTick(() => focusTab(view.id)) }),
                 },

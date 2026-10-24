@@ -15,6 +15,7 @@ use App\Models\WheelModel;
 use App\Policies\WheelModelPolicy;
 use App\Services\Admin\Catalogue\FinishImages;
 use App\Services\Admin\Catalogue\PublishCheck;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -216,6 +217,33 @@ describe('a new Felge', function (): void {
                 'configs.0.sku' => 'Diese SKU gehört schon zu einer anderen Felge.',
                 'configs.1.width' => 'Diese Größe gibt es in dieser Ausführung schon (Zeile 1).',
             ]);
+    });
+
+    it('refuses the same Felge twice — brand, model and Radtypenbezeichnung — under the Radtypenbezeichnung (the admin audit\'s F-08)', function (): void {
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', newFelgePayload())->assertSessionHasNoErrors();
+        $twin = 'Eine Felge mit dieser Marke, diesem Modell und dieser Radtypenbezeichnung gibt es schon: Prüfmarke Kontur. Neue Größen und Ausführungen trägst du dort ein.';
+        $skus = static function (array $payload, string $prefix): array {
+            $payload['configs'][0]['sku'] = $prefix.'-1';
+            $payload['configs'][1]['sku'] = $prefix.'-2';
+
+            return $payload;
+        };
+
+        // The brand typed again, or chosen from the list; the name and the designation in other letter cases.
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', $skus(newFelgePayload(['brand_new' => 'prüfmarke']), 'PM-ZWEI'))
+            ->assertSessionHasErrors(['type_designation' => $twin]);
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', $skus(newFelgePayload(['brand_id' => Brand::query()->where('name', 'Prüfmarke')->value('id'), 'brand_new' => null, 'name' => 'KONTUR', 'type_designation' => 'kt85']), 'PM-DREI'))
+            ->assertSessionHasErrors(['type_designation' => $twin]);
+        expect(WheelModel::query()->count())->toBe(1);
+
+        // Another Radtypenbezeichnung is another Felge — and it cannot be changed into the first one's twin.
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', $skus(newFelgePayload(['type_designation' => 'KT90']), 'PM-VIER'))->assertSessionHasNoErrors();
+        $other = WheelModel::query()->where('type_designation', 'KT90')->firstOrFail();
+
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$other->id, [...felgePayload($other), 'type_designation' => 'KT85'])
+            ->assertSessionHasErrors(['type_designation' => $twin]);
+        $this->actingAs(felgenAdmin(), 'admin')->put('/admin/felgen/'.$other->id, felgePayload($other))->assertSessionHasNoErrors();
+        expect(WheelModel::query()->count())->toBe(2)->and($other->refresh()->type_designation)->toBe('KT90');
     });
 
     it('is refused on the server to a role that may only look (R-11)', function (): void {
@@ -503,6 +531,23 @@ describe('several photographs of one colour (COMPLIANCE row 23)', function (): v
         expect($finish->refresh()->image_manifest['alt'])->toBe('Testmodell, Ansicht von der Seite');
     });
 
+    it('refuses a move from a page in an older order, and keeps the move made meanwhile (the admin audit\'s F-25)', function (): void {
+        Storage::fake('media_products');
+        $wheel = felgeWith();
+        $finish = $wheel->finishes()->firstOrFail();
+        [$front, $side, $back] = photographed($wheel, $finish, ['Testmodell, Ansicht von vorn', 'Testmodell, Ansicht von der Seite', 'Testmodell, Ansicht von hinten']);
+        $stale = $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen/'.$wheel->id)->viewData('page')['props']['finishes'][0]['photoOrderStamp'] ?? null;
+        expect($stale)->toBeString()->not->toBe('');
+        $url = "/admin/felgen/{$wheel->id}/ausfuehrungen/{$finish->id}/fotos/reihenfolge";
+
+        // Tab A puts the side view first; tab B, still on the older order, swaps the last two.
+        $this->actingAs(felgenAdmin(), 'admin')->from('/admin/felgen/'.$wheel->id)->put($url, ['ids' => [$side, $front, $back]])->assertSessionHasNoErrors();
+        $this->actingAs(felgenAdmin(), 'admin')->from('/admin/felgen/'.$wheel->id)->withHeader(EditStamp::HEADER, $stale)->put($url, ['ids' => [$front, $back, $side]])
+            ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+        expect(WheelFinishImage::query()->where('wheel_finish_id', $finish->id)->orderBy('position')->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all())->toBe([$side, $front, $back]);
+    });
+
     it('describes one anew and takes one off, and with the last one gone the shop draws the outline again', function (): void {
         Storage::fake('media_products');
         $wheel = felgeWith();
@@ -657,4 +702,24 @@ describe('name and availability', function (): void {
         $this->actingAs(felgenAdmin(), 'admin')->get('/admin/felgen/'.$wheel->id)
             ->assertInertia(fn (AssertableInertia $page) => $page->where('configs.0.available', false)->missing('configs.0.stock'));
     });
+});
+
+it('refuses a Felge saved from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $wheel = felgeWith();
+    $url = '/admin/felgen/'.$wheel->id;
+    $stale = test()->actingAs(felgenAdmin(), 'admin')->get($url)->viewData('page')['props']['stamp'];
+    $staleForm = felgePayload($wheel);
+
+    // Another tab changes the price of the size — the model row itself does not change.
+    $other = felgePayload($wheel);
+    $other['configs'][0]['price'] = '412,00';
+    test()->actingAs(felgenAdmin(), 'admin')->from($url)->put($url, $other)->assertSessionHasNoErrors();
+
+    // This tab still holds 189,00 beside its own change.
+    $staleForm['description'] = 'Fünf Doppelspeichen, frisch beschrieben.';
+    test()->actingAs(felgenAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)->put($url, $staleForm)
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($wheel->configs()->value('price_cents'))->toBe(41_200)
+        ->and($wheel->refresh()->description_de)->toBe('Eine Felge.');
 });

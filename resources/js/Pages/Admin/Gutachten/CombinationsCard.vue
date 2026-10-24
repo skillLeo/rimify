@@ -12,6 +12,7 @@ import { useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import type { CombinationsView } from '../../../types/admin/gutachten'
 
 const props = defineProps<{
@@ -19,6 +20,8 @@ const props = defineProps<{
     combinations: CombinationsView
     editable: boolean
     pageCount: number | null
+    /** The list as this card was opened on (EditStamp): a save against an older one is refused. */
+    stamp?: string
 }>()
 
 const BAG = 'kombinationen'
@@ -74,6 +77,7 @@ function save(): void {
     form.put(`/admin/gutachten/${props.documentId}/bereifungskombinationen`, {
         preserveScroll: true,
         errorBag: BAG,
+        headers: stampHeaders(props.stamp),
         onSuccess: () => {
             editing.value = false
             focus.request('kb-edit')
@@ -134,6 +138,8 @@ function fieldError(i: number, field: 'number' | 'front' | 'rear'): string {
         </template>
 
         <form v-else class="kb-form" novalidate aria-labelledby="kb-form-h" @submit.prevent="save">
+            <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and the pairs typed stay. -->
+            <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
             <p id="kb-form-h" class="form-field__label">Bereifungskombinationen aus dem Gutachten</p>
             <p class="form-field__help">Je Kombination die Nummer und die beiden Größen, so wie das Gutachten sie druckt, etwa 225/40 R18. Lastindex und Geschwindigkeitssymbol lässt du weg.</p>
 

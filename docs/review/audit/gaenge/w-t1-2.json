@@ -1,0 +1,5 @@
+{ "name": "t1-2-marken", "start": "/admin/felgen/neu", "steps": [
+  { "eval": "Array.from(document.querySelectorAll('#fe-brand option')).slice(0, 8).map(o => o.value + '=' + o.textContent.trim()).concat(['… ' + document.querySelectorAll('#fe-brand option').length + ' options'])" },
+  { "eval": "Array.from(document.querySelectorAll('#fe-f-0-art option')).map(o => o.value + '=' + o.textContent.trim())" },
+  { "eval": "Array.from(document.querySelectorAll('#fe-spokes option')).map(o => o.textContent.trim()).join(',')" }
+] }

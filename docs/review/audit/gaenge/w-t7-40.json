@@ -1,0 +1,10 @@
+{ "name": "t7-40-email-sperre", "start": "/admin/einstellungen/e-mail", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main section')).filter(s => /Unzustellbare/.test(s.textContent)).map(s => s.innerText.slice(0, 700))" },
+  { "eval": "Array.from(document.querySelectorAll('main section button')).map(b => (b.getAttribute('aria-label') || b.textContent).trim()).filter(t => /frei|Sperre|aufheben|entsperr/i.test(t))" },
+  { "click": "main >> role=button[name=/freigeben|aufheben|entsperren/i] >> nth=0" },
+  { "wait": 600 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText ?? null" },
+  { "click": "[role=dialog] >> role=button[name=/freigeben|aufheben|entsperren/i]" },
+  { "wait": 1800 },
+  { "eval": "Array.from(document.querySelectorAll('main section')).filter(s => /Unzustellbare/.test(s.textContent)).map(s => s.innerText.slice(0, 500))" }
+] }

@@ -377,6 +377,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/fahrzeuge/pruefung', [FahrzeugeController::class, 'review'])->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.pruefung');
         Route::get('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'show'])->whereNumber('vehicle')->middleware(EnsureAdminMay::class.':vehicles,view')->name('fahrzeuge.show');
         Route::put('/fahrzeuge/{vehicle}', [FahrzeugeController::class, 'update'])->whereNumber('vehicle')->name('fahrzeuge.update');
+        // „Angaben korrigieren“ (the admin audit's F-17): a car typed by hand, while nothing refers to it (VehicleCorrection).
+        Route::put('/fahrzeuge/{vehicle}/angaben', [FahrzeugeController::class, 'correct'])->whereNumber('vehicle')->middleware('throttle:30,1,fahrzeuge-korrigieren')->name('fahrzeuge.korrigieren');
         // Fahrzeuge › Neues Fahrzeug (his admin items 1 and 3, D-296): a car typed from its papers, checked by hand.
         Route::get('/fahrzeuge/neu', [FahrzeugeController::class, 'create'])->middleware(EnsureAdminMay::class.':vehicles,create')->name('fahrzeuge.create');
         Route::post('/fahrzeuge', [FahrzeugeController::class, 'store'])->middleware('throttle:30,1,fahrzeuge-anlegen')->name('fahrzeuge.store');
@@ -721,6 +723,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/seiten/{page}/entwurf', [SeitenController::class, 'discardDraft'])->whereNumber('page')->name('seiten.entwurf.verwerfen');
         Route::post('/seiten/{page}/veroeffentlichen', [SeitenController::class, 'publish'])->whereNumber('page')->name('seiten.veroeffentlichen');
         Route::post('/seiten/{page}/zurueckziehen', [SeitenController::class, 'withdraw'])->whereNumber('page')->name('seiten.zurueckziehen');
+        // A legal text's placeholder flag, and the Muster-Widerrufsformular's beside the Widerrufsbelehrung (D-319).
+        Route::post('/seiten/{page}/platzhalter', [SeitenController::class, 'placeholder'])->whereNumber('page')->name('seiten.platzhalter');
         Route::post('/seiten/{page}/versionen/{revision}', [SeitenController::class, 'restore'])
             ->whereNumber(['page', 'revision'])
             ->name('seiten.wiederherstellen');

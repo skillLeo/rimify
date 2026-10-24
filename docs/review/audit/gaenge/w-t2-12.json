@@ -1,0 +1,9 @@
+{ "name": "t2-12-tabelle-form", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "summary:has-text(\"Tragfähigkeit bei hoher Geschwindigkeit\")" },
+  { "wait": 400 },
+  { "click": "#dt-edit" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[id^=dt-]')).map(e => e.id).slice(0, 40)" },
+  { "text": "section[aria-labelledby=\"gs-derating-h\"]", "max": 1200 },
+  { "shot": "t2-12-tabelle-form" }
+] }

@@ -1,0 +1,6 @@
+{ "name": "t2-15-tabelle-gespeichert", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "#dt-edit" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[id^=dt-speed-]')).filter(e => !e.id.endsWith('-err')).map(e => e.id + '=' + e.value)" },
+  { "fill": "#dt-page", "value": "5" }
+] }

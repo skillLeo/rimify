@@ -8,6 +8,7 @@ use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\GuideStoreRequest;
+use App\Http\Requests\Admin\LegalPlaceholderRequest;
 use App\Http\Requests\Admin\PageContentRequest;
 use App\Http\Requests\Admin\PageImageRequest;
 use App\Http\Requests\Admin\PagePublishRequest;
@@ -15,8 +16,10 @@ use App\Models\AdminUser;
 use App\Models\NavItem;
 use App\Models\Page;
 use App\Models\PageRevision;
+use App\Models\Setting;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
+use App\Services\Content\LegalTexts;
 use App\Services\Content\NavigationSchema;
 use App\Services\Content\PageChangedMeanwhile;
 use App\Services\Content\PageContent;
@@ -28,6 +31,7 @@ use App\Support\GermanFormat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -55,11 +59,15 @@ class SeitenController extends Controller
 
     public const WITHDRAWN = 'Zurückgezogen. Der Artikel ist nicht mehr im Shop zu sehen.';
 
+    public const PLACEHOLDER_OFF = 'Platzhalter ausgeschaltet. Besucher sehen jetzt den Text statt des Hinweises.';
+
+    public const PLACEHOLDER_ON = 'Platzhalter eingeschaltet. Besucher sehen statt des Textes nur noch den Hinweis, dass der Text der Kanzlei folgt.';
+
     public const RESTORED = 'Die Version ist jetzt dein Entwurf. Live geht sie erst, wenn du sie veröffentlichst.';
 
     public const CREATED = 'Artikel angelegt. Er ist noch nicht veröffentlicht.';
 
-    public const NOT_WITHDRAWABLE = 'Zurückziehen geht nur bei einem veröffentlichten Ratgeber-Artikel.';
+    public const NOT_WITHDRAWABLE = 'Zurückziehen geht nur bei einem veröffentlichten Blog-Artikel.';
 
     public const UNCHANGED = 'Der Shop zeigt schon genau diesen Stand. Es ist keine neue Version entstanden.';
 
@@ -68,7 +76,7 @@ class SeitenController extends Controller
 
     private const GROUPS = [
         Page::KIND_MARKETING => 'Startseite',
-        Page::KIND_GUIDE => 'Ratgeber',
+        Page::KIND_GUIDE => 'Blog',
         Page::KIND_LEGAL => 'Rechtliches',
     ];
 
@@ -126,7 +134,8 @@ class SeitenController extends Controller
                     'by' => self::who($page->draft_author_email, $names),
                 ],
                 'lawyerReviewed' => $page->kind === Page::KIND_LEGAL ? $page->lawyer_reviewed : null,
-                'placeholder' => self::hasPlaceholder($page),
+                // A legal text whose flag is on: visitors read the notice only (D-319).
+                'placeholder' => $page->kind === Page::KIND_LEGAL && $page->is_placeholder,
             ];
         }
 
@@ -150,14 +159,10 @@ class SeitenController extends Controller
         $admin = self::admin($request);
 
         $revisions = [];
-        $history = $page->revisions()->limit(20)->get();
-
-        // The wording the admin first replaced stays reachable however many versions follow it.
-        $first = $page->revisions()->reorder()->orderBy('id')->first();
-
-        if ($first !== null && ! $history->contains('id', $first->id)) {
-            $history->push($first);
-        }
+        // Every published state, newest first, the wording the admin first replaced last. The list stopped at the latest
+        // 20 and the first, and the ones between could not be loaded back (the admin audit's sweep after F-26). Only what
+        // the list shows is read — never a version's content.
+        $history = $page->revisions()->get(['id', 'page_id', 'created_at', 'author_email', 'note']);
 
         $names = self::names([...$history->pluck('author_email')->filter()->all(), $page->draft_author_email]);
 
@@ -187,7 +192,13 @@ class SeitenController extends Controller
                 'published' => $page->isPublished(),
                 'publishedAt' => GermanFormat::dateTime($page->published_at),
                 'lawyerReviewed' => $page->kind === Page::KIND_LEGAL ? $page->lawyer_reviewed : null,
-                'placeholder' => self::hasPlaceholder($page),
+                // The flag visitors read by (D-319), whether the live words are still the seeder's marker — the flag stays
+                // on over them —, and on the Widerrufsbelehrung the Muster-Widerrufsformular's own flag.
+                'placeholder' => $page->kind === Page::KIND_LEGAL && $page->is_placeholder,
+                'markerLeft' => self::hasPlaceholder($page),
+                'formPlaceholder' => $page->kind === Page::KIND_LEGAL && $page->slug === 'widerrufsbelehrung'
+                    ? Setting::get(LegalTexts::FORM_SETTING) !== false
+                    : null,
             ],
             'schema' => $schema,
             'content' => $content,
@@ -286,6 +297,44 @@ class SeitenController extends Controller
                 PageSchema::normalise($schema, $revision->snapshot, $raw),
             ),
         ]);
+    }
+
+    /**
+     * A legal text's placeholder flag, or the Muster-Widerrufsformular's (D-319). On, visitors read one notice and the
+     * shop stays out of search and live payments (LegalReadiness); off — only over words that are not the marker
+     * (LegalPlaceholderRequest) — they read the published text. One Protokoll entry, the old state and the new.
+     */
+    public function placeholder(LegalPlaceholderRequest $request): RedirectResponse
+    {
+        $page = $request->page();
+        $part = $request->part();
+        $on = $request->placeholder();
+        $admin = $request->admin();
+
+        DB::transaction(static function () use ($page, $part, $on, $admin): void {
+            if ($part === LegalPlaceholderRequest::FORM) {
+                $was = Setting::get(LegalTexts::FORM_SETTING) !== false;
+                Setting::set(LegalTexts::FORM_SETTING, $on);
+                $name = LegalTexts::TEXTS[LegalTexts::FORM];
+            } else {
+                $locked = Page::query()->lockForUpdate()->findOrFail($page->id);
+                $was = $locked->is_placeholder;
+                $locked->forceFill(['is_placeholder' => $on]);
+                // The team's from now on: a release's seeder leaves the page and its flag alone (ContentSeeder).
+                $locked->markTeamEdited();
+                $locked->save();
+                $name = $locked->title;
+            }
+
+            AuditTrail::record($admin, 'page.placeholder_switched', [
+                'page' => $name,
+                'slug' => $page->slug,
+                'part' => $part,
+                'placeholder' => ['old' => $was, 'new' => $on],
+            ], $page);
+        });
+
+        return back()->with('toast', $on ? self::PLACEHOLDER_ON : self::PLACEHOLDER_OFF);
     }
 
     public function withdraw(Request $request, Page $page): RedirectResponse
@@ -394,7 +443,7 @@ class SeitenController extends Controller
         ]);
     }
 
-    /** Whether a legal page still shows the seeded „[Rechtstext folgt …]". */
+    /** Whether a legal page's live words are still the seeded „[Rechtstext folgt …]" — the placeholder flag cannot go off over them. */
     private static function hasPlaceholder(Page $page): bool
     {
         foreach ($page->blocks as $block) {

@@ -12,10 +12,12 @@ use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Services\Admin\Approvals\FitmentRows;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Gutachten › one document › its Verwendungsbereich: rows added for every vehicle × size chosen,
@@ -47,7 +49,12 @@ class GutachtenZeilenController extends Controller
 
     public function update(FitmentRowsRequest $request, ApprovalDocument $document, Fitment $fitment, FitmentRows $rows): RedirectResponse
     {
-        $rows->update($fitment, $request->spec(), $request->admin());
+        DB::transaction(static function () use ($request, $fitment, $rows): void {
+            // The row as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $locked = Fitment::query()->with(['tyreSizes.conditionCodes', 'conditionCodes'])->lockForUpdate()->findOrFail($fitment->id);
+            EditStamp::guard($request, FitmentRows::state($locked));
+            $rows->update($locked, $request->spec(), $request->admin());
+        });
 
         return back()->with('toast', 'Zeile gespeichert.');
     }

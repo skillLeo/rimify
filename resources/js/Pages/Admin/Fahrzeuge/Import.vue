@@ -190,6 +190,8 @@ const optional = props.fields.filter((field) => !field.required)
                     </tbody>
                 </table>
             </div>
+            <!-- The latest 20 runs, as Katalog › Import says of its own (the admin audit's sweep after F-26). -->
+            <p v-if="total > imports.length" class="adm-note fi-more">Hier stehen die letzten {{ decimal(imports.length, 0) }} von {{ decimal(total, 0) }} Läufen.</p>
         </section>
     </AdminPage>
 </template>

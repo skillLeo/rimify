@@ -97,6 +97,29 @@ enum ConditionKind: string
         };
     }
 
+    /**
+     * What the kind does, said beside the choice (the admin audit's F-07): „Verbot“ entered for „nicht zulässig für den
+     * Kombi“ told that car's owner the wheel was approved with Auflagen — a forbidden use excludes no car. Only what the
+     * code does with the kind, nothing about any document.
+     */
+    public function helpDe(): string
+    {
+        return match ($this) {
+            self::Abnahme => 'Nach der Montage muss das Fahrzeug einem Prüfer vorgeführt werden. Der Shop sagt dazu „Eintragung erforderlich“.',
+            self::Karosseriearbeit => 'Vor der Montage sind Arbeiten am Fahrzeug nötig, etwa das Bördeln der Radläufe. Der Shop nennt sie unter „Arbeiten am Fahrzeug“.',
+            self::Karosserieform => 'Die Zeilen mit diesem Code gelten nur für die angekreuzten Karosserieformen. Ein Fahrzeug mit einer anderen bekommt daraus keine Freigabe.',
+            self::Antrieb => 'Die Zeilen mit diesem Code gelten nur mit oder nur ohne diesen Antrieb. Ein anderes Fahrzeug bekommt daraus keine Freigabe.',
+            self::Befestigung => 'Welche Schrauben oder Muttern, mit welchem Anzugsmoment. Der Shop nennt es unter „Befestigung“.',
+            self::ReifenTragfaehigkeit => 'Eine Grenze für den Lastindex der Reifen, abhängig von der zulässigen Achslast. Der Shop vergleicht sie mit den Achslasten aus Feld 8.1 und 8.2.',
+            self::ReifenAchse => 'Diese Reifengröße nur auf einer Achse. Der Shop bietet sie nur dort an.',
+            self::ReifenKombination => 'Welche Größen vorn und hinten zusammen gefahren werden dürfen.',
+            self::Tacho => 'Der Tachometer muss geprüft oder angeglichen werden. Der Shop nennt es unter „Hinweise“.',
+            self::Verbot => 'Etwas ist mit dieser Felge verboten, etwa Schneeketten. Der Shop nennt es unter „Hinweise“; es schließt kein Fahrzeug aus. Für ein Fahrzeug, das keine Freigabe bekommen soll, legst du keine Zeile an; schränkt der Code die Freigabe auf bestimmte Karosserieformen oder Antriebe ein, wähl die Art „Nur für bestimmte Karosserieformen“ oder „Nur mit / ohne bestimmten Antrieb“.',
+            self::Hinweis => 'Eine Angabe, die am Kauf nichts ändert. Der Shop nennt sie unter „Hinweise“.',
+            self::Nacharbeitsprofil => 'Nacharbeit am Radlauf mit Maßen in Millimetern, je Fahrzeugtyp und Achse.',
+        };
+    }
+
     /** The kind as the admin chooses it. */
     public function labelDe(): string
     {

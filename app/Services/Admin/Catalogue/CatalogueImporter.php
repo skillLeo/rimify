@@ -632,7 +632,24 @@ final class CatalogueImporter
             $errors[] = 'Die SKU darf nur Buchstaben, Ziffern und . _ - / enthalten und höchstens 64 Zeichen lang sein.';
         }
 
-        $measure = static function (string $field, int $places, int $min, int $max, string $sentence) use ($text, $point, &$errors): ?string {
+        // An empty cell of a required column is missing, not unreadable (D-318; the admin audit's F-23): „Die
+        // Einpresstiefe können wir nicht lesen“ stood beside an ET cell with nothing in it. A column without a mapping never
+        // gets here — the Probelauf asks for it first.
+        $missing = static function (string $field, string $sentence) use ($text, &$errors): bool {
+            if ($text($field) !== '') {
+                return false;
+            }
+
+            $errors[] = $sentence;
+
+            return true;
+        };
+
+        $measure = static function (string $field, int $places, int $min, int $max, string $sentence, string $absent) use ($text, $point, $missing, &$errors): ?string {
+            if ($missing($field, $absent)) {
+                return null;
+            }
+
             $value = GermanNumber::parse($text($field), $places, false, $point);
 
             if ($value === null || (float) $value < $min || (float) $value > $max) {
@@ -644,11 +661,11 @@ final class CatalogueImporter
             return $value;
         };
 
-        $diameter = $measure('durchmesser', 1, 12, 26, 'Den Durchmesser können wir nicht lesen (Zoll, zwischen 12 und 26).');
-        $width = $measure('breite', 2, 4, 14, 'Die Breite können wir nicht lesen (Zoll, zwischen 4 und 14).');
-        $et = GermanNumber::integer($text('et'), true);
+        $diameter = $measure('durchmesser', 1, 12, 26, 'Den Durchmesser können wir nicht lesen (Zoll, zwischen 12 und 26).', 'Der Durchmesser fehlt.');
+        $width = $measure('breite', 2, 4, 14, 'Die Breite können wir nicht lesen (Zoll, zwischen 4 und 14).', 'Die Breite fehlt.');
+        $et = $missing('et', 'Die Einpresstiefe fehlt.') ? null : GermanNumber::integer($text('et'), true);
 
-        if ($et === null || $et < -99 || $et > 99) {
+        if ($text('et') !== '' && ($et === null || $et < -99 || $et > 99)) {
             $errors[] = 'Die Einpresstiefe können wir nicht lesen (ganze Millimeter, zwischen −99 und 99).';
             $et = null;
         }
@@ -669,25 +686,26 @@ final class CatalogueImporter
             $holes = null;
         }
 
-        $circle = GermanNumber::parse($pattern, 1, false, $point);
+        $circle = $missing('lochkreis', 'Der Lochkreis fehlt.') ? null : GermanNumber::parse($pattern, 1, false, $point);
 
-        if ($circle === null || (float) $circle < 90 || (float) $circle > 210) {
+        if ($text('lochkreis') !== '' && ($circle === null || (float) $circle < 90 || (float) $circle > 210)) {
             $errors[] = 'Den Lochkreis können wir nicht lesen (Millimeter, zwischen 90 und 210).';
             $circle = null;
         }
 
-        $bore = $measure('mittenloch', 2, 50, 90, 'Die Mittenlochbohrung können wir nicht lesen (Millimeter, zwischen 50 und 90).');
+        $bore = $measure('mittenloch', 2, 50, 90, 'Die Mittenlochbohrung können wir nicht lesen (Millimeter, zwischen 50 und 90).', 'Die Mittenlochbohrung fehlt.');
 
         $priceText = $text('preis');
+        $priceMissing = $missing('preis', 'Der Preis fehlt.');
 
         if ($point) {
             $priceText = str_replace(',', '', $priceText);
             $priceText = str_replace('.', ',', $priceText);
         }
 
-        $price = Money::fromGerman($priceText);
+        $price = $priceMissing ? null : Money::fromGerman($priceText);
 
-        if ($price === null || $price <= 0) {
+        if (! $priceMissing && ($price === null || $price <= 0)) {
             $errors[] = 'Den Preis können wir nicht lesen.';
         }
 

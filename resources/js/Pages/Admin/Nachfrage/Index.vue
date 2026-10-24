@@ -14,6 +14,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import ListPager from '../../../Components/Admin/Lists/ListPager.vue'
 import PeriodSwitcher from '../../../Components/Admin/Dashboard/PeriodSwitcher.vue'
 import StateChip from '../../../Components/Admin/Dashboard/StateChip.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
@@ -86,8 +87,24 @@ function shownPeriod(): Record<string, string> {
 
 function show(stand: DemandState): void {
     if (stand !== props.state) {
-        router.get('/admin/nachfrage', { ...shownPeriod(), stand }, { preserveScroll: true, preserveState: true })
+        router.get('/admin/nachfrage', { ...shownPeriod(), stand, ...searched() }, { preserveScroll: true, preserveState: true })
     }
+}
+
+/* A car or key numbers, searched on the server over every gap (the admin audit's F-31); the Stand and the Zeitraum stay. */
+const q = ref(props.search ?? '')
+
+function searched(): Record<string, string> {
+    return q.value.trim() === '' ? {} : { q: q.value.trim() }
+}
+
+function runSearch(): void {
+    router.get('/admin/nachfrage', { ...shownPeriod(), ...(props.state === 'offen' ? {} : { stand: props.state }), ...searched() }, { preserveScroll: true, preserveState: true })
+}
+
+function resetSearch(): void {
+    q.value = ''
+    runSearch()
 }
 
 /*
@@ -168,7 +185,7 @@ function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
 <template>
     <AdminPage title="Nachfrage-Lücken" dashboard :context="summary">
         <template #primary>
-            <PeriodSwitcher :period="period" :export-url="null" base="/admin/nachfrage" :comparable="false" :keep="{ stand: state }" />
+            <PeriodSwitcher :period="period" :export-url="null" base="/admin/nachfrage" :comparable="false" :keep="{ stand: state, ...((search ?? '') === '' ? {} : { q: search ?? '' }) }" />
         </template>
 
         <div class="nf">
@@ -186,6 +203,17 @@ function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
                     </button>
                 </div>
             </div>
+
+            <form class="nf__search" role="search" @submit.prevent="runSearch">
+                <div class="form-field">
+                    <label class="form-field__label" for="nf-q">Suchen</label>
+                    <input id="nf-q" v-model="q" class="input" type="search" maxlength="100" autocomplete="off" placeholder="Fahrzeug oder HSN/TSN">
+                </div>
+                <button class="btn btn--secondary" type="submit">Suchen</button>
+            </form>
+            <p v-if="(search ?? '') !== '' && pagination.total > 0" class="adm-note nf__found">
+                {{ pagination.total === 1 ? '1 Lücke gefunden.' : `${decimal(pagination.total, 0)} Lücken gefunden.` }}
+            </p>
 
             <p class="nf__how">
                 <Icon name="info" :size="16" />
@@ -217,7 +245,7 @@ function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
                         >
                             <td data-label="Fahrzeug">
                                 <span class="nf__vehicle">
-                                    <span class="nf__rank" aria-hidden="true">{{ i + 1 }}</span>
+                                    <span class="nf__rank" aria-hidden="true">{{ gap.rank ?? i + 1 }}</span>
                                     <span>
                                         <span class="adm-table__key">{{ gap.title }}</span>
                                         <span class="adm-table__sub">{{ gap.detail }}</span>
@@ -286,7 +314,10 @@ function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
                 </table>
             </div>
 
+            <AdminState v-else-if="(search ?? '') !== ''" kind="filtered" :total="demand.counts[state]" @reset="resetSearch" />
             <AdminState v-else kind="empty" :text="EMPTY[state]" />
+
+            <ListPager :pagination="pagination" label="Seiten der Lücken" />
 
             <section class="nf__searches" aria-labelledby="nf-searches">
                 <div class="adm-section__head">
@@ -433,6 +464,22 @@ function chip(gap: DemandGap): { label: string; tone: 'neutral' } {
 
 .nf__searches {
     margin-top: var(--sp-16);
+}
+
+.nf__search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--sp-12);
+}
+
+.nf__search .form-field {
+    flex: 1 1 280px;
+    max-width: 480px;
+}
+
+.nf__found {
+    margin: 0;
 }
 
 .nf__note {

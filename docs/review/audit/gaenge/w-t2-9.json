@@ -1,0 +1,14 @@
+{ "name": "t2-9-verbot", "start": "/admin/gutachten/1060", "steps": [
+  { "fill": "#rc-vehicle-q", "value": "Kombi 1.5" },
+  { "wait": 1500 },
+  { "check": "section[aria-labelledby=\"rc-h-vehicles\"] .rc-hits li:has-text(\"Kombi 1.5\") input[type=\"checkbox\"]" },
+  { "fill": "#rc-wheel-q", "value": "Prüfrad" },
+  { "wait": 1500 },
+  { "check": ".rc-group:has-text(\"Prüfrad\") .rc-hit--model input" },
+  { "fill": "#rc-page", "value": "3" },
+  { "fill": "#rc-size-0", "value": "225/40 R18" },
+  { "fill": "#rc-codes", "value": "N1" },
+  { "click": ".rc-foot .btn--primary" },
+  { "wait": 2500 },
+  { "eval": "document.querySelector('h1')?.nextElementSibling?.textContent?.trim()" }
+] }

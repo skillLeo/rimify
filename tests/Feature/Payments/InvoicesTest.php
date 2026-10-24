@@ -8,8 +8,10 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Refund;
+use App\Models\Setting;
 use App\Services\Commerce\Invoices;
 use App\Services\Commerce\InvoiceSeries;
+use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
 use App\Support\Money;
 use App\Support\Seller;
@@ -217,6 +219,9 @@ it('serves the PDF by its signed link only, and refuses one whose bytes were cha
 });
 
 it('prints the model withdrawal form word for word, addressed with the seller’s own data', function (): void {
+    // Once its placeholder flag is off (D-319); until then the page holds the notice alone (ImpressumTest).
+    Setting::set(LegalTexts::FORM_SETTING, false);
+
     $this->get('/rechtliches/widerrufsformular')->assertOk()
         ->assertInertia(fn ($page) => $page->component('Rechtliches/Widerrufsformular')
             ->where('addressee', 'An Beispiel Handels GmbH, Musterweg 1, 50667 Köln, E-Mail rechnung@beispiel.test:')

@@ -149,7 +149,7 @@ final class WorkLists
                     'key' => 'anfrage-'.$row->vehicle_id,
                     'type' => 'Anfrage',
                     'title' => VehicleName::from($row),
-                    'detail' => $count === 1 ? '1 Person wartet auf ein Gutachten' : "{$count} Personen warten auf ein Gutachten",
+                    'detail' => $count === 1 ? '1 Person wartet auf ein Gutachten' : GermanFormat::integer($count).' Personen warten auf ein Gutachten',
                     'ago' => GermanFormat::ago($since),
                     'iso' => $since->toIso8601String(),
                     'href' => '/admin/anfragen',
@@ -165,7 +165,7 @@ final class WorkLists
                 $items[] = [
                     'key' => 'jobs',
                     'type' => 'System',
-                    'title' => $failed === 1 ? '1 Hintergrundaufgabe fehlgeschlagen' : "{$failed} Hintergrundaufgaben fehlgeschlagen",
+                    'title' => $failed === 1 ? '1 Hintergrundaufgabe fehlgeschlagen' : GermanFormat::integer($failed).' Hintergrundaufgaben fehlgeschlagen',
                     'detail' => 'Im Systemzustand steht, welche.',
                     'ago' => GermanFormat::ago($since),
                     'iso' => $since->toIso8601String(),
@@ -194,7 +194,7 @@ final class WorkLists
             if ($open > 0) {
                 $sentences[] = [
                     'key' => 'versand',
-                    'sentence' => $open === 1 ? 'Eine bezahlte Bestellung wartet auf den Versand.' : "{$open} bezahlte Bestellungen warten auf den Versand.",
+                    'sentence' => $open === 1 ? 'Eine bezahlte Bestellung wartet auf den Versand.' : GermanFormat::integer($open).' bezahlte Bestellungen warten auf den Versand.',
                     'action' => 'Bestellungen öffnen',
                     'href' => '/admin/bestellungen?'.http_build_query(['status' => OrderList::OPEN, 'sort' => 'datum', 'richtung' => 'auf']),
                 ];
@@ -207,9 +207,10 @@ final class WorkLists
             if ($drafts > 0) {
                 $sentences[] = [
                     'key' => 'gutachten',
-                    'sentence' => $drafts === 1 ? 'Ein Gutachten wartet auf Prüfung.' : "{$drafts} Gutachten warten auf Prüfung.",
+                    'sentence' => $drafts === 1 ? 'Ein Gutachten wartet auf Prüfung.' : GermanFormat::integer($drafts).' Gutachten warten auf Prüfung.',
                     'action' => 'Gutachten öffnen',
-                    'href' => '/admin/gutachten',
+                    // The drafts the sentence counts, not every document (the list filters on the server since F-31).
+                    'href' => '/admin/gutachten?status=draft',
                 ];
             }
 

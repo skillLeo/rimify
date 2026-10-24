@@ -1,0 +1,12 @@
+{ "name": "v-telefon-mehr", "start": "/admin", "full": false, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('nav button, nav a')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(t => t.length > 0 && t.length < 30).slice(-8)" },
+  { "click": "role=button[name=/^Mehr/]" },
+  { "wait": 700 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog]')).map(d => d.textContent.replace(/\\s+/g, ' ').trim().slice(0, 400))" },
+  { "click": "[role=dialog] >> role=button[name=/Demodaten entfernen/]", "timeout": 4000 },
+  { "wait": 700 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog], [role=alertdialog]')).map(d => d.textContent.replace(/\\s+/g, ' ').trim().slice(0, 400))" },
+  { "click": "role=button[name=\"Abbrechen\"]" },
+  { "wait": 500 },
+  { "eval": "[document.querySelectorAll('[role=alertdialog]').length, document.documentElement.scrollWidth - document.documentElement.clientWidth]" }
+] }

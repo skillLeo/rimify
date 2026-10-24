@@ -1,0 +1,9 @@
+{ "name": "shop-5-ratgeber", "guest": true, "start": "/ratgeber", "full": true, "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "click": "a:has-text(\"Felgen richtig einlagern\")" },
+  { "wait": 2500 },
+  { "eval": "location.pathname" },
+  { "eval": "Array.from(document.querySelectorAll('main img')).map(i => i.getAttribute('src') + ' | alt=' + i.alt + ' | ' + i.naturalWidth + 'x' + i.naturalHeight)" },
+  { "text": "main table", "max": 400 },
+  { "text": "main figure figcaption, main table caption", "max": 400 }
+] }

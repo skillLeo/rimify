@@ -155,6 +155,25 @@ describe('Benachrichtigungen', () => {
         expect((email?.element as HTMLInputElement).checked).toBe(false)
     })
 
+    it('sends the switches it was loaded with, and says in its own words when another tab flipped one meanwhile (the admin audit’s F-25)', async () => {
+        const wrapper = mount(Page, { props: props({ kindsStamp: 'stand-1' }) })
+        const email = wrapper.findAll('.bn-prefs__table input[type="checkbox"]')[1]
+
+        await email?.setValue(true)
+        const options = put.mock.calls.at(-1)?.[2] as { headers: Record<string, string>; onError: (bag: Record<string, string>) => void; onFinish: () => void }
+        expect(options.headers).toEqual({ 'X-Rimify-Stand': 'stand-1' })
+
+        options.onError({ _stamp: 'Das wurde inzwischen in einem anderen Tab oder von jemand anderem geändert …' })
+        options.onFinish()
+        await nextTick()
+
+        // Nothing typed stays here: the switch shows what is stored, and the sentence says so.
+        expect((email?.element as HTMLInputElement).checked).toBe(false)
+        expect(wrapper.find('.bn-prefs [role="alert"]').text()).toBe(
+            'In einem anderen Tab oder auf einem anderen Gerät wurde inzwischen etwas umgestellt, deshalb ist deine Änderung hier nicht gespeichert. Die Schalter zeigen jetzt, was gespeichert ist. Steht einer nicht so, wie du willst, stell ihn noch einmal um.'
+        )
+    })
+
     it('keeps a second flip made while the first is on its way, and sends it next (BELL-15)', async () => {
         const wrapper = mount(Page, { props: props() })
         const boxes = wrapper.findAll('.bn-prefs__table input[type="checkbox"]')

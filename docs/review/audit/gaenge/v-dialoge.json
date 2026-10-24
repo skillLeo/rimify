@@ -1,0 +1,19 @@
+{ "name": "v-dialoge", "start": "/admin", "full": false, "steps": [
+  { "press": "Shift+?" },
+  { "wait": 600 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog]')).map(d => d.getAttribute('aria-label') || d.querySelector('h2, [id$=title]')?.textContent?.trim() || d.textContent.trim().slice(0, 60))" },
+  { "press": "Escape" },
+  { "wait": 400 },
+  { "press": "r" },
+  { "wait": 700 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog]')).map(d => (d.querySelector('h2, [id$=title]')?.textContent?.trim() ?? '') + ' | ' + Array.from(d.querySelectorAll('textarea, select, input')).map(e => e.id || e.name).join(','))" },
+  { "press": "Escape" },
+  { "wait": 400 },
+  { "goto": "/admin/nachfrage" },
+  { "click": "main >> role=button[name=\"Gutachten anfordern\"]" },
+  { "wait": 700 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog]')).map(d => d.textContent.replace(/\\s+/g, ' ').trim().slice(0, 300))" },
+  { "click": "[role=dialog] >> role=button[name=\"Abbrechen\"]" },
+  { "wait": 500 },
+  { "eval": "[document.querySelectorAll('[role=dialog]').length, document.activeElement?.textContent?.trim()?.slice(0, 40)]" }
+] }

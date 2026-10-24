@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Vehicles;
 
+use App\Domain\Fitment\Data\PapersFigures;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\Vehicle;
@@ -84,9 +85,51 @@ final class VehicleImporter
         'antrieb' => ['label' => 'Antrieb', 'required' => false, 'headers' => ['antrieb', 'antriebsart', 'drive']],
         'achslast_vorn_kg' => ['label' => 'Achslast vorn in kg (8.1)', 'required' => false, 'headers' => ['achslastvornkg', 'achslastvorn', 'achslastvorne', '81', 'feld81']],
         'achslast_hinten_kg' => ['label' => 'Achslast hinten in kg (8.2)', 'required' => false, 'headers' => ['achslasthintenkg', 'achslasthinten', '82', 'feld82']],
-        'hoechstgeschwindigkeit_kmh' => ['label' => 'Höchstgeschwindigkeit in km/h (T)', 'required' => false, 'headers' => ['hoechstgeschwindigkeitkmh', 'hoechstgeschwindigkeit', 'vmax', 'feldt', 't']],
+        // `fahrzeug_max_kmh` is his demo data's column for T (his message of 19.10.2026, D-287); docs/launch/FAHRZEUGDATEN.md.
+        'hoechstgeschwindigkeit_kmh' => ['label' => 'Höchstgeschwindigkeit in km/h (T)', 'required' => false, 'headers' => ['hoechstgeschwindigkeitkmh', 'fahrzeugmaxkmh', 'hoechstgeschwindigkeit', 'vmax', 'feldt', 't']],
+        // Read for one check only — 8.1 and 8.2 against the car's own total mass (D-318) — and never stored.
+        'gesamtmasse_kg' => ['label' => 'Zulässige Gesamtmasse in kg (F.2)', 'required' => false, 'hint' => 'Wird nur zum Abgleich mit 8.1 und 8.2 gelesen und nicht gespeichert.', 'headers' => ['gesamtmassekg', 'gesamtmasse', 'zulaessigegesamtmasse', 'zulgesamtmasse', 'gesamtgewicht', 'zulaessigesgesamtgewicht', 'zulgesamtgewicht', 'f2', 'feldf2']],
         'fahrzeug_id' => ['label' => 'Nummer des Fahrzeugs im Datensatz', 'required' => false, 'headers' => ['fahrzeugid', 'datensatzid', 'id']],
     ];
+
+    /**
+     * What the file lacks, counted over every row of it, whatever becomes of the row — the figures a purchase of the
+     * full dataset is decided on (the operator's brief of 20.10.2026, D-317). A value that is missing or does not read
+     * as a number counts as missing: for the shop it is the same. A number outside what the field can be is the third
+     * state, counted apart (implausible(), D-318).
+     */
+    public const GAPS = [
+        'without_speed' => 'Höchstgeschwindigkeit (T)',
+        'without_axle' => 'Achslast vorn oder hinten (8.1 oder 8.2)',
+        'without_keys' => 'HSN oder TSN (2.1 oder 2.2)',
+        'without_eg' => 'EG-Typgenehmigungsnummer (K)',
+    ];
+
+    /**
+     * The fields each gap is read from, by their number in the papers. A field without a column was never read, so its
+     * gap is not counted but named as unmapped: „Keine Spalte zugeordnet“ is not „fehlt im Datensatz“ — the shop says
+     * what it mapped and read, never what his file does or does not contain (R-17, the operator's rule of 20.10.2026).
+     */
+    private const GAP_FIELDS = [
+        'without_speed' => ['hoechstgeschwindigkeit_kmh' => 'T'],
+        'without_axle' => ['achslast_vorn_kg' => '8.1', 'achslast_hinten_kg' => '8.2'],
+        'without_keys' => ['hsn' => '2.1', 'tsn' => '2.2'],
+        'without_eg' => ['eg_nummer' => 'K'],
+    ];
+
+    /**
+     * 8.1 plus 8.2 against the car's total mass (F.2), in per cent (D-318): the axle loads must carry the mass, so a
+     * car's sum lies about 100 to 125 % of it; one axle load mapped to the mass itself gives 150 % and more.
+     */
+    public const SUM_MIN_PERCENT = 95;
+
+    public const SUM_MAX_PERCENT = 140;
+
+    /** The fewest rows with both axle loads before „the same in every row“ means anything: one or two such cars exist. */
+    public const SAME_MIN_ROWS = 3;
+
+    /** The rows shown under a check: enough to see what was read. */
+    private const EXAMPLES = 3;
 
     /** The columns of a car an import writes, and the dataset field each comes from. */
     private const COLUMNS = [
@@ -239,10 +282,16 @@ final class VehicleImporter
         $seen = [];
         $numbers = [];
         $open = [];
+        $gaps = array_fill_keys(array_keys(self::GAPS), 0);
 
         foreach ($rows as $i => $row) {
             $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$row]);
             $line = (string) ($row['_line'] ?? $i + 2);
+            // Missing is blank or no number; a number outside its band is the third state, implausible (implausible()).
+            $gaps['without_speed'] += DatasetVehicle::whole($row['hoechstgeschwindigkeit_kmh'] ?? null) === null ? 1 : 0;
+            $gaps['without_axle'] += DatasetVehicle::whole($row['achslast_vorn_kg'] ?? null) === null || DatasetVehicle::whole($row['achslast_hinten_kg'] ?? null) === null ? 1 : 0;
+            $gaps['without_keys'] += $car->hsn === null || $car->tsn === null ? 1 : 0;
+            $gaps['without_eg'] += $car->egNumber === null ? 1 : 0;
             // Without both key numbers the row has none to show: its reason says what is missing (the page shows „–“).
             $keys = $car->hsn === null || $car->tsn === null ? null : GermanFormat::keyNumbers($car->hsn, $car->tsn);
             $entry = ['line' => $line, 'label' => $car->label(), 'keys' => $keys, 'status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'notes' => self::unread($row, $car), 'reason' => null];
@@ -337,8 +386,65 @@ final class VehicleImporter
         }
 
         $summary['unread'] = count(array_filter($plan, static fn (array $e): bool => $e['notes'] !== []));
+        $summary['rows'] = count($rows);
 
-        return [$plan, $summary];
+        return [$plan, $summary + $gaps];
+    }
+
+    /**
+     * The file's gaps as the Probelauf shows them: each with its count and its share of the file's rows — every row,
+     * refused ones included, or a half-refused file would show flattering shares (the operator's rule of 20.10.2026).
+     * A gap read from a field without a column has no count, only `unmapped`: what was not read is not reported as
+     * missing. A run checked before the gaps were counted has none to show.
+     *
+     * @param  array<string, mixed>  $summary
+     * @param  array<string, string>  $mapping  the run's mapping, field → header
+     * @param  list<string>  $headers  the file's headers
+     * @return list<array{key: string, label: string, count: int|null, share: string|null, unmapped: string|null}>
+     */
+    public static function gaps(array $summary, array $mapping, array $headers): array
+    {
+        $rows = (int) ($summary['rows'] ?? 0);
+
+        if ($rows === 0 || ! array_key_exists('without_speed', $summary)) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach (self::GAPS as $key => $label) {
+            $unmapped = self::unmapped(self::GAP_FIELDS[$key], $mapping, $headers);
+
+            if ($unmapped !== null) {
+                $out[] = ['key' => $key, 'label' => $label, 'count' => null, 'share' => null, 'unmapped' => $unmapped];
+
+                continue;
+            }
+
+            $count = (int) ($summary[$key] ?? 0);
+            $out[] = ['key' => $key, 'label' => $label, 'count' => $count, 'share' => GermanFormat::percent($count / $rows * 100, false), 'unmapped' => null];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Which of a check's fields have no column, as the Probelauf says it — „Keine Spalte zugeordnet“, or the single field
+     * of a pair — or null when every one is mapped: what was not read is never reported as missing (R-17, D-318).
+     *
+     * @param  array<string, string>  $fields  field → its number in the papers
+     * @param  array<string, string>  $mapping
+     * @param  list<string>  $headers
+     */
+    private static function unmapped(array $fields, array $mapping, array $headers): ?string
+    {
+        $unread = array_values(array_filter($fields, static fn (string $field): bool => ! in_array($mapping[$field] ?? null, $headers, true), ARRAY_FILTER_USE_KEY));
+
+        return match (true) {
+            $unread === [] => null,
+            count($unread) === count($fields) => 'Keine Spalte zugeordnet',
+            default => 'Keine Spalte für Feld '.implode(' und Feld ', $unread).' zugeordnet',
+        };
     }
 
     /** What a merge fills, as the row says it: the car by its origin, and that only its empty fields are written. */
@@ -423,7 +529,8 @@ final class VehicleImporter
     }
 
     /**
-     * The figures a row gave and the import could not read — stored as nothing, and said (R-03).
+     * The figures a row gave and the import could not read — stored as nothing, and said (R-03). A number outside what
+     * its field can be is said as what was read and what was expected, never as a fact about the file (D-318).
      *
      * @param  array<string, string>  $row
      * @return list<string>
@@ -440,12 +547,235 @@ final class VehicleImporter
         $notes = [];
 
         foreach ($read as $field => $value) {
-            if (trim((string) ($row[$field] ?? '')) !== '' && $value === null) {
-                $notes[] = self::FIELDS[$field]['label'].' nicht lesbar: „'.mb_substr(trim((string) $row[$field]), 0, 40).'“';
+            if (trim((string) ($row[$field] ?? '')) === '' || $value !== null) {
+                continue;
             }
+
+            $band = self::bands()[$field] ?? null;
+            $number = DatasetVehicle::whole($row[$field]);
+
+            $notes[] = $band !== null && $number !== null
+                ? self::FIELDS[$field]['label'].': Gelesen: '.self::figure($number, $band['unit']).'. '.self::expected($band).'.'
+                : self::FIELDS[$field]['label'].' nicht lesbar: „'.mb_substr(trim((string) $row[$field]), 0, 40).'“';
         }
 
         return $notes;
+    }
+
+    /**
+     * What a figure can physically be, per field — held once, the axle loads in DatasetVehicle, the top speed in
+     * PapersFigures — and named here with its unit and what it is.
+     *
+     * @return array<string, array{min: int, max: int, unit: string, what: string}>
+     */
+    private static function bands(): array
+    {
+        $axle = ['min' => DatasetVehicle::AXLE_MIN_KG, 'max' => DatasetVehicle::AXLE_MAX_KG, 'unit' => 'kg', 'what' => 'eine Achslast'];
+
+        return [
+            'achslast_vorn_kg' => $axle,
+            'achslast_hinten_kg' => $axle,
+            'hoechstgeschwindigkeit_kmh' => ['min' => PapersFigures::SPEED_MIN_KMH, 'max' => PapersFigures::SPEED_MAX_KMH, 'unit' => 'km/h', 'what' => 'eine Höchstgeschwindigkeit'],
+        ];
+    }
+
+    /** @param  array{min: int, max: int, unit: string, what: string}  $band */
+    private static function expected(array $band): string
+    {
+        return 'Erwartet für '.$band['what'].': '.GermanFormat::integer($band['min']).' bis '.self::figure($band['max'], $band['unit']);
+    }
+
+    private static function figure(int $value, string $unit): string
+    {
+        return GermanFormat::integer($value).GermanFormat::NBSP.$unit;
+    }
+
+    /**
+     * The third state beside missing and mapped (the operator's brief of 20.10.2026, D-318): a value that reads, but
+     * not as what its field can be. A column mapped to the wrong column reads fine row by row — 8.1 on the total mass,
+     * say — and only such a check shows it. Each check says what was read and what was expected, with up to three rows,
+     * never what his file contains. None refuses a row or blocks the import: the fix is a mapping, not the data. A check
+     * that could run on no row says so instead of a nought (docs/dev/TEST-SMELLS.md, 2).
+     *
+     * @param  list<array<string, string>>  $rows  the contract's fields, as typed, and `_line`
+     * @param  array<string, string>  $mapping  field → header
+     * @param  list<string>  $headers
+     * @return list<array{key: string, label: string, expected: string, count: int|null, checked: int, examples: list<string>, unmapped: string|null, unchecked: string|null}>
+     */
+    public static function implausible(array $rows, array $mapping, array $headers): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $bands = self::bands();
+        $axles = ['achslast_vorn_kg' => '8.1', 'achslast_hinten_kg' => '8.2'];
+        $lineOf = static fn (array $row, int $i): string => 'Zeile '.($row['_line'] ?? (string) ($i + 2));
+        $out = [];
+
+        // Each axle load on its own against what an axle load can be.
+        [$count, $checked, $examples] = [0, 0, []];
+
+        foreach ($rows as $i => $row) {
+            $read = 0;
+            $odd = [];
+
+            foreach ($axles as $field => $number) {
+                $value = DatasetVehicle::whole($row[$field] ?? null);
+
+                if ($value === null) {
+                    continue;
+                }
+
+                $read++;
+
+                if (! self::inBand($value, $bands[$field])) {
+                    $odd[] = self::figure($value, 'kg').' ('.$number.')';
+                }
+            }
+
+            $checked += $read > 0 ? 1 : 0;
+
+            if ($odd !== []) {
+                $count++;
+                $examples[] = $lineOf($row, $i).': Gelesen: '.implode(', ', $odd);
+            }
+        }
+
+        $out[] = self::check(
+            'axle_range',
+            'Achslast vorn oder hinten (8.1 oder 8.2)',
+            self::expected($bands['achslast_vorn_kg']).'.',
+            self::unmapped($axles, $mapping, $headers),
+            $count,
+            $checked,
+            $examples,
+            // Over no row, „in keiner Zeile“ would be a pass nobody checked (docs/dev/TEST-SMELLS.md, 2).
+            $checked === 0 ? 'Nicht geprüft: keine Zeile, in der eine Achslast gelesen wurde.' : null,
+        );
+
+        // 8.1 equal to 8.2 in every row: two columns read as one, or the same column mapped twice.
+        $pairs = [];
+
+        foreach ($rows as $i => $row) {
+            $front = DatasetVehicle::whole($row['achslast_vorn_kg'] ?? null);
+            $rear = DatasetVehicle::whole($row['achslast_hinten_kg'] ?? null);
+
+            if ($front !== null && $rear !== null) {
+                $pairs[] = ['line' => $lineOf($row, $i), 'front' => $front, 'rear' => $rear];
+            }
+        }
+
+        $same = count($pairs) >= self::SAME_MIN_ROWS && array_filter($pairs, static fn (array $p): bool => $p['front'] !== $p['rear']) === [];
+        $column = $mapping['achslast_vorn_kg'] ?? null;
+        $sameColumn = $column !== null && $column === ($mapping['achslast_hinten_kg'] ?? null);
+        $out[] = self::check(
+            'axle_same',
+            'Achslast vorn gleich hinten (8.1 = 8.2) in jeder geprüften Zeile',
+            'Erwartet: mindestens eine Zeile mit verschiedenen Werten vorn und hinten.',
+            self::unmapped($axles, $mapping, $headers),
+            $same ? count($pairs) : 0,
+            count($pairs),
+            $same ? [
+                ...($sameColumn ? ['Die Spalte „'.$column.'“ ist sowohl 8.1 als auch 8.2 zugeordnet.'] : []),
+                ...array_map(static fn (array $p): string => $p['line'].': Gelesen: '.self::figure($p['front'], 'kg').' und '.self::figure($p['rear'], 'kg'), $pairs),
+            ] : [],
+            count($pairs) < self::SAME_MIN_ROWS ? 'Nicht geprüft: Dafür sind mindestens '.self::SAME_MIN_ROWS.' Zeilen nötig, in denen beide Achslasten gelesen wurden.' : null,
+        );
+
+        // 8.1 plus 8.2 against the car's own total mass, where both axle loads are believable and the mass is read.
+        [$count, $checked, $examples] = [0, 0, []];
+
+        foreach ($rows as $i => $row) {
+            $front = DatasetVehicle::whole($row['achslast_vorn_kg'] ?? null);
+            $rear = DatasetVehicle::whole($row['achslast_hinten_kg'] ?? null);
+            $mass = DatasetVehicle::whole($row['gesamtmasse_kg'] ?? null);
+
+            if ($front === null || $rear === null || $mass === null || $mass === 0 || ! self::inBand($front, $bands['achslast_vorn_kg']) || ! self::inBand($rear, $bands['achslast_hinten_kg'])) {
+                continue;
+            }
+
+            $checked++;
+            $percent = ($front + $rear) / $mass * 100;
+
+            if ($percent < self::SUM_MIN_PERCENT || $percent > self::SUM_MAX_PERCENT) {
+                $count++;
+                $examples[] = $lineOf($row, $i).': Gelesen: '.self::figure($front, 'kg').' + '.self::figure($rear, 'kg').' = '.self::figure($front + $rear, 'kg')
+                    // One decimal: a flagged 140,4 % must never read as the 140 % the band allows.
+                    .' bei '.self::figure($mass, 'kg').' Gesamtmasse ('.GermanFormat::percent($percent, false).')';
+            }
+        }
+
+        $out[] = self::check(
+            'axle_sum',
+            'Achslast vorn plus hinten (8.1 + 8.2) im Verhältnis zur zulässigen Gesamtmasse (F.2)',
+            'Erwartet: '.self::SUM_MIN_PERCENT.' bis '.GermanFormat::percent(self::SUM_MAX_PERCENT, false).' der zulässigen Gesamtmasse.',
+            self::unmapped([...$axles, 'gesamtmasse_kg' => 'F.2'], $mapping, $headers),
+            $count,
+            $checked,
+            $examples,
+            $checked === 0 ? 'Nicht geprüft: keine Zeile, in der eine Gesamtmasse gelesen wurde und beide Achslasten im erwarteten Bereich liegen.' : null,
+        );
+
+        // The top speed against the band the customer's papers form holds it to.
+        [$count, $checked, $examples] = [0, 0, []];
+
+        foreach ($rows as $i => $row) {
+            $speed = DatasetVehicle::whole($row['hoechstgeschwindigkeit_kmh'] ?? null);
+
+            if ($speed === null) {
+                continue;
+            }
+
+            $checked++;
+
+            if (! self::inBand($speed, $bands['hoechstgeschwindigkeit_kmh'])) {
+                $count++;
+                $examples[] = $lineOf($row, $i).': Gelesen: '.self::figure($speed, 'km/h');
+            }
+        }
+
+        $out[] = self::check(
+            'speed_range',
+            'Höchstgeschwindigkeit (T)',
+            self::expected($bands['hoechstgeschwindigkeit_kmh']).'.',
+            self::unmapped(['hoechstgeschwindigkeit_kmh' => 'T'], $mapping, $headers),
+            $count,
+            $checked,
+            $examples,
+            $checked === 0 ? 'Nicht geprüft: keine Zeile, in der eine Höchstgeschwindigkeit gelesen wurde.' : null,
+        );
+
+        return $out;
+    }
+
+    /** @param  array{min: int, max: int, unit: string, what: string}  $band */
+    private static function inBand(int $value, array $band): bool
+    {
+        return $value >= $band['min'] && $value <= $band['max'];
+    }
+
+    /**
+     * One check as the Probelauf shows it. Unmapped, it has no count and no rows; not checkable on any row, it says why
+     * instead of a nought.
+     *
+     * @param  list<string>  $examples
+     * @return array{key: string, label: string, expected: string, count: int|null, checked: int, examples: list<string>, unmapped: string|null, unchecked: string|null}
+     */
+    private static function check(string $key, string $label, string $expected, ?string $unmapped, int $count, int $checked, array $examples, ?string $unchecked = null): array
+    {
+        $counted = $unmapped === null && $unchecked === null;
+
+        return [
+            'key' => $key,
+            'label' => $label,
+            'expected' => $expected,
+            'count' => $counted ? $count : null,
+            'checked' => $unmapped === null ? $checked : 0,
+            'examples' => $counted ? array_slice($examples, 0, self::EXAMPLES) : [],
+            'unmapped' => $unmapped,
+            'unchecked' => $unmapped === null ? $unchecked : null,
+        ];
     }
 
     private static function name(Vehicle $vehicle): string

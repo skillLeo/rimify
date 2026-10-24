@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\OrderLine;
 use App\Models\TpmsSensorPrice;
 use App\Models\Vehicle;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Database\Eloquent\Builder;
@@ -342,4 +343,18 @@ it('ships the prices with formatted money, the makes of the vehicle table and th
             ->where('can.update', true)
             ->where('can.delete', true)
         );
+});
+
+it('refuses a price saved from a list opened before the last save of it, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $price = TpmsSensorPrice::factory()->create(['make_key' => 'volkswagen', 'make_label_de' => 'Volkswagen', 'price_cents' => 4900, 'active' => true]);
+    $stale = collect($this->actingAs(rdksAdmin('super-admin'), 'admin')->get('/admin/zubehoerpreise/rdks')->viewData('page')['props']['prices'])->firstWhere('id', $price->getKey())['stamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+
+    $this->actingAs(rdksAdmin('super-admin'), 'admin')->from('/admin/zubehoerpreise/rdks')
+        ->patch('/admin/zubehoerpreise/rdks/'.$price->getKey(), rdksPayload(['price' => '59,00']))->assertSessionHasNoErrors();
+    $this->actingAs(rdksAdmin('super-admin'), 'admin')->from('/admin/zubehoerpreise/rdks')->withHeader(EditStamp::HEADER, $stale)
+        ->patch('/admin/zubehoerpreise/rdks/'.$price->getKey(), rdksPayload(['price' => '49,00', 'active' => false]))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($price->refresh()->only(['price_cents', 'active']))->toBe(['price_cents' => 5900, 'active' => true]);
 });

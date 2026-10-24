@@ -1,0 +1,10 @@
+{ "name": "t9-3-einladung-annehmen", "guest": true, "start": "/admin/einladung/8l0uXXAg4-GG-q28b4pIvpLFp5-AyG6XnEBGV0IWu7Y", "full": true, "steps": [
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('main input, main button')).map(e => (e.id || e.name || e.textContent.trim()) + ':' + (e.type || '') + (e.maxLength > 0 ? ' max' + e.maxLength : ''))]" },
+  { "click": "main >> role=button[name=/annehmen|Konto|weiter|speichern/i] >> nth=0" },
+  { "wait": 1200 },
+  { "eval": "Array.from(document.querySelectorAll('.form-field__error')).map(e => e.textContent.trim()).filter(Boolean)" },
+  { "fill": "main input[type=password] >> nth=0", "value": "kurz" },
+  { "click": "main >> role=button[name=/annehmen|Konto|weiter|speichern/i] >> nth=0" },
+  { "wait": 1200 },
+  { "eval": "[Array.from(document.querySelectorAll('.form-field__error')).map(e => e.textContent.trim()).filter(Boolean), Array.from(document.querySelectorAll('main input')).map(e => (e.id || e.name) + '=' + (e.type === 'password' ? '(' + e.value.length + ')' : e.value))]" }
+] }

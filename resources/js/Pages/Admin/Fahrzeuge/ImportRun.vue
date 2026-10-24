@@ -18,6 +18,17 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 type Status = 'create' | 'update' | 'unchanged' | 'merge' | 'kept' | 'refused'
 
+interface Check {
+    key: string
+    label: string
+    expected: string
+    count: number | null
+    checked: number
+    examples: string[]
+    unmapped: string | null
+    unchecked: string | null
+}
+
 interface PlanRow {
     line: string
     label: string
@@ -43,11 +54,21 @@ const props = defineProps<{
         rowCount: number
         appliedAt: string | null
     }
-    fields: { key: string; label: string; required: boolean }[]
+    fields: { key: string; label: string; required: boolean; hint: string | null }[]
     headers: string[]
     examples: Record<string, string>
     mapping: Record<string, string>
     missing: string[]
+    /**
+     * What the file lacks over all its rows, with each count's share of the file (VehicleImporter::gaps, D-317) — or, for
+     * a field without a column, `unmapped` and no count: what was not read is never reported as missing (R-17).
+     */
+    gaps: { key: string; label: string; count: number | null; share: string | null; unmapped: string | null }[]
+    /**
+     * The third state beside missing and mapped: read, but not as what the field can be (VehicleImporter::implausible,
+     * D-318). Each says what was read and what was expected, never what the file contains; none blocks the import.
+     */
+    implausible: Check[]
     rows: PlanRow[]
     hiddenRows: number
     /** The fingerprint of the Probelauf on screen, sent back with „Importieren“ (VehicleImporter::fingerprint). */
@@ -84,6 +105,24 @@ const context = computed(() => {
 })
 
 const serverError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).import ?? '')
+
+/* A check's line: its finding over every row of the file, or why it has none — never a nought for a check that did not run. */
+function result(check: Check): string {
+    if (check.unmapped) {
+        return check.unmapped
+    }
+
+    if (check.unchecked) {
+        return check.unchecked
+    }
+
+    const checked = `geprüft: ${decimal(check.checked, 0)} von ${decimal(props.run.rowCount, 0)} Zeilen`
+    const count = check.count ?? 0
+
+    return count === 0 ? `In keiner Zeile · ${checked}` : `In ${count === 1 ? 'einer Zeile' : `${decimal(count, 0)} Zeilen`} · ${checked}`
+}
+
+const oddFound = computed(() => props.implausible.some((check) => (check.count ?? 0) > 0))
 
 const STATUS: Record<Status, { label: string; tag: string | null }> = {
     create: { label: 'Neu', tag: null },
@@ -151,7 +190,10 @@ const confirmText = computed(() => {
 
     return {
         title: `${title}?`,
-        body: 'Neue und geänderte Fahrzeuge stehen sofort in der Fahrzeugauswahl des Shops. Fahrzeuge ohne Achslasten oder Höchstgeschwindigkeit stehen danach unter „Zur Prüfung“.',
+        body:
+            'Neue und geänderte Fahrzeuge stehen sofort in der Fahrzeugauswahl des Shops. Fahrzeuge ohne Achslasten oder Höchstgeschwindigkeit stehen danach unter „Zur Prüfung“.' +
+            // A warning, never a stop (D-318): the fix is a mapping, and the person importing decides.
+            (oddFound.value ? ' Der Probelauf hat unplausible Werte gelesen – meist ist dann einem Feld die falsche Spalte zugeordnet. Prüf die Zuordnung, bevor du importierst.' : ''),
     }
 })
 
@@ -194,12 +236,61 @@ function runImport(): void {
                 </div>
             </dl>
             <p v-if="(s.unread ?? 0) > 0" class="adm-note">
-                In {{ s.unread === 1 ? 'einer Zeile' : `${decimal(s.unread ?? 0, 0)} Zeilen` }} ist mindestens ein Wert nicht lesbar. Solche Werte bleiben
+                In {{ s.unread === 1 ? 'einer Zeile' : `${decimal(s.unread ?? 0, 0)} Zeilen` }} ist mindestens ein Wert nicht lesbar oder unplausibel. Solche Werte bleiben
                 leer und werden nie geraten; ein Fahrzeug ohne Achslasten oder Höchstgeschwindigkeit steht danach unter „Zur Prüfung“.
             </p>
             <p v-if="run.status === 'previewed' && importable === 0" class="adm-note">Nichts zu importieren: Keine Zeile ist neu, geändert oder ergänzt.</p>
             <p v-if="run.status === 'previewed' && (s.refused ?? 0) > 0" class="adm-note">Abgelehnte Zeilen übernimmt der Import nicht. Korrigier sie in der Datei und starte einen neuen Probelauf.</p>
             <p v-if="run.status === 'previewed' && importable > 0 && !can.apply" class="adm-note">Importieren kann, wer Fahrzeuge anlegen und ändern darf. Den Probelauf siehst du trotzdem.</p>
+
+            <!-- What the file lacks, over every row: the figures a purchase of the full dataset is decided on (D-317). -->
+            <div v-if="gaps.length" class="fr-gaps">
+                <h3 id="fr-h-gaps" class="fr-gaps__title">Was in der Datei fehlt</h3>
+                <p class="adm-note">
+                    Gezählt über {{ run.rowCount === 1 ? 'die eine Zeile' : `alle ${decimal(run.rowCount, 0)} Zeilen` }} der Datei, unabhängig davon, was der Import mit einer Zeile macht.
+                    Ein nicht lesbarer Wert zählt wie ein fehlender. Ist einem Feld keine Spalte zugeordnet, hat der Import es nicht gelesen. Statt der Zahlen
+                    steht dann „Keine Spalte zugeordnet“ – ob die Werte in der Datei fehlen, bleibt offen.
+                </p>
+                <div class="adm-panel">
+                    <table class="adm-table" aria-labelledby="fr-h-gaps">
+                        <thead>
+                            <tr>
+                                <th scope="col">Angabe</th>
+                                <th scope="col" class="num">Fehlt in</th>
+                                <th scope="col" class="num">Anteil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="gap in gaps" :key="gap.key" :class="{ 'fr-gap--none': gap.count === 0, 'fr-gap--unmapped': gap.unmapped !== null }">
+                                <td data-label="Angabe" class="fr-gap__label">{{ gap.label }}</td>
+                                <td data-label="Fehlt in" class="num">{{ gap.unmapped ?? `${decimal(gap.count ?? 0, 0)} von ${decimal(run.rowCount, 0)}` }}</td>
+                                <td data-label="Anteil" class="num">{{ gap.share ?? '–' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Read, but not as what the field can be: most often a column mapped to the wrong column (D-318). -->
+            <div v-if="implausible.length" class="fr-checks">
+                <h3 id="fr-h-odd" class="fr-gaps__title">Gelesen, aber unplausibel</h3>
+                <p class="adm-note">
+                    Der Probelauf prüft, ob gelesene Werte im erwarteten Bereich liegen und zueinander passen. Fällt ein Wert auf, ist meist einem
+                    Feld die falsche Spalte zugeordnet: Prüf die Zuordnung unten. Eine Achslast oder Höchstgeschwindigkeit außerhalb des erwarteten
+                    Bereichs übernimmt der Import nicht. Die Zeile wird trotzdem importiert, das Fahrzeug steht danach unter „Zur Prüfung“. Achslasten,
+                    die erst im Vergleich auffallen, übernimmt der Import so, wie er sie gelesen hat.
+                </p>
+                <ul class="fr-odd" aria-labelledby="fr-h-odd">
+                    <li v-for="check in implausible" :key="check.key" class="fr-odd__check" :class="{ 'fr-odd__check--hit': (check.count ?? 0) > 0 }">
+                        <p class="fr-odd__label">{{ check.label }}</p>
+                        <p class="fr-odd__result">{{ result(check) }}</p>
+                        <p class="fr-odd__expected">{{ check.expected }}</p>
+                        <ul v-if="check.examples.length" class="fr-odd__examples">
+                            <li v-for="example in check.examples" :key="example">{{ example }}</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
 
             <div v-if="rows.length" class="adm-panel fr-rows">
                 <table class="adm-table">
@@ -256,6 +347,7 @@ function runImport(): void {
                                 <td data-label="Feld">
                                     <label :for="`fr-map-${field.key}`" class="fr-field">{{ field.label }}</label>
                                     <span v-if="field.required" class="fr-req">Pflicht</span>
+                                    <span v-if="field.hint" class="fr-req">{{ field.hint }}</span>
                                 </td>
                                 <td data-label="Spalte">
                                     <select :id="`fr-map-${field.key}`" v-model="mappingForm.mapping[field.key]" class="input fr-select" :disabled="!can.remap">
@@ -333,6 +425,85 @@ function runImport(): void {
 
 .fr-rows {
     margin-top: var(--sp-16);
+}
+
+/* The two blocks under the counts share one frame: what the file lacks, and what reads but cannot be. */
+.fr-gaps,
+.fr-checks {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: var(--adm-form-max);
+    margin-top: var(--sp-16);
+}
+
+.fr-gaps__title {
+    margin: 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    font-weight: 600;
+}
+
+.fr-gap__label {
+    overflow-wrap: anywhere;
+}
+
+/* A field the whole file carries is quiet, as a nought among the counts is. */
+.fr-gap--none td {
+    color: var(--c-ink-3);
+}
+
+/* Not read is not a count: the sentence stands in the figures' place, in the page's secondary ink. */
+.fr-gap--unmapped td:not(.fr-gap__label) {
+    color: var(--c-ink-2);
+}
+
+.fr-odd {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fr-odd__check {
+    display: grid;
+    gap: var(--sp-4);
+    padding-block: var(--sp-12);
+    border-top: 1px solid var(--c-line);
+}
+
+.fr-odd__check p {
+    margin: 0;
+}
+
+.fr-odd__label {
+    font-weight: 500;
+}
+
+.fr-odd__result {
+    font-variant-numeric: tabular-nums;
+}
+
+/* What was found is a warning, not an error: the import goes on, the person importing decides (D-318). */
+.fr-odd__check--hit .fr-odd__result {
+    color: var(--c-warn);
+    font-weight: 600;
+}
+
+.fr-odd__expected,
+.fr-odd__examples {
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.fr-odd__examples {
+    display: grid;
+    gap: var(--sp-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
 }
 
 .fr-keys {

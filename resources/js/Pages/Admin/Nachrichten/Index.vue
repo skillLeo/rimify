@@ -9,6 +9,7 @@ import { router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import ListPager, { type ListPagination } from '../../../Components/Admin/Lists/ListPager.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 
@@ -30,8 +31,10 @@ interface Item {
 
 const props = defineProps<{
     items: Item[]
-    /** How many the filter finds; the list carries at most 200 of them. */
+    /** How many the filter and the search find, over every page (the admin audit's F-26). */
     count: number
+    search: string
+    pagination: ListPagination
     total: number
     filter: string
     filters: { value: string; label: string }[]
@@ -40,13 +43,25 @@ const props = defineProps<{
 }>()
 
 const status = ref(props.filter)
+const q = ref(props.search)
 
 function apply(): void {
-    router.get('/admin/nachrichten', status.value === 'ungelesen' ? {} : { status: status.value }, { preserveScroll: true, preserveState: true })
+    const query: Record<string, string> = {}
+
+    if (status.value !== 'ungelesen') {
+        query.status = status.value
+    }
+
+    if (q.value.trim() !== '') {
+        query.q = q.value.trim()
+    }
+
+    router.get('/admin/nachrichten', query, { preserveScroll: true, preserveState: true })
 }
 
 function showAll(): void {
     status.value = 'alle'
+    q.value = ''
     apply()
 }
 
@@ -71,6 +86,10 @@ function context(): string {
 
         <form class="nfa-filters" @submit.prevent="apply">
             <div class="form-field">
+                <label class="form-field__label" for="nfa-q">Suchen</label>
+                <input id="nfa-q" v-model="q" class="input" type="search" maxlength="100" autocomplete="off" placeholder="Name, E-Mail-Adresse oder ein Wort">
+            </div>
+            <div class="form-field">
                 <label class="form-field__label" for="nfa-status">Zeigen</label>
                 <select id="nfa-status" v-model="status" class="input">
                     <option v-for="option in filters" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -82,6 +101,7 @@ function context(): string {
         </form>
 
         <AdminState v-if="total === 0" kind="empty" text="Hier erscheint jede Nachricht, die jemand über das Kontaktformular im Shop schickt." />
+        <AdminState v-else-if="items.length === 0 && search !== ''" kind="filtered" :total="total" @reset="showAll" />
         <AdminState v-else-if="items.length === 0" kind="empty" text="Alles gelesen. Ältere Nachrichten stehen unter „Alle“.">
             <button class="btn btn--secondary" type="button" @click="showAll">Alle zeigen</button>
         </AdminState>
@@ -119,6 +139,8 @@ function context(): string {
                 </div>
             </li>
         </ol>
+
+        <ListPager :pagination="pagination" label="Seiten der Nachrichten" />
     </AdminPage>
 </template>
 

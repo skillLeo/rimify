@@ -29,7 +29,8 @@ class BrandRequest extends FormRequest
     {
         $name = trim((string) (is_string($this->input('name')) ? $this->input('name') : ''));
 
-        $this->merge(['name' => $name, 'slug' => Str::slug($name)]);
+        // Transliterated the German way, as the Felge form and the import name a brand: „Grünland“ is `gruenland` (F-16).
+        $this->merge(['name' => $name, 'slug' => Str::slug($name, '-', 'de')]);
     }
 
     /** @return array<string, list<mixed>> */

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ContactMessageReadRequest;
 use App\Models\AdminUser;
 use App\Models\ContactMessage;
+use App\Services\Admin\Lists\ListPaging;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,12 +37,25 @@ class NachrichtenController extends Controller
             $query->whereNull('read_at');
         }
 
+        // By who wrote, their address, the subject or a word of the message (umlauts as typed).
+        $search = is_string($request->query('q')) ? mb_substr(trim((string) $request->query('q')), 0, 100) : '';
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(static fn ($where) => $where->where('name', 'like', $like)->orWhere('email', 'like', $like)
+                ->orWhere('subject', 'like', $like)->orWhere('message', 'like', $like));
+        }
+
+        // Every message reachable, page by page — the list once stopped at the newest 200 (the admin audit's F-26).
+        $page = $query->paginate(ListPaging::PER_PAGE, ['*'], 'seite', ListPaging::requested($request->query('seite')));
         $admin = $request->user('admin');
 
         return Inertia::render('Admin/Nachrichten/Index', [
-            'items' => (clone $query)->limit(200)->get()->map(static fn (ContactMessage $message): array => self::row($message))->all(),
-            // The filter's own count, not the length of the page: the list shows at most 200.
-            'count' => $query->count(),
+            'items' => collect($page->items())->map(static fn (ContactMessage $message): array => self::row($message))->all(),
+            'search' => $search,
+            'pagination' => ListPaging::props($page, '/admin/nachrichten', ['status' => $filter === 'ungelesen' ? null : $filter, 'q' => $search]),
+            // The filter's and the search's own count, over every page.
+            'count' => $page->total(),
             'total' => ContactMessage::query()->count(),
             'filter' => $filter,
             'filters' => collect(self::FILTERS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),

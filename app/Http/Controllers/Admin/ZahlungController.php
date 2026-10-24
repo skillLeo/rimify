@@ -15,7 +15,10 @@ use App\Services\Admin\PaymentSettingsWriter;
 use App\Services\Commerce\InvoiceSeries;
 use App\Services\GoLive\GoLiveCheck;
 use App\Services\GoLive\GoLiveChecks;
+use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,14 +53,33 @@ class ZahlungController extends Controller
                 static fn (GoLiveCheck $c): array => ['id' => $c->id, 'title' => $c->title, 'sentence' => $c->sentence, 'place' => $c->place],
                 array_filter($checks->legalChecks(), static fn (GoLiveCheck $c): bool => ! $c->ok()),
             )),
+            // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
+            'stamp' => EditStamp::of(self::state()),
         ]);
     }
 
     public function update(PaymentSettingsRequest $request, PaymentSettingsWriter $writer): RedirectResponse
     {
-        $writer->save($request->values(), $request->admin());
+        DB::transaction(static function () use ($request, $writer): void {
+            PaymentSetting::query()->lockForUpdate()->orderBy('id')->first();
+            EditStamp::guard($request, self::state());
+            $writer->save($request->values(), $request->admin());
+        });
 
         return back()->with('toast', 'Gespeichert. Mit „Verbindung testen“ prüfst du die Schlüssel bei Stripe.');
+    }
+
+    /**
+     * The stored row as far as a stale save must notice it — the mode, each key's last four, the test, the time — never
+     * a key itself (encrypted, and different on every write).
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function state(): ?array
+    {
+        $row = PaymentSetting::query()->orderBy('id')->first();
+
+        return $row === null ? null : Arr::except($row->getAttributes(), ['publishable_key', 'secret_key', 'webhook_secret']);
     }
 
     /** „Verbindung testen“ with the keys in force: the account's name, country, currency and methods, or Stripe's error. */

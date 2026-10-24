@@ -1,0 +1,3 @@
+{ "name": "t1-3-marken-ende", "start": "/admin/felgen/neu", "steps": [
+  { "eval": "Array.from(document.querySelectorAll('#fe-brand option')).slice(-4).map(o => o.value + '=' + o.textContent.trim())" }
+] }

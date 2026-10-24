@@ -1,0 +1,18 @@
+{ "name": "v-12-bestaetigen", "guest": true, "start": "/admin/anmelden", "full": true, "steps": [
+  { "fill": "input[type=\"email\"]", "value": "super-admin@rimify.test" },
+  { "fill": "input[type=\"password\"]", "value": "rimify-dev-2026" },
+  { "click": "button[type=\"submit\"]" },
+  { "wait": 1500 },
+  { "goto": "/admin/einstellungen/zahlung" },
+  { "eval": "[location.pathname + location.search, document.querySelector('h1')?.textContent?.trim(), document.querySelector('main p')?.textContent?.replace(/\\s+/g, ' ').trim()]" },
+  { "goto": "/admin/bestaetigen?weiter=%2Fadmin%2Feinstellungen%2Fverkaeufer-versand" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('main p, .adm-page__context')).map(p => p.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 3)]" },
+  { "goto": "/admin/bestaetigen?weiter=%2Fadmin%2Fsystem%2Fzuruecksetzen" },
+  { "eval": "Array.from(document.querySelectorAll('main p, .adm-page__context')).map(p => p.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 2)" },
+  { "goto": "/admin/bestaetigen?weiter=%2Fadmin%2Fbestellungen%2F2123" },
+  { "eval": "Array.from(document.querySelectorAll('main p, .adm-page__context')).map(p => p.textContent.replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 2)" },
+  { "fill": "input[type=\"password\"]", "value": "falsch-falsch" },
+  { "click": "button[type=\"submit\"]" },
+  { "wait": 1200 },
+  { "eval": "[location.pathname, Array.from(document.querySelectorAll('.form-field__error, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)]" }
+] }

@@ -1,0 +1,15 @@
+{ "name": "t3a-4-klein", "start": "/admin/fahrzeuge/neu", "steps": [
+  { "fill": "#fn-make", "value": "Prüfwerk" },
+  { "fill": "#fn-model", "value": "Größe Zwei" },
+  { "fill": "#fn-variant", "value": "Kombi 1.5" },
+  { "fill": "#fn-hsn", "value": "5" },
+  { "fill": "#fn-tsn", "value": "zz7" },
+  { "fill": "#fn-eg", "value": "e1*2007/46*0999*03" },
+  { "fill": "#fn-kw", "value": "110" },
+  { "fill": "#fn-from", "value": "3.2019" },
+  { "fill": "#fn-front", "value": "1060" },
+  { "fill": "#fn-rear", "value": "1240" },
+  { "click": "role=button[name=\"Fahrzeug anlegen\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#fn-hsn').value, document.querySelector('#fn-tsn').value, document.querySelector('#fn-from').value]" }
+] }

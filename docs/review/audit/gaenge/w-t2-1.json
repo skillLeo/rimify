@@ -1,0 +1,4 @@
+{ "name": "t2-1-neu", "start": "/admin/gutachten/neu", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('#gn-kind option')).map(o => o.value + '=' + o.textContent.trim())" },
+  { "eval": "Array.from(document.querySelectorAll('input[name=gn-index]')).map(i => i.value + '=' + (i.closest('label')?.textContent.trim().replace(/\\s+/g,' ') ?? ''))" }
+] }

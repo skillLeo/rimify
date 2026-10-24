@@ -32,12 +32,17 @@ final class LegalPdf
         return $text === null ? null : $this->render('Allgemeine Geschäftsbedingungen', $text, null, $order);
     }
 
-    /** The Widerrufsbelehrung with the Muster-Widerrufsformular as a PDF, or null while the page holds no text of the Kanzlei's. */
+    /**
+     * The Widerrufsbelehrung with the Muster-Widerrufsformular as a PDF, or null while the page holds no text of the
+     * Kanzlei's. The form follows only once its own placeholder flag is off (D-319); until then the PDF holds the
+     * Belehrung alone.
+     */
     public function widerruf(?string $order = null): ?string
     {
         $text = $this->texts->placeholder('widerrufsbelehrung') ? null : $this->texts->text('widerrufsbelehrung');
+        $form = $this->texts->placeholder(LegalTexts::FORM) ? null : WithdrawalForm::text(Seller::current());
 
-        return $text === null ? null : $this->render('Widerrufsbelehrung', $text, WithdrawalForm::text(Seller::current()), $order);
+        return $text === null ? null : $this->render('Widerrufsbelehrung', $text, $form, $order);
     }
 
     private function render(string $title, string $text, ?string $form, ?string $order): string

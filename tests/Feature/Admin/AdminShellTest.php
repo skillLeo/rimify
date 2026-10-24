@@ -13,6 +13,7 @@ use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ViewErrorBag;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -409,12 +410,19 @@ describe('changing your own password', function (): void {
         ])->assertSessionHasErrors(['current_password' => 'Das aktuelle Passwort stimmt nicht.']);
     });
 
-    it('wants at least twelve characters, typed the same twice', function (): void {
+    it('wants at least twelve characters, typed the same twice — and says the length first (the admin audit\'s F-29)', function (): void {
         $this->actingAs(shellAdmin(), 'admin')->from('/admin/profil')->put('/admin/profil/passwort', [
             'current_password' => 'rimify-dev-2026',
             'password' => 'kurz',
             'password_confirmation' => 'anders',
         ])->assertSessionHasErrors(['password']);
+
+        // The form shows the first sentence: the length is what to fix first, not that the repeat differs.
+        $errors = session('errors');
+        $messages = $errors instanceof ViewErrorBag ? $errors->get('password') : ($errors['default']['messages']['password'] ?? []);
+
+        expect($messages[0] ?? null)->not->toBe('Die beiden neuen Passwörter stimmen nicht überein.')
+            ->and($messages)->toContain('Die beiden neuen Passwörter stimmen nicht überein.');
     });
 
     it('records that it happened and never what it was', function (): void {

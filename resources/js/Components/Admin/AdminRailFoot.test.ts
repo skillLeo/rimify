@@ -65,7 +65,7 @@ function mountFoot(admin: Record<string, unknown> = {}): VueWrapper {
         admin: {
             account: { name: 'Sabine Roth', email: 'sabine@example.test', role: 'Super-Admin' },
             health: { state: 'ok', sentence: 'Alles in Ordnung', label: '', count: null, href: '/admin/system', banner: null },
-            quickActions: [{ key: 'ratgeber', label: 'Ratgeber-Artikel anlegen', href: '/admin/seiten?neu=1', icon: 'text' }],
+            quickActions: [{ key: 'ratgeber', label: 'Blog-Artikel anlegen', href: '/admin/seiten?neu=1', icon: 'text' }],
             ...admin,
         },
     }

@@ -314,6 +314,10 @@ class ContentSeeder extends Seeder
                 'text' => '[Rechtstext folgt von der Kanzlei — Abschnitt: '.$title.']',
                 'placeholder' => true,
             ]);
+
+            // The page's own flag (D-319): visitors see the one notice, and the shop stays out of search and out of
+            // live payments, until the team switches it off over the Kanzlei's text.
+            DB::table('pages')->where('id', $page)->update(['is_placeholder' => true]);
         }
     }
 

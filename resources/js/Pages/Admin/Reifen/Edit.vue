@@ -57,6 +57,7 @@ const editor = useDirtyForm<TyreForm>(fromProps(), {
     // Asked at each save: after the first save of a new tyre the page is the tyre's own.
     method: () => (props.tyre ? 'put' : 'post'),
     url: () => (props.tyre ? `/admin/reifen/${props.tyre.id}` : '/admin/reifen'),
+    stamp: () => props.stamp,
     onSaved: () => sync(),
 })
 

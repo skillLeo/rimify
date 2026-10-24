@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $draft_updated_at
  * @property string|null $draft_author_email
  * @property bool $lawyer_reviewed
+ * @property bool $is_placeholder a legal text not yet the Kanzlei's, on by default; read for legal pages only (D-319)
  * @property Carbon|null $team_edited_at
  * @property int $content_version
  * @property Carbon|null $created_at
@@ -50,7 +51,7 @@ class Page extends Model
 
     protected $fillable = [
         'slug', 'locale', 'kind', 'title', 'meta_title', 'meta_description', 'status', 'published_at',
-        'draft', 'draft_updated_at', 'draft_author_email', 'lawyer_reviewed', 'team_edited_at',
+        'draft', 'draft_updated_at', 'draft_author_email', 'lawyer_reviewed', 'is_placeholder', 'team_edited_at',
     ];
 
     /** @return array<string, string> */
@@ -61,6 +62,7 @@ class Page extends Model
             'draft' => 'array',
             'draft_updated_at' => 'datetime',
             'lawyer_reviewed' => 'boolean',
+            'is_placeholder' => 'boolean',
             'team_edited_at' => 'datetime',
             'content_version' => 'integer',
         ];

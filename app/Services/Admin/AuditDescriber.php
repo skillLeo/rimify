@@ -87,6 +87,23 @@ final class AuditDescriber
         'order.shipped' => 'verkauf',
         'order.delivered' => 'verkauf',
         'order.test_stock_returned' => 'verkauf',
+        // Written by the shop, the webhook and Einstellungen since before the Protokoll had words for them (the admin
+        // audit's F-35): a refund, a payment, an invoice or a key change read „noch nicht in Worten“.
+        'order.status_changed' => 'verkauf',
+        'order.confirmation_sent' => 'verkauf',
+        'order.confirmation_failed' => 'verkauf',
+        'order.shipping_mail_sent' => 'verkauf',
+        'order.shipping_mail_failed' => 'verkauf',
+        'order.refunded' => 'verkauf',
+        'order.refund_refused' => 'verkauf',
+        'order.refund_paper_failed' => 'verkauf',
+        'invoice.failed' => 'verkauf',
+        'invoice.series_opened' => 'verkauf',
+        'dispute.evidence_submitted' => 'verkauf',
+        'settings.seller_shipping_updated' => 'verkauf',
+        'payments.settings_updated' => 'zugriff',
+        'payments.connection_tested' => 'zugriff',
+        'brand.manufacturer_updated' => 'katalog',
         'reviews.invited' => 'verkauf',
         'review.hidden' => 'verkauf',
         'review.shown' => 'verkauf',
@@ -114,6 +131,7 @@ final class AuditDescriber
         'page.draft_discarded' => 'inhalte',
         'page.published' => 'inhalte',
         'page.withdrawn' => 'inhalte',
+        'page.placeholder_switched' => 'inhalte',
         'page.revision_restored' => 'inhalte',
         'faq.created' => 'inhalte',
         'faq.updated' => 'inhalte',
@@ -181,6 +199,7 @@ final class AuditDescriber
         'vehicle.merge_applied' => 'fahrzeuge',
         'vehicle.created_manually' => 'fahrzeuge',
         'vehicle.import_applied' => 'fahrzeuge',
+        'vehicle.corrected' => 'fahrzeuge',
     ];
 
     /**
@@ -244,6 +263,38 @@ final class AuditDescriber
     private const NOTHING = '–';
 
     private const NOT_RECORDED = 'nicht erfasst';
+
+    /** Einstellungen › Verkäufer & Versand's fields by the words the page gives them. */
+    private const SELLER_SHIPPING_FIELDS = [
+        'seller.name' => 'Name des Unternehmens',
+        'seller.legal_form' => 'Rechtsform',
+        'seller.street' => 'Straße und Hausnummer',
+        'seller.zip' => 'PLZ',
+        'seller.city' => 'Ort',
+        'seller.managing_director' => 'Geschäftsführung',
+        'seller.register_court' => 'Registergericht',
+        'seller.register_number' => 'Registernummer',
+        'seller.vat_id' => 'USt-IdNr.',
+        'seller.tax_number' => 'Steuernummer',
+        'seller.email' => 'E-Mail-Adresse',
+        'seller.phone' => 'Telefon',
+        'seller.not_applicable' => 'Häkchen bei „Entfällt“',
+        'seller.placeholder' => 'Verkäufer als Platzhalter',
+        'shipping.zones' => 'Versandkosten',
+        'shipping.delivery_min_days' => 'Lieferzeit von',
+        'shipping.delivery_max_days' => 'Lieferzeit bis',
+        'shipping.placeholder' => 'Versand als Platzhalter',
+    ];
+
+    /** What „Entfällt“ was set for, by the Impressum's words (Seller::MAY_NOT_APPLY). */
+    private const NOT_APPLICABLE = ['managing_director' => 'Geschäftsführung', 'register' => 'Registereintrag', 'vat_id' => 'USt-IdNr.', 'phone' => 'Telefon'];
+
+    /** A car's papers' details, by the words „Neues Fahrzeug“ gives them (the admin audit's F-17). */
+    private const VEHICLE_FIELDS = [
+        'make' => 'Hersteller', 'model' => 'Handelsbezeichnung', 'variant' => 'Variante', 'type_designation' => 'Fahrzeugtyp',
+        'hsn' => 'HSN', 'tsn' => 'TSN', 'eg_nummer_raw' => 'EG-Typgenehmigungsnummer', 'power_kw' => 'Leistung in kW',
+        'build_from' => 'Gebaut ab', 'build_to' => 'Gebaut bis', 'body_form' => 'Karosserie', 'drive_axle' => 'Antrieb',
+    ];
 
     /** @var array<int, string|null> */
     private array $roleLabels = [];
@@ -419,6 +470,46 @@ final class AuditDescriber
                     .(self::text($p, 'reason') === null ? '' : ' Grund: '.self::text($p, 'reason')),
                 [],
             ],
+            // An entry ages: what the status was then, never „jetzt“.
+            'order.status_changed' => [
+                'Der Status der Bestellung '.self::order($p).' wechselte von '.self::q(self::status(self::text($p, 'from'))).' zu '.self::q(self::status(self::text($p, 'to'))).'.',
+                [],
+            ],
+            'order.confirmation_sent' => [
+                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde verschickt'
+                    .(self::text($p, 'invoice') === null ? '.' : ', mit der Rechnung '.self::q((string) self::text($p, 'invoice')).'.'),
+                [],
+            ],
+            'order.confirmation_failed' => ['Die Bestellbestätigung zur Bestellung '.self::order($p).' konnte nicht verschickt werden.'.self::error($p), []],
+            'order.shipping_mail_sent' => [
+                'Die Versandmail zur Bestellung '.self::order($p).' wurde verschickt'
+                    .(self::text($p, 'tracking') === null ? ', ohne Sendungsnummer.' : ', mit der Sendungsnummer '.self::q((string) self::text($p, 'tracking')).'.'),
+                [],
+            ],
+            'order.shipping_mail_failed' => ['Die Versandmail zur Bestellung '.self::order($p).' konnte nicht verschickt werden.'.self::error($p), []],
+            'order.refunded' => [self::refunded($p), []],
+            'order.refund_refused' => ['Eine Erstattung von '.self::money($p['amount_cents'] ?? null).' zur Bestellung '.self::order($p).' wurde abgelehnt; erstattet wurde nichts.'.self::error($p), []],
+            'order.refund_paper_failed' => ['Zur Erstattung der Bestellung '.self::order($p).' ließ sich die Gutschrift nicht erstellen oder die Mail nicht verschicken. Die Erstattung selbst ist gebucht.'.self::error($p), []],
+            'invoice.failed' => ['Zur Bestellung '.self::order($p).' konnte die Rechnung nicht ausgestellt werden; die Bestellung bleibt bezahlt.'.self::error($p), []],
+            'invoice.series_opened' => [
+                'Die echten Rechnungsnummern wurden eröffnet: Die erste Rechnung trägt die Nummer '.self::q(self::text($p, 'invoice_first') ?? '–')
+                    .', die erste Gutschrift '.self::q(self::text($p, 'credit_note_first') ?? '–').'.',
+                [],
+            ],
+            'dispute.evidence_submitted' => [self::evidenceSubmitted($p), []],
+            'settings.seller_shipping_updated' => self::sellerShippingUpdated($p),
+            'payments.settings_updated' => self::paymentsUpdated($p),
+            'payments.connection_tested' => [
+                ($p['ok'] ?? false) === true
+                    ? 'Die Verbindung zu Stripe wurde geprüft und steht'.(self::text($p, 'account') === null ? '.' : ' (Konto '.self::q((string) self::text($p, 'account')).').')
+                    : 'Die Verbindung zu Stripe wurde geprüft: Stripe hat sie abgelehnt.'.self::error($p),
+                [],
+            ],
+            'brand.manufacturer_updated' => [
+                'Die Herstellerangaben der Marke '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurden gespeichert'
+                    .(($p['complete'] ?? false) === true ? '; sie sind vollständig.' : '; es fehlen noch Angaben.'),
+                [],
+            ],
             'reviews.invited' => [self::count((int) ($p['count'] ?? 0), 'Einladung zur Bewertung wurde', 'Einladungen zur Bewertung wurden').' verschickt.', []],
             'review.hidden' => ['Eine Bewertung zur Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde ausgeblendet: '.self::q(self::text($p, 'reason') ?? 'ohne Grund').'.', []],
             'review.shown' => ['Eine Bewertung zur Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde wieder eingeblendet.', []],
@@ -426,12 +517,13 @@ final class AuditDescriber
             'review.reply_removed' => ['Die Antwort auf eine Bewertung zur Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde entfernt.', []],
             'demand.marked' => [self::demandMarked($p), []],
             'demand.unmarked' => ['Die Markierung der Nachfrage-Lücke '.self::q(self::text($p, 'gap') ?? 'ohne Namen').' wurde aufgehoben. Sie ist wieder offen.', []],
-            'page.created' => ['Der Ratgeber-Artikel '.self::page($p).' wurde angelegt. Er ist noch nicht veröffentlicht.', []],
+            'page.created' => ['Der Blog-Artikel '.self::page($p).' wurde angelegt. Er ist noch nicht veröffentlicht.', []],
             'page.draft_saved' => ['Für die Seite '.self::page($p).' wurde ein Entwurf gespeichert.', []],
-            'page.image_uploaded' => ['Für den Ratgeber-Artikel '.self::page($p).' wurde ein Bild hochgeladen ('.self::q(self::text($p, 'file') ?? 'ohne Namen').'). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
+            'page.image_uploaded' => ['Für den Blog-Artikel '.self::page($p).' wurde ein Bild hochgeladen ('.self::q(self::text($p, 'file') ?? 'ohne Namen').'). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
             'page.published' => self::pagePublished($p),
-            'page.withdrawn' => ['Der Ratgeber-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.withdrawn' => ['Der Blog-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.placeholder_switched' => [self::placeholderSwitched($p), []],
             'page.revision_restored' => [self::revisionRestored($p), []],
             'faq.created' => [
                 'Die Frage '.self::q(self::text($p, 'question') ?? 'ohne Text').' wurde angelegt'
@@ -566,6 +658,7 @@ final class AuditDescriber
                 [],
             ],
             'vehicle.import_applied' => [self::vehicleImport($p), []],
+            'vehicle.corrected' => self::vehicleCorrected($p),
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
@@ -890,6 +983,188 @@ final class AuditDescriber
         return [$sentence, $changes];
     }
 
+    /**
+     * „Die Zahlungseinstellungen wurden geändert: Modus, Geheimer Schlüssel.“ — the keys only as their last four
+     * characters, before and after (never a key), as the Speicher's.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function paymentsUpdated(array $p): array
+    {
+        $fields = self::list($p, 'changed');
+        $sentence = 'Die Zahlungseinstellungen wurden '.($fields === [] ? 'ohne Änderung gespeichert' : 'geändert: '.implode(', ', $fields)).'.';
+        $mode = self::map($p, 'mode');
+        $modeName = static fn (mixed $m): string => match ($m) {
+            'live' => 'Livemodus',
+            'test' => 'Testmodus',
+            default => self::NOTHING,
+        };
+        $changes = [];
+
+        if ($modeName($mode['old'] ?? null) !== $modeName($mode['new'] ?? null)) {
+            $changes[] = self::change('Modus', $modeName($mode['old'] ?? null), $modeName($mode['new'] ?? null));
+        }
+
+        foreach (['publishable_last4' => 'Öffentlicher Schlüssel', 'signing_key_last4' => 'Geheimer Schlüssel', 'webhook_last4' => 'Webhook-Signaturschlüssel'] as $key => $label) {
+            $pair = self::map($p, $key);
+            $old = is_string($pair['old'] ?? null) ? '…'.$pair['old'] : self::NOTHING;
+            $new = is_string($pair['new'] ?? null) ? '…'.$pair['new'] : self::NOTHING;
+
+            if ($old !== $new) {
+                $changes[] = self::change($label, $old, $new);
+            }
+        }
+
+        return [$sentence, $changes];
+    }
+
+    /**
+     * „Die Angaben zu Verkäufer und Versand wurden geändert: Ort, Versandkosten.“ — each field before and after: nothing
+     * here is secret, it is printed on every invoice.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function sellerShippingUpdated(array $p): array
+    {
+        $changes = [];
+        $stored = self::map($p, 'changes');
+
+        // In the page's order, never the stored one: MySQL keeps a JSON object's keys in an order of its own (by length),
+        // MariaDB as written — the same entry read „Ort, Entfällt, Versandkosten“ on one and „Ort, Versandkosten, …“ on
+        // the other.
+        foreach (self::SELLER_SHIPPING_FIELDS as $field => $label) {
+            $pair = $stored[$field] ?? null;
+
+            if (! is_array($pair)) {
+                continue;
+            }
+
+            $changes[] = self::change($label, self::sellerValue($field, $pair['old'] ?? null), self::sellerValue($field, $pair['new'] ?? null));
+        }
+
+        $sentence = ($p['first'] ?? false) === true
+            ? 'Die Angaben zu Verkäufer und Versand wurden zum ersten Mal gespeichert.'
+            : 'Die Angaben zu Verkäufer und Versand wurden '.($changes === [] ? 'ohne Änderung gespeichert' : 'geändert: '.implode(', ', array_column($changes, 'label'))).'.';
+
+        return [$sentence, $changes];
+    }
+
+    private static function sellerValue(string $field, mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'ja' : 'nein';
+        }
+
+        if ($field === 'seller.not_applicable') {
+            $names = array_values(array_filter(array_map(static fn (mixed $key): ?string => is_string($key) ? (self::NOT_APPLICABLE[$key] ?? null) : null, is_array($value) ? $value : [])));
+
+            return $names === [] ? self::NOTHING : implode(', ', $names);
+        }
+
+        if ($field === 'shipping.zones') {
+            $zone = is_array($value) && is_array($value['DE'] ?? null) ? $value['DE'] : [];
+            $free = $zone['free_from_cents'] ?? null;
+
+            return self::money($zone['cost_cents'] ?? null).(is_int($free) ? ', versandkostenfrei ab '.self::money($free) : '');
+        }
+
+        if (is_int($value)) {
+            return GermanFormat::integer($value);
+        }
+
+        return is_string($value) && trim($value) !== '' ? trim($value) : self::NOTHING;
+    }
+
+    /**
+     * „Die Angaben des Fahrzeugs „…“ wurden korrigiert: Hersteller, Leistung in kW.“ — each before and after, in the
+     * form's order; the build window as the month it names.
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function vehicleCorrected(array $p): array
+    {
+        $old = self::map($p, 'old');
+        $new = self::map($p, 'new');
+        $read = static function (string $field, mixed $value): string {
+            if ($value === null || $value === '') {
+                return self::NOTHING;
+            }
+
+            if (in_array($field, ['build_from', 'build_to'], true) && is_string($value) && preg_match('/^(\d{4})-(\d{2})/', $value, $m) === 1) {
+                return $m[2].'.'.$m[1];
+            }
+
+            return is_scalar($value) ? trim((string) $value) : self::NOTHING;
+        };
+        $changes = [];
+
+        foreach (self::VEHICLE_FIELDS as $field => $label) {
+            if (! array_key_exists($field, $new)) {
+                continue;
+            }
+
+            [$before, $after] = [$read($field, $old[$field] ?? null), $read($field, $new[$field])];
+
+            if ($before !== $after) {
+                $changes[] = self::change($label, $before, $after);
+            }
+        }
+
+        return [
+            'Die Angaben des Fahrzeugs '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurden korrigiert'
+                .($changes === [] ? ', ohne Änderung.' : ': '.implode(', ', array_column($changes, 'label')).'.'),
+            $changes,
+        ];
+    }
+
+    /** @param  array<array-key, mixed>  $p  The order's number in quotation marks. */
+    private static function order(array $p): string
+    {
+        return self::q(self::text($p, 'order') ?? 'ohne Nummer');
+    }
+
+    /** An order's status by the word the order lists use. */
+    private static function status(?string $status): string
+    {
+        return $status === null ? 'unbekannt' : (OrderStatus::tryFrom($status)?->labelDe() ?? $status);
+    }
+
+    /** @param  array<array-key, mixed>  $p  „ Meldung: …“ — what the mail server, Stripe or the PDF answered, where it was kept. */
+    private static function error(array $p): string
+    {
+        $error = self::text($p, 'error');
+
+        return $error === null ? '' : ' Meldung: '.$error;
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function refunded(array $p): string
+    {
+        $amount = self::money($p['amount_cents'] ?? null);
+        $reason = self::text($p, 'reason');
+        $sentence = (self::text($p, 'status') ?? 'succeeded') === 'succeeded'
+            ? 'Zur Bestellung '.self::order($p).' wurden '.$amount.' erstattet.'
+            : 'Zur Bestellung '.self::order($p).' wurde eine Erstattung von '.$amount.' beantragt; abgeschlossen ist sie noch nicht.';
+
+        return $sentence.($reason === null ? '' : ' Grund: '.self::q($reason).'.');
+    }
+
+    /** @param  array<array-key, mixed>  $p  Evidence for a chargeback: the files and the invoice sent as the receipt. */
+    private static function evidenceSubmitted(array $p): string
+    {
+        $files = count(self::list($p, 'files'));
+        $receipt = self::text($p, 'receipt');
+        $what = array_values(array_filter([
+            $files === 0 ? null : self::count($files, 'Datei', 'Dateien'),
+            $receipt === null ? null : 'die Rechnung '.self::q($receipt).' als Beleg',
+        ]));
+
+        return 'Zur Rückbuchung der Bestellung '.self::order($p).' wurden Nachweise an Stripe geschickt'.($what === [] ? '.' : ': '.implode(', ', $what).'.');
+    }
+
     /** @param  array<array-key, mixed>  $p */
     private static function demandMarked(array $p): string
     {
@@ -1028,6 +1303,21 @@ final class AuditDescriber
         }
 
         return $changes;
+    }
+
+    /**
+     * A legal text's placeholder flag (D-319): on, visitors read only the notice; off, they read the published text.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function placeholderSwitched(array $p): string
+    {
+        $state = self::map($p, 'placeholder');
+        $on = ($state['new'] ?? null) === true;
+        $form = self::text($p, 'part') === 'formular';
+        $what = $form ? 'Beim Muster-Widerrufsformular' : 'Bei der Seite '.self::page($p);
+
+        return $what.' wurde der Platzhalter '.($on ? 'eingeschaltet: Besucher sehen statt des Textes nur noch den Hinweis, dass der Text der Kanzlei folgt.' : 'ausgeschaltet: Besucher sehen den Text statt des Hinweises.');
     }
 
     /** @param  array<array-key, mixed>  $p */

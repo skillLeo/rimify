@@ -73,8 +73,9 @@ const ABNAHME = [
 export default defineConfig({
     testDir: './e2e',
     // The client's list is a suite of its own, against the acceptance shop (playwright.kundenliste.config.ts,
-    // `npm run kundenliste`): run from here it would ask this config's servers for a shop they do not hold.
-    testIgnore: '**/kundenliste/**',
+    // `npm run kundenliste`): run from here it would ask this config's servers for a shop they do not hold. The admin
+    // audit too (playwright.audit.config.ts): it runs against its own server and database.
+    testIgnore: ['**/kundenliste/**', '**/audit/**'],
     // The e2e shop, rebuilt before every run: the specs that buy leave it with less stock (e2e/global-setup.ts).
     globalSetup: ACCEPTANCE ? undefined : './e2e/global-setup.ts',
     fullyParallel: false,

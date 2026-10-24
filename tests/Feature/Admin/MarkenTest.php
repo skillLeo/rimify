@@ -11,6 +11,7 @@ use App\Policies\BrandPolicy;
 use App\Services\Admin\Catalogue\BrandLogoStore;
 use App\Services\Admin\Catalogue\WheelEditor;
 use App\Support\BrandLogos;
+use App\Support\EditStamp;
 use App\Support\Security\SvgSanitizer;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Http\UploadedFile;
@@ -290,4 +291,38 @@ it('refuses an SVG with an entity or an internal subset, and one with nothing to
     expect(SvgSanitizer::clean('<!DOCTYPE svg [<!ENTITY x "y">]><svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1z"/></svg>'))->toBeNull()
         ->and(SvgSanitizer::clean('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'))->toBeNull()
         ->and(SvgSanitizer::clean('<html><body/></html>'))->toBeNull();
+});
+
+it('pages through a thousand brands with their counts asked a page at a time, and finds one by its name (the admin audit\'s F-04, F-31)', function (): void {
+    Brand::factory()->count(64)->create(['is_wheel_brand' => false]);
+    $this->actingAs(markenAdmin(), 'admin')->post('/admin/marken', ['name' => 'Grünland Räder', 'isWheelBrand' => true, 'sortOrder' => 9000])->assertSessionHasNoErrors();
+
+    $props = $this->actingAs(markenAdmin(), 'admin')->get('/admin/marken')->assertOk()->viewData('page')['props'];
+    expect($props['brands'])->toHaveCount(50)
+        ->and($props['summary']['total'])->toBe(65)
+        ->and($props['summary']['wall'])->toBe(1)
+        ->and($props['pagination'])->toMatchArray(['current' => 1, 'last' => 2, 'next' => '/admin/marken?seite=2']);
+
+    $found = $this->actingAs(markenAdmin(), 'admin')->get('/admin/marken?q='.rawurlencode('Grün'))->viewData('page')['props'];
+    expect(array_column($found['brands'], 'name'))->toBe(['Grünland Räder'])->and($found['found'])->toBe(1);
+});
+
+it('refuses a brand saved from a list opened before the last save of it, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $brand = Brand::factory()->create(['name' => 'Stahlwerk', 'is_wheel_brand' => true, 'sort_order' => 4]);
+    $stale = collect($this->actingAs(markenAdmin(), 'admin')->get('/admin/marken')->viewData('page')['props']['brands'])->firstWhere('id', $brand->id)['stamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+
+    $this->actingAs(markenAdmin(), 'admin')->from('/admin/marken')->put('/admin/marken/'.$brand->id, ['name' => 'Stahlwerk', 'isWheelBrand' => true, 'sortOrder' => 2])->assertSessionHasNoErrors();
+    $this->actingAs(markenAdmin(), 'admin')->from('/admin/marken')->withHeader(EditStamp::HEADER, $stale)
+        ->put('/admin/marken/'.$brand->id, ['name' => 'Stahlwerk Räder', 'isWheelBrand' => true, 'sortOrder' => 4])
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($brand->fresh()->only(['name', 'sort_order']))->toBe(['name' => 'Stahlwerk', 'sort_order' => 2]);
+});
+
+it('names a brand made here the way the Felge form and the import do: „Grünland Räder“ is gruenland-raeder (the admin audit\'s F-16)', function (): void {
+    $this->actingAs(markenAdmin(), 'admin')->post('/admin/marken', ['name' => 'Grünland Räder', 'isWheelBrand' => false, 'sortOrder' => 0])->assertSessionHasNoErrors();
+
+    expect(Brand::query()->where('name', 'Grünland Räder')->value('slug'))->toBe('gruenland-raeder')
+        ->and(WheelEditor::slug('Grünland Räder'))->toStartWith('gruenland-raeder');
 });

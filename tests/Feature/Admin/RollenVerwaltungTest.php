@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\RollenController;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Services\Admin\AdminNavigation;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -100,15 +101,15 @@ describe('the actions each module really has', function (): void {
             ->and(PermissionModule::AuditLog->actions())->toBe([PermissionAction::View, PermissionAction::Export])
             ->and(PermissionModule::Content->hasAction(PermissionAction::Export))->toBeFalse()
             ->and(PermissionModule::AuditLog->hasAction(PermissionAction::Delete))->toBeFalse()
-            ->and(PermissionModule::Catalogue->actions())->toHaveCount(6)
-            ->and(PermissionModule::cells())->toHaveCount(45);
+            ->and(PermissionModule::Catalogue->actions())->toHaveCount(5)
+            ->and(PermissionModule::cells())->toHaveCount(33);
     });
 
     it('seeds the Super-Admin with every real cell and not one row more', function (): void {
         $superAdmin = verwaltungRoleId('super-admin');
 
         expect(verwaltungRights($superAdmin))->toBe(PermissionModule::cells())
-            ->and(DB::table('role_permissions')->where('role_id', $superAdmin)->count())->toBe(45);
+            ->and(DB::table('role_permissions')->where('role_id', $superAdmin)->count())->toBe(33);
     });
 
     it('removes a row an older seed left for an action the module does not have', function (): void {
@@ -234,7 +235,7 @@ describe('creating a role', function (): void {
             ->and($role->name)->toBe('lager')
             ->and((bool) $role->is_system)->toBeFalse()
             ->and($role->description_de)->toBe('Wareneingang')
-            ->and(DB::table('role_permissions')->where('role_id', $role->id)->count())->toBe(45)
+            ->and(DB::table('role_permissions')->where('role_id', $role->id)->count())->toBe(33)
             ->and(verwaltungRights((int) $role->id))->toBe([]);
 
         $response->assertRedirect('/admin/rollen?rolle='.$role->id)
@@ -315,6 +316,20 @@ describe('renaming a role', function (): void {
             'old' => ['label' => 'Lager', 'description' => null],
             'new' => ['label' => 'Wareneingang', 'description' => 'Annahme und Prüfung'],
         ]);
+    });
+
+    it('refuses a name saved from a dialog opened before the last save of it, and keeps that save (the admin audit\'s F-25)', function (): void {
+        $role = verwaltungCustomRole('Lager');
+        $stale = collect($this->actingAs(verwaltungAdmin(), 'admin')->get("/admin/rollen?rolle={$role}")->viewData('page')['props']['roles'])->firstWhere('id', $role)['nameStamp'] ?? null;
+        expect($stale)->toBeString()->not->toBe('');
+
+        $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')
+            ->patch("/admin/rollen/{$role}", ['label' => 'Lager', 'description' => 'Wareneingang und Versand'])->assertSessionHasNoErrors();
+        $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')->withHeader(EditStamp::HEADER, $stale)
+            ->patch("/admin/rollen/{$role}", ['label' => 'Lager Nord', 'description' => null])
+            ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+        expect((array) DB::table('roles')->where('id', $role)->first(['label_de', 'description_de']))->toBe(['label_de' => 'Lager', 'description_de' => 'Wareneingang und Versand']);
     });
 
     it('keeps a standard role\'s name, and lets its description change', function (): void {
@@ -486,10 +501,10 @@ describe('one cell', function (): void {
         $own = verwaltungRoleId('catalogue-manager');
 
         $this->actingAs(verwaltungAdmin('catalogue-manager'), 'admin')->from('/admin/rollen')
-            ->patch("/admin/rollen/{$own}/rechte", ['module' => 'vehicles', 'action' => 'delete', 'allowed' => true])
+            ->patch("/admin/rollen/{$own}/rechte", ['module' => 'audit_log', 'action' => 'export', 'allowed' => true])
             ->assertSessionHasErrors(['allowed' => RollenController::RAISE_OWN_REFUSAL]);
 
-        expect(verwaltungRights($own))->not->toContain('vehicles.delete');
+        expect(verwaltungRights($own))->not->toContain('audit_log.export');
 
         $this->actingAs(verwaltungAdmin('catalogue-manager'), 'admin')->from('/admin/rollen')
             ->patch("/admin/rollen/{$own}/rechte", ['module' => 'vehicles', 'action' => 'view', 'allowed' => false])
@@ -538,10 +553,10 @@ describe('replacing a role\'s rights', function (): void {
     it('writes the whole set and records what came and what went', function (): void {
         $role = verwaltungRoleId('accountant');
         // Before: orders view+export, reports view+export, customers view.
-        $next = ['orders.view', 'customers.view', 'customers.edit', 'reports.view'];
+        $next = ['catalogue.view', 'orders.view', 'customers.view', 'reports.view'];
 
         $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')
-            ->put("/admin/rollen/{$role}/rechte", ['rights' => ['reports.view', 'orders.view', 'customers.edit', 'customers.view']])
+            ->put("/admin/rollen/{$role}/rechte", ['rights' => ['reports.view', 'orders.view', 'catalogue.view', 'customers.view']])
             ->assertRedirect('/admin/rollen')
             ->assertSessionHas('toast', RollenController::SAVED_TOAST);
 
@@ -553,7 +568,7 @@ describe('replacing a role\'s rights', function (): void {
         expect($entry?->properties->all())->toEqual([
             'role_id' => $role,
             'label' => 'Buchhaltung',
-            'added' => ['customers.edit'],
+            'added' => ['catalogue.view'],
             'removed' => ['orders.export', 'reports.export'],
         ])->and((int) $entry?->subject_id)->toBe($role);
     });
@@ -731,4 +746,34 @@ describe('deleting a role once named in an invitation', function (): void {
 
         expect(DB::table('roles')->where('id', $role)->exists())->toBeTrue();
     });
+});
+
+it('refuses rights saved from a matrix opened before the last change, and keeps that change (the admin audit\'s F-25)', function (): void {
+    $role = verwaltungRoleId('accountant');
+    $stale = $this->actingAs(verwaltungAdmin(), 'admin')->get("/admin/rollen?rolle={$role}")->viewData('page')['props']['stamp'];
+
+    // Another tab sets the role's rights; this tab still shows the old ones and adds to them.
+    $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')
+        ->put("/admin/rollen/{$role}/rechte", ['rights' => ['orders.view', 'reports.view']])->assertSessionHasNoErrors();
+    $this->actingAs(verwaltungAdmin(), 'admin')->from('/admin/rollen')->withHeader(EditStamp::HEADER, $stale)
+        ->put("/admin/rollen/{$role}/rechte", ['rights' => ['orders.view', 'orders.export', 'reports.view', 'reports.export']])
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect(verwaltungRights($role))->toEqualCanonicalizing(['orders.view', 'reports.view']);
+});
+it('offers only rights the shop checks, and lets go of the stored ones that never did anything (the admin audit\'s F-21)', function (): void {
+    $unreal = ['catalogue.export', 'vehicles.delete', 'vehicles.export', 'approvals.delete', 'approvals.export', 'customers.edit', 'customers.delete', 'customers.export', 'media.view', 'media.edit'];
+
+    expect(array_intersect($unreal, PermissionModule::cells()))->toBe([]);
+
+    $modules = array_column($this->actingAs(verwaltungAdmin(), 'admin')->get('/admin/rollen')->assertOk()->viewData('page')['props']['modules'], 'module');
+    expect($modules)->not->toContain('media')->toContain('catalogue');
+
+    // A cell an older matrix wrote is gone after the migration; a real one stays.
+    $role = verwaltungRoleId('accountant');
+    DB::table('role_permissions')->insert(['role_id' => $role, 'module' => 'customers', 'action' => 'delete', 'allowed' => true, 'created_at' => now(), 'updated_at' => now()]);
+    (require database_path('migrations/2026_10_24_000100_drop_unreal_role_cells.php'))->up();
+
+    expect(DB::table('role_permissions')->where('role_id', $role)->where('module', 'customers')->where('action', 'delete')->exists())->toBeFalse()
+        ->and(DB::table('role_permissions')->where('role_id', $role)->where('module', 'customers')->where('action', 'view')->exists())->toBeTrue();
 });

@@ -1,0 +1,9 @@
+{ "name": "t7-38-katalog-import", "start": "/admin/katalog/import", "full": true, "steps": [
+  { "upload": "input[type=file]", "path": "C:/rimify/resume/audit/files/katalog-audit.csv" },
+  { "fill": "#im-supplier", "value": "Ostwerk Großhandel" },
+  { "eval": "Array.from(document.querySelector('#im-decimal').options).map(o => o.value + (o.selected ? '*' : ''))" },
+  { "click": "role=button[name=\"Probelauf starten\"]" },
+  { "wait": 4000 },
+  { "eval": "[location.pathname, document.querySelector('h1')?.textContent?.trim(), document.querySelector('.adm-page__context')?.textContent?.trim()]" },
+  { "text": "main", "max": 2500 }
+] }

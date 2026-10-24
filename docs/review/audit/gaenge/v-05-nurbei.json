@@ -1,0 +1,9 @@
+{ "name": "v-05-nurbei", "start": "/admin/gutachten/1060?fahrzeug=1276", "full": false, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('.cgroups__head')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).slice(0, 6)" },
+  { "goto": "/admin/gutachten/1060?fahrzeug=1277" },
+  { "eval": "Array.from(document.querySelectorAll('.cgroups__head')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).slice(0, 6)" },
+  { "goto": "/admin/gutachten/1061?fahrzeug=1277" },
+  { "eval": "Array.from(document.querySelectorAll('.cgroups__head')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).slice(0, 6)" },
+  { "goto": "/admin/gutachten/1061?fahrzeug=1276" },
+  { "eval": "Array.from(document.querySelectorAll('.cgroups__head')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).slice(0, 6)" }
+] }

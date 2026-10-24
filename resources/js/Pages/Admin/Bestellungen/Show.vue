@@ -165,6 +165,15 @@ function parseAmount(text: string): number | null {
 
 const refundCents = computed(() => parseAmount(refundAmount.value))
 
+/* What the refund does, said as it is: over Stripe, or — paid with the Testzahlung — no money at all (the admin audit's F-11). */
+const refundBody = computed(() => {
+    const who = props.customer.name ?? 'die Kundin oder den Kunden'
+
+    return props.order.test
+        ? `Bei der Testzahlung fließt kein Geld zurück: Die Erstattung wird vermerkt, und die Gutschrift geht an ${who}. Eine Erstattung lässt sich nicht zurücknehmen.`
+        : `Das Geld geht über Stripe an ${who} zurück; eine Gutschrift wird ausgestellt. Eine Erstattung lässt sich nicht zurücknehmen.`
+})
+
 function askRefund(): void {
     const cents = refundCents.value
     refundLocal.value = null
@@ -226,7 +235,13 @@ function refund(): void {
     refunding.value = true
     router.post(`/admin/bestellungen/${props.order.id}/erstattung`, { amount: refundAmount.value, reason: refundReason.value }, {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (answer) => {
+            // Sent to „Passwort bestätigen“ first, the visit succeeds on that page: the refund is not made, and what was
+            // typed stays kept for the way back (the admin audit's F-13 — it was dropped right there).
+            if (answer.component !== 'Admin/Bestellungen/Show') {
+                return
+            }
+
             // Made — or refused with a sentence under the form, which keeps the figures for a correction.
             if (!refundErrors.value.refund && !refundErrors.value.amountCents && !refundErrors.value.reason) {
                 keepDraft(false)
@@ -444,7 +459,7 @@ function tagClass(state: OrderState): string | null {
                 <div class="form-field">
                     <label class="form-field__label" for="bs-refund-amount">Betrag</label>
                     <span class="input-group bs-refund__amount"><input id="bs-refund-amount" v-model="refundAmount" class="input bs-refund__input" type="text" inputmode="decimal" autocomplete="off" aria-describedby="bs-refund-help bs-refund-err"><span class="input-group__suffix" aria-hidden="true">€</span></span>
-                    <p id="bs-refund-help" class="form-field__help">In Euro, höchstens {{ formatMoney(money.refundable) }}. Das Geld geht über Stripe auf dem Weg zurück, auf dem bezahlt wurde.</p>
+                    <p id="bs-refund-help" class="form-field__help">In Euro, höchstens {{ formatMoney(money.refundable) }}. {{ order.test ? 'Bei der Testzahlung fließt kein Geld: Die Erstattung wird nur vermerkt.' : 'Das Geld geht über Stripe auf dem Weg zurück, auf dem bezahlt wurde.' }}</p>
                 </div>
                 <div class="form-field">
                     <label class="form-field__label" for="bs-refund-reason">Grund</label>
@@ -463,7 +478,7 @@ function tagClass(state: OrderState): string | null {
         <AdminConfirm
             v-model:open="refundOpen"
             :title="`${formatMoney(refundCents ?? 0)} erstatten?`"
-            :body="`Das Geld geht über Stripe an ${customer.name ?? 'die Kundin oder den Kunden'} zurück; eine Gutschrift wird ausgestellt. Eine Erstattung lässt sich nicht zurücknehmen.`"
+            :body="refundBody"
             :confirm-label="`${formatMoney(refundCents ?? 0)} erstatten`"
             :busy="refunding"
             @confirm="refund"

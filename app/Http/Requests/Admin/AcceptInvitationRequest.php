@@ -35,7 +35,9 @@ class AcceptInvitationRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'string', 'confirmed', 'max:255', Password::min(12)],
+            // The length before the repeat: a short password with an empty repeat was told only that the two differ
+            // (the admin audit's F-29) — the form shows the first sentence.
+            'password' => ['required', 'string', 'max:255', Password::min(12), 'confirmed'],
         ];
     }
 

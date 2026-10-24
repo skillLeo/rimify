@@ -14,6 +14,7 @@ use App\Models\DocumentCondition;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
+use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -55,7 +56,12 @@ class GutachtenAuflagenController extends Controller
 
     public function update(DocumentConditionRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
     {
-        $this->conditions->update($condition, $request->payload(), $request->admin());
+        DB::transaction(function () use ($request, $condition): void {
+            // The code as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $locked = DocumentCondition::query()->lockForUpdate()->findOrFail($condition->id);
+            EditStamp::guard($request, DocumentConditions::state($locked));
+            $this->conditions->update($locked, $request->payload(), $request->admin());
+        });
 
         return back()->with('toast', self::CHANGED);
     }

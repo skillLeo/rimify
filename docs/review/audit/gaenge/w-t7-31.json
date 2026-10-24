@@ -1,0 +1,8 @@
+{ "name": "t7-31-zubehoer-lesen", "start": "/admin/zubehoerpreise/wuchtgewichte", "full": true, "steps": [
+  { "eval": "[location.pathname, Array.from(document.querySelectorAll('main [aria-label]')).map(b => b.getAttribute('aria-label')).slice(0, 14)]" },
+  { "text": "main", "max": 1400 },
+  { "goto": "/admin/zubehoerpreise/rdks" },
+  { "wait": 800 },
+  { "eval": "[location.pathname, Array.from(document.querySelectorAll('main [aria-label]')).map(b => b.getAttribute('aria-label')).slice(0, 14)]" },
+  { "text": "main", "max": 1400 }
+] }

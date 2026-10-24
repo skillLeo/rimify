@@ -29,7 +29,8 @@ class AdminPasswordRequest extends FormRequest
     {
         return [
             'current_password' => ['required', 'string', 'current_password:admin'],
-            'password' => ['required', 'string', 'confirmed', 'different:current_password', Password::min(12)],
+            // The length first, the repeat last: the form shows the first sentence (the admin audit's F-29).
+            'password' => ['required', 'string', Password::min(12), 'different:current_password', 'confirmed'],
         ];
     }
 

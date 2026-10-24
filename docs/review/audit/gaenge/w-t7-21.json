@@ -1,0 +1,4 @@
+{ "name": "t7-21-bestellung-fassung-1", "start": "/admin/bestellungen/2123", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main h2, main h3')).map(h => h.textContent.trim())" },
+  { "eval": "Array.from(document.querySelectorAll('main section, main .adm-section')).filter(s => /Gutachten|Freigabe/.test(s.textContent)).map(s => s.innerText.replace(/\\n+/g, ' | ').slice(0, 700))" }
+] }

@@ -1,0 +1,17 @@
+{ "name": "t1-7-grenzen", "start": "/admin/felgen/neu", "steps": [
+  { "select": "#fe-brand", "label": "Prüfrad" },
+  { "fill": "#fe-name", "value": "Straße 18" },
+  { "fill": "#fe-type", "value": "PR18" },
+  { "fill": "#fe-f-0-name", "value": "Schwarz glänzend" },
+  { "fill": "#fe-m-d", "value": "18" },
+  { "fill": "#fe-m-w", "value": "8,5" },
+  { "fill": "#fe-m-et", "value": "35" },
+  { "fill": "#fe-m-lk", "value": "112" },
+  { "fill": "#fe-m-bore", "value": "66,6" },
+  { "fill": "#fe-m-price", "value": "389,00" },
+  { "click": "role=button[name=/Größe in die Tabelle/]" },
+  { "fill": "#fe-size-0-sku", "value": "PR18-8518-35" },
+  { "click": "role=button[name=\"Speichern\"]" },
+  { "wait": 2000 },
+  { "eval": "location.pathname" }
+] }

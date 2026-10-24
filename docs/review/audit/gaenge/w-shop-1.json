@@ -1,0 +1,16 @@
+{ "name": "shop-1-zz9", "guest": true, "start": "/", "full": true, "steps": [
+  { "click": "role=button[name=\"Verstanden\"]", "timeout": 4000 },
+  { "click": "role=tab[name=\"HSN/TSN\"]" },
+  { "fill": "role=textbox[name=\"HSN (Feld 2.1)\"]", "value": "0005" },
+  { "fill": "role=textbox[name=\"TSN (Feld 2.2)\"]", "value": "ZZ9" },
+  { "click": ".sel__go" },
+  { "wait": 2500 },
+  { "eval": "location.pathname + location.search" },
+  { "goto": "/felgen" },
+  { "wait": 1500 },
+  { "text": "article.tile:has-text(\"Prüfrad\")", "max": 600 },
+  { "click": "article.tile:has-text(\"Prüfrad\") a.tile__cta" },
+  { "wait": 2500 },
+  { "eval": "location.pathname" },
+  { "text": ".rcheck-panel", "max": 2500 }
+] }

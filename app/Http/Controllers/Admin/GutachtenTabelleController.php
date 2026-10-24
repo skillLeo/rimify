@@ -10,6 +10,7 @@ use App\Models\ApprovalDocument;
 use App\Models\DocumentSpeedDerating;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
+use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -31,6 +32,9 @@ class GutachtenTabelleController extends Controller
         }
 
         DB::transaction(static function () use ($cells, $page, $document, $request): void {
+            // Saved whole: a table opened before someone else's save would put the old one back — refused instead (F-25).
+            ApprovalDocument::query()->whereKey($document->id)->lockForUpdate()->first();
+            EditStamp::guard($request, GutachtenController::deratingState($document));
             $before = DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->count();
             DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->delete();
             $now = now();

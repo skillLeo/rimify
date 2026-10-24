@@ -14,6 +14,8 @@ use App\Models\AdminUser;
 use App\Models\FaqEntry;
 use App\Models\Setting;
 use App\Services\Admin\AuditTrail;
+use App\Support\EditStamp;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +39,9 @@ class FragenController extends Controller
 
     public const REORDERED = 'Reihenfolge gespeichert.';
 
+    /** What the question form writes — and so what its stamp covers (EditStamp, the admin audit's F-25). */
+    private const FIELDS = ['group_key', 'question_de', 'answer_de', 'published'];
+
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', FaqEntry::class);
@@ -57,6 +62,8 @@ class FragenController extends Controller
                 'question' => $entry->question_de,
                 'answer' => $entry->answer_de,
                 'published' => $entry->published,
+                // The entry as loaded: „Bearbeiten“ sends it back, a save against an older state is refused (F-25).
+                'stamp' => EditStamp::of($entry->only(self::FIELDS)),
             ];
         }
 
@@ -67,6 +74,8 @@ class FragenController extends Controller
 
         return Inertia::render('Admin/Faq/Index', [
             'groups' => array_values($groups),
+            // The order as loaded: a move sends it back, and a move from an older order is refused (F-25).
+            'orderStamp' => EditStamp::of(self::order($entries)),
             'groupOptions' => FaqEntry::GROUPS,
             'onHome' => $home,
             'limits' => ['question' => FaqEntry::QUESTION_MAX, 'answer' => FaqEntry::ANSWER_MAX],
@@ -108,8 +117,11 @@ class FragenController extends Controller
         $attributes = $request->entryAttributes();
         $admin = $request->admin();
 
-        DB::transaction(function () use ($attributes, $admin, $entry): void {
-            $before = $entry->only(['group_key', 'question_de', 'answer_de', 'published']);
+        DB::transaction(function () use ($attributes, $admin, $entry, $request): void {
+            // The entry as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $entry = FaqEntry::query()->lockForUpdate()->findOrFail($entry->id);
+            EditStamp::guard($request, $entry->only(self::FIELDS));
+            $before = $entry->only(self::FIELDS);
 
             // Moved to the other group: it joins that group at its end, as a new question would,
             // rather than keeping a number that puts it first there.
@@ -123,7 +135,7 @@ class FragenController extends Controller
             self::renumber();
             self::touched();
 
-            $after = $entry->only(['group_key', 'question_de', 'answer_de', 'published']);
+            $after = $entry->only(self::FIELDS);
             $changed = array_keys(array_filter($after, static fn (mixed $value, string $key): bool => $before[$key] !== $value, ARRAY_FILTER_USE_BOTH));
 
             AuditTrail::record($admin, 'faq.updated', [
@@ -168,7 +180,10 @@ class FragenController extends Controller
         $ids = $request->ids();
         $admin = $request->admin();
 
-        DB::transaction(function () use ($ids, $admin): void {
+        DB::transaction(function () use ($ids, $admin, $request): void {
+            // The order as it is now, held: a move from a list in an older order is refused (EditStamp, F-25).
+            EditStamp::guard($request, self::order(FaqEntry::query()->orderBy('sort_order')->orderBy('id')->lockForUpdate()->get(['id'])));
+
             foreach ($ids as $index => $id) {
                 FaqEntry::query()->whereKey($id)->update(['sort_order' => ($index + 1) * 10]);
             }
@@ -219,6 +234,17 @@ class FragenController extends Controller
         if (Setting::get(FaqEntry::TEAM_OWNED_SETTING) === null) {
             Setting::set(FaqEntry::TEAM_OWNED_SETTING, now()->toIso8601String());
         }
+    }
+
+    /**
+     * The order /faq reads — the ids, first to last — as the stamp of a move compares it (EditStamp, F-25).
+     *
+     * @param  Collection<int, FaqEntry>  $entries  in sort_order, then id
+     * @return list<int>
+     */
+    private static function order(Collection $entries): array
+    {
+        return $entries->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all();
     }
 
     /** Gaps of ten again, groups in their fixed order: the list and the stored order never disagree. */

@@ -1,0 +1,7 @@
+{ "name": "v-37b-cut", "start": "/admin/gutachten/10", "full": false, "steps": [
+  { "eval": "[document.querySelector('.gs-cut')?.textContent?.replace(/\\s+/g, ' ').trim() ?? 'KEIN gs-cut', Array.from(document.querySelectorAll('main p, main .adm-note')).map(e => e.textContent.replace(/\\s+/g, ' ').trim()).filter(t => /1\\.008|Freigabe/.test(t)).slice(0, 5)]" },
+  { "goto": "/admin/fahrzeuge/1274" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelectorAll('main tbody tr').length, document.querySelector('.fs-cut')?.textContent?.replace(/\\s+/g, ' ').trim() ?? 'KEIN fs-cut', document.querySelector('.fs-rule')?.textContent?.trim()]" },
+  { "goto": "/admin/fahrzeuge/39" },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), document.querySelector('.fs-rule')?.textContent?.trim(), !!Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Angaben korrigieren'))]" }
+] }

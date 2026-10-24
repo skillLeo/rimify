@@ -134,11 +134,12 @@ test('no button opens a mail program: every „Schreib uns“ leads to the form,
     }
 
     // The address as text, where the seller's details are on record; the preview has none yet (a go-live item, EIGENE-FUNDE
-    // 126), and its Impressum says so — then that is recorded, never passed off as an address.
+    // 126), and its Impressum says so — „noch nicht angegeben“ for the test environment's operator, the marker „[E-MAIL]“
+    // for the seller (D-319) — then that is recorded, never passed off as an address.
     await open(page, '/rechtliches/impressum')
     const impressum = await page.locator('main').innerText()
 
-    if (/E-Mail\s*noch nicht angegeben/.test(impressum)) {
+    if (/E-Mail\s*(noch nicht angegeben|\[E-MAIL\])/.test(impressum)) {
         info.annotations.push({ type: 'offen', description: 'Impressum: E-Mail-Adresse noch nicht angegeben – die Verkäuferdaten fehlen hier noch (Go-live, EIGENE-FUNDE 126).' })
     } else {
         expect(impressum, 'the Impressum gives no e-mail address (§ 5 DDG)').toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/)

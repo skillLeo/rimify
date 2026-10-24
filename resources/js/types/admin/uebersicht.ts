@@ -190,6 +190,8 @@ export interface DemandGap {
     mark: { state: 'watched' | 'requested'; label: string; by: string | null } | null
     /** The request to a wheel brand, ready to send. */
     mail: { subject: string; body: string }
+    /** Its place in the whole ranking, on any page and in any search (Nachfrage; the admin audit's F-41). */
+    rank?: number
 }
 
 export interface DemandCounts {

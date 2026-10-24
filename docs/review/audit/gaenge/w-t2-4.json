@@ -1,0 +1,15 @@
+{ "name": "t2-4-angelegt", "start": "/admin/gutachten/neu", "main": 2500, "steps": [
+  { "upload": "#gn-pdf", "path": "C:/Users/Admin/Downloads/Borbet DB8GT2_19_ABE_BMW.pdf" },
+  { "wait": 3000 },
+  { "select": "#gn-kind", "label": "Teilegutachten" },
+  { "click": "role=button[name=\"Gutachten anlegen\"]" },
+  { "wait": 2500 },
+  { "text": "#gn-pdf-label ~ *", "max": 200 },
+  { "eval": "document.querySelector('#gn-pdf')?.closest('.form-field')?.innerText" },
+  { "fill": "#gn-number", "value": "366-0350-23-AUDT" },
+  { "fill": "#gn-issuer", "value": "TÜV SÜD Auto Service GmbH" },
+  { "check": "input[name=\"gn-index\"][value=\"papers\"]" },
+  { "fill": "#gn-pages", "value": "13" },
+  { "click": "role=button[name=\"Gutachten anlegen\"]" },
+  { "wait": 4000 }
+] }

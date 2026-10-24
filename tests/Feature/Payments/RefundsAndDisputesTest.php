@@ -129,6 +129,21 @@ it('asks for the password again before money leaves, and lets no one refund who 
     expect($this->stripe->to('POST', '/v1/refunds'))->toBe([]);
 });
 
+it('tells the password page it guards a refund, not the shop’s keys (the admin audit’s F-12)', function (): void {
+    $page = '/admin/bestellungen/'.$this->order->id;
+    $question = '/admin/bestaetigen?weiter='.rawurlencode($page);
+
+    $this->actingAs(refundsAdmin(), 'admin')->from($page)
+        ->post($page.'/erstattung', ['amount' => '10,00', 'reason' => 'Test'])
+        ->assertRedirect($question);
+
+    $this->actingAs(refundsAdmin(), 'admin')->get($question)
+        ->assertInertia(fn (AssertableInertia $inertia) => $inertia
+            ->component('Admin/Bestaetigen/Index')
+            ->where('weiter', $page)
+            ->where('reason', 'Eine Erstattung lässt sich nicht zurücknehmen.'));
+});
+
 it('shows the order page what was paid, the invoice, and whether a refund can be made', function (): void {
     $this->actingAs(refundsAdmin(), 'admin')->get('/admin/bestellungen/'.$this->order->id)->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page

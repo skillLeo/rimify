@@ -1,0 +1,3 @@
+{ "name": "t7-41-email-nach-freigabe", "start": "/admin/einstellungen/e-mail", "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main section')).filter(s => /Unzustellbare/.test(s.textContent)).map(s => s.innerText.slice(-300))" }
+] }

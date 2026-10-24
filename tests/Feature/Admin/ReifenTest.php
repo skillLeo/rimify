@@ -10,6 +10,7 @@ use App\Models\Brand;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\TyreVariant;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,19 @@ function reifenPayload(array $override = []): array
         'available' => true,
     ], $override);
 }
+
+it('offers tyre makers in the brand list, not wheel brands — and keeps the brand a tyre already has (the admin audit\'s F-09)', function (): void {
+    Brand::factory()->create(['name' => 'BBS', 'is_wheel_brand' => true]);
+    Brand::factory()->create(['name' => 'Continental', 'is_wheel_brand' => false]);
+    $both = Brand::factory()->create(['name' => 'Borbet', 'is_wheel_brand' => true]);
+    $tyre = TyreVariant::factory()->create(['brand_id' => $both->id, 'is_demo' => false]);
+
+    $offered = fn (string $url): array => array_column($this->actingAs(reifenAdmin(), 'admin')->get($url)->viewData('page')['props']['brands'], 'label');
+
+    expect($offered('/admin/reifen/neu'))->toContain('Continental')->toContain('Borbet')->not->toContain('BBS')
+        // The tyre shown keeps its own brand in the list, whatever kind it is.
+        ->and($offered("/admin/reifen/{$tyre->id}"))->toContain('Borbet');
+});
 
 it('makes a tyre with its EU label: a tyre brand, the symbol’s rank from the table, offered, and one Protokoll entry @admin-210', function (): void {
     $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload())
@@ -292,4 +306,20 @@ it('shows the list to no one without the catalogue’s view right (R-11) @admin-
     DB::table('role_permissions')->where('role_id', $role)->where('module', 'catalogue')->where('action', 'view')->update(['allowed' => false]);
 
     $this->actingAs(reifenAdmin('catalogue-manager'), 'admin')->get('/admin/reifen')->assertForbidden();
+});
+
+it('refuses a tyre saved from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload())->assertSessionHasNoErrors();
+    $tyre = TyreVariant::query()->latest('id')->firstOrFail();
+    $url = '/admin/reifen/'.$tyre->id;
+    $stale = $this->actingAs(reifenAdmin(), 'admin')->get($url)->viewData('page')['props']['stamp'];
+
+    // Another tab lowers the price; this tab still holds the old one beside its own change.
+    $this->actingAs(reifenAdmin(), 'admin')->from($url)->put($url, reifenPayload(['brand_id' => $tyre->brand_id, 'brand_new' => null, 'price' => '119,90']))
+        ->assertSessionHasNoErrors();
+    $this->actingAs(reifenAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)
+        ->put($url, reifenPayload(['brand_id' => $tyre->brand_id, 'brand_new' => null, 'eu_noise_db' => '70']))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($tyre->refresh()->price_cents)->toBe(11_990)->and($tyre->eu_noise_db)->toBe(71);
 });

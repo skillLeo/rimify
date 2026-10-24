@@ -1,0 +1,7 @@
+{ "name": "f-3-anmelden-lang", "guest": true, "start": "/admin/anmelden", "full": true, "steps": [
+  { "eval": "(() => { const v = 'sehr.lange.adresse.' + 'x'.repeat(280) + '@rimify.test'; const el = document.querySelector('input[type=email], input[name=email]'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return el.value.length; })()" },
+  { "fill": "input[type=password]", "value": "irgendwas-12345" },
+  { "click": "main >> role=button[name=/Anmelden/]" },
+  { "wait": 1500 },
+  { "eval": "Array.from(document.querySelectorAll('.form-field__error, [role=alert], .login__error, p')).map(e => e.textContent.trim()).filter(t => t && /validation|Adresse|Zeichen|E-Mail|Passwort|stimmt/.test(t)).slice(0, 5)" }
+] }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Database\Eloquent\Builder;
@@ -415,4 +416,19 @@ it('never shares admin.can on the storefront', function (): void {
     $this->get('/kontakt')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->missing('admin'));
+});
+
+it('refuses a colour saved from a list opened before the last save of it, and keeps that save (the admin audit\'s F-25)', function (): void {
+    $this->actingAs(wgAdmin('super-admin'), 'admin')->post('/admin/zubehoerpreise/wuchtgewichte', wgPayload())->assertSessionHasNoErrors();
+    $colour = BalanceWeightColour::query()->sole();
+    $stale = collect($this->actingAs(wgAdmin('super-admin'), 'admin')->get('/admin/zubehoerpreise/wuchtgewichte')->viewData('page')['props']['colours'])->firstWhere('id', $colour->getKey())['stamp'] ?? null;
+    expect($stale)->toBeString()->not->toBe('');
+
+    $this->actingAs(wgAdmin('super-admin'), 'admin')->from('/admin/zubehoerpreise/wuchtgewichte')
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey(), wgPayload(['surcharge' => '4,00']))->assertSessionHasNoErrors();
+    $this->actingAs(wgAdmin('super-admin'), 'admin')->from('/admin/zubehoerpreise/wuchtgewichte')->withHeader(EditStamp::HEADER, $stale)
+        ->patch('/admin/zubehoerpreise/wuchtgewichte/'.$colour->getKey(), wgPayload(['nameDe' => 'Silber hell']))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect($colour->refresh()->only(['name_de', 'surcharge_cents']))->toBe(['name_de' => 'Silber', 'surcharge_cents' => 400]);
 });

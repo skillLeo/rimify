@@ -11,6 +11,7 @@ import { Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import ListPager, { type ListPagination } from '../../../Components/Admin/Lists/ListPager.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { DocumentConditionView, UnresolvedCode } from '../../../types/admin/gutachten'
@@ -26,9 +27,14 @@ interface DocumentList {
     unresolved: UnresolvedCode[]
 }
 
-const props = defineProps<{ documents: DocumentList[] }>()
+const props = defineProps<{
+    documents: DocumentList[]
+    /** Every document with a code, over all pages (the admin audit's F-33). */
+    found: number
+    pagination: ListPagination
+}>()
 
-const context = computed(() => (props.documents.length === 1 ? '1 Gutachten' : `${decimal(props.documents.length, 0)} Gutachten`))
+const context = computed(() => (props.found === 1 ? '1 Gutachten' : `${decimal(props.found, 0)} Gutachten`))
 
 const STATUS: Record<DocumentList['status'], string> = {
     draft: 'Entwurf',
@@ -106,6 +112,8 @@ function parameter(c: DocumentConditionView): string {
                 </table>
             </div>
         </section>
+
+        <ListPager :pagination="pagination" label="Seiten der Auflagenverzeichnisse" />
     </AdminPage>
 </template>
 

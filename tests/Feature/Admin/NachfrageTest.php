@@ -332,3 +332,72 @@ it('puts the five open gaps most in demand on the Übersicht, for the Gutachten 
     $this->actingAs(nfAdmin('order-manager'), 'admin')->get('/admin')
         ->assertInertia(fn (AssertableInertia $page) => $page->loadDeferredProps(fn (AssertableInertia $reload) => $reload->where('charts.demand', false)));
 });
+
+it('ranks every gap but shows fifty to a page, and asks the catalogue for all typed key numbers at once (the admin audit\'s F-04, F-31)', function (): void {
+    $known = nfVehicle('Prüfwerk', 'Größe Eins', '1.6', ['hsn' => '0005', 'tsn' => 'ZZ8']);
+    nfCover($known);
+    $now = CarbonImmutable::now();
+    $rows = [];
+
+    // 130 key numbers nobody knows, one already approved by now (closed), each asked once.
+    for ($i = 0; $i < 130; $i++) {
+        $rows[] = ['vehicle_id' => null, 'hsn' => sprintf('%04d', 7000 + $i), 'tsn' => 'AB'.chr(65 + $i % 26), 'reason_code' => 'UNKNOWN_KEYS', 'surface' => 'selector', 'occurred_at' => $now];
+    }
+    $rows[] = ['vehicle_id' => null, 'hsn' => '0005', 'tsn' => 'ZZ8', 'reason_code' => 'UNKNOWN_KEYS', 'surface' => 'selector', 'occurred_at' => $now];
+    DB::table('catalogue_gap_events')->insert($rows);
+
+    DB::enableQueryLog();
+    $props = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30')->assertOk()->viewData('page')['props'];
+    $queries = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($props['demand']['counts']['alle'])->toBe(130)
+        ->and($props['demand']['rows'])->toHaveCount(50)
+        ->and($props['pagination'])->toMatchArray(['current' => 1, 'last' => 3, 'total' => 130, 'next' => '/admin/nachfrage?zeitraum=30&seite=2'])
+        // One page view, a handful of queries — never one or two per key number.
+        ->and($queries)->toBeLessThan(60);
+
+    expect($this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&seite=3')->viewData('page')['props']['demand']['rows'])->toHaveCount(30);
+});
+
+it('numbers every gap by its place in the whole ranking, on every page (the admin audit\'s F-41)', function (): void {
+    $now = CarbonImmutable::now();
+    $rows = [];
+
+    // 60 key numbers nobody knows; the first is asked most, so the order is fixed: 7000 first, 7059 last.
+    for ($i = 0; $i < 60; $i++) {
+        for ($n = 0; $n < 60 - $i; $n++) {
+            $rows[] = ['vehicle_id' => null, 'hsn' => sprintf('%04d', 7000 + $i), 'tsn' => 'ABC', 'reason_code' => 'UNKNOWN_KEYS', 'surface' => 'selector', 'occurred_at' => $now];
+        }
+    }
+    DB::table('catalogue_gap_events')->insert($rows);
+
+    $first = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30')->viewData('page')['props']['demand']['rows'];
+    $second = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&seite=2')->viewData('page')['props']['demand']['rows'];
+
+    expect(array_column($first, 'rank'))->toBe(range(1, 50))
+        ->and(array_column($second, 'rank'))->toBe(range(51, 60))
+        ->and($second[0]['title'])->toContain('7050');
+});
+
+it('finds a gap by its car or its key numbers, umlauts and all, and keeps its place in the ranking (the admin audit\'s F-31)', function (): void {
+    $pruefwerk = nfVehicle('Prüfwerk', 'Größe Eins', '1.6 Limousine', ['hsn' => '0005', 'tsn' => 'ZZ8']);
+    $golf = nfVehicle('Volkswagen', 'Golf', 'GTI', ['hsn' => '0603', 'tsn' => 'BHJ']);
+    nfAsk($golf, 5);
+    nfAsk($pruefwerk, 2);
+
+    $byName = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&q='.rawurlencode('größe'))->viewData('page')['props'];
+    expect(array_column($byName['demand']['rows'], 'title'))->toBe([$byName['demand']['rows'][0]['title']])
+        ->and($byName['demand']['rows'][0]['title'])->toContain('Größe Eins')
+        ->and($byName['demand']['rows'][0]['rank'])->toBe(2)
+        ->and($byName['search'])->toBe('größe')
+        ->and($byName['pagination']['total'])->toBe(1);
+
+    $byKeys = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&q=0603')->viewData('page')['props'];
+    expect(array_column($byKeys['demand']['rows'], 'rank'))->toBe([1]);
+
+    $none = $this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&q=qqqzzz')->viewData('page')['props'];
+    expect($none['demand']['rows'])->toBe([])->and($none['pagination']['total'])->toBe(0)
+        // The chips still count every gap of the Zeitraum: the search narrows the list, not the counts.
+        ->and($none['demand']['counts']['offen'])->toBe(2);
+});

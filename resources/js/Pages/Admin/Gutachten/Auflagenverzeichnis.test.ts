@@ -19,7 +19,7 @@ describe('Auflagenverzeichnis', () => {
             props: {
                 documentId: 13,
                 conditions: [],
-                choices: { kinds: [{ value: 'karosserieform', label: 'Nur für bestimmte Karosserieformen', section: 'Fahrzeug' }], bodyForms: ['Schrägheck'], drives: ['Allrad'] },
+                choices: { kinds: [{ value: 'karosserieform', label: 'Nur für bestimmte Karosserieformen', section: 'Fahrzeug', help: 'Gilt nur für die angekreuzten Karosserieformen.' }], bodyForms: ['Schrägheck'], drives: ['Allrad'] },
                 unresolved: [],
                 editable: true,
                 pageCount: 24,
@@ -35,5 +35,49 @@ describe('Auflagenverzeichnis', () => {
         expect((field.element as HTMLInputElement).value).toBe('Schrägheck 2-türig')
 
         wrapper.unmount()
+    })
+    it('says beside the choice what each kind does — „Verbot“ excludes no car (the admin audit’s F-07)', async () => {
+        const verbot = 'Etwas ist mit dieser Felge verboten, etwa Schneeketten. Der Shop nennt es unter „Hinweise“; es schließt kein Fahrzeug aus.'
+        const wrapper = mount(Auflagenverzeichnis, {
+            props: {
+                documentId: 13,
+                conditions: [],
+                choices: {
+                    kinds: [
+                        { value: 'verbot', label: 'Verbot', section: 'Hinweise', help: verbot },
+                        { value: 'karosserieform', label: 'Nur für bestimmte Karosserieformen', section: 'Fahrzeug', help: 'Gilt nur für die angekreuzten Karosserieformen.' },
+                    ],
+                    bodyForms: ['Kombi'],
+                    drives: ['Allrad'],
+                },
+                unresolved: [],
+                editable: true,
+                pageCount: 24,
+            },
+            attachTo: document.body,
+        })
+
+        await wrapper.findAll('button').find((b) => b.text().includes('Code hinzufügen'))?.trigger('click')
+        expect(wrapper.find('#av-kind-help').text()).toBe('Die Art entscheidet, wo und wie auffällig der Satz im Shop steht.')
+
+        await wrapper.find('#av-kind').setValue('verbot')
+        expect(wrapper.find('#av-kind-help').text()).toContain('es schließt kein Fahrzeug aus')
+
+        await wrapper.find('#av-kind').setValue('karosserieform')
+        expect(wrapper.find('#av-kind-help').text()).toContain('Gilt nur für die angekreuzten Karosserieformen.')
+
+        wrapper.unmount()
+    })
+
+    it('says why a code a row uses offers no „Entfernen“ (a rule of the admin audit)', () => {
+        const code = (id: number, uses: number) => ({ id, code: `A0${id}`, kind: 'abnahme', kindLabel: 'Abnahme', section: 'Abnahme', text: 'Abnahme erforderlich.', page: 3, bodyForms: [], drive: null, maxAxleLoadKg: null, axle: null, uses })
+        const props = (uses: number, editable = true) => ({ documentId: 13, conditions: [code(1, 0), code(2, uses)], choices: { kinds: [], bodyForms: [], drives: [] }, unresolved: [], editable, pageCount: 24 })
+
+        expect(mount(Auflagenverzeichnis, { props: props(4) }).find('.av__in-use').text()).toBe(
+            'Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet („Zeile ändern“) – wie viele es sind, steht unter „Verwendet“.'
+        )
+        expect(mount(Auflagenverzeichnis, { props: props(0) }).find('.av__in-use').exists()).toBe(false)
+        // A released document changes nothing: no sentence about a way that is not open.
+        expect(mount(Auflagenverzeichnis, { props: props(4, false) }).find('.av__in-use').exists()).toBe(false)
     })
 })

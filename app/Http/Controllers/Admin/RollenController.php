@@ -17,6 +17,7 @@ use App\Http\Requests\Admin\RoleUpdateRequest;
 use App\Models\AdminUser;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
@@ -135,6 +136,8 @@ class RollenController extends Controller
                 // The identifier is `name`; this is what a human reads and may rename freely.
                 'label' => self::labelOf($row),
                 'description' => self::descriptionOf($row),
+                // Name and description as loaded: the rename dialog sends it back, an older state is refused (F-25).
+                'nameStamp' => EditStamp::of(['label' => self::labelOf($row), 'description' => self::descriptionOf($row)]),
                 'isSystem' => (bool) $row->is_system,
                 'isSuperAdmin' => $row->name === self::SUPER_ADMIN,
                 'users' => (int) ($counts[$id] ?? 0),
@@ -157,6 +160,8 @@ class RollenController extends Controller
             'selected' => $selected,
             // "Ansicht als Rolle": the rail the selected role would see, by the rail's own rules.
             'navigation' => $selected === null ? [] : $this->navigation->forRole($selected),
+            // The selected role's rights the matrix was opened on: a save against older ones is refused (EditStamp, F-25).
+            'stamp' => $selected === null ? null : EditStamp::of(self::rightsOf($selected)),
             // The rights this admin may hand to a role — their own; null for a Super-Admin, who holds
             // all of them. The page offers nothing beyond it; the server refuses it regardless.
             'grantable' => $actorIsSuperAdmin ? null : self::heldRights($admin),
@@ -218,6 +223,8 @@ class RollenController extends Controller
         }
 
         $old = ['label' => self::labelOf($row), 'description' => self::descriptionOf($row)];
+        // The name and description the dialog opened on: changed meanwhile, the save is refused (EditStamp, F-25).
+        EditStamp::guard($request, $old);
         $new = ['label' => $request->label(), 'description' => $request->description()];
 
         if ((bool) $row->is_system && $new['label'] !== $old['label']) {
@@ -420,6 +427,8 @@ class RollenController extends Controller
         $admin = $request->admin();
         $next = $request->rights();
         $before = self::rightsOf($role);
+        // The difference the page confirmed was against the rights it was opened on: changed meanwhile, refused (F-25).
+        EditStamp::guard($request, $before);
 
         $added = array_values(array_diff($next, $before));
         $removed = array_values(array_diff($before, $next));
@@ -651,6 +660,11 @@ class RollenController extends Controller
         $modules = [];
 
         foreach (PermissionModule::cases() as $module) {
+            // A module without a right the shop checks is no row of the grid (F-21).
+            if ($module->actions() === []) {
+                continue;
+            }
+
             $modules[] = [
                 'module' => $module->value,
                 'label' => $module->labelDe(),

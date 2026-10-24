@@ -1,0 +1,16 @@
+{ "name": "t2-7-kombinationen", "start": "/admin/gutachten/1060", "steps": [
+  { "click": "#kb-edit" },
+  { "wait": 400 },
+  { "fill": "#kb-page", "value": "3" },
+  { "fill": "#kb-number-0", "value": "1" },
+  { "fill": "#kb-front-0", "value": "225/40 R18" },
+  { "fill": "#kb-rear-0", "value": "225/40 R18" },
+  { "click": "#kb-add-row" },
+  { "fill": "#kb-number-1", "value": "2" },
+  { "fill": "#kb-front-1", "value": "225/40 R18" },
+  { "fill": "#kb-rear-1", "value": "255/35 R18" },
+  { "click": "#kb-save" },
+  { "wait": 1500 },
+  { "text": "section[aria-labelledby=\"gs-combinations-h\"]", "max": 900 },
+  { "shot": "t2-7-kombinationen" }
+] }

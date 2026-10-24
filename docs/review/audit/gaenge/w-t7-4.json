@@ -1,0 +1,11 @@
+{ "name": "t7-4-reifen-zwei-tabs", "start": "/admin/reifen/1107", "full": true, "steps": [
+  { "fill": "#rf-price", "value": "119,90" },
+  { "eval": "fetch('/admin/reifen/1107', { method: 'DELETE', headers: { 'X-XSRF-TOKEN': decodeURIComponent((document.cookie.match(/XSRF-TOKEN=([^;]+)/) || [])[1] || ''), 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }, redirect: 'manual' }).then(r => r.status + ' ' + r.type)" },
+  { "wait": 800 },
+  { "press": "Control+s" },
+  { "wait": 2500 },
+  { "eval": "[location.pathname, document.querySelector('h1')?.textContent?.trim(), document.querySelector('#rf-price')?.value]" },
+  { "eval": "document.querySelector('[role=dialog], .adm-alert, [role=alert]')?.innerText?.slice(0, 400)" },
+  { "eval": "!!document.querySelector('iframe') || !!document.querySelector('dialog')" },
+  { "text": "body", "max": 600 }
+] }

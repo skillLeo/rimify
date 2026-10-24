@@ -1,0 +1,11 @@
+{ "name": "t2-14-tabelle", "start": "/admin/gutachten/1060", "full": true, "steps": [
+  { "click": "section[aria-labelledby=\"gs-facts-h\"] >> role=button[name=\"Ändern\"]" },
+  { "wait": 700 },
+  { "check": "[role=dialog] input[value=\"table\"]" },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] button')).map(b => b.textContent.trim()).filter(Boolean)" },
+  { "click": "[role=dialog] >> role=button[name=\"Speichern\"]" },
+  { "wait": 1500 },
+  { "click": "#dt-edit" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[id^=dt-]')).map(e => e.id)" }
+] }

@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
+class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
 {
     public static $files = array (
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
@@ -1066,6 +1066,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Http\\Requests\\Admin\\InviteAdminRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/InviteAdminRequest.php',
         'App\\Http\\Requests\\Admin\\InviteManageRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/InviteManageRequest.php',
         'App\\Http\\Requests\\Admin\\KonfliktDecisionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/KonfliktDecisionRequest.php',
+        'App\\Http\\Requests\\Admin\\LegalPlaceholderRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/LegalPlaceholderRequest.php',
         'App\\Http\\Requests\\Admin\\LoadLimitConfirmRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/LoadLimitConfirmRequest.php',
         'App\\Http\\Requests\\Admin\\MailSettingsRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/MailSettingsRequest.php',
         'App\\Http\\Requests\\Admin\\MailSettingsViewRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/MailSettingsViewRequest.php',
@@ -1118,6 +1119,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Http\\Requests\\Admin\\UebersichtRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/UebersichtRequest.php',
         'App\\Http\\Requests\\Admin\\UserRoleAccountRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/UserRoleAccountRequest.php',
         'App\\Http\\Requests\\Admin\\UserRoleRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/UserRoleRequest.php',
+        'App\\Http\\Requests\\Admin\\VehicleCorrectionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/VehicleCorrectionRequest.php',
         'App\\Http\\Requests\\Admin\\VehicleFromDocumentRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/VehicleFromDocumentRequest.php',
         'App\\Http\\Requests\\Admin\\VehicleImportRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/VehicleImportRequest.php',
         'App\\Http\\Requests\\Admin\\VehicleRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/VehicleRequest.php',
@@ -1179,6 +1181,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Mail\\LiteralMarkdown' => __DIR__ . '/../..' . '/app/Mail/LiteralMarkdown.php',
         'App\\Mail\\OrderConfirmationMail' => __DIR__ . '/../..' . '/app/Mail/OrderConfirmationMail.php',
         'App\\Mail\\OrderLinkMail' => __DIR__ . '/../..' . '/app/Mail/OrderLinkMail.php',
+        'App\\Mail\\OrderShippedMail' => __DIR__ . '/../..' . '/app/Mail/OrderShippedMail.php',
         'App\\Mail\\RefundMail' => __DIR__ . '/../..' . '/app/Mail/RefundMail.php',
         'App\\Mail\\ReviewInvitationMail' => __DIR__ . '/../..' . '/app/Mail/ReviewInvitationMail.php',
         'App\\Mail\\SubscriptionConfirmationMail' => __DIR__ . '/../..' . '/app/Mail/SubscriptionConfirmationMail.php',
@@ -1328,6 +1331,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Services\\Admin\\Dashboard\\WorkLists' => __DIR__ . '/../..' . '/app/Services/Admin/Dashboard/WorkLists.php',
         'App\\Services\\Admin\\ListExport' => __DIR__ . '/../..' . '/app/Services/Admin/ListExport.php',
         'App\\Services\\Admin\\Lists\\AdminLists' => __DIR__ . '/../..' . '/app/Services/Admin/Lists/AdminLists.php',
+        'App\\Services\\Admin\\Lists\\ListPaging' => __DIR__ . '/../..' . '/app/Services/Admin/Lists/ListPaging.php',
         'App\\Services\\Admin\\Lists\\ListViews' => __DIR__ . '/../..' . '/app/Services/Admin/Lists/ListViews.php',
         'App\\Services\\Admin\\Orders\\OrderDetail' => __DIR__ . '/../..' . '/app/Services/Admin/Orders/OrderDetail.php',
         'App\\Services\\Admin\\Orders\\OrderFulfilment' => __DIR__ . '/../..' . '/app/Services/Admin/Orders/OrderFulfilment.php',
@@ -1340,6 +1344,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Services\\Admin\\Reviews\\ReviewModeration' => __DIR__ . '/../..' . '/app/Services/Admin/Reviews/ReviewModeration.php',
         'App\\Services\\Admin\\SystemHealth' => __DIR__ . '/../..' . '/app/Services/Admin/SystemHealth.php',
         'App\\Services\\Admin\\Vehicles\\DatasetVehicle' => __DIR__ . '/../..' . '/app/Services/Admin/Vehicles/DatasetVehicle.php',
+        'App\\Services\\Admin\\Vehicles\\VehicleCorrection' => __DIR__ . '/../..' . '/app/Services/Admin/Vehicles/VehicleCorrection.php',
         'App\\Services\\Admin\\Vehicles\\VehicleImporter' => __DIR__ . '/../..' . '/app/Services/Admin/Vehicles/VehicleImporter.php',
         'App\\Services\\Admin\\Vehicles\\VehicleMerge' => __DIR__ . '/../..' . '/app/Services/Admin/Vehicles/VehicleMerge.php',
         'App\\Services\\Commerce\\CheckoutShown' => __DIR__ . '/../..' . '/app/Services/Commerce/CheckoutShown.php',
@@ -1366,6 +1371,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Services\\Content\\ArticleBlocks' => __DIR__ . '/../..' . '/app/Services/Content/ArticleBlocks.php',
         'App\\Services\\Content\\ContentChanges' => __DIR__ . '/../..' . '/app/Services/Content/ContentChanges.php',
         'App\\Services\\Content\\LegalPdf' => __DIR__ . '/../..' . '/app/Services/Content/LegalPdf.php',
+        'App\\Services\\Content\\LegalReadiness' => __DIR__ . '/../..' . '/app/Services/Content/LegalReadiness.php',
         'App\\Services\\Content\\LegalTexts' => __DIR__ . '/../..' . '/app/Services/Content/LegalTexts.php',
         'App\\Services\\Content\\NavigationSchema' => __DIR__ . '/../..' . '/app/Services/Content/NavigationSchema.php',
         'App\\Services\\Content\\PageChangedMeanwhile' => __DIR__ . '/../..' . '/app/Services/Content/PageChangedMeanwhile.php',
@@ -1456,6 +1462,7 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
         'App\\Support\\DatabaseEngine' => __DIR__ . '/../..' . '/app/Support/DatabaseEngine.php',
         'App\\Support\\DemoWheels' => __DIR__ . '/../..' . '/app/Support/DemoWheels.php',
         'App\\Support\\DevicePage' => __DIR__ . '/../..' . '/app/Support/DevicePage.php',
+        'App\\Support\\EditStamp' => __DIR__ . '/../..' . '/app/Support/EditStamp.php',
         'App\\Support\\EgNumber' => __DIR__ . '/../..' . '/app/Support/EgNumber.php',
         'App\\Support\\GermanFormat' => __DIR__ . '/../..' . '/app/Support/GermanFormat.php',
         'App\\Support\\GermanNumber' => __DIR__ . '/../..' . '/app/Support/GermanNumber.php',
@@ -11040,9 +11047,9 @@ class ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitb5c14bdbb6167efa2df05f63d0453e57::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitbb0ff6778a6a757101f7df71bf643004::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitbb0ff6778a6a757101f7df71bf643004::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitbb0ff6778a6a757101f7df71bf643004::$classMap;
 
         }, null, ClassLoader::class);
     }

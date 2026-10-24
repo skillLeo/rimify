@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
+use App\Models\Brand;
 use App\Models\WheelModel;
 use App\Support\GermanNumber;
 use App\Support\Money;
@@ -239,8 +240,46 @@ class WheelModelRequest extends FormRequest
                 }
 
                 $this->skusTakenElsewhere($validator);
+                $this->twinElsewhere($validator);
             },
         ];
+    }
+
+    /**
+     * The same Felge twice — brand, model and Radtypenbezeichnung — is two products in the shop and two groups in a
+     * Gutachten's row search; refused under the Radtypenbezeichnung, as Fahrzeuge refuse theirs under the variant (the
+     * admin audit's F-08). Only with a Radtypenbezeichnung: a Felge saved before it was required (D-298) keeps saving.
+     */
+    private function twinElsewhere(Validator $validator): void
+    {
+        $name = $this->input('name');
+        $designation = $this->input('type_designation');
+
+        if (! is_string($name) || $name === '' || ! is_string($designation) || $designation === '' || $validator->errors()->hasAny(['name', 'type_designation', 'brand_id', 'brand_new'])) {
+            return;
+        }
+
+        // The brand as WheelEditor will take it (CatalogueBrands): chosen by id, or the live brand of the name typed.
+        $brand = is_numeric($this->input('brand_id'))
+            ? Brand::query()->find((int) $this->input('brand_id'))
+            : Brand::query()->whereRaw('LOWER(name) = ?', [mb_strtolower(trim((string) $this->input('brand_new')))])->first();
+
+        if (! $brand instanceof Brand) {
+            return;
+        }
+
+        $model = $this->wheelModel();
+        $twin = WheelModel::query()
+            ->where('brand_id', $brand->id)
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->whereRaw('LOWER(type_designation) = ?', [mb_strtolower($designation)])
+            ->when($model !== null, static fn ($q) => $q->whereKeyNot($model?->id))
+            ->first();
+
+        if ($twin instanceof WheelModel) {
+            $validator->errors()->add('type_designation', 'Eine Felge mit dieser Marke, diesem Modell und dieser Radtypenbezeichnung gibt es schon: '
+                .$brand->name.' '.$twin->name.'. Neue Größen und Ausführungen trägst du dort ein.');
+        }
     }
 
     /** An SKU is the whole catalogue's: one another model already carries is refused under its row. */

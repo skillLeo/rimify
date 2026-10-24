@@ -34,6 +34,8 @@ export interface MailSuppressionRow {
 }
 
 export interface AdminEmailProps {
+    /** What the form was opened on (EditStamp): a save against an older state is refused. */
+    stamp: string
     form: {
         from_address: string
         from_name: string
@@ -54,5 +56,12 @@ export interface AdminEmailProps {
     dns: MailDnsRecord[]
     domain: string | null
     webhookUrl: string
+    /** The newest blocked addresses — at most EmailController::SUPPRESSIONS_SHOWN — or those the search finds. */
     suppressions: MailSuppressionRow[]
+    /** Every address in force on the block list. */
+    suppressionsTotal?: number
+    /** What the search finds, over the whole list. */
+    suppressionsFound?: number
+    /** The part of an address searched for; empty for none. */
+    suppressionSearch?: string
 }

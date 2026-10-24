@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Mail;
 /**
  * The review invitations (the client's #19, D-103), run daily: every order the team marked „Zugestellt“ at least
  * `rimify.reviews.invite_after_days` ago, not invited yet, with at least one rim on it, gets one mail with its signed
- * link — and is marked, so it never gets a second. A demonstration order gets none.
+ * link — and is marked, so it never gets a second. A demonstration order gets none. A partly refunded order keeps
+ * that status when it is delivered (OrderFulfilment), and is invited like any other.
  */
 class InviteReviews extends Command
 {
@@ -30,7 +31,7 @@ class InviteReviews extends Command
 
         Order::query()
             ->with(['lines', 'customer'])
-            ->where('status', OrderStatus::Completed->value)
+            ->whereIn('status', [OrderStatus::Completed->value, OrderStatus::PartiallyRefunded->value])
             ->whereNotNull('delivered_at')
             ->where('delivered_at', '<=', now()->subDays($after))
             ->whereNull('review_invited_at')

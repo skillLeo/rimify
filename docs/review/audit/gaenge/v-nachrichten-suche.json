@@ -1,0 +1,5 @@
+{ "name": "v-nachrichten-suche", "start": "/admin/nachrichten?q=M%C3%BC%C3%9Fig", "full": false, "steps": [
+  { "eval": "[document.querySelector('.adm-page__context')?.textContent?.trim(), document.querySelectorAll('main tbody tr, main ol > li').length, Array.from(document.querySelectorAll('main .adm-state__heading, main .adm-state__text')).map(e => e.textContent.trim())]" },
+  { "goto": "/admin/nachrichten?status=alle&q=M%C3%BC%C3%9Fig" },
+  { "eval": "[document.querySelector('.adm-page__context')?.textContent?.trim(), document.querySelectorAll('main tbody tr, main ol > li').length, (document.querySelector('main tbody tr, main ol > li')?.textContent ?? '').replace(/\\s+/g, ' ').trim().slice(0, 90)]" }
+] }

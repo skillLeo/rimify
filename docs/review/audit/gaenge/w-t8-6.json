@@ -1,0 +1,20 @@
+{ "name": "t8-6-bewertung-moderieren", "start": "/admin/bewertungen", "full": true, "steps": [
+  { "click": "main >> role=button[name=\"Antworten\"] >> nth=0" },
+  { "wait": 400 },
+  { "fill": "#bw-reply-1101", "value": "Danke für deine Bewertung und viel Freude mit den Felgen! Grüße vom RIMIFY-Team aus Dresden." },
+  { "click": "form.bwa-form >> role=button[name=\"Speichern\"]" },
+  { "wait": 1800 },
+  { "eval": "document.querySelector('main ol > li')?.innerText?.slice(0, 500)" },
+  { "click": "main ol > li >> nth=0 >> role=button[name=\"Ausblenden\"]" },
+  { "wait": 400 },
+  { "click": "form.bwa-form >> role=button[name=\"Ausblenden\"]" },
+  { "wait": 1200 },
+  { "eval": "document.querySelector('#bw-hide-1101-err')?.textContent?.trim()" },
+  { "fill": "#bw-hide-1101", "value": "Enthält einen Ortsnamen – zum Schutz der Käuferin ausgeblendet." },
+  { "click": "form.bwa-form >> role=button[name=\"Ausblenden\"]" },
+  { "wait": 1800 },
+  { "eval": "document.querySelector('main ol > li')?.innerText?.slice(0, 600)" },
+  { "goto": "/felgen/pruefrad-strasse-18" },
+  { "wait": 1500 },
+  { "eval": "[document.body.textContent.includes('Weißenfels'), document.body.textContent.includes('Danke für deine Bewertung')]" }
+] }

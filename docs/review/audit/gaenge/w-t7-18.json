@@ -1,0 +1,9 @@
+{ "name": "t7-18-freigeben", "start": "/admin/gutachten/1061", "full": true, "steps": [
+  { "click": ".adm-page__actions >> role=button[name=\"Freigeben\"]" },
+  { "wait": 800 },
+  { "check": "#rd-c-complete" },
+  { "click": "[role=dialog] >> role=button[name=\"Freigeben\"]" },
+  { "wait": 3000 },
+  { "eval": "[location.pathname, document.querySelector('.adm-page__context')?.textContent?.trim(), document.querySelector('[role=dialog]')?.innerText?.slice(0, 900) ?? null]" },
+  { "eval": "Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean)" }
+] }

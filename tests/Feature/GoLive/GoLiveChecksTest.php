@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Services\Commerce\InvoiceSeries;
+use App\Services\Content\LegalTexts;
 use App\Services\GoLive\GoLiveCheck;
 use App\Services\GoLive\GoLiveChecks;
 use App\Services\GoLive\TyreConfirmations;
@@ -29,21 +30,25 @@ use Illuminate\Console\Scheduling\Schedule;
  * check of „Recht und Pflichtangaben" fails, the shop takes no real payment.
  */
 
-/** A legal page as the Kanzlei delivers it — or, with `$placeholder`, as ContentSeeder writes it. */
+/**
+ * A legal page as the Kanzlei delivers it, its flag switched off — or, with `$placeholder`, as ContentSeeder writes it,
+ * the flag on (D-319).
+ */
 function goLivePage(string $slug, string $title, bool $placeholder = false): void
 {
     $page = Page::query()->firstOrCreate(['slug' => $slug], ['locale' => 'de', 'kind' => Page::KIND_LEGAL, 'title' => $title, 'status' => Page::STATUS_PUBLISHED, 'published_at' => now()]);
     $page->blocks()->delete();
     $page->blocks()->create(['type' => 'legal_body', 'sort_order' => 10, 'data' => ['heading' => $title, 'text' => $placeholder ? '[Rechtstext folgt]' : "Der Text der Kanzlei: {$title}.", ...($placeholder ? ['placeholder' => true] : [])]]);
+    $page->forceFill(['is_placeholder' => $placeholder])->save();
 }
 
-/** A seller as Einstellungen › Verkäufer & Versand stores it. */
+/** A seller as Einstellungen › Verkäufer & Versand stores it: every Impressum field given. */
 function goLiveSeller(array $over = []): void
 {
     Setting::set(Seller::KEY, [
-        'name' => 'Beispiel Felgen GmbH', 'street' => 'Musterweg 1', 'zip' => '50667', 'city' => 'Köln', 'email' => 'shop@beispiel.test',
+        'name' => 'Beispiel Felgen GmbH', 'legal_form' => 'GmbH', 'street' => 'Musterweg 1', 'zip' => '50667', 'city' => 'Köln', 'email' => 'shop@beispiel.test',
         'vat_id' => 'DE000000000', 'tax_number' => null, 'register_court' => 'Amtsgericht Köln', 'register_number' => 'HRB 00000',
-        'managing_director' => 'Erika Mustermann', 'phone' => null, 'placeholder' => false, ...$over,
+        'managing_director' => 'Erika Mustermann', 'phone' => '+49 221 123456', 'placeholder' => false, 'not_applicable' => [], ...$over,
     ]);
 }
 
@@ -63,9 +68,12 @@ function goLiveLegalComplete(): void
 {
     goLiveSeller();
 
-    foreach (['impressum' => 'Impressum', 'agb' => 'AGB', 'widerrufsbelehrung' => 'Widerrufsbelehrung', 'datenschutz' => 'Datenschutz', 'barrierefreiheit' => 'Erklärung zur Barrierefreiheit'] as $slug => $title) {
+    foreach (['impressum' => 'Impressum', 'agb' => 'AGB', 'widerrufsbelehrung' => 'Widerrufsbelehrung', 'datenschutz' => 'Datenschutz', 'versand' => 'Versand', 'barrierefreiheit' => 'Erklärung zur Barrierefreiheit'] as $slug => $title) {
         goLivePage($slug, $title);
     }
+
+    // The Muster-Widerrufsformular's own flag (D-319).
+    Setting::set(LegalTexts::FORM_SETTING, false);
 
     config([
         'mail.default' => 'smtp',
@@ -172,16 +180,22 @@ it('passes the server\'s place in Germany alone', function (string $host, string
     'London' => ['uk-lon-web301.main-hosting.eu', GoLiveCheck::MISSING, 'außerhalb der EU (UK)'],
 ]);
 
-it('reads the Impressum from the seller: a GmbH needs its register and its representative, a sole trader neither', function (): void {
+// D-319: every field the Impressum shows is given or declared „entfällt“ — the check guesses nothing from the name.
+it('reads the Impressum from the seller: every field given or declared „entfällt“, and its own text no placeholder', function (): void {
     goLivePage('impressum', 'Impressum');
 
-    goLiveSeller(['register_court' => null, 'register_number' => null, 'managing_director' => null]);
-    expect(goLiveById()['impressum']->sentence)->toBe('Im Impressum fehlen: Vertretungsberechtigte, Registergericht und -nummer.');
+    goLiveSeller(['legal_form' => null, 'register_court' => null, 'register_number' => null, 'managing_director' => null]);
+    expect(goLiveById()['impressum']->sentence)->toBe('Im Impressum fehlen: Rechtsform, Geschäftsführung, Registergericht, Registernummer.');
 
-    goLiveSeller(['name' => 'Erika Mustermann Felgenhandel', 'register_court' => null, 'register_number' => null, 'managing_director' => null]);
+    // A sole trader declares what does not apply; the shop takes no calls.
+    goLiveSeller(['name' => 'Erika Mustermann Felgenhandel', 'legal_form' => 'Einzelunternehmen', 'register_court' => null, 'register_number' => null, 'managing_director' => null, 'phone' => null, 'not_applicable' => ['managing_director', 'register', 'phone']]);
     expect(goLiveById()['impressum']->state)->toBe(GoLiveCheck::OK)
         // No telephone is no gap: the contact form is the second fast way (§ 5 Abs. 1 Nr. 2 DDG).
         ->and(goLiveById()['impressum']->sentence)->toContain('der zweite schnelle Kontaktweg ist das Kontaktformular');
+
+    // The Impressum page's own text is a legal text with its flag too.
+    goLivePage('impressum', 'Impressum', placeholder: true);
+    expect(goLiveById()['impressum']->sentence)->toBe('Im Impressum fehlen: Text der Kanzlei (Platzhalter).');
 
     goLiveSeller(['placeholder' => true]);
     expect(goLiveById()['impressum']->state)->toBe(GoLiveCheck::MISSING)
@@ -189,12 +203,37 @@ it('reads the Impressum from the seller: a GmbH needs its register and its repre
         ->and(goLiveById()['impressum']->place)->toBe('/admin/einstellungen/verkaeufer-versand');
 });
 
+// D-319: each flag fails its own item, and nothing else — proven against the state in which every item passes.
+it('fails exactly the item whose text is a placeholder', function (string $slug, string $title, string $check, string $says): void {
+    goLiveLegalComplete();
+
+    expect(collect(goLiveById())->only(['impressum', 'agb', 'widerruf', 'datenschutz', 'versand'])->every(fn (GoLiveCheck $c): bool => $c->state === GoLiveCheck::OK))->toBeTrue();
+
+    if ($slug === LegalTexts::FORM) {
+        Setting::set(LegalTexts::FORM_SETTING, true);
+    } else {
+        goLivePage($slug, $title, placeholder: true);
+    }
+
+    $failing = collect(goLiveById())->only(['impressum', 'agb', 'widerruf', 'datenschutz', 'versand'])->reject(fn (GoLiveCheck $c): bool => $c->state === GoLiveCheck::OK);
+
+    expect($failing->keys()->all())->toBe([$check])
+        ->and($failing->first()->sentence)->toContain($says);
+})->with([
+    'the Impressum’s text' => ['impressum', 'Impressum', 'impressum', 'Text der Kanzlei (Platzhalter)'],
+    'the AGB' => ['agb', 'AGB', 'agb', 'Platzhalter'],
+    'the Widerrufsbelehrung' => ['widerrufsbelehrung', 'Widerrufsbelehrung', 'widerruf', 'Noch offen: Widerrufsbelehrung (Platzhalter).'],
+    'the Muster-Widerrufsformular' => [LegalTexts::FORM, 'Muster-Widerrufsformular', 'widerruf', 'Noch offen: Muster-Widerrufsformular (Platzhalter).'],
+    'the Datenschutzerklärung' => ['datenschutz', 'Datenschutz', 'datenschutz', 'Platzhalter'],
+    'the Versand page' => ['versand', 'Versand', 'versand', 'Text der Seite Versand (Platzhalter)'],
+]);
+
 it('says a legal page is missing while it holds the placeholder, and points at the page to fill', function (): void {
     goLivePage('agb', 'AGB', placeholder: true);
     $agb = goLiveById()['agb'];
 
     expect($agb->state)->toBe(GoLiveCheck::MISSING)
-        ->and($agb->sentence)->toBe('Die AGB sind noch ein Platzhalter: Der Text der Kanzlei fehlt.')
+        ->and($agb->sentence)->toBe('Die AGB sind noch ein Platzhalter: Besucher sehen statt des Textes nur den Hinweis, dass der Text der Kanzlei folgt.')
         ->and($agb->place)->toBe('/admin/seiten/'.Page::query()->where('slug', 'agb')->value('id'));
 
     goLivePage('agb', 'AGB');

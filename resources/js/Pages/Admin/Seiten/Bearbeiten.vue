@@ -439,6 +439,89 @@ const more = computed<AdminPageAction[]>(() => {
     return actions
 })
 
+/* ── Platzhalter (D-319) ─────────────────────────────────────────────────────────────── */
+
+type PlaceholderPart = 'text' | 'formular'
+
+/** The switch asked for, held while its question is open. */
+const switching = ref<{ part: PlaceholderPart; on: boolean } | null>(null)
+const switchBusy = ref(false)
+
+const switchOpen = computed({
+    get: () => switching.value !== null,
+    set: (open: boolean) => {
+        if (!open) {
+            switching.value = null
+        }
+    },
+})
+
+/* Off only over the Kanzlei's words: while the published text is still the seeded marker, the
+   button says why it waits — and the server refuses it as well (LegalPlaceholderRequest). */
+const textSwitchWaits = computed(() => props.page.placeholder && props.page.markerLeft)
+
+/** A refusal of the switch, beside the switches rather than above the fields. */
+const switchError = computed(() => {
+    const raw: unknown = inertiaPage.props.errors
+    const bag = raw !== null && typeof raw === 'object' ? (raw as Record<string, string | undefined>) : {}
+
+    return bag.placeholder ?? bag.part ?? ''
+})
+
+const SWITCH_COPY: Record<`${PlaceholderPart}-${'on' | 'off'}`, { title: string; body: string; confirm: string }> = {
+    'text-off': {
+        title: 'Platzhalter ausschalten?',
+        body: 'Besucher lesen dann den veröffentlichten Text dieser Seite. Schalte den Platzhalter nur aus, wenn dort der Text der Kanzlei steht.',
+        confirm: 'Ausschalten',
+    },
+    'text-on': {
+        title: 'Platzhalter einschalten?',
+        body: 'Besucher sehen dann statt des Textes nur den Hinweis, dass der Text der Kanzlei folgt. Solange der Platzhalter an ist, sperrt der Shop Suchmaschinen aus und nimmt keine echten Zahlungen an.',
+        confirm: 'Einschalten',
+    },
+    'formular-off': {
+        title: 'Platzhalter beim Muster-Widerrufsformular ausschalten?',
+        body: 'Besucher sehen dann das Muster-Widerrufsformular im Wortlaut des Gesetzes. Schalte den Platzhalter erst aus, wenn die Kanzlei das Formular freigegeben hat.',
+        confirm: 'Ausschalten',
+    },
+    'formular-on': {
+        title: 'Platzhalter beim Muster-Widerrufsformular einschalten?',
+        body: 'Besucher sehen dann statt des Formulars nur den Hinweis, dass der Text der Kanzlei folgt. Solange der Platzhalter an ist, sperrt der Shop Suchmaschinen aus und nimmt keine echten Zahlungen an.',
+        confirm: 'Einschalten',
+    },
+}
+
+/* The words of the open question — kept while the dialog closes, so its title never empties mid-fade. */
+const switchCopy = ref(SWITCH_COPY['text-off'])
+
+function askSwitch(part: PlaceholderPart, on: boolean): void {
+    if (part === 'text' && !on && textSwitchWaits.value) {
+        return
+    }
+
+    switchCopy.value = SWITCH_COPY[`${part}-${on ? 'on' : 'off'}`]
+    switching.value = { part, on }
+}
+
+function switchPlaceholder(): void {
+    const target = switching.value
+
+    if (target === null || switchBusy.value) {
+        return
+    }
+
+    switchBusy.value = true
+    // The switch is about the published text: whatever is typed and not yet saved stays in the fields.
+    router.post(`/admin/seiten/${props.page.id}/platzhalter`, { part: target.part, placeholder: target.on }, {
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            switchBusy.value = false
+            switching.value = null
+        },
+    })
+}
+
 function discardDraft(): void {
     if (busy.value) {
         return
@@ -659,9 +742,48 @@ function isLive(revision: SeitenRevision, index: number): boolean {
                     </ul>
                 </div>
 
-                <p v-if="page.placeholder" class="adm-note">
-                    Auf dieser Seite steht noch der Platzhalter der Kanzlei. Füg den Text ein, den die Kanzlei geliefert hat, und veröffentliche ihn.
-                </p>
+                <!--
+                    A legal text's placeholder flag (D-319): while it is on, visitors read one notice in place of the
+                    text, the shop keeps search engines out and takes no real payment. On the Widerrufsbelehrung the
+                    Muster-Widerrufsformular has a flag of its own.
+                -->
+                <section v-if="isLegal" class="pg__switches" aria-labelledby="pg-switches">
+                    <h2 id="pg-switches" class="pg__heading">Platzhalter</h2>
+
+                    <div class="pg__switch">
+                        <p class="pg__switch-state">
+                            <span class="adm-tag" :class="page.placeholder ? 'adm-tag--warn' : 'adm-tag--neutral'">{{ page.placeholder ? 'An' : 'Aus' }}</span>
+                            {{ page.placeholder ? 'Besucher sehen statt des Textes nur den Hinweis, dass der Text der Kanzlei folgt.' : 'Besucher lesen den veröffentlichten Text.' }}
+                        </p>
+                        <button
+                            v-if="can.publish"
+                            id="pg-switch-text"
+                            class="btn btn--secondary btn--sm"
+                            type="button"
+                            :aria-disabled="textSwitchWaits ? 'true' : undefined"
+                            :aria-describedby="textSwitchWaits ? 'pg-switch-waits' : undefined"
+                            @click="askSwitch('text', !page.placeholder)"
+                        >
+                            {{ page.placeholder ? 'Platzhalter ausschalten' : 'Platzhalter einschalten' }}
+                        </button>
+                    </div>
+                    <p v-if="textSwitchWaits" id="pg-switch-waits" class="adm-note">
+                        Im veröffentlichten Text steht noch „[Rechtstext folgt von der Kanzlei …]“. Ersetz das in jedem Abschnitt durch den Text der Kanzlei, veröffentliche die Seite und schalte den Platzhalter danach aus.
+                    </p>
+
+                    <div v-if="page.formPlaceholder !== null" class="pg__switch">
+                        <p class="pg__switch-state">
+                            <span class="adm-tag" :class="page.formPlaceholder ? 'adm-tag--warn' : 'adm-tag--neutral'">{{ page.formPlaceholder ? 'An' : 'Aus' }}</span>
+                            {{ page.formPlaceholder ? 'Muster-Widerrufsformular: Besucher sehen nur den Hinweis, dass der Text der Kanzlei folgt.' : 'Muster-Widerrufsformular: Besucher sehen das Formular im Wortlaut des Gesetzes.' }}
+                        </p>
+                        <button v-if="can.publish" id="pg-switch-form" class="btn btn--secondary btn--sm" type="button" @click="askSwitch('formular', !page.formPlaceholder)">
+                            {{ page.formPlaceholder ? 'Platzhalter beim Formular ausschalten' : 'Platzhalter beim Formular einschalten' }}
+                        </button>
+                    </div>
+
+                    <p v-if="switchError" class="adm-alert" role="alert">{{ switchError }}</p>
+                </section>
+
                 <p v-if="page.lawyerReviewed" class="adm-note">
                     Diese Fassung ist als vom Anwalt geprüft markiert. Änderst du den Text, bestätigst du das beim Veröffentlichen neu.
                 </p>
@@ -972,9 +1094,18 @@ function isLive(revision: SeitenRevision, index: number): boolean {
         />
 
         <AdminConfirm
+            v-model:open="switchOpen"
+            :title="switchCopy.title"
+            :body="switchCopy.body"
+            :confirm-label="switchCopy.confirm"
+            :busy="switchBusy"
+            @confirm="switchPlaceholder"
+        />
+
+        <AdminConfirm
             v-model:open="withdrawing"
             :title="`${page.title} zurückziehen?`"
-            body="Der Artikel verschwindet aus dem Shop und aus der Liste der Ratgeber. Seine Texte bleiben hier, und du kannst ihn jederzeit wieder veröffentlichen."
+            body="Der Artikel verschwindet aus dem Shop und aus dem Blog. Seine Texte bleiben hier, und du kannst ihn jederzeit wieder veröffentlichen."
             confirm-label="Zurückziehen"
             :busy="busy"
             @confirm="withdraw"
@@ -1097,6 +1228,29 @@ function isLive(revision: SeitenRevision, index: number): boolean {
     gap: var(--sp-12);
     padding-top: var(--sp-24);
     border-top: 1px solid var(--c-line);
+}
+
+/* The placeholder switches: the state in words with its tag, the button beside it; stacked on a phone. */
+.pg__switches {
+    display: grid;
+    gap: var(--sp-12);
+}
+
+.pg__switch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8) var(--sp-16);
+}
+
+.pg__switch-state {
+    flex: 1 1 18rem;
+    margin: 0;
+}
+
+.pg__switch-state .adm-tag {
+    margin-right: var(--sp-8);
 }
 
 .pg__revisions {

@@ -1,0 +1,16 @@
+{ "name": "t3a-3-doppelt", "start": "/admin/fahrzeuge/neu", "steps": [
+  { "fill": "#fn-make", "value": "Prüfwerk" },
+  { "fill": "#fn-model", "value": "Größe Eins" },
+  { "fill": "#fn-variant", "value": "2.0 Limousine Straßenversion" },
+  { "fill": "#fn-type", "value": "PW1" },
+  { "fill": "#fn-hsn", "value": "0005" },
+  { "fill": "#fn-tsn", "value": "ZZ9" },
+  { "fill": "#fn-eg", "value": "e1*2007/46*0999*01" },
+  { "fill": "#fn-kw", "value": "140" },
+  { "fill": "#fn-from", "value": "03.2019" },
+  { "fill": "#fn-front", "value": "1.060" },
+  { "fill": "#fn-rear", "value": "1.240" },
+  { "fill": "#fn-speed", "value": "250" },
+  { "click": "role=button[name=\"Fahrzeug anlegen\"]" },
+  { "wait": 1500 }
+] }

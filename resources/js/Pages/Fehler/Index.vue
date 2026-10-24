@@ -43,8 +43,10 @@ const props = withDefaults(
         failedPath?: string | null
         /** Where „neu laden“ goes: empty after a GET (the page itself), the sending page after a form (G-14). */
         reloadHref?: string
+        /** `link`: a link from one of our mails no longer holds — expired, or cut short on the way (the admin audit's F-27). */
+        reason?: 'link' | null
     }>(),
-    { status: 404, isMobile: false, retryAfter: null, failedPath: null, reloadHref: '' }
+    { status: 404, isMobile: false, retryAfter: null, failedPath: null, reloadHref: '', reason: null }
 )
 
 type Tone = 'primary' | 'secondary' | 'ghost'
@@ -126,6 +128,21 @@ const wait = computed<string | null>(() => {
 })
 
 const view = computed<View>(() => {
+    /*
+     * A signed link that no longer holds — a review's, an invoice's, a password's. The 403 below says „Am Link liegt es
+     * nicht“ and offers the admin's sign-in: both wrong here (F-27). Nothing is promised that the shop cannot do — no
+     * new link is sent from here.
+     */
+    if (props.status === 403 && props.reason === 'link') {
+        return {
+            icon: 'clock',
+            title: 'Dieser Link gilt nicht mehr.',
+            lead: 'Links aus unseren Mails gelten nur eine Zeit lang. Dieser ist abgelaufen – oder beim Kopieren ist ein Teil davon verloren gegangen.',
+            detail: 'Öffne ihn noch einmal direkt aus der Mail. Hilft das nicht, schreib uns kurz, worum es geht.',
+            routes: [home('primary'), felgen('secondary'), ask('ghost')],
+        }
+    }
+
     if (props.status === 403) {
         return {
             icon: 'lock',

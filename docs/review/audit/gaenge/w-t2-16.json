@@ -1,0 +1,18 @@
+{ "name": "t2-16-tabelle-gespeichert", "start": "/admin/gutachten/1060", "full": true, "steps": [
+  { "click": "#dt-edit" },
+  { "wait": 500 },
+  { "fill": "#dt-page", "value": "5" },
+  { "fill": "#dt-cell-0-V", "value": "100" }, { "fill": "#dt-cell-0-W", "value": "100" }, { "fill": "#dt-cell-0-Y", "value": "100" },
+  { "fill": "#dt-cell-1-V", "value": "97" }, { "fill": "#dt-cell-1-W", "value": "100" }, { "fill": "#dt-cell-1-Y", "value": "100" },
+  { "fill": "#dt-cell-2-V", "value": "94" }, { "fill": "#dt-cell-2-W", "value": "100" }, { "fill": "#dt-cell-2-Y", "value": "100" },
+  { "fill": "#dt-cell-3-V", "value": "91" }, { "fill": "#dt-cell-3-W", "value": "100" }, { "fill": "#dt-cell-3-Y", "value": "100" },
+  { "fill": "#dt-cell-4-W", "value": "95" }, { "fill": "#dt-cell-4-Y", "value": "100" },
+  { "fill": "#dt-cell-5-W", "value": "90" }, { "fill": "#dt-cell-5-Y", "value": "100" },
+  { "fill": "#dt-cell-6-W", "value": "85" }, { "fill": "#dt-cell-6-Y", "value": "100" },
+  { "fill": "#dt-cell-7-Y", "value": "95" },
+  { "fill": "#dt-cell-8-Y", "value": "90" },
+  { "fill": "#dt-cell-9-Y", "value": "85" },
+  { "click": "#dt-save" },
+  { "wait": 2000 },
+  { "text": "section[aria-labelledby=\"gs-derating-h\"]", "max": 800 }
+] }

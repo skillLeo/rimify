@@ -9,6 +9,7 @@ import type { AdminGutachtenProps } from '../../../types/pages'
  */
 
 const current = reactive<{ props: Record<string, unknown> }>({ props: {} })
+const get = vi.fn()
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => current,
@@ -17,7 +18,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
-    router: { post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
+    router: { get: (...args: unknown[]) => get(...args), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), on: vi.fn(() => () => undefined) },
 }))
 
 const { default: Page } = await import('./Index.vue')
@@ -44,8 +45,33 @@ function doc(overrides: Partial<Document> = {}): Document {
 
 let mounted: VueWrapper[] = []
 
-function mountPage(documents: Document[]): VueWrapper {
-    const wrapper = mount(Page, { props: { documents, can: { create: false } }, attachTo: document.body })
+/** The chips' counts, as the server sends them for what is on file. */
+function counted(documents: Document[], key: (d: Document) => string): { value: string; count: number }[] {
+    const counts = new Map<string, number>()
+
+    for (const d of documents) {
+        counts.set(key(d), (counts.get(key(d)) ?? 0) + 1)
+    }
+
+    return [...counts.entries()].map(([value, count]) => ({ value, count }))
+}
+
+function mountPage(documents: Document[], filters: Partial<Pick<AdminGutachtenProps, 'search' | 'status' | 'kind'>> = {}): VueWrapper {
+    const props: AdminGutachtenProps = {
+        documents,
+        found: documents.length,
+        total: documents.length,
+        released: documents.filter((d) => d.status === 'published').length,
+        search: '',
+        status: '',
+        kind: '',
+        statusOptions: counted(documents, (d) => d.status),
+        kindOptions: counted(documents, (d) => d.kind),
+        pagination: { current: 1, last: 1, total: documents.length, prev: null, next: null },
+        can: { create: false },
+        ...filters,
+    }
+    const wrapper = mount(Page, { props, attachTo: document.body })
     mounted.push(wrapper)
 
     return wrapper
@@ -54,6 +80,7 @@ function mountPage(documents: Document[]): VueWrapper {
 afterEach(() => {
     mounted.forEach((w) => w.unmount())
     mounted = []
+    get.mockReset()
 })
 
 describe('Gutachten › Dokumente', () => {
@@ -92,14 +119,21 @@ describe('Gutachten › Dokumente', () => {
         expect(groups[0]!.attributes('aria-label')).toBe('Status')
     })
 
-    it('narrows the list in place and says so when nothing matches', async () => {
-        const wrapper = mountPage([doc(), doc({ id: 2, status: 'draft', kind: 'ECE' })])
+    it('asks the server for a chosen status, keeping the search, since the list comes in pages (the admin audit’s F-31)', async () => {
+        const wrapper = mountPage([doc(), doc({ id: 2, status: 'draft', kind: 'ECE' })], { search: '366-0350' })
         const chip = wrapper.findAll('.adm-chip').find((c) => c.text().startsWith('Entwurf'))!
 
         await chip.trigger('click')
 
-        expect(chip.attributes('aria-pressed')).toBe('true')
-        expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+        expect(get).toHaveBeenCalledWith('/admin/gutachten', { q: '366-0350', status: 'draft' }, expect.any(Object))
+    })
+
+    it('marks the chosen status and says the list is filtered', () => {
+        const wrapper = mountPage([doc(), doc({ id: 2, status: 'draft' })], { status: 'draft' })
+
+        expect(wrapper.findAll('.adm-chip').find((c) => c.text().startsWith('Alle'))?.attributes('aria-pressed')).toBe('false')
+        expect(wrapper.findAll('.adm-chip').find((c) => c.text().startsWith('Entwurf'))?.attributes('aria-pressed')).toBe('true')
+        expect(wrapper.find('.adm-page__context').text()).toBe('2 Dokumente · gefiltert')
     })
 
     it('leaves Art and Aussteller out of the phone card and puts the status on the key line', () => {

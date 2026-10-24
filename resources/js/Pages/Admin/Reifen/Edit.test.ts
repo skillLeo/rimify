@@ -48,6 +48,7 @@ function saved(over: Partial<TyreRecordProp> = {}): TyreRecordProp {
 function page(props: Partial<AdminReifenEditProps> = {}) {
     return mount(Edit, {
         props: {
+            stamp: null,
             tyre: null,
             template: null,
             brands: [{ value: 3, label: 'Prüfreifen' }],

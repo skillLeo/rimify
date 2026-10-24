@@ -195,7 +195,7 @@ final class OrderList
             'status' => $order->status->value,
             'statusLabel' => $order->status->labelDe(),
             'payment' => $order->status->paymentState(),
-            'fulfilment' => $order->status->fulfilmentState(),
+            'fulfilment' => $order->status->fulfilmentState($order->shipped_at !== null, $order->delivered_at !== null),
             'paymentMethod' => self::paymentLabel($order->payment_method),
             'shippingMethod' => self::shippingLabel($order->shipping_method),
             'conditions' => (bool) ($order->getAttribute('has_conditions') ?? false),

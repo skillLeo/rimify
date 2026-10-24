@@ -1,0 +1,9 @@
+{ "name": "t3b-1-falsche-datei", "start": "/admin/fahrzeuge/import", "main": 1500, "steps": [
+  { "eval": "document.querySelector('#fi-file input[type=file], input[type=file]')?.accept" },
+  { "upload": "input[type=file]", "path": "C:/rimify/resume/audit/kein-csv.txt" },
+  { "wait": 800 },
+  { "text": "#fi-file-label ~ *", "max": 300 },
+  { "click": "role=button[name=/^Probelauf/]" },
+  { "wait": 3000 },
+  { "eval": "location.pathname" }
+] }

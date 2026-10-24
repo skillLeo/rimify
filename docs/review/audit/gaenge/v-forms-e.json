@@ -1,0 +1,15 @@
+{ "name": "v-forms-e", "start": "/admin/reifen/neu", "full": false, "steps": [
+  { "eval": "(() => { const wheel = ['AEZ','ALUTEC','ATS','BBS','BORBET','Brock','CMS','DEZENT','DOTZ','MOTEC','OZ Racing','Prüfrad','RIAL','RONAL']; const offered = Array.from(document.querySelectorAll('#rf-brand option')).map(o => o.textContent.trim()); return [offered.length, wheel.filter(w => offered.includes(w))]; })()" },
+  { "goto": "/admin/benutzer" },
+  { "click": "main >> role=button[name=\"Person einladen\"]" },
+  { "wait": 800 },
+  { "fill": "#bn-invite-name", "value": "Jürgen Groß" },
+  { "fill": "#bn-invite-email", "value": "neu@rimify" },
+  { "click": "[role=dialog] >> role=button[name=\"Einladung senden\"]" },
+  { "wait": 1500 },
+  { "eval": "[Array.from(document.querySelectorAll('[role=dialog] .form-field__error')).map(e => e.id + ': ' + e.textContent.trim()).filter(t => !/: $/.test(t)), document.querySelector('#bn-invite-email')?.value, document.querySelector('#bn-invite-name')?.value]" },
+  { "fill": "#bn-invite-email", "value": "jürgen.groß@rimify.de" },
+  { "click": "[role=dialog] >> role=button[name=\"Einladung senden\"]" },
+  { "wait": 1500 },
+  { "eval": "[Array.from(document.querySelectorAll('[role=dialog] .form-field__error')).map(e => e.id + ': ' + e.textContent.trim()).filter(t => !/: $/.test(t)), document.querySelectorAll('[role=dialog]').length]" }
+] }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\EmailController;
 use App\Http\Middleware\EnsureSudo;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
@@ -9,6 +10,7 @@ use App\Models\MailSetting;
 use App\Models\MailSuppression;
 use App\Services\Mail\DnsLookup;
 use App\Services\Mail\MailSettings;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
@@ -191,4 +193,52 @@ it('releases a blocked address, once, and says so in the Protokoll', function ()
     expect($block->fresh()?->released_at)->not->toBeNull()
         ->and(AuditLog::query()->where('description', 'mail.suppression_released')->count())->toBe(1)
         ->and(emailProps()['suppressions'])->toBe([]);
+});
+
+it('refuses a sender without a dot in its domain — SES sends from no such address (the admin audit\'s F-30)', function (): void {
+    emailSave(emailForm(['from_address' => 'info@rimify']))
+        ->assertSessionHasErrors(['from_address' => 'Die Absenderadresse ist keine gültige E-Mail-Adresse.']);
+
+    expect(MailSetting::query()->count())->toBe(0);
+});
+
+it('counts every blocked address beside the newest it lists, and finds an older one by its address (the sweep after F-26)', function (): void {
+    $rows = [];
+
+    foreach (range(1, EmailController::SUPPRESSIONS_SHOWN + 10) as $n) {
+        $rows[] = ['email' => "weg{$n}@example.org", 'reason' => 'bounce', 'sns_message_id' => "m{$n}", 'occurred_at' => now()->subMinutes(500 - $n), 'created_at' => now(), 'updated_at' => now()];
+    }
+
+    DB::table('mail_suppressions')->insert($rows);
+
+    $props = emailProps();
+    expect($props['suppressions'])->toHaveCount(EmailController::SUPPRESSIONS_SHOWN)
+        ->and($props['suppressionsTotal'])->toBe(EmailController::SUPPRESSIONS_SHOWN + 10)
+        // The oldest is past the list …
+        ->and(array_column($props['suppressions'], 'email'))->not->toContain('weg1@example.org');
+
+    // … and found by its address, in any letter case.
+    $found = [];
+    test()->actingAs(emailAdmin(), 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->get(EMAIL_URL.'?sperre=WEG1%40')
+        ->assertInertia(function (AssertableInertia $page) use (&$found): void {
+            $found = $page->toArray()['props'];
+        });
+
+    expect(array_column($found['suppressions'], 'email'))->toBe(['weg1@example.org'])
+        ->and($found['suppressionsFound'])->toBe(1)
+        ->and($found['suppressionSearch'])->toBe('weg1@');
+});
+
+it('refuses a save from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {
+    emailSave(emailForm())->assertSessionHasNoErrors();
+    $stale = emailProps()['stamp'];
+
+    // Another tab saves a new sender name.
+    emailSave(emailForm(['from_name' => 'RIMIFY Räder']))->assertSessionHasNoErrors();
+
+    test()->actingAs(emailAdmin(), 'admin')->withSession([EnsureSudo::SESSION_KEY => now()->getTimestamp()])->from(EMAIL_URL)
+        ->withHeader(EditStamp::HEADER, $stale)->put(EMAIL_URL, emailForm(['from_name' => 'RIMIFY alt']))
+        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+
+    expect(MailSetting::query()->orderByDesc('id')->value('from_name'))->toBe('RIMIFY Räder');
 });

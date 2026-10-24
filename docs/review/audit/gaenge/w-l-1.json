@@ -1,0 +1,6 @@
+{ "name": "l-1-auflagen-seiten", "start": "/admin/auflagen", "full": true, "steps": [
+  { "text": "main", "max": 1200 },
+  { "goto": "/admin/seiten" },
+  { "wait": 800 },
+  { "eval": "[document.querySelector('.adm-page__context')?.textContent?.trim(), Array.from(document.querySelectorAll('main tbody tr')).map(r => r.innerText.replace(/\\s+/g, ' ').trim().slice(0, 90))]" }
+] }

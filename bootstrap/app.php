@@ -23,6 +23,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -131,8 +132,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $pages = app(ErrorPage::class);
 
+            // A signed link that no longer holds is the link's failure, not the visitor's right (the admin audit's F-27).
             return $pages->handles($response->getStatusCode())
-                ? $pages->render($request, $response)
+                ? $pages->render($request, $response, $exception instanceof InvalidSignatureException)
                 : $response;
         });
     })->create();

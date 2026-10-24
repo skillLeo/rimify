@@ -14,6 +14,7 @@ import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import { decimal } from '../../../format'
 import type { AdminAlertItem, AdminAlertKind } from '../../../types/admin'
 import type { AdminBenachrichtigungenProps } from '../../../types/admin/benachrichtigungen'
@@ -143,6 +144,11 @@ function readAll(): void {
 /** A flip made while the last one is still on its way: sent as soon as that one has answered. */
 let pending = false
 
+/** Why the last flip was not saved — said beside the switches, which go back to what is stored. */
+const prefsError = ref('')
+const STALE_SWITCHES =
+    'In einem anderen Tab oder auf einem anderen Gerät wurde inzwischen etwas umgestellt, deshalb ist deine Änderung hier nicht gespeichert. Die Schalter zeigen jetzt, was gespeichert ist. Steht einer nicht so, wie du willst, stell ihn noch einmal um.'
+
 function saveChoices(): void {
     if (saving.value) {
         pending = true
@@ -159,8 +165,15 @@ function saveChoices(): void {
         {
             preserveScroll: true,
             preserveState: true,
+            // The switches this page was loaded with: flipped meanwhile in another tab, the flip is refused (EditStamp, F-25).
+            headers: stampHeaders(props.kindsStamp),
             onSuccess: () => {
                 saved = true
+                prefsError.value = ''
+            },
+            // Not the forms' sentence: here nothing typed stays — the switches go back to what is stored.
+            onError: (bag) => {
+                prefsError.value = bag._stamp ? STALE_SWITCHES : (Object.values(bag)[0] ?? '')
             },
             onFinish: () => {
                 saving.value = false
@@ -265,6 +278,8 @@ function saveChoices(): void {
         <section v-if="choices.length" class="adm-section bn-prefs" aria-labelledby="bn-prefs">
             <h2 id="bn-prefs" class="adm-section__title">Was du bekommst</h2>
             <p class="adm-note">Jede Änderung gilt sofort. E-Mails gehen an die Adresse deines Kontos.</p>
+            <!-- A flip refused (changed meanwhile in another tab, EditStamp): the switches show what is stored. -->
+            <p v-if="prefsError" class="adm-alert" role="alert">{{ prefsError }}</p>
 
             <table class="adm-table bn-prefs__table" :aria-busy="saving ? 'true' : undefined">
                 <thead>

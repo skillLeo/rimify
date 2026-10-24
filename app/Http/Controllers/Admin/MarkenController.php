@@ -14,7 +14,9 @@ use App\Models\AdminUser;
 use App\Models\Brand;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\BrandLogoStore;
+use App\Services\Admin\Lists\ListPaging;
 use App\Support\BrandLogos;
+use App\Support\EditStamp;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -48,6 +50,9 @@ class MarkenController extends Controller
 
     public const RESTORED_WITH_LOGO = 'Die entfernte Marke ist wieder da, mit ihrem früheren Logo.';
 
+    /** What the brand form writes — and so what its stamp covers (EditStamp, the admin audit's F-25). */
+    private const FIELDS = ['name', 'is_wheel_brand', 'sort_order'];
+
     public function __construct(private readonly BrandLogoStore $logos) {}
 
     public function index(Request $request): Response
@@ -55,7 +60,7 @@ class MarkenController extends Controller
         $this->authorize('viewAny', Brand::class);
         $admin = self::admin($request);
 
-        $brands = Brand::query()
+        $query = Brand::query()
             // Removed Felgen count too: they keep their brand (BrandPolicy), and the list must not
             // offer an „Entfernen“ the server refuses (K2-16).
             ->withCount([
@@ -63,13 +68,31 @@ class MarkenController extends Controller
                 'tyreVariants',
                 'wheelModels as removed_wheels_count' => static fn (Builder $q) => $q->withoutGlobalScope(SoftDeletingScope::class)->whereNotNull('wheel_models.deleted_at'),
             ])
-            ->orderBy('sort_order')->orderBy('name')
-            ->get()
-            ->map(static fn (Brand $brand): array => self::row($brand))
-            ->all();
+            ->orderBy('sort_order')->orderBy('name');
+
+        // By its name (umlauts as typed). A thousand brands on one page took 3–5 s and one 805 ms query: the counts are
+        // asked for one page at a time now (the admin audit's F-04, F-31).
+        $search = is_string($request->query('q')) ? mb_substr(trim((string) $request->query('q')), 0, 60) : '';
+
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(static fn ($where) => $where->where('name', 'like', $like)->orWhere('slug', 'like', $like));
+        }
+
+        $page = $query->paginate(ListPaging::PER_PAGE, ['*'], 'seite', ListPaging::requested($request->query('seite')));
 
         return Inertia::render('Admin/Marken/Index', [
-            'brands' => $brands,
+            'brands' => collect($page->items())->map(static fn (Brand $brand): array => self::row($brand))->all(),
+            'search' => $search,
+            'found' => $page->total(),
+            'pagination' => ListPaging::props($page, '/admin/marken', ['q' => $search]),
+            // The page's line, over every brand on file — not the page's fifty.
+            'summary' => [
+                'total' => Brand::query()->count(),
+                'wall' => Brand::query()->where('is_wheel_brand', true)->count(),
+                'logos' => Brand::query()->whereNotNull('logo_path')->get(['slug', 'logo_path'])
+                    ->filter(static fn (Brand $brand): bool => BrandLogos::resolve((string) $brand->slug, $brand->logo_path) !== null)->count(),
+            ],
             // A new brand joins the wall at its end, as the Felge form and the import place one (K2-12).
             'nextSortOrder' => (int) Brand::query()->max('sort_order') + 10,
             'can' => [
@@ -113,9 +136,12 @@ class MarkenController extends Controller
         $attributes = $request->attributesForBrand();
 
         self::saying(static fn () => DB::transaction(static function () use ($attributes, $request, $brand): void {
-            $old = $brand->only(['name', 'is_wheel_brand', 'sort_order']);
-            $brand->fill($attributes)->save();
-            AuditTrail::record($request->admin(), 'brand.updated', ['brand_id' => $brand->id, 'old' => $old, 'new' => $brand->only(['name', 'is_wheel_brand', 'sort_order'])], $brand);
+            // The brand as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $locked = Brand::query()->whereKey($brand->id)->lockForUpdate()->firstOrFail();
+            EditStamp::guard($request, $locked->only(self::FIELDS));
+            $old = $locked->only(self::FIELDS);
+            $locked->fill($attributes)->save();
+            AuditTrail::record($request->admin(), 'brand.updated', ['brand_id' => $locked->id, 'old' => $old, 'new' => $locked->only(self::FIELDS)], $locked);
         }));
 
         return back()->with('toast', self::SAVED);
@@ -148,6 +174,7 @@ class MarkenController extends Controller
         $attributes = $request->attributesForBrand();
 
         DB::transaction(static function () use ($attributes, $request, $brand): void {
+            EditStamp::guard($request, Brand::query()->whereKey($brand->id)->lockForUpdate()->firstOrFail()->only(Brand::MANUFACTURER_FIELDS));
             $before = $brand->only(Brand::MANUFACTURER_FIELDS);
             $brand->forceFill($attributes)->save();
             $changed = array_keys(array_filter($attributes, static fn ($value, string $key): bool => $value !== $before[$key], ARRAY_FILTER_USE_BOTH));
@@ -242,6 +269,10 @@ class MarkenController extends Controller
                 'safetyNote' => $brand->safety_note,
             ],
             'manufacturerComplete' => $brand->manufacturer() !== null,
+            // The Herstellerangaben as loaded: a save against older ones is refused (EditStamp, the admin audit's F-25).
+            'manufacturerStamp' => EditStamp::of($brand->only(Brand::MANUFACTURER_FIELDS)),
+            // Name, wall and position as loaded: „Bearbeiten“ sends it back, a save against older ones is refused (F-25).
+            'stamp' => EditStamp::of($brand->only(self::FIELDS)),
             'wheels' => (int) $brand->getAttribute('wheel_models_count'),
             'removedWheels' => (int) $brand->getAttribute('removed_wheels_count'),
             'tyres' => (int) $brand->getAttribute('tyre_variants_count'),

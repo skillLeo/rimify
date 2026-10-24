@@ -7,9 +7,10 @@
  */
 
 import { router, useForm } from '@inertiajs/vue3'
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 
@@ -34,6 +35,8 @@ interface Item {
     assignee: string | null
     closedAt: string | null
     image: string | null
+    /** The answer as loaded (EditStamp): its form sends it, a save against an older state is refused. */
+    stamp?: string
 }
 
 const props = defineProps<{
@@ -89,6 +92,10 @@ function resetFilters(): void {
 
 const editing = ref<number | null>(null)
 const answer = useForm({ status: 'neu', answer: '', assignee_id: null as number | null })
+/* The answer as its form opened on (EditStamp, the admin audit's F-25): sent with the save. */
+const editingStamp = ref<string | undefined>(undefined)
+/* Changed meanwhile elsewhere: nothing was saved, and what was typed stays. */
+const stampError = computed(() => (answer.errors as Record<string, string | undefined>)._stamp ?? '')
 
 /* The button that was pressed goes away with the form it opens: the keyboard goes into the form, and back. */
 /* An answer typed and left for another point is kept, and is there again when that point is reopened. */
@@ -100,6 +107,7 @@ function edit(item: Item): void {
     }
 
     editing.value = item.id
+    editingStamp.value = item.stamp
     answer.defaults({ status: item.status, answer: item.answer, assignee_id: item.assigneeId })
     answer.reset()
     answer.clearErrors()
@@ -124,6 +132,7 @@ function save(item: Item): void {
 
     answer.patch(`/admin/review/rueckmeldungen/${item.id}`, {
         preserveScroll: true,
+        headers: stampHeaders(editingStamp.value),
         onSuccess: () => {
             drafts.delete(item.id)
             close(item.id)
@@ -194,6 +203,7 @@ function tag(stateValue: string): string | null {
                         <div v-if="can.answer" class="rf-item__actions">
                             <button v-if="editing !== item.id" class="btn btn--secondary rf-item__answerbtn" type="button" :data-answer="item.id" @click="edit(item)">Beantworten</button>
                             <form v-else class="rf-answer" @submit.prevent="save(item)">
+                                <p v-if="stampError" class="adm-alert" role="alert">{{ stampError }}</p>
                                 <div class="rf-answer__pair">
                                     <div class="form-field">
                                         <label class="form-field__label" :for="`rf-a-status-${item.id}`">Stand</label>

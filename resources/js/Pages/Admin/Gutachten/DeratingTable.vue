@@ -12,6 +12,7 @@ import { useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import type { DeratingView } from '../../../types/admin/gutachten'
 
 const props = defineProps<{
@@ -21,6 +22,8 @@ const props = defineProps<{
     pageCount: number | null
     /** The document prints one, as the record says (D-277): the release waits for it (his admin item 15, D-295). */
     required: boolean
+    /** The table as this card was opened on (EditStamp): a save against an older one is refused. */
+    stamp?: string
 }>()
 
 const BAG = 'tabelle'
@@ -70,6 +73,7 @@ function save(): void {
     form.put(`/admin/gutachten/${props.documentId}/tragfaehigkeitstabelle`, {
         preserveScroll: true,
         errorBag: BAG,
+        headers: stampHeaders(props.stamp),
         onSuccess: () => {
             editing.value = false
             focus.request('dt-edit')
@@ -131,6 +135,8 @@ function cellError(i: number, symbol: string): string {
         </template>
 
         <form v-else class="dt-form" novalidate aria-labelledby="dt-form-h" @submit.prevent="save">
+            <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and the cells typed stay. -->
+            <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
             <p id="dt-form-h" class="form-field__label">Tabelle aus dem Gutachten</p>
             <p class="form-field__help">In jede Zelle die Prozentzahl, „–“ wenn die Tabelle einen Strich zeigt, oder nichts, wenn die Tabelle dazu nichts sagt.</p>
 

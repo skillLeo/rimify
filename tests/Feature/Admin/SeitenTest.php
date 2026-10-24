@@ -105,7 +105,7 @@ it('lists the pages whose words the shop prints, and no others', function (): vo
             ->has('groups', 3)
             ->where('groups.0.label', 'Startseite')
             ->has('groups.0.pages', 1)
-            ->where('groups.1.label', 'Ratgeber')
+            ->where('groups.1.label', 'Blog')
             ->where('groups.2.label', 'Rechtliches')
             ->has('groups.2.pages', 5)
             ->where('groups.2.pages.0.placeholder', true)
@@ -354,6 +354,25 @@ it('names the people who wrote a version, not their addresses', function (): voi
             ->where('revisions.1.by', null));
 });
 
+it('lists every version to load back, not the latest twenty and the first (the admin audit\'s sweep after F-26)', function (): void {
+    $home = seite('startseite');
+    $content = seitenInhalt($home);
+
+    foreach (range(1, 23) as $n) {
+        $content['blocks'][0]['data']['headline'] = "Fassung {$n}";
+        veroeffentlichen($home, $content)->assertSessionHasNoErrors();
+    }
+
+    // 23 publishes and the wording they first replaced.
+    expect(PageRevision::query()->where('page_id', $home->id)->count())->toBe(24);
+
+    $this->actingAs(seitenAdmin(), 'admin')->get('/admin/seiten/'.$home->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('revisions', 24)
+            ->where('revisions.0.by', seitenAdmin()->name)
+            ->where('revisions.23.by', null));
+});
+
 it('compares a version with the shop, place by place and word for word', function (): void {
     $home = seite('startseite');
     $content = seitenInhalt($home);
@@ -406,7 +425,15 @@ it('keeps the placeholder mark only on the placeholder text, and the lawyer mark
 
     $impressum->refresh();
     expect($impressum->blocks()->first()?->data)->not->toHaveKey('placeholder')
-        ->and($impressum->lawyer_reviewed)->toBeTrue();
+        ->and($impressum->lawyer_reviewed)->toBeTrue()
+        // Publishing never makes a text real: the flag stays on until someone switches it off (D-319).
+        ->and($impressum->is_placeholder)->toBeTrue();
+
+    $this->get('/rechtliches/impressum')->assertInertia(fn (AssertableInertia $page) => $page->where('placeholder', true)->where('blocks', []));
+
+    $this->actingAs(seitenAdmin(), 'admin')->from('/admin/seiten/'.$impressum->id)
+        ->post('/admin/seiten/'.$impressum->id.'/platzhalter', ['part' => 'text', 'placeholder' => false])
+        ->assertSessionHasNoErrors();
 
     $this->get('/rechtliches/impressum')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('blocks.0.data.text', 'Der Text, den die Kanzlei geliefert hat.'));

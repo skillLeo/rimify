@@ -1,0 +1,3 @@
+{ "name": "shop-10-faq", "guest": true, "start": "/faq", "steps": [
+  { "eval": "[document.body.textContent.includes('ungefahren und in der Originalverpackung'), document.body.textContent.includes('Wie lange dauert die Lieferung?'), Array.from(document.querySelectorAll('main h2, main h3, main summary, main button')).map(e => e.textContent.trim()).filter(t => t.endsWith('?')).slice(0, 12)]" }
+] }

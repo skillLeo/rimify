@@ -1,0 +1,14 @@
+{ "name": "t7-7-felge-wieder-live", "start": "/admin/felgen/1123", "steps": [
+  { "click": ".adm-page__actions >> role=button[name=\"Veröffentlichen\"]" },
+  { "wait": 300 },
+  { "eval": "document.querySelector('[role=dialog]')?.innerText" },
+  { "click": "[role=dialog] >> role=button[name=\"Veröffentlichen\"]" },
+  { "wait": 2000 },
+  { "eval": "document.querySelector('.adm-page__context')?.textContent?.trim()" },
+  { "goto": "/felgen/pruefrad-strasse-18" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('h1')?.textContent?.trim(), Array.from(document.querySelectorAll('main *')).filter(e => e.children.length === 0 && /€/.test(e.textContent)).map(e => e.textContent.trim()).slice(0, 4)]" },
+  { "goto": "/admin/felgen" },
+  { "wait": 1000 },
+  { "eval": "Array.from(document.querySelectorAll('main input[type=search], main input[type=text], main select')).map(e => (e.id || e.name) + ':' + e.type + ' ' + (e.getAttribute('aria-label') || e.placeholder || ''))" }
+] }

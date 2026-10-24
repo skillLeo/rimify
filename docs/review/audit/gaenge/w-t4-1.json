@@ -1,0 +1,5 @@
+{ "name": "t4-1-reifen-neu", "start": "/admin/reifen/neu", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('select')).map(s => s.id + ': ' + Array.from(s.options).slice(0, 12).map(o => o.value + '=' + o.textContent.trim()).join(' | '))" },
+  { "eval": "Array.from(document.querySelectorAll('input')).map(i => i.id + ':' + i.type + (i.maxLength > 0 ? ' max' + i.maxLength : '')).filter(s => s.startsWith('rf-'))" },
+  { "eval": "Array.from(document.querySelectorAll('main button')).map(b => b.textContent.trim()).filter(Boolean)" }
+] }

@@ -1,0 +1,18 @@
+{ "name": "t9-6-verbindung-testen", "start": "/admin/einstellungen/e-mail", "full": true, "steps": [
+  { "click": "main >> role=button[name=\"Verbindung testen\"]" },
+  { "wait": 3000 },
+  { "eval": "Array.from(document.querySelectorAll('main [role=status], main [role=alert], main .adm-alert, main .adm-note, .form-field__error')).map(e => e.textContent.trim()).filter(t => t && /Verbindung|Zugang|SES|Schlüssel|gesendet|fehl/i.test(t)).slice(0, 4)" },
+  { "fill": "#em-from", "value": "info@rimify" },
+  { "fill": "#em-name", "value": "RIMIFY Räder & Reifen" },
+  { "click": "role=button[name=\"Speichern\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#em-from')?.value, Array.from(document.querySelectorAll('.form-field__error')).map(e => e.textContent.trim()).filter(Boolean)]" },
+  { "fill": "#em-from", "value": "info@rimify.de" },
+  { "click": "role=button[name=\"Speichern\"]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('#em-from')?.value, document.querySelector('#em-name')?.value, Array.from(document.querySelectorAll('.form-field__error')).map(e => e.textContent.trim()).filter(Boolean)]" },
+  { "goBack": true },
+  { "back": true },
+  { "wait": 1200 },
+  { "eval": "[location.pathname, document.querySelector('h1')?.textContent?.trim()]" }
+] }

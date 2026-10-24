@@ -14,7 +14,9 @@ import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import { decimal } from '../../../format'
+import IdentityForm from './IdentityForm.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -34,13 +36,38 @@ const props = defineProps<{
         needsReview: boolean
         complete: boolean
     }
+    /** The first Gutachten rows naming the car, by document — at most FahrzeugeController::ROWS_SHOWN. */
     rows: Row[]
+    /** Every such row, counted (F-37). */
+    rowsTotal?: number
     /** Whether a released Gutachten naming this car needs field T for the tyres, which ones and why (D-287). */
     topSpeed: { needed: boolean; released: number; documents: { id: number; label: string; href: string; why: string }[] }
     /** What the shop waits for of this car (D-286): `8.1`, `8.2`, `T`. */
     owed: string[]
     can: { edit: boolean }
+    /** The three figures the form was opened on (EditStamp): a save against older ones is refused. */
+    stamp: string
+    /**
+     * The papers' own details (the admin audit's F-17): correctable on a car typed by hand that nothing refers to yet,
+     * with the form's values and what it was opened on; otherwise why not.
+     */
+    identity?: { correctable: boolean; why: string | null; form: Record<string, string> | null; stamp: string | null }
+    bodyForms?: string[]
+    drives?: string[]
 }>()
+
+const correcting = ref(false)
+
+/* R-04 said where the person looks for „Entfernen“: a car is never deleted — and what can be done instead. */
+const ruleLine = computed(() => {
+    if (props.identity === undefined) {
+        return null
+    }
+
+    return props.identity.correctable
+        ? 'Ein Fahrzeug wird nie gelöscht. Seine Angaben kannst du korrigieren, solange nichts darauf verweist.'
+        : `Ein Fahrzeug wird nie gelöscht. ${props.identity.why ?? ''}`.trim()
+})
 
 interface Row {
     id: number
@@ -133,7 +160,7 @@ function save(): void {
 
 function send(): void {
     confirmOpen.value = false
-    form.put(`/admin/fahrzeuge/${props.vehicle.id}`, { preserveScroll: true, onError: () => focusRefused('.fs-form') })
+    form.put(`/admin/fahrzeuge/${props.vehicle.id}`, { preserveScroll: true, headers: stampHeaders(props.stamp), onError: () => focusRefused('.fs-form') })
 }
 
 const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeben', retired: 'Ausgelaufen' }
@@ -146,14 +173,26 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
         <section class="adm-section" aria-labelledby="fs-facts-h">
             <div class="adm-section__head">
                 <h2 id="fs-facts-h" class="adm-section__title">Angaben</h2>
+                <button v-if="can.edit && identity?.correctable && !correcting" class="btn btn--secondary btn--sm" type="button" @click="correcting = true">Angaben korrigieren</button>
             </div>
-            <dl class="adm-facts fs-facts">
+            <IdentityForm
+                v-if="correcting && identity?.form"
+                :vehicle-id="vehicle.id"
+                :values="identity.form"
+                :body-forms="bodyForms ?? []"
+                :drives="drives ?? []"
+                :stamp="identity.stamp"
+                @done="correcting = false"
+                @cancel="correcting = false"
+            />
+            <dl v-else class="adm-facts fs-facts">
                 <div class="adm-facts__row"><dt>HSN/TSN</dt><dd>{{ vehicle.keys }}<template v-if="vehicle.vsn"> · VSN {{ vehicle.vsn }}</template></dd></div>
                 <div v-if="vehicle.typeDesignation" class="adm-facts__row"><dt>Typ</dt><dd>{{ vehicle.typeDesignation }}</dd></div>
                 <div class="adm-facts__row"><dt>Bauzeitraum</dt><dd>{{ vehicle.window }}</dd></div>
                 <div v-if="vehicle.power" class="adm-facts__row"><dt>Leistung</dt><dd>{{ vehicle.power }}</dd></div>
-                <div v-if="vehicle.bodyForm" class="adm-facts__row"><dt>Aufbau</dt><dd>{{ vehicle.bodyForm }}</dd></div>
+                <div v-if="vehicle.bodyForm" class="adm-facts__row"><dt>Karosserie</dt><dd>{{ vehicle.bodyForm }}</dd></div>
             </dl>
+            <p v-if="ruleLine" class="adm-note fs-rule">{{ ruleLine }}</p>
         </section>
 
         <section class="adm-section" aria-labelledby="fs-legal-h">
@@ -161,6 +200,8 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                 <h2 id="fs-legal-h" class="adm-section__title">Daten für die Prüfung</h2>
             </div>
             <form v-if="can.edit" class="fs-form" novalidate @submit.prevent="save">
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and the figures typed stay. -->
+                <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
                 <div class="form-field">
                     <label class="form-field__label" for="fs-front">Achslast vorn in kg (Feld 8.1)</label>
                     <input id="fs-front" v-model="form.axle_load_front_kg" class="input" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="errors.axle_load_front_kg ? 'true' : undefined" aria-describedby="fs-front-err">
@@ -209,6 +250,9 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                 <h2 id="fs-rows-h" class="adm-section__title">In Gutachten genannt</h2>
             </div>
             <p v-if="rows.length === 0" class="adm-note">Zu diesem Fahrzeug ist noch keine Zeile aus einem Gutachten hinterlegt.</p>
+            <p v-else-if="rows.length < (rowsTotal ?? rows.length)" class="adm-note fs-cut" role="status">
+                Hier stehen die ersten {{ decimal(rows.length, 0) }} von {{ decimal(rowsTotal ?? rows.length, 0) }} Zeilen, nach Gutachten geordnet. Die übrigen stehen auf der Seite ihres Gutachtens.
+            </p>
             <div v-for="group in groups" :key="group.id" class="fs-group">
                 <h3 class="fs-group__title">
                     <Link :href="group.href" class="fs-link">{{ group.document }}</Link>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Services\Content\LegalReadiness;
 use App\Support\ContentSecurityPolicy;
 use Closure;
 use Illuminate\Http\Request;
@@ -48,11 +49,19 @@ final class SecurityHeaders
             $response->headers->set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
         }
 
-        // Any copy but the live shop stays out of search: a preview indexed beside the real shop competes with it.
-        if (! app()->environment('production')) {
+        // Any copy but the live shop stays out of search: a preview indexed beside the real shop competes with it. The
+        // live shop too, while a legal text is a placeholder or the Impressum lacks a field (D-319): a placeholder must
+        // never be what a search engine shows.
+        if (self::hidden()) {
             $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
         }
 
         return $response;
+    }
+
+    /** Whether this copy of the shop keeps search engines out — robots.txt asks the same (RobotsController). */
+    public static function hidden(): bool
+    {
+        return ! app()->environment('production') || ! app(LegalReadiness::class)->ready();
     }
 }

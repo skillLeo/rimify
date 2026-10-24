@@ -1,0 +1,17 @@
+{ "name": "t7-28-rolle", "start": "/admin/rollen", "full": true, "steps": [
+  { "click": "role=button[name=\"Rolle anlegen\"]" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] input, [role=dialog] select, [role=dialog] textarea')).map(e => (e.id || e.name) + ':' + e.type)" },
+  { "fill": "[role=dialog] input[type=text] >> nth=0", "value": "Prüfung Außendienst" },
+  { "click": "[role=dialog] >> role=button[name=/anlegen/i]" },
+  { "wait": 1500 },
+  { "eval": "[document.querySelector('[role=dialog]') ? document.querySelector('[role=dialog]').innerText.slice(0, 400) : 'zu', Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean), location.pathname + location.search]" },
+  { "goto": "/admin/benutzer" },
+  { "wait": 800 },
+  { "click": "role=button[name=\"Aktionen für Nils Fuchs\"]" },
+  { "wait": 300 },
+  { "eval": "Array.from(document.querySelectorAll('[role=menu] [role=menuitem]')).map(m => m.textContent.trim())" },
+  { "click": "[role=menu] >> role=menuitem[name=/Rolle/]" },
+  { "wait": 500 },
+  { "eval": "Array.from(document.querySelectorAll('[role=dialog] select option, [role=dialog] input[type=radio]')).map(o => (o.value || '') + '=' + (o.textContent || o.labels?.[0]?.textContent || '').trim()).slice(0, 12)" }
+] }

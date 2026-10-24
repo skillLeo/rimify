@@ -1,0 +1,1 @@
+function e(e,t){return t.length>0&&t.join()!==e.join()?`vorn ${e.join(`, `)} · hinten ${t.join(`, `)}`:e.join(`, `)}export{e as t};

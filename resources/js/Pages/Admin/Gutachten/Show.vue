@@ -16,7 +16,9 @@ import AdminPage, { type AdminPageAction } from '../../../Components/Admin/Admin
 import ConditionGroups from '../../../Components/Fitment/ConditionGroups.vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { afterDialogsClose, focusRefused } from '../../../composables/admin/focusRefused'
+import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { sizesByAxle } from '../../../fitment/axles'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
@@ -41,8 +43,11 @@ const draft = computed(() => props.document.status === 'draft')
    off the PDF and not off the entry. A draft that already has rows is counted at release, and says so. */
 const countFirst = computed(() => draft.value && !props.document.count && props.rows.length === 0)
 
+/** Every row of the document — the page draws the first ROWS_SHOWN; what is released is all of them (F-37). */
+const rowsTotal = computed(() => props.rowsTotal ?? props.rows.length)
+
 const context = computed(() => {
-    const n = props.rows.length
+    const n = rowsTotal.value
     const rows = n === 1 ? '1 Zeile' : `${decimal(n, 0)} Zeilen`
 
     return `${props.document.statusLabel} · ${rows} · Fassung ${props.document.revision}`
@@ -111,13 +116,13 @@ const answerOpen = ref(false)
  * stands in its Nachtrag's Anlagen) brings no row into the shop — its facts reach the shop through its Nachträge.
  */
 const releaseNote = computed(() => {
-    if (props.rows.length === 0) {
+    if (rowsTotal.value === 0) {
         return 'Mit der Freigabe übernimmt der Shop die Angaben dieses Grundgutachtens für seine Nachträge. Eigene Zeilen hat es nicht.'
     }
 
-    return props.rows.length === 1
+    return rowsTotal.value === 1
         ? 'Mit der Freigabe gilt die Zeile sofort im Shop. Prüf sie vorher in der Vorschau unten.'
-        : `Mit der Freigabe gelten alle ${decimal(props.rows.length, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.`
+        : `Mit der Freigabe gelten alle ${decimal(rowsTotal.value, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.`
 })
 
 /*
@@ -125,9 +130,9 @@ const releaseNote = computed(() => {
  * client released his first Gutachten and looked for the way back nine times in six minutes).
  */
 const releaseBody = computed(() => {
-    const what = props.rows.length === 0
+    const what = rowsTotal.value === 0
         ? 'Der Shop übernimmt danach die Angaben dieses Grundgutachtens für seine Nachträge.'
-        : `${props.rows.length === 1 ? 'Die Zeile gilt' : `Alle ${decimal(props.rows.length, 0)} Zeilen gelten`} danach sofort im Shop.`
+        : `${rowsTotal.value === 1 ? 'Die Zeile gilt' : `Alle ${decimal(rowsTotal.value, 0)} Zeilen gelten`} danach sofort im Shop.`
 
     return `${what} Angaben, Codes und Zeilen lassen sich dann nicht mehr ändern – eine Korrektur geht über „Neue Fassung anlegen“, und die neue Fassung ersetzt dieses Gutachten, sobald sie freigegeben ist.`
 })
@@ -209,6 +214,8 @@ function saveRow(): void {
     editBusy.value = true
     router.put(`/admin/gutachten/${props.document.id}/zeilen/${row.id}`, payload(form) as never, {
         preserveScroll: true,
+        // The row as it was when the dialog opened: changed meanwhile, the save is refused (EditStamp, F-25).
+        headers: stampHeaders(row.stamp),
         onSuccess: () => (editing.value = null),
         onError: (bag) => {
             editErrors.value = bag
@@ -414,7 +421,7 @@ const TONE: Record<string, string | null> = {
             <div class="adm-section__head">
                 <h2 id="gs-count-h" class="adm-section__title">Zählung</h2>
             </div>
-            <CountCard :document-id="document.id" :count="document.count ?? null" :editable="can.edit && draft" :page-count="document.pageCount" :rows="rows.length" />
+            <CountCard :document-id="document.id" :stamp="stamps.document" :count="document.count ?? null" :editable="can.edit && draft" :page-count="document.pageCount" :rows="rowsTotal" />
         </section>
 
         <!-- ── Auflagenverzeichnis: the codes this document prints, with its own sentences ── -->
@@ -451,7 +458,7 @@ const TONE: Record<string, string | null> = {
                 <!-- A table the demo seed wrote carries the same tag as every other demo row. -->
                 <span v-if="derating.seededFrom" class="adm-tag adm-tag--neutral">Demodaten</span>
             </div>
-            <DeratingTable :document-id="document.id" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" :required="deratingRequired" />
+            <DeratingTable :document-id="document.id" :stamp="stamps.derating" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" :required="deratingRequired" />
         </section>
         <details v-else class="adm-section gs-fold">
             <summary class="gs-fold__summary">
@@ -466,7 +473,7 @@ const TONE: Record<string, string | null> = {
             <div class="adm-section__head">
                 <h2 id="gs-combinations-h" class="adm-section__title">Bereifungskombinationen</h2>
             </div>
-            <CombinationsCard :document-id="document.id" :combinations="combinations" :editable="can.edit && draft" :page-count="document.pageCount" />
+            <CombinationsCard :document-id="document.id" :stamp="stamps.combinations" :combinations="combinations" :editable="can.edit && draft" :page-count="document.pageCount" />
         </section>
 
         <!-- ── Verwendungsbereich ────────────────────────────────────── -->
@@ -476,6 +483,9 @@ const TONE: Record<string, string | null> = {
             </div>
 
             <p v-if="rows.length === 0" class="adm-note">Noch keine Zeile. {{ can.edit ? (countFirst ? 'Erst zählen, dann erfassen: Sobald die Zählung oben gespeichert ist, legst du unten die ersten Zeilen an.' : 'Leg unten die ersten an: Fahrzeuge und Größen wählen, Reifengrößen und Auflagen eintragen.') : '' }}</p>
+            <p v-else-if="rows.length < rowsTotal" class="adm-note gs-cut" role="status">
+                Hier stehen die ersten {{ decimal(rows.length, 0) }} von {{ decimal(rowsTotal, 0) }} Zeilen, nach Fahrzeug geordnet. Die Freigabe umfasst alle {{ decimal(rowsTotal, 0) }}.
+            </p>
 
             <div v-for="group in groups" :key="group.vehicleId" class="gs-group">
                 <h3 class="gs-group__title">{{ group.vehicle }}</h3>
@@ -564,7 +574,7 @@ const TONE: Record<string, string | null> = {
                         <span v-else class="gs-verdict__ok">{{ verdict.statusLabel }}</span>
                     </div>
                     <p v-if="verdict.reason" class="gs-verdict__line">{{ verdict.reason }}</p>
-                    <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ verdict.front.join(', ') }}<template v-if="verdict.rear.length && verdict.rear.join() !== verdict.front.join()"> · hinten {{ verdict.rear.join(', ') }}</template></p>
+                    <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ sizesByAxle(verdict.front, verdict.rear) }}</p>
                     <p v-if="verdict.requiresEntry" class="gs-verdict__line">{{ verdict.entryLine ?? ENTRY_LINE }}<template v-if="verdict.entryNote"> {{ verdict.entryNote }}</template></p>
                     <p v-if="verdict.papersLine" class="gs-verdict__line">{{ verdict.papersLine }}</p>
                     <!-- As the shop will show them: the combination's once, each tyre size's with that size (ConditionGroups).
@@ -578,8 +588,8 @@ const TONE: Record<string, string | null> = {
             <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug ist zu diesem Gutachten keine Zeile hinterlegt.</p>
         </section>
 
-        <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rows.length" :note="releaseBody" @done="focusState" />
-        <ReleaseDialog v-if="can.answer" v-model:open="answerOpen" mode="answer" :document="document" :rows="rows.length" />
+        <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rowsTotal" :note="releaseBody" @done="focusState" />
+        <ReleaseDialog v-if="can.answer" v-model:open="answerOpen" mode="answer" :document="document" :rows="rowsTotal" />
 
         <AdminConfirm
             v-if="can.revise"
@@ -603,6 +613,8 @@ const TONE: Record<string, string | null> = {
         <Dialog v-model:open="editOpen" title="Zeile ändern" :description="editing ? `${editing.vehicle} · ${editing.wheel} ${editing.size}` : undefined" content-class="adm-dialog gs-dialog" initial-focus="#gs-edit-axle" wide>
             <!-- A form, so Enter in a field saves, as in every other dialog of the panel. -->
             <form id="gs-edit-form" novalidate @submit.prevent="saveRow">
+                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
+                <p v-if="editErrors._stamp" class="adm-alert" role="alert">{{ editErrors._stamp }}</p>
                 <RowFields v-if="editForm" v-model:form="editForm" :conditions="conditions" :errors="editErrors" id-prefix="gs-edit" :page-count="document.pageCount" @sizes-changed="editSizesChanged" />
             </form>
             <template #actions>
@@ -611,7 +623,7 @@ const TONE: Record<string, string | null> = {
             </template>
         </Dialog>
 
-        <FactsDialog v-if="can.edit" v-model:open="factsOpen" :document="document" :kinds="kinds" :replaceable="replaceable" :supplementable="supplementable" />
+        <FactsDialog v-if="can.edit" v-model:open="factsOpen" :document="document" :stamp="stamps.document" :kinds="kinds" :replaceable="replaceable" :supplementable="supplementable" />
     </AdminPage>
 </template>
 

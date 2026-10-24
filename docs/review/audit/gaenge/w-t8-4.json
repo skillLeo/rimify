@@ -1,0 +1,7 @@
+{ "name": "t8-4-bewertungen", "start": "/admin/bewertungen", "full": true, "steps": [
+  { "eval": "[document.querySelector('.adm-page__context')?.textContent?.trim(), Array.from(document.querySelectorAll('main p.adm-note, main .adm-note')).map(p => p.textContent.trim()).slice(0, 3)]" },
+  { "eval": "Array.from(document.querySelectorAll('main [aria-label]')).map(b => b.getAttribute('aria-label')).slice(0, 8)" },
+  { "eval": "Array.from(document.querySelectorAll('main button, main a')).map(b => b.textContent.trim()).filter(t => t && t.length < 40).slice(0, 25)" },
+  { "eval": "Array.from(document.querySelectorAll('main select, main input')).map(e => (e.id || e.name) + ':' + e.type)" },
+  { "text": "main", "max": 1200 }
+] }

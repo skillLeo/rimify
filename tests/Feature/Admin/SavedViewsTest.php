@@ -243,6 +243,19 @@ describe('changing and deleting a view', function (): void {
         expect(SavedView::query()->count())->toBe(1);
     });
 
+    it('leaves the list with its filters when the open view is deleted, and opens the view brought back (the admin audit\'s F-22)', function (): void {
+        $view = aView('order-manager', 'Bezahlte');
+        $open = "/admin/bestellungen?status=bezahlt&ansicht={$view->id}";
+
+        // Not back to the address of a view that is gone: the page would say so as of an old link.
+        $this->actingAs(viewsAdmin(), 'admin')->from($open)->delete("/admin/ansichten/{$view->id}")
+            ->assertRedirect('/admin/bestellungen?status=bezahlt');
+        expect(listViews('?status=bezahlt')['views'])->toMatchArray(['active' => null, 'missing' => false]);
+
+        $this->actingAs(viewsAdmin(), 'admin')->from('/admin/bestellungen?status=bezahlt')->post("/admin/ansichten/{$view->id}/wiederherstellen")
+            ->assertRedirect(ListViews::href('/admin/bestellungen', ['status' => 'bezahlt'], $view->id));
+    });
+
     it('brings a view back under a free name when its own was taken meanwhile', function (): void {
         $old = aView('order-manager', 'Doppelt');
         $old->delete();

@@ -19,10 +19,16 @@ const props = defineProps<{ editor: DirtyFormState }>()
 const dirty = computed(() => props.editor.dirty.value)
 const saving = computed(() => props.editor.saving.value)
 const failed = computed(() => props.editor.failed.value)
+/* Changed meanwhile elsewhere (EditStamp): said in the bar itself, since no field holds the mistake. */
+const problem = computed(() => props.editor.problem?.value ?? null)
 
 const status = computed(() => {
     if (saving.value) {
         return 'Wird gespeichert …'
+    }
+
+    if (failed.value && problem.value) {
+        return problem.value
     }
 
     if (failed.value) {
@@ -50,7 +56,7 @@ function save(): void {
 
 <template>
     <div class="adm-savebar" :data-state="saving ? 'saving' : failed ? 'failed' : dirty ? 'dirty' : 'clean'">
-        <p class="adm-savebar__status" role="status">{{ status }}</p>
+        <p class="adm-savebar__status" :role="failed && problem ? 'alert' : 'status'">{{ status }}</p>
 
         <div class="adm-savebar__actions">
             <button class="btn btn--secondary" type="button" :disabled="!dirty || saving" @click="editor.discard">Verwerfen</button>

@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\BalanceWeightColour;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Commerce\KomplettradSettings;
+use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,9 @@ use Inertia\Response;
 class WuchtgewichteController extends Controller
 {
     public const SAVED_TOAST = 'Gespeichert.';
+
+    /** What the colour form writes — and so what its stamp covers (EditStamp, the admin audit's F-25). */
+    private const FIELDS = ['name_de', 'slug', 'swatch_hex', 'surcharge_cents', 'is_default', 'active', 'sort_order'];
 
     public const DELETED_TOAST = 'Gelöscht.';
 
@@ -134,7 +138,10 @@ class WuchtgewichteController extends Controller
         $attributes = $request->colourAttributes();
         $admin = $request->admin();
 
-        DB::transaction(function () use ($attributes, $admin, $colour): void {
+        DB::transaction(function () use ($attributes, $admin, $colour, $request): void {
+            // The colour as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
+            $colour = BalanceWeightColour::query()->lockForUpdate()->findOrFail($colour->getKey());
+            EditStamp::guard($request, $colour->only(self::FIELDS));
             $before = $colour->getOriginal();
 
             $colour->fill($attributes)->save();
@@ -201,6 +208,8 @@ class WuchtgewichteController extends Controller
             'active' => $colour->active,
             'sortOrder' => $colour->sort_order,
             'demo' => (bool) $colour->getAttribute('is_demo'),
+            // The colour as loaded: „Bearbeiten“ sends it back, a save against an older state is refused (F-25).
+            'stamp' => EditStamp::of($colour->only(self::FIELDS)),
         ];
     }
 

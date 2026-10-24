@@ -18,9 +18,13 @@ class VersandController extends Controller
 {
     public function ship(FulfilmentRequest $request, Order $order, OrderFulfilment $fulfilment): RedirectResponse
     {
-        $fulfilment->ship($order, $request->admin(), $request->tracking());
+        $mailed = $fulfilment->ship($order, $request->admin(), $request->tracking());
 
-        return back()->with('toast', "Bestellung {$order->order_number} als versendet markiert.");
+        return back()->with('toast', "Bestellung {$order->order_number} als versendet markiert.".match ($mailed) {
+            true => ' Die Versandmail ist verschickt.',
+            false => ' Die Versandmail ließ sich nicht verschicken – den Grund findest du unter Team › Protokoll.',
+            null => '',
+        });
     }
 
     public function deliver(FulfilmentRequest $request, Order $order, OrderFulfilment $fulfilment): RedirectResponse

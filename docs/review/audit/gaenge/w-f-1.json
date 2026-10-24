@@ -1,0 +1,12 @@
+{ "name": "f-1-seitentitel-lang", "start": "/admin/seiten/12", "full": true, "steps": [
+  { "eval": "Array.from(document.querySelectorAll('main input, main textarea')).map(e => (e.id || e.name) + ':' + e.type + (e.maxLength > 0 ? ' max' + e.maxLength : '')).slice(0, 12)" },
+  { "eval": "(() => { const el = document.querySelector('#pg-title, input[id$=title]'); if (!el) return 'kein Titelfeld'; const v = 'Felgen richtig einlagern – ' + 'Größe, Druck und Pflege '.repeat(14); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); return el.id + ' len=' + el.value.length; })()" },
+  { "press": "Control+s" },
+  { "wait": 2000 },
+  { "eval": "[Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean).slice(0, 4), document.querySelector('.adm-page__context')?.textContent?.trim()]" },
+  { "click": "main >> role=button[name=\"Veröffentlichen\"]" },
+  { "wait": 800 },
+  { "click": "[role=dialog] >> role=button[name=\"Veröffentlichen\"]" },
+  { "wait": 2500 },
+  { "eval": "[Array.from(document.querySelectorAll('.form-field__error, .adm-alert, [role=alert]')).map(e => e.textContent.trim()).filter(Boolean).slice(0, 4), document.querySelector('.adm-page__context')?.textContent?.trim(), document.querySelector('h1')?.textContent?.length]" }
+] }

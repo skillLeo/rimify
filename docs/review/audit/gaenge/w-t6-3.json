@@ -1,0 +1,7 @@
+{ "name": "t6-3-nochmal-versendet", "start": "/admin/bestellungen/2123", "steps": [
+  { "text": ".adm-facts", "max": 700 },
+  { "click": "role=button[name=\"Als versendet markieren\"]" },
+  { "wait": 2000 },
+  { "text": ".adm-facts", "max": 700 },
+  { "eval": "document.querySelector('h1')?.nextElementSibling?.textContent?.trim()" }
+] }

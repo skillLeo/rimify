@@ -145,6 +145,21 @@ describe('Heute', function (): void {
     it('says nothing when nothing is open', function (): void {
         expect(listsProps()['today'])->toBe([]);
     });
+
+    it('writes a count above 999 with the thousands point, and leads the drafts\' sentence to the drafts (the admin audit\'s F-01)', function (): void {
+        $now = now();
+        $rows = ApprovalDocument::factory()->count(1_050)->make(['status' => 'draft'])
+            ->map(static fn (ApprovalDocument $document): array => [...$document->getAttributes(), 'created_at' => $now, 'updated_at' => $now])->all();
+
+        foreach (array_chunk($rows, 250) as $chunk) {
+            DB::table('approval_documents')->insert($chunk);
+        }
+
+        $sentence = collect(listsProps()['today'])->firstWhere('key', 'gutachten');
+
+        expect($sentence['sentence'])->toBe('1.050 Gutachten warten auf Prüfung.')
+            ->and($sentence['href'])->toBe('/admin/gutachten?status=draft');
+    });
 });
 
 describe('Letzte Aktivität', function (): void {

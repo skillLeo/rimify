@@ -55,6 +55,7 @@ const editor = useDirtyForm<WheelForm>(fromProps(), {
     // Asked at each save: after the first save of a new Felge the page stays, now with its model.
     method: () => (props.model ? 'put' : 'post'),
     url: () => (props.model ? `/admin/felgen/${props.model.id}` : '/admin/felgen'),
+    stamp: () => props.stamp,
     onSaved: () => sync(),
 })
 
@@ -508,6 +509,7 @@ const more = computed<AdminPageAction[]>(() => {
                             :finish-name="serverFinish(finish)!.name"
                             :image="serverFinish(finish)!.image"
                             :photos="serverFinish(finish)!.photos"
+                            :order-stamp="serverFinish(finish)!.photoOrderStamp"
                             :max="options.maxPhotos"
                             :editable="editable"
                             :title="title"
@@ -563,7 +565,8 @@ const more = computed<AdminPageAction[]>(() => {
                             <span class="fe-count" :class="{ 'fe-count--over': form.seo_title.length > 60 }">{{ form.seo_title.length }} / 60</span>
                         </div>
                         <input id="fe-seo-t" v-model="form.seo_title" class="input" type="text" maxlength="70" :readonly="readonly" aria-describedby="fe-seo-t-help fe-seo-t-err">
-                        <p id="fe-seo-t-help" class="form-field__help">Leer lassen, dann steht dort Marke und Modell.</p>
+                        <!-- The counter's 60 is what search engines usually show, not a limit: 70 are saved (the admin audit's F-03). -->
+                        <p id="fe-seo-t-help" class="form-field__help">Leer lassen, dann besteht der Titel aus Marke und Modell. Suchmaschinen zeigen meist etwa 60 Zeichen; speichern kannst du bis zu 70.</p>
                         <p id="fe-seo-t-err" class="form-field__error">{{ err('seo_title') }}</p>
                     </div>
                     <div class="form-field">
@@ -571,7 +574,8 @@ const more = computed<AdminPageAction[]>(() => {
                             <label class="form-field__label" for="fe-seo-d">Beschreibung <span class="fe-optional">(optional)</span></label>
                             <span class="fe-count" :class="{ 'fe-count--over': form.seo_description.length > 155 }">{{ form.seo_description.length }} / 155</span>
                         </div>
-                        <textarea id="fe-seo-d" v-model="form.seo_description" class="input fe-area" rows="3" maxlength="170" :readonly="readonly" aria-describedby="fe-seo-d-err" />
+                        <textarea id="fe-seo-d" v-model="form.seo_description" class="input fe-area" rows="3" maxlength="170" :readonly="readonly" aria-describedby="fe-seo-d-help fe-seo-d-err" />
+                        <p id="fe-seo-d-help" class="form-field__help">Suchmaschinen zeigen meist etwa 155 Zeichen; speichern kannst du bis zu 170.</p>
                         <p id="fe-seo-d-err" class="form-field__error">{{ err('seo_description') }}</p>
                     </div>
                     <figure class="fe-serp" aria-label="So etwa erscheint die Felge in den Suchergebnissen">

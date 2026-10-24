@@ -8,10 +8,12 @@
  * The full list underneath is for support, newest first.
  */
 
-import { computed } from 'vue'
+import { router } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import ListPager from '../../../Components/Admin/Lists/ListPager.vue'
 import { decimal } from '../../../format'
 import type { AdminBenachrichtigungenProps } from '../../../types/pages'
 
@@ -24,6 +26,19 @@ const props = defineProps<AdminBenachrichtigungenProps>()
  * text; an address never confirmed or since unsubscribed is set apart, neutral — it is nobody's fault.
  */
 const TAGGED: ReadonlySet<string> = new Set(['Unbestätigt', 'Abgemeldet'])
+
+/* Every request reachable, page by page, and found by its address, its car or its key numbers (the admin audit's F-26). */
+const q = ref(props.search)
+
+/* Not `search`: the template reads that name as the prop — the search on screen — never as this function. */
+function runSearch(): void {
+    router.get('/admin/anfragen', q.value.trim() === '' ? {} : { q: q.value.trim() }, { preserveScroll: true, preserveState: true })
+}
+
+function resetSearch(): void {
+    q.value = ''
+    runSearch()
+}
 
 const context = computed(() => {
     const { waiting, total } = props.summary
@@ -71,17 +86,28 @@ const context = computed(() => {
                         </tbody>
                     </table>
                 </div>
+                <p v-if="(summary.vehicles ?? 0) > demand.length" class="adm-note ben__more">
+                    Hier stehen die {{ decimal(demand.length, 0) }} von {{ decimal(summary.vehicles ?? 0, 0) }} Fahrzeugen mit den meisten Wartenden. Jede Anfrage steht unter „Alle Anfragen“.
+                </p>
             </section>
 
             <section class="adm-section" aria-labelledby="ben-all">
                 <div class="adm-section__head">
                     <h2 id="ben-all" class="adm-section__title">Alle Anfragen</h2>
                 </div>
-                <p v-if="summary.total > summary.limit" class="adm-note ben__note">
-                    Die neuesten {{ decimal(summary.limit, 0) }} von {{ decimal(summary.total, 0) }}.
-                </p>
+                <form class="ben-search" role="search" @submit.prevent="runSearch">
+                    <div class="form-field">
+                        <label class="form-field__label" for="ben-q">Suchen</label>
+                        <input id="ben-q" v-model="q" class="input" type="search" maxlength="100" autocomplete="off" placeholder="E-Mail-Adresse, Fahrzeug oder HSN/TSN">
+                    </div>
+                    <button class="btn btn--secondary" type="submit">Suchen</button>
+                </form>
+                <!-- A search that finds nothing is said once, by the state below — as in every other list. -->
+                <p v-if="search !== '' && summary.found > 0" class="adm-note ben__note">{{ summary.found === 1 ? '1 Anfrage gefunden.' : `${decimal(summary.found, 0)} Anfragen gefunden.` }}</p>
 
-                <div class="adm-panel">
+                <AdminState v-if="subscriptions.length === 0 && search !== ''" kind="filtered" :total="summary.total" @reset="resetSearch" />
+
+                <div v-else class="adm-panel">
                     <table class="adm-table">
                         <thead>
                             <tr>
@@ -111,6 +137,8 @@ const context = computed(() => {
                         </tbody>
                     </table>
                 </div>
+
+                <ListPager :pagination="pagination" label="Seiten der Anfragen" />
             </section>
         </template>
     </AdminPage>
@@ -119,6 +147,20 @@ const context = computed(() => {
 <style scoped>
 .ben__note {
     margin-bottom: var(--sp-12);
+}
+
+/* The search above the list: the field takes what room there is, the button stays beside it, and wraps under it on a phone. */
+.ben-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--sp-12);
+    margin-bottom: var(--sp-16);
+}
+
+.ben-search .form-field {
+    flex: 1 1 280px;
+    max-width: 480px;
 }
 
 /* A key number keeps its leading zeros and never breaks between HSN and TSN. */
