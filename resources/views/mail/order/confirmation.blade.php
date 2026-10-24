@@ -16,7 +16,9 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 {{ $line['rimAlone'] }}
 
 @endif
-@if ($line['chosen'])
+@if ($line['chosen'] && ($line['axle'] ?? null))
+{{ $line['axle'] }} · {{ $line['chosen'] }}:
+@elseif ($line['chosen'])
 Für {{ $line['chosen'] }}:
 @elseif ($line['sizes'] && $line['conditions'])
 Für jede zulässige Reifengröße:

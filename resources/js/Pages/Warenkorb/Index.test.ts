@@ -127,4 +127,71 @@ describe('Warenkorb', () => {
         expect(wrapper.find('[data-auflagen]').text()).not.toContain('Die Felge ist für dein Fahrzeug nur')
         expect(wrapper.find('[data-auflagen]').text()).toContain('Nur mit den angegebenen Radschrauben zulässig.')
     })
+
+    // D-335: a set per axle is 2 + 2 — its amount said, never stepped — and a combination of the Gutachten says so.
+    it('says a combination\'s amount as fixed, with no stepper, and names the combination @admin-208', () => {
+        const mixed = {
+            setKey: 'wheel:11:tyre:7:rear:8', axle: 'FRONT' as const, axleLabel: 'Vorderachse', size: '225/40 R18', partnerSize: '245/35 R18',
+            pairing: 2, listed: true, combinationId: 702, fixed: true, frontTyreId: 7, rearTyreId: 8, sourcePage: 5, rulesDe: null,
+            minLoadIndex: 84, minSpeedSymbol: 'W', axleLoadKg: 880, bindingAxle: 'REAR' as const, minimumSentence: null,
+        }
+        const wrapper = mountBasket({
+            lines: [
+                line({ key: 'wheel:11:tyre:7:rear:8:axle:FRONT', demo: false, quantity: 2, isSet: true, mixed }),
+                line({ key: 'wheel:11:tyre:7:rear:8:axle:REAR', demo: false, quantity: 2, isSet: true, mixed: { ...mixed, axle: 'REAR', axleLabel: 'Hinterachse', size: '245/35 R18', partnerSize: '225/40 R18' } }),
+            ],
+        })
+
+        expect(wrapper.find('.bl__stepper').exists()).toBe(false)
+        expect(wrapper.findAll('[data-fixed]').map((f) => f.text())).toEqual(['2 Stück', '2 Stück'])
+
+        // Each line names its partner; what holds for the whole set is said once, under its second line — one block.
+        const [front, rear] = wrapper.findAll('.bl__mixed')
+        expect(front!.text()).toContain('Kombination Nr. 2 aus dem Gutachten – zusammen mit 245/35 R18 auf der Hinterachse.')
+        expect(front!.text()).not.toContain('Zwei Kompletträder je Achse')
+        expect(rear!.text()).toContain('zusammen mit 225/40 R18 auf der Vorderachse.')
+        expect(rear!.text()).toContain('Zwei Kompletträder je Achse, die Anzahl ist fest. Mit „Entfernen“ nimmst du alle vier Räder aus dem Warenkorb.')
+        expect(wrapper.findAll('.bl__line')[1]!.classes()).toContain('bl__line--set-rear')
+    })
+
+    // D-335: a set per axle is removed, loses its tyres and takes its Wuchtgewichte colour as one — so each is asked once,
+    // under its second line beside the sentence that says so, and the tyres' removal names both axles.
+    it('asks a set\'s Wuchtgewichte and offers its removals once, under its second line @admin-208', () => {
+        const mixed = {
+            setKey: 'wheel:11:tyre:7:rear:8', axle: 'FRONT' as const, axleLabel: 'Vorderachse', size: '225/40 R18', partnerSize: '245/35 R18',
+            pairing: 2, listed: true, combinationId: 702, fixed: true, frontTyreId: 7, rearTyreId: 8, sourcePage: 5, rulesDe: null,
+            minLoadIndex: 84, minSpeedSymbol: 'W', axleLoadKg: 880, bindingAxle: 'REAR' as const, minimumSentence: null,
+        }
+        const parts = {
+            components: [
+                { key: 'rim', label: 'Felge', quantity: 2, unitPrice: '379,00 €', lineTotal: '758,00 €', open: false },
+                { key: 'tyre', label: 'Reifen', quantity: 2, unitPrice: '129,90 €', lineTotal: '259,80 €', open: false },
+            ],
+            weightOptions: [
+                { id: 1, name: 'Silber', swatchHex: '#c0c0c0', surcharge: '0,00 €', surchargeCents: 0 },
+                { id: 2, name: 'Schwarz', swatchHex: '#111111', surcharge: '0,00 €', surchargeCents: 0 },
+            ],
+            weights: { colourId: 1 },
+        } as unknown as Partial<Line>
+        const wrapper = mountBasket({
+            lines: [
+                line({ key: 'wheel:11:tyre:7:rear:8:axle:FRONT', demo: false, quantity: 2, isSet: true, mixed, ...parts }),
+                line({ key: 'wheel:11:tyre:7:rear:8:axle:REAR', demo: false, quantity: 2, isSet: true, mixed: { ...mixed, axle: 'REAR', axleLabel: 'Hinterachse', size: '245/35 R18', partnerSize: '225/40 R18' }, ...parts }),
+                // A Komplettrad of four keeps its own.
+                line({ key: 'wheel:12:tyre:9', demo: false, quantity: 4, isSet: true, ...parts }),
+            ],
+        })
+        const [front, rear, four] = wrapper.findAll('.bl__line')
+
+        // Both lines still itemise their own parts; the choice and the actions stand once, on the second.
+        expect(front!.find('.bl__parts').exists()).toBe(true)
+        expect(front!.find('.bl__weights').exists()).toBe(false)
+        expect(front!.find('.bl__actions').exists()).toBe(false)
+        expect(rear!.find('.bl__weights').exists()).toBe(true)
+        expect(rear!.find('.bl__remove').text()).toBe('Entfernen')
+        expect(rear!.find('.bl__remove-tyre').text()).toBe('Reifen beider Achsen entfernen')
+        expect(four!.find('.bl__weights').exists()).toBe(true)
+        expect(four!.find('.bl__remove-tyre').text()).toBe('Reifen entfernen')
+        expect(wrapper.findAll('.bl__weights')).toHaveLength(2)
+    })
 })

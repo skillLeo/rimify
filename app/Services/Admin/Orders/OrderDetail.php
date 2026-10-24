@@ -8,6 +8,7 @@ use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
+use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
 use App\Models\Address;
@@ -43,7 +44,7 @@ final class OrderDetail
         $list = app(OrderList::class);
         $row = $list->row(Order::query()->withDemoFlag()->whereKey($order->id)->with('customer')->firstOrFail());
         $current = $this->currentStatuses($order);
-        // A Komplettrad's tyre size per package: its wheel line then says that size's Auflagen only.
+        // A Komplettrad's tyre size per line: each line then says its own size's Auflagen only — each axle of a set its own.
         $tyres = PackageTyreSizes::of($order->lines);
 
         return [
@@ -74,7 +75,7 @@ final class OrderDetail
             'delivery' => self::address($order->deliveryAddress),
             'billing' => self::address($order->billingAddress),
             'sameAddress' => $order->getAttribute('delivery_address_id') === $order->getAttribute('billing_address_id'),
-            'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current, PackageTyreSizes::for($line, $tyres), $documentsOpen))->all(),
+            'lines' => $order->lines->sortBy([['package_group', 'asc'], ['id', 'asc']])->values()->map(fn (OrderLine $line): array => $this->line($line, $current, PackageTyreSizes::for($line, $tyres), $documentsOpen, PackageTyreSizes::partner($line, $tyres)))->all(),
             'money' => self::money($order),
         ];
     }
@@ -121,7 +122,7 @@ final class OrderDetail
      * @param  array<int, string>  $current  document id => its status today
      * @return array<string, mixed>
      */
-    private function line(OrderLine $line, array $current, ?string $tyreSize = null, bool $documentsOpen = true): array
+    private function line(OrderLine $line, array $current, ?string $tyreSize = null, bool $documentsOpen = true, ?string $partner = null): array
     {
         $snapshot = $line->fitmentSnapshot;
 
@@ -133,7 +134,7 @@ final class OrderDetail
             'unit' => (int) $line->getAttribute('unit_price_cents'),
             'total' => (int) $line->getAttribute('line_total_cents'),
             'package' => $line->getAttribute('package_group') === null ? null : (int) $line->getAttribute('package_group'),
-            'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current, $tyreSize, $documentsOpen),
+            'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current, $tyreSize, $documentsOpen, PackageTyreSizes::axle($line), $partner),
         ];
     }
 
@@ -141,7 +142,7 @@ final class OrderDetail
      * @param  array<int, string>  $current
      * @return array<string, mixed>
      */
-    private function snapshot(OrderLineFitment $snapshot, array $current, ?string $tyreSize = null, bool $documentsOpen = true): array
+    private function snapshot(OrderLineFitment $snapshot, array $current, ?string $tyreSize = null, bool $documentsOpen = true, ?string $axle = null, ?string $partner = null): array
     {
         $documentId = (int) $snapshot->getAttribute('approval_document_id');
         $today = $current[$documentId] ?? null;
@@ -170,7 +171,7 @@ final class OrderDetail
 
         $document = $verdict->document;
         $kind = $document === null ? null : (ApprovalKind::tryFrom($document->kind)?->labelDe() ?? $document->kind);
-        $groups = $verdict->conditionGroups()->toArray($tyreSize);
+        $groups = $verdict->conditionGroups()->toArray($tyreSize, $axle, $partner);
 
         return $base + [
             'readable' => true,
@@ -206,6 +207,51 @@ final class OrderDetail
                 'lines' => $verdict->tyre->lines,
                 'fromPapers' => $verdict->tyre->stricterByPapers,
             ],
+            // The set sold as one of the Gutachten's combinations (D-335), as frozen: what went where.
+            'combination' => self::combination($snapshot->verdict['combination'] ?? null),
+        ];
+    }
+
+    /**
+     * `Kombination Nr. 2 aus dem Gutachten (Seite 5)`, and per axle `Vorderachse: 2 × … — Freigegeben`, from the frozen
+     * record — null on every line sold otherwise, and on one frozen before D-335.
+     *
+     * @return array{number: int, sourcePage: int|null, statusLabel: string, axles: list<array{axle: string, size: string, tyre: string, statusLabel: string, minimum: string|null}>}|null
+     */
+    private static function combination(mixed $frozen): ?array
+    {
+        if (! is_array($frozen) || ! is_numeric($frozen['number'] ?? null)) {
+            return null;
+        }
+
+        $status = static fn (mixed $value): string => VerdictStatus::tryFrom(is_string($value) ? $value : '')?->labelDe() ?? VerdictStatus::Unknown->labelDe();
+        $axles = [];
+
+        foreach (['front', 'rear'] as $side) {
+            $axle = is_array($frozen[$side] ?? null) ? $frozen[$side] : null;
+
+            if ($axle === null) {
+                continue;
+            }
+
+            $tyre = is_array($axle['tyre'] ?? null) ? $axle['tyre'] : [];
+            $axles[] = [
+                'axle' => (string) ($axle['axleLabel'] ?? ''),
+                'size' => (string) ($axle['size'] ?? ''),
+                'tyre' => trim(implode(' ', array_filter([$tyre['brandName'] ?? null, $tyre['name'] ?? null, $tyre['label'] ?? null], static fn (mixed $part): bool => is_string($part) && $part !== ''))),
+                'statusLabel' => $status($axle['status'] ?? null),
+                // The axle load beside the load index it decides — never beside the speed symbol.
+                'minimum' => is_numeric($axle['minLoadIndex'] ?? null) && is_string($axle['minSpeedSymbol'] ?? null)
+                    ? sprintf('mindestens Tragfähigkeitsindex %d%s, Geschwindigkeitsindex %s', (int) $axle['minLoadIndex'], is_numeric($axle['axleLoadKg'] ?? null) ? ' (bei '.GermanFormat::kilograms((int) $axle['axleLoadKg']).' Achslast)' : '', $axle['minSpeedSymbol'])
+                    : null,
+            ];
+        }
+
+        return [
+            'number' => (int) $frozen['number'],
+            'sourcePage' => is_numeric($frozen['sourcePage'] ?? null) ? (int) $frozen['sourcePage'] : null,
+            'statusLabel' => $status($frozen['status'] ?? null),
+            'axles' => $axles,
         ];
     }
 

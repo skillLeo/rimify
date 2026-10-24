@@ -63,9 +63,10 @@ final readonly class DocumentRecord
         /**
          * The document's own list of tyre combinations, front against rear, as entered (`document_tyre_combinations`,
          * D-256); null where none is entered. Entered, it is closed: the document approves the wheel only with these —
-         * BBS's Anlage BMW15, „in Verbindung mit“ four combinations — so four tyres of one size are offered only where a
-         * combination names that size on both axles, and a mixed set only where it names the pair. Not frozen onto a
-         * snapshot, like the derating table: TyreEligibility answers live verdicts only.
+         * BBS's Anlage BMW15, „in Verbindung mit“ four combinations — so the Komplettrad is one of them, two wheels on each
+         * axle in the sizes it names, never four of one size (D-335). Not frozen onto a snapshot as a list, like the
+         * derating table — TyreEligibility answers live verdicts only —; the combination a set was sold in is, on its
+         * order lines.
          */
         public ?TyrePairingTable $tyreCombinations = null,
         /**

@@ -476,6 +476,43 @@ describe('FitmentPanel', () => {
         expect(narrow.find('.rcheck-panel__vehicle').text()).toBe('Mit Auflagen freigegeben für BMW 3er Coupe')
     })
 
+    /*
+     * D-335: a set chosen as one of the Gutachten's combinations — both sizes fitted. The panel says each axle's Auflagen
+     * under its name in full, whatever the detail folds away, the Eintragung the set needs (either axle's), and the work
+     * of either size.
+     */
+    it('answers for a set per axle: each axle\'s Auflagen under its name, the set\'s Eintragung, either size\'s work @admin-208', () => {
+        const detail = {
+            ...borbetDetail,
+            sections: borbetDetail.sections.map((s) => (s.title === 'Abnahme' ? { ...s, items: [{ text: ABNAHME, measures: [], sizes: ['245/35 R18'] }] } : s)),
+        }
+        const wrapper = mount(FitmentPanel, {
+            props: {
+                vehicle,
+                verdict: verdict({ status: 'CONDITIONAL', requiresEntry: true, conditions: [ABNAHME], tyreSizes: ['225/40 R18', '245/35 R18'], detail }),
+                chosen: {
+                    combination: [],
+                    sizes: [
+                        { size: '225/40 R18', axle: 'Vorderachse', conditions: [], entry: false },
+                        { size: '245/35 R18', axle: 'Hinterachse', conditions: [ABNAHME], entry: true },
+                    ],
+                    chosen: null,
+                    entry: true,
+                    perAxle: true,
+                },
+            },
+        })
+        const set = wrapper.find('[data-set-answer]')
+
+        // Shown in full beside the detail's overview, under one heading — the groups' own heads name the axles.
+        expect(set.findAll('.cgroups__size .cgroups__head').map((h) => h.text())).toEqual(['Vorderachse · 225/40 R18', 'Hinterachse · 245/35 R18'])
+        expect(set.text()).toContain(ABNAHME)
+        // Both are fitted: the Eintragung the rear's size needs is the set's — never „erforderlich mit … nicht mit …“.
+        expect(wrapper.find('.fit__entry--verdict').text()).toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
+        expect(wrapper.findAll('.fit__overview-h').map((h) => h.text())).toEqual(['Das verlangt das Gutachten für diese Kombination'])
+        expect(wrapper.text()).not.toContain('je nach Reifengröße')
+    })
+
     it('gives the overview of what the Gutachten asks and links to it in full, keeping the purchase close', () => {
         const wrapper = mount(FitmentPanel, {
             props: {

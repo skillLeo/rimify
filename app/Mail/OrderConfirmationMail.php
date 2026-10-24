@@ -57,7 +57,7 @@ class OrderConfirmationMail extends Mailable
         $legal = app(LegalTexts::class);
         $address = $order->deliveryAddress;
         $lines = [];
-        // A Komplettrad's tyre size per package: its wheel line says that size's Auflagen only.
+        // A Komplettrad's tyre size per line: each line says its own size's Auflagen only — each axle of a set per axle its own.
         $tyres = PackageTyreSizes::of($order->lines);
 
         foreach ($order->lines as $line) {
@@ -66,8 +66,9 @@ class OrderConfirmationMail extends Mailable
 
             if ($snapshot !== null) {
                 try {
-                    // As the order page says them: the combination's once, each tyre size's with that size.
-                    $groups = FitmentVerdict::fromArray((array) $snapshot->verdict)->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres));
+                    // As the order page says them: the combination's once, each tyre size's with that size — on a set per
+                    // axle under that axle's name (D-335).
+                    $groups = FitmentVerdict::fromArray((array) $snapshot->verdict)->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
                 } catch (Throwable) {
                     $groups = null;
                 }
@@ -102,6 +103,8 @@ class OrderConfirmationMail extends Mailable
                 'papers' => $snapshot === null ? null : PapersWording::papersLine($snapshot->papersExempt()),
                 'conditions' => $groups['combination'] ?? [],
                 'chosen' => $groups['chosen'] ?? null,
+                // On a set per axle, the axle the size stands on (D-335).
+                'axle' => $groups['axle'] ?? null,
                 // Each tyre size with its own Auflagen and, where they differ, its own Abnahme line.
                 'sizes' => array_map(static fn (array $s): array => [
                     'size' => $s['size'],

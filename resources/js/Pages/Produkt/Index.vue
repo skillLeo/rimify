@@ -200,6 +200,8 @@ const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
     tyreVariantId: null as number | null,
+    /* A combination of the Gutachten (D-335): the rear axle's tyre — the front's own where it names one size on both. */
+    rearTyreVariantId: null as number | null,
     weightColourId: null as number | null,
     rdks: null as 'ja' | 'nein' | null,
     quantity: 4,
@@ -233,6 +235,24 @@ watch(
 const tyre = computed(() => offer.value?.tyres.find((t) => t.id === tyreId.value) ?? null)
 
 /*
+ * Where the Gutachten lists its tyre combinations the Komplettrad is one of them (D-335): a set, two wheels per axle in
+ * the sizes it names — chosen in the panel by its key, added 2 + 2. Its Auflagen stand per axle in the panel above.
+ */
+const combinations = computed(() => (offer.value?.combinations?.length ? offer.value.combinations : null))
+const setKey = ref<string | null>(null)
+const chosenSet = computed(() => combinations.value?.flatMap((c) => c.sets).find((s) => s.key === setKey.value) ?? null)
+const chosenCombination = computed(() => combinations.value?.find((c) => c.sets.some((s) => s.key === setKey.value)) ?? null)
+
+/* What the panel above answers for: the set chosen, per axle — or the tyre chosen. */
+const chosenAnswer = computed(() => {
+    if (!isSet.value) {
+        return null
+    }
+
+    return combinations.value ? chosenCombination.value?.answer ?? null : tyre.value?.answer ?? null
+})
+
+/*
  * What goes with a Komplettrad (#15): the Wuchtgewichte colour — the admin's default preselected — and the RDKS
  * answer, preselected only where the visitor already gave one for this car's make. Nothing of it under „Nur Felgen“.
  */
@@ -242,13 +262,23 @@ const rdks = ref<'ja' | 'nein' | null>(options.value?.tpms.choice ?? null)
 
 /* The set's price with the colour chosen: the server's figure for that colour, the default colour's where none. */
 const setPrice = computed(() => {
+    const set = chosenSet.value
+
+    if (set !== null) {
+        const priced = set.prices?.find((p) => p.colourId === colourId.value) ?? set
+
+        return { perWheel: null, forFour: priced.forFour, perWheelFront: priced.perWheelFront, perWheelRear: priced.perWheelRear }
+    }
+
     const current = tyre.value
 
     if (current === null) {
         return null
     }
 
-    return current.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: current.perWheel, forFour: current.forFour }
+    const priced = current.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: current.perWheel, forFour: current.forFour }
+
+    return { perWheel: priced.perWheel, forFour: priced.forFour, perWheelFront: null, perWheelRear: null }
 })
 
 /* `+ 196,00 € für 4 RDKS-Sensoren` under the set's price, once the visitor said yes. */
@@ -258,8 +288,17 @@ const sensorLine = computed(() => {
     return isSet.value && rdks.value === 'ja' && tpms?.available && tpms.yesTotal ? `+ ${tpms.yesTotal} für ${tpms.quantity} RDKS-Sensoren` : null
 })
 
-/* `ab 965,00 € pro Rad` on the Komplettrad choice: the server's lowest figure with the colour chosen, never one the page computed. */
+/*
+ * `ab 965,00 € pro Rad` on the Komplettrad choice: the server's lowest figure with the colour chosen, never one the page
+ * computed — for the Gutachten's combinations, the lowest 2 + 2 (D-335).
+ */
 const setFrom = computed(() => {
+    if (combinations.value) {
+        const sets = combinations.value.flatMap((c) => c.sets).map((s) => s.prices?.find((p) => p.colourId === colourId.value) ?? s)
+
+        return sets.length === 0 ? null : sets.reduce((low, p) => (p.forFourCents < low.forFourCents ? p : low)).forFour
+    }
+
     const priced = (offer.value?.tyres ?? []).map(
         (t) => t.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: t.perWheel, forFourCents: t.forFourCents }
     )
@@ -267,8 +306,10 @@ const setFrom = computed(() => {
     return priced.length === 0 ? null : priced.reduce((low, p) => (p.forFourCents < low.forFourCents ? p : low)).perWheel
 })
 
+const setFromUnit = computed(() => (combinations.value ? 'für 2 + 2' : 'pro Rad'))
+
 /* A refusal of the last add belongs to the choice it was made under: another mode, size, tyre or colour starts clean (PDP-09). */
-watch([mode, () => selected.value?.id, tyreId, colourId], () => basket.clearErrors())
+watch([mode, () => selected.value?.id, tyreId, setKey, colourId], () => basket.clearErrors())
 
 /*
  * How many rims (#17): four preselected — a car takes four — and the price beside it is the server's figure for that
@@ -393,10 +434,11 @@ const canBuy = computed(() => {
         return false
     }
 
-    // A Komplettrad needs a tyre the server offered — which it does only with a car and a verdict that sells; the rims
-    // are available or not, never counted (D-299). The server asks the fitment engine again on the add (R-11).
+    // A Komplettrad needs a tyre the server offered — or, where the Gutachten lists its combinations, a set of one (D-335) —
+    // which it does only with a car and a verdict that sells; the rims are available or not, never counted (D-299). The
+    // server asks the fitment engine again on the add (R-11).
     if (isSet.value) {
-        return tyre.value !== null
+        return combinations.value ? chosenSet.value !== null : tyre.value !== null
     }
 
     // With no vehicle the wheel can still be bought — RIMIFY simply makes no claim about it. With a
@@ -430,7 +472,7 @@ const buyLabel = computed(() => {
     }
 
     if (isSet.value) {
-        return tyre.value === null ? 'Komplettrad gerade nicht möglich' : 'Als Komplettrad in den Warenkorb'
+        return (combinations.value ? chosenSet.value === null : tyre.value === null) ? 'Komplettrad gerade nicht möglich' : 'Als Komplettrad in den Warenkorb'
     }
 
     return 'In den Warenkorb'
@@ -451,12 +493,28 @@ const shownNote = computed(() => {
     }
 
     const set = offer.value?.quantity ?? 4
+    const price = setPrice.value
 
-    return setPrice.value === null ? '' : `für ${set} Kompletträder, pro Rad ${setPrice.value.perWheel}, ${terms.value.note}`
+    if (price === null) {
+        return ''
+    }
+
+    // A combination (D-335): two for each axle, each axle's wheel priced on its own — one price where both cost the same —,
+    // the PAngV line under it, on its own (`setLegal`): with two prices per wheel, one line held six commas.
+    if (price.perWheelFront !== null && price.perWheelRear !== null) {
+        return price.perWheelFront === price.perWheelRear
+            ? `für 2 + 2 Kompletträder, pro Rad ${price.perWheelFront}`
+            : `für 2 + 2 Kompletträder, pro Rad vorne ${price.perWheelFront}, hinten ${price.perWheelRear}`
+    }
+
+    return `für ${set} Kompletträder, pro Rad ${price.perWheel}, ${terms.value.note}`
 })
 
+/* The PAngV line of a combination's price, on its own line as the sticky bar says it. */
+const setLegal = computed(() => (isSet.value && chosenSet.value !== null ? terms.value.note : null))
+
 /* The server's refusal of an add, under whichever key it answered with: the tyre for a Komplettrad, the size for rims. */
-const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.weightColourId ?? null)
+const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.rearTyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.weightColourId ?? null)
 
 function addToBasket(): void {
     if (papersFirst.value) {
@@ -471,11 +529,14 @@ function addToBasket(): void {
     }
 
     basket.wheelConfigId = selected.value.id
-    basket.tyreVariantId = isSet.value ? (tyre.value?.id ?? null) : null
+    const set = isSet.value ? chosenSet.value : null
+    basket.tyreVariantId = set !== null ? set.frontTyreId : isSet.value ? (tyre.value?.id ?? null) : null
+    // A combination of the Gutachten (D-335): its rear tyre beside the front, two of each — 2 + 2, nothing else.
+    basket.rearTyreVariantId = set !== null ? set.rearTyreId : null
     // The weights and the sensors go only with a Komplettrad: rims alone carry neither (#15).
     basket.weightColourId = isSet.value ? colourId.value : null
     basket.rdks = isSet.value ? rdks.value : null
-    basket.quantity = isSet.value ? (offer.value?.quantity ?? 4) : amount.value
+    basket.quantity = set !== null ? (offer.value?.perAxle ?? 2) : isSet.value ? (offer.value?.quantity ?? 4) : amount.value
     basket.post('/warenkorb', { preserveScroll: true })
 }
 
@@ -673,7 +734,7 @@ claimBottomEdge(() => stickyShown.value)
                         :verdict="selected?.verdict ?? null"
                         :vehicle="shared.vehicle"
                         :config-id="selected?.id ?? null"
-                        :chosen="isSet ? (tyre?.answer ?? null) : null"
+                        :chosen="chosenAnswer"
                         :ask-href="askAboutTyres"
                     >
                         <Link v-if="!hasVehicle" href="/felgen-suchen" class="btn btn--secondary btn--sm pdp__fit-cta">
@@ -682,12 +743,13 @@ claimBottomEdge(() => stickyShown.value)
                     </FitmentPanel>
 
                     <!-- Nur Felgen or Komplettrad (#18): switching keeps the finish, the size, the amount and the tyre. -->
-                    <BuyModeChoice v-model="mode" class="pdp__block pdp__mode" :rim-price="selected?.price ?? null" :set-from="setFrom" />
+                    <BuyModeChoice v-model="mode" class="pdp__block pdp__mode" :rim-price="selected?.price ?? null" :set-from="setFrom" :set-from-unit="setFromUnit" />
 
-                    <!-- The tyres the verdict permits on this size, or the sentence why there are none. -->
+                    <!-- The tyres the verdict permits on this size — or the Gutachten's combinations (D-335) —, or the sentence why there are none. -->
                     <KomplettradChoice
                         v-if="isSet && offer"
                         v-model="tyreId"
+                        v-model:set-key="setKey"
                         v-model:colour-id="colourId"
                         v-model:rdks="rdks"
                         class="pdp__block"
@@ -702,6 +764,7 @@ claimBottomEdge(() => stickyShown.value)
                             <div>
                                 <p class="price price--lg pdp__total" translate="no">{{ shownPrice }}</p>
                                 <p class="price-note pdp__each">{{ shownNote }}</p>
+                                <p v-if="setLegal" class="price-legal">{{ setLegal }}</p>
                                 <p v-if="isSet && offer?.priceOpen" class="price-note">Ohne Montage und Auswuchten – der Preis dafür steht noch nicht fest.</p>
                                 <p v-if="sensorLine" class="price-note pdp__sensors">{{ sensorLine }}</p>
                             </div>
@@ -914,7 +977,7 @@ claimBottomEdge(() => stickyShown.value)
     <div v-if="stickyShown" class="stickybar pdp__sticky">
         <div v-if="shownPrice" class="pdp__sticky-price">
             <p class="price" translate="no">{{ shownPrice }}</p>
-            <p v-if="isSet" class="price-note">für {{ offer?.quantity ?? 4 }} Kompletträder</p>
+            <p v-if="isSet" class="price-note">{{ chosenSet ? 'für 2 + 2 Kompletträder' : `für ${offer?.quantity ?? 4} Kompletträder` }}</p>
             <p v-else class="price-note">{{ amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
             <!-- The PAngV line beside every price, the bar's too (the operator's brief of 14.10.2026 §8). -->
             <p class="price-legal pdp__sticky-legal">{{ terms.note }}</p>

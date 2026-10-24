@@ -271,6 +271,13 @@ export interface ConditionGroupsView {
     chosen: string | null
     /** With a size chosen: whether it needs the Abnahme or Eintragung. Null: the verdict's own flag stands. */
     entry: boolean | null
+    /** On a set sold per axle (D-335): the axle the chosen size stands on — „Vorderachse“, „Hinterachse“. Additive. */
+    axle?: string
+    /**
+     * A set per axle as a whole (D-335): `sizes` are its axles, both fitted — said „Für beide Achsen“, then each axle under
+     * its name, never „Nur bei …“; `entry` is the set's. Additive.
+     */
+    perAxle?: boolean
 }
 
 export interface CardFitment {
@@ -426,6 +433,13 @@ export interface BasketMixed {
     partnerSize: string | null
     /** The entry of the document's table (`Nr. 8`); null where the pair is no longer listed (then the line is marked). */
     pairing: number | null
+    /** One of the combinations the Gutachten lists (D-256), the Komplettrad itself (D-335); its entered row. Additive. */
+    listed?: boolean
+    combinationId?: number | null
+    /** Two per axle and nothing else: no stepper (D-335). Additive. */
+    fixed?: boolean
+    frontTyreId?: number
+    rearTyreId?: number
     sourcePage: number | null
     /** What the document says beyond the table, in its own words. */
     rulesDe: string | null

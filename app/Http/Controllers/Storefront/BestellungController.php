@@ -75,7 +75,7 @@ class BestellungController extends Controller
         // signed webhook does (ProcessPaymentEvent). The basket empties once the order IS paid.
         KasseZahlungController::settle($request, $basket);
         $lines = [];
-        // A Komplettrad's tyre size per package: its wheel line says that size's Auflagen only.
+        // A Komplettrad's tyre size per line: each line says its own size's Auflagen only — each axle of a set per axle its own.
         $tyres = PackageTyreSizes::of($record->lines);
 
         foreach ($record->lines as $line) {
@@ -97,8 +97,9 @@ class BestellungController extends Controller
                     'papersExempt' => $snapshot->papersExempt(),
                     'documentRevision' => (int) $snapshot->document_revision,
                     'detail' => $snapshot->verdict,
-                    // The Auflagen as the customer read them: the combination's once, each tyre size's with that size.
-                    'conditionGroups' => self::conditionGroups($snapshot->verdict, PackageTyreSizes::for($line, $tyres)),
+                    // The Auflagen as the customer read them: the combination's once, each tyre size's with that size — on
+                    // a set per axle under that axle's name (D-335).
+                    'conditionGroups' => self::conditionGroups($snapshot->verdict, PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres)),
                     // A rim sold alone (D-289): our own sentence as it was shown, never among the Auflagen (R-17).
                     'rimAloneNote' => is_string($snapshot->verdict['rimAloneNote'] ?? null) ? $snapshot->verdict['rimAloneNote'] : null,
                 ],
@@ -223,10 +224,10 @@ class BestellungController extends Controller
      * @param  array<string, mixed>  $verdict
      * @return array<string, mixed>|null
      */
-    private static function conditionGroups(array $verdict, ?string $tyreSize): ?array
+    private static function conditionGroups(array $verdict, ?string $tyreSize, ?string $axle = null, ?string $partner = null): ?array
     {
         try {
-            return FitmentVerdict::fromArray($verdict)->conditionGroups()->toArray($tyreSize);
+            return FitmentVerdict::fromArray($verdict)->conditionGroups()->toArray($tyreSize, $axle, $partner);
         } catch (Throwable) {
             return null;
         }

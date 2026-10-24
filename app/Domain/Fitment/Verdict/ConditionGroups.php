@@ -132,6 +132,27 @@ final readonly class ConditionGroups
     }
 
     /**
+     * What this size carries beyond the combination's — said under the size, or on a set per axle under the axle's name
+     * (D-335). A size the answer does not name gets every size's own: the cautious reading, never fewer.
+     *
+     * @return list<Condition>
+     */
+    public function ownFor(string $key): array
+    {
+        $all = [];
+
+        foreach ($this->sizes as $size) {
+            if ($size['size']->key() === $key) {
+                return $size['own'];
+            }
+
+            $all = Condition::union($all, $size['own']);
+        }
+
+        return $all;
+    }
+
+    /**
      * Whether the Abnahme or Eintragung is needed once this size is fitted. No size given, or one the answer does not
      * name: `$otherwise` — the verdict's own flag, which is true if any size needs it (the cautious reading).
      */
@@ -144,6 +165,33 @@ final readonly class ConditionGroups
         }
 
         return $otherwise;
+    }
+
+    /**
+     * Whether a set per axle needs the Abnahme or Eintragung (D-335): the car carries both sizes at once, so the set
+     * needs it where either size does — on the axle that does not as much as on the one that does. A size the answer does
+     * not name: needed, the cautious reading.
+     */
+    public function entryForSet(string $key, string $partnerKey): bool
+    {
+        return $this->entryFor($key, true) || $this->entryFor($partnerKey, true);
+    }
+
+    /**
+     * What holds once this size is fitted — on a set per axle beside `$partnerKey` on the other axle (D-335), without
+     * „Keine Eintragung erforderlich.“ where the set needs the Eintragung for the other axle's size.
+     *
+     * @return list<Condition>
+     */
+    public function forSet(string $key, ?string $partnerKey): array
+    {
+        $conditions = $this->forSize($key);
+
+        if ($partnerKey === null || ! $this->entryForSet($key, $partnerKey)) {
+            return $conditions;
+        }
+
+        return array_values(array_filter($conditions, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
     }
 
     /** @return list<Condition> every Auflage of the answer, once — for counting, never for showing */
@@ -166,15 +214,26 @@ final readonly class ConditionGroups
      * `entry`: with a size chosen, whether that size needs the Abnahme or Eintragung; otherwise null — the verdict's
      * own line stands, or (where `sizes` is filled and they differ) each size says it.
      *
-     * @return array{combination: list<string>, sizes: list<array{size: string, axle: string, conditions: list<string>, entry: bool}>, chosen: string|null, entry: bool|null}
+     * `$axle`: on a set sold per axle (D-335), the axle the chosen size stands on — `Vorderachse`, `Hinterachse` — said
+     * beside it, so the customer reads each axle's Auflagen under its name, as each size's are under its own (D-199).
+     * `$partnerKey`: the other axle's size on that set — the Abnahme or Eintragung is the set's, never one axle's
+     * (entryForSet()): a front line never says „Keine Eintragung erforderlich.“ beside a rear that needs one.
+     *
+     * @return array{combination: list<string>, sizes: list<array{size: string, axle: string, conditions: list<string>, entry: bool}>, chosen: string|null, entry: bool|null, axle?: string}
      */
-    public function toArray(?string $chosenKey = null): array
+    public function toArray(?string $chosenKey = null, ?string $axle = null, ?string $partnerKey = null): array
     {
         $sentences = static fn (array $list): array => array_values(array_map(static fn (Condition $c): string => $c->sentenceDe(), $list));
 
         foreach ($this->sizes as $size) {
             if ($chosenKey !== null && $size['size']->key() === $chosenKey) {
-                return ['combination' => $sentences($this->forSize($chosenKey)), 'sizes' => [], 'chosen' => $size['size']->labelDe(), 'entry' => $size['entry']];
+                return [
+                    'combination' => $sentences($this->forSet($chosenKey, $partnerKey)),
+                    'sizes' => [],
+                    'chosen' => $size['size']->labelDe(),
+                    'entry' => $partnerKey === null ? $size['entry'] : $this->entryForSet($chosenKey, $partnerKey),
+                    ...($axle === null ? [] : ['axle' => $axle]),
+                ];
             }
         }
 

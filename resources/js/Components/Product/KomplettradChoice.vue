@@ -14,16 +14,21 @@
  * The refusal code is never rendered — it only picks which routes forward make sense: the selector when the car is
  * missing, the papers form when the tyres wait for the car's figures (D-286), the contact form when a person has to
  * look at it.
+ *
+ * Where the Gutachten lists its tyre combinations the Komplettrad is one of them (the operator's decision of
+ * 24.10.2026 on the client's item 8, D-335): the combinations the server sends stand in place of the tyres — one
+ * chosen, then one of its sets, two wheels per axle in the sizes it names, 2 + 2 and nothing else. A combination the
+ * shop has no tyre for on one axle says so and offers no set; nothing fills the gap.
  */
 
 import { Link, usePage } from '@inertiajs/vue3'
-import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { withUnit } from '../../format'
 import { contactHref } from '../../lib/contact'
 import { focusPapersForm } from '../../lib/papersForm'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
-import type { KomplettradOfferProp, KomplettradOptionsProp, KomplettradTyreProp, TyreClass } from '../../types/pages'
+import type { KomplettradOfferProp, KomplettradOptionsProp, KomplettradTyreProp, MischbereifungSetProp, TyreClass, TyreLabelProp } from '../../types/pages'
 
 const page = usePage()
 
@@ -38,6 +43,8 @@ const props = withDefaults(
 
 /** The tyre chosen; the page keeps it, so a size change can choose again. */
 const tyreId = defineModel<number | null>({ default: null })
+/** Where the Komplettrad is a combination (D-335): the set chosen, by its key; the page keeps it, as it keeps the tyre. */
+const setKey = defineModel<string | null>('setKey', { default: null })
 /** The Wuchtgewichte colour chosen (#15). */
 const colourId = defineModel<number | null>('colourId', { default: null })
 /** The RDKS answer (#15): unanswered until the visitor answers — the checkout asks then, never a guess either way. */
@@ -63,7 +70,81 @@ const FALLBACK_REFUSAL = 'Passende Reifen für diese Größe können wir dir ger
 /* Four tyres in sight; the rest one press away, so the basket button never drifts below a long list. */
 const SHOWN = 4
 
-const refusal = computed(() => props.offer.refusal ?? (props.offer.tyres.length === 0 ? FALLBACK_REFUSAL : null))
+/* The Gutachten's combinations, where it lists them (D-335): the Komplettrad is one of them. */
+const combinations = computed(() => (props.offer.combinations && props.offer.combinations.length > 0 ? props.offer.combinations : null))
+
+const refusal = computed(() => props.offer.refusal ?? (props.offer.tyres.length === 0 && combinations.value === null ? FALLBACK_REFUSAL : null))
+
+/* The combination shown: the one the chosen set belongs to, else the first that has a set, else the first. */
+const combinationKey = ref<string | null>(null)
+
+const combination = computed(() => {
+    const all = combinations.value ?? []
+
+    return all.find((c) => c.key === combinationKey.value)
+        ?? all.find((c) => c.sets.some((s) => s.key === setKey.value))
+        ?? all.find((c) => c.sets.length > 0)
+        ?? all[0]
+        ?? null
+})
+
+/* Another combination chosen: its first set — never one of another combination's (the button adds what is chosen). */
+function chooseCombination(key: string): void {
+    combinationKey.value = key
+    setKey.value = combinations.value?.find((c) => c.key === key)?.sets[0]?.key ?? null
+}
+
+// New combinations from the server (another size): the chosen set stays where it is still offered, else the first.
+watch(
+    () => (combinations.value ?? []).map((c) => `${c.key}:${c.sets.map((s) => s.key).join(',')}`).join(';'),
+    () => {
+        const sets = (combinations.value ?? []).flatMap((c) => c.sets.map((s) => s.key))
+
+        if (setKey.value === null || !sets.includes(setKey.value)) {
+            combinationKey.value = null
+            setKey.value = combination.value?.sets[0]?.key ?? null
+        }
+    },
+    { immediate: true }
+)
+
+/* A set's price with the colour chosen, as the server priced it: the 2 + 2 total. */
+function setPriceOf(set: MischbereifungSetProp): string {
+    return set.prices?.find((p) => p.colourId === colourId.value)?.forFour ?? set.forFour
+}
+
+const chosenSet = computed(() => combination.value?.sets.find((s) => s.key === setKey.value) ?? null)
+
+/* Four sets in sight, as four tyres are; the rest one press away — the chosen one always among those shown. */
+const setsExpanded = ref(false)
+
+const shownSets = computed(() => {
+    const sets = combination.value?.sets ?? []
+
+    if (setsExpanded.value || sets.length <= SHOWN) {
+        return sets
+    }
+
+    const first = sets.slice(0, SHOWN)
+    const chosen = sets.find((set) => set.key === setKey.value)
+
+    return chosen && !first.includes(chosen) ? [...first.slice(0, SHOWN - 1), chosen] : first
+})
+
+/*
+ * „Alle Reifensätze zeigen“ goes once pressed: the focus moves to the first set it revealed — the fourth where the chosen
+ * set stood in its place, never one past it.
+ */
+const setRows = useTemplateRef<HTMLElement>('setRows')
+
+async function expandSets(): Promise<void> {
+    const shown = new Set(shownSets.value.map((set) => set.key))
+    const first = (combination.value?.sets ?? []).findIndex((set) => !shown.has(set.key))
+
+    setsExpanded.value = true
+    await nextTick()
+    setRows.value?.querySelectorAll<HTMLInputElement>('input[type="radio"]')[first < 0 ? SHOWN : first]?.focus()
+}
 
 const forward = computed(() => {
     const code = props.offer.refusalCode ?? null
@@ -102,10 +183,8 @@ interface EuLabel {
 }
 
 /* A label with a class the regulation does not know is not shown; it is never "corrected". */
-function labelOf(tyre: KomplettradTyreProp): EuLabel | null {
-    const label = tyre.label
-
-    if (label === null || !isTyreClass(label.fuel) || !isTyreClass(label.wetGrip) || label.noiseDb === null || !isNoiseClass(label.noiseClass)) {
+function labelFrom(label: TyreLabelProp | null | undefined, title: string): EuLabel | null {
+    if (!label || !isTyreClass(label.fuel) || !isTyreClass(label.wetGrip) || label.noiseDb === null || !isNoiseClass(label.noiseClass)) {
         return null
     }
 
@@ -117,8 +196,40 @@ function labelOf(tyre: KomplettradTyreProp): EuLabel | null {
         snowGrip: label.snowGrip,
         iceGrip: label.iceGrip,
         eprelId: label.eprelId,
-        title: `${tyre.brandName} ${tyre.name} · ${tyre.sizeLabel}`,
+        title,
     }
+}
+
+function labelOf(tyre: KomplettradTyreProp): EuLabel | null {
+    return labelFrom(tyre.label, `${tyre.brandName} ${tyre.name} · ${tyre.sizeLabel}`)
+}
+
+/* A set's labels near its price (Regulation (EU) 2020/740): the front tyre's, and the rear's where it is another tyre. */
+function setLabels(set: MischbereifungSetProp): { axle: string | null; label: EuLabel }[] {
+    const both = set.frontTyreId === set.rearTyreId
+    const front = labelFrom(set.frontEu, `${set.brandName} ${set.name} · ${set.frontLabel}`)
+    const rear = both ? null : labelFrom(set.rearEu, `${set.brandName} ${set.name} · ${set.rearLabel}`)
+
+    return [
+        ...(front ? [{ axle: both ? null : 'vorne', label: front }] : []),
+        ...(rear ? [{ axle: 'hinten', label: rear }] : []),
+    ]
+}
+
+const chosenSetLabels = computed(() => (chosenSet.value ? setLabels(chosenSet.value) : []))
+
+/* A set's axles as its row says them: one tyre on both — „vorne und hinten“ —, else the front's and the rear's. */
+function setAxles(set: MischbereifungSetProp): { name: string; size: string; eu: EuLabel | null }[] {
+    const front = labelFrom(set.frontEu, `${set.brandName} ${set.name} · ${set.frontLabel}`)
+
+    if (set.frontTyreId === set.rearTyreId) {
+        return [{ name: 'vorne und hinten', size: set.frontLabel, eu: front }]
+    }
+
+    return [
+        { name: 'vorne', size: set.frontLabel, eu: front },
+        { name: 'hinten', size: set.rearLabel, eu: labelFrom(set.rearEu, `${set.brandName} ${set.name} · ${set.rearLabel}`) },
+    ]
 }
 
 const cards = computed(() => props.offer.tyres.map((tyre) => ({ tyre, label: labelOf(tyre) })))
@@ -138,13 +249,19 @@ const shownCards = computed(() => {
 
 const chosenLabel = computed(() => cards.value.find((card) => card.tyre.id === tyreId.value)?.label ?? null)
 
-/* „Alle Reifen zeigen“ goes once pressed: the focus moves to the first tyre it revealed, never to the page. */
+/*
+ * „Alle Reifen zeigen“ goes once pressed: the focus moves to the first tyre it revealed, never to the page — the fourth
+ * where the chosen tyre stood in its place, never one past it.
+ */
 const rows = useTemplateRef<HTMLElement>('rows')
 
 async function expand(): Promise<void> {
+    const shown = new Set(shownCards.value.map((card) => card.tyre.id))
+    const first = cards.value.findIndex((card) => !shown.has(card.tyre.id))
+
     expanded.value = true
     await nextTick()
-    rows.value?.querySelectorAll<HTMLInputElement>('input[type="radio"]')[SHOWN]?.focus()
+    rows.value?.querySelectorAll<HTMLInputElement>('input[type="radio"]')[first < 0 ? SHOWN : first]?.focus()
 }
 </script>
 
@@ -163,6 +280,82 @@ async function expand(): Promise<void> {
             </div>
         </div>
 
+        <!-- The Gutachten's combinations (D-335): one chosen, then one of its sets — 2 + 2 in the sizes it names. -->
+        <fieldset v-else-if="combinations" class="kc__group" data-combinations>
+            <legend class="label kc__legend">Reifenkombination aus dem Gutachten</legend>
+            <!-- The document names the sizes per axle; the tyres in them are ours to offer (R-17). -->
+            <p class="small muted kc__min">
+                Das Gutachten nennt die Reifengrößen je Achse<template v-if="offer.sourcePage"> (Seite&nbsp;{{ offer.sourcePage }})</template>.
+                Du bekommst zwei Kompletträder für die Vorderachse und zwei für die Hinterachse.
+            </p>
+
+            <!-- One chip per row: two side by side wrapped into ragged rows in the panel's column. -->
+            <div v-if="combinations.length > 1" class="kc__combos" role="group" aria-label="Kombination wählen">
+                <button
+                    v-for="item in combinations"
+                    :key="item.key"
+                    type="button"
+                    class="chip kc__combo"
+                    :aria-pressed="item.key === combination?.key"
+                    @click="chooseCombination(item.key)"
+                >
+                    <!-- As the Mischbereifung's chips: never a slash that reads the two sizes as one — and the sizes in the
+                         chip's own colour, so a pressed chip reads chosen whole. -->
+                    Nr.&nbsp;{{ item.number }} · <template v-if="item.sameSize">vorne und hinten <span translate="no">{{ item.front }}</span></template><template v-else>vorne <span translate="no">{{ item.front }}</span> · hinten <span translate="no">{{ item.rear }}</span></template>
+                </button>
+            </div>
+
+            <template v-if="combination">
+                <!-- A single combination has no chip to say it: its sizes per axle here, as the Mischbereifung's pair line. -->
+                <!-- One line of markup: the spaces between the parts stay in the text a screen reader reads, the gap draws them. -->
+                <p v-if="combinations.length === 1" class="kc__pair">
+                    <template v-if="combination.sameSize"><span class="label">Vorder- und Hinterachse</span> <span class="kc__size" translate="no">je 2 × {{ combination.front }}</span></template><template v-else><span class="label">Vorderachse</span> <span class="kc__size" translate="no">2 × {{ combination.front }}</span> <span aria-hidden="true">·</span> <span class="label">Hinterachse</span> <span class="kc__size" translate="no">2 × {{ combination.rear }}</span></template> <span class="kc__source">Kombination Nr.&nbsp;{{ combination.number }}</span>
+                </p>
+                <p class="small muted kc__min">{{ combination.minSentence }}</p>
+
+                <!-- No set: the axle we have no tyre for, by name — and the rim alone, never another size in the gap. -->
+                <p v-if="combination.sets.length === 0" class="notice kc__noset">
+                    <Icon name="info" :size="20" />
+                    <span>{{ combination.noSet ?? FALLBACK_REFUSAL }}</span>
+                </p>
+
+                <ul v-else ref="setRows" class="kc__rows" role="list">
+                    <li v-for="set in shownSets" :key="set.key">
+                        <label class="kc-row" :class="{ 'kc-row--on': set.key === setKey }">
+                            <input v-model="setKey" class="kc-row__radio" type="radio" name="kc-set" :value="set.key">
+                            <span class="kc-row__body">
+                                <span class="kc-row__name"><span class="kc-row__brand">{{ set.brandName }}</span> {{ set.name }}</span>
+                                <span class="kc-row__meta">{{ set.seasonLabel }}</span>
+                                <!-- One row per axle: its word, its size — never broken inside — and its tyre's label classes. -->
+                                <span class="kc-set">
+                                    <template v-for="axle in setAxles(set)" :key="axle.name">
+                                        <span class="kc-set__axle">{{ axle.name }}</span>
+                                        <span class="kc-set__detail">
+                                            <span class="data kc-set__size" translate="no">{{ axle.size }}</span>
+                                            <span v-if="axle.eu" class="kc-row__eu num">
+                                                Kraftstoffeffizienz {{ axle.eu.fuel }} · Nasshaftung {{ axle.eu.wet }} · {{ withUnit(axle.eu.noiseDb, 'dB') }}&nbsp;({{ axle.eu.noiseClass }})
+                                            </span>
+                                        </span>
+                                    </template>
+                                </span>
+                            </span>
+                            <span class="kc-row__price">
+                                <span class="kc-row__amount num">{{ setPriceOf(set) }}</span>
+                                <span class="kc-row__per">für 2 + 2</span>
+                            </span>
+                        </label>
+                    </li>
+                </ul>
+
+                <button v-if="combination.sets.length > SHOWN && !setsExpanded" type="button" class="link kc__more" @click="expandSets">
+                    Alle {{ combination.sets.length }} Reifensätze zeigen
+                </button>
+            </template>
+
+            <!-- The full EU label for each tyre of the set chosen, only where it carries a verified one (ACCURACY D7). -->
+            <TyreLabel v-for="eu in chosenSetLabels" :key="eu.label.eprelId" v-bind="eu.label" class="kc__label" />
+        </fieldset>
+
         <!-- The tyres as one ruled list (D-132): a radio on the left, the price in a column on the right. -->
         <fieldset v-else class="kc__group">
             <legend class="label kc__legend">Reifen</legend>
@@ -177,7 +370,7 @@ async function expand(): Promise<void> {
                             <span class="kc-row__name"><span class="kc-row__brand">{{ card.tyre.brandName }}</span> {{ card.tyre.name }}</span>
                             <span class="kc-row__meta">{{ card.tyre.seasonLabel }} · <span class="data">{{ card.tyre.sizeLabel }}</span></span>
                             <span v-if="card.label" class="kc-row__eu num">
-                                Kraftstoffeffizienz {{ card.label.fuel }} · Nasshaftung {{ card.label.wet }} · {{ withUnit(card.label.noiseDb, 'dB') }} ({{ card.label.noiseClass }})
+                                Kraftstoffeffizienz {{ card.label.fuel }} · Nasshaftung {{ card.label.wet }} · {{ withUnit(card.label.noiseDb, 'dB') }}&nbsp;({{ card.label.noiseClass }})
                             </span>
                         </span>
                         <span class="kc-row__price">
@@ -311,13 +504,20 @@ async function expand(): Promise<void> {
     accent-color: var(--c-blue);
 }
 
+/* Inset, so the ring never crosses the rules between the rows (DIRECTION §6). */
 .kc-row:has(:focus-visible) {
     outline: 2px solid var(--c-blue);
-    outline-offset: 2px;
+    outline-offset: -2px;
 }
 
 .kc-row:active {
     background: var(--c-band);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .kc-row:hover {
+        background: var(--c-band);
+    }
 }
 
 .kc-row__body {
@@ -359,6 +559,68 @@ async function expand(): Promise<void> {
 .kc__more {
     justify-self: start;
     min-height: 44px;
+}
+
+/* ── The Gutachten's combinations (D-335) ───────────────────────────────────── */
+
+/* One chip under the other, each the column's width: two side by side wrapped unevenly in the panel. */
+.kc__combos {
+    display: grid;
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-4);
+}
+
+.kc__combo {
+    justify-content: flex-start;
+    min-height: 44px;
+    text-align: left;
+}
+
+/* A single combination's sizes: the axle as a label, the size as the value — the value the louder of the two. */
+.kc__pair {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--sp-4) var(--sp-8);
+    margin: 0;
+    color: var(--c-ink-2);
+}
+
+.kc__size {
+    font-size: var(--fs-body);
+    font-weight: 600;
+    color: var(--c-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.kc__source {
+    color: var(--c-ink-3);
+    font-size: var(--fs-small);
+    font-weight: 400;
+}
+
+/* A set's axles: the axle's word, then its size and its tyre's label classes under it — one row each. */
+.kc-set {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--sp-4) var(--sp-8);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+}
+
+.kc-set__detail {
+    display: grid;
+    min-width: 0;
+}
+
+.kc-set__size {
+    white-space: nowrap;
+}
+
+.kc__noset {
+    margin: 0;
 }
 
 /* The label as wide as the list above it, never a ragged right edge. */

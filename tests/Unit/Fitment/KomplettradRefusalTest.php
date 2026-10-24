@@ -31,7 +31,7 @@ it('carries a full German sentence for every refusal, naming no code and no cont
         ->and($sentence)->not->toMatch('/\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihnen)\b/u');
 })->with($everyCase);
 
-it('has exactly the twenty-two cases — the specification’s thirteen, the two halves of R-03, the papers of D-286, the four of D-105 and the two of D-256 — in its order', function (): void {
+it('has exactly the twenty-three cases — the specification’s thirteen, the two halves of R-03, the papers of D-286, the four of D-105 and the three of D-335 — in its order', function (): void {
     expect(KomplettradRefusal::values())->toBe([
         'NO_VEHICLE',
         'VERDICT_NOT_PERMITTED',
@@ -53,9 +53,10 @@ it('has exactly the twenty-two cases — the specification’s thirteen, the two
         'NO_MIXED_PAIRING',
         'MIXED_PAIR_NOT_LISTED',
         'MIXED_NOT_ONE_MAKER',
-        'NO_SAME_SIZE_COMBINATION',
-        'SIZE_NOT_A_COMBINATION',
-    ])->and(KomplettradRefusal::cases())->toHaveCount(22);
+        'AS_COMBINATION',
+        'NO_COMBINATION',
+        'COMBINATION_NOT_ONE_MAKER',
+    ])->and(KomplettradRefusal::cases())->toHaveCount(23);
 });
 
 it('never says „kein Gutachten“ when the wheel is approved and only the tyres are open (R-03 split)', function (): void {
@@ -87,10 +88,13 @@ it('names a route forward on every refusal a customer can act on', function (): 
         KomplettradRefusal::TyreChoiceRestricted,
         KomplettradRefusal::NoTyreAvailable,
         KomplettradRefusal::StaggeredLayout,
-        KomplettradRefusal::NoSameSizeCombination,
+        KomplettradRefusal::NoCombination,
     ] as $felgeAllein) {
         expect($felgeAllein->sentenceDe())->toContain('Felge allein kannst du');
     }
+
+    // Four of a kind refused where the Gutachten lists its combinations: the way on is the combinations themselves (D-335).
+    expect(KomplettradRefusal::AsCombination->sentenceDe())->toContain('je zwei Räder für die Vorder- und die Hinterachse');
 
     // Never „stellen wir persönlich zusammen“ beside the Mischbereifung the page offers (D-105).
     expect(KomplettradRefusal::StaggeredLayout->sentenceDe())->not->toContain('persönlich')

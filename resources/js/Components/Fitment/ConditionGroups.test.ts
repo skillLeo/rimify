@@ -66,6 +66,34 @@ describe('ConditionGroups', () => {
 
         expect(wrapper.findAll('.cgroups__size')[2]?.text()).toContain('Keine weiteren Auflagen.')
     })
+
+    // D-335: a set sold per axle — each axle's Auflagen under its name, both sizes fitted, never „Nur bei“.
+    it('says a set per axle under each axle\'s name — the rear\'s chains at the rear alone @admin-208', () => {
+        const set: ConditionGroupsView = {
+            combination: [BOLTS],
+            sizes: [
+                { size: '235/45 R19', axle: 'Vorderachse', conditions: [], entry: false },
+                { size: '255/40 R19', axle: 'Hinterachse', conditions: [NO_CHAINS], entry: true },
+            ],
+            chosen: null,
+            entry: true,
+            perAxle: true,
+        }
+        const wrapper = mount(ConditionGroups, { props: { groups: set } })
+        const blocks = wrapper.findAll('.cgroups__size')
+
+        expect(wrapper.find('.cgroups__head').text()).toBe('Für beide Achsen')
+        expect(blocks.map((b) => b.find('.cgroups__head').text())).toEqual(['Vorderachse · 235/45 R19', 'Hinterachse · 255/40 R19'])
+        expect(blocks[0]?.text()).toContain('Keine weiteren Auflagen.')
+        expect(blocks[1]?.text()).toContain(NO_CHAINS)
+        expect(wrapper.text()).not.toContain('Nur bei')
+    })
+
+    it('names the axle beside a chosen size on a line of a set per axle', () => {
+        const wrapper = mount(ConditionGroups, { props: { groups: { combination: [BOLTS, NO_CHAINS], sizes: [], chosen: '255/40 R19', entry: true, axle: 'Hinterachse' } } })
+
+        expect(wrapper.find('.cgroups__head').text()).toBe('Hinterachse · 255/40 R19')
+    })
 })
 
 describe('entryBySize', () => {

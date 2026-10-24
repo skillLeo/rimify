@@ -137,7 +137,7 @@ describe('KomplettradChoice', () => {
         const label = { fuel: 'B', wetGrip: 'A', noiseDb: 71, noiseClass: 'B', snowGrip: false, iceGrip: false, eprelId: '123456' }
         const wrapper = mountChoice(offer({ tyres: [tyre({ label })] }))
 
-        expect(wrapper.find('.kc-row__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB (B)')
+        expect(wrapper.find('.kc-row__eu').text()).toBe('Kraftstoffeffizienz B · Nasshaftung A · 71 dB\u00A0(B)')
         expect(wrapper.find('a[href="https://eprel.ec.europa.eu/qr/123456"]').exists()).toBe(true)
 
         // A class the regulation does not know is never shown, nor "corrected".
@@ -244,5 +244,168 @@ describe('KomplettradChoice', () => {
         const wrapper = mountChoice(offer({ tyres: [] }), null)
 
         expect(wrapper.find('.kc__refusal').text()).toContain('Passende Reifen für diese Größe können wir dir gerade nicht anbieten.')
+    })
+})
+
+/* ── D-335: the Gutachten's combinations, 2 + 2 ─────────────────────────────────────────────────────────────────── */
+
+type Combination = NonNullable<KomplettradOfferProp['combinations']>[number]
+type CombinationSet = Combination['sets'][number]
+
+const EU = { fuel: 'B', wetGrip: 'A', noiseDb: 71, noiseClass: 'B', snowGrip: false, iceGrip: false, eprelId: '700001' }
+
+function combinationSet(overrides: Partial<CombinationSet> = {}): CombinationSet {
+    return {
+        key: '11-12',
+        frontTyreId: 11,
+        rearTyreId: 12,
+        brandName: 'Bridgestone',
+        name: 'Potenza Sport',
+        seasonLabel: 'Sommerreifen',
+        frontLabel: '225/40 R18 92Y',
+        rearLabel: '245/35 R18 92Y',
+        perWheelFront: '480,00 €',
+        perWheelRear: '510,00 €',
+        forFourCents: 198_000,
+        forFour: '1.980,00 €',
+        frontEu: EU,
+        rearEu: { ...EU, eprelId: '700002', noiseDb: 72 },
+        isDemo: false,
+        ...overrides,
+    }
+}
+
+function combination(overrides: Partial<Combination> = {}): Combination {
+    return {
+        key: '225/40/18|245/35/18',
+        number: 2,
+        front: '225/40 R18',
+        rear: '245/35 R18',
+        sameSize: false,
+        minSentence: 'Wir prüfen jede Achse mit ihrer eigenen Achslast: vorne (880 kg) mindestens Tragfähigkeitsindex 84 und Geschwindigkeitsindex W, hinten (1.020 kg) mindestens Tragfähigkeitsindex 88 und Geschwindigkeitsindex W. Mehr verlangt die Hinterachse.',
+        noSet: null,
+        sets: [combinationSet()],
+        ...overrides,
+    }
+}
+
+function combinations(list: Combination[]): KomplettradOfferProp {
+    return offer({ tyres: [], minSentence: null, combinations: list, perAxle: 2, sourcePage: 5 })
+}
+
+function mountSets(value: KomplettradOfferProp, setKey: string | null = null, extra: { options?: KomplettradOptionsProp | null; colourId?: number | null } = {}): VueWrapper {
+    const wrapper = mount(KomplettradChoice, { props: { offer: value, modelValue: null, setKey, ...extra } })
+    wrappers.push(wrapper)
+
+    return wrapper
+}
+
+describe('KomplettradChoice — the Gutachten\'s combinations (D-335)', () => {
+    const same = combination({ key: '225/40/18|225/40/18', number: 1, rear: '225/40 R18', sameSize: true, sets: [combinationSet({ key: '11-11', rearTyreId: 11, rearLabel: '225/40 R18 92Y', rearEu: null, forFour: '1.920,00 €' })] })
+
+    it('offers the combinations in place of the tyres — never four of one size — each set 2 + 2 in the sizes it names @admin-208', () => {
+        const wrapper = mountSets(combinations([same, combination()]), '11-12')
+
+        expect(wrapper.find('[data-combinations] legend').text()).toBe('Reifenkombination aus dem Gutachten')
+        expect(wrapper.find('[data-combinations] .kc__min').text()).toBe('Das Gutachten nennt die Reifengrößen je Achse (Seite\u00A05). Du bekommst zwei Kompletträder für die Vorderachse und zwei für die Hinterachse.')
+        expect(wrapper.findAll('.kc__combos .chip').map((c) => c.text())).toEqual(['Nr.\u00A01 · vorne und hinten 225/40 R18', 'Nr.\u00A02 · vorne 225/40 R18 · hinten 245/35 R18'])
+        expect(wrapper.find('.kc__combos .chip[aria-pressed="true"]').text()).toContain('Nr.\u00A02')
+        // The chip says the combination's sizes: no pair line repeats them beside several chips.
+        expect(wrapper.find('.kc__pair').exists()).toBe(false)
+
+        const row = wrapper.find('.kc-row')
+        expect(row.classes()).toContain('kc-row--on')
+        expect(row.find('.kc-row__meta').text()).toBe('Sommerreifen')
+        expect(row.find('.kc-row__amount').text()).toBe('1.980,00 €')
+        expect(row.find('.kc-row__per').text()).toBe('für 2 + 2')
+        // One row per axle: its word, its size never broken, and that tyre's label classes near the price.
+        expect(row.findAll('.kc-set__axle').map((a) => a.text())).toEqual(['vorne', 'hinten'])
+        expect(row.findAll('.kc-set__size').map((s) => s.text())).toEqual(['225/40 R18 92Y', '245/35 R18 92Y'])
+        expect(row.findAll('.kc-row__eu').map((e) => e.text())).toEqual([
+            'Kraftstoffeffizienz B · Nasshaftung A · 71\u202FdB\u00A0(B)',
+            'Kraftstoffeffizienz B · Nasshaftung A · 72\u202FdB\u00A0(B)',
+        ])
+        // No four-of-a-kind tyre list beside it.
+        expect(wrapper.find('input[name="kc-tyre"]').exists()).toBe(false)
+    })
+
+    it('hands the set picked to the page, and another combination\'s first set when the combination changes', async () => {
+        const two = combination({ sets: [combinationSet(), combinationSet({ key: '13-14', frontTyreId: 13, rearTyreId: 14, name: 'Turanza' })] })
+        const wrapper = mountSets(combinations([same, two]), '11-12')
+
+        await wrapper.findAll('input[name="kc-set"]')[1]!.setValue()
+        expect(wrapper.emitted('update:setKey')?.at(-1)).toEqual(['13-14'])
+
+        await wrapper.findAll('.kc__combos .chip')[0]!.trigger('click')
+        expect(wrapper.emitted('update:setKey')?.at(-1)).toEqual(['11-11'])
+    })
+
+    it('shows four sets and the rest on request, as four tyres — the chosen one always in sight', async () => {
+        const many = Array.from({ length: 6 }, (_, i) => combinationSet({ key: `${20 + i}-${30 + i}`, frontTyreId: 20 + i, rearTyreId: 30 + i, name: `Linie ${i + 1}` }))
+        const wrapper = mountSets(combinations([combination({ sets: many })]), '25-35')
+
+        expect(wrapper.findAll('input[name="kc-set"]')).toHaveLength(4)
+        expect(wrapper.find('.kc-row--on').text()).toContain('Linie 6')
+
+        await wrapper.find('.kc__more').trigger('click')
+        expect(wrapper.findAll('input[name="kc-set"]')).toHaveLength(6)
+        expect(wrapper.find('.kc__more').exists()).toBe(false)
+    })
+
+    it('moves the focus to the first set the press revealed — the fourth where the chosen one stood in its place', async () => {
+        const many = Array.from({ length: 6 }, (_, i) => combinationSet({ key: `${20 + i}-${30 + i}`, frontTyreId: 20 + i, rearTyreId: 30 + i, name: `Linie ${i + 1}` }))
+        const wrapper = mount(KomplettradChoice, { props: { offer: combinations([combination({ sets: many })]), modelValue: null, setKey: '25-35' }, attachTo: document.body })
+        wrappers.push(wrapper)
+
+        // Linie 1–3 and the chosen Linie 6 are in sight; the press reveals Linie 4 and 5.
+        await wrapper.find('.kc__more').trigger('click')
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(document.activeElement).toBe(wrapper.findAll('input[name="kc-set"]')[3]!.element)
+
+        // Chosen among the first four: the fifth is the first revealed.
+        const first = mount(KomplettradChoice, { props: { offer: combinations([combination({ sets: many })]), modelValue: null, setKey: '20-30' }, attachTo: document.body })
+        wrappers.push(first)
+
+        await first.find('.kc__more').trigger('click')
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(document.activeElement).toBe(first.findAll('input[name="kc-set"]')[4]!.element)
+    })
+
+    it('says one tyre on both axles once, with its one label — and a single combination\'s sizes in its pair line', () => {
+        const wrapper = mountSets(combinations([same]), '11-11')
+
+        expect(wrapper.find('.kc__combos').exists()).toBe(false)
+        expect(wrapper.find('.kc__pair').text()).toContain('Vorder- und Hinterachse je 2 × 225/40 R18')
+        expect(wrapper.findAll('.kc-set__axle').map((a) => a.text())).toEqual(['vorne und hinten'])
+        expect(wrapper.findAll('.kc-row__eu').map((e) => e.text())).toEqual(['Kraftstoffeffizienz B · Nasshaftung A · 71\u202FdB\u00A0(B)'])
+
+        // One combination of two sizes: each axle with its size in the pair line.
+        const single = mountSets(combinations([combination()]), '11-12')
+        expect(single.find('.kc__pair').text()).toMatch(/^Vorderachse 2 × 225\/40 R18 · Hinterachse 2 × 245\/35 R18 Kombination Nr.\s2$/)
+    })
+
+    it('names the axle the shop has no tyre for and offers no set there — the rim alone, never another size @admin-208', () => {
+        const noSet = 'Für die Hinterachse (245/35 R18) können wir dir gerade keinen passenden Reifen anbieten – ein Komplettrad gibt es in dieser Kombination deshalb nicht. Die Felge allein kannst du bestellen.'
+        const wrapper = mountSets(combinations([combination({ sets: [], noSet })]), null)
+
+        expect(wrapper.find('.kc__noset').text()).toBe(noSet)
+        expect(wrapper.find('.kc-row').exists()).toBe(false)
+        expect(wrapper.find('.kc__refusal').exists()).toBe(false)
+    })
+
+    it('still asks for the Wuchtgewichte and the sensors, and prices the set in the colour chosen', async () => {
+        const priced = combinationSet({ prices: [
+            { colourId: 1, perWheelFront: '480,00 €', perWheelRear: '510,00 €', forFourCents: 198_000, forFour: '1.980,00 €' },
+            { colourId: 2, perWheelFront: '485,00 €', perWheelRear: '515,00 €', forFourCents: 200_000, forFour: '2.000,00 €' },
+        ] })
+        const wrapper = mountSets(combinations([combination({ sets: [priced] })]), '11-12', { options: options(), colourId: 1 })
+
+        expect(wrapper.find('input[name="kc-weights"]').exists()).toBe(true)
+        expect(wrapper.find('input[name="kc-rdks"]').exists()).toBe(true)
+
+        await wrapper.setProps({ colourId: 2 })
+        expect(wrapper.find('.kc-row__amount').text()).toBe('2.000,00 €')
     })
 })

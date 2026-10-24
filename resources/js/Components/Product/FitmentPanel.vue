@@ -48,6 +48,15 @@ const props = withDefaults(
 /* `255/40 R19` — the size of the tyre chosen, where the server answered for it. */
 const chosenSize = computed(() => props.chosen?.chosen ?? null)
 
+/*
+ * A set chosen as one of the Gutachten's combinations (D-335): the answer per axle — both sizes fitted, each axle's
+ * Auflagen under its name, the Eintragung the set's. Said in full here whatever the detail below folds away.
+ */
+const setView = computed(() => (props.chosen?.perAxle === true && props.chosen.chosen === null ? props.chosen : null))
+
+/* The sizes the answer is for: the tyre's, or the set's two — null for every size the car may carry. */
+const chosenSizes = computed(() => (chosenSize.value !== null ? [chosenSize.value] : setView.value ? setView.value.sizes.map((s) => s.size) : null))
+
 /* „RIMIFY-Check drucken“: the answer frozen whole on the server, then its printable page. */
 const issuing = ref(false)
 
@@ -114,8 +123,9 @@ const entryLine = computed(() => {
         return null
     }
 
-    // A tyre chosen: that size's own answer — with 255/40 R19 the Abnahme, with 235/45 R19 none (#18).
-    if (chosenSize.value !== null) {
+    // A tyre chosen: that size's own answer — with 255/40 R19 the Abnahme, with 235/45 R19 none (#18). A set per axle: the
+    // set's — needed where either axle's size needs it, for both are fitted (D-335).
+    if (chosenSize.value !== null || setView.value !== null) {
         return entryLineOrNone(props.chosen?.entry ?? verdict.requiresEntry, verdict.papersExempt === true)
     }
 
@@ -166,10 +176,11 @@ const overview = computed(() => {
     }
 
     // What there is to do — the notes are not a task, and the sizes have their own line below. With a tyre chosen, only
-    // what its size carries: a sentence another size alone hangs off is not this combination's (D-04, #18).
+    // what its size carries: a sentence another size alone hangs off is not this combination's (D-04, #18). With a set
+    // per axle, what either of its sizes carries (D-335).
     const lines: string[] = []
-    const chosen = chosenSize.value
-    const applies = (i: { sizes?: string[] }): boolean => chosen === null || !i.sizes?.length || i.sizes.includes(chosen)
+    const chosen = chosenSizes.value
+    const applies = (i: { sizes?: string[] }): boolean => chosen === null || !i.sizes?.length || i.sizes.some((size) => chosen.includes(size))
     const items = (title: string): number => view.sections.find((s) => s.title === title)?.items.filter((i) => !said.value.includes(i.text) && applies(i)).length ?? 0
     const work = items('Arbeiten am Fahrzeug')
     const first = view.fasteners[0]
@@ -374,9 +385,12 @@ const openLead = computed(() => {
             <!-- Auflagen in full sentences. They cost the customer money and time; burying them is
                  both a conversion problem and a trust problem. With the detail, in the order they are done. -->
             <div v-if="detail && overview.length" class="fit__overview">
-                <p class="label fit__overview-h">Das verlangt das Gutachten<template v-if="chosenSize"> mit <span class="data" translate="no">{{ chosenSize }}</span></template></p>
+                <p class="label fit__overview-h">Das verlangt das Gutachten<template v-if="chosenSize"> mit <span class="data" translate="no">{{ chosenSize }}</span></template><template v-else-if="setView"> für diese Kombination</template></p>
                 <p class="small fit__overview-line">{{ overview.join(' · ') }} · <a class="fit__to-detail" href="#auflagen" @click="toDetail">alle Auflagen im Wortlaut</a></p>
             </div>
+            <!-- A set chosen as one of the Gutachten's combinations (D-335): each axle's Auflagen under its name, in full,
+                 whatever the detail folds away — the groups' own heads say which axle. -->
+            <ConditionGroups v-if="setView" class="fit__groups" :groups="setView" :omit="said" data-set-answer />
             <!-- Each tyre size's Auflagen with that size, the combination's once (ConditionGroups) — never one blended list. -->
             <ConditionGroups v-else-if="!detail && chosen" class="fit__groups" :groups="chosen" :omit="said" />
             <ConditionGroups v-else-if="!detail && verdict.conditionGroups && conditions.length" class="fit__groups" :groups="verdict.conditionGroups" :omit="said" />

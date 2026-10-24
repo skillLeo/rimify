@@ -415,6 +415,8 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 $combination->number,
                 new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in),
                 new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in),
+                // The row an order line freezes as the combination it was sold in (D-335).
+                (int) $combination->id,
             );
             $page ??= $combination->source_page;
         }

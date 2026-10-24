@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**78 sentences: 1 open, 22 backed by a recorded field, 53 about the shop itself, 2 not sentences.**
+**81 sentences: 1 open, 23 backed by a recorded field, 55 about the shop itself, 2 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -33,6 +33,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | the body or drive restriction recorded on every row that names the car |
 | „Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | the same recorded restriction; what is unknown is the car's own body or drive, and the sentence says so |
 | „Für die Höchstgeschwindigkeit deines Fahrzeugs lässt das Gutachten keinen passenden Reifen zu.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | a recorded „–“ in the document's speed table for the car's top speed |
+| „Als Komplettrad gibt es diese Felge für dein Fahrzeug nur in den Reifenkombinationen, die das Gutachten nennt – je zwei Räder für die Vorder- und die Hinterachse.“ | customer / operator | `Domain/Fitment/Tyres/KomplettradRefusal.php` | the document's own list of combinations as entered (document_tyre_combinations, D-256): closed, the Komplettrad is one of them (D-335) |
 | „Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.“ | customer / operator | `Components/Product/FitmentPanel.vue` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
 | „Das Gutachten deckt die geprüfte Kombination ab und nennt dazu nur Hinweise – nichts, was du tun musst.“ | customer / operator | `Pages/CheckErgebnis/Index.vue` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
 | „Zulässig unter den Auflagen des Gutachtens, etwa nur mit bestimmten Radschrauben.“ | customer / operator | `Pages/Check/Index.vue` | the legend of CONDITIONAL: the recorded conditions; the example is one |
@@ -51,6 +52,8 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 
 | Sentence | Read by | Where | What it says |
 |---|---|---|---|
+| „Vorne und hinten bieten wir dir in einer Kombination nur Reifen desselben Herstellers und derselben Profilreihe an.“ | customer / operator | `Domain/Fitment/Tyres/KomplettradRefusal.php` | what the shop pairs front and rear beside a list that prints no rule of its own (D-335): said as ours, never as the document's |
+| „In diesen Größen können wir dir vorne und hinten gerade keine Reifen desselben Herstellers und derselben Profilreihe anbieten“ | customer / operator | `Domain/Fitment/Tyres/MixedPair.php` | what the shop can offer now: no front and rear tyre of one maker's one line in the combination's sizes that it sells and that meets each axle (D-335) |
 | „Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen.“ | customer / operator | `Components/Home/HomeHero.vue` | what the listing shows: wheels with a released row for the car |
 | „RIMIFY zeigt dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen.“ | customer / operator | `Pages/Startseite/meta.ts` | the same promise, as the page description |
 | „Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.“ | customer / operator | `Pages/Startseite/Mobile.vue` | the same promise, on the phone |
