@@ -403,7 +403,8 @@ final readonly class Basket
             : $this->eligibility->permitsMixed($verdict, EloquentTyreCatalogue::toRecord($tyre), EloquentTyreCatalogue::toRecord($rear), TyreEligibility::MIXED_PER_AXLE);
 
         if ($refusal !== null) {
-            return $refusal->sentenceDe();
+            // A rule about makers or profile types says the document's own clause with it (D-336, R-17).
+            return $this->eligibility->sentenceFor($verdict, $refusal);
         }
 
         if ($weightColourId === null) {
@@ -903,7 +904,7 @@ final readonly class Basket
             $refusal = $this->eligibility->permitsMixed($verdict, EloquentTyreCatalogue::toRecord($front), EloquentTyreCatalogue::toRecord($rear), $quantity);
 
             if ($refusal !== null) {
-                $reasons[] = $refusal->sentenceDe();
+                $reasons[] = $this->eligibility->sentenceFor($verdict, $refusal);
             }
         }
 

@@ -20,9 +20,6 @@
 [![Larastan level 6](https://img.shields.io/badge/Larastan-level%206-2A5EA7?style=flat-square)](https://github.com/larastan/larastan)
 [![Code style: Pint](https://img.shields.io/badge/Code%20style-Pint-FF2D20?style=flat-square)](https://laravel.com/docs/pint)
 
-[![Last commit](https://img.shields.io/github/last-commit/skillLeo/rimify?style=flat-square)](https://github.com/skillLeo/rimify/commits/main)
-[![Commit activity](https://img.shields.io/github/commit-activity/m/skillLeo/rimify?style=flat-square)](https://github.com/skillLeo/rimify/graphs/commit-activity)
-[![Repo size](https://img.shields.io/github/repo-size/skillLeo/rimify?style=flat-square)](https://github.com/skillLeo/rimify)
 [![Licence: proprietary](https://img.shields.io/badge/Licence-proprietary-lightgrey?style=flat-square)](#licence)
 
 [**Live preview**](https://rimify.skillleo.com) · [How it decides](#how-rimify-decides) · [Features](#features) · [Getting started](#getting-started) · [Engineering guide](CONTRIBUTING.md) · [Decision log](docs/decisions.md)

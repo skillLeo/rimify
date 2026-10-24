@@ -31,7 +31,7 @@ it('carries a full German sentence for every refusal, naming no code and no cont
         ->and($sentence)->not->toMatch('/\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihnen)\b/u');
 })->with($everyCase);
 
-it('has exactly the twenty-three cases — the specification’s thirteen, the two halves of R-03, the papers of D-286, the four of D-105 and the three of D-335 — in its order', function (): void {
+it('has exactly the twenty-three cases — the specification’s thirteen, the two halves of R-03, the papers of D-286, the four of D-105, the profile of D-336 and the two of D-335 — in its order', function (): void {
     expect(KomplettradRefusal::values())->toBe([
         'NO_VEHICLE',
         'VERDICT_NOT_PERMITTED',
@@ -53,9 +53,9 @@ it('has exactly the twenty-three cases — the specification’s thirteen, the t
         'NO_MIXED_PAIRING',
         'MIXED_PAIR_NOT_LISTED',
         'MIXED_NOT_ONE_MAKER',
+        'MIXED_NOT_ONE_PROFILE',
         'AS_COMBINATION',
         'NO_COMBINATION',
-        'COMBINATION_NOT_ONE_MAKER',
     ])->and(KomplettradRefusal::cases())->toHaveCount(23);
 });
 

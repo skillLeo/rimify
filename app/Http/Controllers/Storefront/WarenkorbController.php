@@ -34,7 +34,7 @@ class WarenkorbController extends Controller
     public const SET_TYRES_REMOVED_TOAST = 'Die Reifen beider Achsen wurden entfernt – du bestellst jetzt nur die Felgen.';
 
     /** A set per axle added again: it stays the one set, 2 + 2 (D-335) — never „hinzugefügt“ over nothing added. */
-    public const SET_HELD_TOAST = 'Dieser Satz ist schon im Warenkorb – zwei Kompletträder je Achse, die Anzahl ist fest.';
+    public const SET_HELD_TOAST = 'Diese Kompletträder sind schon im Warenkorb – zwei je Achse, die Anzahl ist fest.';
 
     public function __construct(private readonly Basket $basket) {}
 

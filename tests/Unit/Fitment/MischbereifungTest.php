@@ -136,7 +136,7 @@ it('offers the pair V19 lists for the sizes the car’s row names — Nr. 8, 235
         ->and($offer->pairs[0]->pairing->number)->toBe(8)
         ->and($offer->pairs[0]->front->labelDe())->toBe('235/45 R19')
         ->and($offer->pairs[0]->rear->labelDe())->toBe('255/40 R19')
-        // One maker's one tyre line front and rear, as V19's own sentence asks: the other maker's 255/40 is not paired.
+        // One maker on every tyre, as V19's own sentence asks (D-336): the other maker's 255/40 is not paired.
         ->and(array_map(static fn (array $set): array => [$set['front']->id, $set['rear']->id], $offer->pairs[0]->sets))->toBe([[11, 12]]);
 });
 

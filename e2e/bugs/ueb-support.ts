@@ -26,13 +26,34 @@ export function isPhone(projectName: string): boolean {
     return projectName.startsWith('mobile');
 }
 
+/* ── The day the figures are read on ──────────────────────────────────────────────────── */
+
+/**
+ * Every request of this page answered as on the demo set's last day (D-337): the server reads „the last 30 days“ from
+ * that day (X-E2E-Today, App\Http\Middleware\E2eToday), never from the calendar — UEB-02 broke on 24.10.2026, the
+ * demo set a month old, when the window held four gaps where it was built on five. The day comes from the suite's
+ * global setup (E2E_DEMO_ANCHOR), which writes the set again on today's date before every run.
+ */
+export async function onDemoDay(page: Page): Promise<string> {
+    const day = process.env.E2E_DEMO_ANCHOR;
+
+    if (day === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        throw new Error('rig: the demo set’s last day is unknown — the global setup hands it over as E2E_DEMO_ANCHOR (e2e/global-setup.ts).');
+    }
+
+    await page.context().setExtraHTTPHeaders({ 'X-E2E-Today': day });
+
+    return day;
+}
+
 /* ── The Übersicht and its deferred charts ─────────────────────────────────────────────── */
 
 /**
- * Opens the Übersicht on 30 days without waiting for the network to settle — the charts' request
- * may be held on purpose.
+ * Opens the Übersicht on 30 days — the 30 days up to the demo set's last day (onDemoDay) — without waiting for the
+ * network to settle: the charts' request may be held on purpose.
  */
 export async function openUebersicht(page: Page): Promise<void> {
+    await onDemoDay(page);
     await page.goto('/admin?zeitraum=30', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Übersicht' })).toBeVisible();
@@ -241,6 +262,8 @@ export async function openNachfrage(page: Page, min = 3): Promise<MarkRig> {
         demand.counts.offen = rows.length;
     };
 
+    // The gaps of the demo set's last 30 days, whatever the calendar says (onDemoDay); stand-ins fill up below.
+    await onDemoDay(page);
     await page.goto('/admin/nachfrage?stand=alle', { waitUntil: 'networkidle' });
     await waitForApp(page);
 

@@ -28,6 +28,7 @@ import { contactHref } from '../../lib/contact'
 import { focusPapersForm } from '../../lib/papersForm'
 import Icon from '../Ui/Icon.vue'
 import TyreLabel from '../Ui/TyreLabel.vue'
+import { setNames } from './setNames'
 import type { KomplettradOfferProp, KomplettradOptionsProp, KomplettradTyreProp, MischbereifungSetProp, TyreClass, TyreLabelProp } from '../../types/pages'
 
 const page = usePage()
@@ -208,7 +209,7 @@ function labelOf(tyre: KomplettradTyreProp): EuLabel | null {
 function setLabels(set: MischbereifungSetProp): { axle: string | null; label: EuLabel }[] {
     const both = set.frontTyreId === set.rearTyreId
     const front = labelFrom(set.frontEu, `${set.brandName} ${set.name} · ${set.frontLabel}`)
-    const rear = both ? null : labelFrom(set.rearEu, `${set.brandName} ${set.name} · ${set.rearLabel}`)
+    const rear = both ? null : labelFrom(set.rearEu, `${set.rearBrandName ?? set.brandName} ${set.rearName ?? set.name} · ${set.rearLabel}`)
 
     return [
         ...(front ? [{ axle: both ? null : 'vorne', label: front }] : []),
@@ -218,17 +219,22 @@ function setLabels(set: MischbereifungSetProp): { axle: string | null; label: Eu
 
 const chosenSetLabels = computed(() => (chosenSet.value ? setLabels(chosenSet.value) : []))
 
-/* A set's axles as its row says them: one tyre on both — „vorne und hinten“ —, else the front's and the rear's. */
-function setAxles(set: MischbereifungSetProp): { name: string; size: string; eu: EuLabel | null }[] {
+/*
+ * A set's axles as its row says them: one tyre on both — „vorne und hinten“ —, else the front's and the rear's; where the
+ * document lets the lines differ (D-336), each axle with its own tyre's name.
+ */
+function setAxles(set: MischbereifungSetProp): { name: string; line: string | null; size: string; eu: EuLabel | null }[] {
     const front = labelFrom(set.frontEu, `${set.brandName} ${set.name} · ${set.frontLabel}`)
 
     if (set.frontTyreId === set.rearTyreId) {
-        return [{ name: 'vorne und hinten', size: set.frontLabel, eu: front }]
+        return [{ name: 'vorne und hinten', line: null, size: set.frontLabel, eu: front }]
     }
 
+    const names = setNames(set)
+
     return [
-        { name: 'vorne', size: set.frontLabel, eu: front },
-        { name: 'hinten', size: set.rearLabel, eu: labelFrom(set.rearEu, `${set.brandName} ${set.name} · ${set.rearLabel}`) },
+        { name: 'vorne', line: names.front, size: set.frontLabel, eu: front },
+        { name: 'hinten', line: names.rear, size: set.rearLabel, eu: labelFrom(set.rearEu, `${set.rearBrandName ?? set.brandName} ${set.rearName ?? set.name} · ${set.rearLabel}`) },
     ]
 }
 
@@ -324,13 +330,15 @@ async function expand(): Promise<void> {
                         <label class="kc-row" :class="{ 'kc-row--on': set.key === setKey }">
                             <input v-model="setKey" class="kc-row__radio" type="radio" name="kc-set" :value="set.key">
                             <span class="kc-row__body">
-                                <span class="kc-row__name"><span class="kc-row__brand">{{ set.brandName }}</span> {{ set.name }}</span>
+                                <!-- One maker's one line: its name; two lines, or two makers (D-336): the maker(s), each axle its tyre. -->
+                                <span class="kc-row__name"><span class="kc-row__brand">{{ setNames(set).brands.join(' · ') }}</span>{{ setNames(set).line ? ` ${setNames(set).line}` : '' }}</span>
                                 <span class="kc-row__meta">{{ set.seasonLabel }}</span>
                                 <!-- One row per axle: its word, its size — never broken inside — and its tyre's label classes. -->
                                 <span class="kc-set">
                                     <template v-for="axle in setAxles(set)" :key="axle.name">
                                         <span class="kc-set__axle">{{ axle.name }}</span>
                                         <span class="kc-set__detail">
+                                            <span v-if="axle.line" class="kc-set__line" translate="no">{{ axle.line }}</span>
                                             <span class="data kc-set__size" translate="no">{{ axle.size }}</span>
                                             <span v-if="axle.eu" class="kc-row__eu num">
                                                 Kraftstoffeffizienz {{ axle.eu.fuel }} · Nasshaftung {{ axle.eu.wet }} · {{ withUnit(axle.eu.noiseDb, 'dB') }}&nbsp;({{ axle.eu.noiseClass }})
@@ -617,6 +625,12 @@ async function expand(): Promise<void> {
 
 .kc-set__size {
     white-space: nowrap;
+}
+
+/* Two lines in one set (D-336): each axle's tyre, set like the row's name above it. */
+.kc-set__line {
+    font-weight: 600;
+    color: var(--c-ink);
 }
 
 .kc__noset {

@@ -107,6 +107,18 @@ describe('MischbereifungOffer', () => {
         expect(mountOffer().find('.mix__quote').text()).toBe(RULES)
     })
 
+    // D-336: V19 asks one profile type on each axle only, so a set may carry two lines of one maker — the card names both.
+    it('names each axle’s tyre where the set carries two lines — never one name for two tyres', () => {
+        const [set] = pair().sets
+        const card = mountOffer({ offer: offer({ pairs: [pair({ sets: [{ ...set!, rearBrandName: 'Bridgestone', rearName: 'Turanza 6' }] })] }) }).find('.mix-card')
+
+        expect(card.find('.micro').text()).toBe('Bridgestone')
+        expect(card.find('.mix-card__name').text()).toBe('vorne Potenza Sport · hinten Turanza 6')
+
+        // One line on both axles: its name, as before.
+        expect(mountOffer().find('.mix-card__name').text()).toBe('Potenza Sport')
+    })
+
     it('names each its own page where a recorded list stands beside an Auflage’s table (D-256): the pairs the list’s, the rules the Auflage’s', () => {
         const wrapper = mountOffer({ offer: offer({ sourcePage: 4, rulesPage: 12, pairs: [pair({ number: 2 })] }) })
 

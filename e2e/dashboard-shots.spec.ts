@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from './fixtures'
 import { inertiaHeaders, isInertiaGet } from './bugs/bell-support'
 import { signIn, waitForApp } from './bugs/faq-support'
+import { onDemoDay } from './bugs/ueb-support'
 
 /*
  * The Übersicht as the M1 proof shows it (docs/launch/STATUS.md): filled with the demo set at 1440
@@ -20,6 +21,8 @@ async function settle(page: Page): Promise<void> {
 
 test('the Übersicht, filled with the demo set', async ({ page }, info) => {
     await signIn(page)
+    // Filled on the demo set's last day, whatever the calendar says (D-337).
+    await onDemoDay(page)
     await page.goto('/admin?zeitraum=30', { waitUntil: 'networkidle' })
     await waitForApp(page)
     await settle(page)

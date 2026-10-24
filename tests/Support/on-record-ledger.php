@@ -30,8 +30,8 @@ return [
     'Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe' => ['backed', 'the same recorded restriction; what is unknown is the car\'s own body or drive, and the sentence says so'],
     'lässt das Gutachten keinen passenden Reifen zu' => ['backed', 'a recorded „–“ in the document\'s speed table for the car\'s top speed'],
     'nur in den Reifenkombinationen, die das Gutachten nennt' => ['backed', 'the document\'s own list of combinations as entered (document_tyre_combinations, D-256): closed, the Komplettrad is one of them (D-335)'],
-    'nur Reifen desselben Herstellers und derselben Profilreihe an' => ['ours', 'what the shop pairs front and rear beside a list that prints no rule of its own (D-335): said as ours, never as the document\'s'],
-    'gerade keine Reifen desselben Herstellers und derselben Profilreihe anbieten' => ['ours', 'what the shop can offer now: no front and rear tyre of one maker\'s one line in the combination\'s sizes that it sells and that meets each axle (D-335)'],
+    'nur\s+Reifen\s+eines\s+Herstellers\s+und\s+achsweise' => ['code', 'the pattern that reads ABE 55255 V19\'s clause in the recorded sentence, never a sentence anyone reads (TyreLineRule, D-336)'],
+    '(?:Profiltyps|Typs)(?:\s+zulässig)?/iu\', self::SET, self::SET' => ['code', 'the pattern that reads a clause asking one maker and one type on every tyre (TyreLineRule, D-336)'],
 
     // ── What the customer reads: the shop's pages ────────────────────────────────────────────────────────────────────
     'Wir zeigen dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt' => ['ours', 'what the listing shows: wheels with a released row for the car'],

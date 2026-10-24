@@ -135,7 +135,8 @@ final readonly class TyreEligibility
      * the engine reads (rule 2); the document prints a pairing table or lists its combinations; the car's axle loads and
      * top speed settled every axle (R-03 — never offered on the document's minimum alone); the pair is in the table,
      * front first, and the car's row lists the front size on the front axle and the rear size on the rear; each tyre meets
-     * its own axle; front and rear are one maker's one profile.
+     * its own axle; front and rear keep what the document's own sentence asks of makers and profile types, and nothing
+     * else (D-336). The offer pairs one season front and rear — ours, never a refusal.
      */
     public function mixedOfferFor(FitmentVerdict $verdict, bool $sellableOnly = true): MixedOffer
     {
@@ -151,6 +152,7 @@ final readonly class TyreEligibility
 
         $pairs = [];
         $perAxle = $sellableOnly ? self::MIXED_PER_AXLE : 0;
+        $rule = self::lineRule($table);
 
         foreach ($this->listedPairs($verdict, $table, $listed) as [$pairing, $front, $rear]) {
             $frontMinimum = $this->sizeMinimum($verdict, 'FRONT', $verdict->front, $front);
@@ -176,18 +178,28 @@ final readonly class TyreEligibility
             }
 
             $sets = [];
+            // Whether any front and rear keep the document's rule — so an empty offer says whose rule emptied it.
+            $ruleKept = false;
 
             foreach ($fronts as $frontTyre) {
                 foreach ($rears as $rearTyre) {
-                    if (self::oneMakerOneProfile($frontTyre, $rearTyre)) {
+                    // The document's rule about makers and profile types, as recorded (D-336); one season is ours.
+                    if ($rule->broken($frontTyre, $rearTyre) !== null) {
+                        continue;
+                    }
+
+                    $ruleKept = true;
+
+                    if (self::sameSeason($frontTyre, $rearTyre)) {
                         $sets[] = ['front' => $frontTyre, 'rear' => $rearTyre];
                     }
                 }
             }
 
-            // Cheapest set first: two of each, so the sum of one of each orders them the same way.
-            usort($sets, static fn (array $a, array $b): int => [$a['front']->priceCents + $a['rear']->priceCents, $a['front']->id]
-                <=> [$b['front']->priceCents + $b['rear']->priceCents, $b['front']->id]);
+            // One maker's one line on both axles first — two of a kind is what most buy —, then the cheapest: two of each,
+            // so the sum of one of each orders them the same way.
+            usort($sets, static fn (array $a, array $b): int => [self::oneLine($a['front'], $a['rear']) ? 0 : 1, $a['front']->priceCents + $a['rear']->priceCents, $a['front']->id, $a['rear']->id]
+                <=> [self::oneLine($b['front'], $b['rear']) ? 0 : 1, $b['front']->priceCents + $b['rear']->priceCents, $b['front']->id, $b['rear']->id]);
 
             $missing = [];
 
@@ -208,6 +220,12 @@ final readonly class TyreEligibility
                 $sets,
                 $missing,
                 $listed,
+                match (true) {
+                    $sets !== [] || $missing !== [] => null,
+                    $ruleKept => MixedPair::NO_SET_SEASON,
+                    $rule->profile === TyreLineRule::SET => MixedPair::NO_SET_PROFILE,
+                    default => MixedPair::NO_SET_MAKER,
+                },
             );
         }
 
@@ -247,11 +265,34 @@ final readonly class TyreEligibility
             return KomplettradRefusal::MixedPairNotListed;
         }
 
-        // One maker's one line front and rear: the printed table's own sentence where it has one (V19), our own rule beside a
-        // list that prints none — said as ours, never as the document's (R-17).
+        // Makers and profile types as the document's own sentence asks, and nothing it does not (D-336, R-17): V19 asks one
+        // maker on every tyre and one profile type on each axle; a list that prints no rule asks nothing. No season either.
         return $this->axleTyreRefusal($verdict, 'FRONT', $front, $perAxle)
             ?? $this->axleTyreRefusal($verdict, 'REAR', $rear, $perAxle)
-            ?? (self::oneMakerOneProfile($front, $rear) ? null : ($table->rulesDe === null ? KomplettradRefusal::CombinationNotOneMaker : KomplettradRefusal::MixedNotOneMaker));
+            ?? match (self::lineRule($table)->broken($front, $rear)) {
+                TyreLineRule::MAKER => KomplettradRefusal::MixedNotOneMaker,
+                TyreLineRule::PROFILE => KomplettradRefusal::MixedNotOneProfile,
+                default => null,
+            };
+    }
+
+    /**
+     * The refusal as the customer reads it: for a rule about makers or profile types, the document's own clause quoted
+     * after it, as recorded (D-336, R-17) — „Im Gutachten steht dazu: „Es sind nur Reifen eines Herstellers und achsweise
+     * eines Profiltyps zulässig …““. Every other refusal is its own sentence.
+     */
+    public function sentenceFor(FitmentVerdict $verdict, KomplettradRefusal $refusal): string
+    {
+        $rule = $refusal->ruleDe();
+
+        if ($rule === null) {
+            return $refusal->sentenceDe();
+        }
+
+        [$table] = $this->pairingTable($verdict);
+        $quote = self::lineRule($table)->quoteDe();
+
+        return $quote === null ? $refusal->sentenceDe() : $rule.' Im Gutachten steht dazu: '.$quote;
     }
 
     /**
@@ -402,7 +443,7 @@ final readonly class TyreEligibility
 
             $read = match ($condition->kind) {
                 ConditionKind::ReifenTragfaehigkeit => $figures && $condition->maxAxleLoadKg !== null && LoadIndexCode::indexNamedBy($condition->code) !== null,
-                ConditionKind::ReifenKombination => TyrePairingTable::parse($condition->textDe)->isRead(),
+                ConditionKind::ReifenKombination => self::combinationRead($condition),
                 ConditionKind::ReifenAchse => $condition->axle !== null,
                 default => false,
             };
@@ -664,7 +705,7 @@ final readonly class TyreEligibility
 
             $wellFormed = match ($condition->kind) {
                 ConditionKind::ReifenTragfaehigkeit => $condition->maxAxleLoadKg !== null && LoadIndexCode::indexNamedBy($condition->code) !== null,
-                ConditionKind::ReifenKombination => TyrePairingTable::parse($condition->textDe)->isRead(),
+                ConditionKind::ReifenKombination => self::combinationRead($condition),
                 ConditionKind::ReifenAchse => $condition->axle !== null,
                 default => false,
             };
@@ -765,15 +806,42 @@ final readonly class TyreEligibility
     }
 
     /**
-     * ABE 55255, V19: „Es sind nur Reifen eines Herstellers und achsweise eines Profiltyps zulässig“ — the same maker
-     * and the same tyre line front and rear, in the same season. A name we do not hold is not „the same“.
+     * A `reifen_kombination` Auflage is read where its table is, and the rule about makers and profile types that follows
+     * the table too (D-336) — a sentence about makers in words not read leaves the Auflage unread (rule 2).
      */
-    private static function oneMakerOneProfile(TyreRecord $front, TyreRecord $rear): bool
+    private static function combinationRead(Condition $condition): bool
+    {
+        $table = TyrePairingTable::parse($condition->textDe);
+
+        return $table->isRead() && TyreLineRule::parse($table->rulesDe)->read;
+    }
+
+    /**
+     * What the makers and profile types of a set must be: the sentence after the documents' table, as recorded (D-336) — a
+     * list of combinations that prints none asks nothing of them. Never a rule of ours (R-17).
+     */
+    private static function lineRule(TyrePairingTable $table): TyreLineRule
+    {
+        return TyreLineRule::parse($table->rulesDe);
+    }
+
+    /**
+     * Ours, not the document's (D-336): the offer pairs one season front and rear — a set is summer, winter or all-season.
+     * Never a refusal: the gate (permitsMixed()) takes a set of two seasons the document allows. A season we do not hold
+     * is not „the same“.
+     */
+    private static function sameSeason(TyreRecord $front, TyreRecord $rear): bool
+    {
+        return $front->season !== null && trim($front->season) !== '' && mb_strtolower(trim($front->season)) === mb_strtolower(trim((string) $rear->season));
+    }
+
+    /** One maker's one tyre line on both axles — a set of two of a kind, put first in the offer (D-336). */
+    private static function oneLine(TyreRecord $front, TyreRecord $rear): bool
     {
         $same = static fn (?string $a, ?string $b): bool => $a !== null && $b !== null && trim($a) !== ''
             && mb_strtolower(trim($a)) === mb_strtolower(trim($b));
 
-        return $same($front->brandName, $rear->brandName) && $same($front->name, $rear->name) && $same($front->season, $rear->season);
+        return $same($front->brandName, $rear->brandName) && $same($front->name, $rear->name);
     }
 
     /**
