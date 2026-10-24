@@ -1,7 +1,7 @@
 # Test smells
 
-Shapes of a test that goes green without proving what it claims. Read a new test against this list before trusting
-its green; add a shape here the day one is found, with where it was found and how to catch it.
+Shapes of a test that goes green — or red — without proving what it claims. Read a new test against this list before
+trusting its colour; add a shape here the day one is found, with where it was found and how to catch it.
 
 ## 1. Actions that cancel out
 
@@ -38,3 +38,19 @@ pass, or missing data read as a defect.
   refund's own request. The refund was there a moment later. **Catch it:** wait for the request's own answer
   (`waitForResponse`) and for the state it leads to on the page before reading what it produces
   (`e2e/audit/t6-testbestellung.spec.ts`).
+
+## 4. Depends on today's date
+
+A test that reads the real clock — „the last 30 days“, „today“, „vor 3 Tagen“ — against data written on another day
+passes on the day it was written and breaks when the calendar moves, with no change to the code. Its red then says
+the data grew old, not that the code broke; and its green says only that today was a good day.
+
+- **Found:** UEB-02 (24.10.2026). The demo set ended on 27.09; a month later the Übersicht's last 30 days held four
+  demand gaps where it was built on five, and the test failed. It had found a real defect (F-42: the card shrank below
+  five rows) — but only because the calendar happened to move there, and any other day it would have passed or failed
+  for a reason of the date.
+- **Catch it:** never let a test read the calendar for data written on another day. Freeze the day it is answered on:
+  in a browser spec, the demo set's last day (`onDemoDay`, `e2e/bugs/ueb-support.ts`; the server answers on it through
+  `X-E2E-Today`, `App\Http\Middleware\E2eToday`); in Pest, `$this->travelTo()`. And keep the data fresh where the suite
+  reads it: the global setup writes the demo set again on today's date before every run (`e2e/global-setup.ts`,
+  D-337). A test that asserts on a relative date („vor 3 Tagen“) computes it from the frozen day, never from `now`.

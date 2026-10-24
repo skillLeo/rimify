@@ -6,6 +6,7 @@ use App\Domain\Storefront\PapersBook;
 use App\Http\Middleware\AssignVisitorKey;
 use App\Http\Middleware\CacheHeaders;
 use App\Http\Middleware\DetectDevice;
+use App\Http\Middleware\E2eToday;
 use App\Http\Middleware\EnsureAdminPanelEnabled;
 use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Http\Middleware\EnsureResetAvailable;
@@ -66,6 +67,9 @@ return Application::configure(basePath: dirname(__DIR__))
             // The car in the address wins over the cookie, before anything reads either (#8, D-116).
             VehicleFromUrl::class,
             EnsureAdminSessionValid::class,
+            // The browser suite's frozen day, off everywhere else (D-337): inside every cookie and the session's check,
+            // so neither is ever dated on a frozen day.
+            E2eToday::class,
             HandleInertiaRequests::class,
         ]);
 

@@ -248,6 +248,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | The browser suite's frozen day
+    |--------------------------------------------------------------------------
+    |
+    | `on` lets a request name the day it is answered on (X-E2E-Today, App\Http\Middleware\E2eToday) — only where APP_ENV
+    | is local or testing, and only for the servers the browser suite starts (playwright.config.ts). Off everywhere else.
+    */
+    'e2e_clock' => env('RIMIFY_E2E_CLOCK') === 'on',
+
+    /*
+    |--------------------------------------------------------------------------
     | Photography
     |--------------------------------------------------------------------------
     |

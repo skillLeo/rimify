@@ -16,6 +16,8 @@ export const SHOP = process.env.E2E_SHOP_URL ?? 'http://127.0.0.1:8010'
  */
 export const E2E_FEATURES = {
     RIMIFY_FEATURE_KEY_NUMBERS: 'on',
+    // A spec may name the day its requests are answered on — the demo set's last day (onDemoDay, E2eToday, D-337).
+    RIMIFY_E2E_CLOCK: 'on',
 }
 
 /**
