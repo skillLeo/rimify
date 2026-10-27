@@ -49,3 +49,6 @@ Thumbs.db
 
 # The acceptance run's saved sign-ins: a storage state is a live session (tests/abnahme/auth.setup.ts).
 /tests/abnahme/.auth/
+
+# Human QA evidence (screenshots, exports, the meeting PDF): never committed while the repository is public.
+/storage/qa-evidence/
