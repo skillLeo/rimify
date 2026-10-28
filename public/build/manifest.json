@@ -1,4 +1,19 @@
 {
+  "../../xampp/htdocs/rimify/node_modules/html-to-image/es/index.js": {
+    "file": "assets/es-beTXU0Q_.js",
+    "name": "es",
+    "src": "../../xampp/htdocs/rimify/node_modules/html-to-image/es/index.js",
+    "isDynamicEntry": true
+  },
+  "../../xampp/htdocs/rimify/node_modules/tesseract.js/src/index.js": {
+    "file": "assets/src-BBWBtoH4.js",
+    "name": "src",
+    "src": "../../xampp/htdocs/rimify/node_modules/tesseract.js/src/index.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Dialog-DOk7Bv1Z.js"
+    ]
+  },
   "_AdminConfirm-IDNywnyc.js": {
     "file": "assets/AdminConfirm-IDNywnyc.js",
     "name": "AdminConfirm",
@@ -407,7 +422,7 @@
       "__plugin-vue_export-helper-BDNMzG2s.js"
     ],
     "dynamicImports": [
-      "node_modules/html-to-image/es/index.js"
+      "../../xampp/htdocs/rimify/node_modules/html-to-image/es/index.js"
     ],
     "css": [
       "assets/FeedbackDialog-jzlAUHCf.css"
@@ -1299,7 +1314,7 @@
       "resources/js/app.ts"
     ],
     "dynamicImports": [
-      "node_modules/tesseract.js/src/index.js"
+      "../../xampp/htdocs/rimify/node_modules/tesseract.js/src/index.js"
     ]
   },
   "_useOpenOnArrival-BC5nmOvc.js": {
@@ -1374,21 +1389,6 @@
     "imports": [
       "_Dialog-DOk7Bv1Z.js",
       "_runtime-core.esm-bundler-B8D2lM98.js"
-    ]
-  },
-  "node_modules/html-to-image/es/index.js": {
-    "file": "assets/es-beTXU0Q_.js",
-    "name": "es",
-    "src": "node_modules/html-to-image/es/index.js",
-    "isDynamicEntry": true
-  },
-  "node_modules/tesseract.js/src/index.js": {
-    "file": "assets/src-BBWBtoH4.js",
-    "name": "src",
-    "src": "node_modules/tesseract.js/src/index.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Dialog-DOk7Bv1Z.js"
     ]
   },
   "resources/css/app.css": {
