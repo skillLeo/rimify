@@ -971,13 +971,15 @@ onBeforeUnmount(() => treeController?.abort())
                 :aria-disabled="waiting ? 'true' : undefined"
                 :aria-describedby="waiting ? `${id}-why` : undefined"
                 :aria-busy="pending ? 'true' : undefined"
+                :title="waiting ? waitingWhy : undefined"
                 @click="waiting && guide()"
             >
                 {{ buttonLabel }}
             </button>
-            <!-- Why it waits, to the eye as to a screen reader (#1, Human QA 28.10.2026): the light blue alone said nothing a
-                 sighted customer could read. Two lines are kept for it, so a switch of the tabs moves nothing (#7). -->
-            <p v-if="!chooser && waiting" :id="`${id}-why`" class="micro quiet sel__why">{{ waitingWhy }}</p>
+            <!-- Why it waits (#1): read with the button, and shown on hover (Human QA 28.10.2026, HQ-03). A visible line under it
+                 makes the hero 24 px taller and with it the protected photograph stage (PROTECTED.md P1) — that is the
+                 operator's to agree, not a side effect; the phone panel, below its stage, shows the line. -->
+            <span v-if="!chooser && waiting" :id="`${id}-why`" class="visually-hidden">{{ waitingWhy }}</span>
         </fieldset>
 
         <div v-if="garage.length" class="sel__garage">
@@ -1187,11 +1189,6 @@ onBeforeUnmount(() => treeController?.abort())
 
 .sel__go {
     margin-top: var(--sp-16);
-}
-
-.sel__why {
-    min-height: calc(2 * var(--lh-micro));
-    margin-top: var(--sp-8);
 }
 
 /* One cell for the three panels (#7, D-112): the tallest sets the height, the inactive ones are out of sight,
