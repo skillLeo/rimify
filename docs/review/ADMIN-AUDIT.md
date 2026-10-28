@@ -104,7 +104,7 @@ see and the walk found is added with its source.
 | F-29 | Friction | S4 | Einladung annehmen | A short password with an empty repeat says only „Die beiden Passwörter stimmen nicht überein.“ — the length is the first thing to fix | Length before the repeat — invitation, the admin's own password, the customer's password | EinladungTest; AdminShellTest; KontoTest | behoben |
 | F-30 | Bug | S4 | Einstellungen › E-Mail › Absender | „info@rimify“ (no dot in the domain) is saved as the sender | Sender, seller and invitation addresses need a domain with a dot (email:rfc,filter_unicode) | EmailSettingsTest; VerkaeuferVersandTest; BenutzerTest | behoben |
 | F-31 | Friction | S3 | Gutachten › Dokumente; Katalog › Marken; Kunden › Nachfrage | 1.061 documents, 1.022 brands, 1.116 gaps on one page each — no search, no paging; 1,3–4,3 s | Gutachten › Dokumente, Marken, Nachfrage: pages, a search (Nachfrage by car or key numbers, added in the re-check), filters counted on the server | GutachtenListeTest; MarkenTest; NachfrageTest; Nachfrage/Index.test.ts | behoben |
-| F-32 | Friction | S4 | Reifen, Fahrzeuge, Protokoll and the small lists | No sorting offered (fixed order) — Felgen and Bestellungen sort | Not changed: sorting more lists is over half an hour (S4) — a later round, the operator's decision of 24.10.2026 | — | offen |
+| F-32 | Friction | S4 | Reifen, Fahrzeuge, Protokoll and the small lists | No sorting offered (fixed order) — Felgen and Bestellungen sort | Fixed in the human QA pass (D-339): Reifen, Fahrzeuge and the Protokoll sort, the order in the address and kept across pages | Human QA 28.10.2026 | behoben |
 | F-33 | Bug | S3 | Gutachten › Auflagen | „0 Gutachten … Hier ist noch nichts“ while released documents carry codes: the page takes the first 200 documents (drafts first) and then drops those without codes | The filter runs in SQL over every document with codes; pages of 20 | GutachtenErfassungTest | behoben |
 | F-34 | Bug | S3 | Every form (safety net) | No German validation file: a rule without its own message shows its key — the login answers a 311-character address with „validation.max.string“; 225 (field, rule) pairs rely on it | lang/de/validation.php: every rule in German, naming no field | ValidierungDeutschTest | behoben |
 | F-35 | Bug | S3 | Protokoll | 13 events the shop writes have no words: a refund, an order's status change from the webhook, the confirmation mail, an invoice that failed, the real invoice numbers opened, Stripe's keys and mode changed, the connection test, the seller's data, a chargeback's evidence, a brand's GPSR data — each reads „Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.“ and counts as „Sonstiges“ | Fifteen events have their sentence and area; a test reads every event name from the code | ProtokollTest | behoben |
@@ -252,7 +252,9 @@ meets it, in the sentence quoted. Where the admin used to simply not offer a but
 
 - **F-32 (Friction, S4).** Reifen, Fahrzeuge, the Protokoll and the short lists have a fixed order; Felgen and
   Bestellungen sort. Adding sorting with its saved-view handling is more than half an hour per list: left for a later
-  round, the operator's decision of 24.10.2026.
+  round, the operator's decision of 24.10.2026. **Fixed 28.10.2026 in the human QA pass (D-339):** Reifen, Fahrzeuge and
+  the Protokoll sort; the short lists (Marken, Rollen, Navigation) keep their own order, which is the order they are
+  arranged in.
 
 
 ## Inventar (471 Zeilen, 471 mit Ergebnis)

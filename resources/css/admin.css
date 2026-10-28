@@ -3047,3 +3047,11 @@ a.adm-foot__health {
         animation-duration: 0ms !important;
     }
 }
+
+/* Which release this test environment serves (ReleaseStamp): the last line of every admin page, quiet. */
+.adm-release {
+    margin-top: var(--sp-48);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    color: var(--c-ink-3);
+}

@@ -191,6 +191,25 @@ describe('useConfigurator', () => {
         expect(c.selected.value?.id).toBe(42)
     })
 
+    // Finding 138: the width beside the diameter follows the diameter's chip — an approved wheel whose tyre size waits is
+    // grey and choosable there (finding 103), so it is here too, never struck as refused.
+    it('keeps a width whose tyres are unconfirmed choosable, grey, with its reason', () => {
+        const waiting = verdict({
+            status: 'UNKNOWN', sellable: false, reason: 'Die Reifengröße ist noch nicht bestätigt.', wheelStatus: 'PERMITTED',
+            tyre: { status: 'UNKNOWN', label: 'Noch nicht bestätigt', lines: [], thresholds: [], fromVehicleData: false },
+        })
+        const configs = [
+            config({ id: 51, widthIn: 8, etMm: 45, sizeLabel: '8J × 18 · ET 45' }),
+            config({ id: 52, widthIn: 9, etMm: 40, sizeLabel: '9J × 18 · ET 40', verdict: waiting }),
+        ]
+
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.variants.value[1]).toMatchObject({ blocked: false, unconfirmed: true, reason: 'Die Reifengröße ist noch nicht bestätigt.' })
+        c.selectVariant(c.variants.value[1]!)
+        expect(c.selected.value?.id).toBe(52)
+    })
+
     it('opens on a permitted size that is in stock before a cheaper one that is sold out', () => {
         const configs = [
             config({ id: 1, priceCents: 80000, inStock: false }),

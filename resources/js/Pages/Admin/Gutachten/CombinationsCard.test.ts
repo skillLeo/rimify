@@ -85,5 +85,10 @@ describe('CombinationsCard', () => {
         ])
         expect(wrapper.text()).toContain('Seite 4 im Gutachten.')
         expect(wrapper.find('#kb-edit').exists()).toBe(false)
+        // On a phone each row is a card that writes its label before the value (admin.css): front and rear say which they are.
+        expect(wrapper.findAll('tbody tr').map((row) => row.findAll('td').map((cell) => cell.attributes('data-label')))).toEqual([
+            ['Vorderachse', 'Hinterachse'],
+            ['Vorderachse', 'Hinterachse'],
+        ])
     })
 })

@@ -6,6 +6,7 @@ namespace App\Services\Admin\Catalogue;
 
 use App\Enums\TyreSeason;
 use App\Models\TyreVariant;
+use App\Support\SearchTerm;
 use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -18,11 +19,14 @@ use Illuminate\Support\Facades\DB;
  *
  * Parameter binding only (R-14).
  *
- * @phpstan-type Filters array{q: string|null, marke: int|null, saison: string|null, zoll: int|null, stand: string|null}
+ * @phpstan-type Filters array{q: string|null, marke: int|null, saison: string|null, zoll: int|null, stand: string|null, sort: string, richtung: string}
  */
 final class TyreList
 {
     public const PER_PAGE = 25;
+
+    /** The columns the list sorts by (F-32): the tyre's name, its size, its price. `reifen` A to Z is the plain list. */
+    public const SORTS = ['reifen', 'groesse', 'preis'];
 
     /** The Stand filter, as the list names it. */
     public const STANDS = [
@@ -45,14 +49,28 @@ final class TyreList
 
         $this->filter($query, $filters);
 
-        return $query
-            ->orderBy('brands.name')
-            ->orderBy('tyre_variants.name')
-            ->orderBy('tyre_variants.diameter_in')
-            ->orderBy('tyre_variants.width_mm')
-            ->orderBy('tyre_variants.aspect')
-            ->orderBy('tyre_variants.load_index')
-            ->orderBy('tyre_variants.id');
+        $direction = $filters['richtung'] === 'ab' ? 'desc' : 'asc';
+        $name = ['brands.name', 'tyre_variants.name'];
+        $size = ['tyre_variants.diameter_in', 'tyre_variants.width_mm', 'tyre_variants.aspect', 'tyre_variants.load_index'];
+
+        // The chosen column first, in its direction; then the plain list's order, so rows that tie keep one place.
+        $first = match ($filters['sort']) {
+            'groesse' => $size,
+            'preis' => ['tyre_variants.price_cents'],
+            default => $name,
+        };
+
+        foreach ($first as $column) {
+            $query->orderBy($column, $direction);
+        }
+
+        foreach ([...$name, ...$size] as $column) {
+            if (! in_array($column, $first, true)) {
+                $query->orderBy($column);
+            }
+        }
+
+        return $query->orderBy('tyre_variants.id');
     }
 
     /**
@@ -87,13 +105,14 @@ final class TyreList
                     }
                 });
             } else {
-                $like = '%'.addcslashes($term, '%_\\').'%';
-
-                $query->where(static function (Builder $where) use ($like): void {
-                    $where->where('tyre_variants.name', 'like', $like)
-                        ->orWhere('brands.name', 'like', $like)
-                        ->orWhereRaw("CONCAT_WS(' ', brands.name, tyre_variants.name) LIKE ?", [$like])
-                        ->orWhere('tyre_variants.eprel_id', 'like', $like);
+                // Two spaces, an umlaut written out: still found (SearchTerm, Human QA 28.10.2026).
+                $query->where(static function (Builder $where) use ($term): void {
+                    foreach (SearchTerm::likes($term) as $like) {
+                        $where->orWhere('tyre_variants.name', 'like', $like)
+                            ->orWhere('brands.name', 'like', $like)
+                            ->orWhereRaw("CONCAT_WS(' ', brands.name, tyre_variants.name) LIKE ?", [$like])
+                            ->orWhere('tyre_variants.eprel_id', 'like', $like);
+                    }
                 });
             }
         }

@@ -448,7 +448,7 @@ function confirmLimit(condition: DocumentConditionView): void {
             „Im Shop“ entscheidet über das Etikett der Antwort: Sind alle ihre Auflagen Hinweise, ist keine Eintragung nötig und sind
             auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“. Schon ein Code auf „Auflage“ oder
             „Nicht zulässig“ verhindert den Wechsel. Am Urteil des Gutachtens ändert das nichts.
-            <template v-if="conditions.some((c) => c.levelFloor === 'auflage')"> {{ levelFloorSentence }}</template>
+            <template v-if="conditions.some((c) => c.levelFloor === 'auflage')">{{ ' ' + levelFloorSentence }}</template>
         </p>
         <p v-if="levelError" class="adm-alert" role="alert">{{ levelError }}</p>
 
@@ -512,7 +512,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <option value="" disabled>Bitte wählen</option>
                         <option v-for="kind in choices.kinds" :key="kind.value" :value="kind.value">{{ kind.label }}</option>
                     </select>
-                    <p id="av-kind-help" class="form-field__help">Die Art entscheidet, wo und wie auffällig der Satz im Shop steht.<template v-if="kindHelp"> {{ kindHelp }}</template></p>
+                    <p id="av-kind-help" class="form-field__help">Die Art entscheidet, wo und wie auffällig der Satz im Shop steht.<template v-if="kindHelp">{{ ' ' + kindHelp }}</template></p>
                     <p id="av-kind-err" class="form-field__error" aria-live="polite">{{ errors.kind }}</p>
                 </div>
             </div>
@@ -707,6 +707,23 @@ function confirmLimit(condition: DocumentConditionView): void {
     height: auto;
     min-height: calc(var(--adm-control-h) * 2);
     resize: vertical;
+}
+
+/* The level reads whole (Human QA 28.10.2026): „Auflage – etwas ist zu tun oder eingeschränkt“ was cut to „… oder ei“. */
+.av__level-select {
+    width: auto;
+    max-width: none;
+}
+
+/* On a phone the card gives the level its whole width, under its label. */
+@media (max-width: 767px) {
+    .adm-table td.av__level {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .av__level-select {
+        width: 100%;
+    }
 }
 
 .av__optional {

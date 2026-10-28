@@ -1487,6 +1487,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Support\\ReleaseStamp' => __DIR__ . '/../..' . '/app/Support/ReleaseStamp.php',
         'App\\Support\\ScheduleBeat' => __DIR__ . '/../..' . '/app/Support/ScheduleBeat.php',
         'App\\Support\\Schema\\Constraints' => __DIR__ . '/../..' . '/app/Support/Schema/Constraints.php',
+        'App\\Support\\SearchTerm' => __DIR__ . '/../..' . '/app/Support/SearchTerm.php',
         'App\\Support\\Security\\KnownPasswords' => __DIR__ . '/../..' . '/app/Support/Security/KnownPasswords.php',
         'App\\Support\\Security\\SecretScanner' => __DIR__ . '/../..' . '/app/Support/Security/SecretScanner.php',
         'App\\Support\\Security\\SvgSanitizer' => __DIR__ . '/../..' . '/app/Support/Security/SvgSanitizer.php',

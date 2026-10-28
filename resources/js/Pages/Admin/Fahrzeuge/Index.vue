@@ -9,16 +9,18 @@ import { Link, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminSortHeader from '../../../Components/Admin/AdminSortHeader.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
+import { nextSort, sortQuery, type ListSort } from '../../../lib/adminSort'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<{
     review: boolean
     vehicles: { id: number; name: string; variant: string; keys: string; window: string; power: string | null; approvals: number; needsReview: boolean; demo?: boolean; href: string }[]
-    filters: { q: string; marke: string }
+    filters: { q: string; marke: string; sort: 'fahrzeug' | 'hsn' | 'bauzeit' | 'freigaben'; richtung: 'auf' | 'ab' }
     makes: string[]
     counts: { all: number; review: number }
     pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
@@ -37,6 +39,31 @@ const context = computed(() => {
     return filtered.value ? `${text} · gefiltert` : text
 })
 
+/* The order (F-32): the plain list is A to Z by make, model and variant; a heading turns it, kept across search and pages.
+   Counts and build years start with the most and the newest. */
+const PLAIN: ListSort = { sort: 'fahrzeug', richtung: 'auf' }
+const order = computed<ListSort>(() => ({ sort: props.filters.sort, richtung: props.filters.richtung }))
+
+function search(): Record<string, string> {
+    const query: Record<string, string> = {}
+
+    if (props.filters.q) {
+        query.q = props.filters.q
+    }
+
+    if (props.filters.marke) {
+        query.marke = props.filters.marke
+    }
+
+    return query
+}
+
+function sortBy(column: string): void {
+    const first = column === 'freigaben' || column === 'bauzeit' ? 'ab' : 'auf'
+
+    router.get(BASE.value, { ...search(), ...sortQuery(nextSort(order.value, column, first), PLAIN) }, { preserveScroll: true, preserveState: true })
+}
+
 function apply(): void {
     const query: Record<string, string> = {}
 
@@ -48,13 +75,13 @@ function apply(): void {
         query.marke = marke.value
     }
 
-    router.get(BASE.value, query, { preserveScroll: true, preserveState: true })
+    router.get(BASE.value, { ...query, ...sortQuery(order.value, PLAIN) }, { preserveScroll: true, preserveState: true })
 }
 
 function reset(): void {
     q.value = ''
     marke.value = ''
-    router.get(BASE.value, {}, { preserveScroll: true, preserveState: true })
+    router.get(BASE.value, sortQuery(order.value, PLAIN), { preserveScroll: true, preserveState: true })
 }
 </script>
 
@@ -104,10 +131,10 @@ function reset(): void {
                     <caption class="visually-hidden">{{ review ? 'Fahrzeuge zur Prüfung' : 'Fahrzeuge' }}, {{ context }}</caption>
                     <thead>
                         <tr>
-                            <th scope="col">Fahrzeug</th>
-                            <th scope="col">HSN/TSN</th>
-                            <th scope="col">Bauzeitraum</th>
-                            <th scope="col" class="num">Freigaben</th>
+                            <AdminSortHeader label="Fahrzeug" column="fahrzeug" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
+                            <AdminSortHeader label="HSN/TSN" column="hsn" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
+                            <AdminSortHeader label="Bauzeitraum" column="bauzeit" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
+                            <AdminSortHeader label="Freigaben" column="freigaben" :sort="filters.sort" :richtung="filters.richtung" num @sort="sortBy" />
                             <th scope="col">Stand</th>
                         </tr>
                     </thead>

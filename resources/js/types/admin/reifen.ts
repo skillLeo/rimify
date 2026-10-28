@@ -27,10 +27,12 @@ export interface Option {
 
 export interface AdminReifenIndexProps {
     tyres: TyreRow[]
-    filters: { q: string; marke: string; saison: string; zoll: string; stand: string }
+    filters: { q: string; marke: string; saison: string; zoll: string; stand: string; sort: 'reifen' | 'groesse' | 'preis'; richtung: 'auf' | 'ab' }
     options: { brands: Option[]; diameters: Option[]; stands: Option[] }
     missingLabels: number
     filtered: boolean
+    /** The address's query as the server reads it, the order included where it is not the plain list's (F-32). */
+    query: Record<string, string>
     totalAll: number
     pagination: { current: number; last: number; total: number; prev: string | null; next: string | null }
     can: { create: boolean; edit: boolean; delete: boolean }

@@ -708,6 +708,7 @@ return array(
     'App\\Support\\ReleaseStamp' => $baseDir . '/app/Support/ReleaseStamp.php',
     'App\\Support\\ScheduleBeat' => $baseDir . '/app/Support/ScheduleBeat.php',
     'App\\Support\\Schema\\Constraints' => $baseDir . '/app/Support/Schema/Constraints.php',
+    'App\\Support\\SearchTerm' => $baseDir . '/app/Support/SearchTerm.php',
     'App\\Support\\Security\\KnownPasswords' => $baseDir . '/app/Support/Security/KnownPasswords.php',
     'App\\Support\\Security\\SecretScanner' => $baseDir . '/app/Support/Security/SecretScanner.php',
     'App\\Support\\Security\\SvgSanitizer' => $baseDir . '/app/Support/Security/SvgSanitizer.php',

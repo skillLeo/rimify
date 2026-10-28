@@ -386,14 +386,14 @@ const form = ref<HTMLFormElement | null>(null)
 /* Why it waits, read with the button for whoever cannot see the light blue (#1): the step that is missing. */
 const waitingWhy = computed(() => {
     if (tab.value === 'hsn') {
-        return 'Noch kein Fahrzeug gewählt: Trag zuerst HSN und TSN aus deinem Fahrzeugschein ein.'
+        return 'Noch kein Fahrzeug gewählt: Trag HSN und TSN ein.'
     }
 
     if (tab.value === 'scan') {
-        return 'Noch kein Fahrzeug gewählt: Scanne zuerst deinen Fahrzeugschein.'
+        return 'Noch kein Fahrzeug gewählt: Scanne deinen Fahrzeugschein.'
     }
 
-    return 'Noch kein Fahrzeug gewählt: Wähle zuerst Marke, Modell und Variante.'
+    return 'Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.'
 })
 
 /* A field that can take focus now: a list still loading leaves its field disabled, and focus would go nowhere. */
@@ -971,10 +971,14 @@ onBeforeUnmount(() => treeController?.abort())
                 :aria-disabled="waiting ? 'true' : undefined"
                 :aria-describedby="waiting ? `${id}-why` : undefined"
                 :aria-busy="pending ? 'true' : undefined"
+                :title="waiting ? waitingWhy : undefined"
                 @click="waiting && guide()"
             >
                 {{ buttonLabel }}
             </button>
+            <!-- Why it waits (#1): read with the button, and shown on hover (Human QA 28.10.2026, HQ-03). A visible line under it
+                 makes the hero 24 px taller and with it the protected photograph stage (PROTECTED.md P1) — that is the
+                 operator's to agree, not a side effect; the phone panel, below its stage, shows the line. -->
             <span v-if="!chooser && waiting" :id="`${id}-why`" class="visually-hidden">{{ waitingWhy }}</span>
         </fieldset>
 

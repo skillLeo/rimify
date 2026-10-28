@@ -8,6 +8,7 @@ use App\Enums\CatalogueStatus;
 use App\Enums\FitmentStatus;
 use App\Models\WheelModel;
 use App\Support\GermanFormat;
+use App\Support\SearchTerm;
 use App\Support\WheelTitle;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -84,17 +85,18 @@ final class WheelList
     {
         $term = $filters['q'];
 
+        // Two spaces where one was meant, an umlaut written out: still found (SearchTerm, Human QA 28.10.2026).
         if ($term !== null) {
-            $like = '%'.addcslashes($term, '%_\\').'%';
-
-            $query->where(static function (Builder $where) use ($like): void {
-                $where->where('wheel_models.name', 'like', $like)
-                    ->orWhere('brands.name', 'like', $like)
-                    ->orWhereRaw("CONCAT_WS(' ', brands.name, wheel_models.name) LIKE ?", [$like])
-                    ->orWhere('wheel_models.type_designation', 'like', $like)
-                    ->orWhereHas('configs', static function (Builder $config) use ($like): void {
-                        $config->where('sku', 'like', $like)->orWhere('ean', 'like', $like);
-                    });
+            $query->where(static function (Builder $where) use ($term): void {
+                foreach (SearchTerm::likes($term) as $like) {
+                    $where->orWhere('wheel_models.name', 'like', $like)
+                        ->orWhere('brands.name', 'like', $like)
+                        ->orWhereRaw("CONCAT_WS(' ', brands.name, wheel_models.name) LIKE ?", [$like])
+                        ->orWhere('wheel_models.type_designation', 'like', $like)
+                        ->orWhereHas('configs', static function (Builder $config) use ($like): void {
+                            $config->where('sku', 'like', $like)->orWhere('ean', 'like', $like);
+                        });
+                }
             });
         }
 

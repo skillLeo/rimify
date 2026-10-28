@@ -76,11 +76,15 @@ class ReifenController extends Controller
                 'saison' => $canonical['saison'] ?? '',
                 'zoll' => $canonical['zoll'] ?? '',
                 'stand' => $canonical['stand'] ?? '',
+                'sort' => $filters['sort'],
+                'richtung' => $filters['richtung'],
             ],
             'options' => $this->list->options(),
             // Real tyres whose label is not complete on record: kept, and not offered until it is (D-303).
             'missingLabels' => $this->list->missingLabels(),
-            'filtered' => $canonical !== [],
+            // An order alone filters nothing (F-32).
+            'filtered' => array_diff_key($canonical, ['sort' => true, 'richtung' => true]) !== [],
+            'query' => $canonical,
             'totalAll' => TyreVariant::query()->count(),
             'pagination' => [
                 'current' => $page->currentPage(),

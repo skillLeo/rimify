@@ -169,6 +169,11 @@ describe('HeroSelector — the button and the count', () => {
         expect(button(wrapper).attributes('aria-disabled')).toBe('true')
         expect(button(wrapper).classes()).toContain('sel__go--waiting')
         expect(wrapper.find('.sel__count').text()).toBe('')
+        // Why it waits: read with the button, and shown on hover (Human QA 28.10.2026, HQ-03) — a visible line would make the
+        // protected hero stage taller (PROTECTED.md P1), which is the operator's to agree.
+        const why = wrapper.find(`#${CSS.escape(button(wrapper).attributes('aria-describedby') ?? '')}`)
+        expect(why.text()).toBe('Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.')
+        expect(button(wrapper).attributes('title')).toBe('Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.')
     })
 
     it('leads a press of the waiting button to the field that is missing, and submits nothing', async () => {

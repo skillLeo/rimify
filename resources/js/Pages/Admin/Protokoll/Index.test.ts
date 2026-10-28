@@ -65,6 +65,7 @@ function props(overrides: Partial<AdminProtokollProps> = {}): AdminProtokollProp
             ],
         },
         filtered: false,
+        oldestFirst: false,
         totalAll: 2,
         pagination: { current: 1, last: 1, total: 2, prev: null, next: null },
         exportUrl: '/admin/protokoll/export',
@@ -98,6 +99,25 @@ describe('Protokoll', () => {
         expect(wrapper.text()).toContain('Der Preis für Montage und Auswuchten wurde geändert.')
         expect(wrapper.text()).toContain('Die Rolle „Lager“ wurde gelöscht.')
         expect(wrapper.find('time').attributes('datetime')).toBe('2026-09-26T12:22:00+00:00')
+    })
+
+    // F-32: the log reads newest first unless asked otherwise — an order applied with the filters, kept by „Zurücksetzen“.
+    it('reads from the oldest entry on when asked, keeps that on reset, and turns its pager round', async () => {
+        const wrapper = mountPage({ filtered: true, filters: { person: '1', bereich: null, von: null, bis: null } })
+
+        await wrapper.find('#pk-reihenfolge').setValue('alt')
+        await wrapper.find('form.pk-filters').trigger('submit')
+        expect(router.get).toHaveBeenLastCalledWith('/admin/protokoll', { person: '1', reihenfolge: 'alt' }, expect.anything())
+
+        // A fresh page: the mocked visit never finishes, so the first one's buttons stay busy.
+        const sorted = mountPage({ filtered: true, oldestFirst: true, filters: { person: '1', bereich: null, von: null, bis: null } })
+        await sorted.find('.pk-filters__actions .btn--ghost').trigger('click')
+        expect(router.get).toHaveBeenLastCalledWith('/admin/protokoll', { reihenfolge: 'alt' }, expect.anything())
+
+        const pages = { current: 2, last: 3, total: 120, prev: '/admin/protokoll?reihenfolge=alt', next: '/admin/protokoll?reihenfolge=alt&seite=3' }
+        const oldest = mountPage({ oldestFirst: true, pagination: pages })
+        expect(oldest.findAll('.pk-pages a').map((a) => a.text())).toEqual(['Ältere', 'Neuere'])
+        expect(mountPage({ pagination: pages }).findAll('.pk-pages a').map((a) => a.text())).toEqual(['Neuere', 'Ältere'])
     })
 
     it('says so in the context line when a filter is in force', () => {

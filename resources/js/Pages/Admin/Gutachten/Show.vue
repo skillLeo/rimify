@@ -517,7 +517,7 @@ const TONE: Record<string, string | null> = {
                                 <td data-label="Auflagen">
                                     <span v-if="row.conditions.length === 0">–</span>
                                     <span v-else>
-                                        <span v-for="c in row.conditions" :key="c.code" class="gs-line" :class="{ 'gs-undefined': !c.defined }"><b class="gs-code" translate="no">{{ c.code }}</b> {{ c.text ?? 'Nicht im Auflagenverzeichnis' }}<template v-if="c.note"> {{ c.note }}</template></span>
+                                        <span v-for="c in row.conditions" :key="c.code" class="gs-line" :class="{ 'gs-undefined': !c.defined }"><b class="gs-code" translate="no">{{ c.code }}</b> {{ c.text ?? 'Nicht im Auflagenverzeichnis' }}<template v-if="c.note">{{ ' ' + c.note }}</template></span>
                                     </span>
                                 </td>
                                 <td data-label="Eintragung">
@@ -575,7 +575,7 @@ const TONE: Record<string, string | null> = {
                     </div>
                     <p v-if="verdict.reason" class="gs-verdict__line">{{ verdict.reason }}</p>
                     <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ sizesByAxle(verdict.front, verdict.rear) }}</p>
-                    <p v-if="verdict.requiresEntry" class="gs-verdict__line">{{ verdict.entryLine ?? ENTRY_LINE }}<template v-if="verdict.entryNote"> {{ verdict.entryNote }}</template></p>
+                    <p v-if="verdict.requiresEntry" class="gs-verdict__line">{{ verdict.entryLine ?? ENTRY_LINE }}<template v-if="verdict.entryNote">{{ ' ' + verdict.entryNote }}</template></p>
                     <p v-if="verdict.papersLine" class="gs-verdict__line">{{ verdict.papersLine }}</p>
                     <!-- As the shop will show them: the combination's once, each tyre size's with that size (ConditionGroups).
                          An Auflage that repeats the entry line word for word is not said twice. -->

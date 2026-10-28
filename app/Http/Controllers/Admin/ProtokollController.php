@@ -48,15 +48,18 @@ class ProtokollController extends Controller
     {
         $filters = $request->filters();
         $admin = $request->admin();
+        $oldest = $request->oldestFirst();
+        // The page links keep the order (F-32); the export is the same set, newest first, as before.
+        $paged = [...$filters, 'reihenfolge' => $oldest ? 'alt' : null];
 
         $page = self::filtered($filters)
-            ->orderByDesc('id')
+            ->orderBy('id', $oldest ? 'asc' : 'desc')
             ->paginate(self::PER_PAGE, ['*'], 'seite', $request->page());
 
         // A page past the end (an old link, a filter that shrank the set) opens the last real page
         // rather than an empty list that would read as "nothing here".
         if ($page->isEmpty() && $page->total() > 0) {
-            return redirect()->to(self::url('/admin/protokoll', $filters, $page->lastPage()));
+            return redirect()->to(self::url('/admin/protokoll', $paged, $page->lastPage()));
         }
 
         /** @var list<AuditLog> $items */
@@ -114,9 +117,10 @@ class ProtokollController extends Controller
                 'current' => $page->currentPage(),
                 'last' => $page->lastPage(),
                 'total' => $page->total(),
-                'prev' => $page->currentPage() > 1 ? self::url('/admin/protokoll', $filters, $page->currentPage() - 1) : null,
-                'next' => $page->hasMorePages() ? self::url('/admin/protokoll', $filters, $page->currentPage() + 1) : null,
+                'prev' => $page->currentPage() > 1 ? self::url('/admin/protokoll', $paged, $page->currentPage() - 1) : null,
+                'next' => $page->hasMorePages() ? self::url('/admin/protokoll', $paged, $page->currentPage() + 1) : null,
             ],
+            'oldestFirst' => $oldest,
             'exportUrl' => $canExport ? self::url('/admin/protokoll/export', $filters, 1) : null,
             // Presentation only; the export refuses on the server regardless (R-11).
             'can' => ['export' => $canExport],
@@ -382,7 +386,7 @@ class ProtokollController extends Controller
     /**
      * A path on this page with the filters in force and a page number, as a relative link.
      *
-     * @param  array{person: string|null, bereich: string|null, von: string|null, bis: string|null}  $filters
+     * @param  array{person: string|null, bereich: string|null, von: string|null, bis: string|null, reihenfolge?: string|null}  $filters
      */
     private static function url(string $path, array $filters, int $page): string
     {

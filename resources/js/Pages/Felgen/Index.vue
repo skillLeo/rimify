@@ -176,9 +176,11 @@ onBeforeUnmount(() => {
                 <!-- With a filter set, what it narrowed from stands beside what it left: „0 von 44 Felgen“ (EIGENE-FUNDE 128). -->
                 <p class="plp__count">
                     <template v-if="total !== null">
+                        <!-- The spaces stand inside the mustaches: a leading space in a <template> branch is dropped by the
+                             compiler, and „2Felgen“ is what a reader then saw (Human QA, 28.10.2026). -->
                         <strong class="tabular">{{ formatNumber(total ?? 0) }}</strong>
-                        <template v-if="unfiltered != null"> von <span class="tabular">{{ formatNumber(unfiltered) }}</span> {{ unfiltered === 1 ? 'Felge' : 'Felgen' }}</template>
-                        <template v-else> {{ total === 1 ? 'Felge' : 'Felgen' }}</template>
+                        <template v-if="unfiltered != null">{{ ' von ' }}<span class="tabular">{{ formatNumber(unfiltered) }}</span>{{ unfiltered === 1 ? ' Felge' : ' Felgen' }}</template>
+                        <template v-else>{{ total === 1 ? ' Felge' : ' Felgen' }}</template>
                         mit gültigem Gutachten für dieses Fahrzeug
                     </template>
                     <template v-else-if="unfiltered != null">{{ formatNumber(cards.length) }} von {{ formatNumber(unfiltered) }} {{ unfiltered === 1 ? 'Felge' : 'Felgen' }}</template>

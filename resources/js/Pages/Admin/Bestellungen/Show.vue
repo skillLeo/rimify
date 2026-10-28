@@ -413,7 +413,7 @@ function tagClass(state: OrderState): string | null {
                                 </p>
                             </div>
                             <!-- The server's line: per size where the sizes differ, the tyre's for a Komplettrad (PapersWording). -->
-                            <p v-if="line.snapshot.entryLine" class="bs-proof__line">{{ line.snapshot.entryLine }}<template v-if="line.snapshot.entryNote"> {{ line.snapshot.entryNote }}</template></p>
+                            <p v-if="line.snapshot.entryLine" class="bs-proof__line">{{ line.snapshot.entryLine }}<template v-if="line.snapshot.entryNote">{{ ' ' + line.snapshot.entryNote }}</template></p>
                             <p v-if="line.snapshot.papersLine" class="bs-proof__line">{{ line.snapshot.papersLine }}</p>
                             <p v-if="line.snapshot.rimAloneNote" class="bs-proof__line" data-rim-alone>{{ line.snapshot.rimAloneNote }}</p>
                             <!-- Each tyre size's Auflagen with that size, as the customer read them (ConditionGroups). -->

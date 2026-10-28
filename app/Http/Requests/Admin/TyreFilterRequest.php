@@ -39,6 +39,8 @@ class TyreFilterRequest extends FormRequest
             'saison' => ['nullable', Rule::in(TyreSeason::values())],
             'zoll' => ['nullable', 'integer', 'between:13,24'],
             'stand' => ['nullable', Rule::in(array_keys(TyreList::STANDS))],
+            'sort' => ['nullable', Rule::in(TyreList::SORTS)],
+            'richtung' => ['nullable', 'in:auf,ab'],
             'seite' => ['nullable', 'integer', 'min:1', 'max:1000000'],
         ];
     }
@@ -52,6 +54,8 @@ class TyreFilterRequest extends FormRequest
             'saison.*' => 'Diese Saison gibt es nicht. Wähl bitte eine aus der Liste.',
             'zoll.*' => 'Diesen Durchmesser gibt es nicht. Wähl bitte einen aus der Liste.',
             'stand.*' => 'Diesen Filter gibt es nicht. Wähl bitte einen aus der Liste.',
+            'sort.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
+            'richtung.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
             'seite.*' => 'Diese Seite gibt es nicht.',
         ];
     }
@@ -68,11 +72,14 @@ class TyreFilterRequest extends FormRequest
             'saison' => $text('saison'),
             'zoll' => $this->filled('zoll') ? (int) $this->validated('zoll') : null,
             'stand' => $text('stand'),
+            'sort' => $text('sort') ?? 'reifen',
+            'richtung' => $text('richtung') ?? 'auf',
         ];
     }
 
     /**
-     * The query string exactly as it should read for these filters; the plain list is the bare URL.
+     * The query string exactly as it should read for these filters; the plain list is the bare URL. The order is kept
+     * only where it is not the plain list's (F-32), so a page link carries it.
      *
      * @return array<string, string>
      */
@@ -84,6 +91,13 @@ class TyreFilterRequest extends FormRequest
             if ($this->filled($key)) {
                 $query[$key] = trim((string) $this->validated($key));
             }
+        }
+
+        $filters = $this->filters();
+
+        if ($filters['sort'] !== 'reifen' || $filters['richtung'] !== 'auf') {
+            $query['sort'] = $filters['sort'];
+            $query['richtung'] = $filters['richtung'];
         }
 
         return $query;

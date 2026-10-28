@@ -255,6 +255,39 @@ describe('Produkt page', () => {
         expect(block.text()).toContain('Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor.')
     })
 
+    // Finding 138: a diameter the car may have in two widths or offsets offers both beside the diameter — the chip opened
+    // one of them, and the other was reachable only from a link, with no way back.
+    it('offers every width and ET of the chosen diameter, and the chosen one is the size on the page', async () => {
+        const conditional = verdict({ status: 'CONDITIONAL', label: 'Freigegeben mit Auflagen' })
+        const narrow = config({ id: 45, widthIn: 8.5, etMm: 35, sizeLabel: '8,5J × 19 · ET 35', verdict: conditional })
+        const wide = config({ id: 46, widthIn: 9.5, etMm: 40, sizeLabel: '9,5J × 19 · ET 40', priceCents: 89_600, price: '896,00 €', verdict: verdict() })
+        const refused = config({ id: 47, widthIn: 10, etMm: 25, sizeLabel: '10J × 19 · ET 25', verdict: verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) })
+        const wrapper = mountPage({ hasVehicle: true, configs: [narrow, wide, refused] })
+        const row = wrapper.find('.pdp__variants')
+        const chips = row.findAll('button.chip')
+
+        expect(row.find('.label').text()).toBe('Breite und Einpresstiefe (ET)')
+        expect(chips.map((c) => c.text())).toEqual(['8,5J × 19 · ET 35', '9,5J × 19 · ET 40', '10J × 19 · ET 25'])
+        // The one refused for the car is shown, struck, with its reason — never hidden.
+        expect(chips[2]!.attributes('disabled')).toBeDefined()
+        expect(chips[2]!.attributes('title')).toBe('ET außerhalb des Gutachtens.')
+
+        const opened = chips.find((c) => c.attributes('aria-pressed') === 'true')!
+        const other = opened.text() === '8,5J × 19 · ET 35' ? chips[1]! : chips[0]!
+
+        await other.trigger('click')
+
+        expect(other.attributes('aria-pressed')).toBe('true')
+        expect(wrapper.findAll('.pdp__variants button[aria-pressed="true"]')).toHaveLength(1)
+
+        // And back: the other size is one press away again.
+        await opened.trigger('click')
+        expect(opened.attributes('aria-pressed')).toBe('true')
+
+        // One size of the diameter: nothing to choose, no row.
+        expect(mountPage({ hasVehicle: true, configs: [wide] }).find('.pdp__variants').exists()).toBe(false)
+    })
+
     it('says "Verfügbar" for a real model that can be bought, and nothing about a demo range @admin-207', () => {
         const wrapper = mountPage()
 

@@ -55,6 +55,8 @@ export interface AdminProtokollProps {
     options: { people: ProtokollOption[]; areas: ProtokollOption[] }
     /** Whether any filter is in force. */
     filtered: boolean
+    /** The oldest entry first (F-32); the plain log is newest first. An order, not a filter. */
+    oldestFirst: boolean
     /** Every entry in the log, before the filters — the figure the filtered empty state names. */
     totalAll: number
     pagination: {

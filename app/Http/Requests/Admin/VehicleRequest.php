@@ -16,6 +16,9 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class VehicleRequest extends FormRequest
 {
+    /** The columns the list sorts by (F-32); `fahrzeug` A to Z is the plain list. */
+    public const SORTS = ['fahrzeug', 'hsn', 'bauzeit', 'freigaben'];
+
     public function authorize(): bool
     {
         $user = $this->user('admin');
@@ -63,7 +66,18 @@ class VehicleRequest extends FormRequest
         return [
             'q' => ['nullable', 'string', 'max:80'],
             'marke' => ['nullable', 'string', 'max:80'],
+            'sort' => ['nullable', 'in:'.implode(',', self::SORTS)],
+            'richtung' => ['nullable', 'in:auf,ab'],
             'seite' => ['nullable', 'integer', 'min:1', 'max:100000'],
+        ];
+    }
+
+    /** @return array{sort: string, richtung: string} */
+    public function order(): array
+    {
+        return [
+            'sort' => (string) ($this->validated('sort') ?? 'fahrzeug'),
+            'richtung' => (string) ($this->validated('richtung') ?? 'auf'),
         ];
     }
 
@@ -76,6 +90,8 @@ class VehicleRequest extends FormRequest
             'max_speed_kmh.*' => 'Die Höchstgeschwindigkeit bitte in km/h, zwischen 40 und 420 (Feld T).',
             'q.*' => 'Der Suchbegriff ist zu lang.',
             'marke.*' => 'Diese Marke gibt es nicht.',
+            'sort.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
+            'richtung.*' => 'Nach diesem Feld lässt sich nicht sortieren.',
             'seite.*' => 'Diese Seite gibt es nicht.',
         ];
     }

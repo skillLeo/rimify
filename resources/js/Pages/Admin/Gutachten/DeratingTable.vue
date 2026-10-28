@@ -114,8 +114,9 @@ function cellError(i: number, symbol: string): string {
                     </thead>
                     <tbody>
                         <tr v-for="row in derating.rows" :key="row.speed">
-                            <th scope="row" class="num">{{ row.speed }}</th>
-                            <td v-for="symbol in derating.symbols" :key="symbol" class="num">
+                            <th scope="row" class="num dt-speed">{{ row.speed }}</th>
+                            <!-- Labelled for the phone's card, as the combinations are (Human QA 28.10.2026): a share without its symbol says nothing. -->
+                            <td v-for="symbol in derating.symbols" :key="symbol" class="num" :data-label="symbol">
                                 {{ row.cells[symbol] === undefined ? '' : row.cells[symbol] === '–' ? '–' : `${row.cells[symbol]} %` }}
                             </td>
                         </tr>
@@ -252,6 +253,21 @@ function cellError(i: number, symbol: string): string {
 .dt-table {
     width: auto;
     min-width: 20rem;
+}
+
+/* On a phone each speed is a card: the speed as its title, each symbol's share labelled under it. */
+@media (max-width: 767px) {
+    .dt-table .dt-speed {
+        grid-column: 1 / -1;
+        padding: 0;
+        border: 0;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .dt-table .dt-speed::after {
+        content: ' km/h';
+    }
 }
 
 .dt-grid {

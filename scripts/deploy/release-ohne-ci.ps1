@@ -2,12 +2,14 @@
 # workflow commits to the `deploy` branch — main's source, the production vendor/, the compiled bundles, the shipped
 # assets and the previous release's .github/ — on top of the previous release, so the host pulls a fast-forward.
 #
-#   powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> [-Push] [-Work <dir>]
+#   powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> -Release <n> [-Push] [-Work <dir>]
+#
+# -Release is the release's number, printed with its date at the foot of the preview's shop and admin (ReleaseStamp).
 #
 # What is taken unchanged from the previous release (built by CI on Linux) because none of its inputs changed since:
 # public/ocr, public/3d, storage/app/public/demo — and vendor/ as the starting point, into which composer then installs
 # from the lock, so only what the lock changed differs. The bundles are the ones the gates ran against.
-param([Parameter(Mandatory = $true)][string]$Commit, [switch]$Push, [string]$Work = 'C:\rimify\release-build')
+param([Parameter(Mandatory = $true)][string]$Commit, [Parameter(Mandatory = $true)][int]$Release, [switch]$Push, [string]$Work = 'C:\rimify\release-build')
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $work = $Work
@@ -67,7 +69,7 @@ foreach ($dir in 'public\build', 'bootstrap\ssr') {
     if (Test-Path "$work\$dir") { Remove-Item -Recurse -Force "$work\$dir" }
     Copy-Item -Recurse "$repo\$dir" "$work\$dir"
 }
-$stamp = '{"commit":"' + $sha.Substring(0, 8) + '","built":"' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') + '"}'
+$stamp = '{"release":' + $Release + ',"commit":"' + $sha.Substring(0, 8) + '","built":"' + [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ') + '"}'
 [IO.File]::WriteAllText("$work\public\build\release.json", "$stamp`n", (New-Object Text.UTF8Encoding($false)))
 Say "stamp $stamp"
 
