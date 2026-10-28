@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\AdminUser;
 use App\Support\ReleaseStamp;
+use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\File;
 use Inertia\Testing\AssertableInertia;
 
@@ -39,8 +41,8 @@ it('names the build on staging, in Berlin time', function (): void {
 // it is always known which build the client tested. Production never shows it.
 it('names the release by its number where the stamp carries one, in the shop and in the admin', function (): void {
     // The accounts first: their seeder writes them only where tests run.
-    $this->seed(Database\Seeders\AccessSeeder::class);
-    $admin = App\Models\AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+    $this->seed(AccessSeeder::class);
+    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
     writeReleaseStamp('{"release":21,"commit":"56fc810c","built":"2026-10-28T13:05:00Z"}');
     app()->detectEnvironment(fn (): string => 'staging');
     $line = "Testumgebung · Release 21 vom 28.10.2026, 14:05\u{00A0}Uhr · Stand 56fc810c";

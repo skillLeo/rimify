@@ -12,6 +12,7 @@ use App\Models\WheelModel;
 use App\Support\SearchTerm;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Http\Response;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 
@@ -31,7 +32,7 @@ function searchAdmin(): AdminUser
 }
 
 /**
- * @param  TestResponse<\Illuminate\Http\Response>  $response
+ * @param  TestResponse<Response>  $response
  * @return array<string, mixed>
  */
 function searchProps(TestResponse $response): array
