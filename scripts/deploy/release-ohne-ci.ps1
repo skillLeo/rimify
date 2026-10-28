@@ -83,18 +83,18 @@ G rm -r -q --cached .github
 if ($LASTEXITCODE -eq 0) { G read-tree --prefix=.github/ "$prev`:.github" }
 
 $tree = (& git @git write-tree).Trim()
-$release = (& git @git commit-tree $tree -p $prev -m "release: $subject").Trim()
-Say "release commit $release"
+$releaseCommit = (& git @git commit-tree $tree -p $prev -m "release: $subject").Trim()
+Say "release commit $releaseCommit"
 
 Say 'what differs from the previous release, by area'
-& git diff --stat=200 $prev $release | ForEach-Object { ($_ -split '\|')[0].Trim() } | Where-Object { $_ -match '/' } | ForEach-Object { $p = $_ -split '/'; if ($p[0] -eq 'vendor') { "vendor/$($p[1])/$($p[2])" } elseif ($p[0] -in 'public', 'bootstrap', 'storage') { "$($p[0])/$($p[1])" } else { $p[0] } } | Group-Object | Sort-Object Count -Descending | ForEach-Object { '   {0,5}  {1}' -f $_.Count, $_.Name }
+& git diff --stat=200 $prev $releaseCommit | ForEach-Object { ($_ -split '\|')[0].Trim() } | Where-Object { $_ -match '/' } | ForEach-Object { $p = $_ -split '/'; if ($p[0] -eq 'vendor') { "vendor/$($p[1])/$($p[2])" } elseif ($p[0] -in 'public', 'bootstrap', 'storage') { "$($p[0])/$($p[1])" } else { $p[0] } } | Group-Object | Sort-Object Count -Descending | ForEach-Object { '   {0,5}  {1}' -f $_.Count, $_.Name }
 $x1 = @(& git ls-tree -r $prev | Select-String -Pattern '^100755').Count
-$x2 = @(& git ls-tree -r $release | Select-String -Pattern '^100755').Count
+$x2 = @(& git ls-tree -r $releaseCommit | Select-String -Pattern '^100755').Count
 Say "executable files: previous $x1, this $x2"
-Say "files: previous $(@(& git ls-tree -r --name-only $prev).Count), this $(@(& git ls-tree -r --name-only $release).Count)"
-[IO.File]::WriteAllText("$work\..\release-commit.txt", $release)
+Say "files: previous $(@(& git ls-tree -r --name-only $prev).Count), this $(@(& git ls-tree -r --name-only $releaseCommit).Count)"
+[IO.File]::WriteAllText("$work\..\release-commit.txt", $releaseCommit)
 
 if ($Push) {
-    G -c credential.https://github.com.helper=manager push https://github.com/skillLeo/rimify.git "$release`:refs/heads/deploy"
+    G -c credential.https://github.com.helper=manager push https://github.com/skillLeo/rimify.git "$releaseCommit`:refs/heads/deploy"
     Say "pushed to deploy"
 }
