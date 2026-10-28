@@ -192,7 +192,7 @@ const papersLine = computed<string | null>(() => {
                     <h2 id="res-cond-h" class="h4">Auflagen</h2>
                     <!-- One size needs the Abnahme, another does not: the line names them (fitment/papers.ts). -->
                     <p v-if="entryBySize(result.conditionGroups?.sizes, result.papersExempt === true)" class="res__note">{{ entryBySize(result.conditionGroups?.sizes, result.papersExempt === true) }}</p>
-                    <p v-else-if="result.requiresEntry" class="res__note">{{ entryLine(true, result.papersExempt === true) }}<template v-if="result.entryNote"> {{ result.entryNote }}</template></p>
+                    <p v-else-if="result.requiresEntry" class="res__note">{{ entryLine(true, result.papersExempt === true) }}<template v-if="result.entryNote">{{ ' ' + result.entryNote }}</template></p>
                     <p v-if="result.papersExempt" class="res__note">{{ PAPERS_EXEMPT }}</p>
                     <!-- Each tyre size's Auflagen with that size, the combination's once — printed as the shop shows them. -->
                     <ConditionGroups v-if="result.conditionGroups && result.conditions.length" class="res__groups" :groups="result.conditionGroups" />

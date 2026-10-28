@@ -39,7 +39,8 @@ async function photograph(page: Page, lines: string[]): Promise<{ name: string; 
 test('the 500 page: what a failure shows, inside the shop\'s frame, with three ways on — and the standalone one a failed boot gets', { tag: '@sweep' }, async ({ page, problems }, info) => {
     problems.expected(/^500 .*\/__fehlerseite\/500(\?eigenstaendig=1)?$/, 'the 500 page is opened on purpose (/__fehlerseite/500, D-243)')
     // The browser writes that document's status to the console too, without its address; any other 500 still shows as a response.
-    problems.expected(/^console: Failed to load resource: the server responded with a status of 500 \(\)$/, 'the 500 page opened on purpose, as the browser logs it')
+    // HTTP/2 (the preview) sends no reason phrase, HTTP/1.1 (our own instance) does: „500 ()“ or „500 (Internal Server Error)“.
+    problems.expected(/^console: Failed to load resource: the server responded with a status of 500 \((Internal Server Error)?\)$/, 'the 500 page opened on purpose, as the browser logs it')
 
     await open(page, '/__fehlerseite/500')
     await expect(page.locator('h1')).toHaveText('Da ist etwas schiefgelaufen.')
@@ -72,7 +73,10 @@ test('the Fahrzeugschein photograph: read on the device — the key numbers in t
 
         if ((await panel.getByRole('button', { name: 'Fahrzeugschein scannen' }).count()) > 0) {
             await panel.locator('input[type="file"]').setInputFiles(keys)
-            await expect(panel.getByLabel('HSN (Feld 2.1)')).toHaveValue('0005', { timeout: 90_000 })
+            // The photo just taken is read in its sheet and shown for checking; „Übernehmen“ puts it into the panel (HQ-11).
+            const sheet = page.getByRole('dialog', { name: 'Fahrzeugschein' })
+            await sheet.getByRole('button', { name: 'Übernehmen' }).click({ timeout: 90_000 })
+            await expect(panel.getByLabel('HSN (Feld 2.1)')).toHaveValue('0005')
             await expect(panel.getByLabel('TSN (Feld 2.2)')).toHaveValue('582')
             info.annotations.push({ type: 'hero', description: 'HSN 0005 und TSN 582 aus dem Foto gelesen; nicht übernommen (keine Suche, nichts gespeichert).' })
             await evidenceAround(page, [panel], 0, info, 16, 'sweep-foto-hero-webkit')
@@ -90,8 +94,10 @@ test('the Fahrzeugschein photograph: read on the device — the key numbers in t
         if ((await scan.count()) > 0) {
             await scan.setInputFiles(keys)
             await expect(hero.getByText('Stimmt das?')).toBeVisible({ timeout: 90_000 })
-            await expect(hero.getByLabel('HSN (Feld 2.1)')).toHaveValue('0005')
-            await expect(hero.getByLabel('TSN (Feld 2.2)')).toHaveValue('582')
+            // By role: the HSN/TSN tab keeps its own two fields, out of sight and out of the accessibility tree while the
+            // scan tab is chosen — a label alone finds both (Human QA 28.10.2026).
+            await expect(hero.getByRole('textbox', { name: 'HSN (Feld 2.1)' })).toHaveValue('0005')
+            await expect(hero.getByRole('textbox', { name: 'TSN (Feld 2.2)' })).toHaveValue('582')
             info.annotations.push({ type: 'hero', description: 'HSN 0005 und TSN 582 aus dem Foto gelesen; nicht übernommen (keine Suche, nichts gespeichert).' })
             await evidencePage(page, 0, info, 'sweep-foto-hero-chromium')
         } else {
@@ -107,6 +113,15 @@ test('the Fahrzeugschein photograph: read on the device — the key numbers in t
     await withCar(page, 'x3', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await page.locator('#pp-open, #pp-change').first().click()
+
+    // The photo fills only the fields the form asks; for a car whose 8.1, 8.2 and T are all on record it asks none, and
+    // there is no photo to take (PapersForm). Not measured then — said so, never waited out (Human QA 28.10.2026).
+    if ((await page.locator('#pp-photo').count()) === 0) {
+        info.annotations.push({ type: 'nicht gemessen', description: 'Produktseite: Für dieses Fahrzeug sind 8.1, 8.2 und T hinterlegt – das Formular fragt kein Feld, ein Foto füllt keins.' })
+
+        return
+    }
+
     await page.locator('#pp-photo').setInputFiles(await photograph(page, ['Zulassungsbescheinigung Teil I', '8.1   1120', '8.2   1180', 'T   250']))
     await expect(page.locator('.pp__help[role="status"]')).toHaveText('Aus dem Foto gelesen. Prüf die Werte, bevor du sie übernimmst.', { timeout: 90_000 })
     await expect(page.locator('#pp-axle_front_kg')).toHaveValue('1120')

@@ -47,6 +47,7 @@ use App\Services\Storage\PdfUpload;
 use App\Services\Storage\UploadRejected;
 use App\Support\EditStamp;
 use App\Support\GermanFormat;
+use App\Support\SearchTerm;
 use App\Support\VehicleName;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,10 +104,15 @@ class GutachtenController extends Controller
         // By any number a document is known by, or its issuer (the admin audit's F-31: a thousand on one page, no search).
         $search = is_string($request->query('q')) ? mb_substr(trim((string) $request->query('q')), 0, 100) : '';
 
+        // A Nachtrag is found by the ABE it supplements too, and „TUEV“ finds „TÜV“ (Human QA 28.10.2026).
         if ($search !== '') {
-            $like = '%'.addcslashes($search, '%_\\').'%';
-            $query->where(static fn ($where) => $where->where('ad.report_number', 'like', $like)->orWhere('ad.kba_number', 'like', $like)
-                ->orWhere('ad.approval_mark', 'like', $like)->orWhere('ad.issuer', 'like', $like));
+            $query->where(static function ($where) use ($search): void {
+                foreach (SearchTerm::likes($search) as $like) {
+                    $where->orWhere('ad.report_number', 'like', $like)->orWhere('ad.kba_number', 'like', $like)
+                        ->orWhere('ad.supplement_to_number', 'like', $like)
+                        ->orWhere('ad.approval_mark', 'like', $like)->orWhere('ad.issuer', 'like', $like);
+                }
+            });
         }
 
         // Status and kind narrow the list on the server now that it comes in pages: each chip with how many it holds.

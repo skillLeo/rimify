@@ -276,8 +276,8 @@ const waiting = computed(
 /* Why it waits, read with the button for whoever cannot see the light blue (#1): the step that is missing. */
 const waitingWhy = computed(() =>
     picker.route.value === 'guided'
-        ? 'Noch kein Fahrzeug gewählt: Wähle zuerst Marke, Modell und Variante.'
-        : 'Noch kein Fahrzeug gewählt: Trag zuerst HSN und TSN aus deinem Fahrzeugschein ein.'
+        ? 'Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.'
+        : 'Noch kein Fahrzeug gewählt: Trag HSN und TSN ein.'
 )
 
 function guide(): void {
@@ -666,7 +666,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
         >
             {{ buttonLabel }}
         </button>
-        <span v-if="waiting" :id="`${uid}-why`" class="visually-hidden">{{ waitingWhy }}</span>
+        <!-- To the eye as to a screen reader (#1, Human QA 28.10.2026); two lines kept, so a switch of the route moves nothing. -->
+        <p v-if="waiting" :id="`${uid}-why`" class="micro quiet vpanel__why">{{ waitingWhy }}</p>
 
         <!-- Saved vehicles (F7). -->
         <div v-if="garage.length" class="vpanel__garage">
@@ -691,11 +692,16 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
 
     <!-- The scan, when the recogniser is part of the build. -->
     <BottomSheet v-if="DocumentScan" id="scan" v-model:open="scanOpen" title="Fahrzeugschein" snap="half">
-        <component :is="DocumentScan" v-if="scanFile" :file="scanFile" @result="onScanResult" @failed="onScanFailed" @close="scanOpen = false" />
+        <component :is="DocumentScan" v-if="scanFile" :file="scanFile" @confirm="onScanResult" @failed="onScanFailed" />
     </BottomSheet>
 </template>
 
 <style scoped>
+.vpanel__why {
+    min-height: calc(2 * var(--lh-micro));
+    margin-top: var(--sp-8);
+}
+
 .vpanel {
     display: grid;
     gap: var(--sp-12);

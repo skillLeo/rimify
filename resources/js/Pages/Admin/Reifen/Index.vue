@@ -10,9 +10,11 @@ import { Link, router, usePage } from '@inertiajs/vue3'
 import { computed, reactive } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminSortHeader from '../../../Components/Admin/AdminSortHeader.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal, withUnit } from '../../../format'
+import { nextSort, sortQuery, type ListSort } from '../../../lib/adminSort'
 import { formatMoney } from '../../../lib/num'
 import type { AdminReifenIndexProps, TyreRow } from '../../../types/admin/reifen'
 
@@ -22,7 +24,17 @@ const props = defineProps<AdminReifenIndexProps>()
 
 const BASE = '/admin/reifen'
 
-const form = reactive({ ...props.filters })
+const form = reactive({ q: props.filters.q, marke: props.filters.marke, saison: props.filters.saison, zoll: props.filters.zoll, stand: props.filters.stand })
+
+/* The order (F-32): the plain list is A to Z by brand and profile; a heading turns it, kept across filters and pages. */
+const PLAIN: ListSort = { sort: 'reifen', richtung: 'auf' }
+const order = computed<ListSort>(() => ({ sort: props.filters.sort, richtung: props.filters.richtung }))
+
+function sortBy(column: string): void {
+    const rest = Object.fromEntries(Object.entries(props.query).filter(([key]) => key !== 'sort' && key !== 'richtung'))
+
+    router.get(BASE, { ...rest, ...sortQuery(nextSort(order.value, column), PLAIN) }, { preserveScroll: true, preserveState: true })
+}
 
 const context = computed(() => {
     const text = `${decimal(props.pagination.total, 0)} Reifen`
@@ -31,7 +43,7 @@ const context = computed(() => {
 })
 
 /* A link whose filter does not read opens the list without it — and says so, as the Felgen list does. */
-const FILTER_KEYS = ['q', 'marke', 'saison', 'zoll', 'stand', 'seite']
+const FILTER_KEYS = ['q', 'marke', 'saison', 'zoll', 'stand', 'sort', 'richtung', 'seite']
 const page = usePage()
 
 const refusals = computed<string[]>(() => {
@@ -56,7 +68,7 @@ function query(): Record<string, string> {
         }
     }
 
-    return out
+    return { ...out, ...sortQuery(order.value, PLAIN) }
 }
 
 function apply(): void {
@@ -65,7 +77,7 @@ function apply(): void {
 
 function reset(): void {
     Object.assign(form, { q: '', marke: '', saison: '', zoll: '', stand: '' })
-    router.get(BASE, {}, { preserveScroll: true, preserveState: true })
+    router.get(BASE, sortQuery(order.value, PLAIN), { preserveScroll: true, preserveState: true })
 }
 
 /** `B · A · 71 dB (B)` — the label's classes in the order the printed label stands them. */
@@ -154,10 +166,10 @@ function labelLine(row: TyreRow): string {
                     <caption class="visually-hidden">Reifen, {{ context }}</caption>
                     <thead>
                         <tr>
-                            <th scope="col">Reifen</th>
-                            <th scope="col">Größe</th>
+                            <AdminSortHeader label="Reifen" column="reifen" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
+                            <AdminSortHeader label="Größe" column="groesse" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
                             <th scope="col">EU-Reifenlabel</th>
-                            <th scope="col" class="num">Preis</th>
+                            <AdminSortHeader label="Preis" column="preis" :sort="filters.sort" :richtung="filters.richtung" num @sort="sortBy" />
                             <th scope="col">Stand</th>
                         </tr>
                     </thead>

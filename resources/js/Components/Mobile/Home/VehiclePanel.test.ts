@@ -19,6 +19,10 @@ vi.mock('@inertiajs/vue3', () => ({
     }),
 }))
 
+// The recogniser itself is a Web Worker with WebAssembly: here it answers as it would from a photo of the papers.
+const ocrRead = vi.fn(async (_file: File) => 'Zulassungsbescheinigung Teil I\n2.1   0005\n2.2   582AAB12345')
+vi.mock('../../../composables/useOcr', () => ({ useOcr: () => ({ read: ocrRead, dispose: vi.fn() }) }))
+
 const { default: VehiclePanel } = await import('./VehiclePanel.vue')
 
 /*
@@ -92,6 +96,40 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
+// Human QA 28.10.2026 (HQ-11): on a phone the photo taken from the panel opened the sheet and was dropped there — the
+// reader took no `file` and asked for a second photo — and what it then read was confirmed into nothing: the panel
+// listened for `result`, the reader says `confirm`. The photo taken is the one read, and its numbers land in the fields.
+describe('VehiclePanel — the Fahrzeugschein scan on a phone', () => {
+    it('reads the photo just taken, and „Übernehmen“ puts HSN and TSN into the panel', async () => {
+        ocrRead.mockClear()
+        const wrapper = mount(VehiclePanel, {
+            props: { makes: [{ make: 'BMW', models: 3 }] },
+            global: { stubs: { BottomSheet: defineComponent({ setup: (_p, { slots }) => () => h('div', { class: 'sheet-stub' }, slots.default?.()) }) } },
+            attachTo: document.body,
+        })
+        mounted.push(wrapper)
+        const photo = new File(['x'], 'papiere.jpg', { type: 'image/jpeg' })
+        const input = wrapper.find<HTMLInputElement>('.vpanel input[type="file"]')
+        Object.defineProperty(input.element, 'files', { value: [photo], configurable: true })
+
+        await input.trigger('change')
+        await flushPromises()
+        await vi.dynamicImportSettled()
+        await flushPromises()
+
+        // The photo just taken is read — no second one asked for.
+        expect(ocrRead).toHaveBeenCalledWith(photo)
+        const confirm = wrapper.findAll('.sheet-stub button').find((b) => b.text() === 'Übernehmen')
+        expect(confirm, 'the reading is not shown for confirmation').toBeDefined()
+
+        await confirm!.trigger('click')
+        await flushPromises()
+
+        expect(byLabel(wrapper, 'HSN (Feld 2.1)').element.value).toBe('0005')
+        expect(byLabel(wrapper, 'TSN (Feld 2.2)').element.value).toBe('582')
+    })
+})
+
 describe('VehiclePanel — the button before a car is chosen (the client\'s #1)', () => {
     it('waits in light blue, announced as unavailable but pressable, and a press leads to the missing field', async () => {
         const wrapper = mountPanel()
@@ -103,6 +141,10 @@ describe('VehiclePanel — the button before a car is chosen (the client\'s #1)'
         expect(go.element.disabled).toBe(false)
         expect(go.attributes('aria-disabled')).toBe('true')
         expect(go.classes()).toContain('vpanel__go--waiting')
+        // Why it waits, to the eye too (Human QA 28.10.2026): a line under the button, not a screen reader's alone.
+        const why = wrapper.find(`#${CSS.escape(go.attributes('aria-describedby') ?? '')}`)
+        expect(why.text()).toBe('Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.')
+        expect(why.classes()).not.toContain('visually-hidden')
 
         await go.trigger('click')
         expect(document.activeElement).toBe(byLabel(wrapper, 'Marke').element)

@@ -728,6 +728,31 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="unconfirmedNote" class="t-small quiet pdp__note" data-note="unconfirmed">{{ unconfirmedNote }}</p>
                     </div>
 
+                    <!-- Finding 138: a diameter the Gutachten approves in more than one width or ET offers each of them —
+                         the diameter's chip opens one, and every other is a press away here. -->
+                    <div v-if="config.variants.value.length > 1" class="pdp__block pdp__variants">
+                        <span id="pdp-variants-label" class="label">Breite und Einpresstiefe (ET)</span>
+                        <div class="chip-row pdp__chips" role="group" aria-labelledby="pdp-variants-label">
+                            <button
+                                v-for="variant in config.variants.value"
+                                :key="variant.id"
+                                class="chip"
+                                :class="{
+                                    'chip--on': selected?.id === variant.id,
+                                    'chip--blocked': variant.blocked,
+                                    'chip--unconfirmed': variant.unconfirmed,
+                                }"
+                                type="button"
+                                :disabled="variant.blocked"
+                                :aria-pressed="selected?.id === variant.id"
+                                :title="variant.reason ?? undefined"
+                                @click="config.selectVariant(variant)"
+                            >
+                                <span translate="no">{{ variant.label }}</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- With a Komplettrad's tyre chosen, the answer for that tyre's size (#18): its Eintragung, its Auflagen. -->
                     <FitmentPanel
                         class="pdp__fit"

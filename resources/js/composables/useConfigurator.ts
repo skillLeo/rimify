@@ -60,6 +60,8 @@ export interface VariantOption {
     readonly label: string
     readonly config: ProduktConfig
     readonly blocked: boolean
+    /** Approved with its tyres unconfirmed (finding 103): grey, choosable — as a diameter chip. */
+    readonly unconfirmed: boolean
     readonly reason: string | null
 }
 
@@ -172,13 +174,12 @@ export function useConfigurator(
         return forFinish.value
             .filter((c) => c.diameterIn === current.diameterIn)
             .sort((a, b) => a.widthIn - b.widthIn || a.etMm - b.etMm)
-            .map((config) => ({
-                id: config.id,
-                label: config.sizeLabel,
-                config,
-                blocked: !choosable(config),
-                reason: choosable(config) ? null : reasonFor([config]),
-            }))
+            .map((config) => {
+                const unconfirmed = !choosable(config) && tyreUnconfirmed(config.verdict)
+                const blocked = !choosable(config) && !unconfirmed
+
+                return { id: config.id, label: config.sizeLabel, config, blocked, unconfirmed, reason: blocked || unconfirmed ? reasonFor([config]) : null }
+            })
     })
 
     const fromPrice = computed(() => {

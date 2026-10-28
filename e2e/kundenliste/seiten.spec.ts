@@ -176,5 +176,5 @@ test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document a
     await withCar(page, 'e46', '/rimify-check')
     await wheel(18)
     await expect(answer.locator('.chk__go')).toHaveCount(0)
-    await expect(answer.locator('.chk__nosale')).toContainText('deshalb bieten wir sie dafür nicht an')
+    await expect(answer.locator('.chk__nosale')).toContainText('bis sie hinterlegt sind, bieten wir die Felge dafür nicht an')
 })

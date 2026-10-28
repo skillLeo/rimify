@@ -386,14 +386,14 @@ const form = ref<HTMLFormElement | null>(null)
 /* Why it waits, read with the button for whoever cannot see the light blue (#1): the step that is missing. */
 const waitingWhy = computed(() => {
     if (tab.value === 'hsn') {
-        return 'Noch kein Fahrzeug gewählt: Trag zuerst HSN und TSN aus deinem Fahrzeugschein ein.'
+        return 'Noch kein Fahrzeug gewählt: Trag HSN und TSN ein.'
     }
 
     if (tab.value === 'scan') {
-        return 'Noch kein Fahrzeug gewählt: Scanne zuerst deinen Fahrzeugschein.'
+        return 'Noch kein Fahrzeug gewählt: Scanne deinen Fahrzeugschein.'
     }
 
-    return 'Noch kein Fahrzeug gewählt: Wähle zuerst Marke, Modell und Variante.'
+    return 'Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.'
 })
 
 /* A field that can take focus now: a list still loading leaves its field disabled, and focus would go nowhere. */
@@ -975,7 +975,9 @@ onBeforeUnmount(() => treeController?.abort())
             >
                 {{ buttonLabel }}
             </button>
-            <span v-if="!chooser && waiting" :id="`${id}-why`" class="visually-hidden">{{ waitingWhy }}</span>
+            <!-- Why it waits, to the eye as to a screen reader (#1, Human QA 28.10.2026): the light blue alone said nothing a
+                 sighted customer could read. Two lines are kept for it, so a switch of the tabs moves nothing (#7). -->
+            <p v-if="!chooser && waiting" :id="`${id}-why`" class="micro quiet sel__why">{{ waitingWhy }}</p>
         </fieldset>
 
         <div v-if="garage.length" class="sel__garage">
@@ -1185,6 +1187,11 @@ onBeforeUnmount(() => treeController?.abort())
 
 .sel__go {
     margin-top: var(--sp-16);
+}
+
+.sel__why {
+    min-height: calc(2 * var(--lh-micro));
+    margin-top: var(--sp-8);
 }
 
 /* One cell for the three panels (#7, D-112): the tallest sets the height, the inactive ones are out of sight,

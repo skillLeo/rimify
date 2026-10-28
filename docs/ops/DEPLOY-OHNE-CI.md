@@ -30,9 +30,13 @@ Playwright. The bundles in `public/build` and `bootstrap/ssr` at the end of this
 ## 2 · Build the release
 
 ```
-powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha>          # builds, proves, pushes nothing
-powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> -Push    # and pushes the release to `deploy`
+powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> -Release <n>          # builds, proves, pushes nothing
+powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> -Release <n> -Push    # and pushes the release to `deploy`
 ```
+
+`-Release` is the release's number (21 for the human-QA release of 28.10.2026). It goes into `public/build/release.json`
+and is printed with the build's date at the foot of the preview's shop and admin („Testumgebung · Release 21 vom …“,
+`App\Support\ReleaseStamp`); the live shop never prints it.
 
 What it does, and why it is the same tree the workflow would commit:
 

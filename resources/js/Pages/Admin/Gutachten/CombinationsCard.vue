@@ -121,9 +121,11 @@ function fieldError(i: number, field: 'number' | 'front' | 'rear'): string {
                     <tbody>
                         <!-- By position: one number may print several pairs (`Nr. 8: 235/45 R19 – 255/40 R19, 265/40 R19`). -->
                         <tr v-for="(entry, i) in combinations.entries" :key="i">
-                            <th scope="row" class="num">{{ entry.number }}</th>
-                            <td class="num">{{ entry.front }}</td>
-                            <td class="num">{{ entry.rear }}</td>
+                            <th scope="row" class="num kb-nr">{{ entry.number }}</th>
+                            <!-- The labels the phone's card writes before each size (Human QA 28.10.2026): without them the two sizes stood
+                                 one under the other, and which was front and which rear was left to guess. -->
+                            <td class="num" data-label="Vorderachse">{{ entry.front }}</td>
+                            <td class="num" data-label="Hinterachse">{{ entry.rear }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -284,6 +286,25 @@ function fieldError(i: number, field: 'number' | 'front' | 'rear'): string {
 .kb-table {
     width: auto;
     min-width: 20rem;
+}
+
+/* On a phone each pair is a card: its number as the title, the two axles labelled under it. */
+@media (max-width: 767px) {
+    .kb-table {
+        min-width: 0;
+    }
+
+    .kb-table .kb-nr {
+        grid-column: 1 / -1;
+        padding: 0;
+        border: 0;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .kb-table .kb-nr::before {
+        content: 'Kombination ';
+    }
 }
 
 .kb-grid {

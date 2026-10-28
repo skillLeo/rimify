@@ -66,6 +66,20 @@ describe('Felgen — the count with a filter set (EIGENE-FUNDE 128)', () => {
         expect(plain.find('.plp__count').text().replace(/\s+/g, ' ')).toBe('0 Felgen im Sortiment')
     })
 
+    // Human QA 28.10.2026: „2Felgen mit gültigem Gutachten“ — the space after the number was lost, at both widths. Read as
+    // the page gives it, never with the whitespace evened out first.
+    it('keeps the space between the number and the word, with and without a filter', async () => {
+        const wrapper = mountEmpty()
+        await wrapper.setProps({ total: 2 })
+        expect(wrapper.find('.plp__count').text()).toBe('2 Felgen mit gültigem Gutachten für dieses Fahrzeug')
+
+        await wrapper.setProps({ total: 1, unfiltered: 12 })
+        expect(wrapper.find('.plp__count').text()).toBe('1 von 12 Felgen mit gültigem Gutachten für dieses Fahrzeug')
+
+        await wrapper.setProps({ total: 1, unfiltered: null })
+        expect(wrapper.find('.plp__count').text()).toBe('1 Felge mit gültigem Gutachten für dieses Fahrzeug')
+    })
+
     it('says it for a car too, with what the Gutachten cover', () => {
         const wrapper = mountEmpty({ zoll: ['22.0'] })
         wrapper.setProps({ unfiltered: 12 })

@@ -38,6 +38,9 @@ const EMPTY_TEXT =
 
 const page = usePage()
 const form = ref<FilterForm>(formFromFilters(props.filters, berlinToday()))
+/* The order (F-32): an order, not a filter — applied with the filters, kept by „Zurücksetzen“, never counted. */
+const order = ref<'neu' | 'alt'>(props.oldestFirst ? 'alt' : 'neu')
+const ORDER = (): Record<string, string> => (order.value === 'alt' ? { reihenfolge: 'alt' } : {})
 const dateError = ref('')
 const busy = ref(false)
 /** The entries whose details are open, by id. */
@@ -53,6 +56,7 @@ watch(
     () => props.filters,
     (filters) => {
         form.value = formFromFilters(filters, berlinToday())
+        order.value = props.oldestFirst ? 'alt' : 'neu'
         dateError.value = ''
     }
 )
@@ -119,14 +123,14 @@ function apply(): void {
 
     dateError.value = ''
     sheetOpen.value = false
-    visit(result.query)
+    visit({ ...result.query, ...ORDER() })
 }
 
 function reset(): void {
     form.value = { person: '', bereich: '', zeitraum: '', von: '', bis: '' }
     dateError.value = ''
     sheetOpen.value = false
-    visit({})
+    visit(ORDER())
 }
 
 function hasDetails(entry: ProtokollEntry): boolean {
@@ -161,6 +165,13 @@ function toggle(id: number): void {
         <form v-if="showFilters" class="pk-filters" :action="BASE" method="get" aria-label="Protokoll filtern" @submit.prevent="apply">
             <div class="pk-filters__fields" :class="{ 'pk-filters__fields--range': form.zeitraum === 'eigen' }">
                 <FilterFields v-model:form="form" :people="options.people" :areas="options.areas" id-prefix="pk" :date-error="dateError" />
+                <div class="form-field">
+                    <label class="form-field__label" for="pk-reihenfolge">Reihenfolge</label>
+                    <select id="pk-reihenfolge" v-model="order" class="input">
+                        <option value="neu">Neueste zuerst</option>
+                        <option value="alt">Älteste zuerst</option>
+                    </select>
+                </div>
                 <div class="pk-filters__actions">
                     <button class="btn btn--secondary" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Anwenden</button>
                     <button v-if="filtered" class="btn btn--ghost" type="button" :disabled="busy" @click="reset">Zurücksetzen</button>
@@ -180,6 +191,13 @@ function toggle(id: number): void {
         <BottomSheet v-if="sheetAvailable" id="protokoll-filter" v-model:open="sheetOpen" title="Protokoll filtern">
             <form class="pk-sheet" aria-label="Protokoll filtern" @submit.prevent="apply">
                 <FilterFields v-model:form="form" :people="options.people" :areas="options.areas" id-prefix="pk-s" :date-error="dateError" />
+                <div class="form-field">
+                    <label class="form-field__label" for="pk-s-reihenfolge">Reihenfolge</label>
+                    <select id="pk-s-reihenfolge" v-model="order" class="input">
+                        <option value="neu">Neueste zuerst</option>
+                        <option value="alt">Älteste zuerst</option>
+                    </select>
+                </div>
                 <button class="btn btn--primary btn--block" type="submit" :disabled="busy">Anwenden</button>
                 <button v-if="filtered" class="btn btn--secondary btn--block" type="button" :disabled="busy" @click="reset">Zurücksetzen</button>
                 <a v-if="can.export && exportUrl" class="btn btn--ghost btn--block" :href="exportUrl" download>
@@ -246,14 +264,14 @@ function toggle(id: number): void {
             <nav v-if="pagination.last > 1" class="pk-pages" aria-label="Seiten des Protokolls">
                 <Link v-if="pagination.prev" :href="pagination.prev" class="btn btn--secondary">
                     <Icon name="chevron-left" :size="16" />
-                    Neuere
+                    {{ oldestFirst ? 'Ältere' : 'Neuere' }}
                 </Link>
                 <span v-else class="pk-pages__spacer" aria-hidden="true" />
 
                 <p class="pk-pages__where">Seite {{ decimal(pagination.current, 0) }} von {{ decimal(pagination.last, 0) }}</p>
 
                 <Link v-if="pagination.next" :href="pagination.next" class="btn btn--secondary">
-                    Ältere
+                    {{ oldestFirst ? 'Neuere' : 'Ältere' }}
                     <Icon name="chevron-right" :size="16" />
                 </Link>
                 <span v-else class="pk-pages__spacer" aria-hidden="true" />
@@ -276,13 +294,13 @@ function toggle(id: number): void {
 
 .pk-filters__fields {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto;
+    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)) auto;
     align-items: end;
     gap: var(--sp-16);
 }
 
 .pk-filters__fields--range {
-    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)) auto;
+    grid-template-columns: minmax(0, 1.4fr) repeat(5, minmax(0, 1fr)) auto;
 }
 
 .pk-filters__actions {

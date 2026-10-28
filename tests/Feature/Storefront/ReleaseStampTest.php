@@ -35,6 +35,29 @@ it('names the build on staging, in Berlin time', function (): void {
     $this->get('/faq')->assertInertia(fn (AssertableInertia $page) => $page->where('release', "Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25\u{00A0}Uhr"));
 });
 
+// The operator's brief of 28.10.2026 (§10.3): the release number and its date, in the shop's foot and the admin's, so
+// it is always known which build the client tested. Production never shows it.
+it('names the release by its number where the stamp carries one, in the shop and in the admin', function (): void {
+    // The accounts first: their seeder writes them only where tests run.
+    $this->seed(Database\Seeders\AccessSeeder::class);
+    $admin = App\Models\AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+    writeReleaseStamp('{"release":21,"commit":"56fc810c","built":"2026-10-28T13:05:00Z"}');
+    app()->detectEnvironment(fn (): string => 'staging');
+    $line = "Testumgebung · Release 21 vom 28.10.2026, 14:05\u{00A0}Uhr · Stand 56fc810c";
+
+    expect(ReleaseStamp::label())->toBe($line);
+    $this->get('/faq')->assertInertia(fn (AssertableInertia $page) => $page->where('release', $line));
+    $this->actingAs($admin, 'admin')->get('/admin')->assertInertia(fn (AssertableInertia $page) => $page->where('release', $line));
+
+    // A number that is no release number is not printed.
+    writeReleaseStamp('{"release":"<b>21</b>","commit":"56fc810c","built":"2026-10-28T13:05:00Z"}');
+    ReleaseStamp::forget();
+    expect(ReleaseStamp::label())->toBe("Testumgebung · Stand 56fc810c vom 28.10.2026, 14:05\u{00A0}Uhr");
+
+    app()->detectEnvironment(fn (): string => 'production');
+    expect(ReleaseStamp::label())->toBeNull();
+});
+
 it('says nothing in the live shop, or where no release file was written', function (): void {
     writeReleaseStamp('{"commit":"56fc810c","built":"2026-10-01T14:25:00Z"}');
     app()->detectEnvironment(fn (): string => 'production');

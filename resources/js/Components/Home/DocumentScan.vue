@@ -8,11 +8,17 @@
  * The selector puts them into its own HSN and TSN fields.
  */
 
-import { nextTick, ref, useId } from 'vue'
+import { nextTick, onMounted, ref, useId } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import { useOcr } from '../../composables/useOcr'
 import { useShared } from '../../composables/useShared'
 import { cleanHsn, cleanTsn, isHsn, isTsn, parseKeyNumbers } from '../../lib/fahrzeugschein'
+
+/*
+ * A photo already taken — the phone panel's camera button takes it before this sheet opens — is read at once, never
+ * asked for a second time (Human QA 28.10.2026, HQ-11). The desktop's tab passes none and offers its own picker.
+ */
+const props = defineProps<{ file?: File | null }>()
 
 const emit = defineEmits<{
     confirm: [value: { hsn: string; tsn: string }]
@@ -50,6 +56,16 @@ async function onFile(event: Event): Promise<void> {
         return
     }
 
+    await read(file)
+}
+
+onMounted(() => {
+    if (props.file) {
+        void read(props.file)
+    }
+})
+
+async function read(file: File): Promise<void> {
     phase.value = 'busy'
 
     try {

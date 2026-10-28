@@ -46,6 +46,8 @@ class ProtokollFilterRequest extends FormRequest
             'bereich' => ['nullable', 'string', Rule::in(array_keys(AuditDescriber::AREAS))],
             'von' => $day,
             'bis' => $day,
+            // The order (F-32): newest first is the plain log, `alt` reads it from the oldest entry on.
+            'reihenfolge' => ['nullable', 'in:alt'],
             'seite' => ['nullable', 'integer', 'min:1', 'max:1000000'],
         ];
     }
@@ -58,6 +60,7 @@ class ProtokollFilterRequest extends FormRequest
             'bereich.*' => 'Diesen Bereich gibt es nicht. Wähl bitte einen aus der Liste.',
             'von.*' => 'Das Anfangsdatum ist kein gültiger Tag.',
             'bis.*' => 'Das Enddatum ist kein gültiger Tag.',
+            'reihenfolge.*' => 'Diese Reihenfolge gibt es nicht. Das Protokoll zeigt die neuesten Einträge zuerst.',
             'seite.*' => 'Diese Seite gibt es im Protokoll nicht.',
         ];
     }
@@ -90,6 +93,12 @@ class ProtokollFilterRequest extends FormRequest
             'von' => $this->filled('von') ? (string) $this->validated('von') : null,
             'bis' => $this->filled('bis') ? (string) $this->validated('bis') : null,
         ];
+    }
+
+    /** The oldest entry first (F-32); the plain log is newest first. */
+    public function oldestFirst(): bool
+    {
+        return $this->validated('reihenfolge') === 'alt';
     }
 
     public function page(): int

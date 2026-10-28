@@ -482,6 +482,8 @@ onBeforeUnmount(() => {
 
             <main id="inhalt" class="adm-page" tabindex="-1">
                 <slot />
+                <!-- Which release this test environment serves, as the shop's foot says it (ReleaseStamp; never in the live shop). -->
+                <p v-if="page.props.release" class="adm-release num" data-release>{{ page.props.release }}</p>
             </main>
         </div>
 

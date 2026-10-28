@@ -169,6 +169,10 @@ describe('HeroSelector — the button and the count', () => {
         expect(button(wrapper).attributes('aria-disabled')).toBe('true')
         expect(button(wrapper).classes()).toContain('sel__go--waiting')
         expect(wrapper.find('.sel__count').text()).toBe('')
+        // Why it waits, to the eye too (Human QA 28.10.2026): a line under the button, not a screen reader's alone.
+        const why = wrapper.find(`#${CSS.escape(button(wrapper).attributes('aria-describedby') ?? '')}`)
+        expect(why.text()).toBe('Noch kein Fahrzeug gewählt: Wähle Marke, Modell und Variante.')
+        expect(why.classes()).not.toContain('visually-hidden')
     })
 
     it('leads a press of the waiting button to the field that is missing, and submits nothing', async () => {

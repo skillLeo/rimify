@@ -113,7 +113,8 @@ test('no button opens a mail program: every „Schreib uns“ leads to the form,
     test.setTimeout(240_000)
     problems.expected(/^404 .*\/gibt-es-nicht$/, 'the 404 page is opened on purpose, to see that it has no mail link either')
     // Chromium also writes the 404 document to the console, without its address; any other 404 still shows as a response.
-    problems.expected(/^console: Failed to load resource: the server responded with a status of 404 \(\)$/, 'the 404 page opened on purpose, as Chromium logs it')
+    // HTTP/2 (the preview) sends no reason phrase, HTTP/1.1 (our own instance) does: „404 ()“ or „404 (Not Found)“.
+    problems.expected(/^console: Failed to load resource: the server responded with a status of 404 \((Not Found)?\)$/, 'the 404 page opened on purpose, as Chromium logs it')
 
     // The shop's pages and every legal page the footer links.
     await open(page, '/')
@@ -200,7 +201,7 @@ test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document a
     await withCar(page, 'e46', '/rimify-check')
     await wheel(18)
     await expect(answer.locator('.chk__go')).toHaveCount(0)
-    await expect(answer.locator('.chk__nosale')).toContainText('deshalb bieten wir sie dafür nicht an')
+    await expect(answer.locator('.chk__nosale')).toContainText('bis sie hinterlegt sind, bieten wir die Felge dafür nicht an')
 })
 
 test('one footer exists, the same on every page and width, right at 390 × 844 and 360 × 640', { tag: '@kunde-29' }, async ({ page }, info) => {

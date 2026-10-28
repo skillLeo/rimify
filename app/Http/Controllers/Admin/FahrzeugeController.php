@@ -22,6 +22,7 @@ use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Vehicles\VehicleCorrection;
 use App\Support\EditStamp;
 use App\Support\GermanFormat;
+use App\Support\SearchTerm;
 use App\Support\VehicleName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -58,19 +59,36 @@ class FahrzeugeController extends Controller
     {
         $term = trim((string) preg_replace('/[\s\x{00A0}\x{202F}]+/u', ' ', (string) ($request->validated('q') ?? '')));
         $make = trim((string) ($request->validated('marke') ?? ''));
+        $order = $request->order();
+        $direction = $order['richtung'] === 'ab' ? 'desc' : 'asc';
         $query = Vehicle::query()
             ->withCount(['fitments as approvals' => static fn (Builder $q) => $q->where('status', FitmentStatus::Published->value)])
             ->when($review, static fn (Builder $q) => $q->where('needs_review', true))
-            ->when($make !== '', static fn (Builder $q) => $q->where('make', $make))
-            ->orderBy('make')->orderBy('model')->orderBy('variant')->orderBy('id');
+            ->when($make !== '', static fn (Builder $q) => $q->where('make', $make));
+
+        // The chosen column first (F-32), then the plain list's order, so rows that tie keep one place.
+        match ($order['sort']) {
+            'hsn' => $query->orderBy('hsn', $direction)->orderBy('tsn', $direction),
+            // A car without a build start sorts after every dated one, either way.
+            'bauzeit' => $query->orderByRaw('build_from IS NULL')->orderBy('build_from', $direction),
+            'freigaben' => $query->orderBy('approvals', $direction),
+            default => $query->orderBy('make', $direction)->orderBy('model', $direction)->orderBy('variant', $direction),
+        };
+        $query->orderBy('make')->orderBy('model')->orderBy('variant')->orderBy('id');
 
         if ($term !== '') {
-            if (preg_match('/^(\d{4})\s*[\/\s-]?\s*([A-Za-z0-9]{3})?$/', $term, $m) === 1) {
-                $query->where('hsn', $m[1])->when(($m[2] ?? '') !== '', static fn (Builder $q) => $q->where('tsn', strtoupper($m[2])));
+            // An HSN typed without its leading zeros — „5 Z90“ for 0005/Z90 — is the same number (Human QA 28.10.2026); four
+            // digits alone stay an HSN, fewer alone a word, so a search for „3“ still finds the 3er.
+            if (preg_match('/^(\d{4})\s*[\/\s-]?\s*([A-Za-z0-9]{3})?$/', $term, $m) === 1 || preg_match('/^(\d{1,3})\s*[\/\s-]\s*([A-Za-z0-9]{3})$/', $term, $m) === 1) {
+                $query->where('hsn', str_pad($m[1], 4, '0', STR_PAD_LEFT))->when(($m[2] ?? '') !== '', static fn (Builder $q) => $q->where('tsn', strtoupper($m[2])));
             } else {
                 foreach (preg_split('/\s+/', $term) ?: [] as $word) {
-                    $like = '%'.addcslashes($word, '%_\\').'%';
-                    $query->where(static fn (Builder $any) => $any->where('make', 'like', $like)->orWhere('model', 'like', $like)->orWhere('variant', 'like', $like)->orWhere('type_designation', 'like', $like));
+                    $likes = SearchTerm::likes($word);
+                    $query->where(static function (Builder $any) use ($likes): void {
+                        foreach ($likes as $like) {
+                            $any->orWhere('make', 'like', $like)->orWhere('model', 'like', $like)->orWhere('variant', 'like', $like)->orWhere('type_designation', 'like', $like);
+                        }
+                    });
                 }
             }
         }
@@ -78,6 +96,11 @@ class FahrzeugeController extends Controller
         $page = $query->paginate(self::PER_PAGE, ['*'], 'seite', (int) ($request->validated('seite') ?? 1));
         $base = $review ? '/admin/fahrzeuge/pruefung' : '/admin/fahrzeuge';
         $keep = array_filter(['q' => $term, 'marke' => $make], static fn (string $v): bool => $v !== '');
+
+        // The order is kept in every page link where it is not the plain list's.
+        if ($order['sort'] !== 'fahrzeug' || $order['richtung'] !== 'auf') {
+            $keep += $order;
+        }
         $url = static fn (int $n): string => $base.(($q = http_build_query($n > 1 ? $keep + ['seite' => $n] : $keep)) === '' ? '' : '?'.$q);
 
         return Inertia::render('Admin/Fahrzeuge/Index', [
@@ -94,7 +117,7 @@ class FahrzeugeController extends Controller
                 'demo' => (bool) $v->is_demo,
                 'href' => '/admin/fahrzeuge/'.$v->id,
             ])->values()->all(),
-            'filters' => ['q' => $term, 'marke' => $make],
+            'filters' => ['q' => $term, 'marke' => $make, ...$order],
             'makes' => DB::table('vehicles')->whereNull('deleted_at')->distinct()->orderBy('make')->pluck('make')->all(),
             'counts' => [
                 'all' => Vehicle::query()->count(),
