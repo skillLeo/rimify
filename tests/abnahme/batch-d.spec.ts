@@ -70,7 +70,8 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     if (MAY_WRITE) {
         await page.waitForTimeout(3_200)
         await form.getByRole('button', { name: 'Nachricht senden' }).click()
-        await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist angekommen')
+        // Our instances send no mail (the mailer writes to the log): the page says it is kept, never „angekommen“ (D-347).
+        await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist bei uns gespeichert.')
     } else {
         info.annotations.push({ type: 'gestoppt', description: 'Formular ausgefüllt und nicht gesendet: auf der Vorschau wird nichts gespeichert, was bleibt.' })
     }

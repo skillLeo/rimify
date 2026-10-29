@@ -91,7 +91,8 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     // A moment later the same form goes through — with the ticket it was handed — and is kept for the team.
     await page.waitForTimeout(3_200)
     await form.getByRole('button', { name: 'Nachricht senden' }).click()
-    await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist angekommen')
+    // Our instances send no mail (the mailer writes to the log): the page says it is kept, never „angekommen“ (D-347).
+    await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist bei uns gespeichert.')
 })
 
 test('stars typed in the admin show under the rim\'s name on the listing and the product page, with the shop\'s sentence beside them — never as a checked purchase, and gone when taken off', { tag: '@kunde-19' }, async ({ page }, info) => {
