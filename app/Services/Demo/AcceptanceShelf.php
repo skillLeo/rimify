@@ -65,7 +65,8 @@ final class AcceptanceShelf
                     'name' => $name,
                     'slug' => 'regal-beispiel-'.$n.'-demo',
                     'spoke_count' => $spokes,
-                    'description_de' => 'Eine Beispielfelge für die Vorschau: kein echtes Produkt, kein Foto, kein Gutachten.',
+                    // Said of our record, never of a document (R-17): what is not on file with us, not what does not exist.
+                    'description_de' => 'Eine Beispielfelge für die Vorschau (Demodaten): kein echtes Produkt und kein Foto. Ein Gutachten ist für sie bei uns nicht hinterlegt.',
                     'internal_note' => 'Demodaten für die Vorschau (rimify:demo --abnahme --regal). Entfernen: System › Zurücksetzen › Demodaten.',
                     'status' => CatalogueStatus::Published->value,
                     'stated_rating' => $n === 1 ? self::STARS['rating'] : null,
