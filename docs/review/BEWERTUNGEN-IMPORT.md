@@ -1,5 +1,11 @@
 # #19 — the reviews the client already has, scoped on three questions (not built)
 
+> **Since 29.10.2026 (D-344):** stars typed by hand per rim are built — the rating, the number of reviews behind it and
+> one sentence that names their source, shown under the rim's name beside that sentence, never as „Geprüfter Kauf“ and
+> never in the structured data. That is the hand entry of A1, per wheel, with the operator's rules of B. The importers
+> below (A2, A3, B) stay scoped and unbuilt. One line of „What stands today“ no longer holds: the product page's
+> checking sentence now reads „Diese Bewertungen …“, so it speaks of the buyers' reviews beside it alone.
+
 The operator's briefs: 16.10.2026 („THE HERO SAYS (VIELLEICHT)“ §3) — scope an importer for reviews he already has,
 with source, date and rating per row, the source beside the average, build nothing yet; 17.10.2026 (§3) — the three
 questions, the trap inside the third, and the design that follows from its answer. Scoped on that basis; sized below.

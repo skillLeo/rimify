@@ -1,8 +1,8 @@
 // The client's list „Rimify Changes“ (34 points), as docs/review/KUNDENLISTE.md shows it to him: his wish in his words,
 // what the shop does now in one sentence, and the state a passing test with both pictures earns (scripts/kundenliste/
-// run.mjs). Three are judgement (#11, #32, #33: „Urteil offen“, never „erledigt“), three are solved differently with the
-// reason (#9, #19, #23), one waits for his answer (#34). The states are the operator's (the briefs „THE 34“ §5 and „CLOSE
-// THE PUBLIC SIDE“ §3, §5).
+// run.mjs). Three are judgement (#11, #32, #33: „Urteil offen“, never „erledigt“), two are solved differently with the
+// reason (#9, #23), one waits for his answer (#34). The states are the operator's (the briefs „THE 34“ §5 and „CLOSE
+// THE PUBLIC SIDE“ §3, §5; #19 built as we had told him, the operator's decision of 29.10.2026, D-344).
 //
 // `tick`: a row whose state stays what it is, but whose own column in his sheet is ours to tick once its test has passed
 // on the preview — the three judgement items, done on our side with his verdict in his column, and #23, tested there by
@@ -149,10 +149,9 @@ export const ITEMS = [
     {
         nr: 19,
         wish: 'Bewertungen unter dem Felgennamen, im Admin anlegbar (z. B. 4,9 Sterne, 13 Bewertungen)',
-        now: 'Bewertungen gibt es nur von echten Käufern nach der Zustellung; im Admin lassen sie sich beantworten und ausblenden, aber nicht anlegen.',
-        reason: 'Selbst eingetragene Sterne wären irreführende Werbung (§ 5 UWG), und ein Shop muss sagen, wie er Bewertungen prüft (§ 5b UWG).',
-        state: 'anders gelöst',
-        commits: ['ceab89db'],
+        now: 'Sterne und die Zahl der Bewertungen trägst du im Admin bei jeder Felge selbst ein („Sterne von Hand“), zusammen mit einem Satz, woher sie stammen. Der Shop zeigt sie unter dem Felgennamen mit diesem Satz daneben – ohne den Satz zeigt er keine. Sie heißen nie „Geprüfter Kauf“, stehen nicht in den Daten für Suchmaschinen und werden nicht mit den Bewertungen deiner Käufer im Shop verrechnet.',
+        state: 'erledigt',
+        commits: ['675cfc55'],
     },
     {
         nr: 20,
