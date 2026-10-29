@@ -1,4 +1,7 @@
 import { execFileSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
 
@@ -171,6 +174,12 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         await expect(page.locator('#zl-edit')).toBeVisible({ timeout: 20_000 })
         await shot(page, '03b-zaehlung')
     } else {
+        // The placeholder another checkout typed: the checkouts share the admin's database, not its disk. Its own PDF —
+        // the same bytes, by their SHA-256 — goes back where it is expected, where this disk lacks it (29.10.2026: the
+        // shop gave no link to the Gutachten on the worktree).
+        const file = join(tmpdir(), 'rimify-platzhalter-gutachten.pdf')
+        writeFileSync(file, placeholderPdf(4))
+        execFileSync('php', ['artisan', 'demo:placeholder-tables', `--pdf=${file}`], { stdio: 'pipe' })
         await existing.first().click()
         await page.waitForURL(/\/admin\/gutachten\/\d+$/)
     }
