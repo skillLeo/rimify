@@ -562,6 +562,11 @@ describe('putting every entry into words', function (): void {
                 ['Sterne: 4,7 (9 Bewertungen) → 4,9 (13 Bewertungen)'],
             ],
             'wheel.rating_removed' => [['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)'], 'Die Sterne von Hand der Felge „Nordfelge Fjord“ – 4,9 (13 Bewertungen) – wurden entfernt. Der Shop zeigt sie nicht mehr.', []],
+            'order.confirmation_not_mailed' => [
+                ['order' => 'RMF-2026-00042'],
+                'Die Bestellbestätigung zur Bestellung „RMF-2026-00042“ wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                [],
+            ],
             'contact.recipient_changed' => [
                 ['before' => 'kontakt@beispiel.de', 'after' => 'info@beispiel.de'],
                 'Neue Nachrichten aus dem Kontaktformular gehen jetzt an info@beispiel.de.',

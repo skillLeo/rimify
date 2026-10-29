@@ -19,6 +19,7 @@ use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -129,8 +130,10 @@ class BestellungController extends Controller
             // Where the payment stands, in the page's words — and whether the page should keep asking. A seeded order
             // was never paid; a test purchase was (the test payment), and walks the whole path.
             'payment' => $demo && $record->seeded() ? null : self::payment($record, $request->query('redirect_status'), $proof === OrderAccess::LINK),
-            // The §14 invoice as issued, by a signed link — never to a seeded order.
+            // The §14 invoice as issued, by a signed link — never to a seeded order. Issued before the shop's own invoices
+            // were switched off it stays readable; the words around it follow the switch (D-348).
             'invoice' => $demo ? null : self::invoice($record),
+            'ownInvoices' => OwnInvoices::enabled(),
             // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
             'accountOffer' => ! $demo && $record->status->isPaid() && is_array($placed) && in_array($record->order_number, $placed, true)
                 && $request->user('customer') === null

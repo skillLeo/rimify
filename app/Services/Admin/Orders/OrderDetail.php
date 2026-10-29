@@ -22,6 +22,7 @@ use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Commerce\RefundOrder;
 use App\Support\GermanFormat;
 use App\Support\Money;
+use App\Support\OwnInvoices;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Throwable;
@@ -101,6 +102,9 @@ final class OrderDetail
             'canRefund' => RefundOrder::refundable($order) > 0 && ! $order->isDemo() && Payments::for((string) $order->getAttribute('payment_method')) !== null,
             'flag' => $order->payment_flag,
             'error' => $order->payment_error,
+            // Whether the shop issues its own invoices and credit notes (D-348): off, a refund names no Gutschrift.
+            // Papers issued before stay listed.
+            'ownInvoices' => OwnInvoices::enabled(),
             'papers' => $papers->map(static fn (Invoice $paper): array => [
                 'number' => $paper->number,
                 'kind' => $paper->kind === Invoice::INVOICE ? 'Rechnung' : 'Gutschrift',

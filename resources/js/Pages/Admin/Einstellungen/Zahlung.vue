@@ -23,7 +23,7 @@ import type { AdminZahlungProps } from '../../../types/admin/zahlung'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
-const props = defineProps<AdminZahlungProps>()
+const props = withDefaults(defineProps<AdminZahlungProps>(), { ownInvoices: true })
 
 const editor = useDirtyForm(
     { mode: props.form.mode, publishable_key: '', secret_key: '', webhook_secret: '' },
@@ -181,7 +181,8 @@ function openSeries(): void {
             </section>
         </form>
 
-        <section v-if="seriesOpen && invoiceSeries.invoice && invoiceSeries.credit_note" class="adm-form za-series" aria-labelledby="za-series">
+        <!-- The shop's own invoice numbers only while it issues its own invoices (D-348): off, Stripe issues them. -->
+        <section v-if="ownInvoices !== false && seriesOpen && invoiceSeries.invoice && invoiceSeries.credit_note" class="adm-form za-series" aria-labelledby="za-series">
             <h2 id="za-series" class="adm-form__heading">Rechnungsnummern</h2>
             <p class="adm-form__note">
                 Eröffnet am {{ invoiceSeries.invoice.openedAt }} von {{ invoiceSeries.invoice.openedBy }}. Der Shop zählt lückenlos weiter.
@@ -193,7 +194,7 @@ function openSeries(): void {
             </dl>
         </section>
 
-        <form v-else class="adm-form za-series" novalidate aria-labelledby="za-series" @submit.prevent="openSeries">
+        <form v-else-if="ownInvoices !== false" class="adm-form za-series" novalidate aria-labelledby="za-series" @submit.prevent="openSeries">
             <h2 id="za-series" class="adm-form__heading">Rechnungsnummern</h2>
             <p class="adm-form__note">
                 Die Rechnungsnummern sind noch nicht eröffnet. Bis dahin bekommt jede Bestellung eine Testrechnung. Trag die

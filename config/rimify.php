@@ -178,6 +178,12 @@ return [
         'driver' => env('RIMIFY_PAYMENTS', filter_var(env('RIMIFY_REVIEW', env('APP_ENV', 'production') !== 'production'), FILTER_VALIDATE_BOOL) ? 'sandbox' : 'none'),
     ],
 
+    // The shop's own invoices and credit notes (Invoices, §14 UStG) — off since the client's reply of 29.10.2026 to his
+    // admin item 17: „for now stripe will take care of the invoice creation and storage and in the future we would like
+    // to revisit this topic“ (D-348). Off, the shop issues, attaches, numbers and mentions no invoice anywhere; the code
+    // stays for the day he turns it back on. Old invoices stay readable.
+    'own_invoices' => filter_var(env('RIMIFY_OWN_INVOICES', false), FILTER_VALIDATE_BOOL),
+
     // The seller as the law names it — on the invoice (§ 14 UStG), in the Widerrufsformular, in the order mail. The
     // client's own data, typed in by hand: never guessed, never the brand name in its place. Null until given; an
     // invoice is then issued as a test invoice only, and the preflight says what is missing (App\Support\Seller).

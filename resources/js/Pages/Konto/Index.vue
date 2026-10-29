@@ -10,10 +10,15 @@ import AppLayout from '../../Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-defineProps<{
-    email: string
-    orders: { number: string; placedAt: string | null; status: string; total: string; vehicle: string | null }[]
-}>()
+withDefaults(
+    defineProps<{
+        email: string
+        orders: { number: string; placedAt: string | null; status: string; total: string; vehicle: string | null }[]
+        /** Whether the shop issues its own invoices (D-348); absent in older fixtures: on. */
+        ownInvoices?: boolean
+    }>(),
+    { ownInvoices: true }
+)
 
 const confirmDelete = ref(false)
 /** A request on its way: the buttons wait, and a second press does nothing. */
@@ -64,10 +69,11 @@ function send(method: 'post' | 'delete', url: string): void {
                 </div>
 
                 <div v-if="confirmDelete" class="konto__delete" role="alert">
-                    <p>
+                    <p v-if="ownInvoices !== false">
                         Wenn du dein Konto löschst, bewahren wir Bestellungen und Rechnungen auf, solange wir gesetzlich dazu
                         verpflichtet sind. Deine Rechnungen findest du im Anhang deiner Bestellbestätigungen.
                     </p>
+                    <p v-else>Wenn du dein Konto löschst, bewahren wir deine Bestellungen auf, solange wir gesetzlich dazu verpflichtet sind.</p>
                     <div class="konto__actions">
                         <button class="btn btn--primary" type="button" :disabled="busy" :aria-busy="busy ? 'true' : undefined" @click="send('delete', '/konto')">Konto endgültig löschen</button>
                         <button class="btn btn--secondary" type="button" @click="confirmDelete = false">Behalten</button>

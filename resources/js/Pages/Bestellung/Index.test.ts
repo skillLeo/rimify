@@ -149,6 +149,11 @@ describe('Bestellung', () => {
 
         const notSent = mountOrder(props({ payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: false } }))
         expect(notSent.text()).not.toContain('Die Bestätigung')
+
+        // The shop's own invoices off (D-348): the same line, naming no invoice — Stripe issues it.
+        const stripe = mountOrder(props({ ownInvoices: false, payment: { state: 'paid', poll: false, email: 'kunde@beispiel.de', mailed: true } } as never))
+        expect(stripe.text()).toContain('Die Bestätigung mit AGB und Widerrufsbelehrung haben wir an kunde@beispiel.de geschickt.')
+        expect(stripe.text()).not.toContain('Rechnung')
     })
 
     it('promises no confirmation mail it did not send, and names no carrier', () => {

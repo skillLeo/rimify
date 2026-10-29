@@ -117,6 +117,8 @@ const props = defineProps<{
         canRefund: boolean
         flag: string | null
         error: string | null
+        /** Whether the shop issues its own invoices and credit notes (D-348); absent in older fixtures: on. */
+        ownInvoices?: boolean
         papers: { number: string; kind: string; gross: number; issuedAt: string | null; href: string }[]
         refunds: { amount: number; reason: string; status: string; at: string | null; by: string | null }[]
     }
@@ -175,11 +177,22 @@ const refundCents = computed(() => parseAmount(refundAmount.value))
 /* What the refund does, said as it is: over Stripe, or — paid with the Testzahlung — no money at all (the admin audit's F-11). */
 const refundBody = computed(() => {
     const who = props.customer.name ?? 'die Kundin oder den Kunden'
+    // With the shop's own invoices off (D-348) no Gutschrift is issued, so none is named.
+    const papers = props.money?.ownInvoices !== false
 
-    return props.order.test
-        ? `Bei der Testzahlung fließt kein Geld zurück: Die Erstattung wird vermerkt, und die Gutschrift geht an ${who}. Eine Erstattung lässt sich nicht zurücknehmen.`
-        : `Das Geld geht über Stripe an ${who} zurück; eine Gutschrift wird ausgestellt. Eine Erstattung lässt sich nicht zurücknehmen.`
+    if (props.order.test) {
+        return papers
+            ? `Bei der Testzahlung fließt kein Geld zurück: Die Erstattung wird vermerkt, und die Gutschrift geht an ${who}. Eine Erstattung lässt sich nicht zurücknehmen.`
+            : `Bei der Testzahlung fließt kein Geld zurück: Die Erstattung wird vermerkt, und ${who} bekommt eine Mail dazu. Eine Erstattung lässt sich nicht zurücknehmen.`
+    }
+
+    return papers
+        ? `Das Geld geht über Stripe an ${who} zurück; eine Gutschrift wird ausgestellt. Eine Erstattung lässt sich nicht zurücknehmen.`
+        : `Das Geld geht über Stripe an ${who} zurück. Eine Erstattung lässt sich nicht zurücknehmen.`
 })
+
+/* Where the reason ends up: on the Gutschrift while the shop issues one, otherwise in the order's record (D-348). */
+const reasonGoesOn = computed(() => (props.money?.ownInvoices !== false ? 'es steht auf der Gutschrift' : 'es steht in der Bestellung'))
 
 function askRefund(): void {
     const cents = refundCents.value
@@ -198,7 +211,7 @@ function askRefund(): void {
     }
 
     if (refundReason.value.trim().length < 3) {
-        refundLocal.value = 'Schreib dazu, wofür erstattet wird – es steht auf der Gutschrift.'
+        refundLocal.value = `Schreib dazu, wofür erstattet wird – ${reasonGoesOn.value}.`
 
         return
     }
@@ -480,7 +493,7 @@ function tagClass(state: OrderState): string | null {
                 <div class="form-field">
                     <label class="form-field__label" for="bs-refund-reason">Grund</label>
                     <input id="bs-refund-reason" v-model="refundReason" class="input" type="text" maxlength="300" autocomplete="off" aria-describedby="bs-refund-reason-help bs-refund-err">
-                    <p id="bs-refund-reason-help" class="form-field__help">Steht auf der Gutschrift, die die Kundin oder der Kunde bekommt – etwa „Eine Felge zurückgeschickt“.</p>
+                    <p id="bs-refund-reason-help" class="form-field__help">{{ money?.ownInvoices !== false ? 'Steht auf der Gutschrift, die die Kundin oder der Kunde bekommt' : 'Steht in der Bestellung und im Protokoll' }} – etwa „Eine Felge zurückgeschickt“.</p>
                 </div>
                 <p id="bs-refund-err" class="form-field__error" role="alert">{{ refundLocal ?? refundErrors.refund ?? refundErrors.amountCents ?? refundErrors.reason ?? '' }}</p>
                 <div class="adm-fields__actions">

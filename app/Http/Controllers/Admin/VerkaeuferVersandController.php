@@ -11,6 +11,7 @@ use App\Models\Setting;
 use App\Services\Admin\AuditTrail;
 use App\Support\EditStamp;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use App\Support\Seller;
 use App\Support\Shipping;
 use Illuminate\Http\RedirectResponse;
@@ -66,6 +67,8 @@ class VerkaeuferVersandController extends Controller
             // The `.env` register line, where it was written as one: shown so nobody types it in twice.
             'legacyRegister' => $seller->source === '.env' && $seller->registerCourt === null ? $seller->register : null,
             'sellerMissing' => $seller->missing(),
+            // Whether the shop issues its own invoices (D-348): off, the page speaks of none.
+            'ownInvoices' => OwnInvoices::enabled(),
             'shipping' => [
                 // Typed back as the Wuchtgewichte page types a price: `4,90 €`, which Money::fromGerman reads again.
                 'cost' => $zone['cost_cents'] === null ? '' : GermanFormat::money($zone['cost_cents']),

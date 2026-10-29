@@ -16,6 +16,7 @@ use App\Services\Commerce\InvoiceSeries;
 use App\Services\GoLive\GoLiveCheck;
 use App\Services\GoLive\GoLiveChecks;
 use App\Support\EditStamp;
+use App\Support\OwnInvoices;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,8 @@ class ZahlungController extends Controller
             'webhookUrl' => route('webhooks.payment', ['provider' => 'stripe']),
             // The real invoice numbers: opened once, at the client's own (InvoiceSeries), or still closed.
             'invoiceSeries' => InvoiceSeries::state(),
+            // Off since D-348 (Stripe issues the invoices): the page then shows no invoice numbers at all.
+            'ownInvoices' => OwnInvoices::enabled(),
             // No real payment while a check of „Recht und Pflichtangaben" fails (GoLiveChecks::liveRefusal): named here.
             'liveBlockedBy' => array_values(array_map(
                 static fn (GoLiveCheck $c): array => ['id' => $c->id, 'title' => $c->title, 'sentence' => $c->sentence, 'place' => $c->place],

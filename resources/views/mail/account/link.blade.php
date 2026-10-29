@@ -2,7 +2,7 @@
 @if ($opened)
 # Dein Konto ist fast fertig
 
-Du hast nach deiner Bestellung ein Konto angelegt. Leg jetzt nur noch dein Passwort fest – danach siehst du unter „Mein Konto“ jederzeit deine Bestellungen, ihre Freigaben und Rechnungen.
+Du hast nach deiner Bestellung ein Konto angelegt. Leg jetzt nur noch dein Passwort fest – danach siehst du unter „Mein Konto“ jederzeit deine Bestellungen{{ config('rimify.own_invoices') ? ', ihre Freigaben und Rechnungen' : ' und ihre Freigaben' }}.
 @else
 # Ein neues Passwort
 

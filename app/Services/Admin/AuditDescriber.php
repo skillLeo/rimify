@@ -91,6 +91,7 @@ final class AuditDescriber
         // audit's F-35): a refund, a payment, an invoice or a key change read „noch nicht in Worten“.
         'order.status_changed' => 'verkauf',
         'order.confirmation_sent' => 'verkauf',
+        'order.confirmation_not_mailed' => 'verkauf',
         'order.confirmation_failed' => 'verkauf',
         'order.shipping_mail_sent' => 'verkauf',
         'order.shipping_mail_failed' => 'verkauf',
@@ -485,6 +486,10 @@ final class AuditDescriber
                 [],
             ],
             'order.confirmation_failed' => ['Die Bestellbestätigung zur Bestellung '.self::order($p).' konnte nicht verschickt werden.'.self::error($p), []],
+            'order.confirmation_not_mailed' => [
+                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                [],
+            ],
             'order.shipping_mail_sent' => [
                 'Die Versandmail zur Bestellung '.self::order($p).' wurde verschickt'
                     .(self::text($p, 'tracking') === null ? ', ohne Sendungsnummer.' : ', mit der Sendungsnummer '.self::q((string) self::text($p, 'tracking')).'.'),

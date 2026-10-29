@@ -62,8 +62,10 @@ Nur bei {{ $size['size'] }} ({{ $size['axle'] }}):
 
 @if ($invoiceNumber !== null)
 Deine Rechnung **{{ $invoiceNumber }}** hängt an dieser Mail. Du kannst sie auch [hier herunterladen]({{ $invoiceUrl }}) (der Link gilt sieben Tage).
-@else
+@elseif ($testPurchase && $ownInvoices)
 Dies ist ein Testkauf mit Beispieldaten: Er bekommt keine Rechnung und zählt in keiner echten Zahl des Shops.
+@elseif ($testPurchase)
+Dies ist ein Testkauf mit Beispieldaten: Er zählt in keiner echten Zahl des Shops.
 @endif
 @if ($legalAttached)
 

@@ -27,6 +27,7 @@ use App\Services\Reset\TestEnvironment;
 use App\Services\Smoke\PrivateFilesProbe;
 use App\Services\Storage\DocumentFiles;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use App\Support\ScheduleBeat;
 use App\Support\Seller;
 use App\Support\Shipping;
@@ -222,9 +223,19 @@ final class GoLiveChecks
             : 'Jeder Preis ist ein Bruttopreis mit 19 % Umsatzsteuer, auf der Seite, in der Bestellung und auf der Rechnung.', 'RIMIFY_SELLER_SMALL_BUSINESS');
     }
 
-    /** § 14 Abs. 4 UStG: the seller's part of every invoice, and the real numbers opened. */
+    /**
+     * § 14 Abs. 4 UStG: the seller's part of every invoice, and the real numbers opened — while the shop issues its own.
+     * Off (D-348) Stripe issues them: then this item says so and points to what the client sets in his Stripe dashboard
+     * (docs/launch/STRIPE-RECHNUNGEN.md, once written); the shop's own numbers are not asked for.
+     */
     private function invoiceFields(): GoLiveCheck
     {
+        if (! OwnInvoices::enabled()) {
+            return $this->check('rechnung', self::LEGAL, 'Rechnungen (§ 14 UStG): stellt Stripe aus', GoLiveCheck::CLIENT, GoLiveCheck::UNCHECKABLE,
+                'Der Shop stellt keine eigenen Rechnungen aus – Stripe erstellt und speichert sie. Ob die Pflichtangaben auf ihnen stehen, legst du im Stripe-Dashboard fest: Firmenname und Anschrift, USt-IdNr., Rechnungsnummern und der Versand der Rechnung per E-Mail. Hier lässt sich das nicht prüfen.',
+                'https://dashboard.stripe.com/settings/billing/invoice');
+        }
+
         $missing = Seller::current()->missing();
 
         try {
