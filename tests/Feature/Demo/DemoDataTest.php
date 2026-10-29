@@ -86,7 +86,7 @@ describe('the fence', function (): void {
     });
 
     it('writes nothing on a deploy where a person took the demo data away, or the test environment was emptied', function (): void {
-        Setting::set(DemoTables::REMOVED, ['at' => now()->toIso8601String(), 'by' => 'Limix Sebastian']);
+        Setting::set(DemoTables::REMOVED, ['at' => now()->toIso8601String(), 'by' => 'Erika Mustermann']);
 
         $this->artisan('demo:seed', ['--unless-removed' => true])->expectsOutputToContain('nicht wieder geschrieben')->assertSuccessful();
         expect(DemoTables::total())->toBe(0);

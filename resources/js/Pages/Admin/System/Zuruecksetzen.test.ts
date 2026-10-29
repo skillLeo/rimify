@@ -130,7 +130,7 @@ describe('System › Testumgebung zurücksetzen', () => {
                     label: 'Shopdaten',
                     at: '2026-10-04T12:00:00+00:00',
                     atText: '04.10.2026, 14:00\u00A0Uhr',
-                    by: 'Limix Sebastian',
+                    by: 'Erika Mustermann',
                     until: '11.10.2026, 14:00\u00A0Uhr',
                     remaining: 'noch 6\u00A0Tage und 23\u00A0Stunden',
                     undone: false,
@@ -143,7 +143,7 @@ describe('System › Testumgebung zurücksetzen', () => {
 
         expect(wrapper.find('.ctx').text()).toBe('Nur in der Testumgebung, nie im Live-Shop')
         expect(wrapper.get('.zs-last .adm-note').text().replace(/\s+/g, ' ')).toBe(
-            'Shopdaten, am 04.10.2026, 14:00 Uhr von Limix Sebastian. Rückgängig machen ist bis 11.10.2026, 14:00 Uhr möglich (noch 6 Tage und 23 Stunden).'
+            'Shopdaten, am 04.10.2026, 14:00 Uhr von Erika Mustermann. Rückgängig machen ist bis 11.10.2026, 14:00 Uhr möglich (noch 6 Tage und 23 Stunden).'
         )
 
         await wrapper.get('.zs-last button').trigger('click')
@@ -168,7 +168,7 @@ describe('System › Testumgebung zurücksetzen', () => {
                     label: 'Demodaten',
                     at: '2026-10-04T12:00:00+00:00',
                     atText: '04.10.2026, 14:00 Uhr',
-                    by: 'Limix Sebastian',
+                    by: 'Erika Mustermann',
                     until: '11.10.2026, 14:00 Uhr',
                     remaining: 'noch 6 Tage und 23 Stunden',
                     undone: false,
