@@ -13,7 +13,7 @@ defineOptions({ layout: AppLayout, inheritAttrs: false })
 withDefaults(
     defineProps<{
         email: string
-        orders: { number: string; placedAt: string | null; status: string; total: string; vehicle: string | null }[]
+        orders: { number: string; href: string; placedAt: string | null; status: string; total: string; vehicle: string | null }[]
         /** Whether the shop issues its own invoices (D-348); absent in older fixtures: on. */
         ownInvoices?: boolean
     }>(),
@@ -54,7 +54,7 @@ function send(method: 'post' | 'delete', url: string): void {
                 <h2 class="h3 konto__title">Deine Bestellungen</h2>
                 <ul v-if="orders.length" class="konto__orders">
                     <li v-for="order in orders" :key="order.number">
-                        <Link :href="`/bestellung/${order.number}`" class="konto__order">
+                        <Link :href="order.href" class="konto__order">
                             <span class="konto__number num">{{ order.number }}</span>
                             <span class="konto__meta">{{ order.placedAt }} · {{ order.status }}<template v-if="order.vehicle"> · {{ order.vehicle }}</template></span>
                             <span class="konto__total num">{{ order.total }}</span>

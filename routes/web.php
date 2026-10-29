@@ -172,13 +172,14 @@ Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:s
 Route::post('/kasse/zahlung', [KasseZahlungController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.zahlung');
 // The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
 // the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
-Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
-Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
-Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->whereUuid('order')->middleware('signed')->name('kasse.testzahlung');
+Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->whereUuid('order')->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
+// The order by its public id (his admin item 18, D-354): a UUID in place of the number, the signature kept as before.
+Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->whereUuid('order')->name('bestellung.show');
 // The way back from an expired order link (D-240): number and address, and a fresh link goes to that address.
 Route::post('/bestellung/link', [BestellungLinkController::class, 'store'])->middleware('throttle:shop-bestelllink')->name('bestellung.link');
 // Mein Konto (Block G §2): offered after a paid order with one click; guest checkout stays the default.
-Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:shop-konto')->name('bestellung.konto');
+Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->whereUuid('order')->middleware('throttle:shop-konto')->name('bestellung.konto');
 Route::middleware('guest:customer')->group(function (): void {
     Route::get('/konto/anmelden', [KontoController::class, 'create'])->name('konto.anmelden');
     Route::post('/konto/anmelden', [KontoController::class, 'login'])->middleware('throttle:shop-konto')->name('konto.login');
@@ -195,10 +196,10 @@ Route::middleware('auth:customer')->group(function (): void {
 // An invoice's PDF from the private disk, by its signed link only (Invoices::link).
 Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
 // #19, D-103: the review invitation's page — signed, the link is the proof of purchase; the form goes back to it.
-Route::get('/bewertung/{number}', [BewertungController::class, 'show'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
-Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-bewertung'])->name('bewertung.store');
+Route::get('/bewertung/{order}', [BewertungController::class, 'show'])->whereUuid('order')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
+Route::post('/bewertung/{order}', [BewertungController::class, 'store'])->whereUuid('order')->middleware(['signed', 'throttle:shop-bewertung'])->name('bewertung.store');
 // The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
-Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
+Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->whereUuid('order')->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
 Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['stripe'])->name('webhooks.payment');
 // Amazon SES's bounces and complaints, by SNS (outside the CSRF check): the signature and the configured topic are the

@@ -33,10 +33,10 @@ use Throwable;
  * receipt for what they were told, and re-deriving it would mean the page could one day disagree
  * with the email they were sent.
  *
- * An order number counts up, so it is no secret: an order that came through the checkout is shown
- * only through its signed link, to the browser that placed it, or to the account it was placed
- * under — whatever it contains (OrderAccess). Anyone else gets the same 404 as an order that does
- * not exist. Only an order a seeder wrote opens by number.
+ * An order's address carries its public id, a random UUID, never its number (his admin item 18, D-354) — and the id is
+ * no key on its own either: an order that came through the checkout is shown only through its signed link, to the
+ * browser that placed it, or to the account it was placed under — whatever it contains (OrderAccess). Anyone else gets
+ * the same 404 as an order that does not exist. Only an order a seeder wrote opens by its id alone.
  */
 class BestellungController extends Controller
 {
@@ -54,9 +54,10 @@ class BestellungController extends Controller
 
     public function show(Request $request, string $order, Basket $basket): Response
     {
+        // By its public id (his admin item 18, D-354): the number is no part of any address; an old link with it is a 404.
         $record = Order::query()
             ->with(['lines.fitmentSnapshot', 'deliveryAddress', 'customer'])
-            ->where('order_number', $order)
+            ->where('public_id', $order)
             ->firstOrFail();
 
         // Provenance, never content, decides who sees it (OrderAccess, EIGENE-FUNDE 131).
@@ -90,6 +91,8 @@ class BestellungController extends Controller
                 'quantity' => (int) $line->quantity,
                 'unitPrice' => GermanFormat::money((int) $line->unit_price_cents),
                 'lineTotal' => GermanFormat::money((int) $line->line_total_cents),
+                // A Komplettrad's rows, each its own line as in the basket and the checkout (his #15, D-355).
+                'components' => $line->componentRows(),
                 'verdict' => $snapshot === null ? null : [
                     'status' => $snapshot->verdict_status,
                     // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page said it.
@@ -110,6 +113,8 @@ class BestellungController extends Controller
         return Inertia::render('Bestellung/Index', [
             'order' => [
                 'number' => $record->order_number,
+                // The key of the page's own requests — its status, the account offer (D-354).
+                'publicId' => $record->public_id,
                 'status' => $record->status->value,
                 'statusLabel' => $record->status->labelDe(),
                 'placedAt' => GermanFormat::dateTime($record->placed_at),

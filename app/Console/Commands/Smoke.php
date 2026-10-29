@@ -408,9 +408,10 @@ final class Smoke extends Command
 
         $paid = $this->post($payment, ['outcome' => 'bezahlt']);
         $confirmation = (string) $paid->header('Location');
-        $this->expect(preg_match('#/bestellung/(RMF-[0-9-]+)#', $confirmation, $number) === 1, 'keine Bestellbestätigung nach der Zahlung');
+        // The address carries the order's public id, its number stands on the page (D-354).
+        $this->expect(preg_match('#/bestellung/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}#', $confirmation) === 1, 'keine Bestellbestätigung nach der Zahlung');
         $page = self::rendered($this->get($confirmation)->body());
-        $this->expect(str_contains($page, $number[1]) && str_contains($page, 'Bezahlt'), 'die Bestätigung zeigt die bezahlte Bestellung nicht');
+        $this->expect(preg_match('#\b(\d{4}-\d{5,})\b#', $page, $number) === 1 && str_contains($page, 'Bezahlt'), 'die Bestätigung zeigt die bezahlte Bestellung nicht');
 
         // Nothing to put back on a shelf: since his admin items 7 and 10 nothing is counted (D-299, D-301), so a paid test
         // order takes no stock the client reviews — what D-146 once returned by hand.

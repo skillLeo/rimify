@@ -34,7 +34,9 @@ type Props = BestellungProps & { demo: boolean }
 function props(overrides: Partial<Props> = {}, order: Partial<BestellungProps['order']> = {}): Props {
     return {
         order: {
-            number: 'RMF-2026-1003',
+            number: '2611-10487',
+            // The page's own requests go by the order's public id, never its number (his admin item 18, D-354).
+            publicId: '0b8f6c2e-4d1a-4f7e-9c3b-5a2d8e1f7a90',
             status: 'SHIPPED',
             statusLabel: 'Versendet',
             placedAt: '01.07.2026, 10:00 Uhr',
@@ -103,7 +105,7 @@ describe('Bestellung', () => {
             expect(wrapper.text()).not.toContain('Vielen Dank')
 
             await vi.advanceTimersByTimeAsync(2000)
-            expect(fetchMock).toHaveBeenCalledWith('/bestellung/RMF-2026-1003/status', expect.anything())
+            expect(fetchMock).toHaveBeenCalledWith('/bestellung/0b8f6c2e-4d1a-4f7e-9c3b-5a2d8e1f7a90/status', expect.anything())
             expect(reload).not.toHaveBeenCalled()
 
             await vi.advanceTimersByTimeAsync(2000)
@@ -137,7 +139,7 @@ describe('Bestellung', () => {
 
         await card.find('button').trigger('click')
 
-        expect(post).toHaveBeenCalledWith('/bestellung/RMF-2026-1003/konto', {}, expect.anything())
+        expect(post).toHaveBeenCalledWith('/bestellung/0b8f6c2e-4d1a-4f7e-9c3b-5a2d8e1f7a90/konto', {}, expect.anything())
         expect(wrapper.find('.ord__account [role="status"]').text()).toBe('Der Link ist unterwegs. Mit ihm legst du dein Passwort fest.')
 
         expect(mountOrder(props()).find('.ord__account').exists()).toBe(false)
@@ -174,7 +176,7 @@ describe('Bestellung', () => {
         const wrapper = mountOrder(props())
         const question = wrapper.find('.ord__next-link')
 
-        expect(question.attributes('href')).toBe('/kontakt?betreff=Bestellung+RMF-2026-1003&von=%2Fbestellung%2F42')
+        expect(question.attributes('href')).toBe('/kontakt?betreff=Bestellung+2611-10487&von=%2Fbestellung%2F42')
         expect(question.text()).toContain('Schreib uns')
         expect(wrapper.html()).not.toContain('mailto:')
     })

@@ -43,6 +43,8 @@ final class ResetTables
         'tpms_sensor_prices',
         // The invoice numbers count on, whatever goes (no number is ever given twice).
         'invoice_sequences',
+        // So do the order numbers (his admin item 18, D-354): the counter never resets.
+        'order_number_counter',
         // The Protokoll: append-only, R-12.
         'audit_logs',
         // The engine's reference tables (R-03) and the schema's own record.

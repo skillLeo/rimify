@@ -36,11 +36,11 @@ function placedSession(Order $order): array
 }
 
 it('offers the account in one click on a paid order, and mails the link to set the password', function (): void {
-    $this->withSession(placedSession($this->order))->get('/bestellung/'.$this->order->order_number)
+    $this->withSession(placedSession($this->order))->get('/bestellung/'.$this->order->public_id)
         ->assertInertia(fn (AssertableInertia $page) => $page->where('demo', false)->where('order.status', 'PAID')->where('accountOffer', true));
 
-    $this->withSession(placedSession($this->order))->from('/bestellung/'.$this->order->order_number)
-        ->post('/bestellung/'.$this->order->order_number.'/konto')
+    $this->withSession(placedSession($this->order))->from('/bestellung/'.$this->order->public_id)
+        ->post('/bestellung/'.$this->order->public_id.'/konto')
         ->assertRedirect()->assertSessionHas('toast', sprintf(KontoController::LINK_SENT, 'kunde@beispiel.de'));
 
     $account = CustomerAccount::query()->sole();
@@ -49,12 +49,12 @@ it('offers the account in one click on a paid order, and mails the link to set t
     Mail::assertSent(CustomerAccountMail::class, fn (CustomerAccountMail $mail): bool => $mail->hasTo('kunde@beispiel.de') && $mail->kind === 'opened');
 
     // Opened once, not offered again (PAY-10): a reload does not mail a second link.
-    $this->withSession(placedSession($this->order))->get('/bestellung/'.$this->order->order_number)
+    $this->withSession(placedSession($this->order))->get('/bestellung/'.$this->order->public_id)
         ->assertInertia(fn (AssertableInertia $page) => $page->where('accountOffer', false));
 });
 
 it('refuses the click from a browser that did not place the order', function (): void {
-    $this->post('/bestellung/'.$this->order->order_number.'/konto')->assertForbidden();
+    $this->post('/bestellung/'.$this->order->public_id.'/konto')->assertForbidden();
 
     expect(CustomerAccount::query()->count())->toBe(0);
 });
@@ -72,8 +72,8 @@ it('sets the password by the link once, signs in, and lists the address’s orde
         ->where('orders.0.number', $this->order->order_number));
 
     // Signed in, the account opens its own order from any browser — and not somebody else's.
-    $this->get('/bestellung/'.$this->order->order_number)->assertOk();
-    $this->get('/bestellung/'.$this->foreign->order_number)->assertNotFound();
+    $this->get('/bestellung/'.$this->order->public_id)->assertOk();
+    $this->get('/bestellung/'.$this->foreign->public_id)->assertNotFound();
 
     // The link was for the password it replaced: used once, it is dead.
     $this->post('/konto/abmelden');

@@ -31,8 +31,8 @@ class OrderLinkRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'order_number.required' => 'Bitte gib die Bestellnummer an – sie steht in der Bestätigung, zum Beispiel RMF-2026-0012.',
-            'order_number.max' => 'Diese Bestellnummer ist zu lang. Sie sieht so aus: RMF-2026-0012.',
+            'order_number.required' => 'Bitte gib die Bestellnummer an – sie steht in der Bestätigung, zum Beispiel 2611-10487.',
+            'order_number.max' => 'Diese Bestellnummer ist zu lang. Sie sieht so aus: 2611-10487.',
             'email.required' => 'Bitte gib die E-Mail-Adresse an, an die die Bestätigung ging.',
             'email.email' => 'Bitte gib eine gültige E-Mail-Adresse an.',
             'email.max' => 'Diese E-Mail-Adresse ist zu lang.',

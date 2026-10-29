@@ -110,6 +110,12 @@ function checkoutShown(object $test): string
     return (string) $shown;
 }
 
+/** The order's address carries its public id, never its number (his admin item 18, D-354). */
+function checkoutPublicId(string $number): string
+{
+    return (string) Order::query()->where('order_number', $number)->value('public_id');
+}
+
 function checkoutPay(object $test, array $form = [], ?string $shown = null): TestResponse
 {
     return $test->withCookies(checkoutCookies($test->vehicle))->withSession(checkoutBasket($test->config))->withCredentials()
@@ -162,7 +168,7 @@ it('writes the order — no rim counted down (D-299) — and answers with the cl
         ->and($created[0]['params']['currency'])->toBe('eur')
         ->and($created[0]['headers']['idempotency-key'])->toBe('rmf-pi-'.$order->order_number.'-'.$order->total_cents)
         ->and($response->json('clientSecret'))->toBe($order->stripe_payment_intent_id.'_secret_fake')
-        ->and($response->json('returnUrl'))->toBe(route('bestellung.show', ['order' => $order->order_number]))
+        ->and($response->json('returnUrl'))->toBe(route('bestellung.show', ['order' => $order->public_id]))
         // Not paid yet, and the basket is still the customer's.
         ->and(session(Basket::SESSION_KEY))->not->toBe([]);
 });
@@ -266,11 +272,11 @@ it('pays nothing at the return address: the order waits for the webhook, and so 
     $number = checkoutPay($this)->assertOk()->json('order');
     $order = Order::query()->where('order_number', $number)->sole();
 
-    $this->get('/bestellung/'.$number.'?payment_intent='.$order->stripe_payment_intent_id.'&payment_intent_client_secret=x&redirect_status=succeeded')
+    $this->get('/bestellung/'.checkoutPublicId($number).'?payment_intent='.$order->stripe_payment_intent_id.'&payment_intent_client_secret=x&redirect_status=succeeded')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('payment.state', 'confirming')->where('payment.poll', true));
 
-    $this->getJson('/bestellung/'.$number.'/status')->assertOk()->assertJson(['state' => 'confirming']);
+    $this->getJson('/bestellung/'.checkoutPublicId($number).'/status')->assertOk()->assertJson(['state' => 'confirming']);
 
     expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment)
         ->and(session(Basket::SESSION_KEY))->not->toBe([])
@@ -288,7 +294,7 @@ it('is paid by the signed webhook: basket emptied, invoice = order = intent to t
     [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent, CHECKOUT_WEBHOOK_SECRET);
     $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
 
-    $this->getJson('/bestellung/'.$number.'/status')->assertOk()->assertJson(['state' => 'paid']);
+    $this->getJson('/bestellung/'.checkoutPublicId($number).'/status')->assertOk()->assertJson(['state' => 'paid']);
     $invoice = Invoice::query()->where('order_id', $order->id)->sole();
 
     expect($order->fresh()->status)->toBe(OrderStatus::Paid)
@@ -462,7 +468,7 @@ it('keeps the order and the typed data after a declined card, and takes the same
 
     expect($order->fresh()->status)->toBe(OrderStatus::Failed);
 
-    $this->get('/bestellung/'.$number)->assertInertia(fn (AssertableInertia $page) => $page->where('payment.state', 'failed'));
+    $this->get('/bestellung/'.checkoutPublicId($number))->assertInertia(fn (AssertableInertia $page) => $page->where('payment.state', 'failed'));
 
     // The retry: same order, same intent — its amount unchanged.
     $retry = $this->withCookies(checkoutCookies($this->vehicle))->withCredentials()->postJson('/kasse/zahlung', checkoutForm() + ['shown' => $shown])->assertOk();
@@ -501,7 +507,7 @@ it('takes an order through decline, retry and payment: one order, paid, no rim c
     // confirmation goes out; the count is untouched throughout, and so it stays after the expiry run.
     [$payload, $signature] = FakeStripe::event('payment_intent.succeeded', ['status' => 'succeeded', 'amount_received' => $intent['amount']] + $intent, CHECKOUT_WEBHOOK_SECRET);
     $this->call('POST', '/webhooks/stripe', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)->assertOk();
-    $this->getJson('/bestellung/'.$number.'/status')->assertOk()->assertJson(['state' => 'paid']);
+    $this->getJson('/bestellung/'.checkoutPublicId($number).'/status')->assertOk()->assertJson(['state' => 'paid']);
 
     $paid = $order->fresh();
 
@@ -562,7 +568,7 @@ it('prices a Kleinunternehmer’s order without VAT on the page, the order, the 
         // The same gross price either way: a Kleinunternehmer's prices are final, not net.
         ->and($invoice->gross_cents)->toBe($order->total_cents);
 
-    $this->get('/bestellung/'.$number)->assertInertia(fn (AssertableInertia $page) => $page->where('order.smallBusiness', $smallBusiness));
+    $this->get('/bestellung/'.checkoutPublicId($number))->assertInertia(fn (AssertableInertia $page) => $page->where('order.smallBusiness', $smallBusiness));
 
     Mail::assertSent(OrderConfirmationMail::class, function (OrderConfirmationMail $mail) use ($smallBusiness): bool {
         $html = $mail->render();
@@ -576,7 +582,7 @@ it('answers the status only to the browser that placed the order', function (): 
     $number = checkoutPay($this)->assertOk()->json('order');
 
     $this->flushSession();
-    $this->getJson('/bestellung/'.$number.'/status')->assertNotFound();
+    $this->getJson('/bestellung/'.checkoutPublicId($number).'/status')->assertNotFound();
 });
 
 it('refuses to start a payment while the payment for this order is already on its way', function (): void {

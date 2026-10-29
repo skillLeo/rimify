@@ -86,6 +86,8 @@ class OrderConfirmationMail extends Mailable
                 'label' => (string) $line->label,
                 'quantity' => (int) $line->quantity,
                 'total' => GermanFormat::money((int) $line->line_total_cents),
+                // A Komplettrad's rows, each its own line, as the basket, the checkout and the order page show them (D-355).
+                'components' => $line->componentRows(),
                 // In words, never a code (R-15) — as the order page says it.
                 'verdict' => $snapshot === null ? null : match ((string) $snapshot->verdict_status) {
                     'PERMITTED' => 'Für dein Fahrzeug freigegeben.',

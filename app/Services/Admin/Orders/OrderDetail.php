@@ -137,6 +137,8 @@ final class OrderDetail
             'quantity' => (int) $line->getAttribute('quantity'),
             'unit' => (int) $line->getAttribute('unit_price_cents'),
             'total' => (int) $line->getAttribute('line_total_cents'),
+            // A Komplettrad's rows as sold, each its own line (his #15, D-355).
+            'components' => $line->componentRows(),
             'package' => $line->getAttribute('package_group') === null ? null : (int) $line->getAttribute('package_group'),
             'snapshot' => $snapshot === null ? null : $this->snapshot($snapshot, $current, $tyreSize, $documentsOpen, PackageTyreSizes::axle($line), $partner),
         ];

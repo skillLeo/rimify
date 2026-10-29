@@ -106,7 +106,18 @@ const props = defineProps<{
     delivery: Address | null
     billing: Address | null
     sameAddress: boolean
-    lines: { id: number; kind: string; label: string; quantity: number; unit: number; total: number; package: number | null; snapshot: Snapshot | null }[]
+    lines: {
+        id: number
+        kind: string
+        label: string
+        quantity: number
+        unit: number
+        total: number
+        /** A Komplettrad's rows as sold (his #15, D-355); absent or empty on a rim sold alone. */
+        components?: { label: string; quantity: number; unitPrice: string; lineTotal: string }[]
+        package: number | null
+        snapshot: Snapshot | null
+    }[]
     /** Block G: what was paid and went back, the invoice and credit notes, and whether „Erstatten“ is offered. */
     money?: {
         paid: number
@@ -401,6 +412,18 @@ function tagClass(state: OrderState): string | null {
                         <span class="bs-line__total">{{ formatMoney(line.total) }}</span>
                     </div>
 
+                    <!-- A Komplettrad's rows as sold, each its own line (his #15, D-355). -->
+                    <table v-if="line.components?.length" class="bs-parts">
+                        <caption class="visually-hidden">Bestandteile von {{ line.label }}</caption>
+                        <tbody>
+                            <tr v-for="part in line.components" :key="part.label">
+                                <th scope="row">{{ part.label }}</th>
+                                <td>{{ decimal(part.quantity, 0) }} × {{ part.unitPrice }}</td>
+                                <td class="bs-parts__total">{{ part.lineTotal }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
                     <!-- The verdict as the customer was shown it, frozen at the purchase. -->
                     <div v-if="line.snapshot" class="bs-proof">
                         <p class="bs-proof__title">
@@ -679,6 +702,32 @@ function tagClass(state: OrderState): string | null {
 
 .bs-line__qty {
     color: var(--c-ink-2);
+}
+
+/* A Komplettrad's rows under its line: the figures in their columns, quieter than the line (D-355). */
+.bs-parts {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.bs-parts th,
+.bs-parts td {
+    padding: var(--sp-4) 0;
+    font-weight: 400;
+    text-align: left;
+}
+
+.bs-parts td {
+    padding-left: var(--sp-12);
+    white-space: nowrap;
+}
+
+.bs-parts__total {
+    text-align: right;
 }
 
 .bs-line__total {

@@ -19,6 +19,7 @@ use App\Services\Commerce\Reviews\ReviewWriter;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 
 /*
@@ -114,7 +115,7 @@ it('opens the review page only through the signed link, and only for a delivered
             ->where('lines.0.review', null));
 
     // Without the signature, or with a changed one: refused.
-    $this->get('/bewertung/'.$order->order_number)->assertForbidden();
+    $this->get('/bewertung/'.$order->public_id)->assertForbidden();
 
     // A link for an order that was never delivered leads nowhere.
     $paid = reviewOrder();
@@ -207,8 +208,8 @@ it('lets only a purchase paid for real be reviewed — never a test-mode payment
     $this->get(ReviewLink::for($real))->assertOk();
     $this->get(ReviewLink::for($partly))->assertOk();
 
-    // A purged order has no page: its signed link answers as any number that is not there.
-    $gone = $real->replicate()->forceFill(['order_number' => 'RMF-2099-99999']);
+    // A purged order has no page: its signed link answers as any order that is not there (its own id, D-354).
+    $gone = $real->replicate()->forceFill(['order_number' => 'RMF-2099-99999', 'public_id' => (string) Str::uuid()]);
     $this->get(ReviewLink::for($gone))->assertNotFound();
 
     // The invitations follow the same rule: one each for the real purchase and the partly refunded one, none else.

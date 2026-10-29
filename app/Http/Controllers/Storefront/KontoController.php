@@ -85,6 +85,8 @@ class KontoController extends Controller
             'email' => $account->email,
             'orders' => $account->orders()->get()->map(static fn (Order $order): array => [
                 'number' => $order->order_number,
+                // The order's address carries its public id, never the number (his admin item 18, D-354).
+                'href' => '/bestellung/'.$order->public_id,
                 'placedAt' => GermanFormat::date($order->placed_at),
                 'status' => $order->status->labelDe(),
                 'total' => GermanFormat::money($order->total_cents),

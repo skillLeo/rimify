@@ -257,7 +257,9 @@ const chosenAnswer = computed(() => {
  * answer, preselected only where the visitor already gave one for this car's make. Nothing of it under „Nur Felgen“.
  */
 const options = computed(() => props.komplettradOptions ?? null)
-const colourId = ref<number | null>(options.value?.colours.find((c) => c.isDefault)?.id ?? options.value?.colours[0]?.id ?? null)
+/* No colour chosen for the visitor (his #15, § 312a Abs. 3 BGB, D-355): the swatches start empty; a free standard colour
+   is the server's to put in where none is picked, a paid one only the visitor's. */
+const colourId = ref<number | null>(null)
 const rdks = ref<'ja' | 'nein' | null>(options.value?.tpms.choice ?? null)
 
 /* The set's price with the colour chosen: the server's figure for that colour, the default colour's where none. */

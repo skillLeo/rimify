@@ -119,6 +119,9 @@ final readonly class Basket
 
     public const WEIGHT_COLOUR_GONE = 'Diese Farbe für die Wuchtgewichte gibt es nicht mehr.';
 
+    /** A colour with a surcharge is never chosen for the visitor (his #15, § 312a Abs. 3 BGB, D-355). */
+    public const WEIGHT_COLOUR_MISSING = 'Wähl bitte eine Farbe für die Wuchtgewichte.';
+
     /* How a line that has become unsellable is marked on render (§4.5). Never dropped. */
     public const LINE_TYRE_GONE = 'Diesen Reifen gibt es nicht mehr. Nimm bitte einen anderen oder bestell die Felge allein.';
 
@@ -284,7 +287,8 @@ final readonly class Basket
      * twice reads as a bug. A Felge and a Komplettrad of the same rim are two lines.
      *
      * The colour is an attribute, not part of the identity: merging keeps the stored colour unless
-     * a new one is passed, and a Komplettrad added without one gets the admin's default (§4.1).
+     * a new one is passed, and a Komplettrad added without one gets the admin's standard colour where it costs nothing
+     * (§4.1, D-355) — never a surcharge the visitor did not pick.
      */
     public function add(
         Request $request,
@@ -302,8 +306,10 @@ final readonly class Basket
 
         $colourId = $weightColourId ?? $this->id($existing['weightColourId'] ?? null);
 
+        // Nothing paid is chosen for the visitor (his #15, § 312a Abs. 3 BGB, D-355): a Komplettrad added without a colour
+        // takes the standard one only where it costs nothing — refusalFor() refused it before this where it would cost.
         if ($tyreVariantId !== null && $colourId === null) {
-            $colourId = BalanceWeightColour::default()?->id;
+            $colourId = self::freeStandardColour()?->id;
         }
 
         $cart[$key] = [
@@ -408,7 +414,12 @@ final readonly class Basket
         }
 
         if ($weightColourId === null) {
-            return BalanceWeightColour::default() === null ? self::NO_WEIGHT_COLOUR_REFUSAL : null;
+            if (BalanceWeightColour::default() === null) {
+                return self::NO_WEIGHT_COLOUR_REFUSAL;
+            }
+
+            // No colour chosen: the free standard one goes in (add()); one with a surcharge only when the visitor picks it.
+            return self::freeStandardColour() === null ? self::WEIGHT_COLOUR_MISSING : null;
         }
 
         return BalanceWeightColour::query()->active()->whereKey($weightColourId)->exists()
@@ -799,6 +810,17 @@ final readonly class Basket
     }
 
     /**
+     * The admin's standard colour for the Wuchtgewichte where it costs nothing: what a Komplettrad gets when the visitor
+     * picked none (D-355). Null where it carries a surcharge — a paid choice is the visitor's alone (§ 312a Abs. 3 BGB).
+     */
+    private static function freeStandardColour(): ?BalanceWeightColour
+    {
+        $standard = BalanceWeightColour::default();
+
+        return $standard !== null && (int) $standard->surcharge_cents === 0 ? $standard : null;
+    }
+
+    /**
      * @return Collection<array-key, BalanceWeightColour> the active colours in the admin's order, keyed by id
      */
     private function activeColours(): Collection
@@ -1066,7 +1088,9 @@ final readonly class Basket
      * Auswuchten`, `Wuchtgewichte (Silber)`. An unpriced component reads `wird noch festgelegt`,
      * carries no line total and is `open`. A Felgen-only line is the rim alone.
      *
-     * @return list<array{key: string, label: string, quantity: int, unitPrice: string, lineTotal: string|null, open: bool}>
+     * The cents travel too: the order freezes each row as its own line (his #15, D-355).
+     *
+     * @return list<array{key: string, label: string, quantity: int, unitPrice: string, lineTotal: string|null, unitPriceCents: int|null, lineTotalCents: int|null, open: bool}>
      */
     private function components(KomplettradPrice $price, ?BalanceWeightColour $colour, int $quantity): array
     {
@@ -1076,6 +1100,8 @@ final readonly class Basket
             'quantity' => $quantity,
             'unitPrice' => $cents === null ? self::OPEN_PRICE : Money::fromMinor($cents, $price->currency)->format(),
             'lineTotal' => $cents === null ? null : LinePrice::total(Money::fromMinor($cents, $price->currency), $quantity)->format(),
+            'unitPriceCents' => $cents,
+            'lineTotalCents' => $cents === null ? null : LinePrice::total(Money::fromMinor($cents, $price->currency), $quantity)->toMinor(),
             'open' => $cents === null,
         ];
 

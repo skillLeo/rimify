@@ -813,6 +813,8 @@ export interface KasseProps extends BasketProps {
 export interface BestellungProps {
     order: {
         number: string
+        /** The key of the page's own requests and of its address, in place of the number (his admin item 18, D-354). */
+        publicId: string
         status: string
         statusLabel: string
         placedAt: string | null
@@ -834,6 +836,8 @@ export interface BestellungProps {
         quantity: number
         unitPrice: string
         lineTotal: string
+        /** A Komplettrad's rows as sold, each its own line (his #15, D-355); empty on a rim sold alone. */
+        components?: { label: string; quantity: number; unitPrice: string; lineTotal: string }[]
         verdict: {
             status: VerdictStatus
             requiresEntry: boolean

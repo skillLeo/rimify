@@ -42,7 +42,7 @@ it('marks a seeded order as demonstration data and hides its tracking number', f
 
     expect($order->tracking_code)->not->toBeNull();
 
-    $this->get('/bestellung/'.$order->order_number)
+    $this->get('/bestellung/'.$order->public_id)
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Bestellung/Index')

@@ -122,7 +122,7 @@ async function ask(): Promise<void> {
     tries.value++
 
     try {
-        const response = await fetch(`/bestellung/${encodeURIComponent(props.order.number)}/status`, {
+        const response = await fetch(`/bestellung/${encodeURIComponent(props.order.publicId)}/status`, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         })
@@ -241,7 +241,7 @@ const accountBusy = ref(false)
 
 function openAccount(): void {
     accountBusy.value = true
-    router.post(`/bestellung/${encodeURIComponent(props.order.number)}/konto`, {}, {
+    router.post(`/bestellung/${encodeURIComponent(props.order.publicId)}/konto`, {}, {
         preserveScroll: true,
         onSuccess: () => {
             accountSent.value = true
@@ -330,6 +330,18 @@ function openAccount(): void {
                                     <p class="ord__unit tabular">{{ line.quantity }} × {{ line.unitPrice }}</p>
                                 </div>
                             </div>
+
+                            <!-- A Komplettrad's rows, each its own line, as the basket and the checkout showed them (#15, D-355). -->
+                            <table v-if="line.components?.length" class="ord__parts">
+                                <caption class="visually-hidden">Bestandteile</caption>
+                                <tbody>
+                                    <tr v-for="part in line.components" :key="part.label">
+                                        <th scope="row">{{ part.label }}</th>
+                                        <td class="tabular">{{ part.quantity }} × {{ part.unitPrice }}</td>
+                                        <td class="tabular ord__parts-total">{{ part.lineTotal }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
                             <div v-if="line.verdict" class="ord__verdict">
                                 <p class="ord__verdict-row">
@@ -590,6 +602,32 @@ function openAccount(): void {
 .ord__unit {
     font-size: var(--text-small);
     color: var(--ink2);
+}
+
+/* A Komplettrad's rows under its line: quieter than the line, the figures in their columns (D-355). */
+.ord__parts {
+    width: 100%;
+    margin-top: var(--space-2);
+    border-collapse: collapse;
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+.ord__parts th,
+.ord__parts td {
+    padding: var(--space-1) 0;
+    font-weight: 400;
+    text-align: left;
+    vertical-align: baseline;
+}
+
+.ord__parts td {
+    padding-left: var(--space-3);
+    white-space: nowrap;
+}
+
+.ord__parts-total {
+    text-align: right;
 }
 
 .ord__verdict {

@@ -34,7 +34,7 @@ class OrderStatusRequest extends FormRequest
         }
 
         $number = (string) $this->route('order');
-        $order = Order::query()->where('order_number', $number)->first();
+        $order = Order::query()->where('public_id', $number)->first();
 
         abort_unless($order !== null && OrderAccess::allows($this, $order), 404);
 

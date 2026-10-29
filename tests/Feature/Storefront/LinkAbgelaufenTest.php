@@ -16,7 +16,8 @@ it('answers a damaged or expired signed link as a link that no longer holds', fu
         ->assertForbidden()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Fehler/Index')->where('status', 403)->where('reason', 'link'));
 })->with([
-    'a review link cut short' => ['/bewertung/RMF-2026-0001?expires=4102444800&signature=0000'],
+    // By the order's public id since his admin item 18 (D-354).
+    'a review link cut short' => ['/bewertung/0b8f6c2e-4d1a-4f7e-9c3b-5a2d8e1f7a90?expires=4102444800&signature=0000'],
     'an expired invoice link' => ['/rechnung/TEST-RE-000001?expires=1&signature=abc'],
 ]);
 

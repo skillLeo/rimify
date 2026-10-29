@@ -263,9 +263,9 @@ class FelgenController extends Controller
         // counted by state, nothing else kept.
         VerdictTally::record('pdp', array_map(static fn (FitmentVerdict $verdict): VerdictStatus => $verdict->status, array_values($verdicts)));
 
-        // The Komplettrad's Wuchtgewichte (§4.1, #15): the admin's default colour is the one preselected, and every active
-        // colour is offered on the page, each set priced with it; read once for the whole page, and only where an offer
-        // could be made at all.
+        // The Komplettrad's Wuchtgewichte (§4.1, #15): every active colour is offered on the page, each set priced with it,
+        // none chosen for the visitor (D-355) — the admin's standard colour prices the set until one is; read once for the
+        // whole page, and only where an offer could be made at all.
         $colour = $vehicleId === null ? null : BalanceWeightColour::default();
         $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 

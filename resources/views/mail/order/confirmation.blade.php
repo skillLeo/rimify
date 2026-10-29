@@ -9,6 +9,9 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 
 @foreach ($lines as $line)
 **{{ $line['quantity'] }} × {{ $line['label'] }}** – {{ $line['total'] }}
+@foreach ($line['components'] ?? [] as $part)
+- {{ $part['label'] }}: {{ $part['quantity'] }} × {{ $part['unitPrice'] }} = {{ $part['lineTotal'] }}
+@endforeach
 @if ($line['verdict'])
 {{ $line['verdict'] }}@if ($line['entry']) {{ $line['entry'] }}@endif @if ($line['papers']) {{ $line['papers'] }}@endif
 

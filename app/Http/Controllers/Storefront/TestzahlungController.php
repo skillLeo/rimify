@@ -61,7 +61,7 @@ class TestzahlungController extends Controller
             $basket->forgetTpms($request);
         }
 
-        return redirect()->route('bestellung.show', ['order' => $order->order_number])->with('toast', match ($outcome) {
+        return redirect()->route('bestellung.show', ['order' => $order->public_id])->with('toast', match ($outcome) {
             'bezahlt' => 'Testzahlung erfolgreich – die Bestellung ist bezahlt.',
             'abgelehnt' => 'Testzahlung abgelehnt – die Bestellung ist nicht bezahlt.',
             default => 'Testzahlung abgebrochen – die Bestellung ist storniert.',
