@@ -22,6 +22,7 @@ import type { AdminFelgeProps, FinishForm, SizeForm, WheelForm } from '../../../
 import FinishPhotos from './FinishPhotos.vue'
 import MatrixPanel from './MatrixPanel.vue'
 import SizesTable from './SizesTable.vue'
+import JsonLdPanel from './JsonLdPanel.vue'
 import StatedRatingCard from './StatedRatingCard.vue'
 import { generate, type MatrixInput } from './matrix'
 
@@ -595,6 +596,9 @@ const more = computed<AdminPageAction[]>(() => {
             :disclosure="statedDisclosure ?? { text: '', default: '' }"
             :editable="can.rate"
         />
+
+        <!-- „JSON-LD anzeigen“ (his admin item 14): what search engines read of this rim, read-only, to paste into Google's test. -->
+        <JsonLdPanel v-if="model && jsonLd" :json-ld="jsonLd" />
 
         <AdminSaveBar v-if="editable" :editor="editor" />
 
