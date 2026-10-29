@@ -1,7 +1,6 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { provideMobileShell } from '../../composables/mobile/useMobileShell'
 import { provideShell } from '../../composables/useShell'
 import type { ContactProp } from '../../types/rimify'
 
@@ -17,8 +16,8 @@ vi.mock('@inertiajs/vue3', () => ({
 }))
 
 const { default: DemoBadge } = await import('./DemoBadge.vue')
+// The phone opens the same header since the client's #35 (D-349): one component, one place for the badge.
 const { default: SiteHeader } = await import('./SiteHeader.vue')
-const { default: AppBar } = await import('../Mobile/AppBar.vue')
 
 // Fixtures only — the shop's details live in config/rimify.php; a reserved example domain.
 const CONTACT: ContactProp = { email: 'service@example.com', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9:00–17:00 Uhr' }
@@ -40,15 +39,6 @@ const UnderShell = defineComponent({
         provideShell()
 
         return () => h(SiteHeader)
-    },
-})
-
-const UnderPhoneShell = defineComponent({
-    props: { top: Boolean, title: { type: String, default: undefined } },
-    setup(props) {
-        provideMobileShell()
-
-        return () => h(AppBar, props)
     },
 })
 
@@ -98,16 +88,10 @@ describe('the badge in the headers', () => {
         expect(wrapper.find('.demo-badge').exists()).toBe(false)
     })
 
-    it('sits after the wordmark or the title in the phone app bar, outside the two actions', () => {
+    it('stands outside the tools, so it never shifts an icon', () => {
         current.props = shared(true)
+        const wrapper = track(mount(UnderShell, { global: { stubs } }))
 
-        const top = track(mount(UnderPhoneShell, { props: { top: true } }))
-        expect(top.find('.mbar__row > .demo-badge').exists()).toBe(true)
-        expect(top.find('.mbar__tools .demo-badge').exists()).toBe(false)
-
-        const inner = track(mount(UnderPhoneShell, { props: { title: 'Kontakt' } }))
-        const badge = inner.find('.mbar__row > .demo-badge')
-        expect(badge.exists()).toBe(true)
-        expect(badge.element.previousElementSibling?.classList.contains('mbar__title')).toBe(true)
+        expect(wrapper.find('.sh__tools .demo-badge').exists()).toBe(false)
     })
 })

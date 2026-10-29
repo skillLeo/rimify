@@ -82,9 +82,9 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
     await add(page)
 
     if (phone(info)) {
-        for (const path of [PRODUCT, '/']) {
+        for (const path of [PRODUCT, '/', '/warenkorb']) {
             await open(page, path)
-            const header = page.locator('header.mbar, header.site-header').first()
+            const header = page.locator('header.site-header').first()
             const cart = header.locator('.cart-btn').first()
             const menu = header.getByRole('button', { name: /^Menü/ }).first()
 
@@ -99,7 +99,7 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
             expect(c.height).toBeGreaterThanOrEqual(44)
         }
 
-        await evidence(page.locator('header.mbar, header.site-header').first(), 13, info)
+        await evidence(page.locator('header.site-header').first(), 13, info)
     } else {
         const cart = page.locator('header.site-header .sh__cart').first()
         await expect(cart).toBeVisible()
