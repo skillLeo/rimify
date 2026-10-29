@@ -69,9 +69,9 @@ it('has its own entry under Inhalte, and lists the articles only — the homepag
 
     expect(ratgeberTitel($response))->toEqualCanonicalizing($guides)->not->toContain('Impressum')->not->toContain('Startseite');
 
-    // The rail: Inhalte › Seiten, Ratgeber, FAQ … — its own entry, right after Seiten.
+    // The rail: Inhalte › Seiten, Ratgeber, … — its own entry, right after Seiten.
     $inhalte = collect(app(AdminNavigation::class)->for(ratgeberAdmin()))->firstWhere('key', 'inhalte');
-    expect(array_slice(array_column($inhalte['pages'], 'href'), 0, 3))->toBe(['/admin/seiten', '/admin/ratgeber', '/admin/faq'])
+    expect(array_slice(array_column($inhalte['pages'], 'href'), 0, 2))->toBe(['/admin/seiten', '/admin/ratgeber'])
         ->and(array_column($inhalte['pages'], 'label')[1] ?? null)->toBe('Ratgeber');
 });
 

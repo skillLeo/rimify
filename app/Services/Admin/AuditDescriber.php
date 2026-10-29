@@ -133,6 +133,7 @@ final class AuditDescriber
         'page.published' => 'inhalte',
         'page.withdrawn' => 'inhalte',
         'page.deleted' => 'inhalte',
+        'home.shelf_picked' => 'inhalte',
         'page.placeholder_switched' => 'inhalte',
         'page.revision_restored' => 'inhalte',
         'faq.created' => 'inhalte',
@@ -533,6 +534,8 @@ final class AuditDescriber
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
             'page.published' => self::pagePublished($p),
             'page.withdrawn' => ['Der Blog-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            // His #5 (D-353): the picks that fill the homepage's shelf after what sold.
+            'home.shelf_picked' => ['Die Auswahl für „Meistgekaufte Felgen“ auf der Startseite wurde geändert: '.self::picks($p['after'] ?? null).' (vorher: '.self::picks($p['before'] ?? null).').', []],
             // His admin item 12 (D-351): the article leaves the list and the shop; its published versions stay.
             'page.deleted' => ['Der Blog-Artikel '.self::page($p).' wurde gelöscht'.(($p['was_published'] ?? false) === true ? ' und ist nicht mehr im Shop zu sehen' : '').'. Seine veröffentlichten Fassungen bleiben gespeichert.', []],
             'page.placeholder_switched' => [self::placeholderSwitched($p), []],
@@ -1901,6 +1904,15 @@ final class AuditDescriber
     private static function q(string $name): string
     {
         return "\u{201E}".$name."\u{201C}";
+    }
+
+    /** Rims as the Protokoll names them: „A“, „B“ und „C“ — or „keine“ (the homepage shelf's picks, D-353). */
+    private static function picks(mixed $names): string
+    {
+        $quoted = array_map(static fn (string $name): string => self::q($name), array_values(array_filter(is_array($names) ? $names : [], 'is_string')));
+        $last = array_pop($quoted);
+
+        return $last === null ? 'keine' : ($quoted === [] ? $last : implode(', ', $quoted).' und '.$last);
     }
 
     /** @return Change */

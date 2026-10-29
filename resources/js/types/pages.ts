@@ -233,7 +233,8 @@ export interface StartseiteProps {
      */
     popular: {
         title: string
-        ranking: 'meistgekauft' | 'neu'
+        /** What leads the shelf (D-353): sales, the team's picks before the first sale, or the newest rims. */
+        ranking: 'meistgekauft' | 'empfohlen' | 'neu'
         cards: ProductCardProp[]
         /** The listing's count for the vehicle; null without one. */
         total: number | null

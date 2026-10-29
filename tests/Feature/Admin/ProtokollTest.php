@@ -531,6 +531,7 @@ describe('putting every entry into words', function (): void {
             ],
             'page.withdrawn' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Blog-Artikel „ET richtig lesen“ wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
             'page.deleted' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen', 'was_published' => true], 'Der Blog-Artikel „ET richtig lesen“ wurde gelöscht und ist nicht mehr im Shop zu sehen. Seine veröffentlichten Fassungen bleiben gespeichert.', []],
+            'home.shelf_picked' => [['before' => [], 'after' => ['Borbet DB8GT2 · Schwarz matt', 'Borbet Y · Kristallsilber']], 'Die Auswahl für „Meistgekaufte Felgen“ auf der Startseite wurde geändert: „Borbet DB8GT2 · Schwarz matt“ und „Borbet Y · Kristallsilber“ (vorher: keine).', []],
             'faq.created' => [['question' => 'Wie lange dauert die Lieferung?', 'published' => false], 'Die Frage „Wie lange dauert die Lieferung?“ wurde angelegt; sie ist noch ausgeblendet.', []],
             'faq.updated' => [
                 ['question' => 'Wie lange dauert der Versand?', 'old_question' => 'Wie lange dauert die Lieferung?', 'changed' => ['question_de', 'answer_de', 'published'], 'published' => ['old' => false, 'new' => true]],

@@ -145,6 +145,8 @@ final class AdminNavigation
                 ['label' => 'Seiten', 'href' => '/admin/seiten', 'icon' => 'pages'],
                 // The Blog's articles on a page of their own (his admin item 12, D-351).
                 ['label' => 'Ratgeber', 'href' => '/admin/ratgeber', 'icon' => 'guides'],
+                // The homepage's shelf of eight and the team's picks for it (his #5, D-353).
+                ['label' => 'Meistgekaufte Felgen', 'href' => '/admin/meistgekaufte-felgen', 'icon' => 'chart'],
                 ['label' => 'FAQ', 'href' => '/admin/faq', 'icon' => 'faq'],
                 ['label' => 'Navigation', 'href' => '/admin/navigation', 'icon' => 'navigation'],
                 ['label' => 'Medien', 'href' => '/admin/medien', 'icon' => 'media'],
@@ -245,6 +247,7 @@ final class AdminNavigation
         '/admin/protokoll',
         '/admin/seiten',
         '/admin/ratgeber',
+        '/admin/meistgekaufte-felgen',
         '/admin/faq',
         '/admin/navigation',
         '/admin/system',

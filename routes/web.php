@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
+use App\Http\Controllers\Admin\MeistgekaufteFelgenController;
 use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NachrichtenController;
 use App\Http\Controllers\Admin\NavigationController;
@@ -762,6 +763,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('ratgeber.show');
         Route::post('/ratgeber/{page}/veroeffentlichen', [AdminRatgeberController::class, 'publish'])->whereNumber('page')->name('ratgeber.veroeffentlichen');
         Route::delete('/ratgeber/{page}', [AdminRatgeberController::class, 'destroy'])->whereNumber('page')->name('ratgeber.destroy');
+
+        // Inhalte › Meistgekaufte Felgen (the client's #5, D-353): the picks that fill the homepage's shelf after sales.
+        Route::get('/meistgekaufte-felgen', [MeistgekaufteFelgenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('meistgekaufte-felgen.index');
+        Route::put('/meistgekaufte-felgen', [MeistgekaufteFelgenController::class, 'update'])->name('meistgekaufte-felgen.update');
 
         // Inhalte › FAQ: no draft — a visible entry changes on the shop when saved, so changing
         // one takes the right to publish (FaqEntryPolicy). `/reihenfolge` is a fixed segment.
