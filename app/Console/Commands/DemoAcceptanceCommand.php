@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Domain\Storefront\VehicleKey;
 use App\Models\Vehicle;
 use App\Services\Demo\AcceptanceSeeder;
+use App\Services\Demo\AcceptanceShelf;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -21,12 +22,18 @@ final class DemoAcceptanceCommand extends Command
         {--abnahme : The acceptance set: DB8GT2, its two Gutachten, three demo cars, tyres and the Komplettrad accessories}
         {--pdfs= : Where the Gutachten PDFs are (default: the documents disk of this installation)}
         {--neben-gleicher-pdf : Write the set beside a real Gutachten that is the very same PDF file (the operator\'s decision for the client\'s preview, 14.10.2026)}
-        {--beispiel-pdfs : Give a set already written its marked example copies of the Gutachten PDFs, in place (decision 6, 17.10.2026)}';
+        {--beispiel-pdfs : Give a set already written its marked example copies of the Gutachten PDFs, in place (decision 6, 17.10.2026)}
+        {--regal : Also three demonstration rims for the homepage shelf, stars and „Anfrage“ (AcceptanceShelf, 29.10.2026)}';
 
     protected $description = 'Write the acceptance set the client reviews his list in (local, staging and testing only)';
 
     public function handle(): int
     {
+        // The preview's demonstration rims alone, beside a set already written (the operator's brief of 29.10.2026).
+        if ($this->option('regal') && ! $this->option('abnahme')) {
+            return $this->shelf();
+        }
+
         if (! $this->option('abnahme')) {
             $this->error('Name the set: rimify:demo --abnahme. (The admin\'s demonstration figures are demo:seed.)');
 
@@ -71,6 +78,24 @@ final class DemoAcceptanceCommand extends Command
         foreach ($notes as $note) {
             $this->warn($note);
         }
+
+        // The preview's shelf of eight, the stars and „Anfrage“ shown on demonstration rims (the operator's brief of 29.10.2026).
+        return $this->option('regal') ? $this->shelf() : self::SUCCESS;
+    }
+
+    private function shelf(): int
+    {
+        try {
+            $shelf = (new AcceptanceShelf)->seed();
+        } catch (RuntimeException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info($shelf === []
+            ? 'Die Regal-Beispiele sind schon da.'
+            : sprintf('Regal-Beispiele geschrieben: %d Zeilen, alle als Demodaten (abnahme:regal:).', array_sum($shelf)));
 
         return self::SUCCESS;
     }
