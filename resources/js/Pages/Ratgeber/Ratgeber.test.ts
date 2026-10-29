@@ -73,6 +73,26 @@ describe('a Blog article', () => {
         expect(table.findAll('tbody tr')).toHaveLength(2)
     })
 
+    // His admin item 11 answered (D-352): the HTML-Abschnitt is the one block written as markup — the server's, cleaned
+    // twice by ArticleHtml. A table in it stands whole; the blocks around it stay text.
+    it('writes the HTML-Abschnitt as the markup the server cleaned, a table whole, and nothing else as markup', () => {
+        const html = '<h2>Wo es steht</h2><table><thead><tr><th scope="col">Feld</th><th scope="col">Steht dort</th></tr></thead>'
+            + '<tbody><tr><td>2.1</td><td>HSN</td></tr><tr><td>2.2</td><td>TSN</td></tr></tbody></table>'
+            + '<p><a href="/felgenrechner" rel="noopener noreferrer">Felgenrechner</a></p>'
+        const wrapper = mount(Article, {
+            props: { guide: { ...guide, blocks: [...guide.blocks, { type: 'html' as const, data: { html } }] }, others: [] },
+        })
+        const block = wrapper.find('.guide__html')
+
+        expect(block.find('h2').text()).toBe('Wo es steht')
+        expect(block.findAll('thead th').map((th) => th.text())).toEqual(['Feld', 'Steht dort'])
+        expect(block.findAll('tbody tr')).toHaveLength(2)
+        expect(block.find('a').attributes('rel')).toBe('noopener noreferrer')
+        // The prose block's typed tag is still its characters.
+        expect(wrapper.text()).toContain('<script>alert(1)</script> bleibt Text.')
+        expect(wrapper.find('script').exists()).toBe(false)
+    })
+
     it('prints what someone typed as text — a script tag included — and never runs it', () => {
         const wrapper = mount(Article, { props: { guide, others: [] } })
 

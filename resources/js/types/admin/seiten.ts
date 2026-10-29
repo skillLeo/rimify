@@ -5,7 +5,8 @@
  */
 
 /** `image` and `grid` are an article's building blocks (D-306): a picture from our storage, a table. */
-export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice' | 'image' | 'grid'
+/** `html`: the HTML-Abschnitt's markup (D-352), cleaned by the server on save and on output. */
+export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice' | 'image' | 'grid' | 'html'
 
 export interface SchemaField {
     key: string

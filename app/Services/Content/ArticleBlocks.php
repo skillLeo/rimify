@@ -16,6 +16,9 @@ namespace App\Services\Content;
  *   - `table`  — a caption (required), the header cells (at least one), and rows of as many cells as there are header
  *                cells. The page writes `<caption>`, `<th scope="col">` and `<td>`.
  *   - `quote`  — the quoted words (required) and who said or wrote them (optional); the page writes `<blockquote>`.
+ *   - `html`   — HTML within limits (his admin item 11 answered, D-352): only what ArticleHtml keeps, cleaned when the
+ *                draft was saved and again here, on the way out. The one block the page writes as markup; every other
+ *                value stays text.
  *
  * The editor builds these same shapes (the client's admin item 11, D-306: PageSchema's article blocks).
  */
@@ -34,8 +37,22 @@ final class ArticleBlocks
             'figure' => self::figure($data),
             'table' => self::table($data),
             'quote' => self::quote($data),
+            'html' => self::html($data),
             default => null,
         };
+    }
+
+    /**
+     * Cleaned again on the way out, whatever the row holds — a draft saved before D-352 or a row written past the editor.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{type: string, data: array<string, mixed>}|null
+     */
+    private static function html(array $data): ?array
+    {
+        $html = ArticleHtml::clean(is_string($data['html'] ?? null) ? $data['html'] : '');
+
+        return $html === '' ? null : ['type' => 'html', 'data' => ['html' => $html]];
     }
 
     /**

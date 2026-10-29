@@ -46,6 +46,14 @@ final class PageSchema
 
     public const CELL_MAX = 200;
 
+    /** An HTML-Abschnitt's length as typed (D-352): room for a long table, never a page pasted whole. */
+    public const HTML_MAX = 20000;
+
+    /** What the HTML-Abschnitt keeps, said under its field — ArticleHtml's list in words. */
+    public const HTML_HELP = 'Erlaubt sind Zwischenüberschriften (h2 bis h4), Absätze, Zeilenumbrüche, Listen, Tabellen (table, thead, tbody, tr, th, td), '
+        .'Links (http, https, mailto oder eine Seite dieses Shops), Bilder aus unserem Speicher mit Bildbeschreibung (alt), fett und kursiv. '
+        .'Alles andere – Skripte, Frames, Stile, Ereignis-Attribute – entfernt das Speichern.';
+
     /** A picture from our own storage only (ArticleBlocks reads the same): no request to another site from an article. */
     public const OWN_IMAGE = '#^(/storage/|https://[a-z0-9.-]+\.amazonaws\.com/)#i';
 
@@ -237,6 +245,20 @@ final class PageSchema
                     'fields' => [
                         self::textarea('text', 'Zitat', 600, true),
                         self::text('source', 'Quelle', 120, false, 'Wer es gesagt oder geschrieben hat.'),
+                    ],
+                ],
+                // HTML within limits (his admin item 11, „We will go with your proposal“; D-352): what ArticleHtml keeps,
+                // cleaned when saved and again when served — never free HTML.
+                [
+                    'type' => 'html',
+                    'label' => 'HTML-Abschnitt',
+                    'one' => 'einen HTML-Abschnitt',
+                    'many' => 'HTML-Abschnitte',
+                    'repeat' => true,
+                    'min' => 0,
+                    'max' => 10,
+                    'fields' => [
+                        ['key' => 'html', 'label' => 'HTML', 'kind' => 'html', 'required' => true, 'max' => self::HTML_MAX, 'help' => self::HTML_HELP],
                     ],
                 ],
             ],
@@ -811,6 +833,8 @@ final class PageSchema
                 'choice' => $value === null || $value === '' ? ($field['default'] ?? '') : (is_string($value) ? $value : ''),
                 // The column headings, each as text; the rows beside them.
                 'grid' => self::cells($value),
+                // The HTML-Abschnitt (his admin item 11, D-352): only what ArticleHtml allows is ever stored.
+                'html' => ArticleHtml::clean(self::string($value)),
                 default => self::string($value),
             };
 

@@ -87,12 +87,16 @@ const iconName = computed(() => (typeof model.value === 'string' && isIconName(m
             </span>
         </div>
 
+        <!-- A text, or the HTML-Abschnitt's markup (D-352): taller, never spell-checked or corrected. -->
         <textarea
-            v-if="field.kind === 'textarea'"
+            v-if="field.kind === 'textarea' || field.kind === 'html'"
             :id="id"
             v-model="model"
             class="input pg-field__area"
-            :rows="rows"
+            :class="{ 'pg-field__area--code': field.kind === 'html' }"
+            :rows="field.kind === 'html' ? Math.max(8, rows) : rows"
+            :spellcheck="field.kind === 'html' ? 'false' : undefined"
+            :autocapitalize="field.kind === 'html' ? 'off' : undefined"
             :readonly="readonly"
             :aria-required="field.required ? 'true' : undefined"
             :aria-invalid="error || over ? 'true' : undefined"
@@ -187,6 +191,12 @@ const iconName = computed(() => (typeof model.value === 'string' && isIconName(m
 
 .pg-field__area {
     min-height: 0;
+}
+
+/* Markup reads in the panel's code face (tokens.css: --mono), its indents kept. */
+.pg-field__area--code {
+    font-family: var(--mono);
+    tab-size: 4;
 }
 
 .pg-field__number {

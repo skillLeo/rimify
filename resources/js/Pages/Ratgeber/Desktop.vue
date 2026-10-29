@@ -21,6 +21,8 @@ type Block =
     | { type: 'figure'; data: { src: string; alt: string; caption?: string; width?: number | null; height?: number | null } }
     | { type: 'table'; data: { caption: string; head: string[]; rows: string[][] } }
     | { type: 'quote'; data: { text: string; source?: string } }
+    /* The HTML-Abschnitt (his admin item 11, D-352): markup the server cleaned twice (ArticleHtml), the one block written as such. */
+    | { type: 'html'; data: { html: string } }
 
 const props = defineProps<{
     guide: {
@@ -140,6 +142,9 @@ onMounted(() => {
                     </blockquote>
                     <figcaption v-if="block.data.source" class="small muted">{{ block.data.source }}</figcaption>
                 </figure>
+                <!-- The HTML-Abschnitt (D-352): only what ArticleHtml keeps, cleaned on save and again by the server here. -->
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div v-else-if="block.type === 'html'" class="guide__html" v-html="block.data.html" />
             </template>
         </div>
 
@@ -248,6 +253,61 @@ onMounted(() => {
 .guide__table th {
     color: var(--c-ink-2);
     font-weight: 600;
+}
+
+/*
+ * The HTML-Abschnitt (D-352) in the article's own type: its headings, lists and tables as the blocks beside it set
+ * theirs. A wide table scrolls inside its own box, never the page.
+ */
+.guide__html {
+    margin: var(--sp-24) 0;
+}
+
+.guide__html :deep(h2) {
+    margin-top: var(--sp-32);
+}
+
+.guide__html :deep(:is(h3, h4)) {
+    margin-top: var(--sp-24);
+}
+
+.guide__html :deep(:is(ul, ol)) {
+    padding-left: var(--sp-24);
+}
+
+.guide__html :deep(ul) {
+    list-style: disc;
+}
+
+.guide__html :deep(ol) {
+    list-style: decimal;
+}
+
+.guide__html :deep(table) {
+    display: block;
+    max-width: 100%;
+    margin: var(--sp-24) 0;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.guide__html :deep(:is(th, td)) {
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--c-line);
+    text-align: left;
+    vertical-align: top;
+}
+
+.guide__html :deep(th) {
+    color: var(--c-ink-2);
+    font-weight: 600;
+}
+
+.guide__html :deep(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--r-tile);
 }
 
 /* Set off by its size and a quiet rule at its edge, as the shop's other quotes — never a box, never the ink bar of an alert. */
