@@ -358,6 +358,16 @@ const amountNote = computed(() => {
 })
 
 /*
+ * A size not available (his admin item 7, D-350): „Anfrage“ takes the basket button's place — the contact form, its
+ * subject the rim, the size and the ET from the server, the car ticked there by itself.
+ */
+const enquiryHref = computed(() => {
+    const current = selected.value
+
+    return current === null || current.inStock || !current.enquiry ? null : contactFormHref({ subject: current.enquiry, from: page.url })
+})
+
+/*
  * The availability tag — available or not, never a count (his admin item 7, D-299). Demo stock is example data, so it
  * never reads as „Verfügbar“ — and never in the colour that means a positive answer.
  */
@@ -825,8 +835,18 @@ claimBottomEdge(() => stickyShown.value)
                     </div>
 
                     <div ref="buyButton">
+                        <!-- Not available: the question in the button's place (his admin item 7, D-350). -->
+                        <Link
+                            v-if="enquiryHref"
+                            :href="enquiryHref"
+                            class="btn btn--primary btn--block btn--lg pdp__enquiry"
+                            :aria-describedby="unavailableHint ? 'pdp-unavailable' : undefined"
+                        >
+                            Anfrage
+                        </Link>
                         <!-- Busy, never disabled, while it sends: a disabled button drops the focus to the page (#16). -->
                         <button
+                            v-else
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
                             :disabled="!canBuy && !papersFirst"
@@ -1015,7 +1035,9 @@ claimBottomEdge(() => stickyShown.value)
             <!-- The PAngV line beside every price, the bar's too (the operator's brief of 14.10.2026 §8). -->
             <p class="price-legal pdp__sticky-legal">{{ terms.note }}</p>
         </div>
+        <Link v-if="enquiryHref" :href="enquiryHref" class="btn btn--primary pdp__sticky-btn">Anfrage</Link>
         <button
+            v-else
             class="btn btn--primary pdp__sticky-btn"
             type="button"
             :disabled="!canBuy && !papersFirst"
@@ -1379,7 +1401,8 @@ a.pdp__rating {
     color: var(--ink2);
 }
 
-.pdp__add {
+.pdp__add,
+.pdp__enquiry {
     margin-top: var(--space-4);
 }
 

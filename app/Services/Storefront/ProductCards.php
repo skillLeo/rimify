@@ -13,6 +13,7 @@ use App\Domain\Fitment\Verdict\TyreCheck;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
 use App\Services\Admin\Catalogue\StatedRatings;
+use App\Support\AvailabilityEnquiry;
 use App\Support\DemoWheels;
 use App\Support\GermanFormat;
 use App\Support\WheelTitle;
@@ -103,7 +104,7 @@ final readonly class ProductCards
         }
 
         return [
-            'cards' => $cards,
+            'cards' => $this->withEnquiries($cards, $configIds),
             'total' => $result['total'],
             'missing' => array_values(array_intersect(['bodyForm', 'driveAxle'], array_keys($missing))),
             'owed' => array_values(array_intersect(TyreCheck::PAPERS_FIELDS, array_keys($owed))),
@@ -366,7 +367,7 @@ final readonly class ProductCards
             );
         }
 
-        return $cards;
+        return $this->withEnquiries($cards);
     }
 
     /**
@@ -534,6 +535,8 @@ final readonly class ProductCards
             'fromPrice' => GermanFormat::money($fromPriceCents),
             // Available or not (his admin item 7, D-299): the shop sells no count.
             'inStock' => $available,
+            // Not available in any size: the subject of the card's „Anfrage“ (D-350), filled in by withEnquiries().
+            'enquiry' => null,
             'diameters' => $diameters,
             // With a vehicle: the subset of `diameters` a document permits on it, same spelling.
             // Null without a vehicle — no size is claimed to fit anything.
@@ -620,6 +623,55 @@ final readonly class ProductCards
         }
 
         return $out;
+    }
+
+    /**
+     * The „Anfrage“ of a card not available in any size (his admin item 7, D-350): its subject names the rim and the sizes
+     * the card stands for — on a car's listing, those it shows for that car. One query for the page, and only where a card
+     * needs one.
+     *
+     * @param  list<array<string, mixed>>  $cards
+     * @param  array<string, list<int>>|null  $configIds  a car's listing: the sizes of each card on it; null in the catalogue
+     * @return list<array<string, mixed>>
+     */
+    private function withEnquiries(array $cards, ?array $configIds = null): array
+    {
+        $wanted = array_values(array_filter($cards, static fn (array $card): bool => $card['inStock'] === false));
+
+        if ($wanted === []) {
+            return $cards;
+        }
+
+        $rows = DB::table('wheel_configs')
+            ->whereIn('wheel_model_id', array_values(array_unique(array_map(static fn (array $card): int => (int) $card['modelId'], $wanted))))
+            ->whereIn('wheel_finish_id', array_values(array_unique(array_map(static fn (array $card): int => (int) $card['finishId'], $wanted))))
+            ->whereNull('deleted_at')
+            ->orderBy('diameter_in')
+            ->orderBy('width_in')
+            ->orderBy('et_mm')
+            ->orderBy('id')
+            ->get(['id', 'wheel_model_id', 'wheel_finish_id', 'width_in', 'diameter_in', 'et_mm']);
+
+        $sizes = [];
+
+        foreach ($rows as $row) {
+            $key = $row->wheel_model_id.':'.$row->wheel_finish_id;
+
+            if ($configIds !== null && ! in_array((int) $row->id, $configIds[$key] ?? [], true)) {
+                continue;
+            }
+
+            $sizes[$key][] = ['width' => (string) $row->width_in, 'diameter' => (string) $row->diameter_in, 'et' => (int) $row->et_mm];
+        }
+
+        foreach ($cards as $i => $card) {
+            if ($card['inStock'] === false) {
+                $rim = trim($card['brandName'].' '.$card['modelName'].' '.$card['finishName']);
+                $cards[$i]['enquiry'] = AvailabilityEnquiry::forSizes($rim, $sizes[$card['compareKey']] ?? []);
+            }
+        }
+
+        return $cards;
     }
 
     /** @return list<string> */

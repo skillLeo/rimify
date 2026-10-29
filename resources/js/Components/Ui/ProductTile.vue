@@ -17,7 +17,7 @@
  * as one — and the card says so in `data-fallback` for the page gate that counts them.
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import Picture from './Picture.vue'
 import ValueText from './ValueText.vue'
@@ -27,6 +27,7 @@ import { toast } from '../Chrome/toast'
 import { CARD_ROOM, countedDe, fitsWhole } from '../../fitment/auflagen'
 import { NNBSP, zoll } from '../../format'
 import { usePriceTerms } from '../../composables/usePriceTerms'
+import { contactHref } from '../../lib/contact'
 import { formatMoney } from '../../lib/num'
 import { COMPARE_CAP_TEXT, useCompare, type CompareEntry } from '../../stores/compare'
 import { compareKeyOf, type ProductCardProp, type VehicleProp, type VerdictStatus } from '../../types/rimify'
@@ -58,6 +59,14 @@ const props = withDefaults(
 /* The product page opens on this card's finish: one wheel, one answer, one click apart. */
 const href = computed(() => `/felgen/${props.card.slug}?ausfuehrung=${props.card.finishId}`)
 const fullName = computed(() => `${props.card.brandName} ${props.card.modelName} ${props.card.finishName}`)
+
+/*
+ * Not available in any size (his admin item 7, D-350): „Anfrage“ takes the button's place and opens the contact form with
+ * the rim and its sizes as the subject. The card still opens the product page anywhere else — its name carries the
+ * stretched link then.
+ */
+const page = usePage()
+const enquiryHref = computed(() => (props.card.inStock || !props.card.enquiry ? null : contactHref({ subject: props.card.enquiry, from: page.url })))
 
 /* ── Image ──────────────────────────────────────────────────────────────────── */
 
@@ -207,7 +216,10 @@ function onCompareLabelClick(event: MouseEvent): void {
              "19 Zoll" into "19 Customs". The sentence for assistive technology stays German, so it
              opts back in. -->
         <span class="tile__brand" translate="no">{{ card.brandName }}</span>
-        <h3 class="tile__title"><span class="tile__name" translate="no">{{ card.modelName }}</span></h3>
+        <h3 class="tile__title">
+            <Link v-if="enquiryHref" :href="href" class="tile__name tile__name--link" translate="no" :aria-label="`${fullName}: Details ansehen`" prefetch>{{ card.modelName }}</Link>
+            <span v-else class="tile__name" translate="no">{{ card.modelName }}</span>
+        </h3>
         <!-- Stars typed in the admin, under the name with the shop's sentence beside them (#19, D-345) — never without it,
              never a buyer's review. One line in the source, so the spaces between the parts stay. -->
         <p v-if="card.statedRating" class="tile__stars" data-stated-rating><span class="tile__stars-glyph" aria-hidden="true">★</span> <span class="num">{{ card.statedRating.label }}</span><span class="tile__stars-note">{{ ' – ' + card.statedRating.disclosure }}</span></p>
@@ -235,7 +247,8 @@ function onCompareLabelClick(event: MouseEvent): void {
         <span v-if="!card.inStock" class="stock stock--out">Nicht verfügbar</span>
 
         <div class="tile__actions">
-            <Link :href="href" class="tile__cta btn btn--primary btn--sm" :aria-label="`${fullName}: Details ansehen`" prefetch>Details ansehen</Link>
+            <Link v-if="enquiryHref" :href="enquiryHref" class="tile__enquiry btn btn--primary btn--sm" :aria-label="`${fullName}: Anfrage zur Verfügbarkeit`">Anfrage</Link>
+            <Link v-else :href="href" class="tile__cta btn btn--primary btn--sm" :aria-label="`${fullName}: Details ansehen`" prefetch>Details ansehen</Link>
 
             <label v-if="compare" class="tile__compare" :class="{ 'tile__compare--full': capped }" @click="onCompareLabelClick">
                 <input
@@ -278,6 +291,27 @@ function onCompareLabelClick(event: MouseEvent): void {
 .tile__stars-note {
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
+}
+
+/* Not available (D-350): the name is the card's link, stretched over it as the CTA is on every other card … */
+.tile__name--link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.tile__name--link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-base);
+}
+
+/* … and „Anfrage“ stands above the stretch, its own control, as the compare box does. */
+.tile__enquiry {
+    position: relative;
+    z-index: var(--z-raised);
+    min-height: 36px;
+    padding-inline: var(--sp-12);
 }
 
 .tile__vary {

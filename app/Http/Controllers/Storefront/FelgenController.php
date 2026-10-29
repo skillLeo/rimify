@@ -44,6 +44,7 @@ use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\ProductJsonLd;
 use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
+use App\Support\AvailabilityEnquiry;
 use App\Support\GermanFormat;
 use App\Support\LinePrice;
 use App\Support\Money;
@@ -268,9 +269,13 @@ class FelgenController extends Controller
         $colour = $vehicleId === null ? null : BalanceWeightColour::default();
         $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
+        // The rim as an „Anfrage“ names it (his admin item 7, D-350): brand, name and colour, as the page heads it.
+        $colourNames = $wheel->finishes->pluck('name_de', 'id');
+        $rimName = trim($wheel->brand->name.' '.WheelTitle::name($wheel));
+
         foreach ($wheel->configs as $config) {
             $verdict = $verdicts[$config->id] ?? null;
-            $row = $this->configRow($config, $verdict, $colour, $colours);
+            $row = $this->configRow($config, $verdict, $colour, $colours, trim($rimName.' '.($colourNames[$config->wheel_finish_id] ?? '')));
 
             // Not a wheel approved with its tyres unconfirmed (finding 103, D-286): its Gutachten is held, and counting it
             // would rank a document we have on the Übersicht's list of documents to buy.
@@ -299,10 +304,12 @@ class FelgenController extends Controller
      * One size of a wheel as the product page — and the RIMIFY-Check (#28) — ships it: price, stock and the verdict
      * for the chosen car together, with the Komplettrad and Mischbereifung offers that depend on that verdict.
      *
+     * `$rim` names the rim for the „Anfrage“ of a size not available (his admin item 7, D-350); without it the row offers none.
+     *
      * @param  Collection<int, BalanceWeightColour>  $colours
      * @return array<string, mixed>
      */
-    private function configRow(WheelConfig $config, ?FitmentVerdict $live, ?BalanceWeightColour $colour, Collection $colours): array
+    private function configRow(WheelConfig $config, ?FitmentVerdict $live, ?BalanceWeightColour $colour, Collection $colours, ?string $rim = null): array
     {
         $verdict = $live === null ? null : $this->verdictFor($live);
 
@@ -349,6 +356,10 @@ class FelgenController extends Controller
             'amounts' => LinePrice::byQuantity($this->rimPrice($config), self::AMOUNTS),
             // Available or not (his admin item 7, D-299): no count, so the amount a customer picks is never capped by one.
             'inStock' => $config->available,
+            // Not available: the subject of the „Anfrage“ that takes the button's place (his admin item 7, D-350).
+            'enquiry' => $config->available || $rim === null
+                ? null
+                : AvailabilityEnquiry::subject($rim, (float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm),
             'kbaNumber' => $config->kba_number,
             'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
             // The load rating per wheel, from the approval document; null when nobody has

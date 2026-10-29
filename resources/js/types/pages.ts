@@ -428,6 +428,8 @@ export interface ProduktConfig {
     amounts?: AmountPrice[]
     /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
+    /** Not available: the subject of the „Anfrage“ in the button's place (his admin item 7, D-350); null otherwise. */
+    enquiry?: string | null
     kbaNumber: string | null
     weightG: number | null
     /** Null when no vehicle is chosen. Price, stock and verdict travel together, by design. */

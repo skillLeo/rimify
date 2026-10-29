@@ -371,15 +371,26 @@ describe('Produkt page', () => {
         expect(focusPapers).toHaveBeenCalledTimes(1)
         expect(post).not.toHaveBeenCalled()
 
-        // Not available stays not available: the figures would not change that.
-        const gone = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] }).find('button.pdp__add')
+        // Not available stays not available: the figures would not change that. „Anfrage“ takes the button's place (his
+        // admin item 7, D-350): the contact form with the server's subject; the tag says „Nicht verfügbar“ and the
+        // sentence under it the way on.
+        const ENQUIRY = 'Anfrage zur Verfügbarkeit: Demo Zehnspeiche Z-01 Platinum Silber, 8,5J × 19, ET 35'
+        const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false, enquiry: ENQUIRY })] })
+        const enquiry = goneWrapper.find('a.pdp__enquiry')
 
-        // Switched off under its own words; the tag says „Nicht verfügbar“ and the sentence under it the way on.
-        const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] })
-        expect(gone.text()).toBe('In den Warenkorb')
-        expect(gone.attributes('disabled')).toBeDefined()
+        expect(goneWrapper.find('button.pdp__add').exists()).toBe(false)
+        expect(enquiry.text()).toBe('Anfrage')
+        expect(new URL(enquiry.attributes('href') ?? '', 'https://shop.test').pathname).toBe('/kontakt')
+        expect(new URL(enquiry.attributes('href') ?? '', 'https://shop.test').searchParams.get('betreff')).toBe(ENQUIRY)
         expect(goneWrapper.find('.pdp__unavailable').text()).toBe('Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.')
-        expect(goneWrapper.find('button.pdp__add').attributes('aria-describedby')).toBe('pdp-unavailable')
+        expect(enquiry.attributes('aria-describedby')).toBe('pdp-unavailable')
+    })
+
+    it('offers no „Anfrage“ for a size that can be bought @admin-207', () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ inStock: true, enquiry: null })] })
+
+        expect(wrapper.find('a.pdp__enquiry').exists()).toBe(false)
+        expect(wrapper.find('button.pdp__add').text()).toBe('In den Warenkorb')
     })
 
     // The interaction review of Groups D/E: „Wähl eine andere Größe“ only where another size sells for the car — a size

@@ -235,6 +235,8 @@ export interface ProductCardProp {
     fromPrice: string
     /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
+    /** Not available in any size: the subject of the card's „Anfrage“ (his admin item 7, D-350); null otherwise. */
+    enquiry?: string | null
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
     /**
