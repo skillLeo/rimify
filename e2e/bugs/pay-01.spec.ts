@@ -31,7 +31,7 @@ test('PAY-01 after a declined test payment the same basket can be paid again, an
     await orderToTestPayment(page);
 
     await page.getByRole('button', { name: 'Zahlung abgelehnt' }).click();
-    await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 });
+    await page.waitForURL(/\/bestellung\/[0-9a-f]{8}-[0-9a-f]{4}-4/, { timeout: 30_000 });
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Die Zahlung hat nicht geklappt.');
 
     const declined = new URL(page.url()).pathname.split('/').pop() ?? '?';
@@ -51,7 +51,7 @@ test('PAY-01 after a declined test payment the same basket can be paid again, an
     await toPayment(page);
     await orderToTestPayment(page);
     await page.getByRole('button', { name: 'Zahlung erfolgreich' }).click();
-    await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 });
+    await page.waitForURL(/\/bestellung\/[0-9a-f]{8}-[0-9a-f]{4}-4/, { timeout: 30_000 });
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vielen Dank für deine Bestellung.');
 
     const paid = new URL(page.url()).pathname.split('/').pop() ?? '?';

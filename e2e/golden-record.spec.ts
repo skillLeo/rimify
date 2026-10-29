@@ -325,9 +325,10 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await page.getByRole('button', { name: 'Zahlung erfolgreich' }).click()
 
     // ── 10 · Bestellbestätigung ───────────────────────────────────────────────────────────
-    await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 })
+    await page.waitForURL(/\/bestellung\/[0-9a-f]{8}-[0-9a-f]{4}-4/, { timeout: 30_000 })
     await waitForApp(page)
-    const number = decodeURIComponent(page.url().split('/').pop() ?? '')
+    // The address carries the order's public id (D-354); its number stands on the page.
+    const number = (await page.locator('.ord__number').first().innerText()).trim()
     await shot(page, '10-bestellbestaetigung')
 
     // ── 11 · Verkauf › Bestellung: the verdict frozen at the moment of purchase ─────────

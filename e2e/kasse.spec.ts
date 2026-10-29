@@ -110,7 +110,7 @@ test.describe('Kasse', () => {
         await tabToButton(page, 'Zahlung erfolgreich');
         await page.keyboard.press('Enter');
 
-        await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 });
+        await page.waitForURL(/\/bestellung\/[0-9a-f]{8}-[0-9a-f]{4}-4/, { timeout: 30_000 });
         await expect(page.getByRole('heading', { level: 1 })).toHaveText('Vielen Dank für deine Bestellung.');
         await expectNoHorizontalOverflow(page);
     });
