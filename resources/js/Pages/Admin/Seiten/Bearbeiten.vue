@@ -436,6 +436,11 @@ const more = computed<AdminPageAction[]>(() => {
         actions.push({ label: 'Zurückziehen', icon: 'close', danger: true, run: () => (withdrawing.value = true) })
     }
 
+    // A Ratgeber article is deleted here or from its list (his admin item 12, D-351).
+    if (props.can.delete) {
+        actions.push({ label: 'Artikel löschen', icon: 'delete', danger: true, run: () => (deleting.value = true) })
+    }
+
     return actions
 })
 
@@ -550,6 +555,27 @@ function withdraw(): void {
         onFinish: () => {
             busy.value = false
             withdrawing.value = false
+        },
+    })
+}
+
+/* ── Löschen (D-351) ─────────────────────────────────────────────────────────────────── */
+
+const deleting = ref(false)
+
+function remove(): void {
+    if (busy.value) {
+        return
+    }
+
+    busy.value = true
+    // On success the server sends to the list; a refusal (a menu entry still leading here) stays on this page, said above it.
+    router.delete(`/admin/ratgeber/${props.page.id}`, {
+        data: { baseVersion: props.page.version },
+        preserveScroll: true,
+        onFinish: () => {
+            busy.value = false
+            deleting.value = false
         },
     })
 }
@@ -1109,6 +1135,17 @@ function isLive(revision: SeitenRevision, index: number): boolean {
             confirm-label="Zurückziehen"
             :busy="busy"
             @confirm="withdraw"
+        />
+
+        <AdminConfirm
+            v-model:open="deleting"
+            :title="`${page.title} löschen?`"
+            :body="page.published
+                ? 'Der Artikel verschwindet aus dem Shop und aus der Liste. Seine veröffentlichten Fassungen bleiben gespeichert, seine Adresse bekommt kein anderer Artikel.'
+                : 'Der Artikel verschwindet aus der Liste. Seine Adresse bekommt kein anderer Artikel.'"
+            confirm-label="Löschen"
+            :busy="busy"
+            @confirm="remove"
         />
     </AdminPage>
 </template>

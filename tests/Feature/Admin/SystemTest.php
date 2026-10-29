@@ -263,7 +263,9 @@ describe('Neu', function (): void {
     it('rides in every admin page', function (): void {
         $this->actingAs(systemAdmin('content-editor'), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('admin.quickActions.0.href', '/admin/seiten?neu=1')
+                // Inhalte › Ratgeber makes the articles since his admin item 12 (D-351).
+                ->where('admin.quickActions.0.href', '/admin/ratgeber?neu=1')
+                ->where('admin.quickActions.0.label', 'Ratgeber-Artikel anlegen')
                 ->has('admin.quickActions', 1));
     });
 

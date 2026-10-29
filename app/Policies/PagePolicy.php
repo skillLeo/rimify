@@ -43,4 +43,15 @@ final class PagePolicy
     {
         return $page->isEditable() && $user->may(PermissionModule::Content, PermissionAction::Publish);
     }
+
+    /**
+     * Deleting a Ratgeber article (his admin item 12, D-351) — the only kind of page a team adds, so the only one it
+     * removes. One that is live leaves the shop with it, which takes the right to publish as well.
+     */
+    public function delete(AdminUser $user, Page $page): bool
+    {
+        return $page->kind === Page::KIND_GUIDE
+            && $user->may(PermissionModule::Content, PermissionAction::Delete)
+            && (! $page->isPublished() || $user->may(PermissionModule::Content, PermissionAction::Publish));
+    }
 }

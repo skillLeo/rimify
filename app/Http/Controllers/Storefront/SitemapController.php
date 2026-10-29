@@ -29,6 +29,7 @@ class SitemapController extends Controller
         $pages = DB::table('pages')
             ->whereIn('kind', [Page::KIND_GUIDE, Page::KIND_LEGAL])
             ->where('status', Page::STATUS_PUBLISHED)
+            ->whereNull('deleted_at')
             ->orderBy('kind')->orderBy('id')
             ->get(['kind', 'slug', 'updated_at']);
 

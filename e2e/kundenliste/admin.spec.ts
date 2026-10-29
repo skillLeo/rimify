@@ -210,9 +210,10 @@ async function card(): Promise<Buffer> {
 
 test('a Blog article built from blocks: a picture uploaded with its description, a table typed cell by cell, a quote', { tag: '@admin-211' }, async ({ page }, info) => {
     await admin(page)
-    await page.goto(`${ABNAHME}/admin/seiten`, { waitUntil: 'networkidle' })
-    await page.locator('a.sn__link', { hasText: 'HSN und TSN finden' }).first().click()
-    await page.waitForURL(/\/admin\/seiten\/\d+$/)
+    // The articles have their own page since his admin item 12 (D-351).
+    await page.goto(`${ABNAHME}/admin/ratgeber`, { waitUntil: 'networkidle' })
+    await page.locator('a.rg__link', { hasText: 'HSN und TSN finden' }).first().click()
+    await page.waitForURL(/\/admin\/ratgeber\/\d+$/)
 
     const blocks = page.locator('section[id^="pg-section-"]')
     const before = await blocks.count()

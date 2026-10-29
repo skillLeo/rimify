@@ -61,6 +61,7 @@ final class ReviewBoard
         ]],
         ['key' => 'inhalte', 'label' => 'Inhalte', 'screens' => [
             ['label' => 'Seiten', 'href' => '/admin/seiten', 'state' => self::DONE, 'line' => 'Texte der Seiten als Entwurf, Vorschau im Shop, Veröffentlichen und frühere Fassungen.'],
+            ['label' => 'Ratgeber', 'href' => '/admin/ratgeber', 'state' => self::DONE, 'line' => 'Die Blog-Artikel: suchen, sortieren, anlegen, veröffentlichen, zurückziehen und löschen.'],
             ['label' => 'FAQ', 'href' => '/admin/faq', 'state' => self::DONE, 'line' => 'Fragen und Antworten, Reihenfolge und Sichtbarkeit.'],
             ['label' => 'Navigation', 'href' => '/admin/navigation', 'state' => self::DONE, 'line' => 'Die Menüs des Shops.'],
             ['label' => 'Medien', 'href' => null, 'state' => self::MISSING, 'line' => 'Bilder für Seiten und Artikel verwalten.'],

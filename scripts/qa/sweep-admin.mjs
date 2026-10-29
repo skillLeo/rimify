@@ -45,7 +45,7 @@ const BUILT = [
     '/admin', '/admin/review', '/admin/review/rueckmeldungen', '/admin/felgen', '/admin/marken', '/admin/katalog/import',
     '/admin/gutachten', '/admin/auflagen', '/admin/konflikte', '/admin/fahrzeuge', '/admin/fahrzeuge/pruefung',
     '/admin/abdeckung', '/admin/bestellungen', '/admin/rueckbuchungen', '/admin/anfragen', '/admin/zubehoerpreise',
-    '/admin/benutzer', '/admin/rollen', '/admin/protokoll', '/admin/seiten', '/admin/faq', '/admin/navigation',
+    '/admin/benutzer', '/admin/rollen', '/admin/protokoll', '/admin/seiten', '/admin/ratgeber', '/admin/faq', '/admin/navigation',
     '/admin/system', '/admin/einstellungen/speicher', '/admin/einstellungen/zahlung', '/admin/einstellungen/verkaeufer-versand',
     '/admin/nachfrage',
 ]

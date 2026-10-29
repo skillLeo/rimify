@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NachrichtenController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
+use App\Http\Controllers\Admin\RatgeberController as AdminRatgeberController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RechnungsnummernController;
 use App\Http\Controllers\Admin\ReifenController;
@@ -748,6 +749,19 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('page')
             ->middleware('throttle:30,1,seiten-bild')
             ->name('seiten.bild');
+
+        // Inhalte › Ratgeber (his admin item 12, D-351): the Blog's articles on a page of their own. The editor's writes stay
+        // where every page's are (/seiten/{page}/…); an article's old address there leads here. Each write refused by its Policy.
+        Route::get('/ratgeber', [AdminRatgeberController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('ratgeber.index');
+        Route::post('/ratgeber', [AdminRatgeberController::class, 'store'])->name('ratgeber.store');
+        Route::get('/ratgeber/{page}', [AdminRatgeberController::class, 'show'])
+            ->whereNumber('page')
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('ratgeber.show');
+        Route::post('/ratgeber/{page}/veroeffentlichen', [AdminRatgeberController::class, 'publish'])->whereNumber('page')->name('ratgeber.veroeffentlichen');
+        Route::delete('/ratgeber/{page}', [AdminRatgeberController::class, 'destroy'])->whereNumber('page')->name('ratgeber.destroy');
 
         // Inhalte › FAQ: no draft — a visible entry changes on the shop when saved, so changing
         // one takes the right to publish (FaqEntryPolicy). `/reihenfolge` is a fixed segment.

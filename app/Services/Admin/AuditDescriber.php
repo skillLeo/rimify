@@ -132,6 +132,7 @@ final class AuditDescriber
         'page.draft_discarded' => 'inhalte',
         'page.published' => 'inhalte',
         'page.withdrawn' => 'inhalte',
+        'page.deleted' => 'inhalte',
         'page.placeholder_switched' => 'inhalte',
         'page.revision_restored' => 'inhalte',
         'faq.created' => 'inhalte',
@@ -532,6 +533,8 @@ final class AuditDescriber
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
             'page.published' => self::pagePublished($p),
             'page.withdrawn' => ['Der Blog-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            // His admin item 12 (D-351): the article leaves the list and the shop; its published versions stay.
+            'page.deleted' => ['Der Blog-Artikel '.self::page($p).' wurde gelöscht'.(($p['was_published'] ?? false) === true ? ' und ist nicht mehr im Shop zu sehen' : '').'. Seine veröffentlichten Fassungen bleiben gespeichert.', []],
             'page.placeholder_switched' => [self::placeholderSwitched($p), []],
             'page.revision_restored' => [self::revisionRestored($p), []],
             'faq.created' => [

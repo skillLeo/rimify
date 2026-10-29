@@ -530,6 +530,7 @@ describe('putting every entry into words', function (): void {
                 ['Vom Anwalt geprüft: nein → ja'],
             ],
             'page.withdrawn' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Blog-Artikel „ET richtig lesen“ wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.deleted' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen', 'was_published' => true], 'Der Blog-Artikel „ET richtig lesen“ wurde gelöscht und ist nicht mehr im Shop zu sehen. Seine veröffentlichten Fassungen bleiben gespeichert.', []],
             'faq.created' => [['question' => 'Wie lange dauert die Lieferung?', 'published' => false], 'Die Frage „Wie lange dauert die Lieferung?“ wurde angelegt; sie ist noch ausgeblendet.', []],
             'faq.updated' => [
                 ['question' => 'Wie lange dauert der Versand?', 'old_question' => 'Wie lange dauert die Lieferung?', 'changed' => ['question_de', 'answer_de', 'published'], 'published' => ['old' => false, 'new' => true]],
