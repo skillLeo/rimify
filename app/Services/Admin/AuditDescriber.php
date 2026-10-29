@@ -154,6 +154,7 @@ final class AuditDescriber
         'wheel.rating_stated' => 'katalog',
         'wheel.rating_removed' => 'katalog',
         'reviews.disclosure_changed' => 'katalog',
+        'contact.recipient_changed' => 'verkauf',
         'tyre.created' => 'katalog',
         'tyre.updated' => 'katalog',
         'tyre.deleted' => 'katalog',
@@ -561,6 +562,10 @@ final class AuditDescriber
                 'Die Sterne von Hand der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen')
                     .(self::text($p, 'label') === null ? '' : ' – '.self::text($p, 'label').' –').' wurden entfernt. Der Shop zeigt sie nicht mehr.',
                 [],
+            ],
+            'contact.recipient_changed' => [
+                'Neue Nachrichten aus dem Kontaktformular gehen jetzt an '.(self::text($p, 'after') ?? 'keine Adresse').'.',
+                [self::change('Empfänger', self::text($p, 'before') ?? '–', self::text($p, 'after') ?? '–')],
             ],
             'reviews.disclosure_changed' => [
                 self::text($p, 'after') === null

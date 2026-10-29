@@ -31,4 +31,10 @@ final class ContactMessagePolicy
     {
         return $this->viewAny($user);
     }
+
+    /** Where the messages are mailed (#12, D-347): it decides who reads customers' words, so it takes the right to change orders. */
+    public function configure(AdminUser $user): bool
+    {
+        return $user->may(PermissionModule::Orders, PermissionAction::View) && $user->may(PermissionModule::Orders, PermissionAction::Edit);
+    }
 }

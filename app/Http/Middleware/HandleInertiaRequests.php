@@ -125,6 +125,8 @@ class HandleInertiaRequests extends Middleware
                 'toast' => $request->session()->get('toast'),
                 // What was just put in the basket, for the panel after an add (#16): the line, the count and the total.
                 'added' => $request->session()->get('added'),
+                // What became of a contact message (#12, D-347): whether a mail left for the team, and a copy for the sender.
+                'kontakt' => $request->session()->get('kontakt'),
             ],
             /*
              * The key-number lookup's outcome. Shared rather than returned as page props because

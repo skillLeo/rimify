@@ -12,7 +12,9 @@ use App\Mail\ContactMessageMail;
 use App\Models\ContactMessage;
 use App\Models\Vehicle;
 use App\Services\Storefront\Chrome;
+use App\Support\ContactRecipient;
 use App\Support\GermanFormat;
+use App\Support\MailDelivery;
 use App\Support\VehicleName;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,8 +50,9 @@ class KontaktController extends Controller
             ],
             // When the form was handed out, sealed: a message back sooner than a person writes one is a script's (#12).
             'ticket' => ContactRequest::ticket(),
-            // The one address a copy of the message goes to: the signed-in customer's own, confirmed. Null for a guest.
-            'copyTo' => ContactRequest::confirmedAddress($request),
+            // The one address a copy of the message goes to: the signed-in customer's own, confirmed. Null for a guest — and
+            // null while no mail leaves the shop, so the page never promises a copy it cannot send (D-347).
+            'copyTo' => MailDelivery::real() ? ContactRequest::confirmedAddress($request) : null,
         ]);
     }
 
@@ -70,26 +73,32 @@ class KontaktController extends Controller
         ]);
 
         // The message is kept whatever the mail does: a failed send is logged, never lost and never shown as an error
-        // to someone whose words have arrived.
-        try {
-            $to = (string) config('rimify.contact.email');
+        // to someone whose words have arrived. What the page then says is what happened (D-347): „angekommen“ only
+        // where a mail left for the team's inbox, the copy only where one left for the sender's.
+        $mailed = false;
+        $copied = false;
 
-            if ($to !== '') {
+        try {
+            $to = ContactRecipient::address();
+
+            if ($to !== '' && MailDelivery::real()) {
                 Mail::to($to)->send(new ContactMessageMail($message));
+                $mailed = true;
             }
 
             // The copy carries the sender's words to the address typed. It goes only where that address is known to be
             // theirs — a signed-in customer's own, confirmed — or the form mails anyone a stranger names (D-218).
             $copy = $request->copyAddress();
 
-            if ($copy !== null) {
+            if ($copy !== null && MailDelivery::real()) {
                 Mail::to($copy)->send(new ContactConfirmationMail($message));
+                $copied = true;
             }
         } catch (Throwable $e) {
             Log::warning('Kontaktformular: E-Mail nicht gesendet, die Nachricht ist gespeichert.', ['contact_message_id' => $message->id, 'error' => $e->getMessage()]);
         }
 
-        return back();
+        return back()->with('kontakt', ['mailed' => $mailed, 'copied' => $copied]);
     }
 
     /**

@@ -6,10 +6,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ContactMessageReadRequest;
+use App\Http\Requests\Admin\ContactRecipientRequest;
 use App\Models\AdminUser;
 use App\Models\ContactMessage;
 use App\Services\Admin\Lists\ListPaging;
+use App\Support\ContactRecipient;
 use App\Support\GermanFormat;
+use App\Support\MailDelivery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -61,7 +64,20 @@ class NachrichtenController extends Controller
             'filters' => collect(self::FILTERS)->map(static fn (string $label, string $value): array => ['value' => $value, 'label' => $label])->values()->all(),
             'canMarkRead' => $admin instanceof AdminUser && $admin->canQuietly('markRead', new ContactMessage),
             'keepMonths' => ContactMessage::KEEP_MONTHS,
+            // Where new messages are mailed (#12, D-347), and whether a mail leaves the shop at all yet.
+            'recipient' => [
+                'address' => ContactRecipient::address(),
+                'mailing' => MailDelivery::real(),
+                'canChange' => $admin instanceof AdminUser && $admin->canQuietly('configure', ContactMessage::class),
+            ],
         ]);
+    }
+
+    public function recipient(ContactRecipientRequest $request): RedirectResponse
+    {
+        ContactRecipient::set($request->address(), $request->admin());
+
+        return back()->with('toast', 'Gespeichert. Neue Nachrichten gehen an '.ContactRecipient::address().(MailDelivery::real() ? '.' : ', sobald der Shop E-Mails verschickt.'));
     }
 
     public function markRead(ContactMessageReadRequest $request, ContactMessage $message): RedirectResponse

@@ -5,7 +5,7 @@
  * „Als gelesen markieren“ takes a message out of the queue. Nothing here writes or edits a message.
  */
 
-import { router } from '@inertiajs/vue3'
+import { router, useForm } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
@@ -40,7 +40,22 @@ const props = defineProps<{
     filters: { value: string; label: string }[]
     canMarkRead: boolean
     keepMonths: number
+    /** Where new messages are mailed, whether mail leaves the shop yet, and who may change it (#12, D-347). Optional in older fixtures. */
+    recipient?: { address: string; mailing: boolean; canChange: boolean }
 }>()
+
+/* The address new messages are mailed to — one field, saved on its own. */
+const recipientForm = useForm({ address: props.recipient?.address ?? '' })
+const editingRecipient = ref(false)
+
+function saveRecipient(): void {
+    recipientForm.put('/admin/nachrichten/empfaenger', {
+        preserveScroll: true,
+        onSuccess: () => {
+            editingRecipient.value = false
+        },
+    })
+}
 
 const status = ref(props.filter)
 const q = ref(props.search)
@@ -83,6 +98,39 @@ function context(): string {
             Hier steht, was über das Kontaktformular im Shop kam – mit dem Fahrzeug, wenn die Person es mitgeschickt hat.
             Geantwortet wird per E-Mail. Jede Nachricht wird nach {{ keepMonths }} Monaten gelöscht.
         </p>
+
+        <!-- Where new messages are mailed (#12, D-347) — and, while no mail leaves the shop, that they stand only here. -->
+        <section v-if="recipient" class="nfa-recipient" aria-labelledby="nfa-recipient-h" data-recipient>
+            <h2 id="nfa-recipient-h" class="nfa-recipient__title">Weiterleitung per E-Mail</h2>
+            <p v-if="!editingRecipient" class="nfa-recipient__now">
+                Neue Nachrichten gehen an <strong>{{ recipient.address || 'keine Adresse' }}</strong>.
+                <button v-if="recipient.canChange" class="btn btn--ghost btn--sm" type="button" @click="editingRecipient = true">Ändern</button>
+            </p>
+            <form v-else class="nfa-recipient__form" novalidate @submit.prevent="saveRecipient">
+                <div class="form-field">
+                    <label class="form-field__label" for="nfa-recipient">An diese Adresse</label>
+                    <input
+                        id="nfa-recipient"
+                        v-model="recipientForm.address"
+                        class="input"
+                        type="email"
+                        maxlength="190"
+                        autocomplete="off"
+                        :aria-invalid="recipientForm.errors.address ? 'true' : undefined"
+                        aria-describedby="nfa-recipient-err"
+                    >
+                    <p id="nfa-recipient-err" class="form-field__error">{{ recipientForm.errors.address ?? '' }}</p>
+                </div>
+                <div class="nfa-recipient__actions">
+                    <button class="btn btn--secondary" type="submit" :disabled="recipientForm.processing">Speichern</button>
+                    <button class="btn btn--ghost" type="button" @click="editingRecipient = false">Abbrechen</button>
+                </div>
+            </form>
+            <p v-if="!recipient.mailing" class="adm-alert nfa-recipient__warn" role="status">
+                Der Shop verschickt noch keine E-Mails – sie gehen nur ins Protokoll des Servers. Neue Nachrichten stehen bis dahin nur
+                hier. Einrichten lässt sich der Versand unter Einstellungen › E-Mail.
+            </p>
+        </section>
 
         <form class="nfa-filters" @submit.prevent="apply">
             <div class="form-field">
@@ -151,6 +199,54 @@ function context(): string {
     color: var(--c-ink-2);
     font-size: var(--fs-small);
     line-height: var(--lh-small);
+}
+
+/* Where new messages are mailed: a quiet band above the list, the warning inside it while no mail leaves. */
+.nfa-recipient {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: var(--adm-form-max);
+    margin: 0 0 var(--sp-24);
+    padding: var(--sp-12) var(--sp-16);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-control);
+}
+
+.nfa-recipient__title {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    font-weight: 600;
+}
+
+.nfa-recipient__now {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8);
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    overflow-wrap: anywhere;
+}
+
+.nfa-recipient__form {
+    display: grid;
+    gap: var(--sp-8);
+}
+
+.nfa-recipient__form .form-field__error:empty {
+    display: none;
+}
+
+.nfa-recipient__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+}
+
+.nfa-recipient__warn {
+    margin: 0;
 }
 
 .nfa-filters {

@@ -6,13 +6,18 @@ import type { ContactProp, VehicleProp } from '../../types/rimify'
 const current: { props: Record<string, unknown> } = { props: {} }
 
 interface PostOptions {
-    onSuccess?: (page: { component: string }) => void
+    onSuccess?: (page: { component: string; props?: Record<string, unknown> }) => void
     onError?: () => void
     onNetworkError?: () => unknown
 }
 
 /* What the server answers a message that arrived with: this page again. */
-const ARRIVED = { component: 'Kontakt/Index' }
+/* The page back after a send, with what became of the message (D-347): here a mail left for the team, no copy. */
+const ARRIVED = { component: 'Kontakt/Index', props: { flash: { kontakt: { mailed: true, copied: false } } } }
+/* The same where no mail leaves the shop — the preview's log mailer: kept, not mailed. */
+const KEPT = { component: 'Kontakt/Index', props: { flash: { kontakt: { mailed: false, copied: false } } } }
+/* Mailed, and the copy left for a signed-in customer's own address. */
+const COPIED = { component: 'Kontakt/Index', props: { flash: { kontakt: { mailed: true, copied: true } } } }
 
 /* What `useForm` posted: the address, the data after `transform`, and the options — the test answers through them. */
 const posted: { url: string; data: Record<string, unknown>; options: PostOptions }[] = []
@@ -213,7 +218,30 @@ describe('Kontakt — the contact form (#12)', () => {
         expect(done.attributes('role')).toBe('status')
         expect(done.text()).toContain('Danke, Jana Beispiel – deine Nachricht ist angekommen.')
         expect(done.text()).toContain('Wir antworten dir an jana@example.com.')
+        expect(done.text()).not.toContain('Kopie')
         expect(document.activeElement).toBe(done.element)
+    })
+
+    // #12 (D-347): where no mail leaves the shop — the preview's log mailer — the page never says the message arrived
+    // by mail, and never promises a copy; it says the message is kept.
+    it('says the message is kept — not that it arrived — where no mail left, and the copy only where one did', async () => {
+        const kept = mountPage()
+        await fill(kept)
+        await kept.find('form').trigger('submit')
+        posted.at(-1)!.options.onSuccess?.(KEPT)
+        await flushPromises()
+
+        expect(kept.find('.kon__done').text()).toContain('Danke, Jana Beispiel – deine Nachricht ist bei uns gespeichert.')
+        expect(kept.find('.kon__done').text()).not.toContain('angekommen')
+        expect(kept.find('.kon__done').text()).not.toContain('Kopie')
+
+        const copied = mountPage()
+        await fill(copied)
+        await copied.find('form').trigger('submit')
+        posted.at(-1)!.options.onSuccess?.(COPIED)
+        await flushPromises()
+
+        expect(copied.find('.kon__done').text()).toContain('Eine Kopie deiner Nachricht ist schon in deinem Postfach.')
     })
 
     it('checks a field when it is left, in the server\'s words, and takes the sentence back once it is right', async () => {
@@ -265,10 +293,11 @@ describe('Kontakt — the contact form (#12)', () => {
         await flushPromises()
         expect(guest.find('.kon__done').text()).not.toContain('Kopie')
 
+        // The server says whether the copy left (D-347): the page repeats it, and never guesses from the address alone.
         const customer = mountPage({ copyTo: 'jana@example.com' })
         await fill(customer)
         await customer.find('form').trigger('submit')
-        posted[1]!.options.onSuccess?.(ARRIVED)
+        posted[1]!.options.onSuccess?.(COPIED)
         await flushPromises()
         expect(customer.find('.kon__done').text()).toContain('Eine Kopie deiner Nachricht ist schon in deinem Postfach.')
     })

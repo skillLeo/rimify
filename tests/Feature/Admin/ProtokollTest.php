@@ -562,6 +562,11 @@ describe('putting every entry into words', function (): void {
                 ['Sterne: 4,7 (9 Bewertungen) → 4,9 (13 Bewertungen)'],
             ],
             'wheel.rating_removed' => [['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)'], 'Die Sterne von Hand der Felge „Nordfelge Fjord“ – 4,9 (13 Bewertungen) – wurden entfernt. Der Shop zeigt sie nicht mehr.', []],
+            'contact.recipient_changed' => [
+                ['before' => 'kontakt@beispiel.de', 'after' => 'info@beispiel.de'],
+                'Neue Nachrichten aus dem Kontaktformular gehen jetzt an info@beispiel.de.',
+                ['Empfänger: kontakt@beispiel.de → info@beispiel.de'],
+            ],
             'reviews.disclosure_changed' => [
                 ['before' => 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.', 'after' => ''],
                 'Der Hinweis neben den Sternen von Hand wurde geleert. Der Shop zeigt keine Sterne von Hand mehr.',

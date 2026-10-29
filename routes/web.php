@@ -586,6 +586,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('message')
             ->middleware('throttle:60,1,nachricht-gelesen')
             ->name('nachrichten.gelesen');
+        // Where new messages are mailed (#12, D-347): ContactMessagePolicy::configure through ContactRecipientRequest.
+        Route::put('/nachrichten/empfaenger', [NachrichtenController::class, 'recipient'])
+            ->middleware('throttle:10,1,nachrichten-empfaenger')
+            ->name('nachrichten.empfaenger');
 
         // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
