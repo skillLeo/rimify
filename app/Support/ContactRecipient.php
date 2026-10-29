@@ -9,7 +9,7 @@ use App\Models\Setting;
 use App\Services\Admin\AuditTrail;
 
 /**
- * Where the contact form's messages are mailed (the client's #12: „info@rimify.de“, D-347): an admin setting, kept on
+ * Where the contact form's messages are mailed (the client's #12: his shop's own address, D-347): an admin setting, kept on
  * Verkauf › Nachrichten — the configured contact address until someone sets another. Every message is kept in the admin
  * whatever the mail does; this is the copy that reaches the team's inbox.
  */

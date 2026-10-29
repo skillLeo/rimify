@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ShelfPicksRequest;
 use App\Models\AdminUser;
 use App\Models\Page;
+use App\Policies\PagePolicy;
 use App\Services\Storefront\HomeShelf;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\ShelfPicks;
@@ -44,7 +45,8 @@ class MeistgekaufteFelgenController extends Controller
                 'source' => $source,
                 'href' => '/felgen/'.$card['slug'].'?ausfuehrung='.$card['finishId'],
             ], $now['cards'], $now['sources']),
-            'can' => ['update' => $admin instanceof AdminUser && $admin->can('pickShelf', Page::class)],
+            // Asked of the policy itself, not through the Gate: a reader opening the page is no refused attempt.
+            'can' => ['update' => $admin instanceof AdminUser && (new PagePolicy)->pickShelf($admin)],
         ]);
     }
 

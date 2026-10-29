@@ -99,18 +99,18 @@ describe('Admin › Nachrichten', () => {
     })
     // #12 (D-347): where new messages are mailed, changed here by who may; while no mail leaves the shop, said plainly.
     it('says where new messages are mailed, lets who may change it, and warns while the shop sends no mail', async () => {
-        const quiet = mountPage({ recipient: { address: 'info@rimify.de', mailing: false, canChange: true } })
+        const quiet = mountPage({ recipient: { address: 'kontakt@beispiel.test', mailing: false, canChange: true } })
         const card = quiet.find('[data-recipient]')
 
-        expect(card.find('.nfa-recipient__now').text()).toContain('Neue Nachrichten gehen an info@rimify.de.')
+        expect(card.find('.nfa-recipient__now').text()).toContain('Neue Nachrichten gehen an kontakt@beispiel.test.')
         expect(card.find('.nfa-recipient__warn').text()).toContain('Der Shop verschickt noch keine E-Mails')
 
         await card.findAll('button').find((b) => b.text() === 'Ändern')?.trigger('click')
-        await quiet.find('#nfa-recipient').setValue('team@rimify.de')
+        await quiet.find('#nfa-recipient').setValue('team@beispiel.test')
         await quiet.find('.nfa-recipient__form').trigger('submit')
         expect(put).toHaveBeenCalledWith('/admin/nachrichten/empfaenger', expect.anything())
 
-        const reader = mountPage({ recipient: { address: 'info@rimify.de', mailing: true, canChange: false } })
+        const reader = mountPage({ recipient: { address: 'kontakt@beispiel.test', mailing: true, canChange: false } })
         expect(reader.find('[data-recipient]').findAll('button').map((b) => b.text())).not.toContain('Ändern')
         expect(reader.find('.nfa-recipient__warn').exists()).toBe(false)
     })})

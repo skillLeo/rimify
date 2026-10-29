@@ -17,6 +17,7 @@ use App\Models\NavItem;
 use App\Models\Page;
 use App\Models\PageRevision;
 use App\Models\Setting;
+use App\Policies\PagePolicy;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
 use App\Services\Content\LegalTexts;
@@ -234,8 +235,9 @@ class SeitenController extends Controller
                 'edit' => $admin->may(PermissionModule::Content, PermissionAction::Edit),
                 'publish' => $mayPublish,
                 'withdraw' => $mayPublish && $page->kind === Page::KIND_GUIDE && $page->isPublished(),
-                // An article is deleted from its list or here (D-351); every other page is the shop's structure.
-                'delete' => $admin->can('delete', $page),
+                // An article is deleted from its list or here (D-351); every other page is the shop's structure. Asked of
+                // the policy itself, not through the Gate: drawing no button is not a refused attempt (RefusalPairTest).
+                'delete' => (new PagePolicy)->delete($admin, $page),
             ],
         ]);
     }

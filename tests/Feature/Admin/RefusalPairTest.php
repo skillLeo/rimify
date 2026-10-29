@@ -14,6 +14,7 @@ use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ContentSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Gutachten\ReleaseAnswers;
 
@@ -91,5 +92,19 @@ it('writes nothing refused for the homepage editor and its publishing', function
 
     $before = lastEntry();
     $this->actingAs($admin, 'admin')->get("/admin/seiten/{$home->id}")->assertOk();
+    expect(refusedSince($before))->toBe([]);
+});
+
+it('writes nothing refused when someone who may not publish opens Meistgekaufte Felgen — the form is just not drawn', function (): void {
+    $this->seed([ContentSeeder::class, ReferenceDataSeeder::class]);
+    // The Inhalte role without the right to publish: it reads and edits, and saving the shelf takes both (D-353).
+    $role = (int) DB::table('roles')->where('name', 'content-editor')->value('id');
+    DB::table('role_permissions')->where('role_id', $role)->where('module', 'content')->where('action', 'publish')->update(['allowed' => false]);
+    app()->forgetScopedInstances();
+    $reader = AdminUser::query()->where('email', 'content-editor@rimify.test')->firstOrFail();
+
+    $before = lastEntry();
+    $this->actingAs($reader, 'admin')->get('/admin/meistgekaufte-felgen')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('can.update', false));
     expect(refusedSince($before))->toBe([]);
 });

@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Vehicle;
 use App\Services\Admin\AdminNavigation;
 use Database\Seeders\AccessSeeder;
+use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -26,7 +27,9 @@ use Inertia\Testing\AssertableInertia;
 beforeEach(function (): void {
     // The review pages off, as in the live shop: switched on, the tree gains them (the look-back, D-232).
     config(['rimify.review.enabled' => false]);
-    $this->seed(AccessSeeder::class);
+    // The reference tables every installation is seeded with (rimify:release-seed): a page that shows the shop's own
+    // cards — Meistgekaufte Felgen (D-353) — builds the engine, which refuses without its load index table.
+    $this->seed([AccessSeeder::class, ReferenceDataSeeder::class]);
     RateLimiter::clear('super-admin@rimify.test|127.0.0.1');
 });
 
@@ -107,7 +110,8 @@ describe('the tree', function (): void {
             ->and(array_column($nav[2]['pages'], 'label'))->toBe(['Felgen', 'Reifen', 'Marken', 'Import'])
             ->and(array_column($nav[3]['pages'], 'label'))->toBe(['Dokumente', 'Auflagen', 'Abdeckung', 'Konflikte'])
             ->and(array_column($nav[4]['pages'], 'label'))->toBe(['Fahrzeuge', 'Zur Prüfung', 'Import'])
-            ->and(array_column($nav[5]['pages'], 'label'))->toBe(['Seiten', 'FAQ', 'Navigation'])
+            // The Ratgeber its own page (his admin item 12, D-351), the shelf of eight its own (his #5, D-353).
+            ->and(array_column($nav[5]['pages'], 'label'))->toBe(['Seiten', 'Ratgeber', 'Meistgekaufte Felgen', 'FAQ', 'Navigation'])
             ->and(array_column($nav[6]['pages'], 'label'))->toBe(['Zubehörpreise', 'Medien und Speicher', 'Zahlung', 'E-Mail', 'Verkäufer & Versand'])
             ->and(array_column($nav[7]['pages'], 'label'))->toBe(['Benutzer', 'Rollen & Rechte', 'Protokoll'])
             // „Zurücksetzen“: a test environment's, the Super-Admin's alone (TestReset) — never on the live shop's rail.

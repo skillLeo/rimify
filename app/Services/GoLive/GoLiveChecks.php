@@ -334,7 +334,8 @@ final class GoLiveChecks
     {
         $file = 'resources/js/Pages/Produkt/Index.vue';
         $source = is_file(base_path($file)) ? (string) file_get_contents(base_path($file)) : '';
-        $said = str_contains($source, 'Wir prüfen das über die') && str_contains($source, 'Bestellnummer.');
+        // Read as a person reads it: a line break that falls inside the sentence is a space, not its absence.
+        $said = str_contains((string) preg_replace('/\s+/u', ' ', $source), 'Wir prüfen das über die Bestellnummer.');
         $visible = Review::query()->visible()->count();
 
         if ($source === '') {

@@ -10,6 +10,7 @@ use App\Payments\PaymentFailure;
 use App\Payments\Payments;
 use App\Payments\Stripe\StripeGateway;
 use App\Services\Commerce\OrderPayments;
+use App\Support\GermanFormat;
 use Database\Seeders\CommerceSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Tests\Support\FakeStripe;
@@ -58,7 +59,8 @@ it('creates one PaymentIntent per order, at the order total from the server, in 
         ->and($created[0]['params']['currency'])->toBe('eur')
         // As it goes over the wire: the SDK form-encodes a boolean as `true`.
         ->and($created[0]['params']['automatic_payment_methods'])->toBe(['enabled' => 'true'])
-        ->and($created[0]['params']['metadata'])->toBe(['order_id' => (string) $order->id, 'order_number' => $order->order_number])
+        // The order's own two keys, then each of its rows (his #15, D-355): this order has no line, only its shipping.
+        ->and($created[0]['params']['metadata'])->toBe(['order_id' => (string) $order->id, 'order_number' => $order->order_number, 'pos_1' => 'Versand = '.GermanFormat::money($order->shipping_cents)])
         ->and($created[0]['headers']['idempotency-key'])->toBe('rmf-pi-'.$order->order_number.'-159600')
         ->and($first->id)->toBe($again->id)
         ->and($first->amountCents)->toBe(159_600)
