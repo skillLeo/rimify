@@ -156,7 +156,7 @@ function save(): void {
 
 <style scoped>
 .mf__rule {
-    max-width: 75ch;
+    max-width: calc(75 * var(--ch-text));
     margin: 0 0 var(--sp-24);
 }
 
@@ -191,7 +191,7 @@ function save(): void {
 
 .mf__place {
     flex: none;
-    min-width: 2ch;
+    min-width: calc(2 * var(--ch-text));
     color: var(--c-ink-2);
     font-variant-numeric: tabular-nums;
     text-align: right;
