@@ -184,3 +184,13 @@ describe('Startseite (phone) — Nach Marke', () => {
         expect(wrapper.find('#h6 .brand-wall__note').text()).toBe('Ausgegraute Marken haben gerade keine lieferbaren Felgen.')
     })
 })
+
+describe('Startseite (phone) — the turning wheel (P6)', () => {
+    it('stands with neither a photographed wheel nor a labelled tyre: the illustration turns, as on the desktop (#9, D-346)', () => {
+        const wrapper = mountPage({ komplettrad: { tyre: null, wheel: null } })
+
+        expect(wrapper.find('#h7').exists()).toBe(true)
+        expect(wrapper.find('#h7 komplettrad-wheel-stub').exists()).toBe(true)
+        expect(wrapper.find('#h7 tyre-label-stub').exists()).toBe(false)
+    })
+})
