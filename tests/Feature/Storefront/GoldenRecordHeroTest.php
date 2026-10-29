@@ -184,30 +184,19 @@ it('leads with the photograph chosen in Inhalte, and with the default where the 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('hero.photo.finish', 'Schwarz matt'));
 });
 
-it('turns the hero wheel in the dark band — the open cut-out of its other finish — and the illustration without one (#9)', function (): void {
+it('turns the illustration in the dark band again, as before #9 — even where the hero wheel has an opened cut-out (the client, 29.10.)', function (): void {
     $this->seed(GoldenRecordSeeder::class);
     $model = WheelModel::query()->where('slug', GoldenRecordSeeder::SLUG)->firstOrFail();
-    // The band names the hero's wheel, so it turns once that wheel is published (D-155).
     $model->update(['status' => 'published']);
 
-    // Only shadowless frames, none with the spokes opened: the studio's white would show — the illustration stays.
-    DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze']);
-
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('komplettrad.wheel', null));
-
-    // Opened: the band shows the other finish, so the page shows both.
+    // The client's reply to #9: „Just return the old picture. We currently don't have any good pictures.“ The opened
+    // cut-out that #9 turned is there — and the band still shows the illustration it showed before (D-346).
     DemoWheelFixtures::heroPhotos($this->dir, $model->slug, ['Schwarz matt' => 'db8gt2-schwarz', 'Bronze matt' => 'db8gt2-bronze'], open: true);
 
     $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('komplettrad.wheel.brand', $model->brand->name)
-        ->where('komplettrad.wheel.name', $model->name)
-        ->where('komplettrad.wheel.finish', 'Bronze matt')
-        ->where('komplettrad.wheel.image.name', 'db8gt2-bronze-open')
-        ->where('komplettrad.wheel.anchor', ['x' => 0.5, 'y' => 0.47, 'r' => 0.41]));
-
-    // The wheel archived: the band names nothing it no longer has — back to the illustration.
-    $model->update(['status' => 'archived']);
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('komplettrad.wheel', null));
+        // The precondition: the photographs the band used to take are on record.
+        ->where('hero.photo.companion.finish', 'Bronze matt')
+        ->where('komplettrad.wheel', null));
 });
 
 it('says published only when the wheel is in the shop at a price', function (): void {

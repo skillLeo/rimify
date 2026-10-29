@@ -19,20 +19,17 @@ test.describe('as a visitor', () => {
         await consent(page)
     })
 
-    test('solved differently: the turning wheel is a published product from the client\'s photographs, and its caption opens it', { tag: '@kunde-09' }, async ({ page, request }, info) => {
+    test('the turning wheel is the old picture again — the illustration, said as such — as the client asked on 29.10.', { tag: '@kunde-09' }, async ({ page }, info) => {
         await open(page, '/')
         const band = page.locator('#h7').first()
         await band.scrollIntoViewIfNeeded()
 
+        // „Just return the old picture. We currently don't have any good pictures.“ (D-346): the band's illustration from
+        // before #9, captioned as what it is — no product named, no link.
         await expect(band).toBeVisible()
-        const caption = band.locator('figcaption a').first()
-        await expect(caption).toHaveText(/^Felge im Bild: BORBET DB8GT2/i)
-        const href = await caption.getAttribute('href')
-        expect(href).toBe(PRODUCT)
-        expect((await request.get(new URL(href ?? '', BASE).toString())).status()).toBe(200)
-
-        // The client's own cut-out, never a picture from anywhere else.
-        expect(await band.locator('img').first().getAttribute('src')).toContain('borbet-db8gt2')
+        await expect(band.locator('figcaption').first()).toHaveText('Illustration')
+        await expect(band.locator('figcaption a')).toHaveCount(0)
+        await expect(band.locator('figure img').first()).toHaveAttribute('src', /\/images\/komplettrad-illustration\//)
 
         await evidence(band.locator('figure').first(), 9, info)
     })

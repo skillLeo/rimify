@@ -116,7 +116,9 @@ class StartseiteController extends Controller
             ),
             'sizes' => $this->sizes($vehicleId),
             'brands' => $this->brands(),
-            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => $this->bandWheel($wheel)],
+            // The dark band turns its illustration again, as before #9 (PROTECTED.md P6): the client's reply of 29.10.2026,
+            // „Just return the old picture. We currently don't have any good pictures.“ (D-346).
+            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => null],
             // The same service /felgenrechner reads: the teaser and the full tool start on one size.
             'calculator' => ['prefill' => $vehicleId === null ? null : $this->calculatorPrefill->forVehicle($vehicleId)],
             'partners' => [
@@ -194,51 +196,6 @@ class StartseiteController extends Controller
             'published' => (int) $config->price_cents > 0,
             'facts' => $this->heroFacts($config, $kba),
         ];
-    }
-
-    /**
-     * The wheel that turns in the dark band (PROTECTED.md P6, the client's #9): a real product, photographed — the hero's
-     * wheel in its other finish where it has one (so the page shows both), else its leading finish. Only the `open`
-     * cut-out — shadowless, the studio's white keyed out of the spokes, which on the dark band would read as a white disc
-     * behind the wheel — with its wheel anchor, so it turns about its own axle. Null without one: the band keeps its
-     * illustration, labelled as such, and never borrows somebody else's photograph.
-     *
-     * @param  array<string, mixed>|null  $hero
-     * @return array{brand: string, name: string, finish: string, image: array<string, mixed>, anchor: array{x: float, y: float, r: float}, href: string}|null
-     */
-    private function bandWheel(?array $hero): ?array
-    {
-        if ($hero === null) {
-            return null;
-        }
-
-        $companion = is_array($hero['companion'] ?? null) ? $hero['companion'] : null;
-        $candidates = [
-            [$companion['finish'] ?? null, $companion['imageManifest'] ?? null],
-            [$hero['finish'] ?? null, $hero['imageManifest'] ?? null],
-        ];
-
-        foreach ($candidates as [$finish, $manifest]) {
-            $open = is_array($manifest) && is_array($manifest['open'] ?? null) ? $manifest['open'] : null;
-            $anchors = $open === null ? null : ($open['anchors'] ?? $manifest['anchors'] ?? null);
-            $wheel = is_array($anchors) && is_array($anchors['wheel'] ?? null) ? $anchors['wheel'] : null;
-
-            if ($open === null || $wheel === null || ! is_string($finish) || ! is_numeric($wheel['r'] ?? null) || (float) $wheel['r'] <= 0) {
-                continue;
-            }
-
-            return [
-                'brand' => (string) $hero['brand'],
-                'name' => (string) $hero['name'],
-                'finish' => $finish,
-                'image' => $open,
-                'anchor' => ['x' => (float) ($wheel['x'] ?? 0.5), 'y' => (float) ($wheel['y'] ?? 0.5), 'r' => (float) $wheel['r']],
-                // The wheel is in the shop (the client's #9): its caption leads to its page.
-                'href' => '/felgen/'.$hero['slug'],
-            ];
-        }
-
-        return null;
     }
 
     /**

@@ -216,21 +216,21 @@ test('switching the selector\'s tabs moves nothing — measured on the interacti
     await shot(panel, 7, info)
 })
 
-test('the turning wheel is a published product from the client\'s photographs, and its caption opens it', { tag: '@kunde-09' }, async ({ page, request }, info) => {
+test('the turning wheel is the old picture again — the illustration, said as such — as the client asked on 29.10.', { tag: '@kunde-09' }, async ({ page }, info) => {
     await open(page, '/')
     const band = page.locator('#h7').first()
     await band.scrollIntoViewIfNeeded()
 
+    // „Just return the old picture. We currently don't have any good pictures.“ (D-346): the illustration the band
+    // turned before #9, from the repository's own files, captioned as what it is — no product named, no link.
     await expect(band).toBeVisible()
-    const caption = band.locator('figcaption a').first()
-    await expect(caption).toHaveText(/^Felge im Bild: BORBET DB8GT2/)
-    const href = await caption.getAttribute('href')
-    expect(href).toBe('/felgen/borbet-db8gt2')
-    expect((await request.get(new URL(href ?? '', ABNAHME).toString())).status()).toBe(200)
+    await expect(band.locator('figcaption').first()).toHaveText('Illustration')
+    await expect(band.locator('figcaption a')).toHaveCount(0)
+    await expect(band.locator('figure img').first()).toHaveAttribute('src', /\/images\/komplettrad-illustration\//)
 
-    // The client's own cut-out, never a picture from anywhere else.
-    const src = await band.locator('img').first().getAttribute('src')
-    expect(src).toContain('borbet-db8gt2')
+    // It still turns with the scroll: the turning box carries its scroll timeline (the desk's band and the phone's wheel).
+    const animation = await band.locator('.komplett__turn, .komplett-wheel__turn').first().evaluate((el) => getComputedStyle(el).animationName)
+    expect(animation, 'the band\'s wheel no longer turns').not.toBe('none')
 
     await shot(band.locator('figure').first(), 9, info)
 })
