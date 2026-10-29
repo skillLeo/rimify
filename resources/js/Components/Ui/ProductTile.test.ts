@@ -92,6 +92,21 @@ afterEach(() => {
 })
 
 describe('ProductTile', () => {
+    // The client's #19 as he decided it (D-345): typed stars under the name on the listing, the shop's sentence beside.
+    it('shows typed stars under the name with the shop\'s sentence beside them, and nothing where there are none', () => {
+        const disclosure = 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.'
+        const rated = mountTile({ card: card(1, { statedRating: { label: '4,9 (13 Bewertungen)', disclosure } }) })
+        const line = rated.find('.tile__title + [data-stated-rating]')
+
+        expect(line.exists()).toBe(true)
+        expect(line.text()).toBe(`★ 4,9 (13 Bewertungen) – ${disclosure}`)
+        expect(line.find('.tile__stars-glyph').attributes('aria-hidden')).toBe('true')
+        expect(rated.text()).not.toContain('Geprüfter Kauf')
+
+        expect(mountTile({ card: card(2, { statedRating: null }) }).find('[data-stated-rating]').exists()).toBe(false)
+        expect(mountTile({ card: card(3) }).find('[data-stated-rating]').exists()).toBe(false)
+    })
+
     it('has one link, the CTA, stretched over the card and named after the wheel', () => {
         const wrapper = mountTile({ compare: true })
 

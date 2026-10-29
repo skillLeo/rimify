@@ -121,11 +121,11 @@ function reply(item: Item): void {
             Shop einige Tage nach „Zugestellt“ verschickt – anlegen kann sie hier niemand. Eine ausgeblendete Bewertung
             zählt nicht mehr zur Bewertung der Felge.
         </p>
-        <!-- #19 as promised (D-344): typed stars live with the rim, never among the buyers' reviews. -->
+        <!-- #19 (D-344, D-345): typed stars live with the rim, never among the buyers' reviews. -->
         <p class="bwa-lead" data-stated-hint>
             Sterne, die du anderswo gesammelt hast, trägst du bei der Felge selbst ein:
-            <Link href="/admin/felgen">Katalog › Felgen</Link>, dann die Felge, „Sterne von Hand“. Sie stehen nicht in dieser
-            Liste und zählen nicht zu diesen Bewertungen.
+            <Link href="/admin/felgen">Katalog › Felgen</Link>, dann die Felge, „Sterne von Hand“ – dort steht auch der Hinweis, der
+            im Shop neben ihnen steht. Sie stehen nicht in dieser Liste und zählen nicht zu diesen Bewertungen.
         </p>
 
         <form class="bwa-filters" @submit.prevent="apply">

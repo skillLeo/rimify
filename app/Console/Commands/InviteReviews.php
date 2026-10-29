@@ -9,6 +9,7 @@ use App\Enums\OrderStatus;
 use App\Mail\ReviewInvitationMail;
 use App\Models\Order;
 use App\Services\Admin\AuditTrail;
+use App\Services\Commerce\Reviews\ReviewWriter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
@@ -44,7 +45,8 @@ class InviteReviews extends Command
                     ->values()
                     ->all();
 
-                if ($order->isDemo() || $wheels === [] || ! is_string($email) || $email === '') {
+                // Only an order its buyer could then review: real, paid for real, delivered (ReviewWriter::open).
+                if (! ReviewWriter::open($order) || $wheels === [] || ! is_string($email) || $email === '') {
                     return;
                 }
 

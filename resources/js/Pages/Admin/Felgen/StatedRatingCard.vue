@@ -1,35 +1,40 @@
 <script setup lang="ts">
 /**
- * „Sterne von Hand“ on one Felge (the client's #19 as promised, D-344): the stars and their count as the operator has them
- * from elsewhere — his eBay shop, his old shop — and the sentence that says where they come from. The shop shows them
- * under the rim's name beside that sentence; without it, none. Saved on their own, beside the Felge's form, as its
- * photographs are: never held back by an unsaved form, never lost to one.
+ * „Sterne von Hand“ on one Felge (the client's #19, D-344, D-345): the stars and their count as the operator has them
+ * from elsewhere, and the one sentence that stands beside every rim's typed stars in the shop — with the default agreed
+ * on 29.10.2026, which his lawyer may reword. Emptied, the shop shows no typed stars anywhere. Both are saved on their
+ * own, beside the Felge's form, as its photographs are: never held back by an unsaved form, never lost to one.
  *
- * Nothing here is a buyer's review. The shop has checked none of it, so the server refuses a sentence that says it has,
- * and the stars never count towards the buyers' own rating or go into the data for search engines.
+ * Nothing here is a buyer's review: the stars never count towards the buyers' own rating, never read „Geprüfter Kauf“
+ * and never go into the data for search engines.
  */
 
 import { router, useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
-import type { StatedRatingProp } from '../../../types/admin/felgen'
+import type { StatedDisclosureProp, StatedRatingProp } from '../../../types/admin/felgen'
 
 const props = defineProps<{
     modelId: number
     /** What is saved, as the form shows it, with the line the shop shows; null while there are none. */
     stated: StatedRatingProp | null
+    /** The sentence beside every rim's typed stars; empty, none render. */
+    disclosure: StatedDisclosureProp
     /** WheelModelPolicy::rate — the server asks it again on every save (R-11). */
     editable: boolean
 }>()
 
-function fromProps(): { rating: string; count: string; origin: string } {
-    return { rating: props.stated?.rating ?? '', count: props.stated?.count ?? '', origin: props.stated?.origin ?? '' }
+function fromProps(): { rating: string; count: string } {
+    return { rating: props.stated?.rating ?? '', count: props.stated?.count ?? '' }
 }
 
 const form = useForm(fromProps())
+const note = useForm({ disclosure: props.disclosure.text })
 const errors = computed(() => form.errors as Record<string, string | undefined>)
+const noteErrors = computed(() => note.errors as Record<string, string | undefined>)
 const removing = ref(false)
 const url = computed(() => `/admin/felgen/${props.modelId}/sterne`)
+const silent = computed(() => props.disclosure.text === '')
 
 /* The saved state is the truth after a save or a removal: compared by value, so a refused save keeps what was typed. */
 watch(
@@ -41,16 +46,21 @@ watch(
     }
 )
 
+watch(
+    () => props.disclosure.text,
+    (text) => {
+        note.defaults({ disclosure: text })
+        note.reset()
+        note.clearErrors()
+    }
+)
+
 function save(): void {
     if (form.processing || removing.value) {
         return
     }
 
-    form.put(url.value, {
-        preserveScroll: true,
-        preserveState: true,
-        onError: () => focusRefused('.fe-stars'),
-    })
+    form.put(url.value, { preserveScroll: true, preserveState: true, onError: () => focusRefused('.fe-stars') })
 }
 
 function remove(): void {
@@ -67,6 +77,19 @@ function remove(): void {
         },
     })
 }
+
+function saveNote(): void {
+    if (note.processing) {
+        return
+    }
+
+    note.put('/admin/felgen/sterne-hinweis', { preserveScroll: true, preserveState: true, onError: () => focusRefused('.fe-stars__note-form') })
+}
+
+function useDefault(): void {
+    note.disclosure = props.disclosure.default
+    document.getElementById('fe-stars-note')?.focus()
+}
 </script>
 
 <template>
@@ -76,16 +99,17 @@ function remove(): void {
         </div>
         <div class="fe-stars__body">
             <p class="adm-note">
-                Sterne, die du anderswo gesammelt hast – etwa in deinem eBay-Shop. Der Shop zeigt sie unter dem Namen der Felge,
-                immer zusammen mit deinem Satz, woher sie stammen. Ohne diesen Satz zeigt er keine Sterne.
+                Sterne, die du anderswo gesammelt hast – etwa in deinem eBay-Shop. Der Shop zeigt sie unter dem Namen der Felge, in der
+                Felgenliste und auf der Produktseite, immer mit dem Hinweis unten daneben.
             </p>
 
             <p class="fe-stars__now" data-stars-now>
-                <template v-if="stated">
+                <template v-if="stated && !silent">
                     <span class="fe-stars__label">Im Shop steht:</span>
                     <!-- One line in the source: the spaces between the parts are kept (a line break between them would not be). -->
-                    <span class="fe-stars__line"><span class="fe-stars__glyph" aria-hidden="true">★</span> <span class="num">{{ stated.label }}</span>{{ ' – ' + stated.origin }}</span>
+                    <span class="fe-stars__line"><span class="fe-stars__glyph" aria-hidden="true">★</span> <span class="num">{{ stated.label }}</span>{{ ' – ' + disclosure.text }}</span>
                 </template>
+                <template v-else-if="stated">Der Hinweis unten ist leer – deshalb zeigt der Shop diese Sterne nicht.</template>
                 <template v-else>Im Shop stehen keine Sterne von Hand.</template>
             </p>
 
@@ -125,24 +149,6 @@ function remove(): void {
                         <p id="fe-stars-count-err" class="form-field__error">{{ errors.count }}</p>
                     </div>
                 </div>
-                <div class="form-field">
-                    <label class="form-field__label" for="fe-stars-origin">Woher die Bewertungen stammen</label>
-                    <input
-                        id="fe-stars-origin"
-                        v-model="form.origin"
-                        class="input"
-                        type="text"
-                        maxlength="200"
-                        autocomplete="off"
-                        :aria-invalid="errors.origin ? 'true' : undefined"
-                        aria-describedby="fe-stars-origin-help fe-stars-origin-err"
-                    >
-                    <p id="fe-stars-origin-help" class="form-field__help">
-                        Ein ganzer Satz, so wie er im Shop neben den Sternen steht – etwa „Bewertungen aus unserem eBay-Shop, Stand
-                        Oktober 2026.“ Geprüft hat der Shop diese Sterne nicht, also darf der Satz das auch nicht behaupten.
-                    </p>
-                    <p id="fe-stars-origin-err" class="form-field__error">{{ errors.origin }}</p>
-                </div>
                 <div class="fe-stars__actions">
                     <button class="btn btn--secondary" type="submit" :disabled="form.processing || removing || !form.isDirty" :aria-busy="form.processing ? 'true' : undefined">
                         Sterne speichern
@@ -152,7 +158,33 @@ function remove(): void {
                     </button>
                 </div>
             </form>
-            <p v-else class="adm-note">Sterne von Hand ändern darf, wer Felgen bearbeiten und veröffentlichen darf.</p>
+
+            <form v-if="editable" class="fe-stars__form fe-stars__note-form" novalidate @submit.prevent="saveNote">
+                <div class="form-field">
+                    <label class="form-field__label" for="fe-stars-note">Hinweis neben den Sternen <span class="fe-stars__all">(gilt für alle Felgen)</span></label>
+                    <input
+                        id="fe-stars-note"
+                        v-model="note.disclosure"
+                        class="input"
+                        type="text"
+                        maxlength="200"
+                        autocomplete="off"
+                        :aria-invalid="noteErrors.disclosure ? 'true' : undefined"
+                        aria-describedby="fe-stars-note-help fe-stars-note-err"
+                    >
+                    <p id="fe-stars-note-help" class="form-field__help">
+                        Das Gesetz verlangt, dass neben Bewertungen steht, ob und wie der Shop sie geprüft hat (§ 5b Abs. 3 UWG). Lässt du
+                        das Feld leer, zeigt der Shop keine Sterne von Hand mehr.
+                    </p>
+                    <p id="fe-stars-note-err" class="form-field__error">{{ noteErrors.disclosure }}</p>
+                </div>
+                <div class="fe-stars__actions">
+                    <button class="btn btn--secondary" type="submit" :disabled="note.processing || !note.isDirty" :aria-busy="note.processing ? 'true' : undefined">Hinweis speichern</button>
+                    <button v-if="note.disclosure !== disclosure.default" class="btn btn--ghost" type="button" @click="useDefault">Vorgeschlagenen Satz einsetzen</button>
+                </div>
+            </form>
+
+            <p v-if="!editable" class="adm-note">Sterne von Hand ändern darf, wer Felgen bearbeiten und veröffentlichen darf.</p>
         </div>
     </section>
 </template>
@@ -188,6 +220,11 @@ function remove(): void {
 
 .fe-stars__glyph {
     color: var(--c-star);
+}
+
+.fe-stars__all {
+    font-weight: 400;
+    color: var(--c-ink-3);
 }
 
 .fe-stars__form {

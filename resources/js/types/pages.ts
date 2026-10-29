@@ -356,10 +356,10 @@ export interface ProduktProps {
         ratingCount: number
         ratingLabel: string | null
         /**
-         * Stars typed in the admin (#19, D-344): shown under the name only with the sentence that says where they come
-         * from — never as a checked purchase, never added to the buyers' rating. Null (or absent in older fixtures) without it.
+         * Stars typed in the admin (#19, D-344, D-345): shown under the name only with the shop's sentence beside them —
+         * never as a checked purchase, never added to the buyers' rating. Null (or absent in older fixtures) without either.
          */
-        statedRating?: { label: string; origin: string } | null
+        statedRating?: { label: string; disclosure: string } | null
         /** GPSR, as entered per brand; null (or absent in older fixtures) until it is. */
         manufacturer?: {
             name: string

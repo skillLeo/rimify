@@ -94,7 +94,7 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist angekommen')
 })
 
-test('stars typed in the admin show under the rim\'s name beside the sentence that says where they come from — never as a checked purchase, none without it, and gone when taken off', { tag: '@kunde-19' }, async ({ page }, info) => {
+test('stars typed in the admin show under the rim\'s name on the listing and the product page, with the shop\'s sentence beside them — never as a checked purchase, and gone when taken off', { tag: '@kunde-19' }, async ({ page }, info) => {
     // Before: no stars — never an empty row of them, never a number nobody gave — and what the page can prove instead.
     await withCar(page, 'e46', PRODUCT)
     await expect(page.locator('.pdp__rating')).toHaveCount(0)
@@ -105,32 +105,32 @@ test('stars typed in the admin show under the rim\'s name beside the sentence th
     await admin(page)
     await page.goto(`${ABNAHME}/admin/felgen/${modelId}`, { waitUntil: 'networkidle' })
     const card = page.locator('.fe-stars')
-    const origin = 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.'
+    // The sentence agreed on 29.10.2026 (D-345), as the shop stands until someone rewords it.
+    const sentence = 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.'
+    await expect(card.locator('#fe-stars-note')).toHaveValue(sentence)
 
     try {
+        // A rating without its count is refused beside its field, and nothing reaches the shop.
         await card.locator('#fe-stars-rating').fill('4,9')
-        await card.locator('#fe-stars-count').fill('13')
-
-        // Stars without their sentence are refused: the shop shows none without it.
         await card.getByRole('button', { name: 'Sterne speichern' }).click()
-        await expect(card.locator('#fe-stars-origin-err')).toHaveText('Ohne den Satz, woher die Bewertungen stammen, zeigt der Shop keine Sterne.')
-
-        // So is a sentence that claims a check the shop never made.
-        await card.locator('#fe-stars-origin').fill('Geprüfte Bewertungen aus unserem eBay-Shop.')
-        await card.getByRole('button', { name: 'Sterne speichern' }).click()
-        await expect(card.locator('#fe-stars-origin-err')).toHaveText('Der Satz darf keine Prüfung behaupten – diese Sterne hat der Shop nicht geprüft. Nenne nur, woher sie stammen.')
+        await expect(card.locator('#fe-stars-count-err')).toHaveText('Trag ein, auf wie vielen Bewertungen die Sterne beruhen.')
         await expect(card.locator('[data-stars-now]')).toHaveText('Im Shop stehen keine Sterne von Hand.')
 
-        await card.locator('#fe-stars-origin').fill(origin)
+        await card.locator('#fe-stars-count').fill('13')
         await card.getByRole('button', { name: 'Sterne speichern' }).click()
-        await expect(card.locator('.fe-stars__line')).toHaveText(`★ 4,9 (13 Bewertungen) – ${origin}`)
+        await expect(card.locator('.fe-stars__line')).toHaveText(`★ 4,9 (13 Bewertungen) – ${sentence}`)
 
-        // The shop: right under the name, the sentence beside the stars — no link to reviews that are not there, no
-        // „Geprüfter Kauf“, and the proof line steps aside as it does for the buyers' own stars.
+        // The listing: under the rim's name on its card, the sentence beside the stars.
+        await withCar(page, 'e46', '/felgen')
+        const tile = page.locator('main .tile', { hasText: 'DB8GT2' }).first()
+        await expect(tile.locator('.tile__title + [data-stated-rating]')).toHaveText(`★ 4,9 (13 Bewertungen) – ${sentence}`)
+
+        // The product page: right under the name — no link to reviews that are not there, no „Geprüfter Kauf“, and the
+        // proof line steps aside as it does for the buyers' own stars.
         await withCar(page, 'e46', PRODUCT)
         const line = page.locator('.pdp__buy h1 + [data-stated-rating]')
         await expect(line.locator('.tabular')).toHaveText('4,9 (13 Bewertungen)')
-        await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${origin}`)
+        await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${sentence}`)
         await expect(page.locator('a.pdp__rating')).toHaveCount(0)
         await expect(page.locator('.pdp__proof')).toHaveCount(0)
         await expect(page.getByText('Geprüfter Kauf')).toHaveCount(0)

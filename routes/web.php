@@ -460,8 +460,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::post('/felgen/{model}/'.$step, [AdminFelgenController::class, 'status'])->whereNumber('model')->name('felgen.'.$step);
         }
 
-        // Stars typed for one rim, with the sentence that says where they come from (#19, D-344): WheelModelPolicy::rate
-        // through StatedRatingRequest.
+        // Stars typed for one rim, and the one sentence beside every rim's typed stars (#19, D-344, D-345):
+        // WheelModelPolicy::rate through the Form Requests. `sterne-hinweis` is a fixed segment, never a `{model}`.
+        Route::put('/felgen/sterne-hinweis', [FelgenSterneController::class, 'disclosure'])->name('felgen.sterne.hinweis');
         Route::put('/felgen/{model}/sterne', [FelgenSterneController::class, 'update'])->whereNumber('model')->name('felgen.sterne');
         Route::delete('/felgen/{model}/sterne', [FelgenSterneController::class, 'destroy'])->whereNumber('model')->name('felgen.sterne.entfernen');
 

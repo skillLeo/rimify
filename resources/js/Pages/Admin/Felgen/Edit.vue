@@ -587,8 +587,14 @@ const more = computed<AdminPageAction[]>(() => {
             </section>
         </form>
 
-        <!-- Stars typed for this rim, with their sentence (#19, D-344): saved on their own, outside the form above. -->
-        <StatedRatingCard v-if="model" :model-id="model.id" :stated="statedRating" :editable="can.rate" />
+        <!-- Stars typed for this rim and the sentence beside them (#19, D-344, D-345): saved on their own, outside the form above. -->
+        <StatedRatingCard
+            v-if="model"
+            :model-id="model.id"
+            :stated="statedRating"
+            :disclosure="statedDisclosure ?? { text: '', default: '' }"
+            :editable="can.rate"
+        />
 
         <AdminSaveBar v-if="editable" :editor="editor" />
 

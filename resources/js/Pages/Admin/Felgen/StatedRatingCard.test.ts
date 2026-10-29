@@ -1,11 +1,12 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, reactive } from 'vue'
-import type { StatedRatingProp } from '../../../types/admin/felgen'
+import type { StatedDisclosureProp, StatedRatingProp } from '../../../types/admin/felgen'
 
 /*
- * „Sterne von Hand“ on one Felge (#19, D-344): what the shop shows now, the three fields saved on their own, a refusal
- * beside its field, the way to take the stars off — and, for who may not change them, the reason instead of a form.
+ * „Sterne von Hand“ on one Felge (#19, D-344, D-345): what the shop shows now, the two figures saved on their own, a
+ * refusal beside its field, the way to take the stars off, the one sentence beside every rim's stars with its default —
+ * and, for who may not change them, the reason instead of a form.
  */
 
 const put = vi.fn()
@@ -40,12 +41,14 @@ vi.mock('@inertiajs/vue3', () => ({
 
 const { default: StatedRatingCard } = await import('./StatedRatingCard.vue')
 
-const SAVED: StatedRatingProp = { rating: '4,9', count: '13', origin: 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.', label: '4,9 (13 Bewertungen)' }
+const DEFAULT = 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.'
+const SAVED: StatedRatingProp = { rating: '4,9', count: '13', label: '4,9 (13 Bewertungen)' }
+const NOTE: StatedDisclosureProp = { text: DEFAULT, default: DEFAULT }
 
 let mounted: VueWrapper[] = []
 
-function mountCard(stated: StatedRatingProp | null, editable = true): VueWrapper {
-    const wrapper = mount(StatedRatingCard, { props: { modelId: 7, stated, editable }, attachTo: document.body })
+function mountCard(stated: StatedRatingProp | null, editable = true, disclosure: StatedDisclosureProp = NOTE): VueWrapper {
+    const wrapper = mount(StatedRatingCard, { props: { modelId: 7, stated, disclosure, editable }, attachTo: document.body })
     mounted.push(wrapper)
 
     return wrapper
@@ -66,27 +69,25 @@ describe('StatedRatingCard', () => {
         const wrapper = mountCard(null)
 
         expect(wrapper.find('[data-stars-now]').text()).toBe('Im Shop stehen keine Sterne von Hand.')
-        expect(wrapper.text()).toContain('Ohne diesen Satz zeigt er keine Sterne.')
-        expect(wrapper.find('button[type=submit]').attributes('disabled')).toBeDefined()
+        const save = wrapper.findAll('button').find((b) => b.text() === 'Sterne speichern')
+        expect(save?.attributes('disabled')).toBeDefined()
         expect(wrapper.text()).not.toContain('Sterne entfernen')
 
         await wrapper.find('#fe-stars-rating').setValue('4,9')
         await wrapper.find('#fe-stars-count').setValue('13')
-        await wrapper.find('#fe-stars-origin').setValue('Bewertungen aus unserem eBay-Shop.')
-        await wrapper.find('form').trigger('submit')
+        await wrapper.find('.fe-stars__form').trigger('submit')
 
         expect(put).toHaveBeenCalledTimes(1)
         expect(put.mock.calls[0]?.[0]).toBe('/admin/felgen/7/sterne')
     })
 
-    it('shows what the shop shows, with the sentence beside the stars, and takes them off on request', async () => {
+    it('shows what the shop shows, the sentence beside the stars, and takes them off on request', async () => {
         const wrapper = mountCard(SAVED)
 
         expect(wrapper.find('.fe-stars__label').text()).toBe('Im Shop steht:')
-        expect(wrapper.find('.fe-stars__line').text()).toBe('★ 4,9 (13 Bewertungen) – Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.')
+        expect(wrapper.find('.fe-stars__line').text()).toBe(`★ 4,9 (13 Bewertungen) – ${DEFAULT}`)
         expect((wrapper.find('#fe-stars-rating').element as HTMLInputElement).value).toBe('4,9')
         expect((wrapper.find('#fe-stars-count').element as HTMLInputElement).value).toBe('13')
-        expect((wrapper.find('#fe-stars-origin').element as HTMLInputElement).value).toBe(SAVED.origin)
 
         const off = wrapper.findAll('button').find((b) => b.text() === 'Sterne entfernen')
         expect(off).toBeDefined()
@@ -96,22 +97,37 @@ describe('StatedRatingCard', () => {
         expect(remove.mock.calls[0]?.[0]).toBe('/admin/felgen/7/sterne')
     })
 
+    it('keeps the one sentence beside every rim\'s stars editable, says an empty one shows no stars, and offers the agreed default back', async () => {
+        const wrapper = mountCard(SAVED, true, { text: '', default: DEFAULT })
+
+        expect(wrapper.find('[data-stars-now]').text()).toBe('Der Hinweis unten ist leer – deshalb zeigt der Shop diese Sterne nicht.')
+        expect(wrapper.find('label[for="fe-stars-note"]').text()).toContain('gilt für alle Felgen')
+        expect(wrapper.find('#fe-stars-note-help').text()).toContain('Lässt du das Feld leer, zeigt der Shop keine Sterne von Hand mehr.')
+
+        const back = wrapper.findAll('button').find((b) => b.text() === 'Vorgeschlagenen Satz einsetzen')
+        await back?.trigger('click')
+        expect((wrapper.find('#fe-stars-note').element as HTMLInputElement).value).toBe(DEFAULT)
+
+        await wrapper.find('.fe-stars__note-form').trigger('submit')
+        expect(put.mock.calls.at(-1)?.[0]).toBe('/admin/felgen/sterne-hinweis')
+    })
+
     it('puts a refusal beside its field, and keeps what was typed until the saved state changes', async () => {
         const wrapper = mountCard(null)
-        await wrapper.find('#fe-stars-origin').setValue('Geprüfte Bewertungen.')
+        await wrapper.find('#fe-stars-rating').setValue('5,5')
 
         const form = (wrapper.vm as unknown as { $: { setupState: { form: { errors: Record<string, string> } } } }).$.setupState.form
-        form.errors = { origin: 'Der Satz darf keine Prüfung behaupten – diese Sterne hat der Shop nicht geprüft. Nenne nur, woher sie stammen.' }
+        form.errors = { rating: 'Die Sterne gehen von 1,0 bis 5,0, mit höchstens einer Stelle nach dem Komma – etwa 4,8.' }
         await nextTick()
 
-        expect(wrapper.find('#fe-stars-origin').attributes('aria-invalid')).toBe('true')
-        expect(wrapper.find('#fe-stars-origin-err').text()).toContain('Der Satz darf keine Prüfung behaupten')
-        expect((wrapper.find('#fe-stars-origin').element as HTMLInputElement).value).toBe('Geprüfte Bewertungen.')
+        expect(wrapper.find('#fe-stars-rating').attributes('aria-invalid')).toBe('true')
+        expect(wrapper.find('#fe-stars-rating-err').text()).toContain('von 1,0 bis 5,0')
+        expect((wrapper.find('#fe-stars-rating').element as HTMLInputElement).value).toBe('5,5')
 
         // Saved elsewhere meanwhile: the card now shows the saved state.
         await wrapper.setProps({ stated: SAVED })
-        expect((wrapper.find('#fe-stars-origin').element as HTMLInputElement).value).toBe(SAVED.origin)
-        expect(wrapper.find('#fe-stars-origin-err').text()).toBe('')
+        expect((wrapper.find('#fe-stars-rating').element as HTMLInputElement).value).toBe('4,9')
+        expect(wrapper.find('#fe-stars-rating-err').text()).toBe('')
     })
 
     it('shows who may not change the stars what the shop shows, and why there is no form', () => {

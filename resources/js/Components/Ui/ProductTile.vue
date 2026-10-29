@@ -208,6 +208,9 @@ function onCompareLabelClick(event: MouseEvent): void {
              opts back in. -->
         <span class="tile__brand" translate="no">{{ card.brandName }}</span>
         <h3 class="tile__title"><span class="tile__name" translate="no">{{ card.modelName }}</span></h3>
+        <!-- Stars typed in the admin, under the name with the shop's sentence beside them (#19, D-345) — never without it,
+             never a buyer's review. One line in the source, so the spaces between the parts stay. -->
+        <p v-if="card.statedRating" class="tile__stars" data-stated-rating><span class="tile__stars-glyph" aria-hidden="true">★</span> <span class="num">{{ card.statedRating.label }}</span><span class="tile__stars-note">{{ ' – ' + card.statedRating.disclosure }}</span></p>
         <span class="tile__meta">
             <span class="tile__finish" translate="no">{{ card.finishName }}</span>
             <span v-if="card.diameters.length" class="tile__sep" aria-hidden="true"> · </span>
@@ -256,6 +259,25 @@ function onCompareLabelClick(event: MouseEvent): void {
     font-size: inherit;
     line-height: inherit;
     font-weight: inherit;
+}
+
+/* Typed stars and their sentence: one run of text under the name, the sentence quieter than the figures. */
+.tile__stars {
+    margin: var(--sp-4) 0 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--ink2);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.tile__stars-glyph {
+    color: var(--warn);
+}
+
+.tile__stars-note {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
 }
 
 .tile__vary {

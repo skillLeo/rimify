@@ -229,6 +229,8 @@ export interface ProductCardProp {
     rating: number | null
     ratingCount: number
     ratingLabel: string | null
+    /** Stars typed in the admin and the shop's sentence beside them (#19, D-345); null (or absent in older fixtures) without either. */
+    statedRating?: { label: string; disclosure: string } | null
     fromPriceCents: number
     fromPrice: string
     /** Available or not, never a count (his admin item 7, D-299). */

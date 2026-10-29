@@ -62,17 +62,17 @@ test.describe('as a visitor', () => {
         await evidence(drawing, 11, info)
     })
 
-    test('built: stars typed in the admin stand under the name only beside the sentence that says where they come from — never as a checked purchase; none without it', { tag: '@kunde-19' }, async ({ page, context }, info) => {
+    test('built: stars typed in the admin stand under the name only beside the shop\'s sentence about them — never as a checked purchase; none without it', { tag: '@kunde-19' }, async ({ page, context }, info) => {
         await withCar(page, 'e46', PRODUCT)
         // What the server sends, read before the page is judged: the state stands as the operator (or the client) left it.
-        const product = (await propsOf<{ product: { statedRating?: { label: string; origin: string } | null; ratingCount: number } }>(context, PRODUCT))?.product
+        const product = (await propsOf<{ product: { statedRating?: { label: string; disclosure: string } | null; ratingCount: number } }>(context, PRODUCT))?.product
         expect(product, 'the product page sends no props').toBeDefined()
         const name = page.locator('.pdp__buy h1')
 
         if (product?.statedRating) {
             const line = page.locator('[data-stated-rating]')
             await expect(line.locator('.tabular')).toHaveText(product.statedRating.label)
-            await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${product.statedRating.origin}`)
+            await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${product.statedRating.disclosure}`)
             await expect(page.locator('.pdp__buy h1 + [data-stated-rating]')).toHaveCount(1)
             await expect(line).not.toContainText(/Geprüft|verifiziert/i)
             await evidenceAround(page, [name, line], 19, info)
@@ -339,7 +339,7 @@ test.describe('as the Super-Admin', () => {
         await expect(card.getByRole('heading', { name: 'Sterne von Hand' })).toBeVisible()
         await expect(card.locator('#fe-stars-rating')).toBeVisible()
         await expect(card.locator('#fe-stars-count')).toBeVisible()
-        await expect(card.locator('#fe-stars-origin')).toBeVisible()
+        await expect(card.locator('#fe-stars-note')).toBeVisible()
         await expect(card.getByRole('button', { name: 'Sterne speichern' })).toBeVisible()
 
         // The client's preview gains no Protokoll line from this run (instance.ts): there it reads the card, and proves the
@@ -353,26 +353,29 @@ test.describe('as the Super-Admin', () => {
         }
 
         unstar = `${adminPage}/sterne`
-        const origin = 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.'
-        await card.locator('#fe-stars-rating').fill('4,9')
-        await card.locator('#fe-stars-count').fill('13')
+        const sentence = (await card.locator('#fe-stars-note').inputValue()).trim()
+        expect(sentence, 'the sentence beside the stars is empty: no stars would show').not.toBe('')
 
-        // A sentence that claims a check is refused beside its field, and nothing reaches the shop.
-        await card.locator('#fe-stars-origin').fill('Nur verifizierte Käufer aus unserem eBay-Shop.')
+        // A rating without its count is refused beside its field, and nothing reaches the shop.
+        await card.locator('#fe-stars-rating').fill('4,9')
         await card.getByRole('button', { name: 'Sterne speichern' }).click()
-        await expect(card.locator('#fe-stars-origin-err')).toHaveText('Der Satz darf keine Prüfung behaupten – diese Sterne hat der Shop nicht geprüft. Nenne nur, woher sie stammen.')
+        await expect(card.locator('#fe-stars-count-err')).toHaveText('Trag ein, auf wie vielen Bewertungen die Sterne beruhen.')
         await expect(card.locator('[data-stars-now]')).toHaveText('Im Shop stehen keine Sterne von Hand.')
 
-        await card.locator('#fe-stars-origin').fill(origin)
+        await card.locator('#fe-stars-count').fill('13')
         await card.getByRole('button', { name: 'Sterne speichern' }).click()
-        await expect(card.locator('.fe-stars__line')).toHaveText(`★ 4,9 (13 Bewertungen) – ${origin}`)
+        await expect(card.locator('.fe-stars__line')).toHaveText(`★ 4,9 (13 Bewertungen) – ${sentence}`)
         await evidenceAround(page, [card], 19, info, 16, `19-admin-${phone(info) ? 'iphone' : 'desktop'}`)
 
-        // The shop: under the name, beside the sentence — no link to reviews that are not there, no checked purchase.
+        // The listing: on the rim's card, under its name.
+        await withCar(page, 'e46', '/felgen')
+        await expect(page.locator('main .tile', { hasText: 'DB8GT2' }).first().locator('.tile__title + [data-stated-rating]')).toHaveText(`★ 4,9 (13 Bewertungen) – ${sentence}`)
+
+        // The product page: under the name, beside the sentence — no link to reviews that are not there, no checked purchase.
         await withCar(page, 'e46', PRODUCT)
         const line = page.locator('.pdp__buy h1 + [data-stated-rating]')
         await expect(line.locator('.tabular')).toHaveText('4,9 (13 Bewertungen)')
-        await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${origin}`)
+        await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${sentence}`)
         await expect(page.locator('a.pdp__rating')).toHaveCount(0)
         await expect(page.getByText('Geprüfter Kauf')).toHaveCount(0)
         await evidenceAround(page, [page.locator('.pdp__buy h1'), line], 19, info, 16, `19-shop-${phone(info) ? 'iphone' : 'desktop'}`)

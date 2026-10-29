@@ -669,14 +669,14 @@ claimBottomEdge(() => stickyShown.value)
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
                     <!-- Only where the name does not hold it already (a title typed otherwise): never said twice. -->
                     <p v-if="designationApart" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation ?? ''" whole /></p>
-                    <!-- Stars typed in the admin (#19, D-344), only ever beside the sentence that says where they come
-                         from: no link, for there are no reviews here to lead to, and never called a checked purchase.
+                    <!-- Stars typed in the admin (#19, D-344, D-345), only ever beside the shop's sentence about them: no
+                         link, for there are no reviews here to lead to, and never called a checked purchase.
                          Otherwise the buyers' stars, computed from their reviews alone (D-103), leading to them; until
                          there are any, what the page can prove instead — never an empty row of stars. -->
                     <p v-if="product.statedRating" class="stars pdp__rating pdp__rating--stated" data-stated-rating>
                         <!-- One line in the source, so the spaces between the parts stay: the sentence runs on beside the
                              stars and wraps back to the edge, as a sentence does. -->
-                        <span class="stars__glyph" aria-hidden="true">★</span> <span class="tabular"><ValueText :text="product.statedRating.label" /></span><span class="pdp__rating-origin">{{ ' – ' + product.statedRating.origin }}</span>
+                        <span class="stars__glyph" aria-hidden="true">★</span> <span class="tabular"><ValueText :text="product.statedRating.label" /></span><span class="pdp__rating-origin">{{ ' – ' + product.statedRating.disclosure }}</span>
                     </p>
                     <a v-else-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>

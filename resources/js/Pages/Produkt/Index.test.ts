@@ -253,7 +253,7 @@ describe('Produkt page', () => {
     it('shows stars typed in the admin under the name, beside where they come from — and never as a checked purchase', () => {
         const base = props().product
         const wrapper = mountPage({
-            product: { ...base, statedRating: { label: '4,9 (13 Bewertungen)', origin: 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.' } },
+            product: { ...base, statedRating: { label: '4,9 (13 Bewertungen)', disclosure: 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.' } },
             reviews: [],
         })
         const line = wrapper.find('[data-stated-rating]')
@@ -263,8 +263,8 @@ describe('Produkt page', () => {
         // The glyph is not read out; the figures and the sentence are, the dash between them.
         expect(line.find('.stars__glyph').attributes('aria-hidden')).toBe('true')
         expect(line.find('.tabular').text()).toBe('4,9 (13 Bewertungen)')
-        expect(line.find('.pdp__rating-origin').text()).toBe('– Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.')
-        expect(line.text()).toMatch(/4,9 \(13 Bewertungen\)\s*– Bewertungen aus unserem eBay-Shop, Stand Oktober 2026\.$/)
+        expect(line.find('.pdp__rating-origin').text()).toBe('– Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.')
+        expect(line.text()).toMatch(/4,9 \(13 Bewertungen\)\s*– Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft\.$/)
         // Right under the name, in the place the buyers' stars and the proof line take.
         expect(wrapper.find('.pdp__buy h1 + [data-stated-rating]').exists()).toBe(true)
         expect(wrapper.find('a.pdp__rating').exists()).toBe(false)
@@ -294,7 +294,7 @@ describe('Produkt page', () => {
 
         // Both: the typed stars stand under the name; the buyers' reviews keep their own section, sum and sentence.
         const both = mountPage({
-            product: { ...base, rating: 4, ratingCount: 1, ratingLabel: '4,0 (1 Bewertung)', statedRating: { label: '4,9 (13 Bewertungen)', origin: 'Bewertungen aus unserem eBay-Shop.' } },
+            product: { ...base, rating: 4, ratingCount: 1, ratingLabel: '4,0 (1 Bewertung)', statedRating: { label: '4,9 (13 Bewertungen)', disclosure: 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.' } },
             reviews: [{ id: 1, rating: 4, body: 'Sehr gut.', at: '20.10.2026', reply: null }],
         })
 

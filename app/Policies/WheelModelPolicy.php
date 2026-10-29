@@ -48,11 +48,11 @@ final class WheelModelPolicy
     }
 
     /**
-     * Stars typed for this rim, with their sentence (#19, D-344). They go straight into the shop, so changing the
-     * catalogue is not enough: putting things into the shop is asked too. A demo rim may carry them — the acceptance
-     * set's is how the stars are tried off production.
+     * Stars typed for a rim, and the one sentence that stands beside them in the shop (#19, D-344, D-345). They go
+     * straight into the shop, so changing the catalogue is not enough: putting things into the shop is asked too. A demo
+     * rim may carry them — the acceptance set's is how the stars are tried off production.
      */
-    public function rate(AdminUser $user, WheelModel $model): bool
+    public function rate(AdminUser $user, ?WheelModel $model = null): bool
     {
         return $user->may(PermissionModule::Catalogue, PermissionAction::Edit)
             && $user->may(PermissionModule::Catalogue, PermissionAction::Publish);

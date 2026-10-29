@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Models\AdminUser;
 use App\Models\AuditLog;
+use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Admin\Catalogue\StatedRatings;
 use App\Services\Storefront\ProductJsonLd;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -14,17 +16,18 @@ use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 
 /*
- * The client's #19 as we promised it (D-344): stars and their count typed in the admin, per rim, shown under the rim's
- * name only beside the sentence that says where they come from. Never „Geprüfter Kauf“, never in the structured data,
- * never added to the buyers' own rating — and without that sentence there are no stars: the form refuses them, the
- * table refuses them, and the page renders none.
+ * The client's #19 as he decided it in writing on 29.10.2026 — „Please just take it live. We will contact a lawyer to
+ * ask him about the details.“ (D-345): stars and their count typed in the admin per rim, shown under the rim's name on
+ * the listing and the product page, with one shop-wide sentence beside them (§ 5b Abs. 3 UWG) whose default is agreed
+ * and which can be reworded. Emptied, no typed stars render anywhere. Never „Geprüfter Kauf“, never in the structured
+ * data, never added to the buyers' own rating.
  */
 
 beforeEach(function (): void {
     $this->seed([AccessSeeder::class, ReferenceDataSeeder::class]);
 });
 
-const STARS_ORIGIN = 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.';
+const STARS_DEFAULT = 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.';
 
 function starsAdmin(string $role = 'super-admin'): AdminUser
 {
@@ -47,92 +50,115 @@ function putStars(object $test, WheelModel $wheel, array $data, string $role = '
     return $test->actingAs(starsAdmin($role), 'admin')->put("/admin/felgen/{$wheel->id}/sterne", $data);
 }
 
-it('shows the stars typed in the admin under the rim\'s name, beside the sentence that says where they come from @kunde-19', function (): void {
+/** @return array<string, mixed>|null the wheel's card on the listing without a car */
+function starsCard(object $test, WheelModel $wheel): ?array
+{
+    $cards = $test->get('/felgen')->assertOk()->viewData('page')['props']['cards'] ?? [];
+
+    return collect($cards)->firstWhere('modelId', $wheel->id);
+}
+
+it('shows the stars typed in the admin under the rim\'s name, on the listing and the product page, with the agreed sentence beside them @kunde-19', function (): void {
     $wheel = starsWheel();
 
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasNoErrors()->assertSessionHas('toast');
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13'])->assertSessionHasNoErrors()->assertSessionHas('toast');
 
+    $shown = ['label' => '4,9 (13 Bewertungen)', 'disclosure' => STARS_DEFAULT];
     $this->get('/felgen/'.$wheel->slug)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('product.statedRating', ['label' => '4,9 (13 Bewertungen)', 'origin' => STARS_ORIGIN])
+        ->where('product.statedRating', $shown)
         // The buyers' own rating stays theirs: nothing typed is added to it, and no review appears.
         ->where('product.rating', null)
         ->where('product.ratingCount', 0)
         ->where('reviews', []));
+    expect(starsCard($this, $wheel)['statedRating'] ?? null)->toBe($shown);
 
-    // The admin shows what is saved, the way it was typed.
+    // The admin shows what is saved, the way it was typed, and the sentence with its default.
     $this->actingAs(starsAdmin(), 'admin')->get("/admin/felgen/{$wheel->id}")->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('statedRating', ['rating' => '4,9', 'count' => '13', 'origin' => STARS_ORIGIN, 'label' => '4,9 (13 Bewertungen)'])
+        ->where('statedRating', ['rating' => '4,9', 'count' => '13', 'label' => '4,9 (13 Bewertungen)'])
+        ->where('statedDisclosure', ['text' => STARS_DEFAULT, 'default' => STARS_DEFAULT])
         ->where('can.rate', true));
 
     $entry = AuditLog::query()->where('description', 'wheel.rating_stated')->sole();
-    expect($entry->causer_id)->toBe(starsAdmin()->id)
-        ->and($entry->properties['label'] ?? null)->toBe('4,9 (13 Bewertungen)')
-        ->and($entry->properties['origin'] ?? null)->toBe(STARS_ORIGIN);
+    expect($entry->causer_id)->toBe(starsAdmin()->id)->and($entry->properties['label'] ?? null)->toBe('4,9 (13 Bewertungen)');
+});
+
+it('says beside the stars what the sentence says once it is reworded, and shows none anywhere once it is emptied', function (): void {
+    $wheel = starsWheel();
+    putStars($this, $wheel, ['rating' => '4,5', 'count' => '2'])->assertSessionHasNoErrors();
+
+    $this->actingAs(starsAdmin(), 'admin')->put('/admin/felgen/sterne-hinweis', ['disclosure' => '  Übernommen aus unserem eBay-Shop;  nicht von uns geprüft.  '])
+        ->assertSessionHasNoErrors()->assertSessionHas('toast');
+    expect(StatedRatings::disclosure())->toBe('Übernommen aus unserem eBay-Shop; nicht von uns geprüft.');
+    $this->get('/felgen/'.$wheel->slug)->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('product.statedRating.disclosure', 'Übernommen aus unserem eBay-Shop; nicht von uns geprüft.'));
+
+    $this->actingAs(starsAdmin(), 'admin')->put('/admin/felgen/sterne-hinweis', ['disclosure' => ''])->assertSessionHasNoErrors();
+
+    // No statement, no stars — on the product page and on the listing; the figures stay saved for when one is given.
+    $this->get('/felgen/'.$wheel->slug)->assertInertia(fn (AssertableInertia $page) => $page->where('product.statedRating', null));
+    $card = starsCard($this, $wheel);
+    expect($card)->toHaveKey('statedRating')
+        ->and($card['statedRating'] ?? null)->toBeNull()
+        ->and($wheel->refresh()->stated_rating_count)->toBe(2)
+        ->and(AuditLog::query()->where('description', 'reviews.disclosure_changed')->count())->toBe(2);
+
+    // Never set at all, the agreed default stands.
+    Setting::query()->whereKey(StatedRatings::DISCLOSURE_SETTING)->delete();
+    expect(StatedRatings::disclosure())->toBe(STARS_DEFAULT);
 });
 
 it('reads the figures the German way — 4,9 or 4.9, and a count with a thousands point', function (): void {
     $wheel = starsWheel();
 
-    putStars($this, $wheel, ['rating' => '4.5', 'count' => '1.234', 'origin' => '  '.STARS_ORIGIN.'  '])->assertSessionHasNoErrors();
+    putStars($this, $wheel, ['rating' => '4.5', 'count' => '1.234'])->assertSessionHasNoErrors();
 
-    expect($wheel->refresh()->stated_rating)->toBe(4.5)
-        ->and($wheel->stated_rating_count)->toBe(1234)
-        ->and($wheel->stated_rating_origin)->toBe(STARS_ORIGIN);
+    expect($wheel->refresh()->stated_rating)->toBe(4.5)->and($wheel->stated_rating_count)->toBe(1234);
 });
 
-it('refuses stars without their sentence, outside one to five, a count of nought, and a sentence that claims a check — and writes nothing', function (): void {
+it('refuses stars without a count, outside one to five, with two decimals, and a count of nought — and writes nothing', function (): void {
     $wheel = starsWheel();
 
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => ''])->assertSessionHasErrors(['origin']);
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => 'eBay'])->assertSessionHasErrors(['origin']);
-    putStars($this, $wheel, ['rating' => '', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasErrors(['rating']);
-    putStars($this, $wheel, ['rating' => '5,1', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasErrors(['rating']);
-    putStars($this, $wheel, ['rating' => '0,9', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasErrors(['rating']);
-    putStars($this, $wheel, ['rating' => '4,95', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasErrors(['rating']);
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '0', 'origin' => STARS_ORIGIN])->assertSessionHasErrors(['count']);
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => 'viele', 'origin' => STARS_ORIGIN])->assertSessionHasErrors(['count']);
-
-    // The shop has checked none of these: a sentence that says otherwise is refused, in words that say why.
-    foreach (['Nur verifizierte Käufer aus unserem eBay-Shop.', 'Geprüfte Bewertungen aus unserem Laden.', 'Bewertungen echter Kunden aus unserem früheren Shop.', 'Alles Geprüfter Kauf bei eBay.'] as $claim) {
-        putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => $claim])
-            ->assertSessionHasErrors(['origin' => 'Der Satz darf keine Prüfung behaupten – diese Sterne hat der Shop nicht geprüft. Nenne nur, woher sie stammen.']);
-    }
+    putStars($this, $wheel, ['rating' => '', 'count' => '13'])->assertSessionHasErrors(['rating' => 'Trag die Sterne ein, etwa 4,8.']);
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => ''])->assertSessionHasErrors(['count' => 'Trag ein, auf wie vielen Bewertungen die Sterne beruhen.']);
+    putStars($this, $wheel, ['rating' => '5,1', 'count' => '13'])->assertSessionHasErrors(['rating']);
+    putStars($this, $wheel, ['rating' => '0,9', 'count' => '13'])->assertSessionHasErrors(['rating']);
+    putStars($this, $wheel, ['rating' => '4,95', 'count' => '13'])->assertSessionHasErrors(['rating']);
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => '0'])->assertSessionHasErrors(['count' => 'Die Zahl der Bewertungen ist eine ganze Zahl ab 1.']);
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => 'viele'])->assertSessionHasErrors(['count']);
+    $this->actingAs(starsAdmin(), 'admin')->put('/admin/felgen/sterne-hinweis', ['disclosure' => str_repeat('x', 201)])->assertSessionHasErrors(['disclosure']);
 
     expect($wheel->refresh()->stated_rating)->toBeNull()
         ->and($wheel->stated_rating_count)->toBeNull()
-        ->and($wheel->stated_rating_origin)->toBeNull()
-        ->and(AuditLog::query()->where('description', 'wheel.rating_stated')->exists())->toBeFalse();
-
-    // Saying that nothing was checked is not a claim of a check.
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => 'Aus unserem eBay-Shop übernommen, von uns nicht geprüft.'])->assertSessionHasNoErrors();
-    expect($wheel->refresh()->stated_rating_count)->toBe(13);
+        ->and(AuditLog::query()->whereIn('description', ['wheel.rating_stated', 'reviews.disclosure_changed'])->exists())->toBeFalse()
+        ->and(StatedRatings::disclosure())->toBe(STARS_DEFAULT);
 });
 
-it('lets only who may change and publish the catalogue type stars — the order team may not', function (): void {
+it('lets only who may change and publish the catalogue type stars or word their sentence — the order team may not', function (): void {
     $wheel = starsWheel();
 
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => STARS_ORIGIN], 'order-manager')->assertForbidden();
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13'], 'order-manager')->assertForbidden();
     $this->actingAs(starsAdmin('order-manager'), 'admin')->delete("/admin/felgen/{$wheel->id}/sterne")->assertForbidden();
-    expect($wheel->refresh()->stated_rating)->toBeNull();
+    $this->actingAs(starsAdmin('order-manager'), 'admin')->put('/admin/felgen/sterne-hinweis', ['disclosure' => ''])->assertForbidden();
+    expect($wheel->refresh()->stated_rating)->toBeNull()->and(StatedRatings::disclosure())->toBe(STARS_DEFAULT);
 
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => STARS_ORIGIN], 'catalogue-manager')->assertSessionHasNoErrors();
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13'], 'catalogue-manager')->assertSessionHasNoErrors();
     expect($wheel->refresh()->stated_rating_count)->toBe(13);
 });
 
 it('takes the stars off again — the page shows none, and the Protokoll says who did', function (): void {
     $wheel = starsWheel();
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasNoErrors();
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13'])->assertSessionHasNoErrors();
 
     $this->actingAs(starsAdmin(), 'admin')->delete("/admin/felgen/{$wheel->id}/sterne")->assertSessionHas('toast');
 
-    expect($wheel->refresh()->stated_rating)->toBeNull()->and($wheel->stated_rating_origin)->toBeNull();
+    expect($wheel->refresh()->stated_rating)->toBeNull();
     $this->get('/felgen/'.$wheel->slug)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('product.statedRating', null));
     expect(AuditLog::query()->where('description', 'wheel.rating_removed')->sole()->properties['label'] ?? null)->toBe('4,9 (13 Bewertungen)');
 });
 
-it('never puts typed stars into the structured data — only the buyers\' own rating goes there', function (): void {
+it('never puts typed stars into the structured data, and never calls them a checked purchase — only the buyers\' own rating goes there', function (): void {
     $wheel = starsWheel();
-    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13', 'origin' => STARS_ORIGIN])->assertSessionHasNoErrors();
+    putStars($this, $wheel, ['rating' => '4,9', 'count' => '13'])->assertSessionHasNoErrors();
     // The precondition: the stars are there, and the page shows them.
     expect($wheel->refresh()->stated_rating_count)->toBe(13);
     $this->get('/felgen/'.$wheel->slug)->assertInertia(fn (AssertableInertia $page) => $page->where('product.statedRating.label', '4,9 (13 Bewertungen)'));
@@ -146,21 +172,20 @@ it('never puts typed stars into the structured data — only the buyers\' own ra
         ->toBe(['@type' => 'AggregateRating', 'ratingValue' => '4.5', 'reviewCount' => 2, 'bestRating' => '5', 'worstRating' => '1']);
 });
 
-it('cannot hold stars without their sentence, even written past the form — the table refuses them', function (): void {
+it('cannot hold a rating without its count, even written past the form — the table refuses it', function (): void {
     $wheel = starsWheel();
 
-    // The control: all three together are stored, and taken off together.
-    $wheel->forceFill(['stated_rating' => 4.9, 'stated_rating_count' => 13, 'stated_rating_origin' => STARS_ORIGIN])->save();
+    // The control: both together are stored, and taken off together.
+    $wheel->forceFill(['stated_rating' => 4.9, 'stated_rating_count' => 13])->save();
     expect($wheel->refresh()->stated_rating_count)->toBe(13);
-    $wheel->forceFill(['stated_rating' => null, 'stated_rating_count' => null, 'stated_rating_origin' => null])->save();
+    $wheel->forceFill(['stated_rating' => null, 'stated_rating_count' => null])->save();
 
-    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 4.9, 'stated_rating_count' => 13, 'stated_rating_origin' => null])->save())->toThrow(QueryException::class);
-    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 4.9, 'stated_rating_count' => 13, 'stated_rating_origin' => '   '])->save())->toThrow(QueryException::class);
-    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 4.9, 'stated_rating_count' => null, 'stated_rating_origin' => STARS_ORIGIN])->save())->toThrow(QueryException::class);
-    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 5.5, 'stated_rating_count' => 13, 'stated_rating_origin' => STARS_ORIGIN])->save())->toThrow(QueryException::class);
+    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 4.9, 'stated_rating_count' => null])->save())->toThrow(QueryException::class);
+    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => null, 'stated_rating_count' => 13])->save())->toThrow(QueryException::class);
+    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 5.5, 'stated_rating_count' => 13])->save())->toThrow(QueryException::class);
+    expect(fn () => $wheel->refresh()->forceFill(['stated_rating' => 4.0, 'stated_rating_count' => 0])->save())->toThrow(QueryException::class);
 
-    // And none of them is ever typed through mass assignment.
+    // And neither is ever typed through mass assignment.
     expect((new WheelModel)->isFillable('stated_rating'))->toBeFalse()
-        ->and((new WheelModel)->isFillable('stated_rating_count'))->toBeFalse()
-        ->and((new WheelModel)->isFillable('stated_rating_origin'))->toBeFalse();
+        ->and((new WheelModel)->isFillable('stated_rating_count'))->toBeFalse();
 });

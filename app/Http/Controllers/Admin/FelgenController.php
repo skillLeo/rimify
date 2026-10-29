@@ -423,8 +423,10 @@ class FelgenController extends Controller
             ],
             // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
             'stamp' => $model === null ? null : EditStamp::of(self::state($model)),
-            // Stars typed for this rim, with their sentence (#19, D-344) — saved on their own, beside the form.
+            // Stars typed for this rim (#19, D-344, D-345) — saved on their own, beside the form — and the one sentence that
+            // stands beside every rim's typed stars, with the agreed default it can be put back to.
             'statedRating' => $model === null ? null : StatedRatings::forAdmin($model),
+            'statedDisclosure' => ['text' => StatedRatings::disclosure(), 'default' => StatedRatings::DISCLOSURE_DEFAULT],
             'finishes' => $finishes->map(static fn (WheelFinish $f): array => [
                 'key' => 'f'.$f->id,
                 'id' => (int) $f->id,
