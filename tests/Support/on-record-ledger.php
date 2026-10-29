@@ -39,7 +39,6 @@ return [
     'Nur Felgen, deren Gutachten dein Fahrzeug nennt' => ['ours', 'the same promise, on the phone'],
     'Danach siehst du nur Felgen, deren Gutachten dein Auto nennt' => ['ours', 'the same promise, in the vehicle picker'],
     'Nur die Kombinationen, die das Gutachten für dein Fahrzeug nennt' => ['ours', 'what the offer contains: the recorded front and rear pairs, nothing else'],
-    'die ein Gutachten für ${vehicleShort} nennt – nicht unbedingt mit deiner heutigen Bereifung' => ['ours', 'the denial is about the customer\'s present tyres, not about a document'],
     'Rechenwerte ersetzen kein Gutachten' => ['ours', 'a disclaimer on the calculator: its figures are not an approval'],
     'meint hier den Stand der EG-Typgenehmigung deines Fahrzeugs, nicht den des Gutachtens' => ['ours', 'explains which of two things the word „Nachtrag“ names'],
     'Mit Hinweisen aus dem Gutachten – nichts davon musst du tun' => ['backed', 'every recorded condition of the answer is a note (FitmentVerdict::notesOnly)'],

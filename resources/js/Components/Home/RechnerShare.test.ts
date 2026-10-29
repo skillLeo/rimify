@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import RechnerShare from './RechnerShare.vue'
 
-const PARAM = '7.5x17-45-225-45_8.5x19-35-225-35'
+const PARAM = '8.5x40x0_9.5x45x10'
 
 let mounted: VueWrapper[] = []
 
@@ -26,22 +26,20 @@ afterEach(() => {
 })
 
 describe('RechnerShare', () => {
-    it('holds the page address with the comparison, labelled, read-only, and follows the figures', async () => {
+    it('is one button that holds the page address with the comparison, and follows the figures — no address field', async () => {
         window.history.replaceState(null, '', '/felgenrechner?beliebt=neu')
         const wrapper = mountShare()
-        const input = wrapper.find<HTMLInputElement>('input')
+        const button = wrapper.get('button')
 
-        // Before mount the field holds the relative address (the same on the server); mounted, the page's own.
-        expect(input.element.value).toBe(`/felgenrechner?rechner=${PARAM}`)
+        // Before mount the button holds the relative address (the same on the server); mounted, the page's own.
+        expect(button.attributes('data-href')).toBe(`/felgenrechner?rechner=${PARAM}`)
         await nextTick()
 
-        expect(input.attributes('readonly')).toBeDefined()
-        expect(input.attributes('aria-label')).toBe('Link zu dieser Berechnung')
-        expect(wrapper.find('label').text()).toBe('Link zu dieser Berechnung')
-        expect(input.element.value).toBe(`${window.location.origin}/felgenrechner?beliebt=neu&rechner=${PARAM}`)
+        expect(wrapper.find('input').exists()).toBe(false)
+        expect(button.attributes('data-href')).toBe(`${window.location.origin}/felgenrechner?beliebt=neu&rechner=${PARAM}`)
 
-        await wrapper.setProps({ param: '8x17-40-225-45_8x17-40-225-45' })
-        expect(input.element.value).toContain('rechner=8x17-40-225-45_8x17-40-225-45')
+        await wrapper.setProps({ param: '8x45x0_8x40x0' })
+        expect(button.attributes('data-href')).toContain('rechner=8x45x0_8x40x0')
     })
 
     it('copies the link, stays busy for one --d-2, then says so', async () => {
@@ -52,7 +50,7 @@ describe('RechnerShare', () => {
         const button = wrapper.find('button')
 
         expect(button.attributes('type')).toBe('button')
-        expect(button.text()).toBe('Link kopieren')
+        expect(button.text()).toBe('Link zu dieser Berechnung kopieren')
 
         await button.trigger('click')
         await flushPromises()
@@ -82,8 +80,9 @@ describe('RechnerShare', () => {
         expect(wrapper.find('[role="status"]').text()).toBe('Kopieren nicht möglich – der Link steht in der Adresszeile.')
     })
 
-    it('renders the button full-width on the phone', () => {
+    it('renders the button full-width on the phone, and at the full 44 px everywhere', () => {
         expect(mountShare({ block: true }).find('button').classes()).toContain('btn--block')
-        expect(mountShare().find('button').classes()).toContain('btn--sm')
+        expect(mountShare().find('button').classes()).not.toContain('btn--block')
+        expect(mountShare().find('button').classes()).not.toContain('btn--sm')
     })
 })

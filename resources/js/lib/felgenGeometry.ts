@@ -338,7 +338,7 @@ export function felgenModel(current: WheelSetup, next: WheelSetup): FelgenModel 
     }
 }
 
-/* ── The rear view (ClearanceDrawing.vue renders exactly this) ────────────────── */
+/* ── The rear view (drawn by the calculator until its rebuild of 29.10.2026, D-357; no page draws it now) ── */
 
 /**
  * The sheet, in drawing units. What you see standing behind the car and looking at a rear wheel:

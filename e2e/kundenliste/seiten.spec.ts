@@ -12,31 +12,32 @@ test.beforeEach(async ({ context }) => {
     await consent(context, ABNAHME)
 })
 
-test('judgement: our own cross-section — ET, Felgenbreite and Lochkreis — and the wheel moves in the arch when the ET changes', { tag: '@kunde-11' }, async ({ page }, info) => {
+test('judgement: his example rebuilt — two blocks with steppers, the current wheel gray, the new one blue, and the new one moving with every step', { tag: '@kunde-11' }, async ({ page }, info) => {
+    // His reply to #11: „replicate it as closely as possible … old: gray; new: blue“ (the operator's brief of 29.10.2026).
     await open(page, '/felgenrechner')
 
+    const blocks = page.locator('.etc')
+    await expect(blocks.locator('.etc__title')).toHaveText(['Aktuelle Felge', 'Neue Felge'])
+    await expect(blocks.locator('.etc__block--next .etc__label')).toHaveText(['Breite', 'Einpresstiefe (ET)', 'Distanzscheibe je Rad'])
+    await expect(blocks.locator('.etc__block--next button[aria-label$="erhöhen"]')).toHaveCount(3)
+
+    // Gray for the rim on the car, blue for the new one — the drawing's colours and the blocks' heads alike.
     const drawing = page.locator('.calc-drawing').first()
-    await expect(drawing.locator('[data-measure="et"]')).toBeAttached()
-    await expect(drawing.locator('[data-measure="width"]')).toBeAttached()
-    await expect(drawing).toContainText('Felgenbreite')
-    await expect(drawing).toContainText('Lochkreis')
-    await expect(drawing).toContainText('Einpresstiefe (ET)')
+    const colour = (selector: string, property: 'fill' | 'stroke' | 'backgroundColor') =>
+        page.locator(selector).first().evaluate((el, p) => getComputedStyle(el)[p as 'fill'], property)
+    expect(await colour('.odraw__wheel--current .odraw__band', 'fill')).toBe('rgb(201, 206, 213)')
+    expect(await colour('.odraw__wheel--next .odraw__band', 'stroke')).toBe('rgb(26, 68, 212)')
+    expect(await colour('.etc__block--next .etc__title', 'backgroundColor')).toBe('rgb(26, 68, 212)')
 
-    // The new wheel moves sideways in the arch when its ET changes, by the drawing's own scale.
-    const wheel = drawing.locator('[data-wheel="next"]')
-    const before = await box(wheel)
+    // One press on the new ET moves the new wheel sideways in the drawing, and the answers follow.
+    const lip = drawing.locator('.odraw__wheel--next .odraw__lip').nth(2)
+    const before = await box(lip)
+    const answer = await page.locator('.rechner__answer').first().textContent()
+    await blocks.locator('.etc__block--next').getByRole('button', { name: 'Einpresstiefe (ET) verringern' }).click()
+    await expect.poll(async () => Math.abs((await box(lip)).x - before.x), { timeout: 5_000 }).toBeGreaterThan(0.5)
+    await expect(page.locator('.rechner__answer').first()).not.toHaveText(answer ?? '')
 
-    if (isPhone(info)) {
-        await page.getByRole('tab', { name: 'Neu' }).click()
-    }
-
-    const et = page.locator('input[id$="-next-etMm"]')
-    const value = Number(await et.inputValue())
-    await et.fill(String(value - 20))
-    await et.press('Enter')
-    await expect.poll(async () => Math.abs((await box(wheel)).x - before.x), { timeout: 5_000 }).toBeGreaterThan(2)
-
-    await shot(drawing, 11, info)
+    await shotAround(page, isPhone(info) ? [drawing] : [drawing, blocks], 11, info)
 })
 
 test('a contact form: name, e-mail, subject, message, the car ticked, a privacy line — no captcha, and too quick a send is said', { tag: '@kunde-12' }, async ({ page }, info) => {

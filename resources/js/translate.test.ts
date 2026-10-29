@@ -294,10 +294,9 @@ const ROSTER: Record<string, string> = {
     './Components/Home/BrandWall.vue': 'the brand wall: the wordmarks and the counts',
     './Pages/Produkt/Index.vue': 'the product page: the size chips and the Felgendetails rows',
     './Pages/Fehler/Index.vue': 'the failure states: the status code, the vehicle, the address and the service hours',
-    './Components/Home/FitmentCalculator.vue': "the calculator's inputs and their units",
-    './Components/Home/FitmentResults.vue': "the calculator's sentences",
-    './Components/Ui/ClearanceDrawing.vue': "the calculator's drawing labels",
-    './Pages/Felgenrechner/Desktop.vue': 'the calculator page: the summary and the value rows',
+    './Components/Rechner/EtCalculator.vue': "the calculator's figures and their units",
+    './Components/Rechner/OffsetDrawing.vue': "the drawing's figures at the edges",
+    './Pages/Felgenrechner/Desktop.vue': 'the calculator page: the two answers and the two rims',
     './Pages/Felgenrechner/Mobile.vue': 'the calculator page on a phone',
 }
 

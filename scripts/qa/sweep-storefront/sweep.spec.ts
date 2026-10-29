@@ -75,7 +75,7 @@ async function productWith(s: Sweep, diameter: string, label: string): Promise<L
 
 // ── 01 · Startseite ─────────────────────────────────────────────────────────────────────────────────────────
 
-test('01 Startseite: hero, live count, shelf, Größe vergleichen, Gutachten story, footer', async ({ page }, info) => {
+test('01 Startseite: hero, live count, shelf, Breite und Einpresstiefe vergleichen, Gutachten story, footer', async ({ page }, info) => {
     const s = new Sweep(page, info);
     const status = await s.open('/');
 
@@ -101,10 +101,10 @@ test('01 Startseite: hero, live count, shelf, Größe vergleichen, Gutachten sto
 
     check(s, tiles > 0, { severity: 'S2', page: '/', what: 'no shelf tile on the homepage', expected: 'the shelf with the published wheels', shot: fold });
 
-    const compareSizes = page.locator('a[href="/felgenrechner"]', { hasText: 'Größe vergleichen' });
+    const compareSizes = page.locator('a[href="/felgenrechner"]', { hasText: 'Breite und Einpresstiefe vergleichen' });
 
     if ((await compareSizes.count()) === 0) {
-        s.observe('/', '„Größe vergleichen“ (→ /felgenrechner) not on this document');
+        s.observe('/', '„Breite und Einpresstiefe vergleichen“ (→ /felgenrechner) not on this document');
     }
 
     const story = page.locator('.story__facts').first();

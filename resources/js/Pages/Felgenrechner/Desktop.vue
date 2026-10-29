@@ -1,31 +1,25 @@
 <script setup lang="ts">
 /**
- * /felgenrechner, desktop document (home-overhaul §3.3): the full tool. The compact table of
- * controls with the two summary lines and the share block in the left columns; the results on the
- * right — each answer in a plain sentence first, the rear-view drawing under the position sentence
- * it shows — then the full figures and the disclaimer. Below 1024 the blocks stack in reading
- * order: form, results, figures, share block, disclaimer.
+ * /felgenrechner, desktop document — rebuilt close to the client's example (his #11: „replicate it as closely as
+ * possible“; the operator's brief of 29.10.2026, Batch 2). As there: the drawing on the left, the two blocks on the
+ * right; under the drawing the two answers in words, under everything the steps and the line about the papers. Below
+ * 1024 one column in reading order: drawing, answers, blocks, share, steps, papers.
  *
- * The comparison arrives from the server: `state` when the address carried `?rechner=`, else the
- * prefill (the smallest size a Gutachten names for the chosen car, and the note says exactly that),
- * else the worked example — so the first paint already shows it. Every valid change is written
- * back to the address, which is what the share field shows.
- *
- * Everything printed is arithmetic from `lib/felgenGeometry`; nothing on this page judges a size
- * (ACCURACY.md §6). The line under the results points at the papers that do.
+ * The comparison arrives from the server: `state` when the address carried `?rechner=`, else the prefill (the smallest
+ * size a Gutachten names for the chosen car — the sentence says exactly that), else his example — so the first paint
+ * already shows it. Everything printed is arithmetic (lib/etRechner); nothing here judges a size (ACCURACY.md §6).
  */
 
 import { Head, Link } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
-import ClearanceDrawing from '../../Components/Ui/ClearanceDrawing.vue'
-import FitmentCalculator from '../../Components/Home/FitmentCalculator.vue'
-import FitmentResults from '../../Components/Home/FitmentResults.vue'
+import EtCalculator from '../../Components/Rechner/EtCalculator.vue'
+import OffsetDrawing from '../../Components/Rechner/OffsetDrawing.vue'
 import RechnerShare from '../../Components/Home/RechnerShare.vue'
 import ValueText from '../../Components/Ui/ValueText.vue'
-import { useRechner } from '../../composables/useRechner'
+import { useEtRechner } from '../../composables/useEtRechner'
 import { useShared } from '../../composables/useShared'
-import { DISCLAIMER, SIDES } from '../../lib/rechner'
+import { DISCLAIMER } from '../../lib/rechner'
 import type { FelgenrechnerProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout })
@@ -35,9 +29,9 @@ const props = defineProps<FelgenrechnerProps>()
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
 
-const LEAD = 'Rechne aus, wie sich eine andere Felgen- und Reifengröße rechnerisch auf Abrollumfang, Tacho und die Lage der Felgenkanten auswirkt.'
+const LEAD = 'Vergleiche deine Felge mit einer neuen: wie weit sich Innen- und Außenkante verschieben – gerechnet aus Breite, Einpresstiefe und Distanzscheibe.'
 
-const { state, shown, shareParam, prefillLine, fromVehicle, summaries, specs, update, setValid } = useRechner({
+const { state, update, sentences, shareParam, prefillLine } = useEtRechner({
     prefill: () => props.prefill,
     vehicle: () => vehicle.value,
     state: props.state,
@@ -63,37 +57,28 @@ const { state, shown, shareParam, prefillLine, fromVehicle, summaries, specs, up
             <p class="body-l muted rechner__lead">{{ LEAD }}</p>
 
             <div class="grid rechner__grid">
-                <div class="rechner__left">
-                    <div class="rechner__form">
-                        <p v-if="prefillLine" class="small quiet rechner__prefill">{{ prefillLine }}</p>
-                        <FitmentCalculator :model-value="state" layout="table" :prefilled="fromVehicle" @update:model-value="update" @update:valid="setValid" />
-
-                        <!-- Each setup in one line, as a tyre shop would write it. -->
-                        <ul class="rechner__summaries" aria-label="Die beiden Größen">
-                            <li v-for="side in SIDES" :key="side.key" class="small muted num rechner__summary">
-                                <span class="rechner__summary-side">{{ side.label }}:</span> <ValueText :text="summaries[side.key]" />
-                            </li>
-                        </ul>
+                <div class="rechner__picture">
+                    <!-- The answer in words first, in the first screen; heard on every change. The drawing under it shows it. -->
+                    <div class="rechner__answers" aria-live="polite">
+                        <p class="h3 num rechner__answer"><ValueText :text="sentences.inner" /></p>
+                        <p class="h3 num rechner__answer"><ValueText :text="sentences.outer" /></p>
                     </div>
-
-                    <RechnerShare class="rechner__share" :param="shareParam" />
+                    <OffsetDrawing :state="state" />
                 </div>
 
-                <div class="rechner__right">
-                    <!-- The answer in words first; the drawing sits under the position sentence it shows. -->
-                    <FitmentResults class="rechner__results" :result="shown">
-                        <template #drawing>
-                            <ClearanceDrawing class="calc-drawing" :current="state.current" :next="state.next" />
-                        </template>
-                    </FitmentResults>
+                <div class="rechner__form">
+                    <p v-if="prefillLine" class="small quiet rechner__prefill">{{ prefillLine }}</p>
+                    <EtCalculator :model-value="state" @update:model-value="update" />
+                    <RechnerShare :param="shareParam" />
+                </div>
 
-                    <dl v-if="specs.length > 0" class="specs small rechner__specs" aria-label="Alle Werte">
-                        <template v-for="row in specs" :key="row.key">
-                            <dt>{{ row.label }}</dt>
-                            <dd class="num"><ValueText :text="row.value" /></dd>
-                        </template>
-                    </dl>
-
+                <div class="rechner__about">
+                    <h2 class="h4">So rechnest du</h2>
+                    <ol class="rechner__steps">
+                        <li>Gib Breite und Einpresstiefe deiner aktuellen Felge ein – und die Stärke der Distanzscheibe je Rad, wenn du eine fährst.</li>
+                        <li>Gib dann die Werte der neuen Felge ein.</li>
+                        <li>Die zwei Zeilen über der Zeichnung und die Zeichnung selbst zeigen, wie weit sich die Innen- und die Außenkante der neuen Felge gegenüber deiner aktuellen verschieben.</li>
+                    </ol>
                     <p class="small muted rechner__disclaimer"><ValueText :text="DISCLAIMER" /></p>
                 </div>
             </div>
@@ -134,9 +119,10 @@ const { state, shown, shareParam, prefillLine, fromVehicle, summaries, specs, up
 }
 
 .rechner__lead {
-    max-width: 54ch;
+    max-width: calc(60 * var(--ch-text));
     margin-top: var(--sp-12);
     hyphens: auto;
+    hyphenate-limit-chars: 10 4 4;
 }
 
 .rechner__grid {
@@ -145,80 +131,61 @@ const { state, shown, shareParam, prefillLine, fromVehicle, summaries, specs, up
     align-items: start;
 }
 
-/* Below 1024 the two columns dissolve and their blocks take the page grid in reading order. */
-.rechner__left,
-.rechner__right {
-    display: contents;
-}
-
+.rechner__picture,
 .rechner__form,
-.rechner__share,
-.rechner__results,
-.rechner__specs,
-.rechner__disclaimer {
+.rechner__about {
+    display: grid;
     grid-column: 1 / -1;
+    gap: var(--sp-16);
     min-width: 0;
 }
 
-.rechner__form {
-    order: 1;
+.rechner__answers {
     display: grid;
-    gap: var(--sp-16);
+    gap: var(--sp-4);
 }
 
-.rechner__results {
-    order: 2;
+.rechner__answer {
+    margin: 0;
 }
 
-.rechner__specs {
-    order: 3;
+.rechner__prefill {
+    margin: 0;
 }
 
-.rechner__share {
-    order: 4;
+.rechner__steps {
+    display: grid;
+    gap: var(--sp-8);
+    max-width: calc(54 * var(--ch-text));
+    margin: 0;
+    padding-left: var(--sp-20);
+    list-style: decimal;
 }
 
 .rechner__disclaimer {
-    order: 5;
-    max-width: 54ch;
+    max-width: calc(54 * var(--ch-text));
     hyphens: auto;
+    hyphenate-limit-chars: 10 4 4;
 }
 
-.rechner__summaries {
-    display: grid;
-    gap: var(--sp-4);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.rechner__summary {
-    overflow-wrap: anywhere;
-}
-
-.rechner__summary-side {
-    color: var(--c-ink);
-    font-weight: 500;
-}
-
-/* ── ≥ 1024: form and share in columns 1–5, everything else in 7–12 ─────────── */
-
+/* ≥ 1024: the answers and the drawing in columns 1–7 over two rows; the two blocks, then the steps, in 8–12 — as his
+   example sets the drawing beside the blocks, and nothing left empty beside the steps. */
 @media (min-width: 1024px) {
-    .rechner__left,
-    .rechner__right {
-        display: grid;
-        min-width: 0;
+    .rechner__picture {
+        grid-column: 1 / span 7;
+        grid-row: 1 / span 2;
+        position: sticky;
+        top: calc(var(--header-h) + var(--sp-16));
     }
 
-    .rechner__left {
-        grid-column: 1 / span 5;
-        gap: var(--sp-24);
-        align-content: start;
+    .rechner__form {
+        grid-column: 8 / span 5;
+        grid-row: 1;
     }
 
-    .rechner__right {
-        grid-column: 7 / span 6;
-        gap: var(--sp-16);
+    .rechner__about {
+        grid-column: 8 / span 5;
+        grid-row: 2;
     }
 }
 </style>
