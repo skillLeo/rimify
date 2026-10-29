@@ -31,6 +31,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $spoke_count
  * @property float|null $rating
  * @property int $rating_count
+ * @property float|null $stated_rating stars typed in the admin (#19, D-344) — shown only beside stated_rating_origin
+ * @property int|null $stated_rating_count
+ * @property string|null $stated_rating_origin the sentence beside the typed stars: where they come from
  * @property bool $is_demo
  * @property string|null $demo_ref `abnahme:…` for the acceptance set's rows (AcceptanceSet), else null
  */
@@ -43,7 +46,8 @@ class WheelModel extends Model
 
     /**
      * Never `rating` or `rating_count`: they are what the buyers' visible reviews add up to, written by ReviewSummary
-     * alone (D-103) — no form, import or seeder can type a rating nobody gave (§ 5 UWG).
+     * alone (D-103) — no form, import or seeder can type a rating nobody gave (§ 5 UWG). Never the `stated_rating*`
+     * three either: StatedRatings writes them together, with their sentence and a Protokoll entry (D-344).
      */
     protected $fillable = [
         'brand_id', 'name', 'type_designation', 'title', 'slug', 'description_de', 'seo_title', 'seo_description', 'internal_note', 'status',
@@ -61,6 +65,8 @@ class WheelModel extends Model
             // Displayed, never compared as money — a float is the honest type for a star figure.
             'rating' => 'float',
             'rating_count' => 'integer',
+            'stated_rating' => 'float',
+            'stated_rating_count' => 'integer',
         ];
     }
 

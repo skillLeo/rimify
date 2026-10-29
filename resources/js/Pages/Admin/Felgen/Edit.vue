@@ -22,6 +22,7 @@ import type { AdminFelgeProps, FinishForm, SizeForm, WheelForm } from '../../../
 import FinishPhotos from './FinishPhotos.vue'
 import MatrixPanel from './MatrixPanel.vue'
 import SizesTable from './SizesTable.vue'
+import StatedRatingCard from './StatedRatingCard.vue'
 import { generate, type MatrixInput } from './matrix'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -585,6 +586,9 @@ const more = computed<AdminPageAction[]>(() => {
                 </div>
             </section>
         </form>
+
+        <!-- Stars typed for this rim, with their sentence (#19, D-344): saved on their own, outside the form above. -->
+        <StatedRatingCard v-if="model" :model-id="model.id" :stated="statedRating" :editable="can.rate" />
 
         <AdminSaveBar v-if="editable" :editor="editor" />
 

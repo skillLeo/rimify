@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ErstattungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FahrzeugImportController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
+use App\Http\Controllers\Admin\FelgenSterneController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
@@ -458,6 +459,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         foreach (array_keys(WheelStatusRequest::STEPS) as $step) {
             Route::post('/felgen/{model}/'.$step, [AdminFelgenController::class, 'status'])->whereNumber('model')->name('felgen.'.$step);
         }
+
+        // Stars typed for one rim, with the sentence that says where they come from (#19, D-344): WheelModelPolicy::rate
+        // through StatedRatingRequest.
+        Route::put('/felgen/{model}/sterne', [FelgenSterneController::class, 'update'])->whereNumber('model')->name('felgen.sterne');
+        Route::delete('/felgen/{model}/sterne', [FelgenSterneController::class, 'destroy'])->whereNumber('model')->name('felgen.sterne.entfernen');
 
         // A finish's photographs (COMPLIANCE row 23): one more after the others, one taken off, all in a
         // new order, one described anew. FinishImages composes the cover the shop reads from them.

@@ -4,8 +4,8 @@ import { ABNAHME, PRODUCT, box, consent, isPhone, open, shot, shotAround, withCa
 
 /*
  * The client's list beyond the product page and the listing, against the acceptance shop: the Felgenrechner's drawing
- * (#11, judgement), the contact form (#12), reviews (#19, solved differently), the level of an Auflage (#23, solved
- * differently, in the admin) and the RIMIFY-Check (#28).
+ * (#11, judgement), the contact form (#12), stars typed in the admin beside their sentence (#19, D-344), the level of an
+ * Auflage (#23, solved differently, in the admin) and the RIMIFY-Check (#28).
  */
 
 test.beforeEach(async ({ context }) => {
@@ -94,15 +94,70 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     await expect(page.locator('.kon__done')).toContainText('deine Nachricht ist angekommen')
 })
 
-test('reviews come only from buyers: none is written in the admin, and until there are any the page says what it can prove', { tag: '@kunde-19' }, async ({ page }, info) => {
+test('stars typed in the admin show under the rim\'s name beside the sentence that says where they come from — never as a checked purchase, none without it, and gone when taken off', { tag: '@kunde-19' }, async ({ page }, info) => {
+    // Before: no stars — never an empty row of them, never a number nobody gave — and what the page can prove instead.
     await withCar(page, 'e46', PRODUCT)
-
-    // No stars without reviews — never an empty row of them, never a number nobody gave.
     await expect(page.locator('.pdp__rating')).toHaveCount(0)
-    await expect(page.locator('#bewertungen')).toHaveCount(0)
     await expect(page.locator('.pdp__proof')).toHaveText(/^\d+ Gutachten · für \d+ Fahrzeugvarianten? freigegeben · Freigabe vor dem Kauf geprüft$/)
+    const modelId = await page.evaluate(() => (JSON.parse(document.querySelector('script[data-page="app"]')?.textContent ?? '{}') as { props?: { product?: { modelId?: number } } }).props?.product?.modelId ?? 0)
+    expect(modelId, 'the acceptance rim has no id on its page').toBeGreaterThan(0)
 
-    await shotAround(page, [page.locator('.pdp__buy h1'), page.locator('.pdp__proof')], 19, info)
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/felgen/${modelId}`, { waitUntil: 'networkidle' })
+    const card = page.locator('.fe-stars')
+    const origin = 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.'
+
+    try {
+        await card.locator('#fe-stars-rating').fill('4,9')
+        await card.locator('#fe-stars-count').fill('13')
+
+        // Stars without their sentence are refused: the shop shows none without it.
+        await card.getByRole('button', { name: 'Sterne speichern' }).click()
+        await expect(card.locator('#fe-stars-origin-err')).toHaveText('Ohne den Satz, woher die Bewertungen stammen, zeigt der Shop keine Sterne.')
+
+        // So is a sentence that claims a check the shop never made.
+        await card.locator('#fe-stars-origin').fill('Geprüfte Bewertungen aus unserem eBay-Shop.')
+        await card.getByRole('button', { name: 'Sterne speichern' }).click()
+        await expect(card.locator('#fe-stars-origin-err')).toHaveText('Der Satz darf keine Prüfung behaupten – diese Sterne hat der Shop nicht geprüft. Nenne nur, woher sie stammen.')
+        await expect(card.locator('[data-stars-now]')).toHaveText('Im Shop stehen keine Sterne von Hand.')
+
+        await card.locator('#fe-stars-origin').fill(origin)
+        await card.getByRole('button', { name: 'Sterne speichern' }).click()
+        await expect(card.locator('.fe-stars__line')).toHaveText(`★ 4,9 (13 Bewertungen) – ${origin}`)
+
+        // The shop: right under the name, the sentence beside the stars — no link to reviews that are not there, no
+        // „Geprüfter Kauf“, and the proof line steps aside as it does for the buyers' own stars.
+        await withCar(page, 'e46', PRODUCT)
+        const line = page.locator('.pdp__buy h1 + [data-stated-rating]')
+        await expect(line.locator('.tabular')).toHaveText('4,9 (13 Bewertungen)')
+        await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${origin}`)
+        await expect(page.locator('a.pdp__rating')).toHaveCount(0)
+        await expect(page.locator('.pdp__proof')).toHaveCount(0)
+        await expect(page.getByText('Geprüfter Kauf')).toHaveCount(0)
+        // The sentence is never cut: it wraps inside the panel on a phone as on a desk, back to the panel's edge.
+        const fits = await line.evaluate((el) => {
+            const panel = (el.closest('.pdp__buy') as HTMLElement).getBoundingClientRect()
+            const rects = [...(el.querySelector('.pdp__rating-origin') as HTMLElement).getClientRects()]
+
+            return el.scrollWidth <= el.clientWidth + 1 && rects.every((r) => r.right <= panel.right + 1) && (rects.length < 2 || Math.abs((rects[1]?.left ?? 0) - el.getBoundingClientRect().left) <= 1)
+        })
+        expect(fits, 'the sentence beside the stars runs out of its line, or wraps into a column of its own').toBe(true)
+
+        await shotAround(page, [page.locator('.pdp__buy h1'), line], 19, info)
+    } finally {
+        // Off again, through the card, so the acceptance shop stands as it did.
+        await page.goto(`${ABNAHME}/admin/felgen/${modelId}`, { waitUntil: 'networkidle' })
+        const off = page.locator('.fe-stars').getByRole('button', { name: 'Sterne entfernen' })
+
+        if ((await off.count()) > 0) {
+            await off.click()
+            await expect(page.locator('.fe-stars [data-stars-now]')).toHaveText('Im Shop stehen keine Sterne von Hand.')
+        }
+    }
+
+    await withCar(page, 'e46', PRODUCT)
+    await expect(page.locator('[data-stated-rating]')).toHaveCount(0)
+    await expect(page.locator('.pdp__proof')).toBeVisible()
 })
 
 /** The admin of the acceptance shop, as its full-rights review account (ReviewAccountsSeeder, development password). */

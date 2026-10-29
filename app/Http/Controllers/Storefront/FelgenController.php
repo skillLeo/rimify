@@ -34,6 +34,7 @@ use App\Models\TyreVariant;
 use App\Models\VerdictTally;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
+use App\Services\Admin\Catalogue\StatedRatings;
 use App\Services\Commerce\KomplettradPricer;
 use App\Services\Storage\DocumentFiles;
 use App\Services\Storefront\Basket;
@@ -399,6 +400,9 @@ class FelgenController extends Controller
                 'ratingLabel' => $wheel->rating === null
                     ? null
                     : GermanFormat::rating($wheel->rating, $wheel->rating_count),
+                // Stars typed in the admin (#19, D-344): shown under the name only beside the sentence that says where they
+                // come from, null without it — never added to the buyers' rating above, never in the structured data.
+                'statedRating' => StatedRatings::forShop($wheel),
                 // GPSR: the brand's manufacturer as entered in Katalog › Marken, or null (the page then says so).
                 'manufacturer' => $wheel->brand->manufacturer(),
                 // While it has no reviews, what the page can prove instead (#19, D-103): its documents and the cars.

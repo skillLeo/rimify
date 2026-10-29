@@ -27,6 +27,7 @@ use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\FinishImages;
 use App\Services\Admin\Catalogue\PublishCheck;
+use App\Services\Admin\Catalogue\StatedRatings;
 use App\Services\Admin\Catalogue\WheelEditor;
 use App\Services\Admin\Catalogue\WheelList;
 use App\Services\Admin\Lists\AdminLists;
@@ -422,6 +423,8 @@ class FelgenController extends Controller
             ],
             // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
             'stamp' => $model === null ? null : EditStamp::of(self::state($model)),
+            // Stars typed for this rim, with their sentence (#19, D-344) — saved on their own, beside the form.
+            'statedRating' => $model === null ? null : StatedRatings::forAdmin($model),
             'finishes' => $finishes->map(static fn (WheelFinish $f): array => [
                 'key' => 'f'.$f->id,
                 'id' => (int) $f->id,
@@ -480,13 +483,15 @@ class FelgenController extends Controller
         ];
     }
 
-    /** @return array{create: bool, edit: bool, publish: bool, archive: bool, import: bool} */
+    /** @return array{create: bool, edit: bool, publish: bool, rate: bool, archive: bool, import: bool} */
     private static function can(AdminUser $admin): array
     {
         return [
             'create' => $admin->may(PermissionModule::Catalogue, PermissionAction::Create),
             'edit' => $admin->may(PermissionModule::Catalogue, PermissionAction::Edit),
             'publish' => $admin->may(PermissionModule::Catalogue, PermissionAction::Publish),
+            // The stars go straight into the shop: as WheelModelPolicy::rate asks it.
+            'rate' => $admin->may(PermissionModule::Catalogue, PermissionAction::Edit) && $admin->may(PermissionModule::Catalogue, PermissionAction::Publish),
             'archive' => $admin->may(PermissionModule::Catalogue, PermissionAction::Delete),
             'import' => $admin->may(PermissionModule::Imports, PermissionAction::View),
         ];

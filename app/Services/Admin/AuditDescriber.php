@@ -151,6 +151,8 @@ final class AuditDescriber
         'wheel.image_removed' => 'katalog',
         'wheel.images_reordered' => 'katalog',
         'wheel.image_relabelled' => 'katalog',
+        'wheel.rating_stated' => 'katalog',
+        'wheel.rating_removed' => 'katalog',
         'tyre.created' => 'katalog',
         'tyre.updated' => 'katalog',
         'tyre.deleted' => 'katalog',
@@ -550,6 +552,12 @@ final class AuditDescriber
             'wheel.image_removed' => ['Das Foto der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde entfernt.', []],
             'wheel.images_reordered' => ['Die Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurden neu geordnet.', []],
             'wheel.image_relabelled' => ['Der Alternativtext eines Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde geändert.', []],
+            'wheel.rating_stated' => self::ratingStated($p),
+            'wheel.rating_removed' => [
+                'Die Sterne von Hand der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen')
+                    .(self::text($p, 'label') === null ? '' : ' – '.self::text($p, 'label').' –').' wurden entfernt. Der Shop zeigt sie nicht mehr.',
+                [],
+            ],
             'tyre.created' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde angelegt'.self::tyreOffered($p), []],
             'tyre.updated' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde geändert'.self::tyreChanged($p).self::tyreOffered($p), []],
             'tyre.deleted' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde entfernt.', []],
@@ -1260,6 +1268,33 @@ final class AuditDescriber
         $sentence = $parts === []
             ? 'Die Frage '.$question.' wurde geändert.'
             : 'Die Frage '.$question.' wurde geändert: '.implode(', ', $parts).'.';
+
+        return [$sentence, $changes];
+    }
+
+    /**
+     * „Für die Felge „…“ stehen jetzt Sterne von Hand im Shop: 4,9 (13 Bewertungen). Daneben steht: „…““ — and where some
+     * stood before, what they were (D-344).
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function ratingStated(array $p): array
+    {
+        $origin = self::text($p, 'origin');
+        $sentence = 'Für die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' stehen jetzt Sterne von Hand im Shop: '
+            .(self::text($p, 'label') ?? 'ohne Angabe').'.'
+            .($origin === null ? '' : ' Daneben steht: '.self::q($origin).(preg_match('/[.!?]$/u', $origin) === 1 ? '' : '.'));
+        $before = self::map($p, 'before');
+        $changes = [];
+
+        if (self::text($before, 'label') !== null && self::text($before, 'label') !== self::text($p, 'label')) {
+            $changes[] = self::change('Sterne', (string) self::text($before, 'label'), self::text($p, 'label') ?? '–');
+        }
+
+        if (self::text($before, 'origin') !== null && self::text($before, 'origin') !== $origin) {
+            $changes[] = self::change('Satz daneben', self::q((string) self::text($before, 'origin')), $origin === null ? '–' : self::q($origin));
+        }
 
         return [$sentence, $changes];
     }

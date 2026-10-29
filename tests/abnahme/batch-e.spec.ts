@@ -1,14 +1,15 @@
 import { propsOf, send } from '../../e2e/teardown'
-import { BASE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
+import { BASE, MAY_WRITE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, evidencePage, expect, open, phone, test } from './fixtures'
 import { PRODUCT, box, onSize, withCar } from './shop'
 
 /*
- * Batch E — the items that are not ours to tick: three solved differently (#9, #19, #23), three that wait on the client's
- * judgement (#11, #32, #33) and one that waits on his answer (#34). Each test proves what the row says the shop does and
- * leaves its picture; the state stays what the operator set („anders gelöst“, „Urteil offen“, „Rückfrage“), whatever the
- * result. #23 is the admin's and runs only where a Super-Admin's credentials are in the environment; on the preview it
- * writes the one thing the operator allowed there — a demo document's level, set to each of the three and back.
+ * Batch E — the items that are not ours to tick: two solved differently (#9, #23), #19 built as we promised it (stars
+ * typed in the admin, beside their sentence — D-344), three that wait on the client's judgement (#11, #32, #33) and one
+ * that waits on his answer (#34). Each test proves what the row says the shop does and leaves its picture; the state
+ * stays what the operator set, whatever the result. #19's and #23's admin halves run only where a Super-Admin's
+ * credentials are in the environment; on the preview #23 writes the one thing the operator allowed there — a demo
+ * document's level, set to each of the three and back — and #19 writes nothing: it reads the card and the shop.
  */
 
 test.describe('as a visitor', () => {
@@ -61,14 +62,31 @@ test.describe('as a visitor', () => {
         await evidence(drawing, 11, info)
     })
 
-    test('solved differently: reviews come only from buyers — no stars until there are any, and the page says what it can prove', { tag: '@kunde-19' }, async ({ page }, info) => {
+    test('built: stars typed in the admin stand under the name only beside the sentence that says where they come from — never as a checked purchase; none without it', { tag: '@kunde-19' }, async ({ page, context }, info) => {
         await withCar(page, 'e46', PRODUCT)
+        // What the server sends, read before the page is judged: the state stands as the operator (or the client) left it.
+        const product = (await propsOf<{ product: { statedRating?: { label: string; origin: string } | null; ratingCount: number } }>(context, PRODUCT))?.product
+        expect(product, 'the product page sends no props').toBeDefined()
+        const name = page.locator('.pdp__buy h1')
 
-        await expect(page.locator('.pdp__rating')).toHaveCount(0)
-        await expect(page.locator('#bewertungen')).toHaveCount(0)
-        await expect(page.locator('.pdp__proof')).toHaveText(/^\d+ Gutachten · für \d+ Fahrzeugvarianten? freigegeben · Freigabe vor dem Kauf geprüft$/)
+        if (product?.statedRating) {
+            const line = page.locator('[data-stated-rating]')
+            await expect(line.locator('.tabular')).toHaveText(product.statedRating.label)
+            await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${product.statedRating.origin}`)
+            await expect(page.locator('.pdp__buy h1 + [data-stated-rating]')).toHaveCount(1)
+            await expect(line).not.toContainText(/Geprüft|verifiziert/i)
+            await evidenceAround(page, [name, line], 19, info)
+        } else {
+            // No sentence, no stars: the page shows none — never an empty row of them — and says what it can prove instead.
+            await expect(page.locator('[data-stated-rating]')).toHaveCount(0)
 
-        await evidenceAround(page, [page.locator('.pdp__buy h1'), page.locator('.pdp__proof')], 19, info)
+            if (product?.ratingCount === 0) {
+                await expect(page.locator('.pdp__rating')).toHaveCount(0)
+                await expect(page.locator('.pdp__proof')).toHaveText(/^\d+ Gutachten · für \d+ Fahrzeugvarianten? freigegeben · Freigabe vor dem Kauf geprüft$/)
+            }
+
+            await evidenceAround(page, [name, page.locator('.pdp__proof, .pdp__rating').first()], 19, info)
+        }
     })
 
     test('judgement: the bands alternate a pale surface with white, not every section tinted — before and after', { tag: '@kunde-32' }, async ({ page }, info) => {
@@ -195,7 +213,20 @@ test.describe('as the Super-Admin', () => {
      */
     let restore: { path: string; level: Level } | null = null
 
+    /** Where #19 typed stars on our own instance, to take off again should the run stop before its own last step does. */
+    let unstar: string | null = null
+
     test.afterEach(async ({ context }) => {
+        if (unstar !== null) {
+            const path = unstar
+            unstar = null
+            const stated = (await propsOf<{ statedRating: unknown }>(context, path.replace(/\/sterne$/, '')))?.statedRating
+
+            if (stated !== null && stated !== undefined) {
+                await send(context, 'DELETE', path)
+            }
+        }
+
         if (restore === null) {
             return
         }
@@ -293,5 +324,66 @@ test.describe('as the Super-Admin', () => {
         await open(page, documentPage)
         await expect(select).toHaveValue(original)
         await evidenceAround(page, [table.locator('thead tr'), abnahme, a14], 23, info)
+    })
+
+    test('built: stars typed on the Felge\'s admin page show under its name beside their sentence, a sentence claiming a check is refused, and they come off again', { tag: '@kunde-19' }, async ({ page, context, request }, info) => {
+        test.skip(!hasCredentials('super-admin'), 'no Super-Admin credentials in the environment (RIMIFY_EMAIL, RIMIFY_PASSWORD)')
+        test.setTimeout(240_000)
+
+        const modelId = (await propsOf<{ product: { modelId: number } }>(context, PRODUCT))?.product.modelId
+        expect(modelId, 'the acceptance rim has no product page').toBeGreaterThan(0)
+        const adminPage = `/admin/felgen/${modelId}`
+
+        await open(page, adminPage)
+        const card = page.locator('.fe-stars')
+        await expect(card.getByRole('heading', { name: 'Sterne von Hand' })).toBeVisible()
+        await expect(card.locator('#fe-stars-rating')).toBeVisible()
+        await expect(card.locator('#fe-stars-count')).toBeVisible()
+        await expect(card.locator('#fe-stars-origin')).toBeVisible()
+        await expect(card.getByRole('button', { name: 'Sterne speichern' })).toBeVisible()
+
+        // The client's preview gains no Protokoll line from this run (instance.ts): there it reads the card, and proves the
+        // address the card saves to answers — a request with no session is refused for its missing token, not as unknown.
+        if (!MAY_WRITE) {
+            const probe = await request.fetch(`${BASE}${adminPage}/sterne`, { method: 'PUT', maxRedirects: 0 })
+            expect(probe.status(), 'the stars cannot be saved: the address is unknown').toBe(419)
+            await evidenceAround(page, [card], 19, info, 16, `19-admin-${phone(info) ? 'iphone' : 'desktop'}`)
+
+            return
+        }
+
+        unstar = `${adminPage}/sterne`
+        const origin = 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.'
+        await card.locator('#fe-stars-rating').fill('4,9')
+        await card.locator('#fe-stars-count').fill('13')
+
+        // A sentence that claims a check is refused beside its field, and nothing reaches the shop.
+        await card.locator('#fe-stars-origin').fill('Nur verifizierte Käufer aus unserem eBay-Shop.')
+        await card.getByRole('button', { name: 'Sterne speichern' }).click()
+        await expect(card.locator('#fe-stars-origin-err')).toHaveText('Der Satz darf keine Prüfung behaupten – diese Sterne hat der Shop nicht geprüft. Nenne nur, woher sie stammen.')
+        await expect(card.locator('[data-stars-now]')).toHaveText('Im Shop stehen keine Sterne von Hand.')
+
+        await card.locator('#fe-stars-origin').fill(origin)
+        await card.getByRole('button', { name: 'Sterne speichern' }).click()
+        await expect(card.locator('.fe-stars__line')).toHaveText(`★ 4,9 (13 Bewertungen) – ${origin}`)
+        await evidenceAround(page, [card], 19, info, 16, `19-admin-${phone(info) ? 'iphone' : 'desktop'}`)
+
+        // The shop: under the name, beside the sentence — no link to reviews that are not there, no checked purchase.
+        await withCar(page, 'e46', PRODUCT)
+        const line = page.locator('.pdp__buy h1 + [data-stated-rating]')
+        await expect(line.locator('.tabular')).toHaveText('4,9 (13 Bewertungen)')
+        await expect(line.locator('.pdp__rating-origin')).toHaveText(`– ${origin}`)
+        await expect(page.locator('a.pdp__rating')).toHaveCount(0)
+        await expect(page.getByText('Geprüfter Kauf')).toHaveCount(0)
+        await evidenceAround(page, [page.locator('.pdp__buy h1'), line], 19, info, 16, `19-shop-${phone(info) ? 'iphone' : 'desktop'}`)
+
+        // And off again: the card says so, and the shop shows none.
+        await open(page, adminPage)
+        await card.getByRole('button', { name: 'Sterne entfernen' }).click()
+        await expect(card.locator('[data-stars-now]')).toHaveText('Im Shop stehen keine Sterne von Hand.')
+        unstar = null
+
+        await withCar(page, 'e46', PRODUCT)
+        await expect(page.locator('[data-stated-rating]')).toHaveCount(0)
     })
 })

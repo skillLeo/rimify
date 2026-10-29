@@ -669,9 +669,16 @@ claimBottomEdge(() => stickyShown.value)
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
                     <!-- Only where the name does not hold it already (a title typed otherwise): never said twice. -->
                     <p v-if="designationApart" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation ?? ''" whole /></p>
-                    <!-- The buyers' stars, computed from their reviews alone (D-103), leading to them; until there are
-                         any, what the page can prove instead — never an empty row of stars. -->
-                    <a v-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
+                    <!-- Stars typed in the admin (#19, D-344), only ever beside the sentence that says where they come
+                         from: no link, for there are no reviews here to lead to, and never called a checked purchase.
+                         Otherwise the buyers' stars, computed from their reviews alone (D-103), leading to them; until
+                         there are any, what the page can prove instead — never an empty row of stars. -->
+                    <p v-if="product.statedRating" class="stars pdp__rating pdp__rating--stated" data-stated-rating>
+                        <!-- One line in the source, so the spaces between the parts stay: the sentence runs on beside the
+                             stars and wraps back to the edge, as a sentence does. -->
+                        <span class="stars__glyph" aria-hidden="true">★</span> <span class="tabular"><ValueText :text="product.statedRating.label" /></span><span class="pdp__rating-origin">{{ ' – ' + product.statedRating.origin }}</span>
+                    </p>
+                    <a v-else-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular"><ValueText :text="product.ratingLabel ?? ''" /></span>
                     </a>
@@ -943,9 +950,10 @@ claimBottomEdge(() => stickyShown.value)
                     <span class="stars__glyph" aria-hidden="true">★</span>
                     <span class="tabular"><ValueText :text="product.ratingLabel" /></span>
                 </p>
+                <!-- „Diese“, not „Alle“: stars typed in the admin may stand under the name, and they are not these (D-344). -->
                 <p class="t-small quiet pdp__reviews-check">
-                    Alle Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über die
-                    Bestellnummer.
+                    Diese Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über
+                    die Bestellnummer.
                 </p>
                 <ul class="pdp__review-list">
                     <li v-for="review in reviews" :key="review.id" class="pdp__review">
@@ -1191,6 +1199,15 @@ claimBottomEdge(() => stickyShown.value)
 
 .pdp__rating {
     margin-top: var(--space-2);
+}
+
+/* Typed stars and their sentence as one run of text: the sentence follows the stars and wraps back to the edge, never
+   squeezed into a column beside them, never cut. */
+.pdp__rating--stated {
+    display: block;
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
 }
 
 .pdp__block {

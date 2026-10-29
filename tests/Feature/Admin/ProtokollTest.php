@@ -556,6 +556,12 @@ describe('putting every entry into words', function (): void {
             'wheel.image_removed' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Das Foto der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde entfernt.', []],
             'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
             'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
+            'wheel.rating_stated' => [
+                ['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)', 'origin' => 'Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.', 'before' => ['label' => '4,7 (9 Bewertungen)', 'origin' => 'Bewertungen aus unserem eBay-Shop, Stand Juli 2026.']],
+                'Für die Felge „Nordfelge Fjord“ stehen jetzt Sterne von Hand im Shop: 4,9 (13 Bewertungen). Daneben steht: „Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.“',
+                ['Sterne: 4,7 (9 Bewertungen) → 4,9 (13 Bewertungen)', 'Satz daneben: „Bewertungen aus unserem eBay-Shop, Stand Juli 2026.“ → „Bewertungen aus unserem eBay-Shop, Stand Oktober 2026.“'],
+            ],
+            'wheel.rating_removed' => [['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)', 'origin' => 'Bewertungen aus unserem eBay-Shop.'], 'Die Sterne von Hand der Felge „Nordfelge Fjord“ – 4,9 (13 Bewertungen) – wurden entfernt. Der Shop zeigt sie nicht mehr.', []],
             'page.image_uploaded' => [['page' => 'Felgen richtig auswählen', 'file' => '01jabc.jpg'], 'Für den Blog-Artikel „Felgen richtig auswählen“ wurde ein Bild hochgeladen („01jabc.jpg“). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
             'tyre.created' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'offered' => false], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde angelegt; der Shop bietet ihn nicht an – er ist nicht verfügbar oder sein EU-Reifenlabel ist unvollständig.', []],
             'tyre.updated' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'changed' => ['eprel_id', 'price_cents'], 'offered' => true], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde geändert (EPREL-Nummer, Preis); der Shop bietet ihn an.', []],
