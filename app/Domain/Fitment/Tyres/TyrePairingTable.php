@@ -36,7 +36,19 @@ final readonly class TyrePairingTable
         public ?string $rulesDe,
         /** The page the pairs stand on, where it is recorded with them — a recorded list's; a sentence's page is its Auflage's. */
         public ?int $sourcePage = null,
+        /**
+         * The document lists its combinations per vehicle type, and none of its entries takes in this car's EG number (his
+         * admin item 19, D-358): a list with no pair — never another type's, never no list at all, which would restrict
+         * nothing. The tyres are then „Noch nicht bestätigt“ (FitmentResolver) and no Komplettrad is offered.
+         */
+        public bool $unmatched = false,
     ) {}
+
+    /** A document's list with no entry for this car (D-358): nothing offered, and the tyres not confirmed. */
+    public static function unmatched(?int $sourcePage): self
+    {
+        return new self([], null, $sourcePage, true);
+    }
 
     /**
      * A document's list of combinations as entered (D-256), in its own numbering — `Kombination 2: vorn 225/40 R18,
@@ -90,7 +102,7 @@ final readonly class TyrePairingTable
     /** The same table, on the page of the Auflage whose sentence prints it. */
     public function onPage(?int $page): self
     {
-        return new self($this->pairs, $this->rulesDe, $page);
+        return new self($this->pairs, $this->rulesDe, $page, $this->unmatched);
     }
 
     /** Whether a table was read at all. */
@@ -135,6 +147,8 @@ final readonly class TyrePairingTable
             array_values(array_filter($this->pairs, static fn (TyrePairing $p): bool => in_array($p->key(), $keys, true))),
             trim(implode(' ', array_unique(array_filter([$this->rulesDe, $other->rulesDe])))) ?: null,
             $this->sourcePage,
+            // A list with no entry for the car stays one, whatever it is read with: nothing is offered either way.
+            $this->unmatched || $other->unmatched,
         );
     }
 

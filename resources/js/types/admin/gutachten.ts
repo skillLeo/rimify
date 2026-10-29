@@ -258,10 +258,22 @@ export interface DeratingView {
 }
 
 /** The document's own „Bereifungskombinationen“ (D-256), in its numbering: once there are any, the only tyres the shop offers on it. */
+/** One combination as the card shows it: `225/40 R18` front and rear, in the document's numbering. */
+export interface CombinationRow {
+    id: number
+    number: number
+    front: string
+    rear: string
+}
+
+/**
+ * The document's lists of tyre combinations, one per entry of its Verwendungsbereich (his admin item 19, D-358): each
+ * EG type-approval number with the cars under it; `unassigned` the rows no entry was given yet — they match no car.
+ */
 export interface CombinationsView {
     sourcePage: number | null
-    /** `225/40 R18` front and rear, as the card shows them. */
-    entries: { number: number; front: string; rear: string }[]
+    entries: { eg: string; cars: string[]; carriedOver: boolean; combinations: CombinationRow[] }[]
+    unassigned: CombinationRow[]
 }
 
 export interface AdminGutachtenShowProps {

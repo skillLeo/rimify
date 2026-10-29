@@ -15,6 +15,7 @@ use App\Models\Fitment;
 use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
+use App\Services\Admin\Approvals\DocumentRevision;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -172,7 +173,8 @@ final class KomplettradFixture
             $copy->save();
 
             foreach ($row->tyreSizes as $size) {
-                $sizeCopy = $size->replicate();
+                // Never the columns the database computes itself: it refuses a value for them (SQLSTATE 1906).
+                $sizeCopy = $size->replicate(DocumentRevision::GENERATED['fitment_tyre_sizes']);
                 $sizeCopy->fitment_id = $copy->id;
                 $sizeCopy->save();
 

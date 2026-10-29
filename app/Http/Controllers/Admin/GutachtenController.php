@@ -32,6 +32,7 @@ use App\Models\FitmentTyreSize;
 use App\Models\FitmentTyreSizeCondition;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
+use App\Services\Admin\Approvals\CombinationEntries;
 use App\Services\Admin\Approvals\CountFigures;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
@@ -384,21 +385,47 @@ class GutachtenController extends Controller
     }
 
     /**
-     * The document's own list of tyre combinations as the card shows it: in its numbering, each size as printed.
+     * The document's own lists of tyre combinations as the card shows them (D-256), one per entry of its
+     * Verwendungsbereich since his admin item 19 (D-358): each EG type-approval number with the cars under it, its
+     * combinations in their numbering, each size as printed, and whether the list was carried over from the
+     * document-wide one („übernommen, bitte prüfen“). Rows no entry was given yet are listed apart: they match no car.
      *
-     * @return array{sourcePage: int|null, entries: list<array{number: int, front: string, rear: string}>}
+     * @return array{sourcePage: int|null, entries: list<array{eg: string, cars: list<string>, carriedOver: bool, combinations: list<array{id: int, number: int, front: string, rear: string}>}>, unassigned: list<array{id: int, number: int, front: string, rear: string}>}
      */
     private static function combinationsView(ApprovalDocument $document): array
     {
-        $combinations = $document->tyreCombinations()->get();
+        $rows = $document->tyreCombinations()->get();
+        $row = static fn (DocumentTyreCombination $c): array => [
+            'id' => (int) $c->id,
+            'number' => $c->number,
+            'front' => GermanFormat::tyreSize($c->front_width_mm, $c->front_aspect, $c->front_diameter_in),
+            'rear' => GermanFormat::tyreSize($c->rear_width_mm, $c->rear_aspect, $c->rear_diameter_in),
+        ];
+
+        $cars = DB::table('fitments')
+            ->join('vehicles', 'vehicles.id', '=', 'fitments.vehicle_id')
+            ->where('fitments.approval_document_id', $document->id)
+            ->whereNull('vehicles.deleted_at')
+            ->distinct()
+            ->orderBy('vehicles.make')->orderBy('vehicles.model')->orderBy('vehicles.variant')
+            ->get(['vehicles.eg_nummer_norm', 'vehicles.make', 'vehicles.model', 'vehicles.variant']);
+
+        $entries = [];
+
+        foreach (CombinationEntries::of($document->id) as $eg) {
+            $own = $rows->where('eg_number_norm', $eg);
+            $entries[] = [
+                'eg' => $eg,
+                'cars' => $cars->where('eg_nummer_norm', $eg)->map(static fn (object $v): string => VehicleName::of($v->make, $v->model, $v->variant))->unique()->values()->all(),
+                'carriedOver' => $own->contains(static fn (DocumentTyreCombination $c): bool => $c->carried_over),
+                'combinations' => $own->map($row)->values()->all(),
+            ];
+        }
 
         return [
-            'sourcePage' => $combinations->first()?->source_page,
-            'entries' => $combinations->map(static fn (DocumentTyreCombination $c): array => [
-                'number' => $c->number,
-                'front' => GermanFormat::tyreSize($c->front_width_mm, $c->front_aspect, $c->front_diameter_in),
-                'rear' => GermanFormat::tyreSize($c->rear_width_mm, $c->rear_aspect, $c->rear_diameter_in),
-            ])->values()->all(),
+            'sourcePage' => $rows->first()?->source_page,
+            'entries' => $entries,
+            'unassigned' => $rows->whereNull('eg_number_norm')->map($row)->values()->all(),
         ];
     }
 

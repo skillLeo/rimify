@@ -59,10 +59,12 @@ function standTable(string $y240 = '100'): array
     return ['source_page' => 6, 'symbols' => ['V', 'W', 'Y'], 'rows' => [['speed_kmh' => 240, 'cells' => ['V' => '91', 'W' => '100', 'Y' => $y240]]]];
 }
 
+const STAND_ENTRY = 'e1*2007/46*0316*11';
+
 /** @return array<string, mixed> */
 function standCombinations(string $rear = '245/35 R18'): array
 {
-    return ['source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => $rear]]];
+    return ['entry' => STAND_ENTRY, 'source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => $rear]]];
 }
 
 it('refuses „Angaben“ saved from a page opened before the last save, and keeps that save', function (): void {
@@ -159,6 +161,8 @@ it('refuses a code saved from a page opened before the last save of that code, a
 
 it('refuses Bereifungskombinationen saved from a page opened before the last save, and keeps that save', function (): void {
     $document = standDraft();
+    // A car of the entry the list belongs to (his admin item 19, D-358).
+    Fitment::factory()->draft()->create(['approval_document_id' => $document->id, 'vehicle_id' => Vehicle::factory()->create(['eg_nummer_raw' => STAND_ENTRY, 'eg_nummer_norm' => STAND_ENTRY])->id]);
     $url = "/admin/gutachten/{$document->id}";
     $stale = standStamp($document, 'combinations');
 

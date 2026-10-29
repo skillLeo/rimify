@@ -60,6 +60,12 @@ use App\Support\GermanFormat;
  */
 final readonly class FitmentResolver
 {
+    /**
+     * The tyres where the document lists its combinations per vehicle type and none for this car's EG number (D-358):
+     * what is unknown, why, and what settles it — said of our record, never of the document (R-17).
+     */
+    public const NO_COMBINATION_ENTRY = 'Für die EG-Typgenehmigungsnummer deines Fahrzeugs (Feld K der Zulassungsbescheinigung Teil I) ist bei uns noch keine Bereifungskombination aus diesem Gutachten hinterlegt. Deshalb können wir die Reifen noch nicht bestätigen. Sobald die Kombinationen für deinen Fahrzeugtyp eingetragen sind, siehst du sie hier.';
+
     public function __construct(
         private VehicleRepository $vehicles,
         private FitmentRepository $fitments,
@@ -636,6 +642,13 @@ final readonly class FitmentResolver
             if ($condition->kind === ConditionKind::ReifenTragfaehigkeit && $condition->maxAxleLoadKg !== null) {
                 $thresholds[] = ['textDe' => $condition->sentenceDe(), 'maxAxleLoadKg' => $condition->maxAxleLoadKg];
             }
+        }
+
+        // The document lists its combinations per vehicle type, and none takes in this car's EG number (his admin item 19,
+        // D-358): what is not on record with us is the combination itself, so the tyres are „Noch nicht bestätigt“ — and
+        // the car's papers cannot change that, so they are not asked for. The wheel's own verdict stands (R-03).
+        if ($document->tyreCombinations?->unmatched === true) {
+            return new TyreCheck(VerdictStatus::Unknown, [self::NO_COMBINATION_ENTRY], $thresholds, summary: self::NO_COMBINATION_ENTRY);
         }
 
         // What the tyres need of the car (R-03 as amended on 18.10.2026): its axle loads, always; its top speed, unless every

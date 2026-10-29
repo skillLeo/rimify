@@ -10,9 +10,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * One of a Gutachten's own „Bereifungskombinationen“ (D-256): `Kombination 2: vorn 225/40 R18, hinten 245/35 R18`, as
  * the document prints it, on `source_page`. The document's list is closed — the shop offers no other tyres on it.
+ * Since his admin item 19 (D-358) each row belongs to one entry of the document's Verwendungsbereich, named by its
+ * EG type-approval number as printed; `carried_over` marks a row moved there from the document-wide list —
+ * „übernommen, bitte prüfen“.
  *
  * @property int $id
  * @property int $approval_document_id
+ * @property string|null $eg_number
+ * @property string|null $eg_number_norm
+ * @property bool $carried_over
  * @property int $number
  * @property int $front_width_mm
  * @property int $front_aspect
@@ -25,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DocumentTyreCombination extends Model
 {
     protected $fillable = [
-        'approval_document_id', 'number',
+        'approval_document_id', 'eg_number', 'eg_number_norm', 'carried_over', 'number',
         'front_width_mm', 'front_aspect', 'front_diameter_in',
         'rear_width_mm', 'rear_aspect', 'rear_diameter_in',
         'source_page',
@@ -35,6 +41,7 @@ class DocumentTyreCombination extends Model
     protected function casts(): array
     {
         return [
+            'carried_over' => 'boolean',
             'number' => 'integer',
             'front_width_mm' => 'integer',
             'front_aspect' => 'integer',

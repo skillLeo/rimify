@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**80 sentences: 1 open, 23 backed by a recorded field, 52 about the shop itself, 4 not sentences.**
+**78 sentences: 1 open, 23 backed by a recorded field, 50 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -95,8 +95,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Die Zeile bleibt „Noch nicht bestätigt“ und das Gutachten nicht freigebbar, bis der Code dort steht.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | a rule of the release |
 | „Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern.“ | admin | `Pages/Admin/Gutachten/Show.vue` | R-12's neighbour: a released record is not edited; a correction is a new revision (D-250) |
 | „Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten.“ | admin | `Services/Admin/Approvals/DocumentRevision.php` | a rule of the record: a revision is started from the released one (D-250) |
-| „Dann bietet der Shop zu diesem Gutachten nur diese an: vier gleiche Reifen nur, wo eine Kombination vorne und hinten dieselbe Größe nennt.“ | admin | `Pages/Admin/Gutachten/CombinationsCard.vue` | what the shop does with the entered list: `document_tyre_combinations`, closed (D-256) |
-| „Die Liste gilt für alle Fahrzeuge dieses Gutachtens.“ | admin | `Pages/Admin/Gutachten/CombinationsCard.vue` | the scope of the entered list: one list per document, every row of it (D-256) |
 | „Für keine Lücke wurde bisher ein Gutachten angefordert.“ | admin | `Pages/Admin/Nachfrage/Index.vue` | the state of our requests |
 | „zu anderen Gutachten erkannt – bis unter Konflikte entschieden ist, sagt der Shop dort „Noch nicht bestätigt“.“ | admin | `Http/Controllers/Admin/GutachtenController.php` | what the shop answers while two documents disagree — the fourth answer (D-234) |
 | „Name, Anschrift und Kontakt des Herstellers gehören zusammen – trag alle drei ein oder lass alle drei leer.“ | admin | `Http/Requests/Admin/BrandManufacturerRequest.php` | a form rule: the manufacturer's name, address and contact go together |

@@ -56,11 +56,44 @@ const HIS = [
     ['225/40 R18', '255/35 R18'],
 ] as const
 
-test('the Bereifungskombinationen take his list as he wrote it — number, front, rear, page — and stand as a closed list', { tag: '@admin-208' }, async ({ page }, info) => {
+/** The three vehicle types ABE 55255 names in the acceptance set, by field K as its Verwendungsbereich prints them. */
+const K = { x3: 'e1*2001/116*0249*..', e90: 'e1*2001/116*0308*00-08', e46: 'e1*97/27*0097*..' } as const
+
+/** His list, typed into the card for one EG number (his admin item 19, D-358) and saved. */
+async function enterHis(page: Page, entry: string): Promise<void> {
+    const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
+    await card.locator('#kb-entry').selectOption(entry)
+    await card.locator('#kb-edit').click()
+
+    const rows = card.locator('table.kb-grid tbody tr')
+
+    while ((await rows.count()) > HIS.length) {
+        await card.getByRole('button', { name: /^Kombination .+ entfernen$/ }).last().click()
+    }
+
+    while ((await rows.count()) < HIS.length) {
+        await card.locator('#kb-add-row').click()
+    }
+
+    await card.locator('#kb-page').fill('1')
+
+    for (const [i, [front, rear]] of HIS.entries()) {
+        await card.locator(`#kb-number-${i}`).fill(String(i + 1))
+        await card.locator(`#kb-front-${i}`).fill(front)
+        await card.locator(`#kb-rear-${i}`).fill(rear)
+    }
+
+    await card.locator('#kb-save').click()
+    await expect(card.locator('table.kb-table tbody tr')).toHaveCount(HIS.length)
+}
+
+test('the Bereifungskombinationen take his list as he wrote it — for one EG number: number, front, rear, page — and stand as a closed list', { tag: '@admin-208' }, async ({ page }, info) => {
     await admin(page)
     await draftOf55255(page)
 
     const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
+    // The vehicle type first (his admin item 19): the X3's EG number.
+    await card.locator('#kb-entry').selectOption(K.x3)
     await card.locator('#kb-edit').click()
 
     const rows = card.locator('table.kb-grid tbody tr')
@@ -94,10 +127,48 @@ test('the Bereifungskombinationen take his list as he wrote it — number, front
     }
 
     await expect(card).toContainText('Seite 1 im Gutachten.')
-    // The card says what the list does in the shop: these pairs and no others.
-    await expect(card).toContainText('Dann bietet der Shop zu diesem Gutachten nur diese an')
+    // The card says what the list does in the shop: these pairs and no others, for this type.
+    await expect(card).toContainText('Der Shop bietet für diesen Typ dann nur diese')
 
     await shotAround(page, [card], 208, info)
+})
+
+test('one EG number\'s list copied to another to check, and one combination put on a third — each type keeps its own list', { tag: '@admin-219' }, async ({ page }, info) => {
+    await admin(page)
+    await draftOf55255(page)
+    await enterHis(page, K.x3)
+
+    const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
+    const shown = async (entry: string): Promise<string[]> => {
+        await card.locator('#kb-entry').selectOption(entry)
+
+        return (await card.locator('table.kb-table tbody tr').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim())
+    }
+
+    // „Kombinationen kopieren von …“: the X3's list into the E46's form — checked, then saved as the E46's own.
+    await card.locator('#kb-entry').selectOption(K.e46)
+    await card.locator('#kb-edit').click()
+    await card.locator('#kb-copy-from').selectOption(K.x3)
+    await card.locator('.kb-copy').getByRole('button', { name: 'Übernehmen' }).click()
+    await expect(card.locator('.kb-copied')).toContainText(`3 Kombinationen von ${K.x3} übernommen`)
+    await card.locator('#kb-save').click()
+    await expect(card.locator('table.kb-table tbody tr')).toHaveCount(HIS.length)
+
+    // „Auf mehrere EG-Nummern anwenden“: the X3's Nr. 2 for the E90 as well.
+    const before = await shown(K.e90)
+    await card.locator('#kb-entry').selectOption(K.x3)
+    await card.locator('table.kb-table tbody tr').nth(1).getByRole('button', { name: /Auf mehrere EG-Nummern anwenden/ }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('checkbox', { name: new RegExp(K.e90.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')) }).check()
+    await dialog.getByRole('button', { name: 'Für eine EG-Nummer eintragen' }).click()
+    await expect(dialog).toBeHidden()
+
+    const e90 = await shown(K.e90)
+    expect(e90.some((row) => row.includes('225/40 R18') && row.includes('245/35 R18'))).toBe(true)
+    expect(e90.length).toBeLessThanOrEqual(before.length + 1)
+    expect(await shown(K.e46)).toHaveLength(HIS.length)
+
+    await shotAround(page, [card], 219, info)
 })
 
 test('load index and speed symbol in two fields of their own — a size pasted as printed settles into them', { tag: '@admin-209' }, async ({ page }, info) => {
