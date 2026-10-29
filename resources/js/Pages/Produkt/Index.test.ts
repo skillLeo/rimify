@@ -804,6 +804,49 @@ describe('Produkt page', () => {
         expect(wrapper.find('.pdp__stock').text()).toBe('Verfügbar')
     })
 
+    it('offers front and rear in different sizes in the buy column, where the Komplettrad is chosen — never a dead button above them @kunde-20', async () => {
+        // The E90's 19 Zoll on ABE 55255: front and rear sizes differ, the table V19 prints the pairs.
+        const mischbereifung = {
+            refusal: null,
+            refusalCode: null,
+            perAxle: 2,
+            rules: null,
+            sourcePage: 12,
+            priceOpen: false,
+            pairs: [
+                { key: '1', number: 1, front: '225/35 R19', rear: '255/30 R19', minSentence: 'Vorne mindestens 88Y, hinten 92Y.', sets: [] },
+                { key: '2', number: 2, front: '235/35 R19', rear: '255/30 R19', minSentence: 'Vorne mindestens 91Y, hinten 92Y.', sets: [] },
+            ],
+        }
+        const staggered = 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben – vier gleiche Reifen gibt es dafür nicht.'
+        const wrapper = mountPage({
+            hasVehicle: true,
+            configs: [config({ komplettrad: komplettrad({ refusal: staggered, refusalCode: 'STAGGERED_LAYOUT', tyres: [] }), mischbereifung })],
+        })
+
+        // Under „Nur Felgen“ none of it (#15).
+        expect(wrapper.find('.mix').exists()).toBe(false)
+
+        await chooseSet(wrapper)
+
+        const buy = wrapper.find('.pdp__buy')
+        expect(buy.find('#mix-heading').exists()).toBe(true)
+        expect(buy.findAll('.mix .chip').map((chip) => chip.text())).toEqual(['vorne 225/35 R19 · hinten 255/30 R19', 'vorne 235/35 R19 · hinten 255/30 R19'])
+        expect(buy.text()).toContain('für die Vorderachse')
+        expect(buy.text()).toContain('für die Hinterachse')
+        // The four-of-a-kind refusal and its dead button are gone: the pairs are the Komplettrad here.
+        expect(wrapper.text()).not.toContain('vier gleiche Reifen gibt es dafür nicht')
+        expect(wrapper.find('button.pdp__add').exists()).toBe(false)
+        expect(wrapper.find('.pdp__sticky').exists()).toBe(false)
+
+        // Where four identical tyres are offered too, they keep the main button, and the pairs follow it.
+        const both = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), mischbereifung })] })
+        await chooseSet(both)
+        const order = both.findAll('.pdp__buy .kc, .pdp__buy button.pdp__add, .pdp__buy .mix').map((el) => (el.classes('mix') ? 'mix' : el.classes('pdp__add') ? 'add' : 'kc'))
+
+        expect(order).toEqual(['kc', 'add', 'mix'])
+    })
+
     it('prints the server\'s refusal of an add under the button', async () => {
         const wrapper = mountPage()
         const form = forms.find((f) => f.kind === 'WHEEL')
