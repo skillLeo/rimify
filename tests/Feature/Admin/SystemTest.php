@@ -54,7 +54,7 @@ describe('the health sentence', function (): void {
 
         expect($report['state'])->toBe('ok')
             ->and($report['sentence'])->toBe('Alles in Ordnung')
-            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'schedule', 'mail', 'storage', 'ssr']);
+            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'schedule', 'mail', 'storage', 'invoices', 'ssr']);
     });
 
     it('turns amber once the scheduler has been silent for an hour, naming what that costs', function (): void {
@@ -244,7 +244,7 @@ describe('where it is shown', function (): void {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/System/Index')
-                ->has('report.checks', 7)
+                ->has('report.checks', 8)
                 ->where('report.sentence', 'Alles in Ordnung'));
 
         $this->actingAs(systemAdmin('content-editor'), 'admin')->get('/admin/system')->assertForbidden();

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
+use App\Console\Commands\InvoicesExportS3Command;
+use App\Models\InvoiceExport;
 use App\Services\Commerce\OrderPayments;
 use App\Services\Storage\StorageProbe;
 use App\Support\GermanFormat;
@@ -11,6 +13,7 @@ use App\Support\ScheduleBeat;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -55,6 +58,7 @@ final class SystemHealth
             $this->schedule(),
             $this->mail(),
             $this->storage(),
+            $this->invoiceCopy(),
             $this->rendering(),
         ];
 
@@ -253,6 +257,42 @@ final class SystemHealth
             return $status === null || $status['reachable']
                 ? ['state' => 'ok', 'sentence' => 'Dateien können gespeichert werden.', 'short' => '', 'count' => null]
                 : ['state' => 'warn', 'sentence' => 'Speicher nicht erreichbar', 'short' => 'Speicher nicht erreichbar', 'count' => null];
+        });
+    }
+
+    /**
+     * The daily copy of Stripe's invoices to S3 (his admin item 17, D-361): amber while an invoice is not stored after its
+     * tries — the next run tries it again — or where a set-up copy has not run for two days; said plainly where the shop
+     * has no bucket for it yet.
+     *
+     * @return Check
+     */
+    private function invoiceCopy(): array
+    {
+        return $this->guard('invoices', 'Rechnungskopie', static function (): array {
+            if (! InvoicesExportS3Command::configured()) {
+                return ['state' => 'ok', 'sentence' => 'Für die tägliche Kopie der Stripe-Rechnungen ist noch kein S3-Speicher eingerichtet.', 'short' => '', 'count' => null];
+            }
+
+            $failed = InvoiceExport::query()->where('status', InvoiceExport::FAILED)->count();
+
+            if ($failed > 0) {
+                return ['state' => 'warn', 'sentence' => ($failed === 1 ? 'Eine Stripe-Rechnung wurde' : "{$failed} Stripe-Rechnungen wurden").' nicht nach S3 kopiert; die nächste Kopie versucht es wieder.', 'short' => 'Rechnungskopie unvollständig', 'count' => (string) $failed];
+            }
+
+            $last = Cache::get(InvoicesExportS3Command::LAST_RUN);
+            $at = is_array($last) && is_string($last['at'] ?? null) ? CarbonImmutable::parse($last['at']) : null;
+
+            if ($at === null || $at->lt(CarbonImmutable::now()->subDays(2))) {
+                return [
+                    'state' => 'warn',
+                    'sentence' => $at === null ? 'Die tägliche Kopie der Stripe-Rechnungen ist noch nie gelaufen.' : 'Die tägliche Kopie der Stripe-Rechnungen ist seit dem '.GermanFormat::dateTime($at).' nicht mehr gelaufen.',
+                    'short' => 'Rechnungskopie läuft nicht',
+                    'count' => null,
+                ];
+            }
+
+            return ['state' => 'ok', 'sentence' => 'Die Stripe-Rechnungen werden täglich nach S3 kopiert, zuletzt am '.GermanFormat::dateTime($at).'.', 'short' => '', 'count' => null];
         });
     }
 

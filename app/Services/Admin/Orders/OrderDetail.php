@@ -105,13 +105,23 @@ final class OrderDetail
             // Whether the shop issues its own invoices and credit notes (D-348): off, a refund names no Gutschrift.
             // Papers issued before stay listed.
             'ownInvoices' => OwnInvoices::enabled(),
-            'papers' => $papers->map(static fn (Invoice $paper): array => [
-                'number' => $paper->number,
-                'kind' => $paper->kind === Invoice::INVOICE ? 'Rechnung' : 'Gutschrift',
-                'gross' => $paper->gross_cents,
-                'issuedAt' => GermanFormat::date($paper->issued_at),
-                'href' => URL::temporarySignedRoute('rechnung.show', now()->addMinutes(30), ['number' => $paper->number]),
-            ])->all(),
+            'papers' => [
+                ...$papers->map(static fn (Invoice $paper): array => [
+                    'number' => $paper->number,
+                    'kind' => $paper->kind === Invoice::INVOICE ? 'Rechnung' : 'Gutschrift',
+                    'gross' => $paper->gross_cents,
+                    'issuedAt' => GermanFormat::date($paper->issued_at),
+                    'href' => URL::temporarySignedRoute('rechnung.show', now()->addMinutes(30), ['number' => $paper->number]),
+                ])->all(),
+                // Stripe's invoice (his admin item 17, D-361), once Stripe has issued it and reported it paid: its page there.
+                ...($order->stripe_invoice_pdf === null || $order->stripe_invoice_number === null ? [] : [[
+                    'number' => $order->stripe_invoice_number,
+                    'kind' => 'Rechnung (Stripe)',
+                    'gross' => (int) $order->total_cents,
+                    'issuedAt' => GermanFormat::date($order->stripe_invoiced_at),
+                    'href' => (string) ($order->stripe_invoice_url ?? $order->stripe_invoice_pdf),
+                ]]),
+            ],
             'refunds' => $refunds->map(static fn (Refund $refund): array => [
                 'amount' => $refund->amount_cents,
                 'reason' => $refund->reason,

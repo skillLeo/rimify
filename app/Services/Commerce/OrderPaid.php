@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Commerce;
 
+use App\Jobs\IssueStripeInvoice;
 use App\Mail\OrderConfirmationMail;
 use App\Models\Order;
+use App\Payments\Stripe\StripeInvoices;
 use App\Services\Admin\AuditTrail;
 use App\Support\MailDelivery;
 use App\Support\OwnInvoices;
@@ -23,7 +25,7 @@ use Throwable;
  */
 final class OrderPaid
 {
-    public function __construct(private readonly Invoices $invoices) {}
+    public function __construct(private readonly Invoices $invoices, private readonly StripeInvoices $stripeInvoices) {}
 
     public function handle(Order $order): void
     {
@@ -46,6 +48,18 @@ final class OrderPaid
                 AuditTrail::system('System', 'invoice.failed', ['order' => $order->order_number, 'error' => mb_substr($e->getMessage(), 0, 250)], $order);
 
                 return;
+            }
+        }
+
+        // Stripe issues it where the order was paid through Stripe (his admin item 17, D-361) — before the mail, so the mail
+        // links it, and never a link to one that does not exist yet: a failure is retried, and the mail goes without.
+        if (! $order->isDemo() && ! OwnInvoices::enabled() && StripeInvoices::applies($order)) {
+            try {
+                $order = $this->stripeInvoices->issue($order);
+            } catch (Throwable $e) {
+                report($e);
+                AuditTrail::system('System', 'stripe_invoice.failed', ['order' => $order->order_number, 'error' => mb_substr($e->getMessage(), 0, 250)], $order);
+                IssueStripeInvoice::dispatch($order->id)->delay(now()->addMinutes(2));
             }
         }
 

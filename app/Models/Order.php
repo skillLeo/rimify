@@ -48,6 +48,12 @@ use Illuminate\Support\Str;
  * @property CarbonImmutable|null $delivered_at recorded by the team („Zugestellt“); only then can its lines be reviewed
  * @property CarbonImmutable|null $review_invited_at when the review invitation went out, once
  * @property string $origin `checkout` or `seeded` — how the order came about, fixed at insert (D-238)
+ * @property string|null $stripe_customer_id the Stripe customer its payment was made for (D-361)
+ * @property string|null $stripe_invoice_id the invoice Stripe made for it, from the draft on (D-361)
+ * @property string|null $stripe_invoice_number its number, once finalized
+ * @property string|null $stripe_invoice_url the hosted invoice page, once paid
+ * @property string|null $stripe_invoice_pdf its PDF, once paid — the shop links an invoice only then
+ * @property CarbonImmutable|null $stripe_invoiced_at when Stripe reported it paid
  * @property-read Collection<int, OrderLine> $lines
  */
 #[ObservedBy(OrderAlertObserver::class)]
@@ -68,6 +74,7 @@ class Order extends Model
         'subtotal_cents', 'shipping_cents', 'tax_cents', 'total_cents', 'currency',
         'payment_method', 'shipping_method',
         'stripe_session_id', 'stripe_payment_intent_id',
+        'stripe_customer_id', 'stripe_invoice_id', 'stripe_invoice_number', 'stripe_invoice_url', 'stripe_invoice_pdf', 'stripe_invoiced_at',
         'note', 'placed_at', 'paid_at', 'shipped_at', 'tracking_code',
         'refunded_cents', 'payment_flag', 'payment_error', 'stock_reserved', 'expires_at',
     ];
@@ -89,6 +96,7 @@ class Order extends Model
             'shipped_at' => 'immutable_datetime',
             'delivered_at' => 'immutable_datetime',
             'review_invited_at' => 'immutable_datetime',
+            'stripe_invoiced_at' => 'immutable_datetime',
         ];
     }
 

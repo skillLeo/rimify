@@ -81,25 +81,13 @@ final class StripeGateway implements PaymentGateway
      */
     public static function lineMetadata(Order $order): array
     {
-        $rows = [];
-
-        foreach ($order->lines()->orderBy('id')->get() as $line) {
-            $parts = $line->componentRows();
-
-            if ($parts === []) {
-                $rows[] = sprintf('%s · %d × %s = %s', $line->label, $line->quantity, GermanFormat::money($line->unit_price_cents), GermanFormat::money($line->line_total_cents));
-
-                continue;
-            }
-
-            foreach ($parts as $part) {
-                $rows[] = sprintf('%s · %d × %s = %s', $part['label'], $part['quantity'], $part['unitPrice'], $part['lineTotal']);
-            }
-        }
-
-        if ($order->shipping_cents > 0) {
-            $rows[] = 'Versand = '.GermanFormat::money($order->shipping_cents);
-        }
+        // The same rows as the invoice's line items (InvoiceRows): what was paid and what is invoiced never drift apart.
+        $rows = array_map(
+            static fn (array $row): string => $row['shipping']
+                ? 'Versand = '.GermanFormat::money($row['totalCents'])
+                : sprintf('%s · %d × %s = %s', $row['label'], $row['quantity'], GermanFormat::money($row['unitCents']), GermanFormat::money($row['totalCents'])),
+            InvoiceRows::of($order),
+        );
 
         $out = [];
 
@@ -131,6 +119,9 @@ final class StripeGateway implements PaymentGateway
             $intent = $this->client()->paymentIntents->create([
                 'amount' => $order->total_cents,
                 'currency' => 'eur',
+                // Stripe attaches a payment to an invoice of the same customer (docs.stripe.com/invoicing/partial-payments):
+                // the invoice it issues for this order once paid (StripeInvoices, D-361) is this customer's.
+                'customer' => $this->customerFor($order),
                 'automatic_payment_methods' => ['enabled' => true],
                 'description' => 'RIMIFY-Bestellung '.$order->order_number,
                 'metadata' => ['order_id' => (string) $order->id, 'order_number' => $order->order_number, ...self::lineMetadata($order)],
@@ -369,6 +360,40 @@ final class StripeGateway implements PaymentGateway
         } catch (ApiErrorException $e) {
             throw new PaymentFailure($e->getMessage(), 'Stripe hat die Nachweise nicht angenommen: '.$e->getMessage());
         }
+    }
+
+    /**
+     * The Stripe customer the order is paid and invoiced for, made once per order: the billing name, e-mail and address
+     * Stripe prints on the invoice (§ 14 UStG asks the recipient's name and address). One customer per order, never
+     * matched by e-mail — a typed address is no proof of who someone is.
+     */
+    private function customerFor(Order $order): string
+    {
+        $known = (string) ($order->stripe_customer_id ?? '');
+
+        if ($known !== '') {
+            return $known;
+        }
+
+        $address = $order->billingAddress ?? $order->deliveryAddress;
+        $customer = $this->client()->customers->create(array_filter([
+            'name' => trim((string) ($address?->company ?: $address?->full_name)) ?: null,
+            'email' => $order->customer?->email,
+            'address' => $address === null ? null : array_filter([
+                'line1' => trim($address->street.' '.$address->house_number),
+                'line2' => trim((string) $address->address_extra) ?: null,
+                'postal_code' => (string) $address->zip_code,
+                'city' => (string) $address->city,
+                'country' => strtoupper((string) ($address->country ?: 'DE')),
+            ], static fn (mixed $v): bool => $v !== null && $v !== ''),
+            // German invoice PDF and mails: Stripe writes them in the customer's language.
+            'preferred_locales' => ['de'],
+            'metadata' => ['order_number' => $order->order_number],
+        ], static fn (mixed $v): bool => $v !== null), ['idempotency_key' => 'rmf-cus-'.($order->public_id ?? $order->order_number)]);
+
+        $order->forceFill(['stripe_customer_id' => $customer->id])->save();
+
+        return $customer->id;
     }
 
     private function client(): StripeClient

@@ -31,7 +31,7 @@ final class AdminAlerts
      * The kinds, in the order „Was du bekommst“ lists them. `module` is the area a recipient must
      * be allowed to view.
      *
-     * @var array<string, array{module: PermissionModule, label: string, description: string}>
+     * @var array<string, array{module: PermissionModule, label: string, description: string, emailByDefault?: bool}>
      */
     public const KINDS = [
         'order_paid' => [
@@ -49,6 +49,14 @@ final class AdminAlerts
             'module' => PermissionModule::Settings,
             'label' => 'Hintergrundaufgabe fehlgeschlagen',
             'description' => 'Eine Aufgabe im Hintergrund, etwa ein E-Mail-Versand oder ein Import, ist abgebrochen.',
+        ],
+        // The daily copy of Stripe's invoices to S3 (his admin item 17, D-361): by mail unless switched off — a copy that
+        // silently stopped is the thing the copy is there to prevent.
+        'invoice_export_failed' => [
+            'module' => PermissionModule::Orders,
+            'label' => 'Rechnungskopie nach S3 fehlgeschlagen',
+            'description' => 'Eine Stripe-Rechnung konnte bei der täglichen Kopie nicht im S3-Speicher abgelegt werden.',
+            'emailByDefault' => true,
         ],
     ];
 
@@ -176,7 +184,7 @@ final class AdminAlerts
 
         return [
             'inApp' => is_array($stored) && is_bool($stored['in_app'] ?? null) ? $stored['in_app'] : true,
-            'email' => is_array($stored) && is_bool($stored['email'] ?? null) ? $stored['email'] : false,
+            'email' => is_array($stored) && is_bool($stored['email'] ?? null) ? $stored['email'] : (self::KINDS[$kind]['emailByDefault'] ?? false),
         ];
     }
 

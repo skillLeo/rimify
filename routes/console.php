@@ -35,3 +35,6 @@ Schedule::command('rimify:reset --prune')->hourly()->environments(TestEnvironmen
 Schedule::call(static fn () => app(TyreConfirmations::class)->count(fresh: true))->hourly()->name('reifenbestaetigung-zaehlen')->withoutOverlapping();
 // The scheduler's pulse: rimify:preflight and the admin's health line read it to tell whether the cron line runs.
 Schedule::call(static fn () => ScheduleBeat::record())->everyMinute()->name('schedule-heartbeat');
+// His admin item 17, part 2 (D-361): Stripe's invoices of the day before, PDF and JSON, into the shop's own bucket — after
+// midnight, once the day is complete. A copy that cannot be made is alerted and shown on the System page.
+Schedule::command('rimify:invoices:export-s3')->dailyAt('03:15')->timezone('Europe/Berlin')->withoutOverlapping();
