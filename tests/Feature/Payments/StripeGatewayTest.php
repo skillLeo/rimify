@@ -47,7 +47,8 @@ it('is the driver in force once all three test keys are, and none without one of
 });
 
 it('creates one PaymentIntent per order, at the order total from the server, in euro, with automatic payment methods', function (): void {
-    $order = Order::factory()->pendingPayment()->create(['total_cents' => 159_600, 'payment_method' => 'stripe']);
+    // The shipping fixed: the factory draws it from 0, 9,90 and 19,90 €, and a shipping of 0 is no row (CI, 30.10.2026).
+    $order = Order::factory()->pendingPayment()->create(['total_cents' => 159_600, 'shipping_cents' => 990, 'payment_method' => 'stripe']);
 
     $first = $this->gateway->authorize($order);
     $again = $this->gateway->authorize($order->fresh());
@@ -60,12 +61,20 @@ it('creates one PaymentIntent per order, at the order total from the server, in 
         // As it goes over the wire: the SDK form-encodes a boolean as `true`.
         ->and($created[0]['params']['automatic_payment_methods'])->toBe(['enabled' => 'true'])
         // The order's own two keys, then each of its rows (his #15, D-355): this order has no line, only its shipping.
-        ->and($created[0]['params']['metadata'])->toBe(['order_id' => (string) $order->id, 'order_number' => $order->order_number, 'pos_1' => 'Versand = '.GermanFormat::money($order->shipping_cents)])
+        ->and($created[0]['params']['metadata'])->toBe(['order_id' => (string) $order->id, 'order_number' => $order->order_number, 'pos_1' => 'Versand = '.GermanFormat::money(990)])
         ->and($created[0]['headers']['idempotency-key'])->toBe('rmf-pi-'.$order->order_number.'-159600')
         ->and($first->id)->toBe($again->id)
         ->and($first->amountCents)->toBe(159_600)
         ->and($first->clientSecret)->toBe($first->id.'_secret_fake')
         ->and($order->fresh()->stripe_payment_intent_id)->toBe($first->id);
+});
+
+it('names no shipping row when the order ships free', function (): void {
+    $order = Order::factory()->pendingPayment()->create(['total_cents' => 159_600, 'shipping_cents' => 0, 'payment_method' => 'stripe']);
+
+    $this->gateway->authorize($order);
+
+    expect($this->stripe->to('POST', '/v1/payment_intents')[0]['params']['metadata'])->toBe(['order_id' => (string) $order->id, 'order_number' => $order->order_number]);
 });
 
 it('creates no second intent on a double click: the same idempotency key answers the same intent', function (): void {
