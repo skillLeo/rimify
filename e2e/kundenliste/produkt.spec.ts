@@ -389,14 +389,15 @@ test('the wording as printed keeps each tyre size\'s sentences under that size: 
 })
 
 test('no dead „Nur die Felgen bestellen“: where no Komplettrad can be offered, one sentence, a way on, and „Nur Felgen“ right above', { tag: '@kunde-25' }, async ({ page }, info) => {
-    // The E46 at 19 Zoll: front and rear sizes differ, so there are no four equal tyres to offer.
-    await withCar(page, 'e46', PRODUCT)
-    await onSize(page, 19, 'Schwarz matt')
+    // The X3 at 18 Zoll: the Gutachten prescribes particular tyres there, so no Komplettrad can be offered, and the rim
+    // alone can. (The E46 at 19 Zoll was this case until the per-axle sets of his #20, D-360: now it sells 2 + 2.)
+    await withCar(page, 'x3', PRODUCT)
+    await onSize(page, 18, 'Schwarz matt')
     await mode(page, 'Komplettrad')
 
     const refusal = page.locator('.kc .kc__refusal')
     await expect(refusal).toBeVisible()
-    await expect(refusal).toContainText('Die Felge allein kannst du sofort bestellen.')
+    await expect(refusal).toContainText(/die Felge allein kannst du sofort bestellen\./i)
     await expect(refusal.getByRole('link', { name: 'Schreib uns' })).toHaveAttribute('href', /^\/kontakt\?/)
     await expect(page.locator('main')).not.toContainText('Nur die Felgen bestellen')
 

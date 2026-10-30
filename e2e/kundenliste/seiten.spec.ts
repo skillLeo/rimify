@@ -29,12 +29,15 @@ test('judgement: his example rebuilt — two blocks with steppers, the current w
     expect(await colour('.odraw__wheel--next .odraw__band', 'stroke')).toBe('rgb(26, 68, 212)')
     expect(await colour('.etc__block--next .etc__title', 'backgroundColor')).toBe('rgb(26, 68, 212)')
 
-    // One press on the new ET moves the new wheel sideways in the drawing, and the answers follow.
+    // Five presses on the new ET move the new wheel sideways in the drawing, and the answers follow — one press is a
+    // millimetre, under half a pixel in a phone's drawing.
     const lip = drawing.locator('.odraw__wheel--next .odraw__lip').nth(2)
     const before = await box(lip)
     const answer = await page.locator('.rechner__answer').first().textContent()
-    await blocks.locator('.etc__block--next').getByRole('button', { name: 'Einpresstiefe (ET) verringern' }).click()
-    await expect.poll(async () => Math.abs((await box(lip)).x - before.x), { timeout: 5_000 }).toBeGreaterThan(0.5)
+    for (let i = 0; i < 5; i++) {
+        await blocks.locator('.etc__block--next').getByRole('button', { name: 'Einpresstiefe (ET) verringern' }).click()
+    }
+    await expect.poll(async () => Math.abs((await box(lip)).x - before.x), { timeout: 5_000 }).toBeGreaterThan(1)
     await expect(page.locator('.rechner__answer').first()).not.toHaveText(answer ?? '')
 
     await shotAround(page, isPhone(info) ? [drawing] : [drawing, blocks], 11, info)
