@@ -323,7 +323,7 @@ test.describe('as the Super-Admin', () => {
         await evidenceAround(page, [table.locator('thead tr'), abnahme, a14], 23, info)
     })
 
-    test('built: stars typed on the Felge\'s admin page show under its name beside their sentence, a sentence claiming a check is refused, and they come off again', { tag: '@kunde-19' }, async ({ page, context, request, playwright }, info) => {
+    test('built: stars typed on the Felge\'s admin page show under its name beside their sentence, a sentence claiming a check is refused, and they come off again', { tag: '@kunde-19' }, async ({ page, context, playwright }, info) => {
         test.skip(!hasCredentials('super-admin'), 'no Super-Admin credentials in the environment (RIMIFY_EMAIL, RIMIFY_PASSWORD)')
         test.setTimeout(240_000)
 
