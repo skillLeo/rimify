@@ -124,14 +124,16 @@ test.describe('as the Super-Admin', () => {
         await open(page, documentPage)
 
         const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
-        await expect(card).toContainText('Dann bietet der Shop zu diesem Gutachten nur diese an')
+        // Per vehicle type since his admin item 19 (D-358): the list belongs to an EG-Typgenehmigungsnummer of the document.
+        await expect(card).toContainText('Der Shop bietet für diesen Typ dann nur diese Kombinationen an')
+        await expect(card.locator('#kb-entry')).toBeVisible()
         const rows = card.locator('table.kb-table tbody tr')
 
         // On his preview the example ABE 55255 was seeded on 14.10, before this section existed (D-256, 16.10): no
         // combination is entered there, and entering one takes a draft — a write this pass never makes. What can be
         // checked is that the page says so; whether the shop then offers only the listed pairs is not measured there.
         if (PREVIEW && (await rows.count()) === 0) {
-            await expect(card).toContainText('Zu diesem Gutachten sind keine Bereifungskombinationen hinterlegt.')
+            await expect(card).toContainText('Für diese EG-Nummer sind keine Bereifungskombinationen hinterlegt.')
             test.skip(true, 'not measured on the preview: ABE 55255 there has no combinations entered, and entering them takes a draft')
         }
 

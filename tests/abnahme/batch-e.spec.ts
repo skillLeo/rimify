@@ -34,27 +34,31 @@ test.describe('as a visitor', () => {
         await evidence(band.locator('figure').first(), 9, info)
     })
 
-    test('judgement: our own cross-section — ET, Felgenbreite and Lochkreis — and the wheel moves in the arch when the ET changes', { tag: '@kunde-11' }, async ({ page }, info) => {
+    // Rebuilt after his example (D-357): „Aktuelle Felge“ and „Neue Felge“, the wheel cut through from the front, the
+    // current rim gray, the new one blue, and the answers in two sentences.
+    test('judgement: his example rebuilt — two blocks with steppers, the current wheel gray, the new one blue, the new one moving with the ET', { tag: '@kunde-11' }, async ({ page }, info) => {
         await open(page, '/felgenrechner')
 
+        const blocks = page.locator('.etc')
+        await expect(blocks.locator('.etc__title')).toHaveText(['Aktuelle Felge', 'Neue Felge'])
+        await expect(blocks.locator('.etc__block--next .etc__label')).toHaveText(['Breite', 'Einpresstiefe (ET)', 'Distanzscheibe je Rad'])
+        await expect(page.locator('.rechner__answer')).toHaveText([/^Innen: 5,0\smm weiter vom Fahrwerk entfernt$/, /^Außen: 5,0\smm weiter heraus$/])
+
         const drawing = page.locator('.calc-drawing').first()
-        await expect(drawing.locator('[data-measure="et"]')).toBeAttached()
-        await expect(drawing.locator('[data-measure="width"]')).toBeAttached()
-        await expect(drawing).toContainText('Felgenbreite')
-        await expect(drawing).toContainText('Lochkreis')
-        await expect(drawing).toContainText('Einpresstiefe (ET)')
+        const colour = (selector: string, property: 'fill' | 'stroke') => page.locator(selector).first().evaluate((el, p) => getComputedStyle(el)[p as 'fill'], property)
+        expect(await colour('.odraw__wheel--current .odraw__band', 'fill')).toBe('rgb(201, 206, 213)')
+        expect(await colour('.odraw__wheel--next .odraw__band', 'stroke')).toBe('rgb(26, 68, 212)')
 
-        const wheel = drawing.locator('[data-wheel="next"]')
-        const before = await box(wheel)
+        // Five presses on the new ET — a millimetre each, under half a pixel in a phone's drawing — move the new wheel.
+        const lip = drawing.locator('.odraw__wheel--next .odraw__lip').nth(2)
+        const before = await box(lip)
 
-        if (phone(info)) {
-            await page.getByRole('tab', { name: 'Neu' }).click()
+        for (let i = 0; i < 5; i++) {
+            await blocks.locator('.etc__block--next').getByRole('button', { name: 'Einpresstiefe (ET) verringern' }).click()
         }
 
-        const et = page.locator('input[id$="-next-etMm"]')
-        await et.fill(String(Number(await et.inputValue()) - 20))
-        await et.press('Enter')
-        await expect.poll(async () => Math.abs((await box(wheel)).x - before.x), { timeout: 5_000 }).toBeGreaterThan(2)
+        await expect.poll(async () => Math.abs((await box(lip)).x - before.x), { timeout: 5_000 }).toBeGreaterThan(1)
+        await expect(page.locator('.rechner__answer').nth(1)).toHaveText(/^Außen: 10,0\smm weiter heraus$/)
 
         await evidence(drawing, 11, info)
     })

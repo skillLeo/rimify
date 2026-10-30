@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\InvoiceExport;
+use App\Payments\Stripe\IssuedInvoice;
 use App\Payments\Stripe\StripeInvoices;
 use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AuditTrail;
@@ -17,7 +18,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use League\Flysystem\FileAttributes;
 use RuntimeException;
-use Stripe\Invoice;
 use Throwable;
 
 /**
@@ -93,9 +93,9 @@ final class InvoicesExportS3Command extends Command
     }
 
     /** @return 'stored'|'skipped'|'failed' */
-    private function copy(Invoice $invoice, bool $dry, AdminAlerts $alerts): string
+    private function copy(IssuedInvoice $invoice, bool $dry, AdminAlerts $alerts): string
     {
-        $date = CarbonImmutable::createFromTimestamp((int) $invoice->created, 'Europe/Berlin');
+        $date = CarbonImmutable::createFromTimestamp($invoice->created, 'Europe/Berlin');
         $number = (string) ($invoice->number ?? $invoice->id);
         $base = 'invoices/'.$date->format('Y/m/d').'/'.preg_replace('/[^A-Za-z0-9._-]/', '_', $number);
         $known = InvoiceExport::query()->firstWhere('stripe_invoice_id', $invoice->id);
@@ -118,9 +118,9 @@ final class InvoicesExportS3Command extends Command
         $json = (string) json_encode([
             'id' => $invoice->id,
             'number' => $invoice->number,
-            'order_number' => $invoice->metadata['order_number'] ?? null,
-            'amount' => (int) $invoice->total,
-            'currency' => strtoupper((string) $invoice->currency),
+            'order_number' => $invoice->orderNumber,
+            'amount' => $invoice->total,
+            'currency' => strtoupper($invoice->currency),
             'date' => $date->toIso8601String(),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         $error = null;
@@ -132,7 +132,7 @@ final class InvoicesExportS3Command extends Command
                 $this->put($disk, $base.'.json', $json);
 
                 InvoiceExport::query()->updateOrCreate(['stripe_invoice_id' => $invoice->id], [
-                    'number' => $invoice->number, 'order_number' => $invoice->metadata['order_number'] ?? null, 'invoice_date' => $date->toDateString(),
+                    'number' => $invoice->number, 'order_number' => $invoice->orderNumber, 'invoice_date' => $date->toDateString(),
                     'pdf_path' => $base.'.pdf', 'pdf_bytes' => strlen($pdf), 'json_bytes' => strlen($json),
                     'status' => InvoiceExport::STORED, 'error' => null, 'attempts' => $try,
                 ]);
@@ -149,7 +149,7 @@ final class InvoicesExportS3Command extends Command
         }
 
         InvoiceExport::query()->updateOrCreate(['stripe_invoice_id' => $invoice->id], [
-            'number' => $invoice->number, 'order_number' => $invoice->metadata['order_number'] ?? null, 'invoice_date' => $date->toDateString(),
+            'number' => $invoice->number, 'order_number' => $invoice->orderNumber, 'invoice_date' => $date->toDateString(),
             'status' => InvoiceExport::FAILED, 'error' => $error, 'attempts' => self::TRIES,
         ]);
         AuditTrail::system('System', 'invoice_export.failed', ['invoice' => $invoice->id, 'number' => $invoice->number, 'date' => $date->format('d.m.Y'), 'error' => $error]);
@@ -160,9 +160,9 @@ final class InvoicesExportS3Command extends Command
     }
 
     /** The invoice's PDF as Stripe serves it, or an exception: never an empty or foreign file in its place. */
-    private function pdf(Invoice $invoice): string
+    private function pdf(IssuedInvoice $invoice): string
     {
-        $url = (string) ($invoice->invoice_pdf ?? '');
+        $url = $invoice->pdfUrl ?? '';
 
         if ($url === '') {
             throw new RuntimeException("Stripe gives no PDF for {$invoice->id}.");

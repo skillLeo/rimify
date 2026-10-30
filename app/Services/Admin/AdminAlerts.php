@@ -51,9 +51,10 @@ final class AdminAlerts
             'description' => 'Eine Aufgabe im Hintergrund, etwa ein E-Mail-Versand oder ein Import, ist abgebrochen.',
         ],
         // The daily copy of Stripe's invoices to S3 (his admin item 17, D-361): by mail unless switched off — a copy that
-        // silently stopped is the thing the copy is there to prevent.
+        // silently stopped is the thing the copy is there to prevent. The bucket and its keys are the system's, so it goes
+        // to whoever runs the settings, as a failed job does — not to sales.
         'invoice_export_failed' => [
-            'module' => PermissionModule::Orders,
+            'module' => PermissionModule::Settings,
             'label' => 'Rechnungskopie nach S3 fehlgeschlagen',
             'description' => 'Eine Stripe-Rechnung konnte bei der täglichen Kopie nicht im S3-Speicher abgelegt werden.',
             'emailByDefault' => true,

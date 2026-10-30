@@ -85,13 +85,13 @@ final class StripeInvoices
      * Every invoice Stripe created in [$from, $to), page by page to the last — the daily copy's list (D-361). Drafts are
      * left out: they carry no number yet and are no invoice.
      *
-     * @return iterable<Invoice>
+     * @return iterable<IssuedInvoice>
      */
     public function createdBetween(int $from, int $to): iterable
     {
         foreach ($this->client()->invoices->all(['created' => ['gte' => $from, 'lt' => $to], 'limit' => 100])->autoPagingIterator() as $invoice) {
             if ($invoice->status !== Invoice::STATUS_DRAFT) {
-                yield $invoice;
+                yield IssuedInvoice::of($invoice);
             }
         }
     }

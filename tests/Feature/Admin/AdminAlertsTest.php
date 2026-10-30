@@ -131,7 +131,7 @@ describe('what each person chose', function (): void {
     it('offers each person only the kinds of the areas they may open', function (): void {
         expect(array_column(app(AdminAlerts::class)->kindsFor(alertAdmin('content-editor')), 'kind'))->toBe([])
             ->and(array_column(app(AdminAlerts::class)->kindsFor(alertAdmin('order-manager')), 'kind'))->toBe(['order_paid'])
-            ->and(array_column(app(AdminAlerts::class)->kindsFor(alertAdmin('super-admin')), 'kind'))->toBe(['order_paid', 'conflict_opened', 'job_failed']);
+            ->and(array_column(app(AdminAlerts::class)->kindsFor(alertAdmin('super-admin')), 'kind'))->toBe(['order_paid', 'conflict_opened', 'job_failed', 'invoice_export_failed']);
     });
 });
 
