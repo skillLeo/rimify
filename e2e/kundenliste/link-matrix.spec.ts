@@ -181,7 +181,16 @@ test('Part B: one Felge made, changed and withdrawn in the admin — every store
     await save(page)
     await page.goto(`${ABNAHME}/felgen/${slug}`, { waitUntil: 'networkidle' })
     const product = page.url()
-    await check(page, R4, 'product', async () => (await page.locator('.pdp__stock').textContent())?.trim() === 'Nicht verfügbar' && (await page.locator('button.pdp__add').isDisabled()), '„Nicht verfügbar“, the button off, the reason under it')
+    await check(
+        page,
+        R4,
+        'product',
+        async () =>
+            (await page.locator('.pdp__stock').textContent())?.trim() === 'Nicht verfügbar' &&
+            (await page.locator('a.pdp__enquiry').textContent())?.trim() === 'Anfrage' &&
+            (await page.locator('button.pdp__add').count()) === 0,
+        '„Nicht verfügbar“, „Anfrage“ in the basket button’s place (D-350), the reason under it'
+    )
     await check(page, R4, 'json-ld', async () => JSON.stringify(await jsonLd(page)).includes('OutOfStock'), 'availability OutOfStock')
     await check(page, R4, 'listing', async () => {
         await page.goto(`${ABNAHME}/felgen?marke=Beispielmarke`, { waitUntil: 'networkidle' })

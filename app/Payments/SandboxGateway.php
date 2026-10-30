@@ -28,7 +28,7 @@ final class SandboxGateway implements PaymentGateway
 
     public function start(Order $order): string
     {
-        return URL::temporarySignedRoute('kasse.testzahlung', now()->addMinutes(self::MINUTES), ['order' => $order->order_number]);
+        return URL::temporarySignedRoute('kasse.testzahlung', now()->addMinutes(self::MINUTES), ['order' => $order->public_id]);
     }
 
     public function authorize(Order $order): PaymentIntentHandle

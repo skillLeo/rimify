@@ -169,6 +169,8 @@ final class OrderWriter
                     'quantity' => (int) $line['quantity'],
                     'unit_price_cents' => (int) $line['unitPriceCents'],
                     'line_total_cents' => (int) $line['lineTotalCents'],
+                    // A Komplettrad's rows as the basket and the checkout showed them, each its own line from here on (D-355).
+                    'components' => $isSet ? self::components($line) : null,
                     'tax_rate_bp' => (int) $totals['vatRateBp'],
                     'currency' => 'EUR',
                 ], $born, 'position:'.($i + 1));
@@ -299,6 +301,33 @@ final class OrderWriter
             || ($tyres !== [] && TyreVariant::query()->whereIn('id', $tyres)->where('is_demo', true)->exists());
     }
 
+    /**
+     * A Komplettrad line's rows in cents, frozen with the order (his #15, D-355).
+     *
+     * @param  array<string, mixed>  $line
+     * @return list<array{key: string, label: string, quantity: int, unitPriceCents: int|null, lineTotalCents: int|null}>
+     */
+    private static function components(array $line): array
+    {
+        $rows = [];
+
+        foreach (is_array($line['components'] ?? null) ? $line['components'] : [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $rows[] = [
+                'key' => (string) ($row['key'] ?? ''),
+                'label' => (string) ($row['label'] ?? ''),
+                'quantity' => (int) ($row['quantity'] ?? 0),
+                'unitPriceCents' => is_int($row['unitPriceCents'] ?? null) ? $row['unitPriceCents'] : null,
+                'lineTotalCents' => is_int($row['lineTotalCents'] ?? null) ? $row['lineTotalCents'] : null,
+            ];
+        }
+
+        return $rows;
+    }
+
     /** @param  array<string, mixed>  $line */
     private static function label(array $line): string
     {
@@ -339,22 +368,10 @@ final class OrderWriter
         }
     }
 
-    /**
-     * `RMF-2026-1022`: the year's next number, read under a lock so two checkouts never share one.
-     * Compared as a number, not as text: as text `RMF-2026-999` sorts above `RMF-2026-1000`, and
-     * the same number would be issued twice.
-     */
+    /** `2611-10487`: the next number, drawn under the counter's lock (OrderNumbers, his admin item 18, D-354). */
     public static function nextNumber(): string
     {
-        $year = now()->year;
-        $prefix = "RMF-{$year}-";
-        $last = Order::query()
-            ->where('order_number', 'like', $prefix.'%')
-            ->lockForUpdate()
-            ->selectRaw('MAX(CAST(SUBSTRING(order_number, ?) AS UNSIGNED)) AS n', [strlen($prefix) + 1])
-            ->value('n');
-
-        return $prefix.str_pad((string) ((int) $last + 1), 4, '0', STR_PAD_LEFT);
+        return OrderNumbers::next();
     }
 
     /** @return array{0: string|null, 1: string|null} first name(s) and last name */

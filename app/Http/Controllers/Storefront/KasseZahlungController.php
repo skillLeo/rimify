@@ -109,7 +109,7 @@ class KasseZahlungController extends Controller
         return response()->json([
             'order' => $order->order_number,
             'clientSecret' => $intent->clientSecret,
-            'returnUrl' => route('bestellung.show', ['order' => $order->order_number]),
+            'returnUrl' => route('bestellung.show', ['order' => $order->public_id]),
         ]);
     }
 

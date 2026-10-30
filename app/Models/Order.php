@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * An order. Guest checkout: `customer_id` points at a row with no password and no account.
@@ -29,7 +30,8 @@ use Illuminate\Support\Facades\DB;
  *
  * @property int $id
  * @property OrderStatus $status
- * @property string $order_number
+ * @property string $order_number `2611-10487` — Berlin year and month, then a counter that never resets (D-354); older ones `RMF-2026-0006`
+ * @property string|null $public_id a random UUID (v4), the key of the order's links in place of its number (D-354)
  * @property string|null $vehicle_label
  * @property string|null $vehicle_make
  * @property string|null $vehicle_hsn
@@ -94,9 +96,15 @@ class Order extends Model
      * The state machine, in the model (Block G): a status may only move where OrderStatus::next() allows, and an
      * order whose payment is flagged — an amount that did not match — never moves towards fulfilment. Checked on
      * every save, whatever wrote it: a page, the webhook, a command.
+     *
+     * And every order its public id on insert (his admin item 18, D-354): a random UUID, the key of its links.
      */
     protected static function booted(): void
     {
+        static::creating(static function (Order $order): void {
+            $order->public_id ??= (string) Str::uuid();
+        });
+
         static::updating(static function (Order $order): void {
             if (! $order->isDirty('status')) {
                 return;

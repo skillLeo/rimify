@@ -16,6 +16,7 @@ use App\Payments\PaymentSignal;
 use App\Payments\RefundResult;
 use App\Payments\WebhookReceipt;
 use App\Payments\WebhookRejected;
+use App\Support\GermanFormat;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
@@ -68,6 +69,47 @@ final class StripeGateway implements PaymentGateway
         return 'stripe';
     }
 
+    /** Stripe keeps at most 50 metadata keys; two are the order's own. */
+    private const LINE_KEYS = 40;
+
+    /**
+     * The order's rows beside its payment in Stripe (his #15, D-355), each its own entry: a Komplettrad's rim, tyre,
+     * mounting and weights apart, a rim sold alone, the RDKS sensors, the shipping — `pos_3` → `Reifen · 4 × 189,00 € =
+     * 756,00 €`. Stripe's own invoice line items are drawn from the same rows (Batch 2, Admin 17).
+     *
+     * @return array<string, string>
+     */
+    public static function lineMetadata(Order $order): array
+    {
+        $rows = [];
+
+        foreach ($order->lines()->orderBy('id')->get() as $line) {
+            $parts = $line->componentRows();
+
+            if ($parts === []) {
+                $rows[] = sprintf('%s · %d × %s = %s', $line->label, $line->quantity, GermanFormat::money($line->unit_price_cents), GermanFormat::money($line->line_total_cents));
+
+                continue;
+            }
+
+            foreach ($parts as $part) {
+                $rows[] = sprintf('%s · %d × %s = %s', $part['label'], $part['quantity'], $part['unitPrice'], $part['lineTotal']);
+            }
+        }
+
+        if ($order->shipping_cents > 0) {
+            $rows[] = 'Versand = '.GermanFormat::money($order->shipping_cents);
+        }
+
+        $out = [];
+
+        foreach (array_slice($rows, 0, self::LINE_KEYS) as $i => $row) {
+            $out['pos_'.($i + 1)] = mb_substr($row, 0, 500);
+        }
+
+        return $out;
+    }
+
     public function start(Order $order): ?string
     {
         return null;
@@ -91,7 +133,7 @@ final class StripeGateway implements PaymentGateway
                 'currency' => 'eur',
                 'automatic_payment_methods' => ['enabled' => true],
                 'description' => 'RIMIFY-Bestellung '.$order->order_number,
-                'metadata' => ['order_id' => (string) $order->id, 'order_number' => $order->order_number],
+                'metadata' => ['order_id' => (string) $order->id, 'order_number' => $order->order_number, ...self::lineMetadata($order)],
             ], ['idempotency_key' => 'rmf-pi-'.$order->order_number.'-'.$order->total_cents]);
         } catch (ApiErrorException $e) {
             throw new PaymentFailure($e->getMessage());

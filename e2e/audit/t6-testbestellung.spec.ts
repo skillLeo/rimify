@@ -57,8 +57,9 @@ test('Aufgabe 6: eine Testbestellung, im Admin gefunden, versendet, zugestellt, 
     await page.waitForURL(/\/kasse\/testzahlung\//, { timeout: 30_000 });
     await ready(page);
     await page.getByRole('button', { name: 'Zahlung erfolgreich' }).click();
-    await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 });
-    const number = decodeURIComponent(page.url().split('/').pop() ?? '');
+    await page.waitForURL(/\/bestellung\/[0-9a-f]{8}-[0-9a-f]{4}-4/, { timeout: 30_000 });
+    // The address carries the order's public id (D-354); its number stands on the page.
+    const number = (await page.locator('.ord__number').first().innerText()).trim();
     record('t6.jsonl', { step: 'bestellt', number, mails: mailsSince(logStart) });
 
     // The admin: found by its number, opened.

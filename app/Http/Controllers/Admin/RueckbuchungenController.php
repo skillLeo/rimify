@@ -16,6 +16,7 @@ use App\Payments\Payments;
 use App\Services\Admin\AuditTrail;
 use App\Services\Commerce\Invoices;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -73,6 +74,8 @@ class RueckbuchungenController extends Controller
         return Inertia::render('Admin/Rueckbuchungen/Index', [
             'disputes' => $disputes->map(static fn (Dispute $dispute): array => self::row($dispute))->all(),
             'canRespond' => $admin instanceof AdminUser && $admin->may(PermissionModule::Orders, PermissionAction::Edit),
+            // Whether an invoice of the shop's own goes with the evidence (D-348): off, none is named.
+            'ownInvoices' => OwnInvoices::enabled(),
         ]);
     }
 

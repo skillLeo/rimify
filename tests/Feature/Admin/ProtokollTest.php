@@ -530,6 +530,8 @@ describe('putting every entry into words', function (): void {
                 ['Vom Anwalt geprüft: nein → ja'],
             ],
             'page.withdrawn' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen'], 'Der Blog-Artikel „ET richtig lesen“ wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            'page.deleted' => [['page' => 'ET richtig lesen', 'slug' => 'et-richtig-lesen', 'was_published' => true], 'Der Blog-Artikel „ET richtig lesen“ wurde gelöscht und ist nicht mehr im Shop zu sehen. Seine veröffentlichten Fassungen bleiben gespeichert.', []],
+            'home.shelf_picked' => [['before' => [], 'after' => ['Borbet DB8GT2 · Schwarz matt', 'Borbet Y · Kristallsilber']], 'Die Auswahl für „Meistgekaufte Felgen“ auf der Startseite wurde geändert: „Borbet DB8GT2 · Schwarz matt“ und „Borbet Y · Kristallsilber“ (vorher: keine).', []],
             'faq.created' => [['question' => 'Wie lange dauert die Lieferung?', 'published' => false], 'Die Frage „Wie lange dauert die Lieferung?“ wurde angelegt; sie ist noch ausgeblendet.', []],
             'faq.updated' => [
                 ['question' => 'Wie lange dauert der Versand?', 'old_question' => 'Wie lange dauert die Lieferung?', 'changed' => ['question_de', 'answer_de', 'published'], 'published' => ['old' => false, 'new' => true]],
@@ -556,6 +558,27 @@ describe('putting every entry into words', function (): void {
             'wheel.image_removed' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Das Foto der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde entfernt.', []],
             'wheel.images_reordered' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Die Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurden neu geordnet.', []],
             'wheel.image_relabelled' => [['name' => 'Nordfelge Fjord', 'finish' => 'Graphit matt'], 'Der Alternativtext eines Fotos der Felge „Nordfelge Fjord“ in „Graphit matt“ wurde geändert.', []],
+            'wheel.rating_stated' => [
+                ['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)', 'before' => '4,7 (9 Bewertungen)'],
+                'Für die Felge „Nordfelge Fjord“ stehen jetzt Sterne von Hand im Shop: 4,9 (13 Bewertungen).',
+                ['Sterne: 4,7 (9 Bewertungen) → 4,9 (13 Bewertungen)'],
+            ],
+            'wheel.rating_removed' => [['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)'], 'Die Sterne von Hand der Felge „Nordfelge Fjord“ – 4,9 (13 Bewertungen) – wurden entfernt. Der Shop zeigt sie nicht mehr.', []],
+            'order.confirmation_not_mailed' => [
+                ['order' => 'RMF-2026-00042'],
+                'Die Bestellbestätigung zur Bestellung „RMF-2026-00042“ wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                [],
+            ],
+            'contact.recipient_changed' => [
+                ['before' => 'kontakt@beispiel.de', 'after' => 'info@beispiel.de'],
+                'Neue Nachrichten aus dem Kontaktformular gehen jetzt an info@beispiel.de.',
+                ['Empfänger: kontakt@beispiel.de → info@beispiel.de'],
+            ],
+            'reviews.disclosure_changed' => [
+                ['before' => 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.', 'after' => ''],
+                'Der Hinweis neben den Sternen von Hand wurde geleert. Der Shop zeigt keine Sterne von Hand mehr.',
+                ['Hinweis: „Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.“ → –'],
+            ],
             'page.image_uploaded' => [['page' => 'Felgen richtig auswählen', 'file' => '01jabc.jpg'], 'Für den Blog-Artikel „Felgen richtig auswählen“ wurde ein Bild hochgeladen („01jabc.jpg“). Im Shop erscheint es erst, wenn ein Entwurf mit diesem Bild veröffentlicht wird.', []],
             'tyre.created' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'offered' => false], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde angelegt; der Shop bietet ihn nicht an – er ist nicht verfügbar oder sein EU-Reifenlabel ist unvollständig.', []],
             'tyre.updated' => [['name' => 'Continental PremiumContact 7 225/45 R18 95Y', 'changed' => ['eprel_id', 'price_cents'], 'offered' => true], 'Der Reifen „Continental PremiumContact 7 225/45 R18 95Y“ wurde geändert (EPREL-Nummer, Preis); der Shop bietet ihn an.', []],

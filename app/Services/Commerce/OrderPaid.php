@@ -7,6 +7,8 @@ namespace App\Services\Commerce;
 use App\Mail\OrderConfirmationMail;
 use App\Models\Order;
 use App\Services\Admin\AuditTrail;
+use App\Support\MailDelivery;
+use App\Support\OwnInvoices;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
@@ -33,9 +35,10 @@ final class OrderPaid
 
         // A demo order — a test purchase in the acceptance set — never counts in a real figure, and an invoice is one:
         // it would take the next number of the §14 series. The confirmation goes out and says why there is none (D-239).
+        // With the shop's own invoices off (D-348) none is issued at all: Stripe issues it.
         $invoice = null;
 
-        if (! $order->isDemo()) {
+        if (! $order->isDemo() && OwnInvoices::enabled()) {
             try {
                 $invoice = $this->invoices->issueFor($order);
             } catch (Throwable $e) {
@@ -54,7 +57,9 @@ final class OrderPaid
 
         try {
             Mail::to($email)->send(new OrderConfirmationMail($order, $invoice));
-            AuditTrail::system('System', 'order.confirmation_sent', ['order' => $order->order_number, 'invoice' => $invoice?->number], $order);
+            // „Verschickt“ only where the mail left the server: the confirmation page tells the customer it is in their
+            // inbox on this entry alone. A shop whose mailer writes to the log — the preview — records that (D-347).
+            AuditTrail::system('System', MailDelivery::real() ? 'order.confirmation_sent' : 'order.confirmation_not_mailed', ['order' => $order->order_number, 'invoice' => $invoice?->number], $order);
         } catch (Throwable $e) {
             report($e);
             AuditTrail::system('System', 'order.confirmation_failed', ['order' => $order->order_number, 'error' => mb_substr($e->getMessage(), 0, 250)], $order);

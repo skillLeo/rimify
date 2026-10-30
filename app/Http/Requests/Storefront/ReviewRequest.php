@@ -45,9 +45,9 @@ class ReviewRequest extends FormRequest
 
     public function order(): ?Order
     {
-        $number = $this->route('number');
+        $number = $this->route('order');
 
-        return is_string($number) ? Order::query()->where('order_number', $number)->first() : null;
+        return is_string($number) ? Order::query()->where('public_id', $number)->first() : null;
     }
 
     /** @return array<int|string, array{rating: int, body?: string|null}> */

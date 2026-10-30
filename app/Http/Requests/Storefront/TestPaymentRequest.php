@@ -45,7 +45,7 @@ class TestPaymentRequest extends FormRequest
         $number = $this->route('order');
 
         return is_string($number)
-            ? Order::query()->where('order_number', $number)->where('status', OrderStatus::PendingPayment->value)->first()
+            ? Order::query()->where('public_id', $number)->where('status', OrderStatus::PendingPayment->value)->first()
             : null;
     }
 }

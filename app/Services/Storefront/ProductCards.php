@@ -12,6 +12,8 @@ use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\TyreCheck;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\CatalogueStatus;
+use App\Services\Admin\Catalogue\StatedRatings;
+use App\Support\AvailabilityEnquiry;
 use App\Support\DemoWheels;
 use App\Support\GermanFormat;
 use App\Support\WheelTitle;
@@ -73,6 +75,8 @@ final readonly class ProductCards
             : $this->resolver->resolveManyForVehicle($vehicle, array_merge([], ...array_values($configIds)));
 
         $cards = [];
+        // The sentence beside typed stars (#19, D-345), read once for the page.
+        $disclosure = StatedRatings::disclosure();
 
         foreach ($result['rows'] as $row) {
             $key = (int) ($row['model_id'] ?? 0).':'.(int) ($row['finish_id'] ?? 0);
@@ -82,6 +86,7 @@ final readonly class ProductCards
                 $presentation,
                 $diameters,
                 $this->claim($verdicts, $configIds[$key] ?? [], $diameterOf),
+                $disclosure,
             );
         }
 
@@ -99,7 +104,7 @@ final readonly class ProductCards
         }
 
         return [
-            'cards' => $cards,
+            'cards' => $this->withEnquiries($cards, $configIds),
             'total' => $result['total'],
             'missing' => array_values(array_intersect(['bodyForm', 'driveAxle'], array_keys($missing))),
             'owed' => array_values(array_intersect(TyreCheck::PAPERS_FIELDS, array_keys($owed))),
@@ -293,7 +298,7 @@ final readonly class ProductCards
             ->when($withImageOnly, fn ($q) => $q->whereNotNull('wf.image_manifest'))
             ->tap(fn ($q) => self::applyFilters($q, $filters))
             ->groupBy(
-                'wm.id', 'wm.name', 'wm.type_designation', 'wm.title', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.created_at',
+                'wm.id', 'wm.name', 'wm.type_designation', 'wm.title', 'wm.slug', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.stated_rating', 'wm.stated_rating_count', 'wm.created_at',
                 'wm.is_demo', 'br.name', 'wf.id', 'wf.name_de', 'wf.art_finish', 'wf.image_manifest',
             )
             ->when($maxPriceCents !== null, fn ($q) => $q->havingRaw('MIN(wc.price_cents) <= ?', [(int) $maxPriceCents]))
@@ -321,6 +326,8 @@ final readonly class ProductCards
                 'wm.spoke_count',
                 'wm.rating',
                 'wm.rating_count',
+                'wm.stated_rating',
+                'wm.stated_rating_count',
                 'wm.is_demo',
                 'br.name as brand_name',
                 'wf.id as finish_id',
@@ -334,6 +341,8 @@ final readonly class ProductCards
             ]);
 
         $cards = [];
+        // The sentence beside typed stars (#19, D-345), read once for the page.
+        $disclosure = StatedRatings::disclosure();
 
         foreach ($rows as $row) {
             $cards[] = $this->card(
@@ -354,10 +363,11 @@ final readonly class ProductCards
                 fitment: null,
                 image: $this->manifest($row->image_manifest),
                 isDemo: (bool) $row->is_demo,
+                statedRating: StatedRatings::forValues($row->stated_rating, $row->stated_rating_count, $disclosure),
             );
         }
 
-        return $cards;
+        return $this->withEnquiries($cards);
     }
 
     /**
@@ -431,19 +441,19 @@ final readonly class ProductCards
      * about this card's configurations on the chosen car.
      *
      * @param  array<string, mixed>  $row
-     * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>  $presentation
+     * @param  array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, stated_rating: mixed, stated_rating_count: mixed, image: array<string, mixed>|null, is_demo: bool}>  $presentation
      * @param  array<string, list<string>>  $diameters
      * @param  array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
      * @return array<string, mixed>
      */
-    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim): array
+    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim, string $disclosure): array
     {
         $modelId = (int) ($row['model_id'] ?? 0);
         $finishId = (int) ($row['finish_id'] ?? 0);
         $key = $modelId.':'.$finishId;
 
         $look = $presentation[$key] ?? [
-            'art_finish' => 'graphite', 'spoke_count' => 5, 'rating' => null, 'rating_count' => 0, 'image' => null, 'is_demo' => false,
+            'art_finish' => 'graphite', 'spoke_count' => 5, 'rating' => null, 'rating_count' => 0, 'stated_rating' => null, 'stated_rating_count' => null, 'image' => null, 'is_demo' => false,
         ];
 
         $diametersFitting = $claim['diametersFitting'];
@@ -468,6 +478,7 @@ final readonly class ProductCards
             image: $look['image'],
             isDemo: $look['is_demo'],
             diametersFitting: $diametersFitting,
+            statedRating: StatedRatings::forValues($look['stated_rating'], $look['stated_rating_count'], $disclosure),
         );
     }
 
@@ -476,6 +487,7 @@ final readonly class ProductCards
      * @param  array<string, mixed>|null  $fitment
      * @param  array<string, mixed>|null  $image
      * @param  list<string>|null  $diametersFitting  the sizes a document permits on the vehicle; null without one
+     * @param  array{label: string, disclosure: string}|null  $statedRating  stars typed in the admin and the sentence beside them (#19, D-345)
      * @return array<string, mixed>
      */
     private function card(
@@ -496,6 +508,7 @@ final readonly class ProductCards
         ?array $image,
         bool $isDemo,
         ?array $diametersFitting = null,
+        ?array $statedRating = null,
     ): array {
         return [
             'modelId' => $modelId,
@@ -516,10 +529,14 @@ final readonly class ProductCards
             'rating' => $rating,
             'ratingCount' => $ratingCount,
             'ratingLabel' => $rating === null ? null : GermanFormat::rating($rating, $ratingCount),
+            // Stars typed in the admin, under the name with the sentence beside them; null without either (#19, D-345).
+            'statedRating' => $statedRating,
             'fromPriceCents' => $fromPriceCents,
             'fromPrice' => GermanFormat::money($fromPriceCents),
             // Available or not (his admin item 7, D-299): the shop sells no count.
             'inStock' => $available,
+            // Not available in any size: the subject of the card's „Anfrage“ (D-350), filled in by withEnquiries().
+            'enquiry' => null,
             'diameters' => $diameters,
             // With a vehicle: the subset of `diameters` a document permits on it, same spelling.
             // Null without a vehicle — no size is claimed to fit anything.
@@ -533,7 +550,7 @@ final readonly class ProductCards
      *
      * @param  list<int>  $modelIds
      * @param  list<int>  $finishIds
-     * @return array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, image: array<string, mixed>|null, is_demo: bool}>
+     * @return array<string, array{art_finish: string, spoke_count: int, rating: float|null, rating_count: int, stated_rating: mixed, stated_rating_count: mixed, image: array<string, mixed>|null, is_demo: bool}>
      */
     private function presentationFor(array $modelIds, array $finishIds): array
     {
@@ -545,7 +562,7 @@ final readonly class ProductCards
             ->join('wheel_finishes as wf', 'wf.wheel_model_id', '=', 'wm.id')
             ->whereIn('wm.id', $modelIds)
             ->whereIn('wf.id', $finishIds)
-            ->get(['wm.id as model_id', 'wf.id as finish_id', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.is_demo', 'wf.art_finish', 'wf.image_manifest']);
+            ->get(['wm.id as model_id', 'wf.id as finish_id', 'wm.spoke_count', 'wm.rating', 'wm.rating_count', 'wm.stated_rating', 'wm.stated_rating_count', 'wm.is_demo', 'wf.art_finish', 'wf.image_manifest']);
 
         $out = [];
 
@@ -555,6 +572,8 @@ final readonly class ProductCards
                 'spoke_count' => (int) $row->spoke_count,
                 'rating' => $row->rating === null ? null : (float) $row->rating,
                 'rating_count' => (int) $row->rating_count,
+                'stated_rating' => $row->stated_rating,
+                'stated_rating_count' => $row->stated_rating_count,
                 'image' => $this->manifest($row->image_manifest),
                 'is_demo' => (bool) $row->is_demo,
             ];
@@ -604,6 +623,55 @@ final readonly class ProductCards
         }
 
         return $out;
+    }
+
+    /**
+     * The „Anfrage“ of a card not available in any size (his admin item 7, D-350): its subject names the rim and the sizes
+     * the card stands for — on a car's listing, those it shows for that car. One query for the page, and only where a card
+     * needs one.
+     *
+     * @param  list<array<string, mixed>>  $cards
+     * @param  array<string, list<int>>|null  $configIds  a car's listing: the sizes of each card on it; null in the catalogue
+     * @return list<array<string, mixed>>
+     */
+    private function withEnquiries(array $cards, ?array $configIds = null): array
+    {
+        $wanted = array_values(array_filter($cards, static fn (array $card): bool => $card['inStock'] === false));
+
+        if ($wanted === []) {
+            return $cards;
+        }
+
+        $rows = DB::table('wheel_configs')
+            ->whereIn('wheel_model_id', array_values(array_unique(array_map(static fn (array $card): int => (int) $card['modelId'], $wanted))))
+            ->whereIn('wheel_finish_id', array_values(array_unique(array_map(static fn (array $card): int => (int) $card['finishId'], $wanted))))
+            ->whereNull('deleted_at')
+            ->orderBy('diameter_in')
+            ->orderBy('width_in')
+            ->orderBy('et_mm')
+            ->orderBy('id')
+            ->get(['id', 'wheel_model_id', 'wheel_finish_id', 'width_in', 'diameter_in', 'et_mm']);
+
+        $sizes = [];
+
+        foreach ($rows as $row) {
+            $key = $row->wheel_model_id.':'.$row->wheel_finish_id;
+
+            if ($configIds !== null && ! in_array((int) $row->id, $configIds[$key] ?? [], true)) {
+                continue;
+            }
+
+            $sizes[$key][] = ['width' => (string) $row->width_in, 'diameter' => (string) $row->diameter_in, 'et' => (int) $row->et_mm];
+        }
+
+        foreach ($cards as $i => $card) {
+            if ($card['inStock'] === false) {
+                $rim = trim($card['brandName'].' '.$card['modelName'].' '.$card['finishName']);
+                $cards[$i]['enquiry'] = AvailabilityEnquiry::forSizes($rim, $sizes[$card['compareKey']] ?? []);
+            }
+        }
+
+        return $cards;
     }
 
     /** @return list<string> */

@@ -2,6 +2,7 @@
 // desktop) and the small argument parser. Every script in this folder runs against a server that is
 // already up — the production build with SSR on: QA_BASE_URL, else the suite's development shop
 // (E2E_BASE_URL, or E2E_ADMIN_PORT's), and only then :8000 — which may be another project's on this machine.
+import { execFileSync } from 'node:child_process'
 import { chromium, firefox, webkit } from '@playwright/test'
 
 export const BASE = process.env.QA_BASE_URL ?? process.env.E2E_BASE_URL ?? `http://127.0.0.1:${process.env.E2E_ADMIN_PORT ?? 8000}`
@@ -20,7 +21,7 @@ export const ROUTES = [
     '/rimify-check',
     '/warenkorb',
     '/kasse',
-    '/bestellung/RMF-2026-1001',
+    '/bestellung/{order}',
     '/faq',
     '/kontakt',
     '/rechtliches',
@@ -108,6 +109,8 @@ export async function newContext(browser, width, height, mobile, { consent = tru
  * have renamed. Resolved once per run.
  */
 export async function resolveRoutes(context, routes) {
+    routes = routes.map((r) => (r.includes('{order}') ? r.replace('{order}', orderId()) : r))
+
     if (!routes.some((r) => r.includes('{product}'))) {
         return routes
     }
@@ -126,6 +129,35 @@ export async function resolveRoutes(context, routes) {
     }
 
     return routes.map((r) => r.replace('{product}', href.replace('/felgen/', '')))
+}
+
+/**
+ * An order page anyone may open: a seeded order's, by its public id (D-354). The number is no part of its address and
+ * the id is random, so it is looked up — `QA_ORDER`, else the newest seeded order of the database behind a server on
+ * this machine. Never guessed and never skipped: without one the gate cannot see the order page, and it fails.
+ */
+function orderId() {
+    if (process.env.QA_ORDER) {
+        return process.env.QA_ORDER
+    }
+
+    let id = ''
+
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) {
+        const read = "echo App\\Models\\Order::query()->where('origin', App\\Models\\Order::ORIGIN_SEEDED)->whereNotNull('public_id')->latest('id')->value('public_id');"
+
+        try {
+            id = execFileSync(process.env.PHP_BINARY ?? 'php', ['artisan', 'tinker', '--execute', read], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+        } catch {
+            id = ''
+        }
+    }
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        throw new Error(`Keine Bestellung zum Prüfen auf ${BASE}: /bestellung/{order} braucht die öffentliche ID einer Bestellung, die ohne Anmeldung aufgeht (QA_ORDER).`)
+    }
+
+    return id
 }
 
 /**

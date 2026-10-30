@@ -25,8 +25,9 @@ final class QuickActions
     {
         $actions = [];
 
-        if ($this->built('/admin/seiten') && $user->may(PermissionModule::Content, PermissionAction::View) && $user->may(PermissionModule::Content, PermissionAction::Create)) {
-            $actions[] = ['key' => 'ratgeber', 'label' => 'Blog-Artikel anlegen', 'href' => '/admin/seiten?neu=1', 'icon' => 'guides'];
+        // Inhalte › Ratgeber makes them since his admin item 12 (D-351).
+        if ($this->built('/admin/ratgeber') && $user->may(PermissionModule::Content, PermissionAction::View) && $user->may(PermissionModule::Content, PermissionAction::Create)) {
+            $actions[] = ['key' => 'ratgeber', 'label' => 'Ratgeber-Artikel anlegen', 'href' => '/admin/ratgeber?neu=1', 'icon' => 'guides'];
         }
 
         if ($this->built('/admin/benutzer') && $user->may(PermissionModule::Roles, PermissionAction::View) && $user->may(PermissionModule::Roles, PermissionAction::Create)) {

@@ -33,7 +33,8 @@ interface DisputeRow {
     outcome: string | null
 }
 
-const props = defineProps<{ disputes: DisputeRow[]; canRespond: boolean }>()
+/** `ownInvoices`: whether the shop's own invoice goes with the evidence (D-348); absent in older fixtures: on. */
+const props = withDefaults(defineProps<{ disputes: DisputeRow[]; canRespond: boolean; ownInvoices?: boolean }>(), { ownInvoices: true })
 
 const page = usePage()
 const errors = computed<Record<string, string>>(() => {
@@ -108,7 +109,7 @@ function send(): void {
     <AdminPage title="Rückbuchungen" :context="context" :read-only="!canRespond">
         <p class="adm-note rb__lead">
             Eine Rückbuchung holt eine Zahlung über die Bank zurück. Bis zur Frist kannst du einmal antworten: was bestellt,
-            wann versandt und zugestellt wurde – die Rechnung geht von selbst mit.
+            wann versandt und zugestellt wurde{{ ownInvoices !== false ? ' – die Rechnung geht von selbst mit.' : '.' }}
         </p>
 
         <ul v-if="disputes.length" class="rb__list">
@@ -161,7 +162,7 @@ function send(): void {
         <AdminConfirm
             v-model:open="confirmOpen"
             title="Nachweise senden?"
-            body="Stripe nimmt pro Rückbuchung eine Antwort an; danach entscheidet die Bank. Die Rechnung geht mit."
+            :body="`Stripe nimmt pro Rückbuchung eine Antwort an; danach entscheidet die Bank.${ownInvoices !== false ? ' Die Rechnung geht mit.' : ''}`"
             confirm-label="Senden"
             :busy="busy"
             @confirm="send"

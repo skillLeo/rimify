@@ -210,9 +210,10 @@ async function card(): Promise<Buffer> {
 
 test('a Blog article built from blocks: a picture uploaded with its description, a table typed cell by cell, a quote', { tag: '@admin-211' }, async ({ page }, info) => {
     await admin(page)
-    await page.goto(`${ABNAHME}/admin/seiten`, { waitUntil: 'networkidle' })
-    await page.locator('a.sn__link', { hasText: 'HSN und TSN finden' }).first().click()
-    await page.waitForURL(/\/admin\/seiten\/\d+$/)
+    // The articles have their own page since his admin item 12 (D-351).
+    await page.goto(`${ABNAHME}/admin/ratgeber`, { waitUntil: 'networkidle' })
+    await page.locator('a.rg__link', { hasText: 'HSN und TSN finden' }).first().click()
+    await page.waitForURL(/\/admin\/ratgeber\/\d+$/)
 
     const blocks = page.locator('section[id^="pg-section-"]')
     const before = await blocks.count()
@@ -425,11 +426,31 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
 
     await page.goto(`${ABNAHME}/felgen/${slug}`, { waitUntil: 'networkidle' })
     await expect(page.locator('.pdp__stock')).toHaveText('Nicht verfügbar')
-    // The way on under the tag; the button keeps its words and is switched off.
+    // The way on under the tag, and „Anfrage“ in the basket button's place (his item 207 answered, D-350): the contact
+    // form, the rim, its size and its ET as the subject. No button puts it in the basket.
     await expect(page.locator('.pdp__unavailable')).toHaveText('Diese Felge ist zurzeit in keiner Größe oder Farbe verfügbar.')
-    await expect(page.locator('button.pdp__add')).toHaveText('In den Warenkorb')
-    await expect(page.locator('button.pdp__add')).toBeDisabled()
-    await shotAround(page, [page.locator('.pdp__each'), page.locator('.pdp__stock'), page.locator('.pdp__unavailable'), page.locator('button.pdp__add')], 207, info)
+    const enquiry = page.locator('a.pdp__enquiry')
+    await expect(enquiry).toHaveText('Anfrage')
+    await expect(page.locator('button.pdp__add')).toHaveCount(0)
+    const rim = `Beispielmarke ${model} BM 18`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const subject = new URL((await enquiry.getAttribute('href')) ?? '', ABNAHME).searchParams.get('betreff') ?? ''
+    expect(subject).toMatch(new RegExp(`^Anfrage zur Verfügbarkeit: ${rim} .+, \\d+(,\\d+)?J × \\d+(,\\d)?, ET -?\\d+$`))
+    await shotAround(page, [page.locator('.pdp__each'), page.locator('.pdp__stock'), page.locator('.pdp__unavailable'), enquiry], 207, info)
+
+    // The form opens with that subject, the visitor writes name, e-mail and message only.
+    await enquiry.click()
+    await page.waitForURL((url) => url.pathname === '/kontakt')
+    await expect(page.locator('#kon-subject')).toHaveValue(subject)
+    await expect(page.locator('#kon-name')).toHaveValue('')
+    await expect(page.locator('#kon-message')).toHaveValue('')
+
+    // On the card in the listing, the same: „Anfrage“ where „Details ansehen“ stood, the card still opens the product page.
+    await page.goto(`${ABNAHME}/felgen?marke=Beispielmarke`, { waitUntil: 'networkidle' })
+    const card = page.locator('article.tile').filter({ hasText: model }).first()
+    await expect(card.locator('.tile__enquiry')).toHaveText('Anfrage')
+    await expect(card.locator('.tile__cta')).toHaveCount(0)
+    expect(new URL((await card.locator('.tile__enquiry').getAttribute('href')) ?? '', ABNAHME).searchParams.get('betreff')).toMatch(/^Anfrage zur Verfügbarkeit: /)
+    await expect(card.locator('.tile__name--link')).toHaveAttribute('href', new RegExp(`^/felgen/${slug}\\?ausfuehrung=\\d+$`))
 })
 
 test('a tyre made in the admin with its EU label: offered once the label is complete, and listed @admin-210', async ({ page }, info) => {

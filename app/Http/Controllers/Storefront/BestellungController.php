@@ -19,6 +19,7 @@ use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -32,10 +33,10 @@ use Throwable;
  * receipt for what they were told, and re-deriving it would mean the page could one day disagree
  * with the email they were sent.
  *
- * An order number counts up, so it is no secret: an order that came through the checkout is shown
- * only through its signed link, to the browser that placed it, or to the account it was placed
- * under — whatever it contains (OrderAccess). Anyone else gets the same 404 as an order that does
- * not exist. Only an order a seeder wrote opens by number.
+ * An order's address carries its public id, a random UUID, never its number (his admin item 18, D-354) — and the id is
+ * no key on its own either: an order that came through the checkout is shown only through its signed link, to the
+ * browser that placed it, or to the account it was placed under — whatever it contains (OrderAccess). Anyone else gets
+ * the same 404 as an order that does not exist. Only an order a seeder wrote opens by its id alone.
  */
 class BestellungController extends Controller
 {
@@ -53,9 +54,10 @@ class BestellungController extends Controller
 
     public function show(Request $request, string $order, Basket $basket): Response
     {
+        // By its public id (his admin item 18, D-354): the number is no part of any address; an old link with it is a 404.
         $record = Order::query()
             ->with(['lines.fitmentSnapshot', 'deliveryAddress', 'customer'])
-            ->where('order_number', $order)
+            ->where('public_id', $order)
             ->firstOrFail();
 
         // Provenance, never content, decides who sees it (OrderAccess, EIGENE-FUNDE 131).
@@ -89,6 +91,8 @@ class BestellungController extends Controller
                 'quantity' => (int) $line->quantity,
                 'unitPrice' => GermanFormat::money((int) $line->unit_price_cents),
                 'lineTotal' => GermanFormat::money((int) $line->line_total_cents),
+                // A Komplettrad's rows, each its own line as in the basket and the checkout (his #15, D-355).
+                'components' => $line->componentRows(),
                 'verdict' => $snapshot === null ? null : [
                     'status' => $snapshot->verdict_status,
                     // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, as the product page said it.
@@ -109,6 +113,8 @@ class BestellungController extends Controller
         return Inertia::render('Bestellung/Index', [
             'order' => [
                 'number' => $record->order_number,
+                // The key of the page's own requests — its status, the account offer (D-354).
+                'publicId' => $record->public_id,
                 'status' => $record->status->value,
                 'statusLabel' => $record->status->labelDe(),
                 'placedAt' => GermanFormat::dateTime($record->placed_at),
@@ -129,8 +135,10 @@ class BestellungController extends Controller
             // Where the payment stands, in the page's words — and whether the page should keep asking. A seeded order
             // was never paid; a test purchase was (the test payment), and walks the whole path.
             'payment' => $demo && $record->seeded() ? null : self::payment($record, $request->query('redirect_status'), $proof === OrderAccess::LINK),
-            // The §14 invoice as issued, by a signed link — never to a seeded order.
+            // The §14 invoice as issued, by a signed link — never to a seeded order. Issued before the shop's own invoices
+            // were switched off it stays readable; the words around it follow the switch (D-348).
             'invoice' => $demo ? null : self::invoice($record),
+            'ownInvoices' => OwnInvoices::enabled(),
             // „Konto anlegen“ in one click, once paid, for the browser that placed it and no account yet (Block G §2).
             'accountOffer' => ! $demo && $record->status->isPaid() && is_array($placed) && in_array($record->order_number, $placed, true)
                 && $request->user('customer') === null

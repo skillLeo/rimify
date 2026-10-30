@@ -21,10 +21,22 @@ final class ReviewWriter
 {
     public function __construct(private readonly ReviewSummary $summary) {}
 
-    /** Whether this order's buyer may review now: delivered, real. */
+    /** The review's stand-in for a payment provider (App\Payments\SandboxGateway). */
+    private const SANDBOX = 'sandbox';
+
+    /**
+     * Whether this order's buyer may review now: delivered — completed, or partly refunded and so still invited
+     * (InviteReviews) — and paid for real. Never a demonstration, never the review's sandbox, never an order with a
+     * payment in Stripe's test mode: no money moved, so there is no purchase to verify (D-147's rule, as the bestseller
+     * count reads it; the operator's brief of 29.10.2026). A purged order has no row, and so no page.
+     */
     public static function open(Order $order): bool
     {
-        return $order->status === OrderStatus::Completed && $order->delivered_at !== null && ! $order->isDemo();
+        return in_array($order->status, [OrderStatus::Completed, OrderStatus::PartiallyRefunded], true)
+            && $order->delivered_at !== null
+            && ! $order->isDemo()
+            && $order->payment_method !== self::SANDBOX
+            && ! DB::table('payment_events')->where('order_id', $order->id)->where('livemode', false)->exists();
     }
 
     /**

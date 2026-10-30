@@ -32,8 +32,9 @@ const changeHref = useVehicleChangeHref()
 
 const vehicle = computed(() => shared.value.vehicle)
 const page = usePage()
-/* The basket left of the menu on a phone (#13, D-122) — not on the basket and the checkout themselves. */
-const showCart = computed(() => !/^\/(warenkorb|kasse)(\/|\?|$)/.test(page.url))
+/* The basket left of the menu on a phone (#13, D-122) — on every page, the basket and the checkout included, so no icon
+   moves from one page to the next (#35, D-349). On the basket itself it says so to a screen reader. */
+const onBasket = computed(() => /^\/warenkorb(\/|\?|$)/.test(page.url))
 
 /* Scrolled or not, decided by a sentinel above the header rather than a scroll listener. */
 const sentinel = ref<HTMLElement | null>(null)
@@ -128,12 +129,12 @@ function removeVehicle(): void {
                     <Icon name="car" :size="24" />
                 </Link>
 
-                <!-- The basket, left of the menu, with its count (the client's #13, D-122). -->
-                <CartButton v-if="showCart" class="until-lg" />
+                <!-- The basket, left of the menu, with its count (the client's #13, D-122), on every page (#35). -->
+                <CartButton class="until-lg" :aria-current="onBasket ? 'page' : undefined" />
 
                 <!-- The menu: on a phone the destinations live in it rather than in a bar across the bottom of
                      every page. -->
-                <MainMenu class="until-lg" :count-on-button="!showCart" />
+                <MainMenu class="until-lg" :count-on-button="false" />
 
                 <Link
                     href="/warenkorb"
@@ -164,6 +165,9 @@ function removeVehicle(): void {
     position: sticky;
     top: 0;
     z-index: var(--z-header);
+    /* Clear of the status bar of a phone that opens the shop as an app; nothing anywhere else. The panels that hang
+       under the header add the same inset (AddedPanel, the sticky rows in components.css). */
+    padding-top: env(safe-area-inset-top);
     background: var(--c-surface);
 }
 

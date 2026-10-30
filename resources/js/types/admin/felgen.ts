@@ -62,8 +62,24 @@ export interface WheelCan {
     create: boolean
     edit: boolean
     publish: boolean
+    /** Stars typed for a rim (#19, D-344): who may change and publish the catalogue. */
+    rate: boolean
     archive: boolean
     import: boolean
+}
+
+/** Stars typed for one rim (#19, D-344, D-345), as the admin's card shows them: typed the German way, and the shop's line. */
+export interface StatedRatingProp {
+    rating: string
+    count: string
+    /** `4,9 (13 Bewertungen)` — what the shop shows, the sentence beside it. */
+    label: string
+}
+
+/** The one sentence beside every rim's typed stars (D-345): as it stands, and the agreed default. Empty: no typed stars render. */
+export interface StatedDisclosureProp {
+    text: string
+    default: string
 }
 
 export interface AdminFelgenProps {
@@ -194,6 +210,10 @@ export interface AdminFelgeProps {
     check: { blockers: string[]; hints: string[] } | null
     brands: { value: number; label: string }[]
     options: { spokes: number[]; boltHoles: number[]; artFinishes: WheelOption[]; maxPhotos: number }
+    /** Stars typed for this rim (#19, D-344); null while there are none or for a new Felge. */
+    statedRating: StatedRatingProp | null
+    /** The sentence beside every rim's typed stars (D-345). Optional in older fixtures. */
+    statedDisclosure?: StatedDisclosureProp
     can: WheelCan
 }
 

@@ -46,8 +46,8 @@ it('opens an order that came through the checkout to nobody who merely knows its
     expect($order->origin)->toBe(Order::ORIGIN_CHECKOUT)
         ->and($order->seeded())->toBeFalse();
 
-    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
-    $this->getJson('/bestellung/'.$order->order_number.'/status')->assertNotFound();
+    $this->get('/bestellung/'.$order->public_id)->assertNotFound();
+    $this->getJson('/bestellung/'.$order->public_id.'/status')->assertNotFound();
 })->with(['a real wheel' => [false], 'the acceptance set\'s wheel' => [true]]);
 
 it('opens it through its signed link — and an order with a demo line says it is demonstration data', function (): void {
@@ -63,17 +63,17 @@ it('opens an order a seeder wrote by its number', function (): void {
 
     expect($order->seeded())->toBeTrue();
 
-    $this->get('/bestellung/'.$order->order_number)->assertOk();
+    $this->get('/bestellung/'.$order->public_id)->assertOk();
 });
 
 it('opens a seeded demo order by number only while the demo data is there — afterwards its number answers 404 @admin-218', function (): void {
     $order = Order::factory()->seeded()->create(['is_demo' => true, 'demo_ref' => 'demo:order:verschwindet']);
 
-    $this->get('/bestellung/'.$order->order_number)->assertOk();
+    $this->get('/bestellung/'.$order->public_id)->assertOk();
 
     app(DemoPurge::class)->run('Test', null, catalogue: false);
 
-    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+    $this->get('/bestellung/'.$order->public_id)->assertNotFound();
 });
 
 it('never lets an order become a seeded one after the fact', function (): void {

@@ -18,7 +18,7 @@ final class ReviewLink
         return URL::temporarySignedRoute(
             'bewertung.show',
             now()->addDays(max(1, (int) config('rimify.reviews.link_days', 60))),
-            ['number' => $order->order_number],
+            ['order' => $order->public_id],
         );
     }
 }

@@ -139,9 +139,10 @@ const rendered = computed(() => {
         { id: 'h4', on: true },
         { id: 'h5', on: props.popular !== null || props.recentlyViewed.length > 0 },
         { id: 'h6', on: sizes.value.length > 0 || props.brands.length > 0 },
-        // The turning wheel (P6, the client's #9) stands where it stands on the desktop: with the photographed wheel, the
-        // tyre's label beside it only where a tyre has a verified one.
-        { id: 'h7', on: tyre.value !== null || (props.komplettrad.wheel ?? null) !== null, dark: true },
+        // The turning wheel (P6, the client's #9) stands always, as on the desktop: since D-346 it turns the illustration
+        // (no wheel sent), and a band waiting for a photographed wheel or a labelled tyre vanished from the phone wherever
+        // neither exists — the acceptance shop's (the client list, 30.10.2026). The tyre's label only where it is verified.
+        { id: 'h7', on: true, dark: true },
         // H8 explains the hero wheel's own values; without them there is no section (ACCURACY §4).
         { id: 'h8', on: rimFactsOf(props.photoWheel) !== null },
         { id: 'h9', on: props.partners.enabled },

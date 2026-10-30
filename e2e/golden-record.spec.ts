@@ -1,4 +1,7 @@
 import { execFileSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
 
@@ -171,6 +174,12 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         await expect(page.locator('#zl-edit')).toBeVisible({ timeout: 20_000 })
         await shot(page, '03b-zaehlung')
     } else {
+        // The placeholder another checkout typed: the checkouts share the admin's database, not its disk. Its own PDF —
+        // the same bytes, by their SHA-256 — goes back where it is expected, where this disk lacks it (29.10.2026: the
+        // shop gave no link to the Gutachten on the worktree).
+        const file = join(tmpdir(), 'rimify-platzhalter-gutachten.pdf')
+        writeFileSync(file, placeholderPdf(4))
+        execFileSync('php', ['artisan', 'demo:placeholder-tables', `--pdf=${file}`], { stdio: 'pipe' })
         await existing.first().click()
         await page.waitForURL(/\/admin\/gutachten\/\d+$/)
     }
@@ -325,9 +334,10 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await page.getByRole('button', { name: 'Zahlung erfolgreich' }).click()
 
     // ── 10 · Bestellbestätigung ───────────────────────────────────────────────────────────
-    await page.waitForURL(/\/bestellung\/RMF-/, { timeout: 30_000 })
+    await page.waitForURL(/\/bestellung\/[0-9a-f]{8}-[0-9a-f]{4}-4/, { timeout: 30_000 })
     await waitForApp(page)
-    const number = decodeURIComponent(page.url().split('/').pop() ?? '')
+    // The address carries the order's public id (D-354); its number stands on the page.
+    const number = (await page.locator('.ord__number').first().innerText()).trim()
     await shot(page, '10-bestellbestaetigung')
 
     // ── 11 · Verkauf › Bestellung: the verdict frozen at the moment of purchase ─────────

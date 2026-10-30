@@ -287,7 +287,7 @@ it('says the set\'s Eintragung on both axles\' lines — basket, order page, mai
     $order = Order::query()->latest('id')->firstOrFail();
 
     // The order page, the confirmation mail and the admin's order say it on both lines as well.
-    $page = $this->withCookies($fx->cookies())->get('/bestellung/'.$order->order_number)->assertOk()->viewData('page')['props']['lines'];
+    $page = $this->withCookies($fx->cookies())->get('/bestellung/'.$order->public_id)->assertOk()->viewData('page')['props']['lines'];
     $mail = (new OrderConfirmationMail($order, null))->content()->with['lines'];
     $detail = app(OrderDetail::class)->for($order)['lines'];
 

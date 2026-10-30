@@ -17,11 +17,12 @@ test('Aufgabe 5: ein Blog-Artikel mit Foto und Tabelle, veröffentlicht und im S
     const watcher = watch(page);
 
     await signIn(page);
-    await openAdmin(page, '/admin/seiten');
-    await page.getByRole('button', { name: 'Blog-Artikel anlegen' }).click();
-    await page.locator('#sn-title').fill(TITLE);
+    // Inhalte › Ratgeber since his admin item 12 (D-351).
+    await openAdmin(page, '/admin/ratgeber');
+    await page.getByRole('button', { name: 'Artikel anlegen' }).click();
+    await page.locator('#rg-title').fill(TITLE);
     await page.getByRole('dialog').getByRole('button', { name: /anlegen/i }).click();
-    await page.waitForURL(/\/admin\/seiten\/\d+$/, { timeout: 20_000 });
+    await page.waitForURL(/\/admin\/ratgeber\/\d+$/, { timeout: 20_000 });
     await ready(page);
     record('t5.jsonl', { step: 'angelegt', url: page.url(), text: (await page.locator('main').innerText()).slice(0, 1500) });
 

@@ -35,6 +35,64 @@ const guide = {
 }
 
 describe('a Blog article', () => {
+    // The client's admin item 11, „We will go with your proposal“ (29.10.2026): blocks, deliberately no HTML. A standard
+    // set of payloads in every field the editor has: each stays the characters it is — no element, no handler, no link.
+    it('keeps every standard XSS payload inert in every field — no script, no handler, no javascript: link — and the table whole', () => {
+        const payloads = [
+            '<script>alert(1)</script>',
+            '<img src=x onerror=alert(1)>',
+            '<svg onload=alert(1)>',
+            '<a href="javascript:alert(1)">klick</a>',
+            '<iframe src="https://example.org"></iframe>',
+            '<p style="background:url(javascript:alert(1))">x</p>',
+            '"><b onmouseover=alert(1)>fett</b>',
+        ]
+        const hostile = {
+            ...guide,
+            blocks: [
+                { type: 'prose' as const, data: { heading: payloads[1]!, text: payloads.join('\n\n') } },
+                { type: 'figure' as const, data: { src: '/storage/website-images/et.webp', alt: payloads[0]!, caption: payloads[3]! } },
+                { type: 'table' as const, data: { caption: payloads[4]!, head: [payloads[2]!, 'Wirkung'], rows: [[payloads[5]!, payloads[6]!], ['45', 'schmalere Spur']] } },
+                { type: 'quote' as const, data: { text: payloads[3]!, source: payloads[1]! } },
+            ],
+        }
+        const wrapper = mount(Article, { props: { guide: hostile, others: [] } })
+        const article = wrapper.find('article').exists() ? wrapper.find('article') : wrapper
+
+        expect(article.findAll('script, iframe, svg[onload], img[onerror], b, p[style]').filter((el) => el.element.closest('.guide__figure') === null || el.element.tagName !== 'IMG')).toHaveLength(0)
+        expect(article.findAll('a').filter((a) => (a.attributes('href') ?? '').startsWith('javascript:'))).toHaveLength(0)
+        expect([...article.element.querySelectorAll('*')].flatMap((el) => [...el.attributes].map((a) => a.name)).filter((name) => name.startsWith('on'))).toEqual([])
+        for (const payload of payloads) {
+            expect(article.text()).toContain(payload)
+        }
+
+        // The table stands whole: its caption, its header row, both body rows.
+        const table = wrapper.find('table')
+        expect(table.find('caption').text()).toBe(payloads[4])
+        expect(table.findAll('thead th')).toHaveLength(2)
+        expect(table.findAll('tbody tr')).toHaveLength(2)
+    })
+
+    // His admin item 11 answered (D-352): the HTML-Abschnitt is the one block written as markup — the server's, cleaned
+    // twice by ArticleHtml. A table in it stands whole; the blocks around it stay text.
+    it('writes the HTML-Abschnitt as the markup the server cleaned, a table whole, and nothing else as markup', () => {
+        const html = '<h2>Wo es steht</h2><table><thead><tr><th scope="col">Feld</th><th scope="col">Steht dort</th></tr></thead>'
+            + '<tbody><tr><td>2.1</td><td>HSN</td></tr><tr><td>2.2</td><td>TSN</td></tr></tbody></table>'
+            + '<p><a href="/felgenrechner" rel="noopener noreferrer">Felgenrechner</a></p>'
+        const wrapper = mount(Article, {
+            props: { guide: { ...guide, blocks: [...guide.blocks, { type: 'html' as const, data: { html } }] }, others: [] },
+        })
+        const block = wrapper.find('.guide__html')
+
+        expect(block.find('h2').text()).toBe('Wo es steht')
+        expect(block.findAll('thead th').map((th) => th.text())).toEqual(['Feld', 'Steht dort'])
+        expect(block.findAll('tbody tr')).toHaveLength(2)
+        expect(block.find('a').attributes('rel')).toBe('noopener noreferrer')
+        // The prose block's typed tag is still its characters.
+        expect(wrapper.text()).toContain('<script>alert(1)</script> bleibt Text.')
+        expect(wrapper.find('script').exists()).toBe(false)
+    })
+
     it('prints what someone typed as text — a script tag included — and never runs it', () => {
         const wrapper = mount(Article, { props: { guide, others: [] } })
 

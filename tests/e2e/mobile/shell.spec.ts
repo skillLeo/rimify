@@ -1,11 +1,12 @@
 import { chooseVehicleFromHome, expect, open, screenChecks, test } from './fixtures'
 
 test.describe('mobile shell', () => {
-    // 64 px since the client's #2 (one token, `--header-h`), and the basket beside the menu since his #13.
-    test('app bar is 64 px, sticky, and carries the wordmark, search, vehicle, basket and menu', async ({ page }) => {
+    // 64 px since the client's #2 (one token, `--header-h`), the basket beside the menu since his #13, and the shop's
+    // one header on every page since his #35 (D-349).
+    test('header is 64 px, sticky, and carries the wordmark, search, vehicle, basket and menu', async ({ page }) => {
         await open(page, '/')
 
-        const bar = page.locator('header.mbar')
+        const bar = page.locator('header.site-header')
         await expect(bar).toBeVisible()
         const box = await bar.boundingBox()
         expect(Math.round(box?.height ?? 0)).toBe(64)
@@ -22,7 +23,7 @@ test.describe('mobile shell', () => {
         const after = await bar.boundingBox()
         expect(Math.round(after?.y ?? -1)).toBe(0)
         expect(Math.round(after?.height ?? 0)).toBe(64)
-        await expect(bar).toHaveClass(/mbar--scrolled/)
+        await expect(bar).toHaveClass(/site-header--scrolled/)
     })
 
     test('menu: every destination, 44 px targets, the current page marked', async ({ page }) => {

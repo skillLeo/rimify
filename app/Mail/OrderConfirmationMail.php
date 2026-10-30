@@ -14,6 +14,7 @@ use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Content\LegalPdf;
 use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use App\Support\Seller;
 use App\Support\Shipping;
 use App\Support\WithdrawalForm;
@@ -85,6 +86,8 @@ class OrderConfirmationMail extends Mailable
                 'label' => (string) $line->label,
                 'quantity' => (int) $line->quantity,
                 'total' => GermanFormat::money((int) $line->line_total_cents),
+                // A Komplettrad's rows, each its own line, as the basket, the checkout and the order page show them (D-355).
+                'components' => $line->componentRows(),
                 // In words, never a code (R-15) — as the order page says it.
                 'verdict' => $snapshot === null ? null : match ((string) $snapshot->verdict_status) {
                     'PERMITTED' => 'Für dein Fahrzeug freigegeben.',
@@ -137,6 +140,9 @@ class OrderConfirmationMail extends Mailable
                 'sellerLine' => Seller::current()->documentLine(),
                 'invoiceNumber' => $this->invoice?->number,
                 'invoiceUrl' => $this->invoice === null ? null : Invoices::link($this->invoice),
+                // A test purchase says it is one; whether it adds „no invoice“ depends on whether the shop issues any (D-348).
+                'testPurchase' => $order->isDemo(),
+                'ownInvoices' => OwnInvoices::enabled(),
                 // Signed: the page opens on any device the customer reads this mail on, not only where they ordered —
                 // for twelve months, then the way back to a fresh link (OrderLinks, D-240).
                 'orderUrl' => OrderLinks::link($order),

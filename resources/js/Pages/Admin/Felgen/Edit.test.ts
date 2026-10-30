@@ -33,7 +33,8 @@ function props(): AdminFelgeProps {
         check: null,
         brands: [{ value: 3, label: 'Prüfrad' }],
         options: { spokes: [5, 6, 7, 10, 20], boltHoles: [4, 5], artFinishes: [{ value: 'graphite', label: 'Graphit' }], maxPhotos: 8 },
-        can: { create: true, edit: true, publish: true, archive: true, import: true },
+        statedRating: null,
+        can: { create: true, edit: true, publish: true, rate: true, archive: true, import: true },
     }
 }
 

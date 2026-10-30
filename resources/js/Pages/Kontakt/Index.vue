@@ -58,6 +58,12 @@ const copyByMail = computed(() => {
 const sent = ref(false)
 const done = useTemplateRef<HTMLElement>('done')
 
+/*
+ * What became of the message, as the server says it (D-347): „angekommen“ only where a mail left for the team's inbox —
+ * otherwise it is kept in the shop and the page says that; the copy is mentioned only where one left for the sender.
+ */
+const delivery = ref<{ mailed: boolean; copied: boolean }>({ mailed: false, copied: false })
+
 /* ── The draft: this tab only, never the server's, gone once the message is sent ─────── */
 
 const DRAFT_KEY = 'rmf-kontakt-entwurf'
@@ -175,6 +181,8 @@ function submit(): void {
                 return
             }
 
+            const told = (page.props.flash as { kontakt?: { mailed?: boolean; copied?: boolean } | null } | undefined)?.kontakt
+            delivery.value = { mailed: told?.mailed === true, copied: told?.copied === true }
             clearDraft()
             sent.value = true
             void nextTick(() => done.value?.focus())
@@ -217,10 +225,10 @@ const backHref = computed(() => props.prefill?.from ?? '/')
                 <div v-if="sent" ref="done" class="kon__done" role="status" tabindex="-1">
                     <h2 class="h3 kon__done-title">
                         <Icon name="check" :size="24" class="kon__done-mark" />
-                        <span>Danke{{ form.name ? `, ${form.name}` : '' }} – deine Nachricht ist angekommen.</span>
+                        <span>Danke{{ form.name ? `, ${form.name}` : '' }} – {{ delivery.mailed ? 'deine Nachricht ist angekommen.' : 'deine Nachricht ist bei uns gespeichert.' }}</span>
                     </h2>
                     <p class="body muted kon__done-text">
-                        Wir antworten dir an <strong class="kon__email">{{ form.email }}</strong>.<template v-if="copyByMail"> Eine Kopie deiner Nachricht ist schon in deinem Postfach.</template>
+                        Wir antworten dir an <strong class="kon__email">{{ form.email }}</strong>.<template v-if="delivery.copied"> Eine Kopie deiner Nachricht ist schon in deinem Postfach.</template>
                     </p>
                     <div class="kon__done-go">
                         <Link class="btn btn--primary" :href="backHref">{{ prefill?.from ? 'Zurück zur vorherigen Seite' : 'Zur Startseite' }}</Link>

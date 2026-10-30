@@ -8,7 +8,7 @@ import { useCompare } from '../../stores/compare'
 import type { ImageManifest, ProductCardProp, VehicleProp } from '../../types/rimify'
 
 /* The page's shared props, as far as the tile reads them: the Kleinunternehmer flag (usePriceTerms). */
-const page = vi.hoisted(() => ({ props: { smallBusiness: false } as Record<string, unknown> }))
+const page = vi.hoisted(() => ({ props: { smallBusiness: false } as Record<string, unknown>, url: undefined as string | undefined }))
 
 vi.mock('@inertiajs/vue3', () => ({
     Link: defineComponent({
@@ -92,6 +92,21 @@ afterEach(() => {
 })
 
 describe('ProductTile', () => {
+    // The client's #19 as he decided it (D-345): typed stars under the name on the listing, the shop's sentence beside.
+    it('shows typed stars under the name with the shop\'s sentence beside them, and nothing where there are none', () => {
+        const disclosure = 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.'
+        const rated = mountTile({ card: card(1, { statedRating: { label: '4,9 (13 Bewertungen)', disclosure } }) })
+        const line = rated.find('.tile__title + [data-stated-rating]')
+
+        expect(line.exists()).toBe(true)
+        expect(line.text()).toBe(`★ 4,9 (13 Bewertungen) – ${disclosure}`)
+        expect(line.find('.tile__stars-glyph').attributes('aria-hidden')).toBe('true')
+        expect(rated.text()).not.toContain('Geprüfter Kauf')
+
+        expect(mountTile({ card: card(2, { statedRating: null }) }).find('[data-stated-rating]').exists()).toBe(false)
+        expect(mountTile({ card: card(3) }).find('[data-stated-rating]').exists()).toBe(false)
+    })
+
     it('has one link, the CTA, stretched over the card and named after the wheel', () => {
         const wrapper = mountTile({ compare: true })
 
@@ -297,12 +312,36 @@ describe('ProductTile', () => {
         expect(unknown.find('[data-tyres="open"]').exists()).toBe(false)
     })
 
-    it('says „Nicht verfügbar“ above the actions and keeps the CTA @admin-207', () => {
-        const wrapper = mountTile({ card: card(1, { inStock: false }) })
+    it('says „Nicht verfügbar“ above the actions, and „Anfrage“ takes the CTA’s place @admin-207', () => {
+        // His admin item 7, answered (D-350): the contact form, the rim and its sizes as the subject the server wrote.
+        const enquiry = 'Anfrage zur Verfügbarkeit: Demo Zehnspeiche Z-01 Platinum Silber, 8,5J × 19, ET 35'
+        page.url = '/felgen?zoll=19'
+        const wrapper = mountTile({ card: card(1, { inStock: false, enquiry }) })
+        const ask = wrapper.find('.tile__actions a.tile__enquiry')
+        const href = new URL(ask.attributes('href') ?? '', 'https://shop.test')
 
         expect(wrapper.find('.stock--out').text()).toBe('Nicht verfügbar')
-        expect(wrapper.find('.tile__cta').text()).toBe('Details ansehen')
         expect(wrapper.find('.stock--out').element.compareDocumentPosition(wrapper.find('.tile__actions').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        expect(ask.text()).toBe('Anfrage')
+        expect(ask.attributes('aria-label')).toBe('Demo Zehnspeiche Z-01 Platinum Silber: Anfrage zur Verfügbarkeit')
+        expect(href.pathname).toBe('/kontakt')
+        expect(href.searchParams.get('betreff')).toBe(enquiry)
+        expect(href.searchParams.get('von')).toBe('/felgen?zoll=19')
+        expect(wrapper.find('.tile__cta').exists()).toBe(false)
+
+        // The card still opens the product page: its name is the stretched link now, named as the CTA was.
+        const name = wrapper.find('a.tile__name--link')
+        expect(name.attributes('href')).toBe('/felgen/demo-zehnspeiche-z-01?ausfuehrung=2')
+        expect(name.attributes('aria-label')).toBe('Demo Zehnspeiche Z-01 Platinum Silber: Details ansehen')
+        page.url = undefined
+    })
+
+    it('offers no „Anfrage“ on a card that can be bought @admin-207', () => {
+        const wrapper = mountTile({ card: card(1, { inStock: true, enquiry: null }) })
+
+        expect(wrapper.find('.tile__enquiry').exists()).toBe(false)
+        expect(wrapper.find('.tile__cta').text()).toBe('Details ansehen')
+        expect(wrapper.find('.tile__name').element.tagName).toBe('SPAN')
     })
 
     it('renders the compare control after the CTA, named after the wheel, and only when asked', () => {

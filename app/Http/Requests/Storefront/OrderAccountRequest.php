@@ -31,6 +31,6 @@ class OrderAccountRequest extends FormRequest
 
     public function order(): ?Order
     {
-        return Order::query()->with('customer')->where('order_number', (string) $this->route('order'))->first();
+        return Order::query()->with('customer')->where('public_id', (string) $this->route('order'))->first();
     }
 }

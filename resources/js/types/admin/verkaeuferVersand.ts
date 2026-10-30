@@ -36,6 +36,8 @@ export interface AdminVerkaeuferVersandProps {
     legacyRegister: string | null
     /** What a real invoice still needs, in the preflight's words. */
     sellerMissing: string[]
+    /** Whether the shop issues its own invoices (D-348); absent in older fixtures: on. */
+    ownInvoices?: boolean
     /** The Impressum's rows still shown as a marker, by their label — each keeps the shop out of search and live payments. */
     impressumMissing: string[]
     shipping: ShippingForm

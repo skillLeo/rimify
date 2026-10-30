@@ -91,6 +91,7 @@ final class AuditDescriber
         // audit's F-35): a refund, a payment, an invoice or a key change read „noch nicht in Worten“.
         'order.status_changed' => 'verkauf',
         'order.confirmation_sent' => 'verkauf',
+        'order.confirmation_not_mailed' => 'verkauf',
         'order.confirmation_failed' => 'verkauf',
         'order.shipping_mail_sent' => 'verkauf',
         'order.shipping_mail_failed' => 'verkauf',
@@ -131,6 +132,8 @@ final class AuditDescriber
         'page.draft_discarded' => 'inhalte',
         'page.published' => 'inhalte',
         'page.withdrawn' => 'inhalte',
+        'page.deleted' => 'inhalte',
+        'home.shelf_picked' => 'inhalte',
         'page.placeholder_switched' => 'inhalte',
         'page.revision_restored' => 'inhalte',
         'faq.created' => 'inhalte',
@@ -151,6 +154,10 @@ final class AuditDescriber
         'wheel.image_removed' => 'katalog',
         'wheel.images_reordered' => 'katalog',
         'wheel.image_relabelled' => 'katalog',
+        'wheel.rating_stated' => 'katalog',
+        'wheel.rating_removed' => 'katalog',
+        'reviews.disclosure_changed' => 'katalog',
+        'contact.recipient_changed' => 'verkauf',
         'tyre.created' => 'katalog',
         'tyre.updated' => 'katalog',
         'tyre.deleted' => 'katalog',
@@ -481,6 +488,10 @@ final class AuditDescriber
                 [],
             ],
             'order.confirmation_failed' => ['Die Bestellbestätigung zur Bestellung '.self::order($p).' konnte nicht verschickt werden.'.self::error($p), []],
+            'order.confirmation_not_mailed' => [
+                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                [],
+            ],
             'order.shipping_mail_sent' => [
                 'Die Versandmail zur Bestellung '.self::order($p).' wurde verschickt'
                     .(self::text($p, 'tracking') === null ? ', ohne Sendungsnummer.' : ', mit der Sendungsnummer '.self::q((string) self::text($p, 'tracking')).'.'),
@@ -523,6 +534,10 @@ final class AuditDescriber
             'page.draft_discarded' => ['Der Entwurf der Seite '.self::page($p).' wurde verworfen.', []],
             'page.published' => self::pagePublished($p),
             'page.withdrawn' => ['Der Blog-Artikel '.self::page($p).' wurde zurückgezogen und ist nicht mehr im Shop zu sehen.', []],
+            // His #5 (D-353): the picks that fill the homepage's shelf after what sold.
+            'home.shelf_picked' => ['Die Auswahl für „Meistgekaufte Felgen“ auf der Startseite wurde geändert: '.self::picks($p['after'] ?? null).' (vorher: '.self::picks($p['before'] ?? null).').', []],
+            // His admin item 12 (D-351): the article leaves the list and the shop; its published versions stay.
+            'page.deleted' => ['Der Blog-Artikel '.self::page($p).' wurde gelöscht'.(($p['was_published'] ?? false) === true ? ' und ist nicht mehr im Shop zu sehen' : '').'. Seine veröffentlichten Fassungen bleiben gespeichert.', []],
             'page.placeholder_switched' => [self::placeholderSwitched($p), []],
             'page.revision_restored' => [self::revisionRestored($p), []],
             'faq.created' => [
@@ -550,6 +565,25 @@ final class AuditDescriber
             'wheel.image_removed' => ['Das Foto der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde entfernt.', []],
             'wheel.images_reordered' => ['Die Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurden neu geordnet.', []],
             'wheel.image_relabelled' => ['Der Alternativtext eines Fotos der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' in '.self::q(self::text($p, 'finish') ?? 'ohne Namen').' wurde geändert.', []],
+            'wheel.rating_stated' => [
+                'Für die Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen').' stehen jetzt Sterne von Hand im Shop: '.(self::text($p, 'label') ?? 'ohne Angabe').'.',
+                self::text($p, 'before') === null || self::text($p, 'before') === self::text($p, 'label') ? [] : [self::change('Sterne', (string) self::text($p, 'before'), self::text($p, 'label') ?? '–')],
+            ],
+            'wheel.rating_removed' => [
+                'Die Sterne von Hand der Felge '.self::q(self::text($p, 'name') ?? 'ohne Namen')
+                    .(self::text($p, 'label') === null ? '' : ' – '.self::text($p, 'label').' –').' wurden entfernt. Der Shop zeigt sie nicht mehr.',
+                [],
+            ],
+            'contact.recipient_changed' => [
+                'Neue Nachrichten aus dem Kontaktformular gehen jetzt an '.(self::text($p, 'after') ?? 'keine Adresse').'.',
+                [self::change('Empfänger', self::text($p, 'before') ?? '–', self::text($p, 'after') ?? '–')],
+            ],
+            'reviews.disclosure_changed' => [
+                self::text($p, 'after') === null
+                    ? 'Der Hinweis neben den Sternen von Hand wurde geleert. Der Shop zeigt keine Sterne von Hand mehr.'
+                    : 'Der Hinweis neben den Sternen von Hand wurde geändert.',
+                [self::change('Hinweis', self::text($p, 'before') === null ? '–' : self::q((string) self::text($p, 'before')), self::text($p, 'after') === null ? '–' : self::q((string) self::text($p, 'after')))],
+            ],
             'tyre.created' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde angelegt'.self::tyreOffered($p), []],
             'tyre.updated' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde geändert'.self::tyreChanged($p).self::tyreOffered($p), []],
             'tyre.deleted' => ['Der Reifen '.self::q(self::text($p, 'name') ?? 'ohne Namen').' wurde entfernt.', []],
@@ -1870,6 +1904,15 @@ final class AuditDescriber
     private static function q(string $name): string
     {
         return "\u{201E}".$name."\u{201C}";
+    }
+
+    /** Rims as the Protokoll names them: „A“, „B“ und „C“ — or „keine“ (the homepage shelf's picks, D-353). */
+    private static function picks(mixed $names): string
+    {
+        $quoted = array_map(static fn (string $name): string => self::q($name), array_values(array_filter(is_array($names) ? $names : [], 'is_string')));
+        $last = array_pop($quoted);
+
+        return $last === null ? 'keine' : ($quoted === [] ? $last : implode(', ', $quoted).' und '.$last);
     }
 
     /** @return Change */

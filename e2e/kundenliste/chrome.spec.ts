@@ -18,7 +18,8 @@ test('the header is 72 px on a computer and 64 px on a phone, from one token eve
 
     expect(token).toBe(phone ? '64px' : '72px')
 
-    const bar = page.locator(phone ? '.mbar__row' : '.sh__bar').first()
+    // One header at every width since the client's #35 (D-349).
+    const bar = page.locator('.sh__bar').first()
     expect(Math.round((await box(bar)).height)).toBe(phone ? 64 : 72)
 
     // An anchor lands with its heading below the header, not under it.
@@ -26,7 +27,7 @@ test('the header is 72 px on a computer and 64 px on a phone, from one token eve
         window.location.hash = 'h4'
     })
     await page.waitForTimeout(400)
-    const header = page.locator(phone ? 'header.mbar' : 'header.site-header').first()
+    const header = page.locator('header.site-header').first()
     const target = await box(page.locator('#h4'))
     const headerBox = await box(header)
     expect(target.y, 'the anchor ends under the header').toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 1)
@@ -71,8 +72,7 @@ test('no stylesheet types a header height: the old phone token is gone, and no r
 
 test('nothing stands above the header any more, and what the strip said is still on the page', { tag: '@kunde-03' }, async ({ page }, info) => {
     await open(page, '/')
-    const phone = isPhone(info)
-    const header = page.locator(phone ? 'header.mbar' : 'header.site-header').first()
+    const header = page.locator('header.site-header').first()
 
     expect(Math.round((await box(header)).y), 'something stands above the header').toBe(0)
     await expect(page.locator('.utility')).toHaveCount(0)
@@ -85,7 +85,7 @@ test('nothing stands above the header any more, and what the strip said is still
     await expect(page.locator('.hero-help, .home-hero__help, .hero__help').first()).toContainText('Mo–Fr')
     await expect(header.getByText('Demodaten').first()).toBeVisible()
 
-    await shot(page.locator(phone ? 'header.mbar' : 'header.site-header').first(), 3, info)
+    await shot(header, 3, info)
 })
 
 test('the basket sits in the phone\'s header left of the menu, with its count, 44 px to tap', { tag: '@kunde-13' }, async ({ page }, info) => {
@@ -94,10 +94,10 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
     await addToBasket(page)
 
     if (isPhone(info)) {
-        // Both phone headers carry it: the app bar of the phone documents and the shop's own header below 1024 px.
-        for (const path of [PRODUCT, '/']) {
+        // The one header carries it on every page, the basket included (#35, D-349).
+        for (const path of [PRODUCT, '/', '/warenkorb']) {
             await open(page, path)
-            const header = page.locator('header.mbar, header.site-header').first()
+            const header = page.locator('header.site-header').first()
             const cart = header.locator('.cart-btn').first()
             const menu = header.getByRole('button', { name: /^Menü/ }).first()
 
@@ -112,7 +112,7 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
             expect(c.height).toBeGreaterThanOrEqual(44)
         }
 
-        await shot(page.locator('header.mbar, header.site-header').first(), 13, info)
+        await shot(page.locator('header.site-header').first(), 13, info)
     } else {
         // On a computer the basket has its words beside the icon; the count is the same.
         const cart = page.locator('header.site-header .sh__cart').first()
@@ -120,6 +120,68 @@ test('the basket sits in the phone\'s header left of the menu, with its count, 4
         await expect(cart.locator('.sh__badge')).toHaveText(/^\d+$/)
         await shot(page.locator('header.site-header').first(), 13, info)
     }
+})
+
+/*
+ * The client's #35 (D-349): the menu, the basket and the wordmark sat a few pixels apart from page to page — the home
+ * page and the Felgenrechner had a phone bar of their own, the basket and the checkout a header without the basket.
+ * One header now, and every control in it stands where it stands on the home page, on every page he named.
+ */
+test('one header on every page: at 390 and 360 every control in it stands where it stands on the home page, to the pixel', { tag: '@kunde-35' }, async ({ page }, info) => {
+    test.skip(!isPhone(info), 'the phone header; the computer header is the same component (#2)')
+    test.setTimeout(240_000)
+
+    // A car and a basket: the checkout opens rather than sending back to the basket, and every header carries the same.
+    await withCar(page, 'e90', PRODUCT)
+    await onSize(page, 19, 'Schwarz matt')
+    await addToBasket(page)
+
+    await open(page, '/blog')
+    const post = await page.getByRole('main').getByRole('heading', { level: 2 }).getByRole('link').first().getAttribute('href')
+    expect(post, 'the Blog lists no article to measure').toBeTruthy()
+
+    const pages = ['/', '/felgen', PRODUCT, '/warenkorb', '/kasse', '/blog', post ?? '', '/kontakt', '/felgenrechner', '/rimify-check', '/impressum', '/gibt-es-nicht']
+
+    for (const width of [390, 360]) {
+        await page.setViewportSize({ width, height: 844 })
+        const rows = new Map<string, string[]>()
+
+        for (const path of pages) {
+            await open(page, path)
+            expect(new URL(page.url()).pathname, `${path} sent elsewhere`).toBe(new URL(path, ABNAHME).pathname)
+            // The title the phone bar carried is the page's one h1 where a page asks for it, and never a second one.
+            await expect(page.locator('h1'), `${path} has not exactly one h1`).toHaveCount(1)
+
+            // Every control in the header's row that shows, by what it is and where: x, y, width and height in whole pixels.
+            rows.set(
+                path,
+                await page.evaluate(() => {
+                    const kinds = ['RIMIFY', 'Demodaten', 'Suche', 'Fahrzeug', 'Warenkorb', 'Menü']
+
+                    return [...document.querySelectorAll('header.site-header .sh__bar :is(a, button, .demo-badge)')]
+                        .map((el) => ({ el, r: el.getBoundingClientRect() }))
+                        .filter(({ el, r }) => r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden')
+                        .map(({ el, r }) => {
+                            const name = el.getAttribute('aria-label') ?? el.textContent ?? ''
+                            const kind = kinds.find((k) => name.includes(k)) ?? name.trim()
+
+                            return `${kind} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}`
+                        })
+                })
+            )
+        }
+
+        const home = rows.get('/') ?? []
+        expect(home.map((row) => row.split(' ')[0]), `the home page's header at ${width}`).toEqual(expect.arrayContaining(['RIMIFY', 'Suche', 'Fahrzeug', 'Warenkorb', 'Menü']))
+
+        for (const path of pages.slice(1)) {
+            expect(rows.get(path), `${path} at ${width} px against the home page`).toEqual(home)
+        }
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await open(page, '/felgenrechner')
+    await shot(page.locator('header.site-header').first(), 35, info)
 })
 
 test('the footer links the Felgenrechner and the Blog; both open, and the Blog leads to its articles', { tag: '@kunde-10' }, async ({ page, request }, info) => {

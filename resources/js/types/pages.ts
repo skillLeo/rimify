@@ -233,7 +233,8 @@ export interface StartseiteProps {
      */
     popular: {
         title: string
-        ranking: 'meistgekauft' | 'neu'
+        /** What leads the shelf (D-353): sales, the team's picks before the first sale, or the newest rims. */
+        ranking: 'meistgekauft' | 'empfohlen' | 'neu'
         cards: ProductCardProp[]
         /** The listing's count for the vehicle; null without one. */
         total: number | null
@@ -355,6 +356,11 @@ export interface ProduktProps {
         rating: number | null
         ratingCount: number
         ratingLabel: string | null
+        /**
+         * Stars typed in the admin (#19, D-344, D-345): shown under the name only with the shop's sentence beside them —
+         * never as a checked purchase, never added to the buyers' rating. Null (or absent in older fixtures) without either.
+         */
+        statedRating?: { label: string; disclosure: string } | null
         /** GPSR, as entered per brand; null (or absent in older fixtures) until it is. */
         manufacturer?: {
             name: string
@@ -423,6 +429,8 @@ export interface ProduktConfig {
     amounts?: AmountPrice[]
     /** Available or not, never a count (his admin item 7, D-299). */
     inStock: boolean
+    /** Not available: the subject of the „Anfrage“ in the button's place (his admin item 7, D-350); null otherwise. */
+    enquiry?: string | null
     kbaNumber: string | null
     weightG: number | null
     /** Null when no vehicle is chosen. Price, stock and verdict travel together, by design. */
@@ -805,6 +813,8 @@ export interface KasseProps extends BasketProps {
 export interface BestellungProps {
     order: {
         number: string
+        /** The key of the page's own requests and of its address, in place of the number (his admin item 18, D-354). */
+        publicId: string
         status: string
         statusLabel: string
         placedAt: string | null
@@ -826,6 +836,8 @@ export interface BestellungProps {
         quantity: number
         unitPrice: string
         lineTotal: string
+        /** A Komplettrad's rows as sold, each its own line (his #15, D-355); empty on a rim sold alone. */
+        components?: { label: string; quantity: number; unitPrice: string; lineTotal: string }[]
         verdict: {
             status: VerdictStatus
             requiresEntry: boolean

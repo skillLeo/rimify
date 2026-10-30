@@ -1,0 +1,1 @@
+function e(e,t,n=`auf`){return e.sort===t?{sort:t,richtung:e.richtung===`auf`?`ab`:`auf`}:{sort:t,richtung:n}}function t(e,t){return e.sort===t.sort&&e.richtung===t.richtung?{}:{sort:e.sort,richtung:e.richtung}}export{t as n,e as t};

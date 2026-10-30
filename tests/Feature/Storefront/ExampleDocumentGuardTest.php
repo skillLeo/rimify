@@ -113,7 +113,7 @@ it('lets the purchase through off production, born demo with every row it writes
 
     // A person placed it: its number alone opens nothing (EIGENE-FUNDE 131); its signed link does, and the page says what it is.
     $this->flushSession();
-    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+    $this->get('/bestellung/'.$order->public_id)->assertNotFound();
     $this->get(OrderLinks::link($order))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page

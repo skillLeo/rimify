@@ -257,7 +257,9 @@ const chosenAnswer = computed(() => {
  * answer, preselected only where the visitor already gave one for this car's make. Nothing of it under „Nur Felgen“.
  */
 const options = computed(() => props.komplettradOptions ?? null)
-const colourId = ref<number | null>(options.value?.colours.find((c) => c.isDefault)?.id ?? options.value?.colours[0]?.id ?? null)
+/* No colour chosen for the visitor (his #15, § 312a Abs. 3 BGB, D-355): the swatches start empty; a free standard colour
+   is the server's to put in where none is picked, a paid one only the visitor's. */
+const colourId = ref<number | null>(null)
 const rdks = ref<'ja' | 'nein' | null>(options.value?.tpms.choice ?? null)
 
 /* The set's price with the colour chosen: the server's figure for that colour, the default colour's where none. */
@@ -355,6 +357,16 @@ const amountNote = computed(() => {
     }
 
     return `${amount.value} × ${current.price} = ${amountPrice.value.text}, ${terms.value.note}`
+})
+
+/*
+ * A size not available (his admin item 7, D-350): „Anfrage“ takes the basket button's place — the contact form, its
+ * subject the rim, the size and the ET from the server, the car ticked there by itself.
+ */
+const enquiryHref = computed(() => {
+    const current = selected.value
+
+    return current === null || current.inStock || !current.enquiry ? null : contactFormHref({ subject: current.enquiry, from: page.url })
 })
 
 /*
@@ -669,9 +681,16 @@ claimBottomEdge(() => stickyShown.value)
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
                     <!-- Only where the name does not hold it already (a title typed otherwise): never said twice. -->
                     <p v-if="designationApart" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation ?? ''" whole /></p>
-                    <!-- The buyers' stars, computed from their reviews alone (D-103), leading to them; until there are
-                         any, what the page can prove instead — never an empty row of stars. -->
-                    <a v-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
+                    <!-- Stars typed in the admin (#19, D-344, D-345), only ever beside the shop's sentence about them: no
+                         link, for there are no reviews here to lead to, and never called a checked purchase.
+                         Otherwise the buyers' stars, computed from their reviews alone (D-103), leading to them; until
+                         there are any, what the page can prove instead — never an empty row of stars. -->
+                    <p v-if="product.statedRating" class="stars pdp__rating pdp__rating--stated" data-stated-rating>
+                        <!-- One line in the source, so the spaces between the parts stay: the sentence runs on beside the
+                             stars and wraps back to the edge, as a sentence does. -->
+                        <span class="stars__glyph" aria-hidden="true">★</span> <span class="tabular"><ValueText :text="product.statedRating.label" /></span><span class="pdp__rating-origin">{{ ' – ' + product.statedRating.disclosure }}</span>
+                    </p>
+                    <a v-else-if="product.rating !== null && product.ratingCount > 0" href="#bewertungen" class="stars pdp__rating">
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular"><ValueText :text="product.ratingLabel ?? ''" /></span>
                     </a>
@@ -818,8 +837,18 @@ claimBottomEdge(() => stickyShown.value)
                     </div>
 
                     <div ref="buyButton">
+                        <!-- Not available: the question in the button's place (his admin item 7, D-350). -->
+                        <Link
+                            v-if="enquiryHref"
+                            :href="enquiryHref"
+                            class="btn btn--primary btn--block btn--lg pdp__enquiry"
+                            :aria-describedby="unavailableHint ? 'pdp-unavailable' : undefined"
+                        >
+                            Anfrage
+                        </Link>
                         <!-- Busy, never disabled, while it sends: a disabled button drops the focus to the page (#16). -->
                         <button
+                            v-else
                             class="btn btn--primary btn--block btn--lg pdp__add"
                             type="button"
                             :disabled="!canBuy && !papersFirst"
@@ -943,9 +972,10 @@ claimBottomEdge(() => stickyShown.value)
                     <span class="stars__glyph" aria-hidden="true">★</span>
                     <span class="tabular"><ValueText :text="product.ratingLabel" /></span>
                 </p>
+                <!-- „Diese“, not „Alle“: stars typed in the admin may stand under the name, and they are not these (D-344). -->
                 <p class="t-small quiet pdp__reviews-check">
-                    Alle Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über die
-                    Bestellnummer.
+                    Diese Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über
+                    die Bestellnummer.
                 </p>
                 <ul class="pdp__review-list">
                     <li v-for="review in reviews" :key="review.id" class="pdp__review">
@@ -1007,7 +1037,9 @@ claimBottomEdge(() => stickyShown.value)
             <!-- The PAngV line beside every price, the bar's too (the operator's brief of 14.10.2026 §8). -->
             <p class="price-legal pdp__sticky-legal">{{ terms.note }}</p>
         </div>
+        <Link v-if="enquiryHref" :href="enquiryHref" class="btn btn--primary pdp__sticky-btn">Anfrage</Link>
         <button
+            v-else
             class="btn btn--primary pdp__sticky-btn"
             type="button"
             :disabled="!canBuy && !papersFirst"
@@ -1193,6 +1225,15 @@ claimBottomEdge(() => stickyShown.value)
     margin-top: var(--space-2);
 }
 
+/* Typed stars and their sentence as one run of text: the sentence follows the stars and wraps back to the edge, never
+   squeezed into a column beside them, never cut. */
+.pdp__rating--stated {
+    display: block;
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+}
+
 .pdp__block {
     margin-top: var(--space-5);
 }
@@ -1362,7 +1403,8 @@ a.pdp__rating {
     color: var(--ink2);
 }
 
-.pdp__add {
+.pdp__add,
+.pdp__enquiry {
     margin-top: var(--space-4);
 }
 

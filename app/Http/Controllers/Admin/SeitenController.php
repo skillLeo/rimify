@@ -17,6 +17,7 @@ use App\Models\NavItem;
 use App\Models\Page;
 use App\Models\PageRevision;
 use App\Models\Setting;
+use App\Policies\PagePolicy;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
 use App\Services\Content\LegalTexts;
@@ -76,9 +77,12 @@ class SeitenController extends Controller
 
     private const GROUPS = [
         Page::KIND_MARKETING => 'Startseite',
-        Page::KIND_GUIDE => 'Blog',
+        Page::KIND_GUIDE => 'Ratgeber',
         Page::KIND_LEGAL => 'Rechtliches',
     ];
+
+    /** The articles have a page of their own since his admin item 12 (D-351): Inhalte › Ratgeber. */
+    public const RATGEBER = '/admin/ratgeber';
 
     public function __construct(private readonly PagePublisher $publisher) {}
 
@@ -109,17 +113,25 @@ class SeitenController extends Controller
         return response()->json(['src' => $url, 'width' => $stored['width'], 'height' => $stored['height']]);
     }
 
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $this->authorize('viewAny', Page::class);
+
+        // „Neu › Blog-Artikel anlegen“ as it was linked before the articles moved (D-351): to the list that makes them.
+        if ($request->query('neu') !== null) {
+            return redirect(self::RATGEBER.'?neu=1');
+        }
 
         $groups = [];
 
         foreach (self::GROUPS as $kind => $label) {
-            $groups[$kind] = ['key' => $kind, 'label' => $label, 'pages' => []];
+            if ($kind !== Page::KIND_GUIDE) {
+                $groups[$kind] = ['key' => $kind, 'label' => $label, 'pages' => []];
+            }
         }
 
-        $pages = Page::query()->editable()->with('blocks')->orderBy('id')->get();
+        // The homepage and the legal texts; the Ratgeber articles have their own page (his admin item 12, D-351).
+        $pages = Page::query()->editable()->where('kind', '!=', Page::KIND_GUIDE)->with('blocks')->orderBy('id')->get();
         $names = self::names($pages->pluck('draft_author_email')->filter()->all());
 
         foreach ($pages as $page) {
@@ -141,16 +153,22 @@ class SeitenController extends Controller
 
         return Inertia::render('Admin/Seiten/Index', [
             'groups' => array_values(array_filter($groups, static fn (array $group): bool => $group['pages'] !== [])),
-            'can' => ['create' => self::admin($request)->may(PermissionModule::Content, PermissionAction::Create)],
+            // Where the articles went, for whoever looks for them here.
+            'ratgeber' => self::RATGEBER,
         ]);
     }
 
-    public function show(Request $request, Page $page): Response
+    public function show(Request $request, Page $page): Response|RedirectResponse
     {
         // A page the panel does not edit (FAQ, Kontakt) is absent here, not forbidden: a 403 would
         // tell a Super-Admin they lack a right, and log a refusal that never happened.
         abort_unless($page->isEditable(), 404);
         $this->authorize('view', $page);
+
+        // An article's old address under Seiten leads to its own (his admin item 12, D-351).
+        if ($page->kind === Page::KIND_GUIDE && $request->routeIs('admin.seiten.show')) {
+            return redirect(self::RATGEBER.'/'.$page->id, 301);
+        }
 
         $schema = PageSchema::for($page) ?? abort(404);
         $raw = PageContent::live($page);
@@ -217,16 +235,20 @@ class SeitenController extends Controller
                 'edit' => $admin->may(PermissionModule::Content, PermissionAction::Edit),
                 'publish' => $mayPublish,
                 'withdraw' => $mayPublish && $page->kind === Page::KIND_GUIDE && $page->isPublished(),
+                // An article is deleted from its list or here (D-351); every other page is the shop's structure. Asked of
+                // the policy itself, not through the Gate: drawing no button is not a refused attempt (RefusalPairTest).
+                'delete' => (new PagePolicy)->delete($admin, $page),
             ],
         ]);
     }
 
+    /** A new article posted to the old address (a tab open from before D-351): made, and opened at its own. */
     public function store(GuideStoreRequest $request): RedirectResponse
     {
         $schema = PageSchema::for(new Page(['kind' => Page::KIND_GUIDE])) ?? abort(500);
         $page = $this->publisher->createGuide($request->title(), $request->slug(), $schema, $request->admin());
 
-        return redirect('/admin/seiten/'.$page->id)->with('toast', self::CREATED);
+        return redirect(self::RATGEBER.'/'.$page->id)->with('toast', self::CREATED);
     }
 
     public function saveDraft(PageContentRequest $request, Page $page): RedirectResponse

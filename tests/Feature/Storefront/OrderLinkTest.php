@@ -40,7 +40,7 @@ it('opens the order through its link within twelve months, and shows the address
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Bestellung/Index')->where('payment.email', 'e…@beispiel.de'));
 
     // The browser that placed it sees the address it typed.
-    $this->withSession([BestellungController::SESSION_PLACED => [$this->order->order_number]])->get('/bestellung/'.$this->order->order_number)
+    $this->withSession([BestellungController::SESSION_PLACED => [$this->order->order_number]])->get('/bestellung/'.$this->order->public_id)
         ->assertInertia(fn (AssertableInertia $page) => $page->where('payment.email', 'erika@beispiel.de'));
 });
 
@@ -50,15 +50,15 @@ it('leads an expired link — and one from before links expired — to the way b
     $this->travel(1)->days();
 
     $this->get($link)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Bestellung/Abgelaufen')->where('number', $this->order->order_number));
-    $this->get(URL::signedRoute('bestellung.show', ['order' => $this->order->order_number]))
+    $this->get(URL::signedRoute('bestellung.show', ['order' => $this->order->public_id]))
         ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Bestellung/Abgelaufen'));
-    $this->get('/bestellung/'.$this->order->order_number.'?expires=1&signature='.str_repeat('0', 64))->assertNotFound();
+    $this->get('/bestellung/'.$this->order->public_id.'?expires=1&signature='.str_repeat('0', 64))->assertNotFound();
 });
 
 it('sends a fresh link to the address the order went to, and answers the same whatever is typed', function (): void {
     Mail::fake();
 
-    $this->from('/bestellung/'.$this->order->order_number)
+    $this->from('/bestellung/'.$this->order->public_id)
         ->post('/bestellung/link', ['order_number' => ' '.mb_strtolower($this->order->order_number).' ', 'email' => 'Erika@Beispiel.de'])
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', BestellungLinkController::SENT);
@@ -85,7 +85,7 @@ it('sends a fresh link to the address the order went to, and answers the same wh
 it('asks for the number and a real address in sentences', function (): void {
     $this->from('/bestellung/x')->post('/bestellung/link', ['order_number' => '', 'email' => 'keine-adresse'])
         ->assertSessionHasErrors([
-            'order_number' => 'Bitte gib die Bestellnummer an – sie steht in der Bestätigung, zum Beispiel RMF-2026-0012.',
+            'order_number' => 'Bitte gib die Bestellnummer an – sie steht in der Bestätigung, zum Beispiel 2611-10487.',
             'email' => 'Bitte gib eine gültige E-Mail-Adresse an.',
         ]);
 });

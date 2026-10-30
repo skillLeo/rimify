@@ -1,27 +1,23 @@
 <script setup lang="ts">
 /**
- * Inhalte › Seiten — every page of the shop whose words the team edits: the homepage, the Ratgeber
- * articles and the legal pages (docs/admin/inhalte-build-plan.md).
+ * Inhalte › Seiten — every page of the shop whose words the team edits and whose place the shop's structure fixes: the
+ * homepage and the legal pages (docs/admin/inhalte-build-plan.md). The Ratgeber articles have their own page since his
+ * admin item 12 (D-351); one line here says where they went.
  *
- * One primary action, *Blog-Artikel anlegen* — the only kind of page a team adds; the others
- * are fixed by the shop's structure. A row says what differs from the normal state and nothing
- * else: not published, a draft waiting, a legal text still a placeholder (D-319).
+ * A row says what differs from the normal state and nothing else: not published, a draft waiting, a legal text still a
+ * placeholder (D-319).
  */
 
-import { Link, router, usePage } from '@inertiajs/vue3'
-import { computed, nextTick, ref } from 'vue'
+import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
-import Dialog from '../../../Components/Ui/Dialog.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
-import { useOpenOnArrival } from '../../../composables/admin/useOpenOnArrival'
 import type { AdminSeitenProps, SeitenGroup } from '../../../types/admin/seiten'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
 const props = defineProps<AdminSeitenProps>()
-
-const page = usePage()
 
 const count = computed(() => props.groups.reduce((sum, group) => sum + group.pages.length, 0))
 
@@ -45,54 +41,13 @@ function placeholderNote(group: SeitenGroup): string {
 
     return `Alle ${NUMBER_WORDS[n] ?? String(n)} Seiten sind noch Platzhalter.`
 }
-
-/* ── Blog-Artikel anlegen ────────────────────────────────────────────────────────── */
-
-const creating = ref(false)
-const title = ref('')
-const busy = ref(false)
-const sent = ref(false)
-
-const error = computed(() => {
-    const raw: unknown = page.props.errors
-    const bag = raw !== null && typeof raw === 'object' ? (raw as Record<string, string>) : {}
-
-    return sent.value ? (bag.title ?? bag.slug ?? '') : ''
-})
-
-function openCreate(): void {
-    title.value = ''
-    sent.value = false
-    creating.value = true
-}
-
-// „Neu › Blog-Artikel anlegen“ from the rail's foot or the palette lands here with ?neu=1.
-useOpenOnArrival('neu', openCreate, () => props.can.create)
-
-function create(): void {
-    if (busy.value) {
-        return
-    }
-
-    busy.value = true
-    sent.value = true
-
-    router.post('/admin/seiten', { title: title.value }, {
-        preserveScroll: true,
-        // A refused title takes focus again, so the error under it is heard and the fix starts there.
-        onError: () => void nextTick(() => document.getElementById('sn-title')?.focus()),
-        onFinish: () => {
-            busy.value = false
-        },
-    })
-}
 </script>
 
 <template>
     <AdminPage title="Seiten" :context="context">
-        <template v-if="can.create" #primary>
-            <button class="btn btn--primary" type="button" @click="openCreate">Blog-Artikel anlegen</button>
-        </template>
+        <p class="adm-note sn__moved">
+            Die Blog-Artikel haben eine eigene Seite: <Link :href="ratgeber">Ratgeber</Link>.
+        </p>
 
         <!-- One table, one header, a row group per kind of page: the lists line up because they
              are one list. A draft is said under its page only where there is one. -->
@@ -138,40 +93,14 @@ function create(): void {
         </div>
 
         <AdminState v-else kind="empty" text="Noch keine Seite, deren Text du hier bearbeiten kannst." />
-
-        <Dialog v-model:open="creating" title="Blog-Artikel anlegen" content-class="adm-dialog adm-dialog--narrow">
-            <form id="sn-create" class="adm-fields" novalidate @submit.prevent="create">
-                <div class="form-field">
-                    <label class="form-field__label" for="sn-title">Titel</label>
-                    <input
-                        id="sn-title"
-                        v-model="title"
-                        class="input"
-                        type="text"
-                        maxlength="90"
-                        autocomplete="off"
-                        aria-required="true"
-                        aria-describedby="sn-title-help sn-title-err"
-                        :aria-invalid="error ? 'true' : undefined"
-                    >
-                    <p id="sn-title-help" class="form-field__help">
-                        Aus dem Titel entsteht die Adresse, zum Beispiel /ratgeber/et-richtig-lesen. Der Artikel ist erst nach dem Veröffentlichen im Shop.
-                    </p>
-                    <p id="sn-title-err" class="form-field__error">{{ error }}</p>
-                </div>
-            </form>
-
-            <template #actions>
-                <button class="btn btn--secondary" type="button" @click="creating = false">Abbrechen</button>
-                <button class="btn btn--primary" type="submit" form="sn-create" :disabled="busy" :aria-busy="busy ? 'true' : undefined">
-                    Anlegen
-                </button>
-            </template>
-        </Dialog>
     </AdminPage>
 </template>
 
 <style scoped>
+.sn__moved {
+    margin: 0 0 var(--sp-16);
+}
+
 /* A group's own row: its name as a heading inside the table, with air above it. */
 .sn__group-row th {
     padding: var(--sp-24) var(--sp-12) var(--sp-8);

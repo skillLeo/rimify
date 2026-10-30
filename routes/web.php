@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ErstattungController;
 use App\Http\Controllers\Admin\FahrzeugeController;
 use App\Http\Controllers\Admin\FahrzeugImportController;
 use App\Http\Controllers\Admin\FelgenController as AdminFelgenController;
+use App\Http\Controllers\Admin\FelgenSterneController;
 use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
@@ -30,10 +31,12 @@ use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
+use App\Http\Controllers\Admin\MeistgekaufteFelgenController;
 use App\Http\Controllers\Admin\NachfrageController;
 use App\Http\Controllers\Admin\NachrichtenController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\ProtokollController;
+use App\Http\Controllers\Admin\RatgeberController as AdminRatgeberController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RechnungsnummernController;
 use App\Http\Controllers\Admin\ReifenController;
@@ -169,13 +172,14 @@ Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:s
 Route::post('/kasse/zahlung', [KasseZahlungController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.zahlung');
 // The sandbox's payment page (App\Payments\SandboxGateway): by its signed link only, and only where
 // the review is on (TestPaymentRequest). The POST carries the same signature in its query string.
-Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->middleware('signed')->name('kasse.testzahlung');
-Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
-Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->name('bestellung.show');
+Route::get('/kasse/testzahlung/{order}', [TestzahlungController::class, 'show'])->whereUuid('order')->middleware('signed')->name('kasse.testzahlung');
+Route::post('/kasse/testzahlung/{order}', [TestzahlungController::class, 'store'])->whereUuid('order')->middleware(['signed', 'throttle:shop-testzahlung'])->name('kasse.testzahlung.store');
+// The order by its public id (his admin item 18, D-354): a UUID in place of the number, the signature kept as before.
+Route::get('/bestellung/{order}', [BestellungController::class, 'show'])->whereUuid('order')->name('bestellung.show');
 // The way back from an expired order link (D-240): number and address, and a fresh link goes to that address.
 Route::post('/bestellung/link', [BestellungLinkController::class, 'store'])->middleware('throttle:shop-bestelllink')->name('bestellung.link');
 // Mein Konto (Block G §2): offered after a paid order with one click; guest checkout stays the default.
-Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->middleware('throttle:shop-konto')->name('bestellung.konto');
+Route::post('/bestellung/{order}/konto', [KontoController::class, 'offer'])->whereUuid('order')->middleware('throttle:shop-konto')->name('bestellung.konto');
 Route::middleware('guest:customer')->group(function (): void {
     Route::get('/konto/anmelden', [KontoController::class, 'create'])->name('konto.anmelden');
     Route::post('/konto/anmelden', [KontoController::class, 'login'])->middleware('throttle:shop-konto')->name('konto.login');
@@ -192,10 +196,10 @@ Route::middleware('auth:customer')->group(function (): void {
 // An invoice's PDF from the private disk, by its signed link only (Invoices::link).
 Route::get('/rechnung/{number}', RechnungController::class)->where('number', '[A-Z-]+[0-9]+')->middleware(['signed', 'throttle:shop-api'])->name('rechnung.show');
 // #19, D-103: the review invitation's page — signed, the link is the proof of purchase; the form goes back to it.
-Route::get('/bewertung/{number}', [BewertungController::class, 'show'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
-Route::post('/bewertung/{number}', [BewertungController::class, 'store'])->where('number', '[A-Z0-9-]+')->middleware(['signed', 'throttle:shop-bewertung'])->name('bewertung.store');
+Route::get('/bewertung/{order}', [BewertungController::class, 'show'])->whereUuid('order')->middleware(['signed', 'throttle:shop-api'])->name('bewertung.show');
+Route::post('/bewertung/{order}', [BewertungController::class, 'store'])->whereUuid('order')->middleware(['signed', 'throttle:shop-bewertung'])->name('bewertung.store');
 // The confirmation page asks while the payment is being confirmed; it reads the order, it never pays it.
-Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->middleware('throttle:shop-api')->name('bestellung.status');
+Route::get('/bestellung/{order}/status', [BestellungController::class, 'status'])->whereUuid('order')->middleware('throttle:shop-api')->name('bestellung.status');
 // The payment provider's signed webhook (outside the CSRF check, bootstrap/app.php): stored raw, 200, work queued.
 Route::post('/webhooks/{provider}', PaymentWebhookController::class)->whereIn('provider', ['stripe'])->name('webhooks.payment');
 // Amazon SES's bounces and complaints, by SNS (outside the CSRF check): the signature and the configured topic are the
@@ -459,6 +463,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::post('/felgen/{model}/'.$step, [AdminFelgenController::class, 'status'])->whereNumber('model')->name('felgen.'.$step);
         }
 
+        // Stars typed for one rim, and the one sentence beside every rim's typed stars (#19, D-344, D-345):
+        // WheelModelPolicy::rate through the Form Requests. `sterne-hinweis` is a fixed segment, never a `{model}`.
+        Route::put('/felgen/sterne-hinweis', [FelgenSterneController::class, 'disclosure'])->name('felgen.sterne.hinweis');
+        Route::put('/felgen/{model}/sterne', [FelgenSterneController::class, 'update'])->whereNumber('model')->name('felgen.sterne');
+        Route::delete('/felgen/{model}/sterne', [FelgenSterneController::class, 'destroy'])->whereNumber('model')->name('felgen.sterne.entfernen');
+
         // A finish's photographs (COMPLIANCE row 23): one more after the others, one taken off, all in a
         // new order, one described anew. FinishImages composes the cover the shop reads from them.
         Route::post('/felgen/{model}/ausfuehrungen/{finish}/foto', [AdminFelgenController::class, 'image'])
@@ -579,6 +589,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('message')
             ->middleware('throttle:60,1,nachricht-gelesen')
             ->name('nachrichten.gelesen');
+        // Where new messages are mailed (#12, D-347): ContactMessagePolicy::configure through ContactRecipientRequest.
+        Route::put('/nachrichten/empfaenger', [NachrichtenController::class, 'recipient'])
+            ->middleware('throttle:10,1,nachrichten-empfaenger')
+            ->name('nachrichten.empfaenger');
 
         // Gespeicherte Ansichten (step 2.2), for every list in AdminLists: a list's filters under a
         // name, kept per person and optionally shared with a role. Each write asks SavedViewPolicy
@@ -737,6 +751,25 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->whereNumber('page')
             ->middleware('throttle:30,1,seiten-bild')
             ->name('seiten.bild');
+
+        // Inhalte › Ratgeber (his admin item 12, D-351): the Blog's articles on a page of their own. The editor's writes stay
+        // where every page's are (/seiten/{page}/…); an article's old address there leads here. Each write refused by its Policy.
+        Route::get('/ratgeber', [AdminRatgeberController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('ratgeber.index');
+        Route::post('/ratgeber', [AdminRatgeberController::class, 'store'])->name('ratgeber.store');
+        Route::get('/ratgeber/{page}', [AdminRatgeberController::class, 'show'])
+            ->whereNumber('page')
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('ratgeber.show');
+        Route::post('/ratgeber/{page}/veroeffentlichen', [AdminRatgeberController::class, 'publish'])->whereNumber('page')->name('ratgeber.veroeffentlichen');
+        Route::delete('/ratgeber/{page}', [AdminRatgeberController::class, 'destroy'])->whereNumber('page')->name('ratgeber.destroy');
+
+        // Inhalte › Meistgekaufte Felgen (the client's #5, D-353): the picks that fill the homepage's shelf after sales.
+        Route::get('/meistgekaufte-felgen', [MeistgekaufteFelgenController::class, 'index'])
+            ->middleware(EnsureAdminMay::class.':content,view')
+            ->name('meistgekaufte-felgen.index');
+        Route::put('/meistgekaufte-felgen', [MeistgekaufteFelgenController::class, 'update'])->name('meistgekaufte-felgen.update');
 
         // Inhalte › FAQ: no draft — a visible entry changes on the shop when saved, so changing
         // one takes the right to publish (FaqEntryPolicy). `/reihenfolge` is a fixed segment.

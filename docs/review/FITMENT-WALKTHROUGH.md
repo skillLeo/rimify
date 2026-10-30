@@ -29,7 +29,7 @@ Rheinland) and the Nachtrag 366-0350-21-WIRD/N1 to ABE 53841 (18 inch, TÜV Aust
 ## 2. Six cases from your documents
 
 The three example cars of the acceptance set, with your DB8GT2 at 18 and 19 inch. Each answer was read from the shop on
-our test instance on 28.10.2026 and worked out again by hand from the document; the pictures are in the meeting PDF.
+our test instance on 28.10.2026, worked out again by hand from the document, and read again on your preview after release 21: the same answers. The pictures are in the meeting PDF.
 The cars' papers on record: **E46** 320i — 8.1 880 kg, 8.2 1.020 kg, T 226 km/h · **E90** 320i — 935 kg, 1.105 kg,
 222 km/h · **X3** 2.0d — 1.130 kg, 1.240 kg, 198 km/h.
 

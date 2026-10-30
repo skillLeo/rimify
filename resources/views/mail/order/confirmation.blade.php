@@ -9,6 +9,9 @@ Deine Bestellung **{{ $number }}** ist bezahlt. Hier ist alles, was dazugehört 
 
 @foreach ($lines as $line)
 **{{ $line['quantity'] }} × {{ $line['label'] }}** – {{ $line['total'] }}
+@foreach ($line['components'] ?? [] as $part)
+- {{ $part['label'] }}: {{ $part['quantity'] }} × {{ $part['unitPrice'] }} = {{ $part['lineTotal'] }}
+@endforeach
 @if ($line['verdict'])
 {{ $line['verdict'] }}@if ($line['entry']) {{ $line['entry'] }}@endif @if ($line['papers']) {{ $line['papers'] }}@endif
 
@@ -62,8 +65,10 @@ Nur bei {{ $size['size'] }} ({{ $size['axle'] }}):
 
 @if ($invoiceNumber !== null)
 Deine Rechnung **{{ $invoiceNumber }}** hängt an dieser Mail. Du kannst sie auch [hier herunterladen]({{ $invoiceUrl }}) (der Link gilt sieben Tage).
-@else
+@elseif ($testPurchase && $ownInvoices)
 Dies ist ein Testkauf mit Beispieldaten: Er bekommt keine Rechnung und zählt in keiner echten Zahl des Shops.
+@elseif ($testPurchase)
+Dies ist ein Testkauf mit Beispieldaten: Er zählt in keiner echten Zahl des Shops.
 @endif
 @if ($legalAttached)
 

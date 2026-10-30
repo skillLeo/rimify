@@ -47,8 +47,9 @@ test('the header is 72 px on a computer and 64 px on a phone, and a jump lands w
     await open(page, '/')
 
     const header = page.getByRole('banner')
-    // The bar itself: on the preview a ribbon stands above it and is no part of the header's height.
-    const bar = header.locator(phone(info) ? '.mbar__row' : '.sh__bar').first()
+    // The bar itself: on the preview a ribbon stands above it and is no part of the header's height. One header at every
+    // width since the client's #35 (D-349).
+    const bar = header.locator('.sh__bar').first()
 
     expect(Math.round((await bar.boundingBox())?.height ?? 0)).toBe(phone(info) ? 64 : 72)
     await evidence(header, 2, info)

@@ -1,16 +1,16 @@
 <script setup lang="ts">
 /**
- * The phone frame: app bar, page, footer, and the overlays the shell owns — the vehicle sheet,
- * the search sheet, the cookie choice, the toast. The destinations live in the app bar's menu;
- * nothing crosses the bottom of the screen but a page's own sticky action bar.
+ * The phone frame: the shop's one header (as on every page — the client's #35, D-349), page, footer, and the overlays
+ * the shell owns — the vehicle sheet, the search sheet, the cookie choice, the toast. The destinations live in the
+ * header's menu; nothing crosses the bottom of the screen but a page's own sticky action bar.
  *
- * A page applies it with `defineOptions({ layout: MobileLayout })` and, when it needs the bar to
- * say something, passes props through the layout function:
+ * A page applies it with `defineOptions({ layout: MobileLayout })` and, when it wants its title as a large h1 under the
+ * header, passes it through the layout function:
  *
- *     defineOptions({ layout: (h, page) => h(MobileLayout, { title: 'Warenkorb', large: true }, () => page) })
+ *     defineOptions({ layout: (h, page) => h(MobileLayout, { title: 'Felgenrechner', large: true }, () => page) })
  *
  * The props arrive before anything renders, so the server's first frame already carries the
- * right bar. Nothing here consults `window` outside `onMounted`.
+ * right title. Nothing here consults `window` outside `onMounted`.
  *
  * Navigation: every plain GET visit gets a view transition whose direction was decided before
  * the visit (`useNavigationDirection`); back is never animated; every open sheet closes and
@@ -18,9 +18,9 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
-import AppBar from '../Components/Mobile/AppBar.vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import BottomSheet from '../Components/Mobile/BottomSheet.vue'
+import SiteHeader from '../Components/Chrome/SiteHeader.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import CanonicalLink from '../Components/Chrome/CanonicalLink.vue'
@@ -40,32 +40,18 @@ import { isNavigationVisit, provideMobileShell } from '../composables/mobile/use
 import { installNavigationDirection, markNext } from '../composables/mobile/useNavigationDirection'
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
 
-const props = withDefaults(
+withDefaults(
     defineProps<{
+        /** The page's title. Shown only with `large`; the header names no page since #35. */
         title?: string
-        /** An iOS-style large title that collapses into the bar. It is the page's h1. */
+        /** The title as the page's h1, under the header; a page that asks for it renders no second one. */
         large?: boolean
-        /** The back arrow's destination when the session has no history; null hides it. */
+        /** Kept for the pages that still pass it: since #35 the header has no back arrow — the browser's own goes back. */
         back?: string | null
         footer?: boolean
     }>(),
     { title: undefined, large: false, back: '/', footer: true }
 )
-
-/** Routes whose screens are tabs: no back arrow, search and vehicle in the bar. */
-const TOP_LEVEL = new Set(['startseite', 'felgen.index', 'check.index', 'warenkorb.index'])
-
-/** What the bar says on an inner route that passes no title of its own. */
-const ROUTE_TITLES: Record<string, string> = {
-    'felgen.suchen': 'Fahrzeug wählen',
-    'felgen.show': 'Felge',
-    'check.ergebnis': 'Ergebnis',
-    'kasse.index': 'Kasse',
-    'bestellung.show': 'Bestellung',
-    faq: 'Häufige Fragen',
-    kontakt: 'Kontakt',
-    rechtliches: 'Rechtliches',
-}
 
 const shared = useShared()
 /* The review's feedback button, for a signed-in admin only (D-142): loaded once the page is awake, never for a visitor (D-255). */
@@ -77,17 +63,30 @@ const changeHref = useVehicleChangeHref()
 
 const vehicle = computed(() => shared.value.vehicle)
 
-const bar = computed(() => {
-    const name = shared.value.routeName ?? ''
-    const top = TOP_LEVEL.has(name)
-
-    return {
-        top,
-        title: props.title ?? (top ? undefined : ROUTE_TITLES[name] ?? 'RIMIFY'),
-        large: props.large,
-        back: props.back,
+/*
+ * One header on every page a phone opens (the client's #35, D-349): the shop's own, as every other page has it — the
+ * wordmark, the search, the vehicle, the basket and the menu, each where it stands everywhere else. What it opens is
+ * the phone shell's: the search sheet and the vehicle sheet.
+ */
+watch(
+    () => frame.paletteOpen.value,
+    (open) => {
+        if (open) {
+            frame.paletteOpen.value = false
+            shell.searchOpen.value = true
+        }
     }
-})
+)
+
+watch(
+    () => frame.vehicleOpen.value,
+    (open) => {
+        if (open) {
+            frame.vehicleOpen.value = false
+            shell.vehicleOpen.value = true
+        }
+    }
+)
 
 const vehicleSheet = computed({
     get: () => shell.vehicleOpen.value && vehicle.value !== null,
@@ -163,20 +162,29 @@ function fromVehicleSheet(href: string | undefined): void {
 </script>
 
 <template>
-    <div class="mshell" :class="{ 'mshell--sticky': shell.stickyBar.value, 'mshell--footer': footer }">
+    <!-- The vehicle bar under the header as on every other page; where the server shows none (R-08), the offsets that
+         add its height add nothing. -->
+    <div
+        class="mshell"
+        :class="{
+            'mshell--sticky': shell.stickyBar.value,
+            'mshell--footer': footer,
+            'mshell--vbar': vehicle !== null && (shared.headerMode === 'WHITE_BOX' || shared.headerMode === 'BLUE_BAR'),
+        }"
+    >
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
         <CanonicalLink />
 
         <PreviewRibbon />
 
-        <AppBar :top="bar.top" :title="bar.title" :large="bar.large" :back="bar.back">
-            <template #actions>
-                <slot name="bar-actions" />
-            </template>
-        </AppBar>
+        <SiteHeader />
 
-        <!-- Where it shows, under the app bar: Tab reaches it after the bar, not after the whole page (PDP-10). -->
+        <!-- A page that asks for a large title gets it here, as its h1, under the header — where the phone bar carried it.
+             A page without one brings its own h1. -->
+        <h1 v-if="large && title" class="h2 mshell__title">{{ title }}</h1>
+
+        <!-- Where it shows, under the header: Tab reaches it after the header, not after the whole page (PDP-10). -->
         <AddedPanel />
 
         <main id="inhalt" class="mshell__main">
@@ -209,12 +217,25 @@ function fromVehicleSheet(href: string | undefined): void {
 
 <style scoped>
 .mshell {
-    /* The phone shell carries no vehicle bar under its app bar: whatever sits below it adds nothing for one. */
-    --vbar-h: 0px;
-
     display: flex;
     flex-direction: column;
     min-height: 100dvh;
+}
+
+/* No bar, no offset: sticky elements and anchor margins read the token below the shell. */
+.mshell:not(.mshell--vbar) {
+    --vbar-h: 0px;
+}
+
+/* The header holds still while a page slides in under it (the transitions below), as the phone bar did. */
+.mshell :deep(.site-header) {
+    view-transition-name: m-appbar;
+}
+
+/* The page's title under the header, where the phone bar's large title stood. */
+.mshell__title {
+    margin: 0;
+    padding: var(--sp-8) var(--page-margin) var(--sp-16);
 }
 
 .mshell__main {

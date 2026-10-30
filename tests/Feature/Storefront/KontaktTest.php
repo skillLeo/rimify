@@ -9,9 +9,11 @@ use App\Http\Requests\Storefront\ContactRequest;
 use App\Mail\ContactConfirmationMail;
 use App\Mail\ContactMessageMail;
 use App\Models\AdminUser;
+use App\Models\AuditLog;
 use App\Models\ContactMessage;
 use App\Models\CustomerAccount;
 use App\Models\Vehicle;
+use App\Support\ContactRecipient;
 use App\Support\VehicleName;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\Crypt;
@@ -28,7 +30,8 @@ use Inertia\Testing\AssertableInertia;
  */
 
 beforeEach(function (): void {
-    config(['rimify.contact.email' => 'service@example.com']);
+    // A shop whose mail leaves (D-347): Mail::fake() catches what it sends. The preview's log mailer is its own test.
+    config(['rimify.contact.email' => 'service@example.com', 'mail.default' => 'smtp']);
 });
 
 /** @return array<string, mixed> */
@@ -79,6 +82,51 @@ it('keeps the message and mails it to the shop with the sender as reply-to — a
     // The address is whatever the visitor typed: the shop mails nothing to it (finding 102, D-218).
     Mail::assertNotSent(ContactConfirmationMail::class);
     Mail::assertSentCount(1);
+});
+
+it('mails to the address set in the admin, and tells the page the message left — never a copy that did not @kunde-12', function (): void {
+    Mail::fake();
+    $this->seed(AccessSeeder::class);
+    $team = AdminUser::query()->where('email', 'order-manager@rimify.test')->firstOrFail();
+
+    $this->actingAs($team, 'admin')->put('/admin/nachrichten/empfaenger', ['address' => ' Info@Beispiel.de '])->assertSessionHasNoErrors()->assertSessionHas('toast');
+    $this->actingAs($team, 'admin')->get('/admin/nachrichten')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('recipient', ['address' => 'info@beispiel.de', 'mailing' => true, 'canChange' => true]));
+
+    $this->from('/kontakt')->post('/kontakt', kontaktForm())->assertSessionHasNoErrors()->assertSessionHas('kontakt', ['mailed' => true, 'copied' => false]);
+    Mail::assertSent(ContactMessageMail::class, fn (ContactMessageMail $mail): bool => $mail->hasTo('info@beispiel.de'));
+    Mail::assertSentCount(1);
+    expect(AuditLog::query()->where('description', 'contact.recipient_changed')->sole()->properties['after'] ?? null)->toBe('info@beispiel.de');
+});
+
+it('keeps the message and says so — never that it was mailed — while the shop sends no mail, as on the preview @kunde-12', function (): void {
+    Mail::fake();
+    // The preview's mailer: everything goes to the log, nothing reaches an inbox.
+    config(['mail.default' => 'log']);
+
+    $this->from('/kontakt')->post('/kontakt', kontaktForm())->assertSessionHasNoErrors()->assertSessionHas('kontakt', ['mailed' => false, 'copied' => false]);
+
+    expect(ContactMessage::query()->count())->toBe(1);
+    Mail::assertNothingSent();
+});
+
+it('lets only who may change orders say where the messages go, and refuses an address that is none', function (): void {
+    $this->seed(AccessSeeder::class);
+    $support = AdminUser::query()->where('email', 'support-agent@rimify.test')->firstOrFail();
+    $team = AdminUser::query()->where('email', 'order-manager@rimify.test')->firstOrFail();
+
+    // Kundenbetreuung reads the messages; where they go is not theirs to change.
+    $this->actingAs($support, 'admin')->put('/admin/nachrichten/empfaenger', ['address' => 'fremd@example.org'])->assertForbidden();
+    $this->actingAs($support, 'admin')->get('/admin/nachrichten')->assertInertia(fn (AssertableInertia $page) => $page->where('recipient.canChange', false));
+
+    $this->actingAs($team, 'admin')->put('/admin/nachrichten/empfaenger', ['address' => 'kein-at-zeichen'])
+        ->assertSessionHasErrors(['address' => 'Diese E-Mail-Adresse sieht nicht vollständig aus. Bitte prüf sie noch einmal.']);
+    $this->actingAs($team, 'admin')->put('/admin/nachrichten/empfaenger', ['address' => ''])
+        ->assertSessionHasErrors(['address' => 'Trag die Adresse ein, an die neue Nachrichten gehen sollen.']);
+
+    // Unset, the configured contact address stands.
+    expect(ContactRecipient::address())->toBe('service@example.com')
+        ->and(AuditLog::query()->where('description', 'contact.recipient_changed')->exists())->toBeFalse();
 });
 
 it('sends the copy to a signed-in customer\'s own confirmed address, and to no other @kunde-12', function (): void {

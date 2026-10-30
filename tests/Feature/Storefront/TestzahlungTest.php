@@ -80,7 +80,7 @@ function testzahlungPlace(object $test): array
     $order = Order::query()->latest('id')->firstOrFail();
     $location = (string) $response->headers->get('Location');
 
-    expect($location)->toContain('/kasse/testzahlung/'.$order->order_number)->toContain('signature=');
+    expect($location)->toContain('/kasse/testzahlung/'.$order->public_id)->toContain('signature=');
 
     return [$order, $location];
 }
@@ -127,7 +127,7 @@ it('pays the test order: paid, no rim counted (D-299), the basket empty, the con
     );
 
     $this->post($location, ['outcome' => 'bezahlt'])
-        ->assertRedirect(route('bestellung.show', ['order' => $order->order_number]))
+        ->assertRedirect(route('bestellung.show', ['order' => $order->public_id]))
         ->assertSessionHas('toast', 'Testzahlung erfolgreich – die Bestellung ist bezahlt.');
 
     $order->refresh();
@@ -137,7 +137,7 @@ it('pays the test order: paid, no rim counted (D-299), the basket empty, the con
         ->and(session(Basket::SESSION_KEY, []))->toBe([]);
 
     // The browser that placed it sees its confirmation; paid once, the payment page is gone.
-    $this->get('/bestellung/'.$order->order_number)->assertOk()
+    $this->get('/bestellung/'.$order->public_id)->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('order.status', OrderStatus::Paid->value));
     $this->post($location, ['outcome' => 'bezahlt'])->assertForbidden();
 });
@@ -173,7 +173,7 @@ it('takes an order through a second press, decline, retry and payment — one op
     // A second press: the same order.
     $again = $this->withCookies(testzahlungCookies($this->vehicle))->from('/kasse')->post('/kasse', testzahlungForm());
 
-    expect((string) $again->headers->get('Location'))->toContain('/kasse/testzahlung/'.$order->order_number)
+    expect((string) $again->headers->get('Location'))->toContain('/kasse/testzahlung/'.$order->public_id)
         ->and(Order::query()->where('payment_method', 'sandbox')->where('status', OrderStatus::PendingPayment->value)->count())->toBe(1);
 
     // Decline: the Kasse still offers the wheels.
@@ -191,11 +191,11 @@ it('takes an order through a second press, decline, retry and payment — one op
     $newLocation = (string) $retry->headers->get('Location');
 
     expect($new->order_number)->not->toBe($order->order_number)
-        ->and($newLocation)->toContain('/kasse/testzahlung/'.$new->order_number)
+        ->and($newLocation)->toContain('/kasse/testzahlung/'.$new->public_id)
         ->and($order->fresh()->status)->toBe(OrderStatus::Cancelled);
 
     // Succeed: paid, the basket empty, a test invoice for the new order and none for the old.
-    $this->post($newLocation, ['outcome' => 'bezahlt'])->assertRedirect(route('bestellung.show', ['order' => $new->order_number]));
+    $this->post($newLocation, ['outcome' => 'bezahlt'])->assertRedirect(route('bestellung.show', ['order' => $new->public_id]));
 
     expect($new->fresh()->status)->toBe(OrderStatus::Paid)
         ->and($order->fresh()->status)->toBe(OrderStatus::Cancelled)
@@ -212,8 +212,8 @@ it('takes an order through a second press, decline, retry and payment — one op
 it('refuses an unsigned or tampered payment address and an unknown outcome', function (): void {
     [$order, $location] = testzahlungPlace($this);
 
-    $this->get('/kasse/testzahlung/'.$order->order_number)->assertForbidden();
-    $this->post('/kasse/testzahlung/'.$order->order_number, ['outcome' => 'bezahlt'])->assertForbidden();
+    $this->get('/kasse/testzahlung/'.$order->public_id)->assertForbidden();
+    $this->post('/kasse/testzahlung/'.$order->public_id, ['outcome' => 'bezahlt'])->assertForbidden();
     $this->post($location, ['outcome' => 'geschenkt'])->assertSessionHasErrors('outcome');
 
     expect($order->fresh()->status)->toBe(OrderStatus::PendingPayment);
@@ -236,30 +236,27 @@ it('does not exist where the review is off, whatever the driver says', function 
     // A pending order, set up directly in the table: the model would refuse moving a paid one back (Block G).
     $order = Order::query()->firstOrFail();
     Order::query()->whereKey($order->id)->update(['status' => OrderStatus::PendingPayment->value]);
-    $this->get(URL::temporarySignedRoute('kasse.testzahlung', now()->addMinutes(5), ['order' => $order->order_number]))->assertForbidden();
+    $this->get(URL::temporarySignedRoute('kasse.testzahlung', now()->addMinutes(5), ['order' => $order->public_id]))->assertForbidden();
 });
 
 it('shows a real order only to the browser that placed it or through a signed link', function (): void {
     [$order] = testzahlungPlace($this);
 
     $this->flushSession();
-    $this->get('/bestellung/'.$order->order_number)->assertNotFound();
+    $this->get('/bestellung/'.$order->public_id)->assertNotFound();
     $this->get(OrderLinks::link($order))->assertOk();
 });
 
-it('counts order numbers as numbers, so a longer or zero-padded number is never issued twice', function (): void {
-    $year = now()->year;
-    $template = Order::query()->firstOrFail();
+it('numbers a checkout order YYMM-n, in Berlin, the counter above the last one drawn (his admin item 18, D-354)', function (): void {
+    [$first] = testzahlungPlace($this);
+    // Another visitor: the same browser would be given its own pending order back.
+    $this->flushSession();
+    [$second] = testzahlungPlace($this);
+    $month = now('Europe/Berlin')->format('ym');
 
-    // As text, `8999` sorts above `09000`; as numbers the next is 9001.
-    foreach (["RMF-{$year}-8999", "RMF-{$year}-09000"] as $number) {
-        $copy = $template->replicate();
-        $copy->forceFill(['order_number' => $number, 'is_demo' => false])->save();
-    }
-
-    [$order] = testzahlungPlace($this);
-
-    expect($order->order_number)->toBe("RMF-{$year}-9001");
+    expect($first->order_number)->toMatch('/^'.$month.'-\d{5,}$/')
+        ->and($second->order_number)->toMatch('/^'.$month.'-\d{5,}$/')
+        ->and((int) substr($second->order_number, 5) - (int) substr($first->order_number, 5))->toBeGreaterThanOrEqual(1)->toBeLessThanOrEqual(9);
 });
 
 it('labels a test order as one in the admin: no money moved, whatever the status', function (): void {

@@ -97,23 +97,24 @@ function seitenAktion(string $method, string $url, Page $page, string $role = 's
         ->json($method, $url, ['baseVersion' => $version ?? stand($page)], ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'text/html']);
 }
 
-it('lists the pages whose words the shop prints, and no others', function (): void {
+it('lists the pages whose words the shop prints, and no others — the Ratgeber articles have their own page (D-351)', function (): void {
     $response = $this->actingAs(seitenAdmin(), 'admin')->get('/admin/seiten')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Seiten/Index')
-            ->has('groups', 3)
+            ->has('groups', 2)
             ->where('groups.0.label', 'Startseite')
             ->has('groups.0.pages', 1)
-            ->where('groups.1.label', 'Blog')
-            ->where('groups.2.label', 'Rechtliches')
-            ->has('groups.2.pages', 5)
-            ->where('groups.2.pages.0.placeholder', true)
-            ->where('can.create', true));
+            ->where('groups.1.label', 'Rechtliches')
+            ->has('groups.1.pages', 5)
+            ->where('groups.1.pages.0.placeholder', true)
+            ->where('ratgeber', '/admin/ratgeber')
+            ->missing('can'));
 
-    // The FAQ and Kontakt pages print none of their block fields; offering them would be a promise.
+    // The FAQ and Kontakt pages print none of their block fields; offering them would be a promise. The articles are
+    // listed under Ratgeber.
     $titles = collect($response->viewData('page')['props']['groups'])->flatMap(fn (array $g) => array_column($g['pages'], 'title'))->all();
-    expect($titles)->not->toContain('Häufige Fragen')->not->toContain('Kontakt');
+    expect($titles)->not->toContain('Häufige Fragen')->not->toContain('Kontakt')->not->toContain(seite('hsn-und-tsn-finden')->title);
 });
 
 it('answers a page the panel does not edit as absent, not forbidden, and logs no refusal', function (): void {
@@ -585,8 +586,9 @@ it('will not withdraw an article a menu still leads to', function (): void {
 it('creates a Ratgeber article from a title, unpublished until it is published', function (): void {
     $response = $this->actingAs(seitenAdmin(), 'admin')->post('/admin/seiten', ['title' => 'ET richtig lesen']);
 
+    // Made at the old address too (a tab open from before D-351), and opened at its own.
     $guide = seite('et-richtig-lesen');
-    $response->assertRedirect('/admin/seiten/'.$guide->id);
+    $response->assertRedirect('/admin/ratgeber/'.$guide->id);
 
     expect($guide->kind)->toBe(Page::KIND_GUIDE)->and($guide->isPublished())->toBeFalse();
     $this->get('/ratgeber/et-richtig-lesen')->assertNotFound();

@@ -32,6 +32,8 @@ export interface AdminZahlungProps {
     testedAt: string | null
     /** Where Stripe's webhook must point (Stripe-Dashboard › Webhooks, or `stripe listen --forward-to`). */
     webhookUrl: string
+    /** Whether the shop issues its own invoices (D-348): off, the invoice numbers are not shown. Absent in older fixtures: on. */
+    ownInvoices?: boolean
     /** The real invoice numbers (InvoiceSeries::state): null per series while not yet opened. */
     invoiceSeries: {
         invoice: OpenedSeries | null

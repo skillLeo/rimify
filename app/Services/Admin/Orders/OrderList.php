@@ -90,9 +90,13 @@ final class OrderList
         if ($term !== null) {
             $like = '%'.addcslashes($term, '%_\\').'%';
             $prefix = addcslashes($term, '%_\\').'%';
+            // An order number with or without its dashes (his admin item 18, D-354): „2611-10487“ and „261110487“ find the
+            // same order, and so do „RMF-2026-0006“ and „RMF20260006“.
+            $bare = addcslashes(str_replace([' ', '-'], '', $term), '%_\\');
 
-            $query->where(static function (Builder $where) use ($like, $prefix): void {
+            $query->where(static function (Builder $where) use ($like, $prefix, $bare): void {
                 $where->where('orders.order_number', 'like', $prefix)
+                    ->when($bare !== '', static fn (Builder $number) => $number->orWhereRaw("REPLACE(orders.order_number, '-', '') LIKE ?", ['%'.$bare.'%']))
                     ->orWhere('orders.vehicle_label', 'like', $like)
                     ->orWhereHas('customer', static function (Builder $customer) use ($like): void {
                         $customer->where('email', 'like', $like)

@@ -35,7 +35,9 @@ import type { BestellungProps } from '../../types/pages'
 
 defineOptions({ layout: AppLayout, inheritAttrs: false })
 
-const props = defineProps<BestellungProps & { demo?: boolean; testPurchase?: boolean }>()
+/** `ownInvoices`: whether the shop issues its own invoices (D-348) — off, no line here mentions one. Absent in older fixtures: on. */
+const props = withDefaults(defineProps<BestellungProps & { demo?: boolean; testPurchase?: boolean; ownInvoices?: boolean }>(), { ownInvoices: true })
+const invoicesOwn = computed(() => props.ownInvoices)
 
 const VERDICT_LABEL: Record<string, string> = {
     PERMITTED: 'Freigegeben',
@@ -120,7 +122,7 @@ async function ask(): Promise<void> {
     tries.value++
 
     try {
-        const response = await fetch(`/bestellung/${encodeURIComponent(props.order.number)}/status`, {
+        const response = await fetch(`/bestellung/${encodeURIComponent(props.order.publicId)}/status`, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         })
@@ -203,15 +205,22 @@ const lead = computed(() => {
         case 'closed':
             return 'Diese Bestellung wurde nicht bezahlt, es wurde nichts abgebucht.'
         default:
-            // A test purchase gets no invoice (D-239): its mail says so, and so does this line.
+            // A test purchase gets no invoice (D-239): its mail says so, and so does this line — where the shop issues
+            // invoices at all (D-348). „Geschickt“ only where the mail left the server (`mailed`, D-347).
             if (props.testPurchase) {
+                if (!invoicesOwn.value) {
+                    return props.payment?.mailed
+                        ? `Deine Testzahlung ist eingegangen. Die Bestätigung mit AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt.`
+                        : 'Deine Testzahlung ist eingegangen.'
+                }
+
                 return props.payment?.mailed
                     ? `Deine Testzahlung ist eingegangen. Die Bestätigung mit AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt – ohne Rechnung, denn es ist ein Testkauf.`
                     : 'Deine Testzahlung ist eingegangen. Ein Testkauf bekommt keine Rechnung.'
             }
 
             return props.payment?.mailed
-                ? `Deine Zahlung ist eingegangen. Die Bestätigung mit Rechnung, AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt. Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.`
+                ? `Deine Zahlung ist eingegangen. Die Bestätigung mit ${invoicesOwn.value ? 'Rechnung, ' : ''}AGB und Widerrufsbelehrung haben wir an ${mailTo.value} geschickt. Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.`
                 : 'Heb dir die Bestellnummer auf – mit ihr beantworten wir deine Fragen.'
     }
 })
@@ -232,7 +241,7 @@ const accountBusy = ref(false)
 
 function openAccount(): void {
     accountBusy.value = true
-    router.post(`/bestellung/${encodeURIComponent(props.order.number)}/konto`, {}, {
+    router.post(`/bestellung/${encodeURIComponent(props.order.publicId)}/konto`, {}, {
         preserveScroll: true,
         onSuccess: () => {
             accountSent.value = true
@@ -276,8 +285,8 @@ function openAccount(): void {
             </header>
             <p v-if="testPurchase" class="ord__lead ord__test-purchase">
                 <span class="tag tag--unknown ord__demo-tag">Demodaten</span>
-                Ein Testkauf mit Beispieldaten: Er bekommt keine Rechnung, zählt in keiner echten Zahl des Shops, und
-                „Zurücksetzen“ nimmt ihn mit allen anderen Beispieldaten wieder heraus.
+                Ein Testkauf mit Beispieldaten: Er {{ invoicesOwn ? 'bekommt keine Rechnung, zählt' : 'zählt' }} in keiner echten Zahl des
+                Shops, und „Zurücksetzen“ nimmt ihn mit allen anderen Beispieldaten wieder heraus.
             </p>
 
             <dl class="ord__facts">
@@ -321,6 +330,18 @@ function openAccount(): void {
                                     <p class="ord__unit tabular">{{ line.quantity }} × {{ line.unitPrice }}</p>
                                 </div>
                             </div>
+
+                            <!-- A Komplettrad's rows, each its own line, as the basket and the checkout showed them (#15, D-355). -->
+                            <table v-if="line.components?.length" class="ord__parts">
+                                <caption class="visually-hidden">Bestandteile</caption>
+                                <tbody>
+                                    <tr v-for="part in line.components" :key="part.label">
+                                        <th scope="row">{{ part.label }}</th>
+                                        <td class="tabular">{{ part.quantity }} × {{ part.unitPrice }}</td>
+                                        <td class="tabular ord__parts-total">{{ part.lineTotal }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
                             <div v-if="line.verdict" class="ord__verdict">
                                 <p class="ord__verdict-row">
@@ -581,6 +602,32 @@ function openAccount(): void {
 .ord__unit {
     font-size: var(--text-small);
     color: var(--ink2);
+}
+
+/* A Komplettrad's rows under its line: quieter than the line, the figures in their columns (D-355). */
+.ord__parts {
+    width: 100%;
+    margin-top: var(--space-2);
+    border-collapse: collapse;
+    font-size: var(--text-small);
+    color: var(--ink2);
+}
+
+.ord__parts th,
+.ord__parts td {
+    padding: var(--space-1) 0;
+    font-weight: 400;
+    text-align: left;
+    vertical-align: baseline;
+}
+
+.ord__parts td {
+    padding-left: var(--space-3);
+    white-space: nowrap;
+}
+
+.ord__parts-total {
+    text-align: right;
 }
 
 .ord__verdict {

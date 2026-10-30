@@ -5,7 +5,8 @@ then every storefront place asked again without clearing anything. Written by `s
 run of `e2e/kundenliste/link-matrix.spec.ts` and the cells checked by other means; pictures in
 `storage/qa-evidence/part-b/` (not in the repository).
 
-**48 cells: 45 PASS · 0 FAIL · 3 n/a.**
+**49 cells: 46 PASS · 0 FAIL · 3 n/a.** (The row for #19 was rewritten on 29.10.2026, when the stars typed in the admin
+were built — D-344; its cells are checked by the tests named beside them.)
 
 | Admin action | listing | filter-brand | filter-diameter | search-brand | search-model | search-designation | product | json-ld | compare | sitemap | amount-total | cart-holding-it | checkout | cart | search | product-url | rimify-check | admin-order | selector | home | blog | legal-pages | admin-messages | impressum |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -15,7 +16,7 @@ run of `e2e/kundenliste/link-matrix.spec.ts` and the cells checked by other mean
 | Verfügbar → Nicht verfügbar, Felge im Warenkorb | ✅ PASS | – | – | – | – | – | ✅ PASS | ✅ PASS | – | – | – | ✅ PASS | ✅ PASS | – | – | – | – | – | – | – | – | – | – | – |
 | Zurückgezogen | ✅ PASS | – | – | – | – | – | – | – | – | ✅ PASS | – | ✅ PASS | – | – | ✅ PASS | ✅ PASS | – | – | – | – | – | – | – | – |
 | Auflage level (Hinweis / Auflage) | ✅ PASS | – | – | – | – | – | ✅ PASS | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – |
-| Reviews | n/a | – | – | – | – | – | – | ✅ PASS | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – |
+| Sterne von Hand eingetragen und entfernt (#19) | n/a | – | – | – | – | – | ✅ PASS | ✅ PASS | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – |
 | Gutachten released | – | – | – | – | – | – | ✅ PASS | – | – | – | – | – | – | – | – | – | ✅ PASS | – | – | – | – | – | – | – |
 | New Fassung released | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | ✅ PASS | – | – | – | – | – | – |
 | Fixed tyre combination (V19, item 8) | – | – | – | – | – | – | ✅ PASS | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – | – |
@@ -66,8 +67,9 @@ run of `e2e/kundenliste/link-matrix.spec.ts` and the cells checked by other mean
 | Zurückgezogen | cart-holding-it | PASS | the basket opens and says what happened to the line | browser, link-matrix.spec.ts |
 | Auflage level (Hinweis / Auflage) | listing | PASS | a level changed shows on the tile's label | e2e kundenliste @kunde-23 (both widths), 28.10.2026 |
 | Auflage level (Hinweis / Auflage) | product | PASS | the answer's label follows; an Abnahme can never be a Hinweis | e2e kundenliste @kunde-23 · tests/abnahme batch-e #23 |
-| Reviews | listing | n/a | reviews cannot be created in the admin (#19, solved differently: verified buyers only); none exist, none shown | e2e kundenliste @kunde-19 |
-| Reviews | json-ld | PASS | no rating in the JSON-LD while there are no real reviews | Pest ProductJsonLdTest @admin-214 |
+| Sterne von Hand eingetragen und entfernt (#19) | listing | n/a | tiles show no stars, typed or bought — only the product page does | — |
+| Sterne von Hand eingetragen und entfernt (#19) | product | PASS | typed in the admin, they stand under the name beside their sentence at once, never as „Geprüfter Kauf“; taken off, they are gone (29.10.2026, D-344) | e2e kundenliste @kunde-19 (both widths) · tests/abnahme batch-e #19 |
+| Sterne von Hand eingetragen und entfernt (#19) | json-ld | PASS | typed stars never enter the JSON-LD; only the buyers' visible reviews make a rating there | Pest StatedRatingTest · ProductJsonLdTest @admin-214 |
 | Gutachten released | product | PASS | the verdict for a matching car, with the Auflagen per axle | Part E cases 2, 4, 5 — read from the shop and worked by hand |
 | Gutachten released | rimify-check | PASS | one answer with its Auflagen, document and page | e2e kundenliste @kunde-28 (both widths) |
 | New Fassung released | admin-order | PASS | an existing order keeps its frozen snapshot and says the document was replaced since | Pest BestellungDetailTest: says when the Gutachten was replaced since, and keeps the snapshot |

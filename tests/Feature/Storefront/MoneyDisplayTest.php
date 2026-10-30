@@ -164,7 +164,7 @@ it('shows 229,00 € for one rim and the amount\'s own total on all nine surface
         ->and($line->line_total_cents)->toBe($total)
         ->and($order->total_cents)->toBe($total);
 
-    $this->get('/bestellung/'.$order->order_number)->assertOk()
+    $this->get('/bestellung/'.$order->public_id)->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('lines.0.unitPrice', MONEY_RIM_TEXT)
             ->where('lines.0.lineTotal', $totalText)

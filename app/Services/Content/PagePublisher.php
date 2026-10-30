@@ -183,6 +183,25 @@ final class PagePublisher
         });
     }
 
+    /**
+     * Deletes a Ratgeber article (the client's admin item 12, D-351): off the shop and out of the list. Its published
+     * versions stay (page_revisions), and so does its address — no release brings a seeded article back under it, because
+     * the seeder leaves a page the team has touched alone.
+     */
+    public function delete(Page $page, int $baseVersion, AdminUser $actor): void
+    {
+        DB::transaction(function () use ($page, $baseVersion, $actor): void {
+            $this->lock($page, $baseVersion);
+
+            $wasPublished = $page->isPublished();
+            $page->forceFill(['status' => Page::STATUS_DRAFT]);
+            $this->bump($page);
+            $page->delete();
+
+            AuditTrail::record($actor, 'page.deleted', ['page' => $page->title, 'slug' => $page->slug, 'was_published' => $wasPublished], $page);
+        });
+    }
+
     /** Loads an old published state into the draft. Nothing goes live until it is published. */
     public function restore(Page $page, int $baseVersion, PageRevision $revision, AdminUser $actor): void
     {

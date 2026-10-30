@@ -52,6 +52,9 @@ return [
     'RIMIFY_RESET_ERLAUBT' => 'false',
     // The browser suite's frozen day is off, as on every server; its own test turns it on (E2eTodayTest, D-337).
     'RIMIFY_E2E_CLOCK' => 'off',
+    // The shop's own invoices: off on every server since D-348 (Stripe issues them), on here so the kept code stays
+    // proven; the tests of the switched-off shop say so (OwnInvoicesOffTest).
+    'RIMIFY_OWN_INVOICES' => 'true',
 
     // ── A fixed key for the test run, so nothing encrypted depends on a machine ─────────────────────────────────────
     'APP_KEY' => 'base64:kzYjWvrFX36tRRrUn/K8u0cHYiwxmwFC4N7do5b+MzI=',

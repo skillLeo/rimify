@@ -24,8 +24,10 @@ that disagrees with what the shop does or what we told him; it is not resolved h
 **Personal data.** The repository is public: no name, address or vehicle of the client stands here.
 
 **Count: 133 expectations** — 34 storefront items (S), 18 admin items (A), 27 decisions and answers he gave (C), 14
-promises in our comments (P), 40 from the original documents (O). **7 rows marked CONFLICT; 10 conflicts in all**
-for the meeting, listed at the end (the other three are states and open questions, not rows that disagree).
+promises in our comments (P), 40 from the original documents (O). **5 rows marked CONFLICT; 8 conflicts in all**
+for the meeting, listed at the end (the other three are states and open questions, not rows that disagree). Two were
+settled by the operator on 29.10.2026 and are no longer for the meeting: S-19 is built as we told him (D-344), and S-25
+never was a conflict.
 
 | Column | Meaning |
 |---|---|
@@ -57,13 +59,13 @@ for the meeting, listed at the end (the other three are states and open question
 | S-16 | Storefront 16 · Done | Nach „In den Warenkorb“ ein Fenster, damit man leichter weiterkommt | Add to the basket by mouse and by keyboard; press Esc. | A window with the line and total, „Weiter einkaufen“ and „Zum Warenkorb“; focus stays inside; Esc returns to the button; on the phone it covers part of the screen. |
 | S-17 | Storefront 17 · Done | Mengenauswahl neben dem Preis, 4 vorausgewählt, Preis passt sich an | Open a product page; change the amount 1…8. | 4 preselected; 1–8 choosable; „4 × 229,00 € = 916,00 €“ updates. Whether 3 is a sensible amount is a meeting question (brief §8.4). Supersedes the Bible's default „sets of four only“ (O-34). |
 | S-18 | Storefront 18 · Done | Auswahl „Nur Felgen“ / „Felgen + Reifen“, mit passenden Reifen direkt | Switch modes after choosing size, colour and amount; pick a tyre. | Nothing chosen is lost; the check shows what the Gutachten requires for that tyre size; a combination it does not allow cannot be bought. |
-| S-19 | Storefront 19 · solved differently · **Open in his sheet** | Bewertungen unter dem Felgennamen, im Admin anlegbar (z. B. 4,9 Sterne, 13 Bewertungen) | Look under a rim's name; try to create a review in the admin. | Only verified buyers' reviews after delivery; answer and hide in the admin, never create (§ 5 / § 5b UWG). **CONFLICT:** his wish (stars created in the admin) — what we built (verified only) — the QA brief's „reviews entered by hand without text“, for which no decision of his is on record; `BEWERTUNGEN-IMPORT.md` scopes the import options. |
+| S-19 | Storefront 19 · built (release 22) · **Open in his sheet** | Bewertungen unter dem Felgennamen, im Admin anlegbar (z. B. 4,9 Sterne, 13 Bewertungen) | In Katalog › Felgen › a rim › „Sterne von Hand“ enter stars, a count and the sentence where they come from; look under the rim's name; try a sentence that claims a check, and stars without a sentence. | The stars under the name with the sentence beside them; none without the sentence; a sentence claiming a check refused; never „Geprüfter Kauf“, never in the structured data, never added to the buyers' own reviews, which keep their section (D-103). Built 29.10.2026 (D-344): we had told him he could enter stars by hand, and the first build passed the item without it (HQ-17). |
 | S-20 | Storefront 20 · Done | Unterschiedliche Größen vorne und hinten wählbar | On a wheel whose Gutachten has a pairing table or combination list, choose front and rear. | Only the pairs the document permits; each axle with its own load; the order keeps both axles. Supersedes the Bible's default „same-size only“ (O-35). |
 | S-21 | Storefront 21 · Done | „Eintragung“ steht bei Felgen mit Auflagen dreimal | Open a product page whose answer needs an Eintragung. | „Eintragung“ once, under the result's heading; the Auflagen do not repeat it; „Originaltext anzeigen“ shows each sentence under its tyre sizes, with its page. |
 | S-22 | Storefront 22 · Done | Handy-Liste: „Vergleichen“ verdeckt „Mit Auflagen“ | Open the list at 320, 360, 390, 414 with a car. | „Vergleichen“ never covers the result; long Auflagen appear as a count on the tile. |
 | S-23 | Storefront 23 · solved differently · Done | „Mit Auflagen“ nur gelb bei echten Auflagen (z. B. Bördeln), im Backend einstellbar | In the admin set an Auflage's level to Hinweis / Auflage / Nicht zulässig; look at the tile and product page. | All-Hinweis answers read „Freigegeben“; an Abnahme or body work can never be set to green. |
 | S-24 | Storefront 24 · Done | Scrollbalken der Filter am Ende manchmal fehlerhaft | Scroll the desktop filter column to the end. | It reaches the last entry without a jump. |
-| S-25 | Storefront 25 · Done | Knopf „Nur die Felgen bestellen“ ohne Funktion entfernen | Open a product page with and without tyres offered. | No button without a function; „Nur Felgen“ / „Komplettrad“ by the price. **CONFLICT:** the QA brief says „Nur die Felgen bestellen“ stays where tyres exist; his wish removed the button. |
+| S-25 | Storefront 25 · Done | Knopf „Nur die Felgen bestellen“ ohne Funktion entfernen | Open a product page with and without tyres offered. | No button without a function; „Nur Felgen“ / „Komplettrad“ by the price. His item removes the button where it has no function — when no tyres are available — and that is what was built: no conflict (the operator, 29.10.2026). |
 | S-26 | Storefront 26 · Done | Alle E-Mail-Knöpfe sollen zum Kontaktformular führen | Click every contact button and e-mail link across the shop. | None opens an e-mail program; all lead to the contact form; the Impressum names the address as text once the seller details are entered. |
 | S-27 | Storefront 27 · Done | Zollgröße oder Marke geht verloren, wenn man danach das Fahrzeug wählt | On the list choose 18″ or a brand, then choose a car. | Size and brand are kept. |
 | S-28 | Storefront 28 · Done | RIMIFY-Check: Fahrzeug und Felge wählen, Antwort nur für dieses Paar, dann direkt kaufen | Open RIMIFY-Check; choose a car and a wheel; try a pair that does not fit. | One answer with Auflagen, the Gutachten and page, „Jetzt kaufen“ and the Komplettrad beside it; no buy button for a pair that does not fit. |
@@ -136,10 +138,10 @@ for the meeting, listed at the end (the other three are states and open question
 | P-01 | A-215 comment | The high-speed load table is kept where the document prints it | Open ABE 55255. | The table is there and required at release. |
 | P-02 | A-218 comment | The order link is signed, valid twelve months, renewed on request | As A-218; open an expired link. | „Abgelaufen“ page offering a new link to the order's address. |
 | P-03 | D-318 / import comment | A refused row is never silent | Import a file with bad rows. | Every refused row named with its reason; shares counted over every row. |
-| P-04 | S-25 comment | „Nur Felgen“ or „Komplettrad“ chosen right by the price | As S-25. | — (see S-25 CONFLICT) |
+| P-04 | S-25 comment | „Nur Felgen“ or „Komplettrad“ chosen right by the price | As S-25. | As S-25 — no conflict. |
 | P-05 | S-12 comment | Messages kept under Verkauf › Nachrichten; the sender's copy once mail is set up | Send a message; open the admin. | It is listed; the copy goes out where mail is configured. |
 | P-06 | S-26 comment | The Impressum shows his address once seller details are entered | Enter seller details; open the Impressum. | Address as text; before that „noch nicht angegeben“. |
-| P-07 | S-19 comment | Real reviews from Google or his old shop can be imported with the source named | — | Not built; scoped in BEWERTUNGEN-IMPORT.md (A1–A3) — meeting item with S-19. |
+| P-07 | S-19 comment | Real reviews from Google or his old shop can be imported with the source named | — | Typed by hand per rim, with the sentence that names the source (D-344, S-19); an importer stays scoped only (BEWERTUNGEN-IMPORT.md, A2–A3, B). |
 | P-08 | S-11, S-32, S-33 comments | Before and after pictures at desktop and phone width | — | Pictures exist for his verdict. |
 | P-09 | A-208, A-209 comments | Enter the combinations / open the split fields in a draft on his preview | On the preview, open a draft. | The section and the two fields are there. |
 | P-10 | A-202 comment | Send us your demo file and we check the mapping | — | Not received. |
@@ -188,22 +190,23 @@ for the meeting, listed at the end (the other three are states and open question
 | O-34 | §11.4 Q3 | Sets of four only; singles modelled, not exposed | — | **Superseded** by S-17 (1–8 choosable). |
 | O-35 | §11.4 Q4 | Mixed fitment: engine supports it, storefront same-size only | — | **Superseded** by S-20 (front and rear sizes). |
 | O-36 | §11.4 Q5 | TPMS not offered in v1 | — | **Superseded** by S-15 (sensors offered). |
-| O-37 | §11.4 Q7 | First-party reviews with moderation and structured data | As S-19. | Part of the S-19 CONFLICT. |
+| O-37 | §11.4 Q7 | First-party reviews with moderation and structured data | As S-19. | Built for buyers' reviews (D-103); stars typed by hand stand beside them and never enter the structured data (D-344). |
 | O-38 | §1.4 / §11.4 Q8 (PRD §2) | Customer accounts out of scope; guest tracking by number and e-mail | Look for „Konto“. | **CONFLICT:** the PRD put accounts out of scope; the shop has a customer account (A-218 relies on it). Which is wanted — meeting. |
 | O-39 | §11.4 Q6 | Cards plus PayPal at launch | Look at the payment methods in the checkout. | **CONFLICT** to check: the default was cards + PayPal; what Stripe offers on the preview is to be recorded. |
 | O-40 | §5.8 / §11.4 Q1 | Stock checked again before payment; own stock | — | **Superseded** by A-207 (no counts, available / not available). |
 
 ## Conflicts for the meeting (§9)
 
-1. **S-19 / O-37 — reviews.** His wish: stars and count created in the admin. Built: verified buyers only (§ 5 / § 5b
-   UWG). The QA brief: „reviews entered by hand without text“ — no decision of his is on record for that.
-2. **S-25 — „Nur die Felgen bestellen“.** His wish removed the button; the QA brief says it stays where tyres exist.
-3. **A-215 — the high-speed table.** His wish: not needed. Kept for documents that print it (ABE 55255, above 210 km/h).
-4. **S-15 — state.** His sheet: SkillLeo Done. The QA brief: open. (Valves still wait for his answer.)
-5. **A-218 — state.** His sheet: Open. The QA brief's open admin items leave it out.
-6. **S-09, S-19, A-202, A-208, A-209, A-211, A-215 — „Open“ in his sheet** while ours says built or solved differently:
+1. **A-215 — the high-speed table.** His wish: not needed. Kept for documents that print it (ABE 55255, above 210 km/h).
+2. **S-15 — state.** His sheet: SkillLeo Done. The QA brief: open. (Valves still wait for his answer.)
+3. **A-218 — state.** His sheet: Open. The QA brief's open admin items leave it out.
+4. **S-09, S-19, A-202, A-208, A-209, A-211, A-215 — „Open“ in his sheet** while ours says built or solved differently:
    his column is what he will tick.
-7. **O-38 — customer accounts.** Out of scope in his PRD; present in the shop.
-8. **O-39 — payment methods.** Cards + PayPal by default in the Bible; to record what the preview offers.
-9. **C-25 — three or four combinations** in his Gutachten (open since A-208).
-10. **C-18 — header height.** D-106 (80 / 56 px) and item 2 as built (72 / 64 px) — check the live figure.
+5. **O-38 — customer accounts.** Out of scope in his PRD; present in the shop.
+6. **O-39 — payment methods.** Cards + PayPal by default in the Bible; to record what the preview offers.
+7. **C-25 — three or four combinations** in his Gutachten (open since A-208).
+8. **C-18 — header height.** D-106 (80 / 56 px) and item 2 as built (72 / 64 px) — check the live figure.
+
+Settled by the operator on 29.10.2026, no longer for the meeting: **S-19** (built as we told him — he enters the stars,
+their count and the sentence that names their source; D-344) and **S-25** (no conflict: his item removes the button
+where no tyres are available, and that is what was built).

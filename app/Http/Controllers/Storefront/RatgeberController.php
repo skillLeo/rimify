@@ -33,6 +33,8 @@ class RatgeberController extends Controller
         $articles = DB::table('pages')
             ->where('kind', Page::KIND_GUIDE)
             ->where('status', Page::STATUS_PUBLISHED)
+            // A deleted article is a draft as well (D-351); neither ever stands here.
+            ->whereNull('deleted_at')
             ->orderByRaw('COALESCE(published_at, updated_at) DESC')
             ->orderBy('id')
             ->get(['slug', 'title', 'meta_description', 'published_at', 'updated_at'])
@@ -83,6 +85,7 @@ class RatgeberController extends Controller
         $others = DB::table('pages')
             ->where('kind', Page::KIND_GUIDE)
             ->where('status', Page::STATUS_PUBLISHED)
+            ->whereNull('deleted_at')
             ->where('slug', '!=', $slug)
             ->orderBy('id')
             ->get(['slug', 'title']);

@@ -23,7 +23,7 @@ import type { AdminVerkaeuferVersandProps, NotApplicableField, SellerForm } from
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
-const props = defineProps<AdminVerkaeuferVersandProps>()
+const props = withDefaults(defineProps<AdminVerkaeuferVersandProps>(), { ownInvoices: true })
 
 const editor = useDirtyForm(
     { seller: { ...props.seller, not_applicable: { ...props.seller.not_applicable } }, shipping: { ...props.shipping } },
@@ -130,10 +130,10 @@ const emailHelp = computed(() =>
                     <span v-if="form.seller.placeholder" class="adm-tag adm-tag--warn vv-tag">Platzhalter</span>
                 </h2>
                 <p class="adm-form__note">
-                    So steht der Shop im Impressum, auf jeder Rechnung und in der Bestellbestätigung. Trag nur ein, was in den Unterlagen des Unternehmens steht.
+                    So steht der Shop im Impressum, {{ ownInvoices !== false ? 'auf jeder Rechnung und ' : '' }}in der Bestellbestätigung. Trag nur ein, was in den Unterlagen des Unternehmens steht.
                     Bleibt eine Angabe des Impressums leer, steht dort ein Platzhalter, etwa „[FIRMENNAME]“. Trifft eine Angabe auf das Unternehmen nicht zu, setz das Häkchen bei „Entfällt“ – dann lässt das Impressum die Zeile weg.
                 </p>
-                <p v-if="sellerMissing.length" class="adm-note vv-open" role="status">
+                <p v-if="ownInvoices !== false && sellerMissing.length" class="adm-note vv-open" role="status">
                     Für echte Rechnungen fehlt noch: {{ sellerMissing.join(', ') }}. Bis dahin ist jede Rechnung eine Testrechnung.
                 </p>
                 <p v-if="impressumMissing.length" class="adm-note vv-open vv-impressum" role="status">

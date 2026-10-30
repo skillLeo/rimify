@@ -248,6 +248,62 @@ describe('Produkt page', () => {
         expect(apart.find('.pdp__type').text()).toBe('Radtypenbezeichnung KBA 49121')
     })
 
+    // The client's #19 as promised (D-344): stars typed in the admin stand under the name beside the sentence that says
+    // where they come from — never a link to reviews that are not there, never „Geprüfter Kauf“.
+    it('shows stars typed in the admin under the name, beside where they come from — and never as a checked purchase', () => {
+        const base = props().product
+        const wrapper = mountPage({
+            product: { ...base, statedRating: { label: '4,9 (13 Bewertungen)', disclosure: 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.' } },
+            reviews: [],
+        })
+        const line = wrapper.find('[data-stated-rating]')
+
+        expect(line.exists()).toBe(true)
+        expect(line.element.tagName).toBe('P')
+        // The glyph is not read out; the figures and the sentence are, the dash between them.
+        expect(line.find('.stars__glyph').attributes('aria-hidden')).toBe('true')
+        expect(line.find('.tabular').text()).toBe('4,9 (13 Bewertungen)')
+        expect(line.find('.pdp__rating-origin').text()).toBe('– Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.')
+        expect(line.text()).toMatch(/4,9 \(13 Bewertungen\)\s*– Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft\.$/)
+        // Right under the name, in the place the buyers' stars and the proof line take.
+        expect(wrapper.find('.pdp__buy h1 + [data-stated-rating]').exists()).toBe(true)
+        expect(wrapper.find('a.pdp__rating').exists()).toBe(false)
+        expect(wrapper.find('.pdp__proof').exists()).toBe(false)
+        expect(wrapper.find('#bewertungen').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('Geprüfter Kauf')
+        expect(wrapper.text()).not.toMatch(/verifiziert|Wir prüfen/)
+
+        // Without its sentence the server sends none, and the page shows no stars at all.
+        const none = mountPage({ product: { ...base, statedRating: null }, reviews: [] })
+
+        expect(none.find('[data-stated-rating]').exists()).toBe(false)
+        expect(none.find('.pdp__rating').exists()).toBe(false)
+    })
+
+    it('keeps the buyers’ own reviews apart: their stars lead to them, and their sentence speaks of them alone', () => {
+        const base = props().product
+        const buyers = mountPage({
+            product: { ...base, rating: 4, ratingCount: 1, ratingLabel: '4,0 (1 Bewertung)', statedRating: null },
+            reviews: [{ id: 1, rating: 4, body: 'Sehr gut.', at: '20.10.2026', reply: null }],
+        })
+
+        expect(buyers.find('a.pdp__rating').attributes('href')).toBe('#bewertungen')
+        expect(buyers.find('.pdp__reviews-check').text().replace(/\s+/g, ' ')).toBe(
+            'Diese Bewertungen stammen von Kundinnen und Kunden, die diese Felge hier gekauft haben. Wir prüfen das über die Bestellnummer.'
+        )
+
+        // Both: the typed stars stand under the name; the buyers' reviews keep their own section, sum and sentence.
+        const both = mountPage({
+            product: { ...base, rating: 4, ratingCount: 1, ratingLabel: '4,0 (1 Bewertung)', statedRating: { label: '4,9 (13 Bewertungen)', disclosure: 'Bewertungen aus anderen Quellen, vom Shop übernommen und nicht auf einen Kauf geprüft.' } },
+            reviews: [{ id: 1, rating: 4, body: 'Sehr gut.', at: '20.10.2026', reply: null }],
+        })
+
+        expect(both.find('[data-stated-rating]').text()).toContain('4,9 (13 Bewertungen)')
+        expect(both.find('a.pdp__rating').exists()).toBe(false)
+        expect(both.find('.pdp__reviews-sum').text()).toContain('4,0 (1 Bewertung)')
+        expect(both.find('.pdp__reviews').text()).not.toContain('4,9')
+    })
+
     it('says the manufacturer’s details are still to come rather than invent them', () => {
         const block = mountPage().find('.pdp__gpsr')
 
@@ -315,15 +371,26 @@ describe('Produkt page', () => {
         expect(focusPapers).toHaveBeenCalledTimes(1)
         expect(post).not.toHaveBeenCalled()
 
-        // Not available stays not available: the figures would not change that.
-        const gone = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] }).find('button.pdp__add')
+        // Not available stays not available: the figures would not change that. „Anfrage“ takes the button's place (his
+        // admin item 7, D-350): the contact form with the server's subject; the tag says „Nicht verfügbar“ and the
+        // sentence under it the way on.
+        const ENQUIRY = 'Anfrage zur Verfügbarkeit: Demo Zehnspeiche Z-01 Platinum Silber, 8,5J × 19, ET 35'
+        const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false, enquiry: ENQUIRY })] })
+        const enquiry = goneWrapper.find('a.pdp__enquiry')
 
-        // Switched off under its own words; the tag says „Nicht verfügbar“ and the sentence under it the way on.
-        const goneWrapper = mountPage({ hasVehicle: true, configs: [config({ verdict: owed, inStock: false })] })
-        expect(gone.text()).toBe('In den Warenkorb')
-        expect(gone.attributes('disabled')).toBeDefined()
+        expect(goneWrapper.find('button.pdp__add').exists()).toBe(false)
+        expect(enquiry.text()).toBe('Anfrage')
+        expect(new URL(enquiry.attributes('href') ?? '', 'https://shop.test').pathname).toBe('/kontakt')
+        expect(new URL(enquiry.attributes('href') ?? '', 'https://shop.test').searchParams.get('betreff')).toBe(ENQUIRY)
         expect(goneWrapper.find('.pdp__unavailable').text()).toBe('Für dein Fahrzeug ist diese Felge zurzeit in keiner anderen Größe oder Farbe verfügbar.')
-        expect(goneWrapper.find('button.pdp__add').attributes('aria-describedby')).toBe('pdp-unavailable')
+        expect(enquiry.attributes('aria-describedby')).toBe('pdp-unavailable')
+    })
+
+    it('offers no „Anfrage“ for a size that can be bought @admin-207', () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ inStock: true, enquiry: null })] })
+
+        expect(wrapper.find('a.pdp__enquiry').exists()).toBe(false)
+        expect(wrapper.find('button.pdp__add').text()).toBe('In den Warenkorb')
     })
 
     // The interaction review of Groups D/E: „Wähl eine andere Größe“ only where another size sells for the car — a size

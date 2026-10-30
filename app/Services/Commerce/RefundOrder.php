@@ -12,6 +12,7 @@ use App\Payments\PaymentFailure;
 use App\Payments\Payments;
 use App\Services\Admin\AuditTrail;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -111,8 +112,14 @@ final class RefundOrder
         $this->payments->refunded($order, $order->refunded_cents + $refund->amount_cents, $by->email, null);
 
         try {
-            $note = $this->invoices->creditNote($order, $refund);
-            $refund->forceFill(['credit_note_id' => $note->id])->save();
+            // The credit note only where the shop issues its own papers (D-348); otherwise Stripe's stand.
+            $note = null;
+
+            if (OwnInvoices::enabled()) {
+                $note = $this->invoices->creditNote($order, $refund);
+                $refund->forceFill(['credit_note_id' => $note->id])->save();
+            }
+
             $email = $order->customer?->email;
 
             if (is_string($email) && $email !== '') {

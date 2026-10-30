@@ -7,7 +7,8 @@
 // (docs/review/kundenliste/ergebnis-<instanz>.json), and this file reads the preview's.
 //
 // The notes are for a shop owner, in the language of his sheet (English): no commit, no test name, none of our words.
-// For #19, #23 and #34 they are the operator's own wording, so the sheet and his message say the same thing. The three
+// For #23 and #34 they are the operator's own wording, so the sheet and his message say the same thing; #19's follows
+// the operator's decision of 29.10.2026 (built as we had told him, D-344). The three
 // judgement items say what changed and what the alternative was; their look is his verdict, in his own column.
 
 export const DONE = 'SkillLeo Done'
@@ -41,7 +42,7 @@ export const NOTES = {
     16: 'After adding to the basket a small window shows the item and the total, with „Weiter einkaufen“ and „Zum Warenkorb“.',
     17: 'Next to the price you choose 1 to 8 wheels, 4 preselected, never more than in stock; the line reads e.g. „4 × 229,00 € = 916,00 €“.',
     18: 'You choose „Nur Felgen“ or „Komplettrad“ without losing size, colour or quantity, and add matching tyres directly. The check then shows what the Gutachten requires for exactly that tyre size.',
-    19: 'built as verified reviews, see our note — manual star ratings would be a legal risk for you. Real reviews from Google or your old shop can be imported with the source named.',
+    19: 'In the admin open a rim and scroll to „Sterne von Hand“: enter the stars, the number of reviews and one sentence saying where they come from (e.g. your eBay shop). The shop shows them under the rim’s name with your sentence beside them, and none without it. They are never shown as a verified purchase and are not passed to search engines.',
     20: 'Different sizes front and rear can be chosen, only in the pairs the Gutachten permits.',
     21: '„Eintragung“ now appears once. The Gutachten’s original wording is behind „Originaltext anzeigen“, each sentence under the tyre sizes it applies to.',
     22: 'On mobile „Vergleichen“ no longer covers the „Mit Auflagen“ label. Long conditions are shown as a count on the tile, with the wording on the product page.',

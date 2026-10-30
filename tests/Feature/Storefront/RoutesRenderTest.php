@@ -177,7 +177,7 @@ it('renders an order with its frozen verdict per line', function (): void {
 
     // Written by a seeder, nobody behind it: it opens by number (D-238).
     expect($order->seeded())->toBeTrue();
-    $this->get('/bestellung/'.$order->order_number)->assertOk();
+    $this->get('/bestellung/'.$order->public_id)->assertOk();
 
     // One that came through the checkout never does: its signed link, the browser that placed it or its account.
     $this->get('/bestellung/'.Order::factory()->create()->order_number)->assertNotFound();

@@ -21,7 +21,7 @@ final class OrderLinks
 
     public static function link(Order $order): string
     {
-        return URL::temporarySignedRoute('bestellung.show', now()->addMonths(self::MONTHS), ['order' => $order->order_number]);
+        return URL::temporarySignedRoute('bestellung.show', now()->addMonths(self::MONTHS), ['order' => $order->public_id]);
     }
 
     /** A link of ours that still opens the order: signed by us, and within its twelve months. */

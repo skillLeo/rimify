@@ -9,14 +9,17 @@ use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Order;
 use App\Models\OrderLine;
+use App\Models\PaymentEvent;
 use App\Models\Review;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Commerce\Reviews\ReviewLink;
 use App\Services\Commerce\Reviews\ReviewSummary;
+use App\Services\Commerce\Reviews\ReviewWriter;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 
 /*
@@ -112,7 +115,7 @@ it('opens the review page only through the signed link, and only for a delivered
             ->where('lines.0.review', null));
 
     // Without the signature, or with a changed one: refused.
-    $this->get('/bewertung/'.$order->order_number)->assertForbidden();
+    $this->get('/bewertung/'.$order->public_id)->assertForbidden();
 
     // A link for an order that was never delivered leads nowhere.
     $paid = reviewOrder();
@@ -177,6 +180,45 @@ it('lets the team hide a review with a reason, show it again and answer it — a
     // There is no route that writes a review, and no form field that types a rating.
     $this->actingAs($admin, 'admin')->post('/admin/bewertungen', ['rating' => 5])->assertStatus(405);
     expect((new WheelModel)->isFillable('rating'))->toBeFalse()->and((new WheelModel)->isFillable('rating_count'))->toBeFalse();
+});
+
+it('lets only a purchase paid for real be reviewed — never a test-mode payment, the review sandbox, a demo or a purged order @kunde-19', function (): void {
+    Mail::fake();
+    $event = static fn (Order $order, bool $live): PaymentEvent => PaymentEvent::query()->create([
+        'provider' => 'stripe', 'event_id' => 'evt_'.$order->id.($live ? '_live' : '_test'), 'type' => 'payment_intent.succeeded', 'livemode' => $live,
+        'payload' => '{}', 'order_id' => $order->id, 'received_at' => now(),
+    ]);
+
+    $paidInTest = deliveredOrder();
+    $event($paidInTest, false);
+    $sandbox = deliveredOrder();
+    $sandbox->forceFill(['payment_method' => 'sandbox'])->save();
+    $real = deliveredOrder();
+    $event($real, true);
+    // Partly refunded and delivered: invited like any other (OrderFulfilment), so its link must open as well.
+    $partly = reviewOrder(OrderStatus::PartiallyRefunded, ['delivered_at' => now()->subDays(8), 'shipped_at' => now()->subDays(10)]);
+
+    expect(ReviewWriter::open($paidInTest->refresh()))->toBeFalse()
+        ->and(ReviewWriter::open($sandbox->refresh()))->toBeFalse()
+        ->and(ReviewWriter::open($real->refresh()))->toBeTrue()
+        ->and(ReviewWriter::open($partly->refresh()))->toBeTrue();
+
+    $this->get(ReviewLink::for($paidInTest))->assertNotFound();
+    $this->get(ReviewLink::for($sandbox))->assertNotFound();
+    $this->get(ReviewLink::for($real))->assertOk();
+    $this->get(ReviewLink::for($partly))->assertOk();
+
+    // A purged order has no page: its signed link answers as any order that is not there (its own id, D-354).
+    $gone = $real->replicate()->forceFill(['order_number' => 'RMF-2099-99999', 'public_id' => (string) Str::uuid()]);
+    $this->get(ReviewLink::for($gone))->assertNotFound();
+
+    // The invitations follow the same rule: one each for the real purchase and the partly refunded one, none else.
+    $this->artisan('rimify:bewertungen-einladen')->assertSuccessful();
+    Mail::assertSent(ReviewInvitationMail::class, 2);
+    expect($real->refresh()->review_invited_at)->not->toBeNull()
+        ->and($partly->refresh()->review_invited_at)->not->toBeNull()
+        ->and($paidInTest->refresh()->review_invited_at)->toBeNull()
+        ->and($sandbox->refresh()->review_invited_at)->toBeNull();
 });
 
 it('rounds the average to one decimal, half away from zero, without a float', function (): void {

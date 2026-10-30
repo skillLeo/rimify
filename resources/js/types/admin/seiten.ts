@@ -5,7 +5,8 @@
  */
 
 /** `image` and `grid` are an article's building blocks (D-306): a picture from our storage, a table. */
-export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice' | 'image' | 'grid'
+/** `html`: the HTML-Abschnitt's markup (D-352), cleaned by the server on save and on output. */
+export type FieldKind = 'text' | 'textarea' | 'number' | 'icon' | 'choice' | 'image' | 'grid' | 'html'
 
 export interface SchemaField {
     key: string
@@ -83,7 +84,31 @@ export interface SeitenGroup {
 
 export interface AdminSeitenProps {
     groups: SeitenGroup[]
-    can: { create: boolean }
+    /** Where the Ratgeber articles are kept since his admin item 12 (D-351). */
+    ratgeber: string
+}
+
+/** One article on Inhalte › Ratgeber (his admin item 12, D-351). */
+export interface RatgeberArticle {
+    id: number
+    /** The version a publish, a withdraw or a delete from the list is made against. */
+    version: number
+    title: string
+    href: string
+    published: boolean
+    publishedAt: string | null
+    changedAt: string | null
+    draft: { at: string | null; by: string | null } | null
+}
+
+export type RatgeberSort = 'geaendert' | 'titel' | 'veroeffentlicht'
+
+export interface AdminRatgeberProps {
+    articles: RatgeberArticle[]
+    /** Every article, whatever the search. */
+    total: number
+    filters: { q: string; sort: RatgeberSort; richtung: 'auf' | 'ab' }
+    can: { create: boolean; publish: boolean; delete: boolean }
 }
 
 export interface SeitenRevision {
@@ -119,5 +144,6 @@ export interface AdminSeiteProps {
     draft: { at: string | null; by: string | null } | null
     revisions: SeitenRevision[]
     preview: { desktop: string; handy: string; days: number }
-    can: { edit: boolean; publish: boolean; withdraw: boolean }
+    /** `delete`: a Ratgeber article only (D-351); absent in fixtures from before it, read as false. */
+    can: { edit: boolean; publish: boolean; withdraw: boolean; delete?: boolean }
 }

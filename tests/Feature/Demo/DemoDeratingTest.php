@@ -8,8 +8,10 @@ use App\Models\ApprovalDocument;
 use App\Models\DocumentSpeedDerating;
 use App\Models\Fitment;
 use App\Services\Demo\PlaceholderTables;
+use App\Services\Storage\DocumentFiles;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * The operator's decision of 29.09.2026: the demo shows both states. Every example document carries ABE
@@ -84,4 +86,41 @@ it('gives the walkthrough’s placeholder document the marked table once, and ke
 
     expect($placeholder->speedDeratings()->count())->toBe(30)
         ->and($placeholder->speedDeratings()->whereNot('seeded_from', ApprovalSeeder::DERATING_SEED)->count())->toBe(0);
+});
+
+it('puts the walkthrough’s placeholder PDF back where a released placeholder expects it — those bytes only, and never a real document’s', function (): void {
+    Storage::fake('docs_public');
+    $pdf = "%PDF-1.4\nPLATZHALTER - kein echtes Gutachten\n%%EOF\n";
+    $released = static fn (string $issuer, string $key, string $bytes): ApprovalDocument => ApprovalDocument::query()->create([
+        'kind' => 'ABE', 'kba_number' => 'PLATZHALTER-GR-1', 'issuer' => $issuer, 'revision' => 1, 'page_count' => 4, 'status' => 'published',
+        'pdf_key' => $key, 'pdf_sha256' => hash('sha256', $bytes),
+    ]);
+    $file = tempnam(sys_get_temp_dir(), 'gr');
+    file_put_contents($file, $pdf);
+
+    $placeholder = $released(PlaceholderTables::ISSUER, 'gutachten/platzhalter.pdf', $pdf);
+    $other = $released(PlaceholderTables::ISSUER, 'gutachten/anderer.pdf', 'other bytes');
+    $real = $released('TÜV SÜD', 'gutachten/echt.pdf', $pdf);
+    $disk = app(DocumentFiles::class)->current();
+
+    // The precondition: none of the three files is on this disk.
+    expect($disk->exists('gutachten/platzhalter.pdf'))->toBeFalse()
+        ->and($disk->exists('gutachten/echt.pdf'))->toBeFalse();
+
+    $this->artisan('demo:placeholder-tables', ['--pdf' => $file])->expectsOutputToContain('1 Platzhalter-PDF wieder abgelegt.')->assertSuccessful();
+
+    // The placeholder's own bytes at its key; a placeholder released with other bytes, and a real document, untouched.
+    expect($disk->get('gutachten/platzhalter.pdf'))->toBe($pdf)
+        ->and($disk->exists('gutachten/anderer.pdf'))->toBeFalse()
+        ->and($disk->exists('gutachten/echt.pdf'))->toBeFalse()
+        ->and(app(DocumentFiles::class)->locate((string) $placeholder->pdf_key)['url'])->not->toBeNull()
+        ->and($other->fresh()?->pdf_key)->toBe('gutachten/anderer.pdf')
+        ->and($real->fresh()?->pdf_key)->toBe('gutachten/echt.pdf');
+
+    // A file that is there stays as it is.
+    $disk->put('gutachten/platzhalter.pdf', 'kept');
+    $this->artisan('demo:placeholder-tables', ['--pdf' => $file])->expectsOutputToContain('Kein Platzhalter-PDF fehlte.')->assertSuccessful();
+
+    expect($disk->get('gutachten/platzhalter.pdf'))->toBe('kept');
+    @unlink($file);
 });

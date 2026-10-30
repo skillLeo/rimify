@@ -14,9 +14,9 @@ use App\Models\Page;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Content\PageContent;
-use App\Services\Storefront\BestSellers;
 use App\Services\Storefront\CalculatorPrefill;
 use App\Services\Storefront\FitmentCount;
+use App\Services\Storefront\HomeShelf;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
 use App\Services\Storefront\ProductCards;
@@ -49,11 +49,11 @@ class StartseiteController extends Controller
 
     public const NEWEST_LABEL = 'Neu im Shop';
 
+    /** Before the first sale, with the team's picks on the shelf (#5, D-353): what they are, never a bestseller claim. */
+    public const RECOMMENDED_LABEL = 'Empfohlene Felgen';
+
     /** Below four wheels on sale the shelf is not shown at all — absent, never an empty row. */
     public const SHELF_MIN = 4;
-
-    /** Up to eight wheels, photographed or drawn: the catalogue puts photographed finishes first. */
-    private const SHELF_SIZE = 8;
 
     public function __construct(
         private readonly ProductCards $cards,
@@ -66,7 +66,7 @@ class StartseiteController extends Controller
         private readonly ListingQuery $listing,
         private readonly CalculatorPrefill $calculatorPrefill,
         private readonly PageContent $content,
-        private readonly BestSellers $bestSellers,
+        private readonly HomeShelf $shelf,
     ) {}
 
     public function index(Request $request): Response
@@ -116,7 +116,9 @@ class StartseiteController extends Controller
             ),
             'sizes' => $this->sizes($vehicleId),
             'brands' => $this->brands(),
-            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => $this->bandWheel($wheel)],
+            // The dark band turns its illustration again, as before #9 (PROTECTED.md P6): the client's reply of 29.10.2026,
+            // „Just return the old picture. We currently don't have any good pictures.“ (D-346).
+            'komplettrad' => ['tyre' => $this->featuredTyre(), 'wheel' => null],
             // The same service /felgenrechner reads: the teaser and the full tool start on one size.
             'calculator' => ['prefill' => $vehicleId === null ? null : $this->calculatorPrefill->forVehicle($vehicleId)],
             'partners' => [
@@ -194,51 +196,6 @@ class StartseiteController extends Controller
             'published' => (int) $config->price_cents > 0,
             'facts' => $this->heroFacts($config, $kba),
         ];
-    }
-
-    /**
-     * The wheel that turns in the dark band (PROTECTED.md P6, the client's #9): a real product, photographed — the hero's
-     * wheel in its other finish where it has one (so the page shows both), else its leading finish. Only the `open`
-     * cut-out — shadowless, the studio's white keyed out of the spokes, which on the dark band would read as a white disc
-     * behind the wheel — with its wheel anchor, so it turns about its own axle. Null without one: the band keeps its
-     * illustration, labelled as such, and never borrows somebody else's photograph.
-     *
-     * @param  array<string, mixed>|null  $hero
-     * @return array{brand: string, name: string, finish: string, image: array<string, mixed>, anchor: array{x: float, y: float, r: float}, href: string}|null
-     */
-    private function bandWheel(?array $hero): ?array
-    {
-        if ($hero === null) {
-            return null;
-        }
-
-        $companion = is_array($hero['companion'] ?? null) ? $hero['companion'] : null;
-        $candidates = [
-            [$companion['finish'] ?? null, $companion['imageManifest'] ?? null],
-            [$hero['finish'] ?? null, $hero['imageManifest'] ?? null],
-        ];
-
-        foreach ($candidates as [$finish, $manifest]) {
-            $open = is_array($manifest) && is_array($manifest['open'] ?? null) ? $manifest['open'] : null;
-            $anchors = $open === null ? null : ($open['anchors'] ?? $manifest['anchors'] ?? null);
-            $wheel = is_array($anchors) && is_array($anchors['wheel'] ?? null) ? $anchors['wheel'] : null;
-
-            if ($open === null || $wheel === null || ! is_string($finish) || ! is_numeric($wheel['r'] ?? null) || (float) $wheel['r'] <= 0) {
-                continue;
-            }
-
-            return [
-                'brand' => (string) $hero['brand'],
-                'name' => (string) $hero['name'],
-                'finish' => $finish,
-                'image' => $open,
-                'anchor' => ['x' => (float) ($wheel['x'] ?? 0.5), 'y' => (float) ($wheel['y'] ?? 0.5), 'r' => (float) $wheel['r']],
-                // The wheel is in the shop (the client's #9): its caption leads to its page.
-                'href' => '/felgen/'.$hero['slug'],
-            ];
-        }
-
-        return null;
     }
 
     /**
@@ -397,10 +354,11 @@ class StartseiteController extends Controller
     }
 
     /**
-     * The shelf (the client's #5): up to eight wheels under one heading — „Meistgekaufte Felgen“, by the paid order
-     * lines of the last 90 days, or before the first sale „Neu im Shop“, newest first. With a vehicle the cards are that
-     * car's answer and the order only arranges them (R-13); without one they are the catalogue. Null — no shelf, not an
-     * empty one — while fewer than four wheels are on sale.
+     * The shelf (the client's #5, „please show 8 rims“; D-353): eight rims — what sold in the last 90 days first, then
+     * the team's picks (Inhalte › Meistgekaufte Felgen), then the newest (HomeShelf). Its heading says only what is true:
+     * „Meistgekaufte Felgen“ once a rim on it sold, „Empfohlene Felgen“ while picks lead it, else „Neu im Shop“. With a
+     * vehicle the cards are that car's answer and the order only arranges them (R-13); without one they are the
+     * catalogue. Null — no shelf, not an empty one — while fewer than four wheels are on sale.
      *
      * @return array{title: string, ranking: string, cards: list<array<string, mixed>>, total: int|null}|null
      */
@@ -410,47 +368,33 @@ class StartseiteController extends Controller
             return null;
         }
 
-        $sold = $this->bestSellers->counts();
-        $ranking = $sold === [] ? 'neu' : 'meistgekauft';
-        $title = $sold === [] ? self::NEWEST_LABEL : self::BESTSELLING_LABEL;
+        $total = null;
 
         if ($vehicleId !== null) {
             $result = $this->cards->forVehicle($vehicleId, [], 24, 1);
-
-            return [
-                'title' => $title,
-                'ranking' => $ranking,
-                'cards' => array_slice($this->arrange($result['cards'], $sold), 0, self::SHELF_SIZE),
-                'total' => $result['total'],
-            ];
+            $shelf = $this->shelf->arrange($this->newestFirst($result['cards']));
+            $total = $result['total'];
+        } else {
+            $shelf = $this->shelf->catalogue();
         }
 
-        return [
-            'title' => $title,
-            'ranking' => $ranking,
-            'cards' => $this->cards->catalogue(limit: self::SHELF_SIZE, options: ['order' => $sold === [] ? 'newest' : 'bestselling']),
-            'total' => null,
-        ];
+        [$ranking, $title] = match (true) {
+            in_array(HomeShelf::SOLD, $shelf['sources'], true) => ['meistgekauft', self::BESTSELLING_LABEL],
+            in_array(HomeShelf::PICKED, $shelf['sources'], true) => ['empfohlen', self::RECOMMENDED_LABEL],
+            default => ['neu', self::NEWEST_LABEL],
+        };
+
+        return ['title' => $title, 'ranking' => $ranking, 'cards' => $shelf['cards'], 'total' => $total];
     }
 
     /**
-     * The shelf's order on a set of cards the listing already chose: what sold in the window first — stable, so among
-     * equals the listing's own order stands — or, before the first sale, the newest models first.
+     * A car's cards, the newest models first — the order the shelf fills from once sales and picks have their places.
      *
      * @param  list<array<string, mixed>>  $cards
-     * @param  array<int, int>  $sold  model id → paid order lines in the window
      * @return list<array<string, mixed>>
      */
-    private function arrange(array $cards, array $sold): array
+    private function newestFirst(array $cards): array
     {
-        if ($sold !== []) {
-            $position = array_flip(array_keys($cards));
-            uksort($cards, static fn (int $a, int $b): int => [($sold[(int) $cards[$b]['modelId']] ?? 0), $position[$a]]
-                <=> [($sold[(int) $cards[$a]['modelId']] ?? 0), $position[$b]]);
-
-            return array_values($cards);
-        }
-
         $ids = array_values(array_unique(array_map(static fn (array $card): int => (int) $card['modelId'], $cards)));
         $created = DB::table('wheel_models')->whereIn('id', $ids)->pluck('created_at', 'id');
 

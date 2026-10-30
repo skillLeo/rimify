@@ -15,10 +15,13 @@ use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
-/** A refund made: the amount, the way it goes back, and the credit note attached. */
+/**
+ * A refund made: the amount and the way it goes back — and the credit note attached where the shop issues its own
+ * (D-348: off while Stripe issues them; then the mail names none).
+ */
 class RefundMail extends Mailable
 {
-    public function __construct(public Order $order, public Refund $refund, public Invoice $creditNote) {}
+    public function __construct(public Order $order, public Refund $refund, public ?Invoice $creditNote = null) {}
 
     public function envelope(): Envelope
     {
@@ -38,8 +41,8 @@ class RefundMail extends Mailable
                 'number' => $this->order->order_number,
                 'amount' => GermanFormat::money((int) $this->refund->amount_cents),
                 'full' => $this->order->refunded_cents >= $this->order->total_cents,
-                'creditNote' => $this->creditNote->number,
-                'creditNoteUrl' => Invoices::link($this->creditNote),
+                'creditNote' => $this->creditNote?->number,
+                'creditNoteUrl' => $this->creditNote === null ? null : Invoices::link($this->creditNote),
             ],
         );
     }
@@ -49,7 +52,7 @@ class RefundMail extends Mailable
     {
         $note = $this->creditNote;
 
-        return [
+        return $note === null ? [] : [
             Attachment::fromData(static fn (): string => app(Invoices::class)->pdf($note), $note->number.'.pdf')->withMime('application/pdf'),
         ];
     }

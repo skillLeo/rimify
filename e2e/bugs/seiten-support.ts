@@ -21,14 +21,27 @@ export { signIn } from './faq-support';
  * list behind the editor, exactly as when a person clicks their way there.
  */
 export async function openEditor(page: Page, title: string): Promise<void> {
+    const awake = async (): Promise<void> => {
+        await page.waitForFunction(
+            () => (document.querySelector('#app') as (Element & { __vue_app__?: unknown }) | null)?.__vue_app__ !== undefined,
+            null,
+            { timeout: 15_000 },
+        );
+    };
+
     await page.goto('/admin/seiten', { waitUntil: 'networkidle' });
-    await page.waitForFunction(
-        () => (document.querySelector('#app') as (Element & { __vue_app__?: unknown }) | null)?.__vue_app__ !== undefined,
-        null,
-        { timeout: 15_000 },
-    );
-    await page.locator('a.sn__link', { hasText: title }).first().click();
-    await page.waitForURL(/\/admin\/seiten\/\d+$/);
+    await awake();
+
+    // The homepage and the legal texts under Seiten; a Ratgeber article on its own page since his admin item 12 (D-351).
+    if ((await page.locator('a.sn__link', { hasText: title }).count()) === 0) {
+        await page.goto('/admin/ratgeber', { waitUntil: 'networkidle' });
+        await awake();
+        await page.locator('a.rg__link', { hasText: title }).first().click();
+    } else {
+        await page.locator('a.sn__link', { hasText: title }).first().click();
+    }
+
+    await page.waitForURL(/\/admin\/(seiten|ratgeber)\/\d+$/);
     await expect(page.locator('.adm-savebar')).toBeVisible();
 }
 

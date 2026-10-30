@@ -28,6 +28,8 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots, attrs }) => () => h('a', { href: props.href, ...attrs }, slots.default?.()),
     }),
+    // The card asks for the page it stands on: its „Anfrage“ leads back there (his admin item 7, D-350).
+    usePage: () => ({ url: '/felgen', props: {} }),
 }))
 
 const { default: ValueText } = await import('./Components/Ui/ValueText.vue')

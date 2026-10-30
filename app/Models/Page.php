@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
@@ -33,9 +34,12 @@ use Illuminate\Support\Carbon;
  * @property int $content_version
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at a Ratgeber article deleted in the admin (D-351): gone from the list and the shop, its versions kept
  */
 class Page extends Model
 {
+    use SoftDeletes;
+
     public const KIND_MARKETING = 'marketing';
 
     public const KIND_GUIDE = 'guide';

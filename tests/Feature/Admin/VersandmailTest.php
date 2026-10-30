@@ -38,7 +38,7 @@ it('mails the customer the tracking number when the order is marked sent, and sa
         return $mail->hasTo((string) $order->customer?->email)
             && $mail->envelope()->subject === "Deine Bestellung {$order->order_number} ist unterwegs"
             && str_contains($text, "Wir haben deine Bestellung {$order->order_number} verschickt. Die Sendungsnummer lautet 00340434 1234")
-            && str_contains($html, '/bestellung/'.$order->order_number.'?expires=')
+            && str_contains($html, '/bestellung/'.$order->public_id.'?expires=')
             && ! str_contains($text, 'DHL');
     });
 

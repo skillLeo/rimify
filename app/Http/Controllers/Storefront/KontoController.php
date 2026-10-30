@@ -13,6 +13,7 @@ use App\Mail\CustomerAccountMail;
 use App\Models\CustomerAccount;
 use App\Models\Order;
 use App\Support\GermanFormat;
+use App\Support\OwnInvoices;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -84,11 +85,15 @@ class KontoController extends Controller
             'email' => $account->email,
             'orders' => $account->orders()->get()->map(static fn (Order $order): array => [
                 'number' => $order->order_number,
+                // The order's address carries its public id, never the number (his admin item 18, D-354).
+                'href' => '/bestellung/'.$order->public_id,
                 'placedAt' => GermanFormat::date($order->placed_at),
                 'status' => $order->status->labelDe(),
                 'total' => GermanFormat::money($order->total_cents),
                 'vehicle' => $order->vehicle_label,
             ])->all(),
+            // Whether the shop issues its own invoices (D-348): off, the page names none.
+            'ownInvoices' => OwnInvoices::enabled(),
         ]);
     }
 
@@ -107,7 +112,9 @@ class KontoController extends Controller
         $account->delete();
         $request->session()->regenerateToken();
 
-        return redirect('/')->with('toast', 'Dein Konto ist gelöscht. Bestellungen und Rechnungen bewahren wir auf, solange wir gesetzlich dazu verpflichtet sind.');
+        return redirect('/')->with('toast', OwnInvoices::enabled()
+            ? 'Dein Konto ist gelöscht. Bestellungen und Rechnungen bewahren wir auf, solange wir gesetzlich dazu verpflichtet sind.'
+            : 'Dein Konto ist gelöscht. Deine Bestellungen bewahren wir auf, solange wir gesetzlich dazu verpflichtet sind.');
     }
 
     public function forgot(): Response
