@@ -104,6 +104,8 @@ describe('Admin › Nachrichten', () => {
 
         expect(card.find('.nfa-recipient__now').text()).toContain('Neue Nachrichten gehen an kontakt@beispiel.test.')
         expect(card.find('.nfa-recipient__warn').text()).toContain('Der Shop verschickt noch keine E-Mails')
+        // Never where an unsent mail went: on the preview the log level dropped every one (D-364).
+        expect(card.find('.nfa-recipient__warn').text()).not.toMatch(/Protokoll|Log/)
 
         await card.findAll('button').find((b) => b.text() === 'Ändern')?.trigger('click')
         await quiet.find('#nfa-recipient').setValue('team@beispiel.test')

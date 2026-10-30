@@ -140,6 +140,23 @@ describe('the health sentence', function (): void {
         }
     });
 
+    // D-364: the preview's health said „E-Mails werden verschickt.“ while its mailer wrote to the log.
+    it('says no mail leaves an environment whose mailer writes to the log, and warns only on the live shop', function (): void {
+        config(['mail.default' => 'log']);
+        $mail = fn (): array => collect(app(SystemHealth::class)->report()['checks'])->firstWhere('key', 'mail');
+        app()['env'] = 'staging';
+
+        try {
+            expect($mail())->toMatchArray(['state' => 'ok', 'sentence' => 'In dieser Umgebung werden keine E-Mails verschickt.']);
+
+            app()['env'] = 'production';
+            Cache::flush();
+            expect($mail())->toMatchArray(['state' => 'warn', 'sentence' => 'E-Mails werden nicht verschickt']);
+        } finally {
+            app()['env'] = 'testing';
+        }
+    });
+
     it('gives the rail a short line: the label, and the count beside it', function (): void {
         expect(app(SystemHealth::class)->report())->toMatchArray(['label' => '', 'count' => null, 'urgent' => null]);
 

@@ -16,6 +16,10 @@ final class MailDelivery
 
     public static function real(): bool
     {
+        // The mail manager first: an active SES set becomes the default mailer only when it is made (AppServiceProvider),
+        // and a page asks before anything has been sent — without this the contact form never forwarded a message (D-364).
+        app('mail.manager');
+
         return ! in_array((string) config('mail.default'), self::NOWHERE, true);
     }
 }

@@ -78,6 +78,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // The log mailer's mails (config/mail.php), at every level: a host whose LOG_LEVEL hides debug lines still keeps
+        // what its shop would have sent until a real mailer is set up — the preview's warning dropped every one (D-364).
+        'mail' => [
+            'tap' => [RedactSecrets::class],
+            'driver' => 'daily',
+            'path' => storage_path('logs/mail.log'),
+            'level' => 'debug',
+            'max_files' => 14,
+            'replace_placeholders' => true,
+        ],
+
         // The slow query log (SlowQueries): the statement without its values — no customer data —
         // its time and the page that ran it. The shared host keeps no database slow log of its own.
         'slow_queries' => [

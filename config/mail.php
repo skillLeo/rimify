@@ -74,7 +74,8 @@ return [
 
         'log' => [
             'transport' => 'log',
-            'channel' => env('MAIL_LOG_CHANNEL'),
+            // Its own file, whatever LOG_LEVEL keeps (config/logging.php `mail`, D-364).
+            'channel' => env('MAIL_LOG_CHANNEL', 'mail'),
         ],
 
         'array' => [

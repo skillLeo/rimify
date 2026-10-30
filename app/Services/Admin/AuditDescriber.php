@@ -494,7 +494,7 @@ final class AuditDescriber
             ],
             'order.confirmation_failed' => ['Die Bestellbestätigung zur Bestellung '.self::order($p).' konnte nicht verschickt werden.'.self::error($p), []],
             'order.confirmation_not_mailed' => [
-                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde nicht verschickt: Der Shop verschickt noch keine E-Mails (Einstellungen › E-Mail).',
                 [],
             ],
             'order.shipping_mail_sent' => [

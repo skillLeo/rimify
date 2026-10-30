@@ -127,8 +127,8 @@ function context(): string {
                 </div>
             </form>
             <p v-if="!recipient.mailing" class="adm-alert nfa-recipient__warn" role="status">
-                Der Shop verschickt noch keine E-Mails – sie gehen nur ins Protokoll des Servers. Neue Nachrichten stehen bis dahin nur
-                hier. Einrichten lässt sich der Versand unter Einstellungen › E-Mail.
+                Der Shop verschickt noch keine E-Mails. Neue Nachrichten stehen bis dahin nur hier. Einrichten lässt sich der Versand
+                unter Einstellungen › E-Mail.
             </p>
         </section>
 

@@ -9,6 +9,7 @@ use App\Models\InvoiceExport;
 use App\Services\Commerce\OrderPayments;
 use App\Services\Storage\StorageProbe;
 use App\Support\GermanFormat;
+use App\Support\MailDelivery;
 use App\Support\ScheduleBeat;
 use App\Support\Ssr\BoundedSsrGateway;
 use App\Support\Ssr\SsrFallbacks;
@@ -222,20 +223,21 @@ final class SystemHealth
     }
 
     /**
-     * On the live shop, a mailer that only writes to the log means no customer gets an e-mail. Locally
-     * that is the point, and not worth a warning.
+     * Whether mail leaves the shop, as MailDelivery decides it for every page. On the live shop a mailer that keeps mail
+     * to itself means no customer gets an e-mail — a warning. Elsewhere that is the point, and no warning, but the
+     * sentence still says it: the preview said „E-Mails werden verschickt.“ while its mailer wrote to the log (D-364).
      *
      * @return Check
      */
     private function mail(): array
     {
-        $mailer = config('mail.default');
-
-        if (app()->environment('production') && in_array($mailer, ['log', 'array'], true)) {
-            return ['key' => 'mail', 'label' => 'E-Mail', 'state' => 'warn', 'sentence' => 'E-Mails werden nicht verschickt', 'short' => 'Kein E-Mail-Versand', 'count' => null];
+        if (MailDelivery::real()) {
+            return ['key' => 'mail', 'label' => 'E-Mail', 'state' => 'ok', 'sentence' => 'E-Mails werden verschickt.', 'short' => '', 'count' => null];
         }
 
-        return ['key' => 'mail', 'label' => 'E-Mail', 'state' => 'ok', 'sentence' => 'E-Mails werden verschickt.', 'short' => '', 'count' => null];
+        return app()->environment('production')
+            ? ['key' => 'mail', 'label' => 'E-Mail', 'state' => 'warn', 'sentence' => 'E-Mails werden nicht verschickt', 'short' => 'Kein E-Mail-Versand', 'count' => null]
+            : ['key' => 'mail', 'label' => 'E-Mail', 'state' => 'ok', 'sentence' => 'In dieser Umgebung werden keine E-Mails verschickt.', 'short' => '', 'count' => null];
     }
 
     /**
