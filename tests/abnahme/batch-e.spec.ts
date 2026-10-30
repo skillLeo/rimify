@@ -323,7 +323,7 @@ test.describe('as the Super-Admin', () => {
         await evidenceAround(page, [table.locator('thead tr'), abnahme, a14], 23, info)
     })
 
-    test('built: stars typed on the Felge\'s admin page show under its name beside their sentence, a sentence claiming a check is refused, and they come off again', { tag: '@kunde-19' }, async ({ page, context, request }, info) => {
+    test('built: stars typed on the Felge\'s admin page show under its name beside their sentence, a sentence claiming a check is refused, and they come off again', { tag: '@kunde-19' }, async ({ page, context, request, playwright }, info) => {
         test.skip(!hasCredentials('super-admin'), 'no Super-Admin credentials in the environment (RIMIFY_EMAIL, RIMIFY_PASSWORD)')
         test.setTimeout(240_000)
 
@@ -342,8 +342,14 @@ test.describe('as the Super-Admin', () => {
         // The client's preview gains no Protokoll line from this run (instance.ts): there it reads the card, and proves the
         // address the card saves to answers — a request with no session is refused for its missing token, not as unknown.
         if (!MAY_WRITE) {
-            const probe = await request.fetch(`${BASE}${adminPage}/sterne`, { method: 'PUT', maxRedirects: 0 })
+            // With no session indeed — the runner hands a new context the project's signed-in state unless told otherwise —
+            // since a signed-in admin's refused save goes back to the form with a note (AdminErrorPage).
+            const anonymous = await playwright.request.newContext({ storageState: { cookies: [], origins: [] } })
+            const probe = await anonymous.fetch(`${BASE}${adminPage}/sterne`, { method: 'PUT', maxRedirects: 0 })
+            const unknown = await anonymous.fetch(`${BASE}${adminPage}/sterne-gibt-es-nicht`, { method: 'PUT', maxRedirects: 0 })
             expect(probe.status(), 'the stars cannot be saved: the address is unknown').toBe(419)
+            expect(unknown.status(), 'an unknown address is refused the same way — the probe proves nothing').not.toBe(419)
+            await anonymous.dispose()
             await evidenceAround(page, [card], 19, info, 16, `19-admin-${phone(info) ? 'iphone' : 'desktop'}`)
 
             return

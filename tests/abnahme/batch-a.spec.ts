@@ -113,7 +113,7 @@ test('the hero\'s photograph is no link and names no price; its measurements sta
     await evidence(hero, 4, info)
 })
 
-test('the shelf is „Meistgekaufte Felgen“ or, before a sale, „Neu im Shop“ — and absent below four wheels', { tag: '@kunde-05' }, async ({ page }, info) => {
+test('the shelf is „Meistgekaufte Felgen“, „Empfohlene Felgen“ while the admin\'s picks lead it, or „Neu im Shop“ — 8 rims, and absent below four wheels', { tag: '@kunde-05' }, async ({ page }, info) => {
     // How many wheel models the shop sells, from the shop itself: the listing without a car, its product addresses.
     await open(page, '/felgen')
     const models = new Set(
@@ -124,7 +124,8 @@ test('the shelf is „Meistgekaufte Felgen“ or, before a sale, „Neu im Shop�
 
     await open(page, '/')
 
-    const shelf = page.getByRole('heading', { name: /^(Meistgekaufte Felgen|Neu im Shop)$/ })
+    // Three names since release 22 (D-348): a sale, the admin's picks, or the newest rims (StartseiteController).
+    const shelf = page.getByRole('heading', { name: /^(Meistgekaufte Felgen|Empfohlene Felgen|Neu im Shop)$/ })
 
     if (models.size < 4) {
         await expect(shelf, `a shelf with ${models.size} wheel model(s) in the shop`).toHaveCount(0)
@@ -135,6 +136,11 @@ test('the shelf is „Meistgekaufte Felgen“ or, before a sale, „Neu im Shop�
     } else {
         await expect(shelf).toHaveCount(1)
         await shelf.scrollIntoViewIfNeeded()
+        // His point: eight rims, never more — a pick is a rim in one finish, so two finishes of one model are two of them
+        // (the preview: seven models, eight picks); never fewer than the shop's models, up to eight.
+        const cards = await shelf.locator('xpath=ancestor::section[1]').locator('article').count()
+        expect(cards, `the shelf with ${models.size} wheel models in the shop`).toBeLessThanOrEqual(8)
+        expect(cards, `the shelf with ${models.size} wheel models in the shop`).toBeGreaterThanOrEqual(Math.min(8, models.size))
         await evidence(shelf.locator('xpath=ancestor::section[1]'), 5, info)
     }
 })
