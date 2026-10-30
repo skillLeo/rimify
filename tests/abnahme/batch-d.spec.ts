@@ -231,3 +231,43 @@ test('one footer exists, the same on every page and width, right at 390 × 844 a
     await open(page, '/')
     await evidence(page.locator('footer').first(), 29, info)
 })
+
+// His #35 (D-349, D-366): one phone header on every page — every control where it stands on the home page, and inside
+// the header's content box with the „Demodaten“ badge too (on the preview it pushed the menu off a 360 px screen).
+test('one phone header: at 390 and 360 every control stands where it stands on the home page, and none leaves the header', { tag: '@kunde-35' }, async ({ page }, info) => {
+    test.skip(!phone(info), 'the phone header; the computer header is the same component')
+    const pages = ['/', '/felgen', PRODUCT, '/warenkorb', '/blog', '/kontakt', '/felgenrechner', '/rechtliches/impressum']
+
+    for (const size of [{ width: 390, height: 844 }, { width: 360, height: 740 }]) {
+        await page.setViewportSize(size)
+        let home = ''
+
+        for (const path of pages) {
+            await open(page, path)
+            const rows = await page.evaluate(() => {
+                const bar = document.querySelector('header.site-header .sh__bar')
+                if (bar === null) return { at: ['no header bar'], out: ['no header bar'] }
+                const box = bar.getBoundingClientRect()
+                const style = getComputedStyle(bar)
+                const left = box.left + parseFloat(style.paddingLeft) - 0.5
+                const right = box.right - parseFloat(style.paddingRight) + 0.5
+                const shown = [...bar.querySelectorAll(':is(a, button, .demo-badge)')]
+                    .map((el) => ({ el, r: el.getBoundingClientRect() }))
+                    .filter(({ el, r }) => r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden')
+                const name = (el: Element): string => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 24)
+
+                return {
+                    at: shown.map(({ el, r }) => `${/Warenkorb/.test(name(el)) ? 'Warenkorb' : name(el)} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}`),
+                    out: shown.filter(({ r }) => r.left < left || r.right > right).map(({ el, r }) => `${name(el)} ${Math.round(r.left)}–${Math.round(r.right)}`),
+                }
+            })
+
+            expect(rows.out, `${path} at ${size.width}: controls past the header's edge`).toEqual([])
+            if (path === '/') home = JSON.stringify(rows.at)
+            expect(JSON.stringify(rows.at), `${path} at ${size.width} against the home page`).toBe(home)
+        }
+
+        await open(page, '/')
+        await evidence(page.locator('header.site-header').first(), 35, info)
+    }
+})
