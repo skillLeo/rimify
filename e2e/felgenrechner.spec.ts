@@ -92,7 +92,7 @@ function overlapArea(a: Box, b: Box): number {
 }
 
 /** No two labels overlap; none leaves the drawing's width. */
-async function expectLabelsApart(page: Page, where: string): Promise<void> {
+async function expectLabelsApart(page: Page, where: string, expected: number): Promise<void> {
     const stage = await drawing(page).locator('.odraw__stage').boundingBox();
     const labels = drawing(page).locator('.odraw__label');
     const boxes: { name: string; box: Box }[] = [];
@@ -105,7 +105,7 @@ async function expectLabelsApart(page: Page, where: string): Promise<void> {
         }
     }
 
-    expect(boxes.length, where).toBeGreaterThanOrEqual(5);
+    expect(boxes.length, where).toBe(expected);
 
     for (let i = 0; i < boxes.length; i++) {
         for (let j = i + 1; j < boxes.length; j++) {
@@ -155,8 +155,10 @@ test.describe('Felgenrechner', () => {
                 expect(await pointing(chevrons.last()), 'the inner chevron').toBe(c.innerTenths > 0 ? 1 : -1);
             }
 
-            // 3 · The labels apart and inside, at this width and at the narrower ones; arithmetic only, no overflow.
-            await expectLabelsApart(page, info.project.name);
+            // 3 · The labels apart and inside, at this width and at the narrower ones; arithmetic only, no overflow. Three names
+            // always — außen, Fahrwerk, Radnabe — and a figure for each edge that moves.
+            const labels = 3 + (c.innerTenths !== 0 ? 1 : 0) + (c.outerTenths !== 0 ? 1 : 0);
+            await expectLabelsApart(page, info.project.name, labels);
             expect((await page.locator('.rechner').first().textContent()) ?? '').not.toMatch(VERDICT);
             await expectNoHorizontalOverflow(page);
 
@@ -165,7 +167,7 @@ test.describe('Felgenrechner', () => {
             for (const width of ALSO_AT[info.project.name] ?? []) {
                 await page.setViewportSize({ width, height: viewport?.height ?? 900 });
                 await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
-                await expectLabelsApart(page, `${info.project.name} at ${width}`);
+                await expectLabelsApart(page, `${info.project.name} at ${width}`, labels);
                 await expectNoHorizontalOverflow(page);
             }
         });

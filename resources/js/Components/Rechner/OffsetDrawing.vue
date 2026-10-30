@@ -87,13 +87,14 @@ function chevron(x: number, pointsRight: boolean): string {
 
 /**
  * A label at a point of the drawing: across in container units (the stage is the container), so it moves by transform
- * with the wheel; down as a share of the height. `end` puts the text before the point, `middle` around it.
+ * with the wheel; down as a share of the height. `end` puts the text before the point, `middle` around it. Held inside
+ * the stage: the drawing shrinks on a phone and its words do not, and „Fahrwerk“ over the strut ran past the right edge.
  */
 function at(x: number, y: number, anchor: 'start' | 'middle' | 'end' = 'start'): Record<string, string> {
     const across = ((x - left.value) / (right.value - left.value)) * 100
     const shift = anchor === 'end' ? ' - 100%' : anchor === 'middle' ? ' - 50%' : ''
 
-    return { top: `${(y / HEIGHT) * 100}%`, transform: `translate(calc(${across.toFixed(3)}cqw${shift}), -50%)` }
+    return { top: `${(y / HEIGHT) * 100}%`, transform: `translate(clamp(0px, calc(${across.toFixed(3)}cqw${shift}), calc(100cqw - 100%)), -50%)` }
 }
 
 const lines = computed(() => ({ current: setupLine(props.state.current), next: setupLine(props.state.next) }))

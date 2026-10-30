@@ -9,6 +9,7 @@
  * `--d-2`, so the address bar is always the share link. Nothing here touches `window` outside `onMounted`.
  */
 
+import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type ComputedRef, type Ref } from 'vue'
 import {
     DEFAULT_ET_STATE,
@@ -163,17 +164,32 @@ export function useEtRechner(options: UseEtRechnerOptions): EtRechner {
         }
     })
 
+    let offFirstPage: (() => void) | undefined
+
     onMounted(() => {
         delay = parseMs(getComputedStyle(document.documentElement).getPropertyValue('--d-2')) ?? delay
 
         // The address bar is the share link from the first paint — also over a link from before the rebuild, which
-        // opened on the defaults and must not go on carrying figures the page does not show.
-        if (options.writeUrl === true && new URLSearchParams(window.location.search).get('rechner') !== shareParam.value) {
+        // opened on the defaults and must not go on carrying figures the page does not show. Inertia writes the address
+        // of its first page once that page is set, which can come after this mount: written again then, once.
+        const stale = (): boolean => new URLSearchParams(window.location.search).get('rechner') !== shareParam.value
+
+        if (options.writeUrl === true && stale()) {
             writeUrl()
+            offFirstPage = router.on('navigate', () => {
+                offFirstPage?.()
+                offFirstPage = undefined
+
+                if (stale()) {
+                    writeUrl()
+                }
+            })
         }
     })
 
     onBeforeUnmount(() => {
+        offFirstPage?.()
+
         if (timer !== undefined) {
             clearTimeout(timer)
         }

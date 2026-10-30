@@ -27,9 +27,19 @@ const vehicle: VehicleProp = {
 
 let shared: { vehicle: VehicleProp | null } = { vehicle: null }
 
+/* Inertia's `navigate` listeners, fired by hand: its first page is set after the page mounts (useEtRechner). */
+const navigate: Array<() => void> = []
+
 /* The head renders nothing here; the link is a plain anchor. */
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props: shared }),
+    router: {
+        on: (event: string, listener: () => void) => {
+            if (event === 'navigate') navigate.push(listener)
+
+            return () => navigate.splice(navigate.indexOf(listener) >>> 0, 1)
+        },
+    },
     Head: { render: () => null },
     Link: {
         props: { href: { type: String, required: true } },
@@ -140,6 +150,21 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         await nextTick()
 
         expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x1')
+    })
+
+    // A link from before the rebuild: Inertia writes the address of its first page once that page is set — after this
+    // one mounted — and the old figures came back into the address bar (felgenrechner.spec, 30.10.2026).
+    it('sets an old link straight, and again once Inertia has written its first page', () => {
+        window.history.replaceState(null, '', '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35')
+        mountPage(page)
+
+        expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x0')
+
+        // Inertia's own first write, then its navigate event.
+        window.history.replaceState(null, '', '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35')
+        navigate.slice().forEach((listener) => listener())
+
+        expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x0')
     })
 
     it('says what the prefill is, in the words of finding C3, and fills the current rim with it', () => {
