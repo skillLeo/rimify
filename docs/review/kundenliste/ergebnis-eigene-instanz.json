@@ -1,8 +1,8 @@
 {
   "instance": "eigene-instanz",
   "where": "unser lokaler Abnahme-Shop (127.0.0.1)",
-  "commit": "4abe761a",
-  "at": "2026-10-16T10:27:29.266Z",
+  "commit": "14ade3c1",
+  "at": "2026-10-29T23:21:41.929Z",
   "items": {
     "1": {
       "passed": true,
@@ -61,7 +61,7 @@
     },
     "12": {
       "passed": true,
-      "tests": 18,
+      "tests": 20,
       "failed": 0
     },
     "13": {
@@ -76,7 +76,7 @@
     },
     "15": {
       "passed": true,
-      "tests": 8,
+      "tests": 11,
       "failed": 0
     },
     "16": {
@@ -96,7 +96,7 @@
     },
     "19": {
       "passed": true,
-      "tests": 5,
+      "tests": 7,
       "failed": 0
     },
     "20": {
@@ -116,7 +116,7 @@
     },
     "23": {
       "passed": true,
-      "tests": 7,
+      "tests": 11,
       "failed": 0
     },
     "24": {
@@ -171,6 +171,11 @@
     },
     "34": {
       "passed": true,
+      "tests": 2,
+      "failed": 0
+    },
+    "35": {
+      "passed": false,
       "tests": 2,
       "failed": 0
     }

@@ -48,9 +48,9 @@ export const ITEMS = [
     {
         nr: 5,
         wish: '„Felgen mit den meisten Freigaben“ → meistgekaufte Felgen',
-        now: 'Die Reihe heißt „Meistgekaufte Felgen“ und ist nach den bezahlten Bestellungen der letzten 90 Tage sortiert; ohne Verkauf heißt sie „Neu im Shop“, und mit weniger als vier Felgen im Shop erscheint sie nicht. Das Bild stammt deshalb aus unserem Testshop mit gezeichneten Beispielfelgen – in deinem Shop steht bisher nur ein Modell.',
+        now: 'Die Reihe „Meistgekaufte Felgen“ zeigt immer acht Felgen: zuerst die meistverkauften der letzten 90 Tage, danach deine Auswahl unter Inhalte › Meistgekaufte Felgen, zuletzt die neuesten. Auf der Vorschau stehen acht von Hand gewählte Felgen. Sechs davon sind Beispielfelgen und als Demo gekennzeichnet.',
         state: 'erledigt',
-        commits: ['c971a00b', '5f23158e', 'f9be5257'],
+        commits: ['389c9464'],
     },
     {
         nr: 6,
@@ -77,9 +77,9 @@ export const ITEMS = [
         nr: 9,
         wish: 'Echte Beispielfelge (z. B. Motec) im drehenden Rad',
         // The operator's brief „CLOSE THE PUBLIC SIDE“ §3: right call, not what he asked for — so not „erledigt“.
-        now: 'Im drehenden Rad steht eine echte Felge aus deinen Fotos, die im Shop zu kaufen ist: die BORBET DB8GT2. Eine Motec haben wir nicht genommen, weil wir keine Rechte an Motec-Fotos haben; schickst du uns welche, tauschen wir sie ein.',
-        state: 'anders gelöst',
-        commits: ['72e1cf81', '266ff0d8'],
+        now: 'Das drehende Rad zeigt wieder die frühere Zeichnung. Wir haben sie aus unserer Versionsgeschichte zurückgeholt, nicht neu gezeichnet.',
+        state: 'erledigt',
+        commits: ['b4a9c74b'],
     },
     {
         nr: 10,
@@ -99,9 +99,9 @@ export const ITEMS = [
     {
         nr: 12,
         wish: 'Kontaktformular auf der Kontaktseite',
-        now: 'Die Kontaktseite hat ein Formular mit Name, E-Mail, Betreff, Nachricht und einem Satz zum Datenschutz; das gewählte Fahrzeug ist angehakt dabei. Gegen Spam hilft kein fremdes Captcha, sondern ein verstecktes Feld, eine Zeitprüfung und höchstens fünf Nachrichten pro Minute. Jede Nachricht liegt im Admin unter Verkauf › Nachrichten; die Bestätigung an den Absender geht raus, sobald der E-Mail-Versand eingerichtet ist.',
-        state: 'erledigt',
-        commits: ['a1d06157', '35babb2b'],
+        now: 'Die Kontaktseite hat ein Formular mit Name, E-Mail, Betreff und Nachricht. Nachrichten gehen an die Adresse, die unter Verkauf › Nachrichten eingetragen ist. Das ist jetzt die Adresse deines Shops. Die Vorschau kann noch keine E-Mails verschicken. Dort meldet die Seite stattdessen, dass die Nachricht gespeichert ist, und du findest sie unter Verkauf › Nachrichten. Damit Nachrichten auch per E-Mail ankommen, brauchen wir einen Zugang zum Mailversand (Amazon SES oder SMTP).',
+        state: 'Rückfrage',
+        commits: ['014e5c52'],
     },
     {
         nr: 13,
@@ -120,10 +120,10 @@ export const ITEMS = [
     {
         nr: 15,
         wish: 'Beim Komplettrad Wuchtgewichte, Ventile und Reifendrucksensoren anbieten, bei „Nur Felgen“ nicht',
-        now: 'Beim Komplettrad stehen Wuchtgewichte und RDKS-Sensoren als eigene Zeilen mit Preis und Steuer im Warenkorb, die Anzahl richtet sich nach den Rädern; bei „Nur Felgen“ erscheint nichts davon.',
+        now: 'Beim Komplettrad ist nichts vorausgewählt, was extra kostet. Ob RDKS-Sensoren dazukommen und welche Farbe die Wuchtgewichte haben, entscheidet der Kunde selbst. Von sich aus nimmt der Shop nur die Standardfarbe, und nur, wenn sie nichts kostet. Felge, Reifen, Montage und Auswuchten, Wuchtgewichte und Sensoren stehen jeweils als eigene Zeile mit Anzahl und Preis im Warenkorb, an der Kasse, in der Bestätigung, in der Bestell-Mail und in der Bestellung im Admin. Auch Stripe bekommt jede dieser Zeilen. Ventile bieten wir noch nicht an, weil im Admin keine hinterlegt sind. Sollen wir Ventile anbieten – und wenn ja, welche?',
         reason: 'Ventile bieten wir noch nicht einzeln an: Deine Antwort, welche Ventile ihr ohne Sensoren montiert, steht noch aus.',
-        state: 'erledigt',
-        commits: ['ed39c419', 'ed3f8f46', 'f93d5667', '1ba18a7d', 'a0edd0f5'],
+        state: 'Rückfrage',
+        commits: ['6e8848fb'],
     },
     {
         nr: 16,
@@ -149,9 +149,9 @@ export const ITEMS = [
     {
         nr: 19,
         wish: 'Bewertungen unter dem Felgennamen, im Admin anlegbar (z. B. 4,9 Sterne, 13 Bewertungen)',
-        now: 'Sterne und die Zahl der Bewertungen trägst du im Admin bei jeder Felge selbst ein („Sterne von Hand“), zusammen mit einem Satz, woher sie stammen. Der Shop zeigt sie unter dem Felgennamen mit diesem Satz daneben – ohne den Satz zeigt er keine. Sie heißen nie „Geprüfter Kauf“, stehen nicht in den Daten für Suchmaschinen und werden nicht mit den Bewertungen deiner Käufer im Shop verrechnet.',
+        now: 'Sterne und Zahl der Bewertungen trägst du im Admin bei jeder Felge ein. Im Shop stehen sie unter dem Felgennamen. Darunter sagt eine Zeile, woher die Bewertungen stammen. Diese Zeile gilt für alle Felgen; du änderst oder leerst sie unter Katalog › Felgen. Die Bewertungen heißen nie „Geprüfter Kauf“ und stehen nicht in den Daten für Suchmaschinen.',
         state: 'erledigt',
-        commits: ['675cfc55'],
+        commits: ['675cfc55', 'a295edd1'],
     },
     {
         nr: 20,
@@ -261,5 +261,13 @@ export const ITEMS = [
         now: 'Noch nichts gebaut: Dein Punkt endet nach „Product Detail Page needs“. Die Bilder zeigen die Produktseite, wie sie jetzt ist.',
         state: 'Rückfrage',
         commits: [],
+    },
+    {
+        // His thirty-fifth point (the operator's brief of 29.10.2026, Batch 1).
+        nr: 35,
+        wish: 'Kopfzeile am Handy: Symbole mit denselben Abständen wie auf der Startseite',
+        now: 'Die Kopfzeile am Handy ist jetzt auf jeder Seite dieselbe. Menü, Logo und Warenkorb stehen an genau derselben Stelle wie auf der Startseite. Noch nicht in Ordnung: Solange die Vorschau das Schild „Demodaten“ zeigt, ist die Zeile breiter als ein Handy. Bei 390 Pixel Breite ragt das Menü über den Rand, bei 360 Pixel ist es nicht mehr zu sehen. Die Korrektur kommt mit der nächsten Version.',
+        state: 'offen',
+        commits: ['c4b04f7e'],
     },
 ]

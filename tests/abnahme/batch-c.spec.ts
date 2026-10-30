@@ -190,6 +190,11 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await onSize(page, 19, 'Schwarz matt')
     await mode(page, 'Komplettrad')
     await page.locator('.kc-row').first().click()
+    // The weights' colour, chosen as a person chooses it where the shop asks: on the preview both of the client's colours
+    // cost extra, so none is preselected (#15); on our instance the free one stands chosen.
+    if ((await page.locator('input[name="kc-weights"]:checked').count()) === 0) {
+        await page.locator('.kc-swatch').first().click()
+    }
     await page.locator('.kc-opt', { hasText: 'Mit RDKS-Sensoren' }).click()
     await add(page)
 

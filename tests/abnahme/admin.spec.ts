@@ -166,6 +166,52 @@ test.describe('as the Super-Admin', () => {
         await evidenceAround(page, [page.locator('section[aria-labelledby="rf-h-size"]'), page.locator('section[aria-labelledby="rf-h-label"]')], 210, info)
         // Nothing saved: the test ends with the form as it stands.
     })
+
+    // His item 11 on the preview: the demo article „Felgengröße lesen (Demo)“ carries an HTML section with a table, put
+    // there on 30.10. — a hostile paste saved into it came back without script, handlers, javascript: links, frames, styles
+    // or foreign images. Read here as stored and as served; our acceptance shop has no such article, and the list's own
+    // suite saves and reads one back there (e2e/kundenliste/admin.spec.ts).
+    test('a Ratgeber article\'s HTML section holds only what the list allows — as stored and as the Blog serves it', { tag: '@admin-211' }, async ({ page }, info) => {
+        test.skip(!PREVIEW, 'the demo article is the preview\'s; on our shop the list\'s own suite saves one and reads it back')
+        await open(page, '/admin/ratgeber')
+        const row = page.locator('a.rg__link', { hasText: 'Felgengröße lesen (Demo)' }).first()
+        await expect(row, 'no demo article „Felgengröße lesen (Demo)“ on the preview').toBeVisible()
+        await open(page, new URL((await row.getAttribute('href')) ?? '/', BASE).pathname)
+
+        const stored = await page.locator('textarea[id$="-data-html"]').first().inputValue()
+        expect(stored).toContain('<thead>')
+        for (const [what, mark] of [['script', /<script/i], ['an on… handler', /\son[a-z]+\s*=/i], ['a javascript: link', /href\s*=\s*["']?\s*javascript:/i], ['a frame', /<iframe/i], ['a style', /\sstyle\s*=/i]] as const) {
+            expect(stored, `the stored section holds ${what}`).not.toMatch(mark)
+        }
+        await evidenceAround(page, [page.locator('section[id^="pg-section-"]').last()], 211, info, 16, '211-admin')
+
+        await open(page, '/ratgeber/felgengroesse-lesen-demo')
+        const main = page.getByRole('main')
+        await expect(main.locator('table thead')).toHaveCount(1)
+        expect(await main.innerHTML()).not.toMatch(/<script|<iframe|\son[a-z]+\s*=|javascript:/i)
+        for (const rel of await main.locator('a[href^="http"]').evaluateAll((links) => links.map((a) => a.getAttribute('rel')))) {
+            expect(rel).toBe('noopener noreferrer')
+        }
+        await evidence(main.locator('table').first(), 211, info)
+    })
+
+    // His item 18: the admin finds an order by its new number with or without the dash. Read only; an instance without an
+    // order of the new form has nothing to search for.
+    test('an order of the new form is found by its number with and without the dash', { tag: '@admin-218' }, async ({ page }, info) => {
+        await open(page, '/admin/bestellungen')
+        const numbers = (await page.locator('.ob-number').allInnerTexts()).map((n) => n.trim()).filter((n) => /^\d{4}-\d{5,}$/.test(n))
+        test.skip(numbers.length === 0, 'no order of the new form (2610-10487) on this instance')
+        const number = numbers[0] ?? ''
+
+        for (const typed of [number, number.replace('-', '')]) {
+            const search = page.locator('main input[type="search"]').first()
+            await search.fill(typed)
+            await search.press('Enter')
+            await page.waitForLoadState('networkidle')
+            await expect(page.locator('.ob-number', { hasText: number }), `„${typed}“ does not find ${number}`).toHaveCount(1)
+        }
+        await evidence(page.getByRole('main'), 218, info)
+    })
 })
 
 test.describe('as a visitor', () => {
@@ -173,6 +219,20 @@ test.describe('as a visitor', () => {
 
     test.beforeEach(async ({ page }) => {
         await consent(page)
+    })
+
+    // His item 18: an order opens by its random id and a signed link (the mail's, or the browser that placed it) — never by
+    // its number. Typed by a visitor without either: the number of either form, and an id nobody was given, are a 404.
+    test('an order is never opened by its number, nor by an id alone', { tag: '@admin-218' }, async ({ request }, info) => {
+        const addresses = ['/bestellung/RMF-2026-0006', '/bestellung/2610-10487', '/bestellung/261010487', '/bestellung/7d3f6c1e-2b4a-4c5d-9e8f-0a1b2c3d4e5f']
+        const answers: string[] = []
+
+        for (const address of addresses) {
+            const answer = await request.get(`${BASE}${address}`, { maxRedirects: 0 })
+            answers.push(`${address} → ${answer.status()}`)
+            expect(answer.status(), address).toBe(404)
+        }
+        info.annotations.push({ type: 'gezeigt', description: answers.join(' · ') })
     })
 
     test('the Blog lists every published article, for every visitor', { tag: '@admin-212' }, async ({ page }, info) => {
