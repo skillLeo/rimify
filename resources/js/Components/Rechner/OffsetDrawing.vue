@@ -145,7 +145,8 @@ const lines = computed(() => ({ current: setupLine(props.state.current), next: s
 
         <figcaption class="odraw__foot">
             <span id="odraw-caption" class="small muted">Schnitt durch das Rad, schematisch, von vorn gesehen.</span>
-            <ul id="odraw-key" class="odraw__key" aria-label="Die beiden Felgen">
+            <!-- No label of its own: the drawing is named by this list's words, both rims with their sizes. -->
+            <ul id="odraw-key" class="odraw__key">
                 <li class="odraw__key-line small"><span class="odraw__sample odraw__sample--current" aria-hidden="true" /><span class="odraw__side">Aktuell:</span> <ValueText :text="lines.current" /></li>
                 <li class="odraw__key-line small"><span class="odraw__sample odraw__sample--next" aria-hidden="true" /><span class="odraw__side">Neu:</span> <ValueText :text="lines.next" /></li>
             </ul>

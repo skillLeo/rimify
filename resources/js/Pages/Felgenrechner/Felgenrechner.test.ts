@@ -30,6 +30,10 @@ let shared: { vehicle: VehicleProp | null } = { vehicle: null }
 /* Inertia's `navigate` listeners, fired by hand: its first page is set after the page mounts (useEtRechner). */
 const navigate: Array<() => void> = []
 
+/* Inertia's client-side replace: the address it writes, and the props it keeps for Back. */
+type Replaced = { url: string; props: (props: Record<string, unknown>) => Record<string, unknown> }
+const replaced: Replaced[] = []
+
 /* The head renders nothing here; the link is a plain anchor. */
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props: shared }),
@@ -38,6 +42,10 @@ vi.mock('@inertiajs/vue3', () => ({
             if (event === 'navigate') navigate.push(listener)
 
             return () => navigate.splice(navigate.indexOf(listener) >>> 0, 1)
+        },
+        replace: (params: Replaced) => {
+            replaced.push(params)
+            window.history.replaceState(null, '', params.url)
         },
     },
     Head: { render: () => null },
@@ -82,6 +90,7 @@ beforeEach(() => {
 afterEach(() => {
     mounted.forEach((w) => w.unmount())
     mounted = []
+    replaced.length = 0
     document.body.innerHTML = ''
     vi.useRealTimers()
 })
@@ -125,8 +134,61 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
 
         expect((width.element as HTMLInputElement).value).toBe('8,25')
         expect(width.attributes('aria-invalid')).toBe('true')
-        expect(field(wrapper, 'next', 0).find('.etc__error').text()).toBe(`Die Breite liegt zwischen 4 und 13${NN}Zoll, in halben Zoll – zum Beispiel 8,5.`)
+        expect(field(wrapper, 'next', 0).find('.etc__error').text()).toBe(`Gib eine Breite zwischen 4 und 13${NN}Zoll ein, in halben Zoll – zum Beispiel 8,5.`)
         expect(answers(wrapper)).toEqual([`Innen: 14,1${NN}mm näher am Fahrwerk`, `Außen: 24,1${NN}mm weiter heraus`])
+        // One sentence, not a row of flex items (interaction QA, 30.10.2026: the steppers were pushed out of the block).
+        expect(field(wrapper, 'next', 0).find('.etc__error').element.children).toHaveLength(1)
+    })
+
+    // Interaction QA, 30.10.2026: „81“ typed into ET answered for ET 8, the figure on the way to it.
+    it('never answers from a figure on the way: ET 81 typed key by key leaves the answers where they were, and says why at once', async () => {
+        const wrapper = mountPage(page)
+        const et = field(wrapper, 'next', 1).find('input')
+
+        await et.trigger('focus')
+        await et.setValue('8')
+        await et.setValue('81')
+
+        expect((et.element as HTMLInputElement).value).toBe('81')
+        expect(et.attributes('aria-invalid')).toBe('true')
+        expect(answers(wrapper)).toEqual([`Innen: 5,0${NN}mm weiter vom Fahrwerk entfernt`, `Außen: 5,0${NN}mm weiter heraus`])
+        expect(wrapper.findAll('.odraw__key-line').map((l) => l.text())[1]).toBe(`Neu: 8J · ET${NN}40`)
+    })
+
+    it('keeps a wrong figure, and its sentence, when another stepper is pressed', async () => {
+        const wrapper = mountPage(page)
+        const width = field(wrapper, 'next', 0).find('input')
+
+        await width.trigger('focus')
+        await width.setValue('20')
+        await width.trigger('blur')
+        await field(wrapper, 'next', 2).find('button[aria-label="Distanzscheibe je Rad erhöhen"]').trigger('click')
+
+        expect((width.element as HTMLInputElement).value).toBe('20')
+        expect(width.attributes('aria-invalid')).toBe('true')
+        expect(values(wrapper, 'next')).toEqual(['20', '40', '1'])
+    })
+
+    it('keeps a stepper at the end of its range in the tab order, saying it cannot go further', async () => {
+        const wrapper = mountPage(page, { state: { current: { widthIn: 8, etMm: 45, spacerMm: 0 }, next: { widthIn: 8, etMm: 40, spacerMm: 50 } } })
+        const plus = field(wrapper, 'next', 2).find('button[aria-label="Distanzscheibe je Rad erhöhen"]')
+
+        expect(plus.attributes('disabled')).toBeUndefined()
+        expect(plus.attributes('aria-disabled')).toBe('true')
+        await plus.trigger('click')
+        expect(values(wrapper, 'next')).toEqual(['8', '40', '50'])
+    })
+
+    it('names each field with its unit, the drawing with both rims, and reads an answer whole', () => {
+        const wrapper = mountPage(page)
+        const units = (side: 'current' | 'next') =>
+            block(wrapper, side)
+                .findAll('input')
+                .map((i) => document.getElementById(((i.attributes('aria-describedby') ?? '').split(' ')[0]) ?? '')?.textContent)
+
+        expect(units('next')).toEqual(['Zoll', 'Millimeter', 'Millimeter'])
+        expect(wrapper.find('#odraw-key').attributes('aria-label')).toBeUndefined()
+        expect(wrapper.find('.rechner__answers').attributes('aria-atomic')).toBe('true')
     })
 
     it('counts a spacer outwards and a higher ET inwards: his third case, 8,5J ET40 against 9,5J ET45 with 10 mm', () => {
@@ -150,6 +212,8 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         await nextTick()
 
         expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x1')
+        // Through Inertia, with the comparison in the page it keeps: Back brings these figures, not the first ones.
+        expect(replaced.at(-1)?.props({ state: null }).state).toEqual({ current: { widthIn: 8, etMm: 45, spacerMm: 0 }, next: { widthIn: 8, etMm: 40, spacerMm: 1 } })
     })
 
     // A link from before the rebuild: Inertia writes the address of its first page once that page is set — after this
@@ -172,7 +236,8 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         const wrapper = mountPage(page, { prefill: PREFILL })
 
         expect(wrapper.find('.rechner__prefill').text()).toBe(
-            '„Aktuelle Felge“ ist mit der kleinsten Größe aus den bei uns hinterlegten Gutachten für BMW 330i vorbelegt. Das ist nicht unbedingt die Felge, die du heute fährst.'
+            // The car by its whole name: the Gutachten on record are the variant's, not the model's (R-17; interaction QA).
+            '„Aktuelle Felge“ ist mit der kleinsten Größe aus den bei uns hinterlegten Gutachten für BMW 330i Limousine vorbelegt. Das ist nicht unbedingt die Felge, die du heute fährst.'
         )
         expect(values(wrapper, 'current')).toEqual(['8', '40', '0'])
         expect(values(wrapper, 'next')).toEqual(['8,5', '40', '0'])

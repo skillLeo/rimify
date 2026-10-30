@@ -59,7 +59,7 @@ const { state, update, sentences, shareParam, prefillLine } = useEtRechner({
             <div class="grid rechner__grid">
                 <div class="rechner__picture">
                     <!-- The answer in words first, in the first screen; heard on every change. The drawing under it shows it. -->
-                    <div class="rechner__answers" aria-live="polite">
+                    <div class="rechner__answers" aria-live="polite" aria-atomic="true">
                         <p class="h3 num rechner__answer"><ValueText :text="sentences.inner" /></p>
                         <p class="h3 num rechner__answer"><ValueText :text="sentences.outer" /></p>
                     </div>

@@ -8,6 +8,7 @@ import {
     isEtSetup,
     mmText,
     outerSentence,
+    parseMm,
     parseWidth,
     roundToTenths,
     signedMm,
@@ -99,6 +100,24 @@ describe('the fields', () => {
         expect(parseWidth('13,5')).toBeNull()
         expect(parseWidth('acht')).toBeNull()
         expect(parseWidth('')).toBeNull()
+    })
+
+    // Interaction QA, 30.10.2026: the shop's own notation and a trailing zero were refused.
+    it('takes a width in the shop\'s own notation, and a trailing zero', () => {
+        expect(parseWidth('8,5J')).toBe(8.5)
+        expect(parseWidth('9 J')).toBe(9)
+        expect(parseWidth('8,50')).toBe(8.5)
+        expect(parseWidth('8,55')).toBeNull()
+    })
+
+    it('takes an ET or a spacer with any minus, a plus, a zero after the comma, or its unit', () => {
+        expect(parseMm('etMm', '–10')).toBe(-10)
+        expect(parseMm('etMm', '−10')).toBe(-10)
+        expect(parseMm('etMm', '+10')).toBe(10)
+        expect(parseMm('etMm', '35,0')).toBe(35)
+        expect(parseMm('etMm', '45 mm')).toBe(45)
+        expect(parseMm('etMm', '35,5')).toBeNull()
+        expect(parseMm('spacerMm', '–5')).toBeNull()
     })
 
     it('steps each field by its own step and stops at its ends', () => {

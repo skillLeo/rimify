@@ -69,9 +69,12 @@ export function wider(s: EtSetup): EtSetup {
     return { ...s, widthIn: Math.min(RANGES.widthIn.max, s.widthIn + 0.5) }
 }
 
-/** What the prefill is, said plainly (C3) and of our record (R-17): the smallest size we hold a Gutachten for. */
-export function prefillSentence(vehicleShort: string): string {
-    return `„Aktuelle Felge“ ist mit der kleinsten Größe aus den bei uns hinterlegten Gutachten für ${vehicleShort} vorbelegt. Das ist nicht unbedingt die Felge, die du heute fährst.`
+/**
+ * What the prefill is, said plainly (C3) and of our record (R-17): the smallest size we hold a Gutachten for — the car
+ * by its whole name, since the Gutachten on record are the variant's, not the model's.
+ */
+export function prefillSentence(vehicleLabel: string): string {
+    return `„Aktuelle Felge“ ist mit der kleinsten Größe aus den bei uns hinterlegten Gutachten für ${vehicleLabel} vorbelegt. Das ist nicht unbedingt die Felge, die du heute fährst.`
 }
 
 function isEtState(state: EtState | null | undefined): state is EtState {
@@ -111,9 +114,9 @@ export function useEtRechner(options: UseEtRechnerOptions): EtRechner {
     const lines = computed<Record<EtSide, string>>(() => ({ current: setupLine(state.current), next: setupLine(state.next) }))
     const shareParam = computed(() => encodeEtState(state))
     const prefillLine = computed(() => {
-        const short = options.vehicle()?.short
+        const label = options.vehicle()?.label
 
-        return fromVehicle.value && short !== undefined && short !== '' ? prefillSentence(short) : null
+        return fromVehicle.value && label !== undefined && label !== '' ? prefillSentence(label) : null
     })
 
     function replace(next: EtState): void {
@@ -126,10 +129,15 @@ export function useEtRechner(options: UseEtRechnerOptions): EtRechner {
     let timer: ReturnType<typeof setTimeout> | undefined
     let delay = 200
 
+    /*
+     * Through Inertia, with the comparison in the page it keeps: Back to this page brings these figures. With
+     * `replaceState` alone, Back restored the page as it had opened — the defaults, or the link's first figures.
+     */
     function writeUrl(): void {
         const url = new URL(window.location.href)
         url.searchParams.set('rechner', shareParam.value)
-        window.history.replaceState(window.history.state, '', url.toString())
+        const comparison: EtState = { current: { ...state.current }, next: { ...state.next } }
+        router.replace({ url: url.pathname + url.search + url.hash, preserveScroll: true, preserveState: true, props: (props) => ({ ...props, state: comparison }) })
     }
 
     function scheduleUrl(): void {

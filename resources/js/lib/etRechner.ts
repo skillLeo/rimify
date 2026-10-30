@@ -129,6 +129,28 @@ function offered(field: EtField, value: number): boolean {
     return Number.isFinite(value) && value >= min && value <= max && Number.isInteger(Math.round(value * 100) / (step * 100))
 }
 
+/**
+ * A typed figure no further key can bring into range — above the field's highest, or below its lowest with the minus
+ * typed: said at once. A half-typed `8,`, or a `1` on its way to 12, is no error yet.
+ */
+export function pastRange(field: EtField, typed: string): boolean {
+    const text = typed
+        .trim()
+        .replace(/\s*(j|mm)$/i, '')
+        .replace(/^[−–]/, '-')
+        .replace(/^\+/, '')
+        .replace(',', '.')
+
+    if (!/^-?\d+(\.\d*)?$/.test(text)) {
+        return false
+    }
+
+    const value = Number(text)
+    const { min, max } = RANGES[field]
+
+    return value > max || (value < 0 && value < min)
+}
+
 export function isEtSetup(s: EtSetup): boolean {
     return offered('widthIn', s.widthIn) && offered('etMm', s.etMm) && offered('spacerMm', s.spacerMm)
 }
@@ -141,11 +163,14 @@ export function stepped(field: EtField, value: number, direction: 1 | -1): numbe
     return Math.min(max, Math.max(min, next))
 }
 
-/** A typed width: `8,5`, `8.5` or `9`, in half inches the form offers — else null, and the field says so. */
+/**
+ * A typed width: `8,5`, `8.5`, `9`, the shop's own `8,5J` or `8,50`, in half inches the form offers — else null, and the
+ * field says so.
+ */
 export function parseWidth(typed: string): number | null {
-    const text = typed.trim().replace(',', '.')
+    const text = typed.trim().replace(/\s*j$/i, '').replace(',', '.')
 
-    if (!/^\d{1,2}(\.\d)?$/.test(text)) {
+    if (!/^\d{1,2}(\.\d0?)?$/.test(text)) {
         return null
     }
 
@@ -154,9 +179,14 @@ export function parseWidth(typed: string): number | null {
     return offered('widthIn', value) ? value : null
 }
 
-/** A typed ET or spacer: a whole number, the minus as `-` or `−`. */
+/** A typed ET or spacer: a whole number — any minus (`-`, `−`, `–`), a plus, `35,0` and `45 mm` taken as they mean. */
 export function parseMm(field: 'etMm' | 'spacerMm', typed: string): number | null {
-    const text = typed.trim().replace('−', '-')
+    const text = typed
+        .trim()
+        .replace(/\s*mm$/i, '')
+        .replace(/^[−–]/, '-')
+        .replace(/^\+/, '')
+        .replace(/[.,]0$/, '')
 
     if (!/^-?\d{1,3}$/.test(text)) {
         return null

@@ -183,20 +183,60 @@ test.describe('Felgenrechner', () => {
 
         const et = next.locator('.etc__field').nth(1).locator('input');
         await et.fill('45');
+        await et.blur();
         await expect(page.locator('.rechner__answer').nth(0)).toHaveText(/^Innen: 6,4\smm näher am Fahrwerk$/);
 
-        await et.fill('81');
+        // Key by key, as a person types: the 8 on the way to 81 never becomes the answer, and 81 is said at once — no
+        // further key can make it right (interaction QA, 30.10.2026: ET 81 answered for ET 8).
+        await et.fill('');
+        await et.pressSequentially('81');
+        await expect(et).toHaveAttribute('aria-invalid', 'true');
+        await expect(next.locator('.etc__error')).toHaveText(/^Gib eine Einpresstiefe zwischen −50 und 80\smm ein, in ganzen Millimetern\.$/);
+        // The drawing and the answers keep the figure the field had before the typing.
+        await expect(page.locator('.rechner__answer').nth(0)).toHaveText(/^Innen: 6,4\smm näher am Fahrwerk$/);
+        await expect(page.locator('.odraw__key-line').nth(1)).toHaveText(/ET\s45/);
         await et.blur();
         await expect(et).toHaveValue('81');
-        await expect(et).toHaveAttribute('aria-invalid', 'true');
-        await expect(next.locator('.etc__error')).toHaveText(/^Die Einpresstiefe liegt zwischen −50 und 80\smm, in ganzen Millimetern\.$/);
-        // The drawing and the answers keep the last figure that was right.
-        await expect(page.locator('.rechner__answer').nth(0)).toHaveText(/^Innen: 6,4\smm näher am Fahrwerk$/);
+
+        // A sentence under a field stays a sentence, and the block keeps its steppers inside (at 1440 one under the
+        // spacer pushed all three out of the panel).
+        const spacer = next.locator('.etc__field').nth(2).locator('input');
+        await spacer.fill('abc');
+        await spacer.blur();
+        await expect(next.locator('.etc__error')).toHaveCount(2);
+        const panel = await next.boundingBox();
+
+        for (const button of await next.locator('.etc__step').all()) {
+            const box = await button.boundingBox();
+            expect(box !== null && panel !== null && box.x >= panel.x - 0.5 && box.x + box.width <= panel.x + panel.width + 0.5, 'a stepper stands outside its block').toBe(true);
+        }
+
+        for (const error of await next.locator('.etc__error').all()) {
+            expect((await error.boundingBox())?.height ?? 0, 'a sentence under a field broke into columns').toBeLessThan(120);
+        }
 
         // The figures kept from the translator; the labels and sentences left to it.
         for (const input of await page.locator('.etc input').all()) {
             await expect(input.locator('xpath=ancestor::*[@translate="no"][1]')).toHaveCount(1);
         }
+    });
+
+    // Interaction QA, 30.10.2026: away and Back brought the figures the page had opened with, and rewrote the address.
+    test('Back brings the comparison back as it was left, address and all', async ({ page }) => {
+        await open(page, '/felgenrechner');
+        const next = page.locator('.etc__block--next');
+
+        await next.getByRole('button', { name: 'Breite erhöhen' }).click();
+        await expect.poll(() => new URL(page.url()).searchParams.get('rechner')).toBe('8x45x0_8.5x40x0');
+
+        const home = page.getByRole('link', { name: 'RIMIFY – Startseite' });
+        await home.filter({ visible: true }).first().click();
+        await page.waitForURL((url) => url.pathname === '/');
+        await page.goBack();
+
+        await expect(next.locator('.etc__field').first().locator('input')).toHaveValue('8,5');
+        await expect(page.locator('.rechner__answer').nth(1)).toHaveText(/^Außen: 11,4\smm weiter heraus$/);
+        expect(new URL(page.url()).searchParams.get('rechner')).toBe('8x45x0_8.5x40x0');
     });
 
     test('a link from before the rebuild opens on his example, and the address is set straight', async ({ page }) => {

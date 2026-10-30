@@ -5,15 +5,15 @@
  * plus, 44 px a step, and the figure typed directly. The arrow keys step too.
  *
  * A typed figure the form does not offer stays as typed, with a sentence under its field, and the drawing keeps the
- * last figure that was right — never a cleared field, never a silent reset (R-09). The state itself belongs to the
- * page; this only proposes the next one.
+ * figure the field had before the typing began — never one on the way (`8` on the way to `81`), never a cleared field,
+ * never a silent reset (R-09). The state itself belongs to the page; this only proposes the next one.
  */
 
 import { reactive, useId, watch } from 'vue'
 import Icon from '../Ui/Icon.vue'
 import ValueText from '../Ui/ValueText.vue'
 import { NNBSP } from '../../format'
-import { ET_SIDES, parseMm, parseWidth, RANGES, stepped, type EtField, type EtSide, type EtState } from '../../lib/etRechner'
+import { ET_SIDES, parseMm, parseWidth, pastRange, RANGES, stepped, type EtField, type EtSide, type EtState } from '../../lib/etRechner'
 
 const props = defineProps<{ modelValue: EtState }>()
 
@@ -21,16 +21,18 @@ const emit = defineEmits<{ 'update:modelValue': [state: EtState] }>()
 
 const uid = useId()
 
-const FIELDS: { key: EtField; label: string; unit: string; mode: 'decimal' | 'numeric'; error: string }[] = [
-    { key: 'widthIn', label: 'Breite', unit: 'Zoll', mode: 'decimal', error: `Die Breite liegt zwischen 4 und 13${NNBSP}Zoll, in halben Zoll – zum Beispiel 8,5.` },
-    { key: 'etMm', label: 'Einpresstiefe (ET)', unit: 'mm', mode: 'numeric', error: `Die Einpresstiefe liegt zwischen −50 und 80${NNBSP}mm, in ganzen Millimetern.` },
+/* `unitSaid`: the unit as a screen reader names it with the field — „mm“ would be read as two letters. */
+const FIELDS: { key: EtField; label: string; unit: string; unitSaid: string; mode: 'decimal' | 'numeric'; error: string }[] = [
+    { key: 'widthIn', label: 'Breite', unit: 'Zoll', unitSaid: 'Zoll', mode: 'decimal', error: `Gib eine Breite zwischen 4 und 13${NNBSP}Zoll ein, in halben Zoll – zum Beispiel 8,5.` },
+    { key: 'etMm', label: 'Einpresstiefe (ET)', unit: 'mm', unitSaid: 'Millimeter', mode: 'numeric', error: `Gib eine Einpresstiefe zwischen −50 und 80${NNBSP}mm ein, in ganzen Millimetern.` },
     // One spacer per wheel: kits are often sold by the axle's figure, which would double the answer.
     {
         key: 'spacerMm',
         label: 'Distanzscheibe je Rad',
         unit: 'mm',
+        unitSaid: 'Millimeter',
         mode: 'numeric',
-        error: `Die Stärke der Distanzscheibe liegt zwischen 0 und 50${NNBSP}mm, in ganzen Millimetern. Ohne Distanzscheibe trägst du 0 ein.`,
+        error: `Gib die Stärke der Distanzscheibe zwischen 0 und 50${NNBSP}mm ein, in ganzen Millimetern. Ohne Distanzscheibe trägst du 0 ein.`,
     },
 ]
 
@@ -52,20 +54,30 @@ function textsOf(state: EtState): Record<EtSide, Record<EtField, string>> {
 const texts = reactive(textsOf(props.modelValue))
 const errors = reactive<Record<EtSide, Partial<Record<EtField, boolean>>>>({ current: {}, next: {} })
 
-/* A comparison set from outside (a link, the car chosen later, a step): the fields follow, and their errors go. */
+/* The figure a field had when its typing began: what the answers use while the typed one is not right. */
+const before = reactive<Record<EtSide, Partial<Record<EtField, number>>>>({ current: {}, next: {} })
+
+/* The field being typed in: its words are the person's, and no answer coming back rewrites them. */
+let editing: string | null = null
+
+/*
+ * A comparison set from outside (a link, the car chosen later, a step): the fields whose figure changed follow, and
+ * their errors go. A field whose figure did not change keeps what was typed in it — a wrong figure and its sentence
+ * stay when another stepper is pressed.
+ */
 watch(
     () => props.modelValue,
-    (state) => {
+    (state, old) => {
         const next = textsOf(state)
 
         for (const side of ['current', 'next'] as const) {
             for (const field of ['widthIn', 'etMm', 'spacerMm'] as const) {
-                const parsed = parse(field, texts[side][field])
-
-                if (parsed !== state[side][field]) {
-                    texts[side][field] = next[side][field]
-                    errors[side][field] = false
+                if (`${side}.${field}` === editing || old?.[side][field] === state[side][field]) {
+                    continue
                 }
+
+                texts[side][field] = next[side][field]
+                errors[side][field] = false
             }
         }
     },
@@ -77,29 +89,62 @@ function parse(field: EtField, text: string): number | null {
 }
 
 function propose(side: EtSide, field: EtField, value: number): void {
-    emit('update:modelValue', { ...props.modelValue, [side]: { ...props.modelValue[side], [field]: value } })
+    if (props.modelValue[side][field] !== value) {
+        emit('update:modelValue', { ...props.modelValue, [side]: { ...props.modelValue[side], [field]: value } })
+    }
 }
 
+function onFocus(side: EtSide, field: EtField): void {
+    editing = `${side}.${field}`
+
+    if (parse(field, texts[side][field]) !== null) {
+        before[side][field] = props.modelValue[side][field]
+    }
+}
+
+/*
+ * A figure that is right is the answer's at once. One that is not puts the answer back on the figure before the typing
+ * — never on one on the way — and is said at once where no further key can make it right (`81` for an ET), else on
+ * leaving the field: a half-typed „8,“ is not an error yet.
+ */
 function onInput(side: EtSide, field: EtField, event: Event): void {
     const text = (event.target as HTMLInputElement).value
     texts[side][field] = text
+    editing = `${side}.${field}`
     const value = parse(field, text)
 
     if (value !== null) {
         errors[side][field] = false
         propose(side, field, value)
+
+        return
     }
+
+    errors[side][field] = pastRange(field, text)
+    propose(side, field, before[side][field] ?? props.modelValue[side][field])
 }
 
-/* Leaving a field: what does not parse is said under it — while typing, a half-typed „8,“ is not an error yet. */
 function onBlur(side: EtSide, field: EtField): void {
+    editing = null
     errors[side][field] = parse(field, texts[side][field]) === null
 }
 
+function atEnd(side: EtSide, field: EtField, direction: 1 | -1): boolean {
+    const value = props.modelValue[side][field]
+
+    return direction === 1 ? value >= RANGES[field].max : value <= RANGES[field].min
+}
+
+/* At an end of its range a stepper does nothing — and keeps the focus, which a disabled button would drop to the page. */
 function step(side: EtSide, field: EtField, direction: 1 | -1): void {
+    if (atEnd(side, field, direction)) {
+        return
+    }
+
     const value = stepped(field, props.modelValue[side][field], direction)
     texts[side][field] = shown(field, value)
     errors[side][field] = false
+    before[side][field] = value
     propose(side, field, value)
 }
 
@@ -122,7 +167,7 @@ const fid = (side: EtSide, field: EtField): string => `${uid}-${side}-${field}`
                                 type="button"
                                 :aria-label="`${field.label} verringern`"
                                 :aria-controls="fid(block.key, field.key)"
-                                :disabled="modelValue[block.key][field.key] <= RANGES[field.key].min"
+                                :aria-disabled="atEnd(block.key, field.key, -1) ? 'true' : undefined"
                                 @click="step(block.key, field.key, -1)"
                             >
                                 <Icon name="minus" :size="20" />
@@ -136,7 +181,8 @@ const fid = (side: EtSide, field: EtField): string => `${uid}-${side}-${field}`
                                 spellcheck="false"
                                 :value="texts[block.key][field.key]"
                                 :aria-invalid="errors[block.key][field.key] ? 'true' : undefined"
-                                :aria-describedby="errors[block.key][field.key] ? `${fid(block.key, field.key)}-error` : undefined"
+                                :aria-describedby="errors[block.key][field.key] ? `${fid(block.key, field.key)}-unit ${fid(block.key, field.key)}-error` : `${fid(block.key, field.key)}-unit`"
+                                @focus="onFocus(block.key, field.key)"
                                 @input="onInput(block.key, field.key, $event)"
                                 @blur="onBlur(block.key, field.key)"
                                 @keydown.up.prevent="step(block.key, field.key, 1)"
@@ -147,15 +193,19 @@ const fid = (side: EtSide, field: EtField): string => `${uid}-${side}-${field}`
                                 type="button"
                                 :aria-label="`${field.label} erhöhen`"
                                 :aria-controls="fid(block.key, field.key)"
-                                :disabled="modelValue[block.key][field.key] >= RANGES[field.key].max"
+                                :aria-disabled="atEnd(block.key, field.key, 1) ? 'true' : undefined"
                                 @click="step(block.key, field.key, 1)"
                             >
                                 <Icon name="plus" :size="20" />
                             </button>
                         </div>
                         <span class="etc__unit" aria-hidden="true">{{ field.unit }}</span>
+                        <span :id="`${fid(block.key, field.key)}-unit`" class="visually-hidden">{{ field.unitSaid }}</span>
                     </div>
-                    <p v-if="errors[block.key][field.key]" :id="`${fid(block.key, field.key)}-error`" class="form-field__error etc__error" role="alert"><ValueText :text="field.error" /></p>
+                    <p v-if="errors[block.key][field.key]" :id="`${fid(block.key, field.key)}-error`" class="form-field__error etc__error" role="alert">
+                        <!-- One sentence: the paragraph is a flex box (form-field__error), and ValueText's pieces were its columns. -->
+                        <span><ValueText :text="field.error" /></span>
+                    </p>
                 </div>
             </div>
         </fieldset>
@@ -200,11 +250,13 @@ const fid = (side: EtSide, field: EtField): string => `${uid}-${side}-${field}`
     color: var(--c-surface);
 }
 
-/* One column for the three labels, as wide as the longest, so the three steppers stand under each other. */
+/* One column for the three labels, as wide as the longest, so the three steppers stand under each other. The second
+   column is flexible: a sentence under a field spans both, and a spanning item that crosses a flexible track never
+   widens the label column — with `auto` it did, and pushed the steppers out of the block (interaction QA, 30.10.2026). */
 .etc__fields {
     display: grid;
     clear: both;
-    grid-template-columns: max-content auto;
+    grid-template-columns: max-content minmax(0, 1fr);
     align-items: center;
     gap: var(--sp-12) var(--sp-20);
     padding: var(--sp-16) var(--sp-20) var(--sp-20);
@@ -247,12 +299,12 @@ const fid = (side: EtSide, field: EtField): string => `${uid}-${side}-${field}`
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .etc__step:hover:not(:disabled) {
+    .etc__step:hover:not([aria-disabled='true']) {
         background: var(--c-band);
     }
 }
 
-.etc__step:active:not(:disabled) {
+.etc__step:active:not([aria-disabled='true']) {
     background: var(--c-line);
 }
 
@@ -261,8 +313,8 @@ const fid = (side: EtSide, field: EtField): string => `${uid}-${side}-${field}`
     outline-offset: -2px;
 }
 
-/* At an end of its range: shown as not pressable (DIRECTION §6). */
-.etc__step:disabled {
+/* At an end of its range: shown as not pressable (DIRECTION §6), and still in the tab order. */
+.etc__step[aria-disabled='true'] {
     background: var(--c-band);
     color: var(--c-ink-3);
     cursor: not-allowed;
