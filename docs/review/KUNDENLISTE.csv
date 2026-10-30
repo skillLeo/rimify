@@ -7,17 +7,17 @@ Nr,Skill Leo,Description
 6,SkillLeo Done,"The highlight in „Wir lesen das Gutachten“ sits on the right row at every screen size we checked, low windows included."
 7,SkillLeo Done,Switching between the three vehicle tabs no longer makes the hero jump.
 8,SkillLeo Done,"The chosen vehicle is part of the address, so a page can be saved and shared; the link shows the same wheels and results in any browser."
-9,Open,"Solved differently: the turning wheel is a real wheel from your photos that can be bought in the shop, the BORBET DB8GT2. Not a Motec, because we hold no rights to Motec photos; send us some and we swap it in."
+9,SkillLeo Done,"Solved differently: the turning wheel is a real wheel from your photos that can be bought in the shop, the BORBET DB8GT2. Not a Motec, because we hold no rights to Motec photos; send us some and we swap it in."
 10,SkillLeo Done,"The footer links the Felgenrechner and the Blog; both open, and the Blog lists its articles."
 11,SkillLeo Done,"Done on our side: our own cross-section marks the ET as a measured arrow and the rim width as a dimension, a second view shows the bolt circle and centre bore, and the wheel moves in the arch when the ET changes. The alternative was a photographic wheel like jr-wheels.com, which needs an illustration we hold the rights to. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
-12,SkillLeo Done,"The contact page has a form: name, e-mail, subject, message, your vehicle ticked. Messages are kept in the admin under Verkauf › Nachrichten. Spam protection without a third-party captcha."
+12,Open,"The contact page has a form: name, e-mail, subject, message, your vehicle ticked. Messages are kept in the admin under Verkauf › Nachrichten. Spam protection without a third-party captcha."
 13,SkillLeo Done,"On mobile the basket icon sits in the header, left of the menu, with its count."
 14,SkillLeo Done,"Prices agree everywhere from the product tile to the invoice, for 1 to 5 wheels: one wheel 229,00 €, four wheels 916,00 €."
-15,SkillLeo Done,"With „Komplettrad“, balance weights and TPMS sensors are separate lines with their own prices; with „Nur Felgen“ none of them appear. Valves are not offered on their own yet: we still need your answer on which valves you fit without sensors."
+15,Open,"With „Komplettrad“, balance weights and TPMS sensors are separate lines with their own prices; with „Nur Felgen“ none of them appear. Valves are not offered on their own yet: we still need your answer on which valves you fit without sensors."
 16,SkillLeo Done,"After adding to the basket a small window shows the item and the total, with „Weiter einkaufen“ and „Zum Warenkorb“."
 17,SkillLeo Done,"Next to the price you choose 1 to 8 wheels, 4 preselected, never more than in stock; the line reads e.g. „4 × 229,00 € = 916,00 €“."
 18,SkillLeo Done,"You choose „Nur Felgen“ or „Komplettrad“ without losing size, colour or quantity, and add matching tyres directly. The check then shows what the Gutachten requires for exactly that tyre size."
-19,Open,"built as verified reviews, see our note — manual star ratings would be a legal risk for you. Real reviews from Google or your old shop can be imported with the source named."
+19,SkillLeo Done,"In the admin open a rim and scroll to „Sterne von Hand“: enter the stars, the number of reviews and one sentence saying where they come from (e.g. your eBay shop). The shop shows them under the rim’s name with your sentence beside them, and none without it. They are never shown as a verified purchase and are not passed to search engines."
 20,SkillLeo Done,"Different sizes front and rear can be chosen, only in the pairs the Gutachten permits."
 21,SkillLeo Done,"„Eintragung“ now appears once. The Gutachten’s original wording is behind „Originaltext anzeigen“, each sentence under the tyre sizes it applies to."
 22,SkillLeo Done,"On mobile „Vergleichen“ no longer covers the „Mit Auflagen“ label. Long conditions are shown as a count on the tile, with the wording on the product page."
@@ -33,3 +33,4 @@ Nr,Skill Leo,Description
 32,SkillLeo Done,"Done on our side: a pale blue-grey surface alternates with white between the homepage sections; not every section is tinted. The alternative is a clearer light blue on more sections, closer to your words. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
 33,SkillLeo Done,"Done on our side: the icons, the chosen tab, chosen option buttons and the keyboard frame are blue, and blue stays the colour of what can be clicked or chosen. The alternative is blue beyond that, on headings or larger areas. Whether it looks right is your call, in your column; we have before and after pictures at desktop and phone width."
 34,Open,could you finish this sentence and we will build it with the rest.
+35,Open,
