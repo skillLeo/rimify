@@ -106,8 +106,9 @@ export const ITEMS = [
         nr: 214,
         wish: 'Für jede Felge automatisch ein Google-JSON-LD (Product)',
         pictures: false,
-        now: 'Jede Felgenseite trägt im Kopf ihre strukturierten Daten für Google (JSON-LD): die Felge mit Marke, Namen, Beschreibung und Fotos, darunter jede Größe und Farbe als eigenes Produkt mit Artikelnummer, EAN, Preis und Verfügbarkeit. Bewertungen stehen nur darin, wo Käufer echte abgegeben haben, die Versandkosten, sobald du sie unter Einstellungen › Verkäufer & Versand eingetragen hast. Die Lieferzeit steht noch nicht darin: Google will Bearbeitungs- und Versandzeit getrennt, die Einstellungen kennen eine Spanne. Rückgaberegeln kommen hinein, sobald deine Angaben dazu da sind. Beispielfelgen bekommen keine.',
+        now: 'Jede Felgenseite trägt im Kopf ihre strukturierten Daten für Google (JSON-LD): die Felge mit Marke, Namen, Beschreibung und Fotos, darunter jede Größe und Farbe als eigenes Produkt mit Artikelnummer, EAN, Preis und Verfügbarkeit. Bewertungen stehen nur darin, wo Käufer echte abgegeben haben, die Versandkosten, sobald du sie unter Einstellungen › Verkäufer & Versand eingetragen hast. Die Lieferzeit steht noch nicht darin: Google will Bearbeitungs- und Versandzeit getrennt, die Einstellungen kennen eine Spanne. Rückgaberegeln kommen hinein, sobald deine Angaben dazu da sind. Beispielfelgen bekommen keine. Zum Prüfen: Auf der Seite einer Felge im Admin zeigt „JSON-LD anzeigen“ genau diesen Block. Kopier ihn mit „Code kopieren“ und füg ihn in Googles Test für Rich-Suchergebnisse im Reiter „Code“ ein. Die Vorschau selbst kann Google nicht abrufen.',
         state: 'erledigt',
+        commits: ['5c6511b1'],
     },
     {
         nr: 215,
@@ -125,9 +126,9 @@ export const ITEMS = [
         nr: 217,
         wish: 'Rechnungserstellung entfernen',
         pictures: false,
-        now: 'Teil 1 ist umgesetzt: Der Shop erstellt, nummeriert und erwähnt keine eigenen Rechnungen mehr. Ältere Rechnungen bleiben lesbar. Mit dem nächsten Release kommen die Stripe-Rechnungen mit allen Positionen und 19 % MwSt. sowie die tägliche Kopie nach S3.',
+        now: 'Teil 1 ist umgesetzt: Der Shop erstellt, nummeriert und erwähnt keine eigenen Rechnungen mehr. Rechnungen, die er schon erstellt hat, bleiben lesbar. Teil 2 ist gebaut: Für jede Bestellung, die über Stripe bezahlt wird, stellt Stripe die Rechnung aus – jede Position mit 19 % MwSt. Sobald Stripe sie erstellt hat, verlinken die Bestätigungsseite und die Bestell-E-Mail darauf. Jede Nacht um 3:15 Uhr legt der Shop alle Rechnungen des Vortags als PDF in deinem S3-Speicher ab. Was in Stripe einzustellen ist und welche Angaben nach § 14 UStG dein Steuerberater klären sollte, steht in STRIPE-RECHNUNGEN.md. Zeigen können wir das auf der Vorschau, sobald dort Stripe im Testmodus angebunden und ein Bucket in Frankfurt eingerichtet ist.',
         state: 'offen',
-        commits: ['8b1557d1'],
+        commits: ['8b1557d1', '06abcef1', 'cbb9eaca'],
     },
     {
         nr: 218,
@@ -141,8 +142,9 @@ export const ITEMS = [
         // His reply to item 8 (the operator's brief of 29.10.2026, Batch 2): a nineteenth point of his own.
         nr: 219,
         wish: 'Bereifungskombinationen je EG-Typgenehmigungsnummer einstellbar',
-        now: 'Im Gutachten wählst du zuerst den Fahrzeugtyp über seine EG-Typgenehmigungsnummer und trägst dann seine Bereifungskombinationen ein. „Kombinationen kopieren von …“ übernimmt die Liste einer anderen Nummer zum Prüfen, „Auf mehrere EG-Nummern anwenden“ trägt eine Kombination bei mehreren Nummern auf einmal ein. Im Shop bekommt ein Fahrzeug die Liste der Nummer, die sein Feld K umfasst – nie weiter gefasst, als das Gutachten sie druckt; passt keine, sind seine Reifen „Noch nicht bestätigt“. Die bisherigen Listen stehen jetzt bei jeder Nummer ihres Gutachtens, markiert mit „Übernommen, bitte prüfen“; geändert hat sich dadurch kein Urteil.',
+        now: 'Im Gutachten wählst du zuerst den Fahrzeugtyp über seine EG-Typgenehmigungsnummer und trägst dann seine Bereifungskombinationen ein. „Kombinationen kopieren von …“ übernimmt die Liste einer anderen Nummer zum Prüfen, „Auf mehrere EG-Nummern anwenden“ trägt eine Kombination bei mehreren Nummern auf einmal ein. Im Shop bekommt ein Fahrzeug die Liste der Nummer, die sein Feld K umfasst – nie weiter gefasst, als das Gutachten sie druckt; passt keine, sind seine Reifen „Noch nicht bestätigt“. Die bisherigen Listen stehen jetzt bei jeder Nummer ihres Gutachtens, markiert mit „Übernommen, bitte prüfen“; geändert hat sich dadurch kein Urteil. Auf der Vorschau zu sehen an der Beispiel-ABE 55255 mit ihren drei EG-Nummern und an deiner ABE mit der übernommenen Liste. Ein Gutachten mit zwei EG-Nummern und verschiedenen Kombinationen – auch vorne und hinten verschieden, mit „16a)“ – liegt uns nicht vor. Schick uns eines, dann tragen wir es ein.',
         state: 'erledigt',
+        commits: ['0ff1e2ca'],
     },
 ]
 

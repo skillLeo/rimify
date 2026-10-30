@@ -91,15 +91,15 @@ export const ITEMS = [
     {
         nr: 11,
         wish: 'Bessere Illustration im Felgenrechner (wie bei jr-wheels.com)',
-        now: 'Eine eigene Schnittzeichnung zeigt Einpresstiefe, Felgenbreite und Lochkreis; ändert man die ET, wandert das Rad sichtbar im Radhaus.',
-        state: 'Urteil offen',
+        now: 'Den Felgenrechner haben wir nach deinem Beispiel neu gebaut. Für „Aktuelle Felge“ und „Neue Felge“ stellst du jeweils Breite, Einpresstiefe (ET) und Distanzscheibe ein – mit − und + oder direkt per Eingabe. Oben steht die Antwort in zwei Sätzen: um wie viele Millimeter sich Innen- und Außenkante verschieben. Darunter zeigt ein Schnitt durch das Rad von vorn die aktuelle Felge in Grau und die neue in Blau. Gibst du eine Zahl ein, die der Rechner nicht anbietet, bleibt sie im Feld, und darunter steht, was gilt. Gerechnet wird weiter mit dem letzten gültigen Wert.',
+        state: 'erledigt',
         tick: true,
-        commits: ['9056fa1f'],
+        commits: ['a59973b4', '626ac282', 'bdb81e4e'],
     },
     {
         nr: 12,
         wish: 'Kontaktformular auf der Kontaktseite',
-        now: 'Die Kontaktseite hat ein Formular mit Name, E-Mail, Betreff und Nachricht. Nachrichten gehen an die Adresse, die unter Verkauf › Nachrichten eingetragen ist. Das ist jetzt die Adresse deines Shops. Die Vorschau kann noch keine E-Mails verschicken. Dort meldet die Seite stattdessen, dass die Nachricht gespeichert ist, und du findest sie unter Verkauf › Nachrichten. Damit Nachrichten auch per E-Mail ankommen, brauchen wir einen Zugang zum Mailversand (Amazon SES oder SMTP).',
+        now: 'Die Kontaktseite hat ein Formular mit Name, E-Mail, Betreff und Nachricht. Nachrichten gehen an die Adresse, die unter Verkauf › Nachrichten eingetragen ist. Das ist jetzt die Adresse deines Shops. Die Vorschau kann noch keine E-Mails verschicken. Dort meldet die Seite stattdessen, dass die Nachricht gespeichert ist, und du findest sie unter Verkauf › Nachrichten, am Handy über ‚Mehr‘ › Verkauf. Damit Nachrichten auch per E-Mail ankommen, brauchen wir einen Zugang zum Mailversand (Amazon SES oder SMTP).',
         state: 'Rückfrage',
         commits: ['014e5c52'],
     },
@@ -156,9 +156,9 @@ export const ITEMS = [
     {
         nr: 20,
         wish: 'Unterschiedliche Größen vorne und hinten wählbar',
-        now: 'Vorne und hinten lassen sich nur die Paare wählen, die das Gutachten erlaubt (beim ABE 55255 die Tabelle V19); jede Achse wird mit ihrer eigenen Achslast gerechnet, und die Bestellung hält beide Achsen fest.',
+        now: 'Erlaubt ein Gutachten vorne und hinten verschiedene Reifengrößen, stehen seine Paare direkt in der Kaufspalte, sobald du „Kompletträder“ wählst. Sie sind mit „Vorderachse“ und „Hinterachse“ beschriftet, und jede Achse wird mit ihrer eigenen Achslast gerechnet. Zum Ausprobieren auf der Vorschau: BMW 3er E90 (HSN 0005, TSN Z90) mit der BORBET DB8GT2 in 19 Zoll. Ein Gutachten, das zur DB8GT2 vorne und hinten verschiedene Felgenbreiten freigibt, liegt uns nicht vor.',
         state: 'erledigt',
-        commits: ['e2e23394'],
+        commits: ['e204702b'],
     },
     {
         nr: 21,
@@ -266,8 +266,8 @@ export const ITEMS = [
         // His thirty-fifth point (the operator's brief of 29.10.2026, Batch 1).
         nr: 35,
         wish: 'Kopfzeile am Handy: Symbole mit denselben Abständen wie auf der Startseite',
-        now: 'Die Kopfzeile am Handy ist jetzt auf jeder Seite dieselbe. Menü, Logo und Warenkorb stehen an genau derselben Stelle wie auf der Startseite. Noch nicht in Ordnung: Solange die Vorschau das Schild „Demodaten“ zeigt, ist die Zeile breiter als ein Handy. Bei 390 Pixel Breite ragt das Menü über den Rand, bei 360 Pixel ist es nicht mehr zu sehen. Die Korrektur kommt mit der nächsten Version.',
-        state: 'offen',
-        commits: ['c4b04f7e'],
+        now: 'Die Kopfzeile ist am Handy auf jeder Seite gleich. Menü, Logo und Warenkorb stehen an genau derselben Stelle wie auf der Startseite. Solange der Shop das Schild „Demodaten“ zeigt, steht es am Handy unter dem Logo, damit alle Symbole auf den Bildschirm passen. Ein Test prüft auf zwölf Seiten bei 390 und 360 Pixel Breite, dass jedes Symbol an seiner Stelle steht und keines über den Rand ragt.',
+        state: 'erledigt',
+        commits: ['c4b04f7e', '52e1452a'],
     },
 ]

@@ -117,6 +117,27 @@ test.describe('as the Super-Admin', () => {
         await evidenceAround(page, [page.locator('.pdp__stock')], 207, info)
     })
 
+    // His item 19 (D-358): the combinations belong to a vehicle type, by its EG-Typgenehmigungsnummer. Read only: the
+    // example ABE 55255 names three types — each its own entry, with the car it is and its count; a list is edited in a
+    // draft, which this pass never makes.
+    test('the Bereifungskombinationen are kept per EG-Typgenehmigungsnummer, one entry for each type the Gutachten names', { tag: '@admin-219' }, async ({ page }, info) => {
+        await open(page, '/admin/gutachten')
+        const documentPage = new URL((await page.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })) ?? '/', BASE).pathname
+        await open(page, documentPage)
+
+        const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
+        await expect(card).toContainText('trag sie je Fahrzeugtyp ein')
+        const entries = (await card.locator('#kb-entry option').allInnerTexts()).map((o) => o.trim())
+
+        expect(entries.length, 'the example names three vehicle types').toBeGreaterThanOrEqual(2)
+
+        for (const entry of entries) {
+            expect(entry, 'an entry is its EG number, the car and its count').toMatch(/^e\d+\*\S+ – .+ \(\d+ Kombination(en)?\)$/)
+        }
+
+        await evidenceAround(page, [card], 219, info)
+    })
+
     test('the Bereifungskombinationen stand on the Gutachten as the closed list it prints', { tag: '@admin-208' }, async ({ page }, info) => {
         await open(page, '/admin/gutachten')
         const documentPage = new URL((await page.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })) ?? '/', BASE).pathname
