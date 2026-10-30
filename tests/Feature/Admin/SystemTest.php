@@ -54,7 +54,7 @@ describe('the health sentence', function (): void {
 
         expect($report['state'])->toBe('ok')
             ->and($report['sentence'])->toBe('Alles in Ordnung')
-            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'schedule', 'mail', 'storage', 'ssr']);
+            ->and(array_column($report['checks'], 'key'))->toBe(['maintenance', 'failed_jobs', 'queue', 'schedule', 'mail', 'storage', 'invoices', 'ssr']);
     });
 
     it('turns amber once the scheduler has been silent for an hour, naming what that costs', function (): void {
@@ -137,6 +137,23 @@ describe('the health sentence', function (): void {
                 ->and($report['urgent']['key'] ?? null)->toBe('maintenance');
         } finally {
             $this->app->maintenanceMode()->deactivate();
+        }
+    });
+
+    // D-364: the preview's health said „E-Mails werden verschickt.“ while its mailer wrote to the log.
+    it('says no mail leaves an environment whose mailer writes to the log, and warns only on the live shop', function (): void {
+        config(['mail.default' => 'log']);
+        $mail = fn (): array => collect(app(SystemHealth::class)->report()['checks'])->firstWhere('key', 'mail');
+        app()['env'] = 'staging';
+
+        try {
+            expect($mail())->toMatchArray(['state' => 'ok', 'sentence' => 'In dieser Umgebung werden keine E-Mails verschickt.']);
+
+            app()['env'] = 'production';
+            Cache::flush();
+            expect($mail())->toMatchArray(['state' => 'warn', 'sentence' => 'E-Mails werden nicht verschickt']);
+        } finally {
+            app()['env'] = 'testing';
         }
     });
 
@@ -244,7 +261,7 @@ describe('where it is shown', function (): void {
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/System/Index')
-                ->has('report.checks', 7)
+                ->has('report.checks', 8)
                 ->where('report.sentence', 'Alles in Ordnung'));
 
         $this->actingAs(systemAdmin('content-editor'), 'admin')->get('/admin/system')->assertForbidden();

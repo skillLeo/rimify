@@ -34,6 +34,7 @@ use App\Services\Admin\Lists\AdminLists;
 use App\Services\Admin\Lists\ListViews;
 use App\Services\Storage\ImageUpload;
 use App\Services\Storage\UploadRejected;
+use App\Services\Storefront\ProductJsonLd;
 use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\Money;
@@ -158,6 +159,23 @@ class FelgenController extends Controller
         });
 
         return back()->with('toast', self::SAVED);
+    }
+
+    /**
+     * The rim's structured data as its page carries it (ProductJsonLd), set out to be pasted into Google's test: null
+     * while the rim has no size. A demo rim's page carries none; the panel shows what a real one's would and says so.
+     *
+     * @return array{code: string|null, demo: bool, published: bool}
+     */
+    private static function jsonLd(WheelModel $model): array
+    {
+        $data = ProductJsonLd::for($model, url('/felgen/'.$model->slug), evenForDemo: true);
+
+        return [
+            'code' => $data === null ? null : ProductJsonLd::snippet($data),
+            'demo' => (bool) $model->is_demo,
+            'published' => $model->status === CatalogueStatus::Published,
+        ];
     }
 
     /**
@@ -427,6 +445,9 @@ class FelgenController extends Controller
             // stands beside every rim's typed stars, with the agreed default it can be put back to.
             'statedRating' => $model === null ? null : StatedRatings::forAdmin($model),
             'statedDisclosure' => ['text' => StatedRatings::disclosure(), 'default' => StatedRatings::DISCLOSURE_DEFAULT],
+            // „JSON-LD anzeigen“ (his admin item 14): what this rim's page gives search engines — or would, for a demo rim
+            // or one not yet published — to paste into Google's Rich Results Test, the preview being closed to crawlers.
+            'jsonLd' => $model === null ? null : self::jsonLd($model),
             'finishes' => $finishes->map(static fn (WheelFinish $f): array => [
                 'key' => 'f'.$f->id,
                 'id' => (int) $f->id,

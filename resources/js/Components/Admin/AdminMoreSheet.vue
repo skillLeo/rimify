@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Mehr (admin-shell.md §11.3): the shop's health, every group the bottom bar has no slot for, „Neu“,
- * then the account — on a phone, the rail's foot lives here.
+ * Mehr (admin-shell.md §11.3): the shop's health, every group the bottom bar does not reach whole — no slot, or a
+ * slot that opens only the first of its pages (D-365) —, „Neu“, then the account — on a phone, the rail's foot lives here.
  *
  * A group of one page is that page's row, the group named beneath it. A group of several opens a
  * second sheet with its pages — never an accordion inside a sheet, where a long group pushes the

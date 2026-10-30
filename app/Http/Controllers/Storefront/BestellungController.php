@@ -163,7 +163,15 @@ class BestellungController extends Controller
     {
         $invoice = Invoice::query()->where('order_id', $order->id)->where('kind', Invoice::INVOICE)->first();
 
-        return $invoice === null ? null : ['number' => $invoice->number, 'href' => Invoices::link($invoice)];
+        if ($invoice !== null) {
+            return ['number' => $invoice->number, 'href' => Invoices::link($invoice)];
+        }
+
+        // Stripe's invoice (his admin item 17, D-361): shown only once Stripe has issued it and reported it paid, by its
+        // own PDF — never a link to one that does not exist yet.
+        return $order->stripe_invoice_pdf === null || $order->stripe_invoice_number === null
+            ? null
+            : ['number' => $order->stripe_invoice_number, 'href' => $order->stripe_invoice_pdf];
     }
 
     /**

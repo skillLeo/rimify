@@ -41,13 +41,25 @@ class OrderConfirmationMail extends Mailable
     /** `$invoice` is null for a demo order — a test purchase gets no invoice, and the mail says so (D-239). */
     public function __construct(public Order $order, public ?Invoice $invoice) {}
 
+    /** Stripe's page for the invoice — only once Stripe issued it and reported it paid (D-361); null before. */
+    public function stripeInvoiceUrl(): ?string
+    {
+        return $this->order->stripe_invoice_pdf === null ? null : $this->order->stripe_invoice_url;
+    }
+
     public function envelope(): Envelope
     {
         // An answer to this mail reaches the shop: it is sent from a no-reply address.
         $contact = (string) config('rimify.contact.email');
 
         return new Envelope(
-            subject: "Deine Bestellung {$this->order->order_number} bei RIMIFY – ".($this->invoice === null ? 'Bestätigung des Testkaufs' : 'Bestätigung und Rechnung'),
+            // A test purchase says it is one; a real order says „und Rechnung“ only where the mail carries one — its own or
+            // Stripe's (D-361). With the shop's own invoices off a real order was told it was a test purchase.
+            subject: "Deine Bestellung {$this->order->order_number} bei RIMIFY – ".match (true) {
+                $this->order->isDemo() => 'Bestätigung des Testkaufs',
+                $this->invoice !== null || $this->stripeInvoiceUrl() !== null => 'Bestätigung und Rechnung',
+                default => 'Bestätigung',
+            },
             replyTo: $contact === '' ? [] : [new Address($contact, 'RIMIFY')],
         );
     }
@@ -140,6 +152,9 @@ class OrderConfirmationMail extends Mailable
                 'sellerLine' => Seller::current()->documentLine(),
                 'invoiceNumber' => $this->invoice?->number,
                 'invoiceUrl' => $this->invoice === null ? null : Invoices::link($this->invoice),
+                // Stripe's invoice (D-361): linked only once Stripe has issued it and reported it paid — never one that does not exist.
+                'stripeInvoiceNumber' => $this->stripeInvoiceUrl() === null ? null : $order->stripe_invoice_number,
+                'stripeInvoiceUrl' => $this->stripeInvoiceUrl(),
                 // A test purchase says it is one; whether it adds „no invoice“ depends on whether the shop issues any (D-348).
                 'testPurchase' => $order->isDemo(),
                 'ownInvoices' => OwnInvoices::enabled(),

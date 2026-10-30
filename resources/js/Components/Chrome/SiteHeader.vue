@@ -66,10 +66,12 @@ function removeVehicle(): void {
 
     <header class="site-header" :class="{ 'site-header--scrolled': scrolled }">
         <div class="container sh__bar">
-            <Link href="/" class="brand" aria-label="RIMIFY – Startseite" prefetch>RIMIFY</Link>
-
-            <!-- The Demodaten badge beside the wordmark, at every width. -->
-            <DemoBadge class="sh__demo" />
+            <!-- The Demodaten badge beside the wordmark — beneath it below 420 px: beside it, the row ran 27 px past a 390 px
+                 screen once the basket stood in every header (#35), and the menu was out of reach (D-366). -->
+            <div class="sh__mark" :class="{ 'sh__mark--demo': shared.demoBadge === true }">
+                <Link href="/" class="brand" aria-label="RIMIFY – Startseite" prefetch>RIMIFY</Link>
+                <DemoBadge class="sh__demo" />
+            </div>
 
             <MegaMenu class="from-lg sh__nav" />
 
@@ -199,9 +201,49 @@ function removeVehicle(): void {
     margin-left: var(--sp-8);
 }
 
-/* Close to the wordmark it qualifies: half the row's gap, which also keeps 320px clear. */
-.sh__demo {
-    margin-left: calc(-1 * var(--sp-8));
+/* The wordmark and the badge that qualifies it, half the row's gap apart. */
+.sh__mark {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+/* Below 420 px the badge stands beneath the wordmark — beside it the row is wider than the phone, and the menu falls off
+   its edge (D-366). The pair is centred on the icons' line, and the wordmark's link covers the whole mark, so its tap
+   target stays 44 px and more (DIRECTION §6). */
+@media (max-width: 419.98px) {
+    .sh__mark--demo {
+        position: relative;
+        align-self: stretch;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 0;
+        padding-bottom: var(--sp-4);
+    }
+
+    .sh__mark--demo .brand {
+        min-height: 0;
+    }
+
+    .sh__mark--demo .brand::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    .sh__mark--demo .sh__demo {
+        min-height: 20px;
+    }
+}
+
+/* Below 360 px the tools close up as well: their 44 px boxes touch, the icons keep 20 px between them — or the row
+   takes the page's right margin. */
+@media (max-width: 359.98px) {
+    .sh__mark--demo ~ .sh__tools {
+        gap: 0;
+    }
 }
 
 .sh__tools {

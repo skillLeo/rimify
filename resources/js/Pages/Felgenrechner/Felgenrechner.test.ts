@@ -1,14 +1,16 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { h, type VNode } from 'vue'
-import { withUnit } from '../../format'
+import { h, nextTick, type VNode } from 'vue'
 import type { VehicleProp } from '../../types/rimify'
 
 /*
- * /felgenrechner's two documents (ACCURACY.md §6): the wording a customer reads around the
- * numbers — the prefill line (C3), the pointer to the papers that decide, and not one verdict word
- * anywhere on the page. The numbers themselves are pinned by felgenGeometry.test.ts.
+ * /felgenrechner's two documents, rebuilt close to the client's example (his #11; the operator's brief of 29.10.2026,
+ * Batch 2): the two blocks with their steppers, the two answers in words, the drawing, the address — and, as before,
+ * the wording around the numbers: the prefill sentence (C3), the pointer to the papers that decide, and not one verdict
+ * word (ACCURACY.md §6). The arithmetic itself is pinned by lib/etRechner.test.ts.
  */
+
+const NN = ' '
 
 const vehicle: VehicleProp = {
     id: 14,
@@ -25,9 +27,27 @@ const vehicle: VehicleProp = {
 
 let shared: { vehicle: VehicleProp | null } = { vehicle: null }
 
+/* Inertia's `navigate` listeners, fired by hand: its first page is set after the page mounts (useEtRechner). */
+const navigate: Array<() => void> = []
+
+/* Inertia's client-side replace: the address it writes, and the props it keeps for Back. */
+type Replaced = { url: string; props: (props: Record<string, unknown>) => Record<string, unknown> }
+const replaced: Replaced[] = []
+
 /* The head renders nothing here; the link is a plain anchor. */
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props: shared }),
+    router: {
+        on: (event: string, listener: () => void) => {
+            if (event === 'navigate') navigate.push(listener)
+
+            return () => navigate.splice(navigate.indexOf(listener) >>> 0, 1)
+        },
+        replace: (params: Replaced) => {
+            replaced.push(params)
+            window.history.replaceState(null, '', params.url)
+        },
+    },
     Head: { render: () => null },
     Link: {
         props: { href: { type: String, required: true } },
@@ -57,6 +77,11 @@ function mountPage(page: 'desktop' | 'mobile', props: Record<string, unknown> = 
     return wrapper
 }
 
+const answers = (w: VueWrapper): string[] => w.findAll('.rechner__answer').map((p) => p.text())
+const block = (w: VueWrapper, side: 'current' | 'next') => w.find(`.etc__block--${side}`)
+const field = (w: VueWrapper, side: 'current' | 'next', index: number) => block(w, side).findAll('.etc__field')[index]!
+const values = (w: VueWrapper, side: 'current' | 'next'): string[] => block(w, side).findAll('input').map((i) => (i.element as HTMLInputElement).value)
+
 beforeEach(() => {
     shared = { vehicle: null }
     window.history.replaceState(null, '', '/felgenrechner')
@@ -65,17 +90,157 @@ beforeEach(() => {
 afterEach(() => {
     mounted.forEach((w) => w.unmount())
     mounted = []
+    replaced.length = 0
     document.body.innerHTML = ''
+    vi.useRealTimers()
 })
 
 describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
-    it('says what the prefill is, in the words of finding C3', () => {
+    it('opens on his example: two blocks, 8J ET45 against 8J ET40, five millimetres each way, one drawing', () => {
+        const wrapper = mountPage(page)
+
+        expect(wrapper.findAll('.etc__title').map((t) => t.text())).toEqual(['Aktuelle Felge', 'Neue Felge'])
+        expect(block(wrapper, 'current').findAll('.etc__label').map((l) => l.text())).toEqual(['Breite', 'Einpresstiefe (ET)', 'Distanzscheibe je Rad'])
+        expect(values(wrapper, 'current')).toEqual(['8', '45', '0'])
+        expect(values(wrapper, 'next')).toEqual(['8', '40', '0'])
+        expect(answers(wrapper)).toEqual([`Innen: 5,0${NN}mm weiter vom Fahrwerk entfernt`, `Außen: 5,0${NN}mm weiter heraus`])
+        expect(wrapper.findAll('.calc-drawing svg[role="img"]')).toHaveLength(1)
+        expect(wrapper.find('#odraw-caption').text()).toBe('Schnitt durch das Rad, schematisch, von vorn gesehen.')
+        // The key says which wheel is which, each with its sample: no coloured words that read as links.
+        expect(wrapper.findAll('.odraw__key-line').map((l) => l.text())).toEqual([`Aktuell: 8J · ET${NN}45`, `Neu: 8J · ET${NN}40`])
+        expect(wrapper.findAll('.odraw__sample')).toHaveLength(2)
+    })
+
+    it('moves with every step: half an inch wider on the new rim, and both answers follow', async () => {
+        const wrapper = mountPage(page)
+
+        await field(wrapper, 'next', 0).find('button[aria-label="Breite erhöhen"]').trigger('click')
+
+        expect(values(wrapper, 'next')).toEqual(['8,5', '40', '0'])
+        // 6,35 − 5 = 1,35 inside, 6,35 + 5 = 11,35 outside — rounded once, half up.
+        expect(answers(wrapper)).toEqual([`Innen: 1,4${NN}mm näher am Fahrwerk`, `Außen: 11,4${NN}mm weiter heraus`])
+    })
+
+    it('takes a typed figure as people type it, and keeps a wrong one with a sentence, the answers on the last right one', async () => {
+        const wrapper = mountPage(page)
+        const width = field(wrapper, 'next', 0).find('input')
+
+        // 8J ET45 against 9,5J ET40: 19,05 − 5 inside, 19,05 + 5 outside.
+        await width.setValue('9,5')
+        expect(answers(wrapper)).toEqual([`Innen: 14,1${NN}mm näher am Fahrwerk`, `Außen: 24,1${NN}mm weiter heraus`])
+
+        await width.setValue('8,25')
+        await width.trigger('blur')
+
+        expect((width.element as HTMLInputElement).value).toBe('8,25')
+        expect(width.attributes('aria-invalid')).toBe('true')
+        expect(field(wrapper, 'next', 0).find('.etc__error').text()).toBe(`Gib eine Breite zwischen 4 und 13${NN}Zoll ein, in halben Zoll – zum Beispiel 8,5.`)
+        expect(answers(wrapper)).toEqual([`Innen: 14,1${NN}mm näher am Fahrwerk`, `Außen: 24,1${NN}mm weiter heraus`])
+        // One sentence, not a row of flex items (interaction QA, 30.10.2026: the steppers were pushed out of the block).
+        expect(field(wrapper, 'next', 0).find('.etc__error').element.children).toHaveLength(1)
+    })
+
+    // Interaction QA, 30.10.2026: „81“ typed into ET answered for ET 8, the figure on the way to it.
+    it('never answers from a figure on the way: ET 81 typed key by key leaves the answers where they were, and says why at once', async () => {
+        const wrapper = mountPage(page)
+        const et = field(wrapper, 'next', 1).find('input')
+
+        await et.trigger('focus')
+        await et.setValue('8')
+        await et.setValue('81')
+
+        expect((et.element as HTMLInputElement).value).toBe('81')
+        expect(et.attributes('aria-invalid')).toBe('true')
+        expect(answers(wrapper)).toEqual([`Innen: 5,0${NN}mm weiter vom Fahrwerk entfernt`, `Außen: 5,0${NN}mm weiter heraus`])
+        expect(wrapper.findAll('.odraw__key-line').map((l) => l.text())[1]).toBe(`Neu: 8J · ET${NN}40`)
+    })
+
+    it('keeps a wrong figure, and its sentence, when another stepper is pressed', async () => {
+        const wrapper = mountPage(page)
+        const width = field(wrapper, 'next', 0).find('input')
+
+        await width.trigger('focus')
+        await width.setValue('20')
+        await width.trigger('blur')
+        await field(wrapper, 'next', 2).find('button[aria-label="Distanzscheibe je Rad erhöhen"]').trigger('click')
+
+        expect((width.element as HTMLInputElement).value).toBe('20')
+        expect(width.attributes('aria-invalid')).toBe('true')
+        expect(values(wrapper, 'next')).toEqual(['20', '40', '1'])
+    })
+
+    it('keeps a stepper at the end of its range in the tab order, saying it cannot go further', async () => {
+        const wrapper = mountPage(page, { state: { current: { widthIn: 8, etMm: 45, spacerMm: 0 }, next: { widthIn: 8, etMm: 40, spacerMm: 50 } } })
+        const plus = field(wrapper, 'next', 2).find('button[aria-label="Distanzscheibe je Rad erhöhen"]')
+
+        expect(plus.attributes('disabled')).toBeUndefined()
+        expect(plus.attributes('aria-disabled')).toBe('true')
+        await plus.trigger('click')
+        expect(values(wrapper, 'next')).toEqual(['8', '40', '50'])
+    })
+
+    it('names each field with its unit, the drawing with both rims, and reads an answer whole', () => {
+        const wrapper = mountPage(page)
+        const units = (side: 'current' | 'next') =>
+            block(wrapper, side)
+                .findAll('input')
+                .map((i) => document.getElementById(((i.attributes('aria-describedby') ?? '').split(' ')[0]) ?? '')?.textContent)
+
+        expect(units('next')).toEqual(['Zoll', 'Millimeter', 'Millimeter'])
+        expect(wrapper.find('#odraw-key').attributes('aria-label')).toBeUndefined()
+        expect(wrapper.find('.rechner__answers').attributes('aria-atomic')).toBe('true')
+    })
+
+    it('counts a spacer outwards and a higher ET inwards: his third case, 8,5J ET40 against 9,5J ET45 with 10 mm', () => {
+        const wrapper = mountPage(page, { state: { current: { widthIn: 8.5, etMm: 40, spacerMm: 0 }, next: { widthIn: 9.5, etMm: 45, spacerMm: 10 } } })
+
+        expect(values(wrapper, 'next')).toEqual(['9,5', '45', '10'])
+        expect(answers(wrapper)).toEqual([`Innen: 7,7${NN}mm näher am Fahrwerk`, `Außen: 17,7${NN}mm weiter heraus`])
+        expect(wrapper.findAll('.odraw__key-line').map((l) => l.text())).toEqual([`Aktuell: 8,5J · ET${NN}40`, `Neu: 9,5J · ET${NN}45 · Distanzscheibe 10${NN}mm`])
+        // The figures in the drawing carry no sign: the chevron says the way, as in his example.
+        expect(wrapper.findAll('.odraw__figure').map((f) => f.text())).toEqual([`17,7${NN}mm`, `7,7${NN}mm`])
+    })
+
+    it('writes the comparison to the address, from the first paint and after a change', async () => {
+        vi.useFakeTimers()
+        const wrapper = mountPage(page)
+
+        expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x0')
+
+        await field(wrapper, 'next', 2).find('button[aria-label="Distanzscheibe je Rad erhöhen"]').trigger('click')
+        vi.advanceTimersByTime(500)
+        await nextTick()
+
+        expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x1')
+        // Through Inertia, with the comparison in the page it keeps: Back brings these figures, not the first ones.
+        expect(replaced.at(-1)?.props({ state: null }).state).toEqual({ current: { widthIn: 8, etMm: 45, spacerMm: 0 }, next: { widthIn: 8, etMm: 40, spacerMm: 1 } })
+    })
+
+    // A link from before the rebuild: Inertia writes the address of its first page once that page is set — after this
+    // one mounted — and the old figures came back into the address bar (felgenrechner.spec, 30.10.2026).
+    it('sets an old link straight, and again once Inertia has written its first page', () => {
+        window.history.replaceState(null, '', '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35')
+        mountPage(page)
+
+        expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x0')
+
+        // Inertia's own first write, then its navigate event.
+        window.history.replaceState(null, '', '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35')
+        navigate.slice().forEach((listener) => listener())
+
+        expect(new URLSearchParams(window.location.search).get('rechner')).toBe('8x45x0_8x40x0')
+    })
+
+    it('says what the prefill is, in the words of finding C3, and fills the current rim with it', () => {
         shared = { vehicle }
         const wrapper = mountPage(page, { prefill: PREFILL })
 
         expect(wrapper.find('.rechner__prefill').text()).toBe(
-            '„Bisher“ ist vorbelegt mit der kleinsten Größe, die ein Gutachten für BMW 330i nennt – nicht unbedingt mit deiner heutigen Bereifung.'
+            // The car by its whole name: the Gutachten on record are the variant's, not the model's (R-17; interaction QA).
+            '„Aktuelle Felge“ ist mit der kleinsten Größe aus den bei uns hinterlegten Gutachten für BMW 330i Limousine vorbelegt. Das ist nicht unbedingt die Felge, die du heute fährst.'
         )
+        expect(values(wrapper, 'current')).toEqual(['8', '40', '0'])
+        expect(values(wrapper, 'next')).toEqual(['8,5', '40', '0'])
     })
 
     it('prints no prefill line without a prefill', () => {
@@ -84,30 +249,7 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         expect(mountPage(page).find('.rechner__prefill').exists()).toBe(false)
     })
 
-    it('leads with arithmetic, answers in words with the rear view under the position sentence, and ends at the papers that decide', () => {
-        const wrapper = mountPage(page)
-        const text = wrapper.text()
-
-        expect(wrapper.find('.rechner__lead').text()).toBe(
-            'Rechne aus, wie sich eine andere Felgen- und Reifengröße rechnerisch auf Abrollumfang, Tacho und die Lage der Felgenkanten auswirkt.'
-        )
-        // The answer first, in a sentence; the drawing inside the position block, under it.
-        const lage = wrapper.find('[data-result="lage"]')
-        expect(lage.find('.calc-result__say').text()).toContain('Die Außenkante der neuen Felge steht rechnerisch')
-        expect(lage.find('.cd[role="img"]').exists()).toBe(true)
-        expect(wrapper.findAll('.cd[role="img"]')).toHaveLength(1)
-        expect(text).toContain('Zeigt der Tacho')
-        expect(text).toContain('häufig genannten Faustregel')
-        expect(text).toContain('keine gesetzliche Grenze')
-        expect(text).toContain('Der Tacho darf nie weniger anzeigen als die tatsächliche Geschwindigkeit')
-        expect(text).toContain('fährst du rechnerisch')
-        expect(wrapper.find('.rechner__disclaimer').text()).toContain('Zulassungsbescheinigung Teil I')
-        expect(wrapper.find('.rechner__disclaimer').text()).toContain('CoC-Papier')
-        expect(wrapper.find('.rechner__disclaimer').text()).toContain('Reifenfreigabe')
-        expect(wrapper.find('.rechner__disclaimer').text()).toContain('Gutachten oder in der ABE der Felge')
-    })
-
-    it('never says zulässig, passt, legal, eintragungsfrei, Toleranz or ohne Gewähr — and has no verdict colour', () => {
+    it('ends at the papers that decide, and never says zulässig, passt, legal or anything like it', () => {
         shared = { vehicle }
         const wrapper = mountPage(page, { prefill: PREFILL })
         const text = wrapper.text().toLowerCase()
@@ -116,44 +258,18 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
             expect(text, word).not.toContain(word)
         }
 
-        expect(wrapper.find('.light').exists()).toBe(false)
+        const papers = wrapper.find('.rechner__disclaimer').text()
+        expect(papers).toContain('Zulassungsbescheinigung Teil I')
+        expect(papers).toContain('Gutachten oder in der ABE der Felge')
         expect(wrapper.find('.verdict').exists()).toBe(false)
     })
 
-    it('opens a shared comparison from the server exactly as the link carried it', () => {
-        const wrapper = mountPage(page, {
-            state: {
-                current: { widthIn: 6, diameterIn: 17, etMm: 45, tyreWidthMm: 155, aspect: 45 },
-                next: { widthIn: 5.5, diameterIn: 14, etMm: 45, tyreWidthMm: 145, aspect: 35 },
-            },
-        })
-
-        expect(wrapper.find('[data-result="groesse"] .calc-result__say').text()).toContain(withUnit('−19,99', '%'))
-        expect(wrapper.find('[data-result="tacho"] .calc-result__say').text()).toContain(withUnit('80,0', 'km/h'))
-    })
-
-    it('says in one sentence that a tyre and its rim do not belong together, and draws and prints nothing for it', () => {
-        const wrapper = mountPage(page, {
-            state: {
-                current: { widthIn: 7.5, diameterIn: 17, etMm: 45, tyreWidthMm: 225, aspect: 45 },
-                // 5,5J (139,7 mm) with a 305 tyre: 0,46 × its width.
-                next: { widthIn: 5.5, diameterIn: 19, etMm: 35, tyreWidthMm: 305, aspect: 30 },
-            },
-        })
-
-        expect(wrapper.find('[data-result="implausible"] .calc-result__say').text()).toBe(
-            'Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.'
-        )
-        expect(wrapper.find('.cd').exists()).toBe(false)
-        expect(wrapper.find('.specs').exists()).toBe(false)
-        expect(wrapper.find('[data-result="lage"]').exists()).toBe(false)
-        expect(wrapper.text()).not.toContain('rechnerisch 6')
-        // The customer's own figures stay in the form; the disclaimer still points at the papers.
-        expect(wrapper.find('.rechner__disclaimer').text()).toContain('Zulassungsbescheinigung Teil I')
-    })
-
-    it('keeps the translator off every figure on the page: each value sits in translate="no"', () => {
+    it('keeps the translator off every figure on the page: each sits in translate="no"', async () => {
         const wrapper = mountPage(page)
+        // An error sentence carries figures too.
+        const width = field(wrapper, 'current', 0).find('input')
+        await width.setValue('x')
+        await width.trigger('blur')
         const out: string[] = []
 
         const walk = (node: Node): void => {
@@ -173,9 +289,9 @@ describe.each(['desktop', 'mobile'] as const)('/felgenrechner (%s)', (page) => {
         walk(wrapper.element)
 
         expect(out).toEqual([])
-        // Every select and the ET field, whose options and values are figures.
-        const controls = wrapper.findAll('select, input[type="number"]')
-        expect(controls.length).toBeGreaterThanOrEqual(5)
-        expect(controls.every((c) => c.attributes('translate') === 'no')).toBe(true)
+        // The six fields, whose values are figures.
+        const fields = wrapper.findAll('.etc input')
+        expect(fields).toHaveLength(6)
+        expect(fields.every((i) => i.element.closest('[translate="no"]') !== null)).toBe(true)
     })
 })

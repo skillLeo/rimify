@@ -6,13 +6,12 @@ import { SHOP } from './shop';
 test.use({ baseURL: SHOP });
 
 /*
- * /felgenrechner's rear view (ACCURACY.md §6, brief W6), measured in the browser on both documents:
- * every arrow is as long, in pixels, as the millimetres its label prints — within half a
- * millimetre, because the arrow is drawn to the exact shift and the label rounds it; no two labels
- * of the drawing overlap, none leaves the drawing's width or sits on the sheet, at the project's
- * width and at narrower ones; the inner arrow points inboard — towards the strut, to the left —
- * exactly when the inner edge moves closer to it. The comparisons arrive through `?rechner=`, which
- * must survive the page untouched. Reduced motion puts the drawing in its end state at once.
+ * /felgenrechner, rebuilt close to the client's example (his #11; the operator's brief of 29.10.2026, Batch 2), measured in
+ * the browser on both documents: each rim edge of the new wheel stands as far from the current one, in pixels, as the
+ * millimetres its answer prints — within half a millimetre, the answer being rounded and the drawing not; each chevron
+ * points the way its edge moved; no two labels of the drawing overlap and none leaves it, at the project's width and at
+ * narrower ones. The comparisons arrive through `?rechner=`, which must survive the page untouched. Reduced motion puts
+ * the drawing in its end state at once.
  *
  * Runs against the production build: it needs `npm run build` with this change in it first.
  */
@@ -22,62 +21,22 @@ const BASE = DEV;
 interface Case {
     name: string;
     param: string;
-    /** What the two labels must say, word for word apart from the number's space. */
-    outer: RegExp;
     inner: RegExp;
-    /** +1 when the inner edge moves towards the strut (the arrow must point left), −1 away, 0 no arrow. */
-    innerTowardsStrut: -1 | 0 | 1;
+    outer: RegExp;
+    /** Tenths of a millimetre the answers print, signed: inner towards the car, outer out of the car. */
+    innerTenths: number;
+    outerTenths: number;
 }
 
 const CASES: Case[] = [
-    {
-        // The golden case: 7,5J ET 45 → 8,5J ET 35 moves the outer edge +22,7 and the inner edge +2,7 mm.
-        name: 'the worked example',
-        param: '7.5x17-45-225-45_8.5x19-35-225-35',
-        outer: /^Außenkante: 23\smm weiter außen$/,
-        inner: /^Innenkante: 3\smm näher am Federbein$/,
-        innerTowardsStrut: 1,
-    },
-    {
-        name: 'the same rim 15 mm further in',
-        param: '8x18-45-225-40_8x18-60-225-40',
-        outer: /^Außenkante: 15\smm weiter innen$/,
-        inner: /^Innenkante: 15\smm näher am Federbein$/,
-        innerTowardsStrut: 1,
-    },
-    {
-        name: 'the same rim 15 mm further out',
-        param: '8x18-45-225-40_8x18-30-225-40',
-        outer: /^Außenkante: 15\smm weiter außen$/,
-        inner: /^Innenkante: 15\smm weiter weg vom Federbein$/,
-        innerTowardsStrut: -1,
-    },
-    {
-        name: 'a large change: 6J ET 45 → 12J ET 10',
-        param: '6x15-45-195-65_12x20-10-305-30',
-        outer: /^Außenkante: 111\smm weiter außen$/,
-        inner: /^Innenkante: 41\smm näher am Federbein$/,
-        innerTowardsStrut: 1,
-    },
-    {
-        // 1,5 inch wider and ET 19 more: the outer edge moves 0,05 mm — no printed millimetre, no arrow.
-        name: 'an edge that moves less than a millimetre',
-        param: '7x17-30-225-45_8.5x17-49-225-45',
-        outer: /^Außenkante: unverändert$/,
-        inner: /^Innenkante: 38\smm näher am Federbein$/,
-        innerTowardsStrut: 1,
-    },
-    {
-        name: 'nothing changes',
-        param: '8x18-40-235-40_8x18-40-235-40',
-        outer: /^Außenkante: unverändert$/,
-        inner: /^Innenkante: unverändert$/,
-        innerTowardsStrut: 0,
-    },
+    { name: 'his example: 8J ET45 against 8J ET40', param: '8x45x0_8x40x0', inner: /^Innen: 5,0\smm weiter vom Fahrwerk entfernt$/, outer: /^Außen: 5,0\smm weiter heraus$/, innerTenths: -50, outerTenths: 50 },
+    { name: 'half an inch wider at the same ET: 6,35 mm shown as 6,4', param: '8x35x0_8.5x35x0', inner: /^Innen: 6,4\smm näher am Fahrwerk$/, outer: /^Außen: 6,4\smm weiter heraus$/, innerTenths: 64, outerTenths: 64 },
+    { name: 'ten millimetres less ET', param: '8x45x0_8x35x0', inner: /^Innen: 10,0\smm weiter vom Fahrwerk entfernt$/, outer: /^Außen: 10,0\smm weiter heraus$/, innerTenths: -100, outerTenths: 100 },
+    { name: 'wider, more ET and a 10 mm spacer', param: '8.5x40x0_9.5x45x10', inner: /^Innen: 7,7\smm näher am Fahrwerk$/, outer: /^Außen: 17,7\smm weiter heraus$/, innerTenths: 77, outerTenths: 177 },
+    { name: 'ten millimetres more ET: the rim moves in', param: '8x35x0_8x45x0', inner: /^Innen: 10,0\smm näher am Fahrwerk$/, outer: /^Außen: 10,0\smm weiter hinein$/, innerTenths: 100, outerTenths: -100 },
+    { name: 'a large change: 6J ET45 against 12J ET10 with 20 mm', param: '6x45x0_12x10x20', inner: /^Innen: 21,2\smm näher am Fahrwerk$/, outer: /^Außen: 131,2\smm weiter heraus$/, innerTenths: 212, outerTenths: 1312 },
+    { name: 'nothing changes', param: '8x40x0_8x40x0', inner: /^Innen: unverändert$/, outer: /^Außen: unverändert$/, innerTenths: 0, outerTenths: 0 },
 ];
-
-/** The labels of the drawing, all of which must stay apart. */
-const LABELS = '.cd__view, .cd__part, .cd__note, .cd__label, .cd__key, .cd__caption';
 
 /** Narrower widths each document must also hold: the desktop document down to its tablet layout, the phone down to 320. */
 const ALSO_AT: Record<string, number[]> = { 'desktop-1440': [1024, 768], 'mobile-390': [360, 320] };
@@ -86,175 +45,120 @@ const VERDICT = /zulässig|passt|legal|eintragungsfrei|toleranz|ohne gewähr|fre
 
 type Box = { x: number; y: number; width: number; height: number };
 
-function printedMm(text: string): number | null {
-    if (/unverändert/.test(text)) {
-        return null;
-    }
-
-    const match = /(\d+)\smm/.exec(text);
-
-    if (match === null || match[1] === undefined) {
-        throw new Error(`no millimetres in the label "${text}"`);
-    }
-
-    return Number(match[1]);
-}
-
 function drawing(page: Page): Locator {
-    return page.locator('.cd').first();
+    return page.locator('.calc-drawing').first();
 }
 
-/** Pixels per millimetre: the sheet's rendered width over its viewBox width, times its one scale. */
+/** Pixels per millimetre: one unit across is one millimetre. */
 async function pxPerMm(page: Page): Promise<number> {
-    const svg = drawing(page).locator('.cd__sheet svg');
+    const svg = drawing(page).locator('svg');
     const box = await svg.boundingBox();
-    const viewBox = (await svg.getAttribute('viewBox')) ?? '';
-    const width = Number(viewBox.split(/\s+/)[2]);
-    const unitsPerMm = Number(await svg.getAttribute('data-units-per-mm'));
+    const width = Number(((await svg.getAttribute('viewBox')) ?? '').split(/\s+/)[2]);
 
-    if (box === null || !(width > 0) || !(unitsPerMm > 0)) {
-        throw new Error('the sheet has no size or no scale');
+    if (box === null || !(width > 0)) {
+        throw new Error('the drawing has no size');
     }
 
-    return (box.width / width) * unitsPerMm;
+    return box.width / width;
 }
 
-/** The x of an arrowhead's base and tip, from `M base y L tip y L base y Z`. */
-async function headOf(head: Locator): Promise<{ base: number; tip: number }> {
-    const numbers = ((await head.getAttribute('d')) ?? '').match(/-?[\d.]+/g)?.map(Number) ?? [];
+/** Where a wheel's rim edge stands on screen: the inner lip's left side, the outer lip's right side. */
+async function edge(page: Page, wheel: 'current' | 'next', side: 'inner' | 'outer'): Promise<number> {
+    const lips = drawing(page).locator(`.odraw__wheel--${wheel} .odraw__lip`);
+    // Outer lips first (top, bottom), then the inner ones (OffsetDrawing.vue).
+    const box = await lips.nth(side === 'outer' ? 0 : 2).evaluate((el: SVGGraphicsElement) => {
+        const r = el.getBoundingClientRect();
+        const stroke = parseFloat(getComputedStyle(el).strokeWidth) || 0;
 
-    return { base: numbers[0] ?? Number.NaN, tip: numbers[2] ?? Number.NaN };
+        // The box less the stroke's half on each side: the shape's own edge.
+        return { left: r.left + stroke / 2, right: r.right - stroke / 2 };
+    });
+
+    return side === 'outer' ? box.right : box.left;
+}
+
+/** +1 when a chevron points right, −1 left: `M x y L tip y L x y`. */
+async function pointing(chevron: Locator): Promise<number> {
+    const n = ((await chevron.getAttribute('d')) ?? '').match(/-?[\d.]+/g)?.map(Number) ?? [];
+
+    return Math.sign((n[2] ?? 0) - (n[0] ?? 0));
 }
 
 function overlapArea(a: Box, b: Box): number {
     const w = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
     const h = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
 
-    // Touching edges and sub-pixel rounding are not an overlap.
     return w > 0.5 && h > 0.5 ? w * h : 0;
 }
 
-/** No two labels overlap; none leaves the figure's width; none sits on the sheet. */
-async function expectLabelsApart(page: Page, where: string): Promise<void> {
-    const figure = drawing(page);
-    const labels = figure.locator(LABELS);
-    const count = await labels.count();
-    expect(count, where).toBeGreaterThanOrEqual(9);
-
+/** No two labels overlap; none leaves the drawing's width. */
+async function expectLabelsApart(page: Page, where: string, expected: number): Promise<void> {
+    const stage = await drawing(page).locator('.odraw__stage').boundingBox();
+    const labels = drawing(page).locator('.odraw__label');
     const boxes: { name: string; box: Box }[] = [];
 
-    for (let i = 0; i < count; i++) {
-        const label = labels.nth(i);
-        const box = await label.boundingBox();
+    for (let i = 0; i < (await labels.count()); i++) {
+        const box = await labels.nth(i).boundingBox();
 
-        if (box !== null && box.width > 0 && box.height > 0) {
-            boxes.push({ name: ((await label.textContent()) ?? '').trim(), box });
+        if (box !== null && box.width > 0) {
+            boxes.push({ name: ((await labels.nth(i).textContent()) ?? '').trim(), box });
         }
     }
+
+    expect(boxes.length, where).toBe(expected);
 
     for (let i = 0; i < boxes.length; i++) {
         for (let j = i + 1; j < boxes.length; j++) {
-            const a = boxes[i];
-            const b = boxes[j];
-
-            if (a !== undefined && b !== undefined) {
-                expect(overlapArea(a.box, b.box), `${where}: "${a.name}" overlaps "${b.name}"`).toBe(0);
-            }
+            expect(overlapArea(boxes[i]!.box, boxes[j]!.box), `${where}: "${boxes[i]!.name}" overlaps "${boxes[j]!.name}"`).toBe(0);
         }
-    }
 
-    const outer = await figure.boundingBox();
-    const sheet = await figure.locator('.cd__sheet').boundingBox();
-    expect(outer, where).not.toBeNull();
-    expect(sheet, where).not.toBeNull();
-
-    for (const { name, box } of boxes) {
-        expect(box.x, `${where}: "${name}" leaves the drawing on the left`).toBeGreaterThanOrEqual((outer?.x ?? 0) - 0.5);
-        expect(box.x + box.width, `${where}: "${name}" leaves the drawing on the right`).toBeLessThanOrEqual((outer?.x ?? 0) + (outer?.width ?? 0) + 0.5);
-        expect(overlapArea(box, sheet as Box), `${where}: "${name}" sits on the drawing`).toBe(0);
+        expect(boxes[i]!.box.x, `${where}: "${boxes[i]!.name}" leaves the drawing on the left`).toBeGreaterThanOrEqual((stage?.x ?? 0) - 0.5);
+        expect(boxes[i]!.box.x + boxes[i]!.box.width, `${where}: "${boxes[i]!.name}" leaves the drawing on the right`).toBeLessThanOrEqual((stage?.x ?? 0) + (stage?.width ?? 0) + 0.5);
     }
 }
 
-test.describe('Felgenrechner rear view', () => {
+test.describe('Felgenrechner', () => {
     test.beforeEach(async ({ context, page }) => {
         await consentGiven(context, BASE);
         await page.emulateMedia({ reducedMotion: 'reduce' });
     });
 
     for (const c of CASES) {
-        test(`${c.name}: each arrow is as long as its label, the labels stay apart, the inner arrow points the right way`, async ({ page }, info) => {
+        test(`${c.name}: the answers, each edge drawn to scale, each chevron the right way, the labels apart`, async ({ page }, info) => {
             await open(page, `/felgenrechner?rechner=${c.param}`);
 
             // The share state survives the page: the address still carries the same comparison.
             expect(new URL(page.url()).searchParams.get('rechner')).toBe(c.param);
 
-            const figure = drawing(page);
-            await expect(figure).toBeVisible();
+            const answers = page.locator('.rechner__answer');
+            await expect(answers.nth(0)).toHaveText(c.inner);
+            await expect(answers.nth(1)).toHaveText(c.outer);
 
-            const outerLabel = figure.locator('.cd__label[data-dim="outer"]');
-            const innerLabel = figure.locator('.cd__label[data-dim="inner"]');
-            await expect(outerLabel).toHaveText(c.outer);
-            await expect(innerLabel).toHaveText(c.inner);
-
-            // 1 · Every arrow against the number printed in its label, within half a millimetre.
+            // 1 · Each edge of the new rim against the current one, as far as the answer says, within half a millimetre.
             const scale = await pxPerMm(page);
+            const innerMoved = (await edge(page, 'next', 'inner')) - (await edge(page, 'current', 'inner'));
+            const outerMoved = (await edge(page, 'current', 'outer')) - (await edge(page, 'next', 'outer'));
 
-            for (const dim of ['outer', 'inner'] as const) {
-                const text = ((await figure.locator(`.cd__label[data-dim="${dim}"]`).textContent()) ?? '').trim();
-                const value = printedMm(text);
-                const shaft = figure.locator(`path.cd__dim[data-dim="${dim}"]`);
-
-                if (value === null) {
-                    await expect(shaft, `${dim}: no arrow for "${text}"`).toHaveCount(0);
-                    await expect(figure.locator(`path.cd__head[data-dim="${dim}"]`)).toHaveCount(0);
-                } else {
-                    await expect(shaft, `${dim}: an arrow for "${text}"`).toHaveCount(1);
-                    // The line's own geometry as rendered: its SVG length times the sheet's screen
-                    // scale. The element's client box would add the stroke's anti-aliasing fringe
-                    // (a constant pixel), which is not length.
-                    const drawn = await shaft.evaluate((path: SVGPathElement) => {
-                        const svg = path.ownerSVGElement as SVGSVGElement;
-                        const viewBoxWidth = svg.viewBox.baseVal.width;
-
-                        return path.getBBox().width * (svg.getBoundingClientRect().width / viewBoxWidth);
-                    });
-                    const expected = value * scale;
-                    // Half a millimetre on the drawing's own scale: the label rounds, the arrow does not.
-                    expect(
-                        Math.abs(drawn - expected),
-                        `${dim}: ${drawn.toFixed(2)} px drawn for ${value} mm (${expected.toFixed(2)} px at ${scale.toFixed(3)} px/mm)`
-                    ).toBeLessThanOrEqual(0.5 * scale + 0.05);
-                }
+            for (const [name, moved, tenths] of [['inner', innerMoved, c.innerTenths], ['outer', outerMoved, c.outerTenths]] as const) {
+                expect(Math.abs(moved - (tenths / 10) * scale), `${name}: ${moved.toFixed(2)} px for ${tenths / 10} mm at ${scale.toFixed(3)} px/mm`).toBeLessThanOrEqual(0.5 * scale + 0.3);
             }
 
-            // 2 · The inner arrow points inboard (left, towards the strut) exactly when the edge moves closer to it.
-            const head = figure.locator('path.cd__head[data-dim="inner"]');
+            // 2 · A chevron at each edge that moved, pointing the way it moved: inner towards the car is right, outer out is left.
+            const chevrons = drawing(page).locator('.odraw__chevron');
+            await expect(chevrons).toHaveCount((c.innerTenths !== 0 ? 1 : 0) + (c.outerTenths !== 0 ? 1 : 0));
 
-            if (c.innerTowardsStrut === 0) {
-                await expect(head).toHaveCount(0);
-            } else {
-                await expect(head).toHaveCount(1);
-                const { base, tip } = await headOf(head);
-                expect(Math.sign(tip - base), 'the direction of the inner arrow').toBe(c.innerTowardsStrut === 1 ? -1 : 1);
-
-                // On screen, too: the new rim's inner edge moved that way.
-                const oldRim = await figure.locator('g[data-wheel="current"] rect.cd__rim').boundingBox();
-                const newRim = await figure.locator('g[data-wheel="next"] rect.cd__rim').boundingBox();
-                expect(oldRim).not.toBeNull();
-                expect(newRim).not.toBeNull();
-
-                if (c.innerTowardsStrut === 1) {
-                    expect(newRim?.x ?? 0).toBeLessThan(oldRim?.x ?? 0);
-                } else {
-                    expect(newRim?.x ?? 0).toBeGreaterThan(oldRim?.x ?? 0);
-                }
+            if (c.outerTenths !== 0) {
+                expect(await pointing(chevrons.first()), 'the outer chevron').toBe(c.outerTenths > 0 ? -1 : 1);
             }
 
-            // 3 · The labels stay apart at this width and at the narrower ones.
-            await expectLabelsApart(page, `${info.project.name}`);
+            if (c.innerTenths !== 0) {
+                expect(await pointing(chevrons.last()), 'the inner chevron').toBe(c.innerTenths > 0 ? 1 : -1);
+            }
 
-            // Arithmetic only, in words: not one verdict word on the page, and no horizontal overflow.
-            await expect(page.locator('[data-result="lage"] .calc-result__say')).toBeVisible();
+            // 3 · The labels apart and inside, at this width and at the narrower ones; arithmetic only, no overflow. Three names
+            // always — außen, Fahrwerk, Radnabe — and a figure for each edge that moves.
+            const labels = 3 + (c.innerTenths !== 0 ? 1 : 0) + (c.outerTenths !== 0 ? 1 : 0);
+            await expectLabelsApart(page, info.project.name, labels);
             expect((await page.locator('.rechner').first().textContent()) ?? '').not.toMatch(VERDICT);
             await expectNoHorizontalOverflow(page);
 
@@ -262,48 +166,83 @@ test.describe('Felgenrechner rear view', () => {
 
             for (const width of ALSO_AT[info.project.name] ?? []) {
                 await page.setViewportSize({ width, height: viewport?.height ?? 900 });
-                // The drawing places its labels after the resize, on the next frames: measured then, not
-                // in between (under load the in-between state was measured once as an overlap).
                 await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
-                await expectLabelsApart(page, `${info.project.name} at ${width}`);
+                await expectLabelsApart(page, `${info.project.name} at ${width}`, labels);
+                await expectNoHorizontalOverflow(page);
             }
         });
     }
 
-    test('answers the worked example in plain German sentences first, the figures kept from the translator', async ({ page }) => {
-        await open(page, '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35');
+    test('steps and typing as in his example: the answers follow at once, the address with them, a wrong figure kept and said', async ({ page }) => {
+        await open(page, '/felgenrechner');
+        const next = page.locator('.etc__block--next');
 
-        await expect(page.locator('[data-result="lage"] .calc-result__say')).toHaveText(
-            /^Die Außenkante der neuen Felge steht rechnerisch 23\smm weiter außen – näher am Kotflügel\. Die Innenkante rückt rechnerisch 3\smm näher ans Federbein\.$/
-        );
-        await expect(page.locator('[data-result="groesse"] .calc-result__say')).toHaveText(/^Das Rad wird rechnerisch 6\smm größer im Durchmesser \(\+0,91\s%\)\.$/);
-        await expect(page.locator('[data-result="tacho"] .calc-result__say')).toHaveText(
-            /^Zeigt der Tacho 100\skm\/h, fährst du rechnerisch 100,9\skm\/h – 0,9\skm\/h mehr als mit der bisherigen Größe\.$/
-        );
-        await expect(page.locator('[data-say="tachoangleichung"]')).toHaveText('Zeigt der Tacho dadurch weniger an, als du fährst, kann eine Tachoangleichung nötig sein – prüfe dazu die Auflagen des Gutachtens.');
+        await next.getByRole('button', { name: 'Breite erhöhen' }).click();
+        await expect(page.locator('.rechner__answer').nth(1)).toHaveText(/^Außen: 11,4\smm weiter heraus$/);
+        await expect.poll(() => new URL(page.url()).searchParams.get('rechner')).toBe('8x45x0_8.5x40x0');
 
-        // Chrome once translated "5,5 J" as "5.5 years": every select and every figure is translate="no".
-        const selects = page.locator('.rechner select');
-        expect(await selects.count()).toBeGreaterThanOrEqual(4);
+        const et = next.locator('.etc__field').nth(1).locator('input');
+        await et.fill('45');
+        await et.blur();
+        await expect(page.locator('.rechner__answer').nth(0)).toHaveText(/^Innen: 6,4\smm näher am Fahrwerk$/);
 
-        for (const select of await selects.all()) {
-            await expect(select).toHaveAttribute('translate', 'no');
+        // Key by key, as a person types: the 8 on the way to 81 never becomes the answer, and 81 is said at once — no
+        // further key can make it right (interaction QA, 30.10.2026: ET 81 answered for ET 8).
+        await et.fill('');
+        await et.pressSequentially('81');
+        await expect(et).toHaveAttribute('aria-invalid', 'true');
+        await expect(next.locator('.etc__error')).toHaveText(/^Gib eine Einpresstiefe zwischen −50 und 80\smm ein, in ganzen Millimetern\.$/);
+        // The drawing and the answers keep the figure the field had before the typing.
+        await expect(page.locator('.rechner__answer').nth(0)).toHaveText(/^Innen: 6,4\smm näher am Fahrwerk$/);
+        await expect(page.locator('.odraw__key-line').nth(1)).toHaveText(/ET\s45/);
+        await et.blur();
+        await expect(et).toHaveValue('81');
+
+        // A sentence under a field stays a sentence, and the block keeps its steppers inside (at 1440 one under the
+        // spacer pushed all three out of the panel).
+        const spacer = next.locator('.etc__field').nth(2).locator('input');
+        await spacer.fill('abc');
+        await spacer.blur();
+        await expect(next.locator('.etc__error')).toHaveCount(2);
+        const panel = await next.boundingBox();
+
+        for (const button of await next.locator('.etc__step').all()) {
+            const box = await button.boundingBox();
+            expect(box !== null && panel !== null && box.x >= panel.x - 0.5 && box.x + box.width <= panel.x + panel.width + 0.5, 'a stepper stands outside its block').toBe(true);
         }
 
-        // A value's surrounding spaces live inside its span since 94418abf — a translator trims a span's edges.
-        await expect(page.locator('[data-result="lage"] [translate="no"]').first()).toHaveText(/^\s?23\smm\s?$/);
+        for (const error of await next.locator('.etc__error').all()) {
+            expect((await error.boundingBox())?.height ?? 0, 'a sentence under a field broke into columns').toBeLessThan(120);
+        }
+
+        // The figures kept from the translator; the labels and sentences left to it.
+        for (const input of await page.locator('.etc input').all()) {
+            await expect(input.locator('xpath=ancestor::*[@translate="no"][1]')).toHaveCount(1);
+        }
     });
 
-    test('says in one sentence that a tyre and its rim do not belong together, and draws and prints nothing for it', async ({ page }) => {
-        // 5,5J (139,7 mm) with a 305 tyre: 0,46 × its width.
-        await open(page, '/felgenrechner?rechner=7.5x17-45-225-45_5.5x19-35-305-30');
+    // Interaction QA, 30.10.2026: away and Back brought the figures the page had opened with, and rewrote the address.
+    test('Back brings the comparison back as it was left, address and all', async ({ page }) => {
+        await open(page, '/felgenrechner');
+        const next = page.locator('.etc__block--next');
 
-        await expect(page.locator('[data-result="implausible"] .calc-result__say')).toHaveText(
-            'Diese Reifenbreite und diese Felgenbreite gehören so nicht zusammen – prüf die Angaben.'
-        );
-        await expect(page.locator('.cd')).toHaveCount(0);
-        await expect(page.locator('.specs')).toHaveCount(0);
-        await expect(page.locator('[data-result="lage"]')).toHaveCount(0);
-        await expectNoHorizontalOverflow(page);
+        await next.getByRole('button', { name: 'Breite erhöhen' }).click();
+        await expect.poll(() => new URL(page.url()).searchParams.get('rechner')).toBe('8x45x0_8.5x40x0');
+
+        const home = page.getByRole('link', { name: 'RIMIFY – Startseite' });
+        await home.filter({ visible: true }).first().click();
+        await page.waitForURL((url) => url.pathname === '/');
+        await page.goBack();
+
+        await expect(next.locator('.etc__field').first().locator('input')).toHaveValue('8,5');
+        await expect(page.locator('.rechner__answer').nth(1)).toHaveText(/^Außen: 11,4\smm weiter heraus$/);
+        expect(new URL(page.url()).searchParams.get('rechner')).toBe('8x45x0_8.5x40x0');
+    });
+
+    test('a link from before the rebuild opens on his example, and the address is set straight', async ({ page }) => {
+        await open(page, '/felgenrechner?rechner=7.5x17-45-225-45_8.5x19-35-225-35');
+
+        await expect(page.locator('.rechner__answer').nth(1)).toHaveText(/^Außen: 5,0\smm weiter heraus$/);
+        await expect.poll(() => new URL(page.url()).searchParams.get('rechner')).toBe('8x45x0_8x40x0');
     });
 });

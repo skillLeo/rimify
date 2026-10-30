@@ -355,8 +355,10 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/gutachten/{document}/nacharbeit/{rework}', [GutachtenAngabenController::class, 'destroyRework'])->whereNumber(['document', 'rework'])->name('gutachten.nacharbeit.entfernen');
         // Its own table of tyre load at speed (ABE 55255, p. 6), saved whole.
         Route::put('/gutachten/{document}/tragfaehigkeitstabelle', [GutachtenTabelleController::class, 'update'])->whereNumber('document')->name('gutachten.tabelle.update');
-        // Its own „Bereifungskombinationen“ (D-256), saved whole.
+        // Its own „Bereifungskombinationen“ (D-256), saved whole per EG number of its Verwendungsbereich (D-358), and one
+        // combination put on several EG numbers at once.
         Route::put('/gutachten/{document}/bereifungskombinationen', [GutachtenKombinationenController::class, 'update'])->whereNumber('document')->name('gutachten.kombinationen.update');
+        Route::post('/gutachten/{document}/bereifungskombinationen/anwenden', [GutachtenKombinationenController::class, 'apply'])->whereNumber('document')->name('gutachten.kombinationen.apply');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on

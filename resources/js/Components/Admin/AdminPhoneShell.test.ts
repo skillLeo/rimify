@@ -108,7 +108,8 @@ describe('AdminBottomBar', () => {
         const sheet = wrapper.find('[data-sheet="admin-mehr"]')
         const titles = sheet.findAll('.mrow__title').map((t) => t.text())
 
-        expect(titles).toEqual(['Rollen & Rechte', 'System', 'Profil', 'Benachrichtigungen', 'Passwort ändern', 'Abmelden'])
+        // Katalog and Gutachten have slots, but each slot opens only its first page: both stay here (D-365).
+        expect(titles).toEqual(['Katalog', 'Gutachten', 'Rollen & Rechte', 'System', 'Profil', 'Benachrichtigungen', 'Passwort ändern', 'Abmelden'])
         expect(sheet.find('.mrow__sub').text()).toBe('Team')
         expect(sheet.find('.adm-more__name').text()).toBe('Mara Keller')
         expect(sheet.find('a[href="/admin/rollen"]').exists()).toBe(true)
@@ -116,6 +117,24 @@ describe('AdminBottomBar', () => {
         await sheet.findAll('.mrow').find((r) => r.text().includes('System'))?.trigger('click')
         const group = wrapper.find('[data-sheet="admin-mehr-gruppe"]')
         expect(group.findAll('.mrow__title').map((t) => t.text())).toEqual(['Warteschlange', 'Protokoll'])
+    })
+
+    // D-365: on the preview Verkauf's slot opened Bestellungen, and Verkauf › Nachrichten was reachable through Suche alone.
+    it('reaches every page of a group from the bar or Mehr — a slot opens only the first', async () => {
+        const { wrapper } = mountBar()
+        const reached = new Set(wrapper.findAll('.adm-tabbar a').map((a) => a.attributes('href')))
+
+        await wrapper.findAll('.adm-tabbar__item')[4]?.trigger('click')
+        const sheet = wrapper.find('[data-sheet="admin-mehr"]')
+        sheet.findAll('a').forEach((a) => reached.add(a.attributes('href')))
+
+        for (const row of sheet.findAll('.mrow').filter((r) => r.find('a').exists() === false)) {
+            await row.trigger('click')
+            wrapper.find('[data-sheet="admin-mehr-gruppe"]').findAll('a').forEach((a) => reached.add(a.attributes('href')))
+        }
+
+        const missing = NAV.flatMap((g) => g.pages.map((p) => p.href)).filter((href) => !reached.has(href))
+        expect(missing).toEqual([])
     })
 
     it('signs out from Mehr with one post', async () => {

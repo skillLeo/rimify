@@ -6,6 +6,8 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\Vehicle;
+use App\Services\Admin\Approvals\CombinationEntries;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -37,6 +39,8 @@ class DocumentCombinationsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // The entry of the Verwendungsbereich the list belongs to, by its EG number as printed (his admin item 19, D-358).
+            'entry' => ['required', 'string', 'max:64'],
             'source_page' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'combinations' => ['present', 'array', 'max:60'],
             // Not distinct: one number may print several pairs (`Nr. 8: 235/45R19 – 255/40R19, 265/40R19`); a pair twice is
@@ -53,7 +57,7 @@ class DocumentCombinationsRequest extends FormRequest
         return [
             'source_page.*' => 'Die Seite bitte als ganze Zahl ab 1.',
             'combinations.max' => 'Höchstens 60 Kombinationen.',
-            'combinations.*.number.required' => 'Bitte die Nummer der Kombination, wie das Gutachten sie druckt.',
+            'combinations.*.number.required' => 'Bitte die Nummer der Kombination, wie sie im Gutachten steht.',
             'combinations.*.number.*' => 'Die Nummer bitte als ganze Zahl ab 1.',
             'combinations.*.front.required' => 'Bitte die Größe für die Vorderachse.',
             'combinations.*.rear.required' => 'Bitte die Größe für die Hinterachse.',
@@ -72,6 +76,11 @@ class DocumentCombinationsRequest extends FormRequest
 
                 if ($document instanceof ApprovalDocument && $document->page_count !== null && is_numeric($page) && (int) $page > $document->page_count && ! $validator->errors()->has('source_page')) {
                     $validator->errors()->add('source_page', "Das Gutachten hat nur {$document->page_count} Seiten.");
+                }
+
+                // Only an entry the document has: an EG number of a car it names, or one already on its rows.
+                if ($document instanceof ApprovalDocument && ! $validator->errors()->has('entry') && ! in_array($this->entry(), CombinationEntries::of($document->id), true)) {
+                    $validator->errors()->add('entry', 'Zu dieser EG-Typgenehmigungsnummer ist bei uns kein Fahrzeug dieses Gutachtens erfasst.');
                 }
 
                 $seen = [];
@@ -145,6 +154,12 @@ class DocumentCombinationsRequest extends FormRequest
         usort($out, static fn (array $a, array $b): int => $a['number'] <=> $b['number']);
 
         return $out;
+    }
+
+    /** The entry, read as every EG number is (Vehicle::normaliseEcNumber). */
+    public function entry(): string
+    {
+        return (string) Vehicle::normaliseEcNumber($this->string('entry')->toString());
     }
 
     public function sourcePage(): ?int

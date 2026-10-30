@@ -57,17 +57,19 @@ function releasedWithEverything(): ApprovalDocument
     DocumentFastener::query()->create(['approval_document_id' => $document->id, 'number' => 'S01', 'thread' => 'M14x1,25', 'seat' => 'Kegelbund 60°', 'torque_nm' => 120, 'source_page' => 5]);
     DocumentNotice::query()->create(['approval_document_id' => $document->id, 'text_de' => 'Radschrauben nach 50 km nachziehen.', 'source_page' => 5, 'sort_order' => 1]);
     DocumentSpeedDerating::query()->create(['approval_document_id' => $document->id, 'speed_kmh' => 240, 'symbol' => 'V', 'percent' => '91', 'source_page' => 6]);
-    test()->actingAs(revisionAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/bereifungskombinationen", [
-        'source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => '225/40 R18']],
-    ])->assertSessionHasNoErrors();
 
     $model = WheelModel::factory()->draft()->create(['is_demo' => false, 'name' => 'LeMans']);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0]);
     test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
-        'vehicle_ids' => Vehicle::factory()->count(2)->create()->pluck('id')->all(), 'config_ids' => [$size->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 3,
+        'vehicle_ids' => Vehicle::factory()->count(2)->create(['eg_nummer_raw' => 'e1*2007/46*0316*11', 'eg_nummer_norm' => 'e1*2007/46*0316*11'])->pluck('id')->all(),
+        'config_ids' => [$size->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 3,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => ['A01']]],
         'conditions' => [['code' => '0', 'note' => null]],
+    ])->assertSessionHasNoErrors();
+    // The list of the entry its cars fall under (his admin item 19, D-358).
+    test()->actingAs(revisionAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/bereifungskombinationen", [
+        'entry' => 'e1*2007/46*0316*11', 'source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => '225/40 R18']],
     ])->assertSessionHasNoErrors();
 
     test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertSessionHasNoErrors();

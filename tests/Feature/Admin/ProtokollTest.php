@@ -566,7 +566,7 @@ describe('putting every entry into words', function (): void {
             'wheel.rating_removed' => [['name' => 'Nordfelge Fjord', 'label' => '4,9 (13 Bewertungen)'], 'Die Sterne von Hand der Felge „Nordfelge Fjord“ – 4,9 (13 Bewertungen) – wurden entfernt. Der Shop zeigt sie nicht mehr.', []],
             'order.confirmation_not_mailed' => [
                 ['order' => 'RMF-2026-00042'],
-                'Die Bestellbestätigung zur Bestellung „RMF-2026-00042“ wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                'Die Bestellbestätigung zur Bestellung „RMF-2026-00042“ wurde nicht verschickt: Der Shop verschickt noch keine E-Mails (Einstellungen › E-Mail).',
                 [],
             ],
             'contact.recipient_changed' => [
@@ -662,6 +662,11 @@ describe('putting every entry into words', function (): void {
             'approval.derating_removed' => [['document' => 'ABE 55255'], 'Aus „ABE 55255“ wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
             'approval.combinations_saved' => [['document' => 'TG 1810080716', 'combinations' => 4, 'before' => 0], 'Für „TG 1810080716“ wurden die Bereifungskombinationen gespeichert (4 Kombinationen).', []],
             'approval.combinations_removed' => [['document' => 'TG 1810080716', 'combinations' => 0, 'before' => 4], 'Aus „TG 1810080716“ wurden die Bereifungskombinationen entfernt.', []],
+            'approval.combination_applied' => [
+                ['document' => 'TG 1810080716', 'from' => 'e1*2007/46*0316*11', 'number' => 2, 'targets' => ['e1*2007/46*0317*02', 'e1*2007/46*0318*..'], 'added' => 1],
+                'In „TG 1810080716“ wurde die Kombination Nr. 2 der EG-Typgenehmigungsnummer „e1*2007/46*0316*11“ für weitere EG-Nummern übernommen: 1 neu eingetragen, 1 hatte sie schon.',
+                [],
+            ],
             'approval.limit_confirmed' => [
                 ['document' => 'ABE 55255', 'code' => 'T88', 'reason' => 'Seite 7 druckt 1.125 kg.'],
                 'In „ABE 55255“ wurde die Achslast bei „T88“ so bestätigt, wie das Gutachten sie druckt: „Seite 7 druckt 1.125 kg.“.',
@@ -729,6 +734,10 @@ describe('putting every entry into words', function (): void {
                 [],
             ],
             'invoice.failed' => [['order' => 'RMF-2026-1001', 'error' => 'PDF nicht erzeugt'], 'Zur Bestellung „RMF-2026-1001“ konnte die Rechnung nicht ausgestellt werden; die Bestellung bleibt bezahlt. Meldung: PDF nicht erzeugt', []],
+            'stripe_invoice.issued' => [['order' => '2610-10487', 'number' => 'A1B2C3D4-0001', 'total_cents' => 159_600], 'Für die Bestellung „2610-10487“ hat Stripe die Rechnung „A1B2C3D4-0001“ ausgestellt und als bezahlt markiert ('.GermanFormat::money(159_600).').', []],
+            'stripe_invoice.failed' => [['order' => '2610-10487', 'error' => 'Could not connect to Stripe'], 'Für die Bestellung „2610-10487“ konnte Stripe die Rechnung noch nicht ausstellen. Der Shop versucht es in wenigen Minuten erneut; die Bestellung bleibt bezahlt. Meldung: Could not connect to Stripe', []],
+            'stripe_invoice.gave_up' => [['order' => '2610-10487', 'error' => 'Could not connect to Stripe'], 'Für die Bestellung „2610-10487“ hat Stripe auch nach fünf weiteren Versuchen keine Rechnung ausgestellt. Sieh im Stripe-Dashboard nach; die Bestellung bleibt bezahlt. Meldung: Could not connect to Stripe', []],
+            'invoice_export.failed' => [['number' => 'A1B2C3D4-0001', 'date' => '28.10.2026', 'error' => 'Größe weicht ab'], 'Die Stripe-Rechnung „A1B2C3D4-0001“ vom 28.10.2026 konnte nach drei Versuchen nicht nach S3 kopiert werden. Meldung: Größe weicht ab', []],
             'invoice.series_opened' => [
                 ['invoice_first' => 'RE-2026-000001', 'credit_note_first' => 'GS-2026-000001', 'operator' => 'Anna Admin'],
                 'Die echten Rechnungsnummern wurden eröffnet: Die erste Rechnung trägt die Nummer „RE-2026-000001“, die erste Gutschrift „GS-2026-000001“.',

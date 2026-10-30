@@ -58,7 +58,9 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
     expect(await page.locator('iframe, script[src*="captcha"], script[src*="turnstile"]').count()).toBe(0)
 
     await form.locator('#kon-name').fill('Jana Beispiel')
-    await form.locator('#kon-email').fill('jana@example.com')
+    // An address of its own per engine and run: one address may send three messages an hour (D-218), and the client list
+    // and this pass both send to the same shop within the hour — the fourth was refused (WebKit, 30.10.2026).
+    await form.locator('#kon-email').fill(`jana.${info.project.name}.${Date.now()}@example.com`)
     await form.locator('#kon-subject').fill('Frage zur DB8GT2')
     await form.locator('#kon-message').fill('Passt die Felge auch mit Winterreifen auf mein Auto?')
     await expect(form.getByRole('button', { name: 'Nachricht senden' })).toBeEnabled()

@@ -578,8 +578,17 @@ onMounted(() => {
 
 onBeforeUnmount(() => observer?.disconnect())
 
-/* While the bar shows, it owns the bottom edge and the compare tray steps aside (PDP-02). */
-const stickyShown = computed(() => !buyVisible.value && Boolean(selected.value))
+/*
+ * Front and rear sizes differ and the Gutachten prints its front/rear pairs (the client's #20, D-360): the pairs are the
+ * Komplettrad here, in the buy column where the customer chose it — never „vier gleiche Reifen gibt es dafür nicht“
+ * above a dead button while they stand thousands of pixels further down. Each set carries its own button.
+ */
+const perAxleOnly = computed(
+    () => isSet.value && Boolean(selected.value?.mischbereifung) && offer.value?.refusalCode === 'STAGGERED_LAYOUT'
+)
+
+/* While the bar shows, it owns the bottom edge and the compare tray steps aside (PDP-02). No one action, no bar. */
+const stickyShown = computed(() => !buyVisible.value && Boolean(selected.value) && !perAxleOnly.value)
 claimBottomEdge(() => stickyShown.value)
 </script>
 
@@ -791,7 +800,7 @@ claimBottomEdge(() => stickyShown.value)
 
                     <!-- The tyres the verdict permits on this size — or the Gutachten's combinations (D-335) —, or the sentence why there are none. -->
                     <KomplettradChoice
-                        v-if="isSet && offer"
+                        v-if="isSet && offer && !perAxleOnly"
                         v-model="tyreId"
                         v-model:set-key="setKey"
                         v-model:colour-id="colourId"
@@ -837,9 +846,11 @@ claimBottomEdge(() => stickyShown.value)
                     </div>
 
                     <div ref="buyButton">
+                        <!-- Front/rear pairs only (#20): each set below has its own button — no dead one here. -->
+                        <template v-if="perAxleOnly" />
                         <!-- Not available: the question in the button's place (his admin item 7, D-350). -->
                         <Link
-                            v-if="enquiryHref"
+                            v-else-if="enquiryHref"
                             :href="enquiryHref"
                             class="btn btn--primary btn--block btn--lg pdp__enquiry"
                             :aria-describedby="unavailableHint ? 'pdp-unavailable' : undefined"
@@ -863,6 +874,18 @@ claimBottomEdge(() => stickyShown.value)
                             <span>{{ addError }}</span>
                         </p>
                     </div>
+
+                    <!-- Mischbereifung (#20, D-105, D-360): a Komplettrad of its own, only where the released Gutachten
+                         prints its table of front/rear pairs — in the buy column, under „Vorderachse“ and „Hinterachse“,
+                         where the Komplettrad was chosen. Not under „Nur Felgen“ (#15). -->
+                    <MischbereifungOffer
+                        v-if="isSet && selected && selected.mischbereifung"
+                        :weight-colour-id="colourId"
+                        :rdks="rdks"
+                        class="pdp__block pdp__mix"
+                        :offer="selected.mischbereifung"
+                        :wheel-config-id="selected.id"
+                    />
                 </div>
             </div>
 
@@ -873,17 +896,6 @@ claimBottomEdge(() => stickyShown.value)
                 :detail="selected.verdict.detail"
                 :vehicle-label="shared.vehicle.label"
                 :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]"
-            />
-
-            <!-- Mischbereifung (#20, D-105): a Komplettrad of its own, only where the released Gutachten prints its
-                 table of front/rear pairs; the server sends null everywhere else. Not under „Nur Felgen“ (#15). -->
-            <MischbereifungOffer
-                v-if="isSet && selected && selected.mischbereifung"
-                :weight-colour-id="colourId"
-                :rdks="rdks"
-                class="pdp__komplettrad"
-                :offer="selected.mischbereifung"
-                :wheel-config-id="selected.id"
             />
 
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->
@@ -1412,8 +1424,9 @@ a.pdp__rating {
     margin-top: var(--space-3);
 }
 
-.pdp__komplettrad {
-    margin-top: var(--space-8);
+/* After the main button where four identical tyres are offered too: the step from one purchase to the other. */
+.pdp__mix {
+    margin-top: var(--space-6);
 }
 
 .pdp__specs {

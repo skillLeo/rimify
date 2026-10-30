@@ -1,23 +1,20 @@
 <script setup lang="ts">
 /**
- * /felgenrechner as an app screen (home-overhaul §3.3, 390). The bar carries the large title —
- * it is the page's h1 — and the back arrow to the homepage. Then one column: Aktuell · Neu as
- * tabs with the five fields two abreast, the three results — each answer in a plain sentence, the
- * rear-view drawing under the position sentence — the full figures, the share block with a
- * full-width button, the disclaimer. No sticky bar.
+ * /felgenrechner as an app screen, rebuilt close to the client's example on a phone (his #11; the operator's brief of
+ * 29.10.2026, Batch 2): the large title in the bar — the page's h1 — then, as there, the drawing first with the two
+ * answers under it, then the two blocks one under the other, the share block, the steps and the line about the papers.
  *
- * Same props as the desktop document; the split is presentation only.
+ * Same props and the same state as the desktop document (useEtRechner); the split is presentation only.
  */
 
 import { Head } from '@inertiajs/vue3'
 import { computed, h, type Component, type VNode } from 'vue'
 import MobileLayout from '../../Layouts/MobileLayout.vue'
-import ClearanceDrawing from '../../Components/Ui/ClearanceDrawing.vue'
-import FitmentCalculator from '../../Components/Home/FitmentCalculator.vue'
-import FitmentResults from '../../Components/Home/FitmentResults.vue'
+import EtCalculator from '../../Components/Rechner/EtCalculator.vue'
+import OffsetDrawing from '../../Components/Rechner/OffsetDrawing.vue'
 import RechnerShare from '../../Components/Home/RechnerShare.vue'
 import ValueText from '../../Components/Ui/ValueText.vue'
-import { useRechner } from '../../composables/useRechner'
+import { useEtRechner } from '../../composables/useEtRechner'
 import { useShared } from '../../composables/useShared'
 import { DISCLAIMER } from '../../lib/rechner'
 import type { FelgenrechnerProps } from '../../types/pages'
@@ -33,9 +30,9 @@ const props = defineProps<FelgenrechnerProps>()
 const shared = useShared()
 const vehicle = computed(() => shared.value.vehicle)
 
-const LEAD = 'Rechne aus, wie sich eine andere Felgen- und Reifengröße rechnerisch auf Abrollumfang, Tacho und die Lage der Felgenkanten auswirkt.'
+const LEAD = 'Vergleiche deine Felge mit einer neuen: wie weit sich Innen- und Außenkante verschieben – gerechnet aus Breite, Einpresstiefe und Distanzscheibe.'
 
-const { state, shown, shareParam, prefillLine, fromVehicle, specs, update, setValid } = useRechner({
+const { state, update, sentences, shareParam, prefillLine } = useEtRechner({
     prefill: () => props.prefill,
     vehicle: () => vehicle.value,
     state: props.state,
@@ -51,28 +48,31 @@ const { state, shown, shareParam, prefillLine, fromVehicle, specs, update, setVa
     <div class="container rechner">
         <p class="body muted rechner__lead">{{ LEAD }}</p>
 
-        <div class="rechner__form">
-            <p v-if="prefillLine" class="small quiet rechner__prefill">{{ prefillLine }}</p>
-            <FitmentCalculator :model-value="state" layout="tabs" :prefilled="fromVehicle" @update:model-value="update" @update:valid="setValid" />
+        <!-- The answer in words first, heard on every change; the drawing under it shows it. -->
+        <div class="rechner__picture">
+            <div class="rechner__answers" aria-live="polite" aria-atomic="true">
+                <p class="h4 num rechner__answer"><ValueText :text="sentences.inner" /></p>
+                <p class="h4 num rechner__answer"><ValueText :text="sentences.outer" /></p>
+            </div>
+            <OffsetDrawing :state="state" />
         </div>
 
-        <!-- The answer in words first; the drawing sits under the position sentence it shows. -->
-        <FitmentResults :result="shown">
-            <template #drawing>
-                <ClearanceDrawing class="calc-drawing" :current="state.current" :next="state.next" />
-            </template>
-        </FitmentResults>
-
-        <dl v-if="specs.length > 0" class="specs small" aria-label="Alle Werte">
-            <template v-for="row in specs" :key="row.key">
-                <dt>{{ row.label }}</dt>
-                <dd class="num"><ValueText :text="row.value" /></dd>
-            </template>
-        </dl>
+        <div class="rechner__form">
+            <p v-if="prefillLine" class="small quiet rechner__prefill">{{ prefillLine }}</p>
+            <EtCalculator :model-value="state" @update:model-value="update" />
+        </div>
 
         <RechnerShare :param="shareParam" block />
 
-        <p class="small muted rechner__disclaimer"><ValueText :text="DISCLAIMER" /></p>
+        <div class="rechner__about">
+            <h2 class="h4">So rechnest du</h2>
+            <ol class="rechner__steps">
+                <li>Gib Breite und Einpresstiefe deiner aktuellen Felge ein – und die Stärke der Distanzscheibe je Rad, wenn du eine fährst.</li>
+                <li>Gib dann die Werte der neuen Felge ein.</li>
+                <li>Die zwei Zeilen über der Zeichnung und die Zeichnung selbst zeigen, wie weit sich die Innen- und die Außenkante der neuen Felge gegenüber deiner aktuellen verschieben.</li>
+            </ol>
+            <p class="small muted rechner__disclaimer"><ValueText :text="DISCLAIMER" /></p>
+        </div>
     </div>
 </template>
 
@@ -83,18 +83,36 @@ const { state, shown, shareParam, prefillLine, fromVehicle, specs, update, setVa
     padding-block: var(--sp-16) var(--sp-48);
 }
 
-.rechner__lead {
-    max-width: 54ch;
+.rechner__lead,
+.rechner__disclaimer {
+    max-width: calc(54 * var(--ch-text));
     hyphens: auto;
+    hyphenate-limit-chars: 10 4 4;
 }
 
-.rechner__form {
+.rechner__picture,
+.rechner__form,
+.rechner__about {
     display: grid;
     gap: var(--sp-12);
+    min-width: 0;
 }
 
-.rechner__disclaimer {
-    max-width: 54ch;
-    hyphens: auto;
+.rechner__answers {
+    display: grid;
+    gap: var(--sp-4);
+}
+
+.rechner__answer,
+.rechner__prefill {
+    margin: 0;
+}
+
+.rechner__steps {
+    display: grid;
+    gap: var(--sp-8);
+    margin: 0;
+    padding-left: var(--sp-20);
+    list-style: decimal;
 }
 </style>

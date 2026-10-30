@@ -13,9 +13,9 @@ import Icon from '../Ui/Icon.vue'
     <div class="rc-teaser">
         <div class="rc-teaser__body">
             <h3 class="h4 rc-teaser__title">
-                <Link href="/felgenrechner" class="rc-teaser__link" prefetch>Größe vergleichen</Link>
+                <Link href="/felgenrechner" class="rc-teaser__link" prefetch>Breite und Einpresstiefe vergleichen</Link>
             </h3>
-            <p class="body muted rc-teaser__text">Abrollumfang und Tacho – für deine aktuelle und eine neue Größe gerechnet.</p>
+            <p class="body muted rc-teaser__text">Wie weit sich Innen- und Außenkante einer neuen Felge gegenüber deiner aktuellen verschieben.</p>
         </div>
         <Icon class="rc-teaser__icon" name="arrow-right" :size="24" />
     </div>

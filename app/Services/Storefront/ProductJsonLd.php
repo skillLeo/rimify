@@ -30,13 +30,14 @@ final class ProductJsonLd
     private const NOT_AVAILABLE = 'https://schema.org/OutOfStock';
 
     /**
-     * The structured data for one Felge as its page shows it, or null where it gets none.
+     * The structured data for one Felge as its page shows it, or null where it gets none. `$evenForDemo` is the admin's
+     * look at what a real rim's page would carry (his admin item 14): the shop's own pages never pass it.
      *
      * @return array<string, mixed>|null
      */
-    public static function for(WheelModel $wheel, string $url): ?array
+    public static function for(WheelModel $wheel, string $url, bool $evenForDemo = false): ?array
     {
-        if ($wheel->is_demo) {
+        if ($wheel->is_demo && ! $evenForDemo) {
             return null;
         }
 
@@ -109,6 +110,19 @@ final class ProductJsonLd
     public static function encode(array $data): string
     {
         return json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * The block as a person pastes it into Google's Rich Results Test („Code“): the page's own escaping, set out on lines,
+     * inside its script tag.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function snippet(array $data): string
+    {
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_THROW_ON_ERROR);
+
+        return "<script type=\"application/ld+json\">\n{$json}\n</script>";
     }
 
     /** @return array<string, mixed> */

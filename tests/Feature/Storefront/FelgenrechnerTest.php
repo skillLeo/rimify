@@ -27,7 +27,8 @@ beforeEach(function (): void {
     $this->seed(ContentSeeder::class);
 });
 
-const RECHNER_EXAMPLE = '7.5x17-45-225-45_8.5x19-35-225-35';
+/* The calculator rebuilt after the client's example (#11): width x ET x spacer, the current rim first. */
+const RECHNER_EXAMPLE = '8.5x40x0_9.5x45x10';
 
 it('renders the desktop document with neither a prefill nor a shared comparison', function (): void {
     $this->get('/felgenrechner')
@@ -77,26 +78,22 @@ it('parses a shared comparison so the first paint already shows it', function ()
     $this->get('/felgenrechner?rechner='.RECHNER_EXAMPLE)
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('state.current.widthIn', 7.5)
-            // Whole-number floats arrive as integers through JSON; 7.5 stays a float.
-            ->where('state.current.diameterIn', 17)
-            ->where('state.current.etMm', 45)
-            ->where('state.current.tyreWidthMm', 225)
-            ->where('state.current.aspect', 45)
-            ->where('state.next.widthIn', 8.5)
-            ->where('state.next.diameterIn', 19)
-            ->where('state.next.etMm', 35)
-            ->where('state.next.tyreWidthMm', 225)
-            ->where('state.next.aspect', 35)
+            ->where('state.current.widthIn', 8.5)
+            ->where('state.current.etMm', 40)
+            ->where('state.current.spacerMm', 0)
+            ->where('state.next.widthIn', 9.5)
+            ->where('state.next.etMm', 45)
+            ->where('state.next.spacerMm', 10)
         );
 
-    // A whole-number width and a negative ET.
-    $this->get('/felgenrechner?rechner=8x17--10-225-45_8x17--20-225-45')
+    // A whole-number width (a whole-number float arrives as an integer through JSON) and negative ETs.
+    $this->get('/felgenrechner?rechner=8x-10x0_8x-20x5')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('state.current.widthIn', 8)
             ->where('state.current.etMm', -10)
             ->where('state.next.etMm', -20)
+            ->where('state.next.spacerMm', 5)
         );
 });
 
@@ -106,15 +103,16 @@ it('shows the defaults, never an error page, for a link the form could not have 
         ->assertInertia(fn (AssertableInertia $page) => $page->component('Felgenrechner/Desktop')->where('state', null));
 })->with([
     'garbage' => ['rechner=unsinn'],
-    'old format' => ['rechner=7.5-17-45-225-45_8.5-19-35-225-35'],
-    'one side' => ['rechner=7.5x17-45-225-45'],
-    'width not offered' => ['rechner=7.3x17-45-225-45_8.5x19-35-225-35'],
-    'ET above 70' => ['rechner=7.5x17-71-225-45_8.5x19-35-225-35'],
-    'ET below -30' => ['rechner=7.5x17--31-225-45_8.5x19-35-225-35'],
-    'tyre width not in tens' => ['rechner=7.5x17-45-226-45_8.5x19-35-225-35'],
-    'aspect not in fives' => ['rechner=7.5x17-45-225-45_8.5x19-35-225-36'],
-    'diameter 25' => ['rechner=7.5x25-45-225-45_8.5x19-35-225-35'],
-    'an array' => ['rechner[]=7.5x17-45-225-45_8.5x19-35-225-35'],
+    'a link from before the rebuild' => ['rechner=7.5x17-45-225-45_8.5x19-35-225-35'],
+    'one side' => ['rechner=8x45x0'],
+    'width not in halves' => ['rechner=8.3x45x0_8x40x0'],
+    'width above 13' => ['rechner=13.5x45x0_8x40x0'],
+    'width below 4' => ['rechner=3.5x45x0_8x40x0'],
+    'ET above 80' => ['rechner=8x81x0_8x40x0'],
+    'ET below -50' => ['rechner=8x-51x0_8x40x0'],
+    'spacer above 50' => ['rechner=8x45x51_8x40x0'],
+    'negative spacer' => ['rechner=8x45x-5_8x40x0'],
+    'an array' => ['rechner[]=8x45x0_8x40x0'],
     'empty' => ['rechner='],
 ]);
 

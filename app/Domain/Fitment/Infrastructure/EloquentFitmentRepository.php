@@ -13,6 +13,7 @@ use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Support\BuildWindow;
+use App\Domain\Fitment\Tyres\CombinationEntry;
 use App\Domain\Fitment\Tyres\TyrePairing;
 use App\Domain\Fitment\Tyres\TyrePairingTable;
 use App\Domain\Fitment\Verdict\Condition;
@@ -43,12 +44,26 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class EloquentFitmentRepository implements FitmentRepository
 {
-    public function __construct(private ?int $previewDocumentId = null, private ?int $previewHidesDocumentId = null) {}
+    public function __construct(
+        private ?int $previewDocumentId = null,
+        private ?int $previewHidesDocumentId = null,
+        private bool $wholeDocumentLists = false,
+    ) {}
 
     /** What the shop would read once this document is freigegeben — for the admin's preview only. */
     public static function forPreviewOf(ApprovalDocument $document): self
     {
         return new self((int) $document->id, $document->supersedes_id);
+    }
+
+    /**
+     * The shop as it read a document's tyre combinations before his admin item 19 (D-358): the whole list for every car
+     * the document names, whatever its field K. For the one comparison the carry-over is held to — every verdict read so
+     * before it and per entry after it (CombinationCensus) — and for nothing else: the shop never reads this way.
+     */
+    public static function beforeEntries(): self
+    {
+        return new self(wholeDocumentLists: true);
     }
 
     /**
@@ -96,7 +111,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes', 'vehicle:id,eg_nummer_norm'])
             ->where('fitments.vehicle_id', $vehicleId)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->tap($this->visible(...))
@@ -152,7 +167,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         $incomplete = [];
 
         foreach ($rows as $row) {
-            $incomplete[(int) $row->wheel_config_id] ??= self::documentRecord($row->approvalDocument, null);
+            $incomplete[(int) $row->wheel_config_id] ??= $this->documentRecord($row->approvalDocument, null);
         }
 
         return $incomplete;
@@ -354,7 +369,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         return new FitmentRow(
             id: $fitment->id,
-            document: self::documentRecord($document, $fitment->source_page),
+            document: $this->documentRecord($document, $fitment->source_page, true, $fitment->vehicle?->eg_nummer_norm),
             vehicleId: $fitment->vehicle_id,
             wheelConfigId: $fitment->wheel_config_id,
             axle: $fitment->axle->value,
@@ -376,8 +391,11 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         );
     }
 
-    /** The document as the engine reads it — for a row, with the page that row stands on. */
-    private static function documentRecord(ApprovalDocument $document, ?int $sourcePage): DocumentRecord
+    /**
+     * The document as the engine reads it — for a row, with the page that row stands on and the car the row names (its
+     * field K chooses the document's combinations, D-358); without a car, the document alone.
+     */
+    private function documentRecord(ApprovalDocument $document, ?int $sourcePage, bool $forCar = false, ?string $carK = null): DocumentRecord
     {
         return new DocumentRecord(
             id: $document->id,
@@ -397,15 +415,63 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             missingAnnexes: $document->missing_annexes === null || trim($document->missing_annexes) === '' ? null : trim($document->missing_annexes),
             completeness: $document->completeness,
             isDemo: (bool) $document->getAttribute('is_demo'),
-            tyreCombinations: self::tyreCombinations($document),
+            tyreCombinations: $this->wholeDocumentLists ? self::wholeList($document) : self::tyreCombinations($document, $forCar, $carK),
             tyreIndexSource: $document->tyre_index_source?->value,
             // „nur für Fahrzeuge mit maximaler Achslast 1160 kg“, as declared at release: the wheel's approval rests on it (D-289).
             axleLimitKg: $document->counted_axle_limit_kg,
         );
     }
 
-    /** The document's own list of tyre combinations, as the engine reads it (D-256); null when none is entered. */
-    private static function tyreCombinations(ApprovalDocument $document): ?TyrePairingTable
+    /**
+     * The document's own list of tyre combinations for this car, as the engine reads it (D-256): since his admin item 19
+     * (D-358) the list of the entry of its Verwendungsbereich whose EG type-approval number takes in the car's field K
+     * (CombinationEntry) — an empty list where none does, so the tyres are not confirmed and no Komplettrad is offered,
+     * never another type's. Null where the document lists none at all, and where no car is asked about (the notes of an
+     * incomplete document).
+     */
+    private static function tyreCombinations(ApprovalDocument $document, bool $forCar, ?string $carK): ?TyrePairingTable
+    {
+        if (! $forCar || $document->tyreCombinations->isEmpty()) {
+            return null;
+        }
+
+        $pairs = [];
+        $keys = [];
+
+        foreach ($document->tyreCombinations as $combination) {
+            // A row no entry was given yet (a list carried over where no car named an EG number) matches no car.
+            if ($combination->eg_number_norm === null) {
+                continue;
+            }
+
+            $pair = new TyrePairing(
+                $combination->number,
+                new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in),
+                new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in),
+                // The row an order line freezes as the combination it was sold in (D-335).
+                (int) $combination->id,
+            );
+            $pairs[$combination->eg_number_norm][] = [$pair, $combination->source_page];
+            $keys[$combination->eg_number_norm][] = $pair->key();
+        }
+
+        $entry = CombinationEntry::for($carK, $keys);
+
+        if ($entry === null) {
+            return TyrePairingTable::unmatched($document->tyreCombinations->first()->source_page);
+        }
+
+        $page = null;
+
+        foreach ($pairs[$entry] as [, $source]) {
+            $page ??= $source;
+        }
+
+        return TyrePairingTable::recorded(array_map(static fn (array $row): TyrePairing => $row[0], $pairs[$entry]), $page);
+    }
+
+    /** The document's whole list, every row whatever its entry, as the shop read it before D-358 (beforeEntries()). */
+    private static function wholeList(ApprovalDocument $document): ?TyrePairingTable
     {
         $pairs = [];
         $page = null;
@@ -415,7 +481,6 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
                 $combination->number,
                 new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in),
                 new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in),
-                // The row an order line freezes as the combination it was sold in (D-335).
                 (int) $combination->id,
             );
             $page ??= $combination->source_page;

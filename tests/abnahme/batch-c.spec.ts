@@ -258,6 +258,12 @@ test('front and rear only in the pairs the Gutachten lists, each axle on its own
 
     const mix = page.locator('section.mix')
     await expect(mix).toBeVisible()
+    // Found without being told where (the operator's brief of 29.10.2026, D-360): in the buy column, within one screen of
+    // the Komplettrad just chosen — never thousands of pixels further down, under the Gutachten's full text.
+    await expect(page.locator('.pdp__buy section.mix')).toBeVisible()
+    const chosen = await page.locator('.pdp__mode').boundingBox()
+    const heading = await mix.locator('#mix-heading').boundingBox()
+    expect((heading?.y ?? Infinity) - (chosen?.y ?? 0)).toBeLessThan(page.viewportSize()?.height ?? 900)
     await expect(mix.locator('.mix__pairs .chip')).toHaveText(pairs.map((p) => `vorne ${p.front} · hinten ${p.rear}`))
 
     for (const [i, pair] of pairs.entries()) {
@@ -316,14 +322,15 @@ test('the wording as printed keeps each tyre size\'s sentences under that size: 
 })
 
 test('no dead „Nur die Felgen bestellen“: where no Komplettrad can be offered, one sentence, a way on, and „Nur Felgen“ right above', { tag: '@kunde-25' }, async ({ page }, info) => {
-    // The E46 at 19 Zoll: front and rear sizes differ, so there are no four equal tyres to offer.
-    await withCar(page, 'e46', PRODUCT)
-    await onSize(page, 19, 'Schwarz matt')
+    // The X3 at 18 Zoll: the Gutachten prescribes particular tyres there, so no Komplettrad can be offered, and the rim
+    // alone can. (The E46 at 19 Zoll was this case until the per-axle sets of his #20, D-360: now it sells 2 + 2.)
+    await withCar(page, 'x3', PRODUCT)
+    await onSize(page, 18, 'Schwarz matt')
     await mode(page, 'Komplettrad')
 
     const refusal = page.locator('.kc .kc__refusal')
     await expect(refusal).toBeVisible()
-    await expect(refusal).toContainText('Die Felge allein kannst du sofort bestellen.')
+    await expect(refusal).toContainText(/die Felge allein kannst du sofort bestellen\./i)
     await expect(refusal.getByRole('link', { name: 'Schreib uns' })).toHaveAttribute('href', /^\/kontakt\?/)
     await expect(page.locator('main')).not.toContainText('Nur die Felgen bestellen')
 

@@ -161,13 +161,11 @@ export interface CalculatorPrefill {
     aspect: number
 }
 
-/** One side of the calculator, as `lib/fitmentMath`'s `WheelSetup` writes it. */
+/** One side of the Felgenrechner since its rebuild after the client's example (#11): width, ET and spacer. */
 export interface RechnerSetup {
     widthIn: number
-    diameterIn: number
     etMm: number
-    tyreWidthMm: number
-    aspect: number
+    spacerMm: number
 }
 
 /**

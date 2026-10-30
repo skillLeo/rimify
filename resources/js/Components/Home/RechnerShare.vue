@@ -75,10 +75,6 @@ async function copy(): Promise<void> {
     }, delay)
 }
 
-function selectAll(event: FocusEvent): void {
-    ;(event.target as HTMLInputElement).select()
-}
-
 onMounted(() => {
     origin.value = window.location.href
     delay = parseMs(getComputedStyle(document.documentElement).getPropertyValue('--d-2')) ?? delay
@@ -92,14 +88,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+    <!-- One button and what it did (the look review of 29.10.2026): the address itself is the address bar's. -->
     <div class="share">
-        <label class="label" :for="`${uid}-share`">Link zu dieser Berechnung</label>
-        <div class="share__row" :class="{ 'share__row--block': block }">
-            <input :id="`${uid}-share`" class="input share__input" type="url" readonly :value="href" aria-label="Link zu dieser Berechnung" @focus="selectAll" />
-            <button class="btn btn--secondary" :class="block ? 'btn--block' : 'btn--sm'" type="button" :aria-busy="busy ? 'true' : undefined" @click="copy">
-                Link kopieren
-            </button>
-        </div>
+        <button :id="`${uid}-share`" class="btn btn--secondary share__button" :class="{ 'btn--block': block }" type="button" :data-href="href" :aria-busy="busy ? 'true' : undefined" @click="copy">
+            Link zu dieser Berechnung kopieren
+        </button>
         <p class="small quiet share__status" role="status" aria-live="polite">{{ status }}</p>
     </div>
 </template>
@@ -111,26 +104,12 @@ onBeforeUnmount(() => {
     min-width: 0;
 }
 
-.share__row {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-8);
-    min-width: 0;
+.share__button {
+    justify-self: start;
 }
 
-.share__row--block {
-    flex-direction: column;
-    align-items: stretch;
-}
-
-.share__input {
-    flex: 1 1 auto;
-    min-width: 0;
-    text-overflow: ellipsis;
-}
-
-.share__row .btn {
-    flex: none;
+.share__button.btn--block {
+    justify-self: stretch;
 }
 
 /* The line reserves its height, so a confirmation never pushes the page. */

@@ -62,6 +62,20 @@ return [
             'report' => false,
         ],
 
+        // The daily copy of Stripe's invoices (rimify:invoices:export-s3, D-361): a bucket of its own in an EU region,
+        // with an IAM user that may only write and list it — the keys in the server's .env and nowhere else.
+        'invoices_s3' => [
+            'driver' => 's3',
+            'key' => env('INVOICE_S3_KEY'),
+            'secret' => env('INVOICE_S3_SECRET'),
+            'region' => env('INVOICE_S3_REGION', 'eu-central-1'),
+            'bucket' => env('INVOICE_S3_BUCKET'),
+            'endpoint' => env('INVOICE_S3_ENDPOINT'),
+            'use_path_style_endpoint' => env('INVOICE_S3_PATH_STYLE', false),
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*

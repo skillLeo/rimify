@@ -104,6 +104,8 @@ final class ResetTables
         'order_lines',
         'order_line_fitments',
         'invoices',
+        // Which Stripe invoices were copied to S3 (D-361): the copies themselves stay in the bucket.
+        'invoice_exports',
         'payment_events',
         'refunds',
         'disputes',

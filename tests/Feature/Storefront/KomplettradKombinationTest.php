@@ -40,6 +40,11 @@ beforeEach(function (): void {
     app(KomplettradSettings::class)->setMountingPerWheelCents(2_500);
 });
 
+/** The fixture car's field K, and the entry of the document that takes it in (every extension of 0287). */
+const KOMBI_CAR_K = 'e1*2001/116*0287*05';
+
+const KOMBI_ENTRY = 'e1*2001/116*0287*..';
+
 /**
  * The fixture's permitted car and rim, its row given a wider size the document gives the rear axle alone — with its own
  * Auflage, „keine Schneeketten“ — and the document a list of two combinations: Nr. 1 the fixture's size on both axles,
@@ -69,8 +74,12 @@ function kombiShopSetup(): array
         DB::table('fitment_tyre_size_conditions')->insert(['fitment_tyre_size_id' => $size->id, 'code' => 'K12']);
     }
 
+    // The car's field K, and the entry of the document's Verwendungsbereich it falls under: the list is that entry's
+    // (his admin item 19, D-358).
+    $fx->vehicle->forceFill(['eg_nummer_raw' => KOMBI_CAR_K, 'eg_nummer_norm' => KOMBI_CAR_K])->save();
+
     $combination = static fn (int $number, TyreSize $f, TyreSize $r): DocumentTyreCombination => DocumentTyreCombination::query()->create([
-        'approval_document_id' => $fx->document->id, 'number' => $number,
+        'approval_document_id' => $fx->document->id, 'eg_number' => KOMBI_ENTRY, 'eg_number_norm' => KOMBI_ENTRY, 'number' => $number,
         'front_width_mm' => $f->widthMm, 'front_aspect' => $f->aspect, 'front_diameter_in' => $f->diameterIn,
         'rear_width_mm' => $r->widthMm, 'rear_aspect' => $r->aspect, 'rear_diameter_in' => $r->diameterIn,
         'source_page' => 5,
@@ -319,4 +328,67 @@ it('offers no Komplettrad in a combination the shop has no tyre for on one axle 
     $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
         'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'quantity' => 4,
     ])->assertSessionHasNoErrors()->assertSessionHas('toast', 'Zum Warenkorb hinzugefügt.');
+});
+
+it('gives a car the combinations of the entry its field K falls under, never another type\'s @admin-219', function (): void {
+    [$fx, $front] = kombiShopSetup();
+    kombiShopTyre($front);
+
+    // A second entry of the same Verwendungsbereich with a list of its own, on a page of its own: one combination, the
+    // fixture's size on both axles.
+    $other = 'e1*2001/116*0300*..';
+    DocumentTyreCombination::query()->create([
+        'approval_document_id' => $fx->document->id, 'eg_number' => $other, 'eg_number_norm' => $other, 'number' => 1,
+        'front_width_mm' => $front->widthMm, 'front_aspect' => $front->aspect, 'front_diameter_in' => $front->diameterIn,
+        'rear_width_mm' => $front->widthMm, 'rear_aspect' => $front->aspect, 'rear_diameter_in' => $front->diameterIn,
+        'source_page' => 6,
+    ]);
+
+    // The fixture's car (0287) keeps its own entry's two, on its page.
+    $offer = kombiShopRow($fx)['komplettrad'];
+
+    expect(collect($offer['combinations'])->pluck('number')->all())->toBe([1, 2])
+        ->and($offer['sourcePage'])->toBe(5);
+
+    // A car of the other type on the same rim: that entry's one combination, on that entry's page.
+    $fx->vehicle->forceFill(['eg_nummer_raw' => 'e1*2001/116*0300*02', 'eg_nummer_norm' => 'e1*2001/116*0300*02'])->save();
+    $offer = kombiShopRow($fx)['komplettrad'];
+
+    expect($offer['refusal'])->toBeNull()
+        ->and(collect($offer['combinations'])->pluck('number')->all())->toBe([1])
+        ->and($offer['combinations'][0]['sameSize'])->toBeTrue()
+        ->and($offer['sourcePage'])->toBe(6);
+});
+
+it('confirms no tyres for a car whose field K no entry takes in — never a neighbour\'s list, and the rim waits as any unconfirmed one @admin-219', function (): void {
+    [$fx, $front] = kombiShopSetup();
+    $tyre = kombiShopTyre($front);
+
+    // The precondition: on its own entry the car is sold the combinations.
+    expect(kombiShopRow($fx)['komplettrad']['refusal'])->toBeNull();
+
+    // Another approval number of the same directive: no entry of the list takes it in.
+    $fx->vehicle->forceFill(['eg_nummer_raw' => 'e1*2001/116*0999*01', 'eg_nummer_norm' => 'e1*2001/116*0999*01'])->save();
+    $row = kombiShopRow($fx);
+
+    // The wheel's half stands; the tyres' half says what is missing and what would resolve it (R-17) — never a guess.
+    expect($row['verdict']['wheelStatus'])->toBeIn(['PERMITTED', 'CONDITIONAL'])
+        ->and($row['verdict']['status'])->toBe('UNKNOWN')
+        ->and($row['verdict']['tyre']['status'])->toBe('UNKNOWN')
+        ->and($row['verdict']['tyre']['lines'])->toBe([FitmentResolver::NO_COMBINATION_ENTRY])
+        ->and($row['verdict']['rimSellable'])->toBeFalse()
+        ->and($row['komplettrad']['refusalCode'])->toBe(KomplettradRefusal::TyresUnknown->value)
+        ->and($row['komplettrad']['combinations'] ?? [])->toBe([]);
+
+    // No Komplettrad of any pair, and the rim alone waits as any rim whose tyres are unconfirmed (R-03, D-289): only
+    // the papers' figures let it go alone.
+    $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
+        'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'tyreVariantId' => $tyre->id, 'rearTyreVariantId' => $tyre->id, 'quantity' => 2,
+    ])->assertSessionHasErrors();
+
+    $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
+        'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'quantity' => 4,
+    ])->assertSessionHasErrors(['wheelConfigId' => Basket::TYRES_UNKNOWN]);
+
+    expect(session(Basket::SESSION_KEY) ?? [])->toBe([]);
 });

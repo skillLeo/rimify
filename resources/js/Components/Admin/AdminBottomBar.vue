@@ -83,5 +83,7 @@ const inMore = computed(() => !OUTSIDE_MORE.includes(path.value) && !slots.value
         </button>
     </nav>
 
-    <AdminMoreSheet v-model:open="moreOpen" :exclude="slots.map((g) => g.key)" />
+    <!-- A slot opens its group's first page only: a group of several stays in Mehr, or its other pages were reachable
+         through Suche alone — Verkauf › Nachrichten on the preview (D-365). -->
+    <AdminMoreSheet v-model:open="moreOpen" :exclude="slots.filter((g) => g.pages.length === 1).map((g) => g.key)" />
 </template>

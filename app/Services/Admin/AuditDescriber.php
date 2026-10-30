@@ -99,6 +99,10 @@ final class AuditDescriber
         'order.refund_refused' => 'verkauf',
         'order.refund_paper_failed' => 'verkauf',
         'invoice.failed' => 'verkauf',
+        'stripe_invoice.issued' => 'verkauf',
+        'stripe_invoice.failed' => 'verkauf',
+        'stripe_invoice.gave_up' => 'verkauf',
+        'invoice_export.failed' => 'verkauf',
         'invoice.series_opened' => 'verkauf',
         'dispute.evidence_submitted' => 'verkauf',
         'settings.seller_shipping_updated' => 'verkauf',
@@ -196,6 +200,7 @@ final class AuditDescriber
         'approval.derating_removed' => 'gutachten',
         'approval.combinations_saved' => 'gutachten',
         'approval.combinations_removed' => 'gutachten',
+        'approval.combination_applied' => 'gutachten',
         'approval.limit_confirmed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
@@ -489,7 +494,7 @@ final class AuditDescriber
             ],
             'order.confirmation_failed' => ['Die Bestellbestätigung zur Bestellung '.self::order($p).' konnte nicht verschickt werden.'.self::error($p), []],
             'order.confirmation_not_mailed' => [
-                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde nicht verschickt: Der Shop verschickt noch keine E-Mails, sie steht nur im Protokoll des Servers (Einstellungen › E-Mail).',
+                'Die Bestellbestätigung zur Bestellung '.self::order($p).' wurde nicht verschickt: Der Shop verschickt noch keine E-Mails (Einstellungen › E-Mail).',
                 [],
             ],
             'order.shipping_mail_sent' => [
@@ -502,6 +507,11 @@ final class AuditDescriber
             'order.refund_refused' => ['Eine Erstattung von '.self::money($p['amount_cents'] ?? null).' zur Bestellung '.self::order($p).' wurde abgelehnt; erstattet wurde nichts.'.self::error($p), []],
             'order.refund_paper_failed' => ['Zur Erstattung der Bestellung '.self::order($p).' ließ sich die Gutschrift nicht erstellen oder die Mail nicht verschicken. Die Erstattung selbst ist gebucht.'.self::error($p), []],
             'invoice.failed' => ['Zur Bestellung '.self::order($p).' konnte die Rechnung nicht ausgestellt werden; die Bestellung bleibt bezahlt.'.self::error($p), []],
+            // Stripe issues the invoice (his admin item 17, D-361).
+            'stripe_invoice.issued' => ['Für die Bestellung '.self::order($p).' hat Stripe die Rechnung '.self::q(self::text($p, 'number') ?? '–').' ausgestellt und als bezahlt markiert ('.self::money($p['total_cents'] ?? null).').', []],
+            'stripe_invoice.failed' => ['Für die Bestellung '.self::order($p).' konnte Stripe die Rechnung noch nicht ausstellen. Der Shop versucht es in wenigen Minuten erneut; die Bestellung bleibt bezahlt.'.self::error($p), []],
+            'stripe_invoice.gave_up' => ['Für die Bestellung '.self::order($p).' hat Stripe auch nach fünf weiteren Versuchen keine Rechnung ausgestellt. Sieh im Stripe-Dashboard nach; die Bestellung bleibt bezahlt.'.self::error($p), []],
+            'invoice_export.failed' => ['Die Stripe-Rechnung '.self::q(self::text($p, 'number') ?? (self::text($p, 'invoice') ?? '–')).' vom '.(self::text($p, 'date') ?? '–').' konnte nach drei Versuchen nicht nach S3 kopiert werden.'.self::error($p), []],
             'invoice.series_opened' => [
                 'Die echten Rechnungsnummern wurden eröffnet: Die erste Rechnung trägt die Nummer '.self::q(self::text($p, 'invoice_first') ?? '–')
                     .', die erste Gutschrift '.self::q(self::text($p, 'credit_note_first') ?? '–').'.',
@@ -651,8 +661,16 @@ final class AuditDescriber
             'approval.derating_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit gespeichert ('.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').').', []],
             'approval.limit_confirmed' => ['In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Achslast bei '.self::q(self::text($p, 'code') ?? '–').' so bestätigt, wie das Gutachten sie druckt: '.self::q(self::text($p, 'reason') ?? '–').'.', []],
             'approval.derating_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit entfernt.', []],
-            'approval.combinations_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Bereifungskombinationen gespeichert ('.self::count((int) (self::text($p, 'combinations') ?? 0), 'Kombination', 'Kombinationen').').', []],
-            'approval.combinations_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Bereifungskombinationen entfernt.', []],
+            // Per EG type-approval number since his admin item 19 (D-358); an entry written before names none.
+            'approval.combinations_saved' => ['Für '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Bereifungskombinationen'.self::ofEntry($p).' gespeichert ('.self::count((int) (self::text($p, 'combinations') ?? 0), 'Kombination', 'Kombinationen').').', []],
+            'approval.combinations_removed' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Bereifungskombinationen'.self::ofEntry($p).' entfernt.', []],
+            'approval.combination_applied' => [
+                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde die Kombination Nr. '.(self::text($p, 'number') ?? '–')
+                    .' der EG-Typgenehmigungsnummer '.self::q(self::text($p, 'from') ?? '–').' für weitere EG-Nummern übernommen: '
+                    .self::count((int) (self::text($p, 'added') ?? 0), 'neu eingetragen', 'neu eingetragen').', '
+                    .self::count(max(0, (is_array($p['targets'] ?? null) ? count($p['targets']) : 0) - (int) (self::text($p, 'added') ?? 0)), 'hatte sie schon', 'hatten sie schon').'.',
+                [],
+            ],
             'conflict.decided' => [
                 'Der Konflikt zu '.self::q(trim((self::text($p, 'vehicle') ?? 'einem Fahrzeug').' · '.(self::text($p, 'wheel') ?? 'einer Felge'))).' wurde entschieden: '
                     .(($p['mode'] ?? null) === 'only'
@@ -1904,6 +1922,18 @@ final class AuditDescriber
     private static function q(string $name): string
     {
         return "\u{201E}".$name."\u{201C}";
+    }
+
+    /**
+     * „ der EG-Typgenehmigungsnummer „e1*2007/46*0316*..““ — or nothing, for an entry written before D-358.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function ofEntry(array $p): string
+    {
+        $eg = self::text($p, 'eg_number');
+
+        return $eg === null ? '' : ' der EG-Typgenehmigungsnummer '.self::q($eg);
     }
 
     /** Rims as the Protokoll names them: „A“, „B“ und „C“ — or „keine“ (the homepage shelf's picks, D-353). */

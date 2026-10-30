@@ -27,11 +27,13 @@ test.describe('D-290 a mouse wheel never moves a figure', () => {
         await page.mouse.wheel(0, -120);
         await expect(bare, 'precondition: this browser does not step a focused number field under the wheel').not.toHaveValue('35');
 
-        // The shop: the Felgenrechner's ET, typed and focused, the wheel turned over it twice the same way — never up and
-        // then down, which on an unguarded field steps there and back and passes without any guard (19.10.2026).
+        // The shop: the Felgenrechner since its rebuild (D-357) has no number field at all — its figures step with − and
+        // + and the arrow keys — and its ET, typed and focused, stays under the wheel turned twice the same way (never up
+        // and then down, which on an unguarded field steps there and back and passes without any guard, 19.10.2026).
         await consentGiven(page.context(), SHOP);
         await open(page, '/felgenrechner');
-        const et = page.locator('input[type="number"]').first();
+        await expect(page.locator('.etc input[type="number"]'), 'a number field in the Felgenrechner').toHaveCount(0);
+        const et = page.locator('.etc__block--next .etc__field').nth(1).locator('input');
         await et.fill('35');
         await et.focus();
         await et.hover();

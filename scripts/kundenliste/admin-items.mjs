@@ -137,6 +137,13 @@ export const ITEMS = [
         pictures: false,
         commits: ['6e8848fb'],
     },
+    {
+        // His reply to item 8 (the operator's brief of 29.10.2026, Batch 2): a nineteenth point of his own.
+        nr: 219,
+        wish: 'Bereifungskombinationen je EG-Typgenehmigungsnummer einstellbar',
+        now: 'Im Gutachten wählst du zuerst den Fahrzeugtyp über seine EG-Typgenehmigungsnummer und trägst dann seine Bereifungskombinationen ein. „Kombinationen kopieren von …“ übernimmt die Liste einer anderen Nummer zum Prüfen, „Auf mehrere EG-Nummern anwenden“ trägt eine Kombination bei mehreren Nummern auf einmal ein. Im Shop bekommt ein Fahrzeug die Liste der Nummer, die sein Feld K umfasst – nie weiter gefasst, als das Gutachten sie druckt; passt keine, sind seine Reifen „Noch nicht bestätigt“. Die bisherigen Listen stehen jetzt bei jeder Nummer ihres Gutachtens, markiert mit „Übernommen, bitte prüfen“; geändert hat sich dadurch kein Urteil.',
+        state: 'erledigt',
+    },
 ]
 
 /**
@@ -162,4 +169,5 @@ export const NOTES = {
     216: 'The shop tells the browser and the host not to store its pages, so every change to the catalogue applies at once, and a page brought back with the Back button checks with the shop and reloads if anything changed.',
     217: 'Part 1 is done: the shop no longer creates, numbers or mentions its own invoices, and older ones stay readable; Stripe invoices with every line and 19 % VAT, and the daily copy to S3, come with the next release.',
     218: 'The order link now carries a random UUID and keeps its signature; a link with the order number finds nothing. Order numbers look like 2610-10487 everywhere, Stripe included, and the admin search finds them with or without the dash, old RMF numbers too.',
+    219: 'Each Gutachten now takes its Bereifungskombinationen per EG-Typgenehmigungsnummer: choose the vehicle type and enter its list, copy another number’s list with „Kombinationen kopieren von …“, or put one combination on several numbers with „Auf mehrere EG-Nummern anwenden“; in the shop a car gets the list of the number its field K falls under, never more loosely than the Gutachten prints it, and „Noch nicht bestätigt“ where none does.',
 }

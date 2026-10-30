@@ -71,12 +71,14 @@ describe('the badge in the headers', () => {
         current.props = shared(true)
         const wrapper = track(mount(UnderShell, { global: { stubs } }))
 
-        // The strip above the header is gone (#3, D-107): one badge, beside the wordmark, shown at every width.
-        const badge = wrapper.find('.sh__bar > .demo-badge')
+        // The strip above the header is gone (#3, D-107): one badge, with the wordmark, shown at every width — in the
+        // mark that puts it beneath the wordmark on a narrow phone (D-366).
+        const badge = wrapper.find('.sh__bar > .sh__mark > .demo-badge')
         expect(wrapper.findAll('.demo-badge')).toHaveLength(1)
         expect(badge.exists()).toBe(true)
         expect(badge.classes()).not.toContain('until-lg')
         expect(badge.element.previousElementSibling?.classList.contains('brand')).toBe(true)
+        expect(wrapper.find('.sh__mark').classes()).toContain('sh__mark--demo')
     })
 
     it('has no strip above the header, and promises no PDF', () => {

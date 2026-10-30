@@ -214,7 +214,16 @@ export interface AdminFelgeProps {
     statedRating: StatedRatingProp | null
     /** The sentence beside every rim's typed stars (D-345). Optional in older fixtures. */
     statedDisclosure?: StatedDisclosureProp
+    /** „JSON-LD anzeigen“ (his admin item 14): the page's structured data as it would be pasted; optional in older fixtures. */
+    jsonLd?: JsonLdProp | null
     can: WheelCan
+}
+
+/** The rim's structured data, set out for Google's Rich Results Test; `code` null while the rim has no size. */
+export interface JsonLdProp {
+    code: string | null
+    demo: boolean
+    published: boolean
 }
 
 /* ── Import ────────────────────────────────────────────────────────────────── */

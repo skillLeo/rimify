@@ -40,6 +40,15 @@ final class FakeStripe implements ClientInterface
     /** @var list<array<string, mixed>> the webhook endpoints the account has (GET /v1/webhook_endpoints) */
     public array $webhooks = [];
 
+    /** @var array<string, array<string, mixed>> id => Customer */
+    public array $customers = [];
+
+    /** @var array<string, array<string, mixed>> id => TaxRate */
+    public array $taxRates = [];
+
+    /** @var array<string, array<string, mixed>> id => Invoice, its lines and totals kept as Stripe computes them */
+    public array $invoices = [];
+
     private int $sequence = 0;
 
     public function __construct()
@@ -154,10 +163,17 @@ final class FakeStripe implements ClientInterface
                 'client_secret' => $id.'_secret_fake',
                 'metadata' => $params['metadata'] ?? [],
                 'description' => $params['description'] ?? null,
+                'customer' => $params['customer'] ?? null,
                 'status' => 'requires_payment_method',
             ]);
 
             return [200, $this->intents[$id] = $intent];
+        }
+
+        $invoicing = $this->invoicing($method, $path, $params);
+
+        if ($invoicing !== null) {
+            return $invoicing;
         }
 
         if (preg_match('#^/v1/payment_intents/([^/]+)(/(cancel|capture))?$#', $path, $m) === 1) {
@@ -230,5 +246,164 @@ final class FakeStripe implements ClientInterface
     public static function sign(string $payload, string $secret, int $timestamp): string
     {
         return 't='.$timestamp.',v1='.hash_hmac('sha256', $timestamp.'.'.$payload, $secret);
+    }
+
+    /**
+     * Customers, tax rates and invoices (D-361), as the API reference describes them: an invoice item joins a draft only;
+     * an inclusive tax rate leaves the line's amount as it is and says the tax within it; finalizing gives the number, the
+     * hosted page and the PDF; a payment attaches only for the invoice's own customer, and one that already succeeded
+     * pays the invoice at once (docs.stripe.com/api/invoices/attach_payment, /invoicing/partial-payments). Null for any
+     * other request.
+     *
+     * @param  array<string, mixed>  $params
+     * @return array{0: int, 1: array<string, mixed>}|null
+     */
+    private function invoicing(string $method, string $path, array $params): ?array
+    {
+        $refuse = static fn (int $status, string $message): array => [$status, ['error' => ['message' => $message, 'type' => 'invalid_request_error']]];
+        $next = fn (string $prefix): string => $prefix.str_pad((string) (++$this->sequence), 6, '0', STR_PAD_LEFT);
+
+        if ($method === 'POST' && $path === '/v1/customers') {
+            $id = $next('cus_fake');
+
+            return [200, $this->customers[$id] = ['id' => $id, 'object' => 'customer', 'name' => $params['name'] ?? null, 'email' => $params['email'] ?? null, 'address' => $params['address'] ?? null, 'metadata' => $params['metadata'] ?? []]];
+        }
+
+        if ($method === 'GET' && $path === '/v1/tax_rates') {
+            return [200, ['object' => 'list', 'data' => array_values($this->taxRates), 'has_more' => false, 'url' => '/v1/tax_rates']];
+        }
+
+        if ($method === 'POST' && $path === '/v1/tax_rates') {
+            $id = $next('txr_fake');
+
+            return [200, $this->taxRates[$id] = [
+                'id' => $id, 'object' => 'tax_rate', 'active' => true, 'percentage' => (float) $params['percentage'],
+                'inclusive' => filter_var($params['inclusive'], FILTER_VALIDATE_BOOL), 'display_name' => $params['display_name'] ?? null,
+                'country' => $params['country'] ?? null, 'jurisdiction' => $params['jurisdiction'] ?? null, 'tax_type' => $params['tax_type'] ?? null,
+                'metadata' => $params['metadata'] ?? [],
+            ]];
+        }
+
+        if ($method === 'POST' && $path === '/v1/invoices') {
+            if (! isset($this->customers[(string) ($params['customer'] ?? '')])) {
+                return $refuse(400, "No such customer: '".($params['customer'] ?? '')."'");
+            }
+
+            $id = $next('in_fake');
+
+            return [200, $this->invoices[$id] = [
+                'id' => $id, 'object' => 'invoice', 'customer' => $params['customer'], 'currency' => $params['currency'] ?? 'eur',
+                'status' => 'draft', 'number' => null, 'hosted_invoice_url' => null, 'invoice_pdf' => null,
+                'collection_method' => $params['collection_method'] ?? 'charge_automatically', 'auto_advance' => filter_var($params['auto_advance'] ?? false, FILTER_VALIDATE_BOOL),
+                'description' => $params['description'] ?? null, 'metadata' => $params['metadata'] ?? [], 'created' => time(),
+                'lines' => ['object' => 'list', 'data' => [], 'has_more' => false, 'url' => "/v1/invoices/{$id}/lines"],
+                'subtotal' => 0, 'total' => 0, 'total_excluding_tax' => 0, 'total_taxes' => [], 'amount_due' => 0, 'amount_paid' => 0, 'amount_remaining' => 0,
+            ]];
+        }
+
+        if ($method === 'POST' && $path === '/v1/invoiceitems') {
+            $invoice = (string) ($params['invoice'] ?? '');
+
+            if (($this->invoices[$invoice]['status'] ?? null) !== 'draft') {
+                return $refuse(400, "Invoice {$invoice} is not a draft: items can be added to a draft invoice only.");
+            }
+
+            $quantity = (int) ($params['quantity'] ?? 1);
+            $amount = $quantity * (int) $params['unit_amount_decimal'];
+            $taxes = [];
+
+            foreach ((array) ($params['tax_rates'] ?? []) as $rateId) {
+                $rate = $this->taxRates[$rateId] ?? null;
+
+                if ($rate === null) {
+                    return $refuse(400, "No such tax rate: '{$rateId}'");
+                }
+
+                // Inclusive: the tax is the part of the amount above its net, the net rounded to the cent.
+                $net = (int) round($amount / (1 + $rate['percentage'] / 100));
+                $taxes[] = ['amount' => $amount - $net, 'tax_behavior' => 'inclusive', 'taxable_amount' => $net, 'tax_rate_details' => ['tax_rate' => $rateId], 'type' => 'tax_rate_details'];
+            }
+
+            $this->invoices[$invoice]['lines']['data'][] = [
+                'id' => $next('il_fake'), 'object' => 'line_item', 'amount' => $amount, 'currency' => $params['currency'] ?? 'eur',
+                'description' => $params['description'] ?? null, 'quantity' => $quantity,
+                'pricing' => ['type' => 'price_details', 'unit_amount_decimal' => (string) $params['unit_amount_decimal']], 'taxes' => $taxes,
+            ];
+            $lines = $this->invoices[$invoice]['lines']['data'];
+            $total = array_sum(array_column($lines, 'amount'));
+            $tax = array_sum(array_map(static fn (array $l): int => array_sum(array_column($l['taxes'], 'amount')), $lines));
+            $this->invoices[$invoice] = ['subtotal' => $total, 'total' => $total, 'total_excluding_tax' => $total - $tax, 'amount_due' => $total, 'amount_remaining' => $total] + $this->invoices[$invoice];
+
+            return [200, ['id' => $next('ii_fake'), 'object' => 'invoiceitem', 'invoice' => $invoice, 'amount' => $amount, 'quantity' => $quantity, 'description' => $params['description'] ?? null]];
+        }
+
+        if ($method === 'GET' && $path === '/v1/invoices') {
+            $created = (array) ($params['created'] ?? []);
+            $list = array_values(array_filter($this->invoices, static fn (array $i): bool => $i['status'] !== 'draft'
+                && (! isset($created['gte']) || $i['created'] >= (int) $created['gte'])
+                && (! isset($created['lt']) || $i['created'] < (int) $created['lt'])));
+            usort($list, static fn (array $a, array $b): int => [$b['created'], $b['id']] <=> [$a['created'], $a['id']]);
+
+            if (isset($params['starting_after'])) {
+                $at = array_search($params['starting_after'], array_column($list, 'id'), true);
+                $list = $at === false ? [] : array_slice($list, $at + 1);
+            }
+
+            $limit = (int) ($params['limit'] ?? 10);
+
+            return [200, ['object' => 'list', 'data' => array_slice($list, 0, $limit), 'has_more' => count($list) > $limit, 'url' => '/v1/invoices']];
+        }
+
+        if (preg_match('#^/v1/invoices/([^/]+)(/(finalize|attach_payment))?$#', $path, $m) !== 1) {
+            return null;
+        }
+
+        $invoice = $this->invoices[$m[1]] ?? null;
+
+        if ($invoice === null) {
+            return [404, ['error' => ['message' => "No such invoice: '{$m[1]}'", 'type' => 'invalid_request_error', 'code' => 'resource_missing']]];
+        }
+
+        if ($method === 'DELETE') {
+            if ($invoice['status'] !== 'draft') {
+                return $refuse(400, 'Only draft invoices can be deleted.');
+            }
+
+            unset($this->invoices[$m[1]]);
+
+            return [200, ['id' => $m[1], 'object' => 'invoice', 'deleted' => true]];
+        }
+
+        if (($m[3] ?? '') === 'finalize') {
+            if ($invoice['status'] !== 'draft') {
+                return $refuse(400, "This invoice is already {$invoice['status']}.");
+            }
+
+            $invoice = $this->invoices[$m[1]] = [
+                'status' => 'open',
+                'number' => 'FAKE-'.str_pad((string) (count(array_filter($this->invoices, static fn (array $i): bool => $i['number'] !== null)) + 1), 4, '0', STR_PAD_LEFT),
+                'hosted_invoice_url' => 'https://invoice.stripe.com/i/'.$m[1],
+                'invoice_pdf' => 'https://pay.stripe.com/invoice/'.$m[1].'/pdf',
+            ] + $invoice;
+        }
+
+        if (($m[3] ?? '') === 'attach_payment') {
+            $intent = $this->intents[(string) ($params['payment_intent'] ?? '')] ?? null;
+
+            if ($intent === null) {
+                return [404, ['error' => ['message' => "No such payment_intent: '".($params['payment_intent'] ?? '')."'", 'type' => 'invalid_request_error', 'code' => 'resource_missing']]];
+            }
+
+            if (($intent['customer'] ?? null) !== $invoice['customer'] || $intent['currency'] !== $invoice['currency']) {
+                return $refuse(400, 'The PaymentIntent must have the same customer and currency as the invoice.');
+            }
+
+            if ($intent['status'] === 'succeeded') {
+                $paid = $invoice['amount_paid'] + (int) ($intent['amount_received'] ?? $intent['amount']);
+                $invoice = $this->invoices[$m[1]] = ['amount_paid' => $paid, 'amount_remaining' => max(0, $invoice['total'] - $paid), 'status' => $paid >= $invoice['total'] ? 'paid' : $invoice['status']] + $invoice;
+            }
+        }
+
+        return [200, $invoice];
     }
 }

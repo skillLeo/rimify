@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { expect, test } from '../fixtures'
+import { expect, test, type Page } from '../fixtures'
 import { ABNAHME, PRODUCT, addToBasket, box, consent, isPhone, onSize, open, shot, withCar } from './support'
 
 /*
@@ -169,20 +169,49 @@ test('one header on every page: at 390 and 360 every control in it stands where 
                         })
                 })
             )
+            // The same on every page is not yet on the screen: with the Demodaten badge the menu stood at 353–397 px (D-366).
+            expect(await controlsPastTheEdge(page), `${path} at ${width}: controls past the header's edge, or icons under 44 px`).toEqual([])
         }
 
         const home = rows.get('/') ?? []
-        expect(home.map((row) => row.split(' ')[0]), `the home page's header at ${width}`).toEqual(expect.arrayContaining(['RIMIFY', 'Suche', 'Fahrzeug', 'Warenkorb', 'Menü']))
+        // The acceptance shop carries the badge — the row this measures is the widest one there is.
+        expect(home.map((row) => row.split(' ')[0]), `the home page's header at ${width}`).toEqual(expect.arrayContaining(['RIMIFY', 'Demodaten', 'Suche', 'Fahrzeug', 'Warenkorb', 'Menü']))
 
         for (const path of pages.slice(1)) {
             expect(rows.get(path), `${path} at ${width} px against the home page`).toEqual(home)
         }
     }
 
+    // The narrowest phone the shop is laid out for keeps every control on its screen too.
+    await page.setViewportSize({ width: 320, height: 640 })
+    await open(page, '/')
+    expect(await controlsPastTheEdge(page), "the home page at 320: controls past the header's edge, or icons under 44 px").toEqual([])
+
     await page.setViewportSize({ width: 390, height: 844 })
     await open(page, '/felgenrechner')
     await shot(page.locator('header.site-header').first(), 35, info)
 })
+
+/**
+ * The header's controls that leave its content box — past the page's side margin, or past the screen — and its icons
+ * that gave up their 44 px to fit, each with its edges and size in pixels.
+ */
+async function controlsPastTheEdge(page: Page): Promise<string[]> {
+    return page.evaluate(() => {
+        const bar = document.querySelector('header.site-header .sh__bar')
+        if (bar === null) return ['no header bar']
+        const box = bar.getBoundingClientRect()
+        const style = getComputedStyle(bar)
+        const left = box.left + parseFloat(style.paddingLeft) - 0.5
+        const right = box.right - parseFloat(style.paddingRight) + 0.5
+
+        return [...bar.querySelectorAll(':is(a, button, .demo-badge)')]
+            .map((el) => ({ el, r: el.getBoundingClientRect() }))
+            .filter(({ el, r }) => r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden')
+            .filter(({ el, r }) => r.left < left || r.right > right || (el.matches('.icon-btn, .icon-btn *') && (r.width < 43.5 || r.height < 43.5)))
+            .map(({ el, r }) => `${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim()} ${Math.round(r.left)}–${Math.round(r.right)} ${Math.round(r.width)}×${Math.round(r.height)}`)
+    })
+}
 
 test('the footer links the Felgenrechner and the Blog; both open, and the Blog leads to its articles', { tag: '@kunde-10' }, async ({ page, request }, info) => {
     await open(page, '/')

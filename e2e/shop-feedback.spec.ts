@@ -53,7 +53,8 @@ test('a signed-in admin sends a point from a shop page, and it arrives with that
     await button.click()
     const dialog = page.getByRole('dialog', { name: 'Rückmeldung geben' })
     await expect(dialog).toBeVisible({ timeout: 20_000 })
-    await expect(dialog).toContainText('diese Seite (/felgenrechner)')
+    // The page as it stands, its comparison with it: the calculator's address goes through Inertia since D-368.
+    await expect(dialog).toContainText('diese Seite (/felgenrechner?rechner=8x45x0_8x40x0)')
 
     await dialog.locator('#fb-sentence').fill(sentence)
     await dialog.getByRole('button', { name: 'Senden' }).click()
