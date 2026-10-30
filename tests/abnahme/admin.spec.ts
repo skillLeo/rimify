@@ -129,12 +129,13 @@ test.describe('as the Super-Admin', () => {
         await expect(card.locator('#kb-entry')).toBeVisible()
         const rows = card.locator('table.kb-table tbody tr')
 
-        // On his preview the example ABE 55255 was seeded on 14.10, before this section existed (D-256, 16.10): no
-        // combination is entered there, and entering one takes a draft — a write this pass never makes. What can be
-        // checked is that the page says so; whether the shop then offers only the listed pairs is not measured there.
-        if (PREVIEW && (await rows.count()) === 0) {
+        // The example ABE 55255 is seeded without combinations — on his preview since 14.10, before this section existed
+        // (D-256), and in the acceptance shop, which seeds none. Entering one takes a draft, a write this pass never makes;
+        // the list's own suite enters, releases and buys them (e2e/kundenliste/admin.spec.ts). Here, on either instance,
+        // an empty list must say so. (On ours it passed only after another suite had left a list behind — 30.10.2026.)
+        if ((await rows.count()) === 0) {
             await expect(card).toContainText('Für diese EG-Nummer sind keine Bereifungskombinationen hinterlegt.')
-            test.skip(true, 'not measured on the preview: ABE 55255 there has no combinations entered, and entering them takes a draft')
+            test.skip(true, `not measured on ${PREVIEW ? 'the preview' : 'our acceptance shop'}: ABE 55255 has no combinations entered there, and entering them takes a draft`)
         }
 
         await expect(rows.first(), 'no combination is entered on this Gutachten').toBeVisible()

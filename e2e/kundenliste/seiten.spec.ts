@@ -62,7 +62,9 @@ test('a contact form: name, e-mail, subject, message, the car ticked, a privacy 
 
     const write = async (): Promise<void> => {
         await form.locator('#kon-name').fill('Jana Beispiel')
-        await form.locator('#kon-email').fill('jana@example.com')
+        // An address of its own per engine and run: one address may send three messages an hour (D-218), and the client
+        // list and the acceptance pass both send to the same shop within the hour.
+        await form.locator('#kon-email').fill(`jana.${info.project.name}.${Date.now()}@example.com`)
         await form.locator('#kon-subject').fill('Frage zur DB8GT2')
         await form.locator('#kon-message').fill('Passt die Felge auch mit Winterreifen auf mein Auto?')
     }
