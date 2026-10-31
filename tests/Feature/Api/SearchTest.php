@@ -52,6 +52,28 @@ it('reads a size however the customer spells it', function (string $q): void {
         ->and($sizes['items'][0]['href'])->toBe('/felgen?zoll=18');
 })->with(['18', '18 Zoll', '18″', '18zoll']);
 
+// HQ-28 (Human QA, 31.10.2026): the empty search's own hint names „8,5J“, and „8,5J“ found nothing; nor did „8,5x18“,
+// the way rims, their Gutachten and every classified ad print a size. Both lead to the listing filtered by them.
+it('reads a rim width as the rim prints it', function (string $q): void {
+    $sizes = collect($this->getJson('/api/v1/search?q='.rawurlencode($q))->assertOk()->json('groups'))->firstWhere('key', 'groessen');
+
+    expect($sizes['items'][0]['label'])->toBe('8,5J')
+        ->and($sizes['items'][0]['href'])->toBe('/felgen?breite=8.5');
+})->with(['8,5J', '8.5j', '8,5 J']);
+
+it('reads a width with its diameter as rims and ads print it', function (string $q): void {
+    $sizes = collect($this->getJson('/api/v1/search?q='.rawurlencode($q))->assertOk()->json('groups'))->firstWhere('key', 'groessen');
+
+    expect($sizes['items'][0]['label'])->toBe("8,5J\u{00A0}×\u{00A0}18")
+        ->and($sizes['items'][0]['href'])->toBe('/felgen?breite=8.5&zoll=18');
+})->with(['8,5x18', '8,5Jx18', '8.5 x 18', '8,5J x 18 Zoll', '8,5x18″']);
+
+it('offers no width or size the catalogue does not carry', function (string $q): void {
+    $response = $this->getJson('/api/v1/search?q='.rawurlencode($q))->assertOk();
+
+    expect(collect($response->json('groups'))->firstWhere('key', 'groessen'))->toBeNull();
+})->with(['10,5J', '8,5x22', '9x18']);
+
 it('offers the page a customer looks for by name', function (): void {
     $response = $this->getJson('/api/v1/search?q=widerruf')->assertOk();
 
