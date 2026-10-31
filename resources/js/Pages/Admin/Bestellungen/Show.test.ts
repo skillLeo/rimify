@@ -47,7 +47,7 @@ function props(money: Record<string, unknown> = {}, order: Record<string, unknow
         order: {
             id: 7, number: 'RMF-2026-0007', statusLabel: 'Bezahlt', payment: { label: 'Bezahlt', tone: 'plain' as const }, fulfilment: { label: 'Offen', tone: 'plain' as const },
             paymentMethod: 'Stripe', shippingMethod: null, vehicle: null, keys: null, placedAt: null, paidAt: null, shippedAt: null, tracking: null,
-            note: null, subtotal: 159_600, shipping: 0, tax: 25_482, total: 159_600, demo: false, test: false, ...order,
+            note: null, subtotal: 159_600, shipping: 0, tax: 25_482, total: 159_600, demo: false, testPurchase: false, test: false, ...order,
         },
         customer: { name: 'Erika Mustermann', email: 'kunde@beispiel.de', phone: null },
         delivery: null,
@@ -61,6 +61,17 @@ function props(money: Record<string, unknown> = {}, order: Record<string, unknow
 beforeEach(() => {
     post.mockReset()
     window.sessionStorage.clear()
+})
+
+describe('Bestellung · Demodaten', () => {
+    // HQ-30: a test purchase placed in the shop with demo goods is born demo too — somebody did place it.
+    it('says a test purchase was placed in the shop, and only seeded demo data that nobody placed it', () => {
+        const placed = mount(Page, { props: props({ canRefund: false }, { demo: true, testPurchase: true, test: true }) })
+        expect(placed.find('.bs-demo').text()).toBe('Ein Testkauf mit Demodaten, im Shop über die Testzahlung aufgegeben: Es ist kein Geld geflossen, und es wird nichts versandt.')
+
+        const seeded = mount(Page, { props: props({ canRefund: false }, { demo: true }) })
+        expect(seeded.find('.bs-demo').text()).toContain('Niemand hat sie aufgegeben')
+    })
 })
 
 describe('Bestellung · Erstatten', () => {

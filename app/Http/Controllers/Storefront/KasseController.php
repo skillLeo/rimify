@@ -169,6 +169,27 @@ class KasseController extends Controller
     }
 
     /**
+     * What holds every order while the shop is not set up yet — a mounting price, shipping, the delivery time, the payment
+     * — said in the basket already, not first at the checkout's third step after the address and the options were typed
+     * (Human QA, HQ-27). Not what the customer can settle: the RDKS question is taken as answered „nein“, and an empty
+     * basket, a demo wheel or a marked line say so in the basket themselves.
+     *
+     * @param  array{lines: list<array<string, mixed>>, totals: array<string, mixed>}  $summary
+     */
+    public static function waitOf(Basket $basket, array $summary): ?string
+    {
+        if (is_array($summary['totals']['tpms'] ?? null)) {
+            $summary['totals']['tpms']['choice'] = 'nein';
+        }
+
+        $refusal = self::refusalOf($basket, $summary);
+
+        return in_array($refusal, [Basket::MOUNTING_REFUSAL, Basket::SHIPPING_REFUSAL, self::PREVIEW_REFUSAL, self::DELIVERY_REFUSAL, GoLiveChecks::LIVE_REFUSAL], true)
+            ? $refusal
+            : null;
+    }
+
+    /**
      * Why this basket cannot be ordered here, or null — the one rule the page, the form post and the payment
      * endpoint (KasseZahlungController) share. Without a payment driver nothing can be ordered at all. A test order
      * — the sandbox, or Stripe in Testmodus, where no money moves — may go before the shipping price and the

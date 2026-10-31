@@ -45,6 +45,8 @@ class WarenkorbController extends Controller
         return Inertia::render('Warenkorb/Index', [
             'lines' => $basket['lines'],
             'totals' => $basket['totals'],
+            // What holds every order until the shop is set up, said before the checkout (HQ-27).
+            'orderWait' => KasseController::waitOf($this->basket, $basket),
         ]);
     }
 

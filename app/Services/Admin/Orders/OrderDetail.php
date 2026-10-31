@@ -18,6 +18,7 @@ use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
 use App\Models\Refund;
 use App\Payments\Payments;
+use App\Services\Commerce\OrderWriter;
 use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Commerce\RefundOrder;
 use App\Support\GermanFormat;
@@ -50,6 +51,9 @@ final class OrderDetail
 
         return [
             'order' => $row + [
+                // Born demo through the shop's own checkout — a test purchase somebody placed (D-239) — or seeded: the ref
+                // it was born with says which, and the page says it (HQ-30).
+                'testPurchase' => str_starts_with((string) $order->getAttribute('demo_ref'), OrderWriter::DEMO_PREFIX),
                 'placedAt' => GermanFormat::dateTime($order->placed_at),
                 'paidAt' => GermanFormat::dateTime($order->paid_at),
                 'shippedAt' => GermanFormat::dateTime($order->shipped_at),

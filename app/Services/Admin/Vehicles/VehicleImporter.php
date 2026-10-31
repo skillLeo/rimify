@@ -162,6 +162,16 @@ final class VehicleImporter
             $byKey[CatalogueImporter::headerKey($header)] ??= $header;
         }
 
+        // A column that names its unit, as the fields here name theirs — „Achslast vorn in kg“, „Zulässige Gesamtmasse
+        // kg“, „Leistung in kW“ — maps too; a spelling the file gives exactly comes first (Human QA, HQ-29).
+        foreach ($headers as $header) {
+            $bare = CatalogueImporter::unitless($header);
+
+            if ($bare !== '') {
+                $byKey[$bare] ??= $header;
+            }
+        }
+
         $mapping = [];
 
         foreach (self::FIELDS as $field => $spec) {

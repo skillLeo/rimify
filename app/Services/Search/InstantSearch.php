@@ -194,7 +194,33 @@ final readonly class InstantSearch
             $out[] = ['label' => 'ET '.$m[1], 'sub' => 'Einpresstiefe', 'href' => '/felgen?et='.$m[1]];
         }
 
+        // A rim width as the rim and its Gutachten print it — „8,5J“ — and with its diameter, the way every classified ad
+        // writes a size: „8,5x19“, „8,5Jx19“, „8.5 x 19 Zoll“. The empty search's own hint names „8,5J“ (Human QA, HQ-28).
+        if (preg_match('/^(\d{1,2}(?:[.,]\d{1,2})?) ?(j)?(?: ?x ?(1[5-9]|2[0-4])(?:[.,]0)?(?: ?zoll)?)?$/', $q, $m) === 1
+            && (($m[2] ?? '') === 'j' || ($m[3] ?? '') !== '')) {
+            $width = (float) str_replace(',', '.', $m[1]);
+            $inch = ($m[3] ?? '') !== '' ? (int) $m[3] : null;
+
+            if ($width >= 4.0 && $width <= 13.0 && $this->widthExists($width, $inch)) {
+                $value = rtrim(rtrim(number_format($width, 2, '.', ''), '0'), '.');
+                $out[] = $inch === null
+                    ? ['label' => GermanFormat::rimWidth($width), 'sub' => 'Felgenbreite', 'href' => '/felgen?breite='.$value]
+                    : ['label' => GermanFormat::rimSize($width, $inch), 'sub' => 'Felgen in dieser Größe', 'href' => '/felgen?breite='.$value.'&zoll='.$inch];
+            }
+        }
+
         return $out;
+    }
+
+    private function widthExists(float $width, ?int $inch): bool
+    {
+        return DB::table('wheel_configs as wc')
+            ->join('wheel_models as wm', 'wm.id', '=', 'wc.wheel_model_id')
+            ->whereNull('wc.deleted_at')
+            ->where('wm.status', 'published')
+            ->where('wc.width_in', $width)
+            ->when($inch !== null, static fn ($query) => $query->where('wc.diameter_in', (float) $inch))
+            ->exists();
     }
 
     private function sizeExists(string $inch): bool

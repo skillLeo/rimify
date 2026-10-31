@@ -388,3 +388,16 @@ it('offers a sample file with every column it reads', function (): void {
 
     expect($csv)->toContain('SKU')->toContain('Mittenloch')->toContain('Beispielmarke');
 });
+
+it('maps a supplier column whose name carries its unit, as the fields name themselves — „Durchmesser (Zoll)“ (HQ-29)', function (): void {
+    $mapping = CatalogueImporter::guessMapping(['Artikelnummer', 'Durchmesser (Zoll)', 'Breite in Zoll', 'ET mm', 'Mittenlochbohrung (mm)', 'Preis EUR', 'Gewicht in g']);
+
+    expect($mapping)->toMatchArray([
+        'durchmesser' => 'Durchmesser (Zoll)',
+        'breite' => 'Breite in Zoll',
+        'et' => 'ET mm',
+        'mittenloch' => 'Mittenlochbohrung (mm)',
+        'preis' => 'Preis EUR',
+        'gewicht' => 'Gewicht in g',
+    ]);
+});

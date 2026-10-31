@@ -212,6 +212,8 @@ it('refuses the order while the mounting fee is unconfigured and leaves the fee 
             ->where('lines.0.components.2.open', true)
             ->where('lines.0.components.2.unitPrice', Basket::OPEN_PRICE)
             ->where('lines.0.components.2.lineTotal', null)
+            // Said in the basket already, before the checkout's three steps (HQ-27).
+            ->where('orderWait', Basket::MOUNTING_REFUSAL)
         );
 
     $this->get('/kasse')->assertInertia(fn (AssertableInertia $page) => $page->where('orderRefusal', Basket::MOUNTING_REFUSAL));
@@ -235,6 +237,7 @@ it('refuses the order while the mounting fee is unconfigured and leaves the fee 
             ->where('lines.0.mounting.configured', true)
             ->where('lines.0.mounting.unitPriceCents', 1_900)
             ->where('lines.0.components.2.open', false)
+            ->where('orderWait', Basket::SHIPPING_REFUSAL)
         );
 
     $this->get('/kasse')->assertInertia(fn (AssertableInertia $page) => $page->where('orderRefusal', Basket::SHIPPING_REFUSAL));

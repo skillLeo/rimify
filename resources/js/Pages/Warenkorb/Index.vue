@@ -44,6 +44,8 @@ defineOptions({ layout: AppLayout, inheritAttrs: false })
 const props = defineProps<{
     lines: (BasketLine & { demo?: boolean })[]
     totals: BasketTotals & { shippingConfigured?: boolean }
+    /** What holds every order until the shop is set up (KasseController::waitOf, HQ-27). */
+    orderWait?: string | null
 }>()
 
 const basket = useBasket()
@@ -408,6 +410,10 @@ const VERDICT_TONE: Record<string, string> = {
                         Dein Warenkorb enthält Felgen aus unserem Beispielsortiment. Du kannst dir die
                         Kasse ansehen, bestellen kannst du sie noch nicht.
                     </p>
+
+                    <!-- The shop not set up yet (a mounting price, shipping, …): said here, not first at the Kasse's third
+                         step after the address and the options were typed (HQ-27). The Kasse stays open to look at. -->
+                    <p v-if="orderWait && !hasDemo && !blocked" class="cart__demo" role="status">{{ orderWait }}</p>
 
                     <!-- Fails closed: a line that cannot be sold stops the checkout, and says why. -->
                     <template v-if="blocked">

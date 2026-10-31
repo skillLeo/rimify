@@ -43,6 +43,7 @@ import { ZERO_LABEL, zeroSentence } from '../../lib/zeroState'
 import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import { cleanTsn, isHsn, isTsn, splitKeys } from '../../lib/fahrzeugschein'
+import { useAutoAdvance } from '../../composables/useAutoAdvance'
 import type { LookupResult, MakeOption, ModelOption, VariantOption } from '../../types/pages'
 import type { SharedProps } from '../../types/rimify'
 
@@ -231,6 +232,9 @@ function onHsn(event: Event): void {
     takeKeys(event.target as HTMLInputElement, (event.target as HTMLInputElement).value)
 }
 
+/* The first Tab after the HSN moved on to the TSN stays on the empty TSN (HQ-31). */
+const advance = useAutoAdvance()
+
 function takeKeys(field: HTMLInputElement, raw: string): void {
     const keys = splitKeys(raw)
 
@@ -247,6 +251,7 @@ function takeKeys(field: HTMLInputElement, raw: string): void {
 
     if (keys.hsn.length === 4) {
         tsnField.value?.focus()
+        advance.moved()
     }
 }
 
@@ -843,7 +848,8 @@ onBeforeUnmount(() => treeController?.abort())
                                         :aria-describedby="`${id}-tsn-error`"
                                         @input="onTsn"
                                         @paste.prevent="onTsnPaste"
-                                        @blur="validateTsn"
+                                        @keydown="advance.keydown"
+                                        @blur="advance.reset(); validateTsn()"
                                     />
                                     <p :id="`${id}-tsn-error`" class="form-field__error">{{ tsnError ?? keys.errors.tsn ?? '' }}</p>
                                 </div>

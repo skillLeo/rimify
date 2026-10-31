@@ -62,8 +62,8 @@ function totals(overrides: Partial<Totals> = {}): Totals {
 
 let wrappers: VueWrapper[] = []
 
-function mountBasket(props: { lines?: Line[]; totals?: Totals } = {}): VueWrapper {
-    const wrapper = mount(Warenkorb, { props: { lines: props.lines ?? [line()], totals: props.totals ?? totals() } })
+function mountBasket(props: { lines?: Line[]; totals?: Totals; orderWait?: string | null } = {}): VueWrapper {
+    const wrapper = mount(Warenkorb, { props: { lines: props.lines ?? [line()], totals: props.totals ?? totals(), orderWait: props.orderWait ?? null } })
     wrappers.push(wrapper)
 
     return wrapper
@@ -94,6 +94,16 @@ describe('Warenkorb', () => {
         expect(wrapper.find('.sum').text()).toContain('9,90 €')
         expect(wrapper.text()).toContain('MwSt. und Versand')
         expect(wrapper.find('.cart__demo').exists()).toBe(false)
+    })
+
+    // HQ-27: what holds every order until the shop is set up is said here, not first at the Kasse's third step.
+    it('says before the Kasse what holds every order, and keeps the way there open', () => {
+        const wait = 'Der Preis für Montage und Auswuchten steht noch nicht fest. Solange kannst du Kompletträder noch nicht bestellen – dein Warenkorb bleibt gespeichert.'
+        const wrapper = mountBasket({ lines: [line({ demo: false })], orderWait: wait })
+
+        expect(wrapper.find('[role="status"].cart__demo').text()).toBe(wait)
+        expect(wrapper.find('a.cart__go').attributes('href')).toBe('/kasse')
+        expect(mountBasket({ lines: [line({ demo: false })] }).find('.cart__demo').exists()).toBe(false)
     })
 
     it('marks a demo line, says it cannot be ordered yet, and keeps the way to the Kasse open', () => {
