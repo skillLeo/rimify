@@ -107,6 +107,12 @@ describe('ProductTile', () => {
         expect(mountTile({ card: card(3) }).find('[data-stated-rating]').exists()).toBe(false)
     })
 
+    // M-6: the card's verdict is about one size, and its link opens the page on that size — one answer on both.
+    it('links to the size its verdict is about', () => {
+        const linked = mountTile({ card: card(2, { fitment: { status: 'UNKNOWN', requiresEntry: false, openOn: 31 } }) })
+        expect(linked.find('a').attributes('href')).toBe('/felgen/demo-zehnspeiche-z-02?ausfuehrung=2&groesse=31')
+    })
+
     it('has one link, the CTA, stretched over the card and named after the wheel', () => {
         const wrapper = mountTile({ compare: true })
 

@@ -116,7 +116,9 @@ export function useConfigurator(
     configs: () => ProduktConfig[],
     firstFinishId: number,
     /** A size named in the link (`groesse`, the RIMIFY-Check's „Alles zur Felge“): opened on where it is of this finish. */
-    initialConfigId: number | null = null
+    initialConfigId: number | null = null,
+    /** Finish id → the size the page opens on, picked on the server by the rule the cards follow (OpeningSize, M-6). */
+    openOn: () => Record<string, number | null> = () => ({})
 ): Configurator {
     const finishId = ref(firstFinishId)
     const configId = ref<number | null>(initialConfigId)
@@ -124,14 +126,16 @@ export function useConfigurator(
     const forFinish = computed(() => configs().filter((c) => c.finishId === finishId.value))
 
     /**
-     * The chosen configuration, or the best default: permitted and in stock, cheapest first —
-     * never simply the first row, which on a car with a narrow approval would open the page on a
+     * The chosen configuration, or the size the server opens this finish on — the rule its card follows too, so the card
+     * and the page give one answer (OpeningSize, M-6) —, or, without one, the best default: permitted and in stock,
+     * cheapest first — never simply the first row, which on a car with a narrow approval would open the page on a
      * disabled chip and a blocked button.
      */
     const selected = computed<ProduktConfig | null>(() => {
         const explicit = forFinish.value.find((c) => c.id === configId.value)
+        const opening = openOn()[String(finishId.value)] ?? null
 
-        return explicit ?? best(forFinish.value)
+        return explicit ?? forFinish.value.find((c) => c.id === opening) ?? best(forFinish.value)
     })
 
     const sizes = computed<SizeOption[]>(() => {

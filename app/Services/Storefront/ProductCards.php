@@ -65,7 +65,7 @@ final readonly class ProductCards
         $presentation = $this->presentationFor($modelIds, $finishIds);
         $diameters = $this->diametersFor($modelIds, $finishIds);
         $configIds = $this->listing->configIdsFor($vehicleId, $filters, $modelIds, $finishIds);
-        $diameterOf = $this->diameterByConfig($configIds);
+        $facts = $this->sizeFacts($configIds);
         $vehicle = $this->vehicles->find($vehicleId);
 
         // Every configuration on the page decided in one call, so the engine reads its rows once
@@ -85,7 +85,7 @@ final readonly class ProductCards
                 $row,
                 $presentation,
                 $diameters,
-                $this->claim($verdicts, $configIds[$key] ?? [], $diameterOf),
+                $this->claim($verdicts, $configIds[$key] ?? [], $facts),
                 $disclosure,
             );
         }
@@ -112,83 +112,31 @@ final readonly class ProductCards
     }
 
     /**
-     * What a card may say about the car: asked of the fitment engine for exactly the configurations
-     * the card stands for, and merged toward caution — CONDITIONAL if any of them is, entry if any
-     * of them needs it, the union of their Auflagen.
+     * What a card may say about the car: the engine's verdict (R-13) for the size the card speaks for — the size its link
+     * opens the product page on, picked by the rule the page follows too (OpeningSize, M-6). The card says it shorter,
+     * never otherwise: until 31.10.2026 the card summed its sizes itself — toward caution where any size sold, and to
+     * „Noch nicht bestätigt“ where none did — while the page opened on one size of its own choosing, and six cards said
+     * „Noch nicht bestätigt“ over pages that said „Nicht freigegeben“.
      *
-     * The listing's own SQL knew only whether an entry was required, so a wheel whose Auflage was,
-     * say, "Nur mit den angegebenen Radschrauben zulässig." was shown as plainly "Passend" in the
-     * grid and "Mit Auflagen" on its product page. The engine is the one source of that answer
-     * (R-13), and a listing card is no exception.
-     *
-     * The diameters the permitted configurations come in travel with the claim, so a tile can
-     * grey the sizes no document permits on this car (in the same spelling as `diameters`).
-     *
-     * A size whose wheel is approved and whose tyres are only unconfirmed (finding 103, D-286) is a size the document
-     * permits: never greyed as „keine Freigabe“. Where no size sells and such a one exists, the card says the wheel's
-     * half and that the tyres are open (`tyresOpen`), as the product page does.
+     * What the card adds stays about every size: the diameters a document permits on this car, so a tile can grey the
+     * rest (a size whose wheel is approved and whose tyres are only open counts, finding 103, D-286), and whether further
+     * Auflagen come with other sizes than the one it names.
      *
      * @param  array<int, FitmentVerdict>  $verdicts  the engine's verdicts for the page, by configuration id
      * @param  list<int>  $configIds
-     * @param  array<int, string>  $diameterOf  configuration id → its diameter, formatted
-     * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>, tyresOpen: bool, wheelConditional: bool}
+     * @param  array<int, array{diameter: string, priceCents: int, inStock: bool}>  $facts  configuration id → what the pick reads
+     * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>, tyresOpen: bool, wheelConditional: bool, openOn: int|null}
      */
-    private function claim(array $verdicts, array $configIds, array $diameterOf = []): array
+    private function claim(array $verdicts, array $configIds, array $facts = []): array
     {
-        $status = null;
-        $requiresEntry = false;
-        // Only what holds for every permitted rim size and every tyre size of this wheel: a tile cannot say which
-        // size the customer will pick, and one blended list would set one size's „no snow chains“ beside another's
-        // „fine-link chains“ (ConditionGroups). The rest is on the product page, per size — and the tile says so.
-        $conditions = null;
-        $vary = false;
         $key = static fn (Condition $c): string => $c->code."\u{0}".$c->sentenceDe();
         $fitting = [];
-        // Every conditional size's Auflagen all Hinweise (#23, D-104): the tile may say „Freigegeben“.
-        $allNotes = true;
-
-        $open = false;
-        $openConditional = false;
 
         foreach ($configIds as $configId) {
             $verdict = $verdicts[$configId] ?? null;
 
-            // The wheel approved, its tyres not yet confirmed: no claim to sell, and no „keine Freigabe“ on its size.
-            if ($verdict !== null && $verdict->tyreUnconfirmed()) {
-                $open = true;
-                // Merged toward caution, as the rest of the claim: one size approved with Auflagen and the card says so.
-                $openConditional = $openConditional || $verdict->wheelStatus === VerdictStatus::Conditional;
-
-                if (isset($diameterOf[$configId])) {
-                    $fitting[$diameterOf[$configId]] = true;
-                }
-
-                continue;
-            }
-
-            // No verdict (no vehicle, or not asked about) is no claim — never a default yes.
-            if ($verdict === null || ! $verdict->isSellable()) {
-                continue;
-            }
-
-            $status = ($status === VerdictStatus::Conditional || $verdict->status === VerdictStatus::Conditional)
-                ? VerdictStatus::Conditional
-                : VerdictStatus::Permitted;
-            $requiresEntry = $requiresEntry || $verdict->requiresEntry;
-            $allNotes = $allNotes && ($verdict->status !== VerdictStatus::Conditional || $verdict->notesOnly());
-            $groups = $verdict->conditionGroups();
-            $vary = $vary || $groups->differBySize() || $groups->entryDiffers();
-
-            if ($conditions === null) {
-                $conditions = $groups->combination;
-            } else {
-                $mine = array_map($key, $groups->combination);
-                $vary = $vary || count($mine) !== count($conditions) || array_diff($mine, array_map($key, $conditions)) !== [];
-                $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => in_array($key($c), $mine, true)));
-            }
-
-            if (isset($diameterOf[$configId])) {
-                $fitting[$diameterOf[$configId]] = true;
+            if ($verdict !== null && ($verdict->isSellable() || $verdict->tyreUnconfirmed()) && isset($facts[$configId])) {
+                $fitting[$facts[$configId]['diameter']] = true;
             }
         }
 
@@ -197,48 +145,78 @@ final readonly class ProductCards
         $diametersFitting = array_map('strval', array_keys($fitting));
         usort($diametersFitting, static fn (string $a, string $b): int => (float) str_replace(',', '.', $a) <=> (float) str_replace(',', '.', $b));
 
-        // The listing and the engine disagree about this card. It makes no positive claim — save the wheel's own half,
-        // where the document approves it and only the tyres are open.
-        if ($status === null) {
+        $openOn = OpeningSize::pick(array_map(static fn (int $configId): array => [
+            'id' => $configId,
+            'verdict' => $verdicts[$configId] ?? null,
+            'inStock' => $facts[$configId]['inStock'] ?? false,
+            'priceCents' => $facts[$configId]['priceCents'] ?? 0,
+        ], $configIds));
+        $verdict = $openOn === null ? null : ($verdicts[$openOn] ?? null);
+
+        // No verdict (no vehicle, or not asked about) is no claim — never a default yes.
+        if ($verdict === null) {
             return [
                 'status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false,
-                'diametersFitting' => $open ? $diametersFitting : [], 'tyresOpen' => $open, 'wheelConditional' => $openConditional,
+                'diametersFitting' => [], 'tyresOpen' => false, 'wheelConditional' => false, 'openOn' => $openOn,
             ];
         }
 
-        $conditions ??= [];
+        // The wheel approved, its tyres not yet confirmed: the wheel's half, and that the tyres are open — as the page says.
+        if (! $verdict->isSellable()) {
+            $open = $verdict->tyreUnconfirmed();
 
-        // Merged across configurations, "Keine Eintragung erforderlich." from one of them would
-        // contradict the entry another one needs.
-        if ($requiresEntry) {
-            $conditions = array_filter($conditions, static fn (Condition $c): bool => $c->code !== 'NO_ENTRY_REQUIRED');
+            return [
+                'status' => $verdict->status->value, 'requiresEntry' => $verdict->requiresEntry, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false,
+                'diametersFitting' => $open ? $diametersFitting : [], 'tyresOpen' => $open,
+                'wheelConditional' => $open && $verdict->wheelStatus === VerdictStatus::Conditional, 'openOn' => $openOn,
+            ];
+        }
+
+        $groups = $verdict->conditionGroups();
+        $conditions = $groups->combination;
+        $mine = array_map($key, $conditions);
+        // Further Auflagen with another size than the one named — its tyres', or another sold size's own.
+        $vary = $groups->differBySize() || $groups->entryDiffers();
+
+        foreach ($configIds as $configId) {
+            $other = $verdicts[$configId] ?? null;
+
+            if ($configId === $openOn || $other === null || ! $other->isSellable()) {
+                continue;
+            }
+
+            $theirs = array_map($key, $other->conditionGroups()->combination);
+            $vary = $vary || $other->requiresEntry !== $verdict->requiresEntry || count($theirs) !== count($mine) || array_diff($theirs, $mine) !== [];
+        }
+
+        // „Keine Eintragung erforderlich.“ never beside an entry the same verdict requires.
+        if ($verdict->requiresEntry) {
+            $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => $c->code !== 'NO_ENTRY_REQUIRED'));
         }
 
         return [
-            'status' => $status->value,
-            'requiresEntry' => $requiresEntry,
-            // Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
-            'notesOnly' => $status === VerdictStatus::Conditional && ! $requiresEntry && $allNotes,
-            'conditions' => array_values(array_map(
-                static fn (Condition $c): string => $c->sentenceDe(),
-                $conditions,
-            )),
-            // Further Auflagen depend on the rim or tyre size: the tile says so and points to the product page.
+            'status' => $verdict->status->value,
+            'requiresEntry' => $verdict->requiresEntry,
+            // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
+            'notesOnly' => $verdict->status === VerdictStatus::Conditional && ! $verdict->requiresEntry && $verdict->notesOnly(),
+            'conditions' => array_values(array_map(static fn (Condition $c): string => $c->sentenceDe(), $conditions)),
             'conditionsVary' => $vary,
             'diametersFitting' => $diametersFitting,
             'tyresOpen' => false,
             'wheelConditional' => false,
+            // The size the card speaks for: its link opens the page on it (`groesse`).
+            'openOn' => $openOn,
         ];
     }
 
     /**
-     * Each configuration's diameter, formatted the way the card lists its sizes, for every
-     * configuration a page of cards stands for — one query for the page.
+     * What the pick of a card's size reads of each configuration on the page (OpeningSize): its diameter as the card spells
+     * it, its price and whether it is available.
      *
      * @param  array<string, list<int>>  $configIdsByCard
-     * @return array<int, string>
+     * @return array<int, array{diameter: string, priceCents: int, inStock: bool}>
      */
-    private function diameterByConfig(array $configIdsByCard): array
+    private function sizeFacts(array $configIdsByCard): array
     {
         $ids = array_values(array_unique(array_merge([], ...array_values($configIdsByCard))));
 
@@ -248,8 +226,12 @@ final readonly class ProductCards
 
         $out = [];
 
-        foreach (DB::table('wheel_configs')->whereIn('id', $ids)->get(['id', 'diameter_in']) as $row) {
-            $out[(int) $row->id] = GermanFormat::trimmedDecimal((string) $row->diameter_in, 1);
+        foreach (DB::table('wheel_configs')->whereIn('id', $ids)->get(['id', 'diameter_in', 'price_cents', 'available']) as $row) {
+            $out[(int) $row->id] = [
+                'diameter' => GermanFormat::trimmedDecimal((string) $row->diameter_in, 1),
+                'priceCents' => (int) $row->price_cents,
+                'inStock' => (bool) $row->available,
+            ];
         }
 
         return $out;

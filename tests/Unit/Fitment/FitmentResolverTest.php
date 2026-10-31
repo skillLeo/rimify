@@ -229,9 +229,26 @@ it('yields NOT_PERMITTED when width or offset falls outside the permitted range'
         ->and($verdict->reason?->code)->toBe(VerdictReason::WIDTH_OR_ET_OUTSIDE_RANGE);
 });
 
-it('yields NOT_PERMITTED when the row covers the car but permits no tyre size', function (): void {
+// M-6 (the operator's answer of 31.10.2026): a row that holds no tyre size at all is our record of the document cut
+// short — the release door refuses it — not the document ruling the car out. „Noch nicht bestätigt“, and no rim sold alone.
+it('answers UNKNOWN, never NOT_PERMITTED, where the row covering the car holds no tyre size on record', function (): void {
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(sizes: [])])
         ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->reason?->code)->toBe(VerdictReason::TYRE_SIZES_NOT_RECORDED)
+        ->and($verdict->reason?->textDe)->toBe('Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst. Bis dahin können wir die Freigabe nicht bestätigen.')
+        ->and($verdict->isSellable())->toBeFalse()
+        ->and($verdict->tyreUnconfirmed())->toBeFalse()
+        ->and($verdict->forRimAlone())->toBeNull();
+});
+
+it('yields NOT_PERMITTED where the documents’ sizes on record leave none for the car', function (): void {
+    // Two documents, each with its sizes, none in common: the documents spoke.
+    $verdict = FitmentFixtures::resolver([
+        FitmentFixtures::row(id: 1, sizes: [new TyreSize(255, 40, 18.0)]),
+        FitmentFixtures::row(id: 2, sizes: [new TyreSize(245, 45, 18.0)]),
+    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
 
     expect($verdict->status)->toBe(VerdictStatus::NotPermitted)
         ->and($verdict->reason?->code)->toBe(VerdictReason::NO_TYRE_SIZE);

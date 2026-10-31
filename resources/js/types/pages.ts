@@ -375,6 +375,8 @@ export interface ProduktProps {
     /** `image`: the finish's own studio photograph and its other angles, or null — then it is drawn. */
     finishes: { id: number; name: string; hex: string | null; artFinish: string; image: ImageManifest | null }[]
     configs: ProduktConfig[]
+    /** Finish id → the size the page opens on, picked on the server by the rule the cards follow (OpeningSize, M-6). */
+    openOn?: Record<string, number | null>
     hasVehicle: boolean
     /** `Lieferzeit 3–5 Werktage · Versand 4,90 €` (Shipping::summary): only what is given; null while nothing is. */
     shipping?: string | null

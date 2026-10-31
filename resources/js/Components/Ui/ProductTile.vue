@@ -56,8 +56,12 @@ const props = withDefaults(
     }
 )
 
-/* The product page opens on this card's finish: one wheel, one answer, one click apart. */
-const href = computed(() => `/felgen/${props.card.slug}?ausfuehrung=${props.card.finishId}`)
+/* The product page opens on this card's finish and on the size its verdict is about (M-6): one wheel, one answer, one click apart. */
+const href = computed(() => {
+    const size = props.card.fitment?.openOn ?? null
+
+    return `/felgen/${props.card.slug}?ausfuehrung=${props.card.finishId}${size === null ? '' : `&groesse=${size}`}`
+})
 const fullName = computed(() => `${props.card.brandName} ${props.card.modelName} ${props.card.finishName}`)
 
 /*

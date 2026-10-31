@@ -66,6 +66,21 @@ describe('useConfigurator', () => {
         expect(c.selected.value?.id).toBe(3)
     })
 
+    // M-6: the page opens on the size the server picked for this finish — the size its card speaks for and links to — and
+    // never on one the browser picked by a rule of its own; a size named in the link still comes first.
+    it('opens on the size the server names for the finish, before its own pick, and after a size in the link', () => {
+        const configs = [
+            config({ id: 1, diameterIn: 18, priceCents: 90000 }),
+            config({ id: 2, diameterIn: 19, priceCents: 95000 }),
+        ]
+
+        expect(useConfigurator(() => configs, 10).selected.value?.id).toBe(1)
+        expect(useConfigurator(() => configs, 10, null, () => ({ '10': 2 })).selected.value?.id).toBe(2)
+        expect(useConfigurator(() => configs, 10, 1, () => ({ '10': 2 })).selected.value?.id).toBe(1)
+        // A size of another finish is no answer here.
+        expect(useConfigurator(() => configs, 10, null, () => ({ '10': 77 })).selected.value?.id).toBe(1)
+    })
+
     // Finding 103: struck through reads as forbidden. A wheel its Gutachten approves, with a tyre size nobody could
     // confirm, is unverified — a third state, and one that can be chosen so its answer can be read.
     it('tells an unconfirmed size from a refused one: the wheel approved and the tyre without an answer is not blocked', () => {

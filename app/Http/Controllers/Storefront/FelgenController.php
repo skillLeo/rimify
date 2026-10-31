@@ -40,6 +40,7 @@ use App\Services\Storage\DocumentFiles;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\FitmentDetail;
 use App\Services\Storefront\HomeStats;
+use App\Services\Storefront\OpeningSize;
 use App\Services\Storefront\ProductCards;
 use App\Services\Storefront\ProductJsonLd;
 use App\Services\Storefront\RecentlyViewed;
@@ -277,9 +278,10 @@ class FelgenController extends Controller
             $verdict = $verdicts[$config->id] ?? null;
             $row = $this->configRow($config, $verdict, $colour, $colours, trim($rimName.' '.($colourNames[$config->wheel_finish_id] ?? '')));
 
-            // Not a wheel approved with its tyres unconfirmed (finding 103, D-286): its Gutachten is held, and counting it
-            // would rank a document we have on the Übersicht's list of documents to buy.
-            if ($verdict?->status === VerdictStatus::Unknown && ! $verdict->tyreUnconfirmed()) {
+            // Not a wheel approved with its tyres unconfirmed (finding 103, D-286), nor a row whose tyre sizes we have not
+            // entered (M-6): its Gutachten is held, and counting it would rank a document we have on the Übersicht's list of
+            // documents to buy.
+            if ($verdict?->status === VerdictStatus::Unknown && ! $verdict->tyreUnconfirmed() && $verdict->reason?->code !== VerdictReason::TYRE_SIZES_NOT_RECORDED) {
                 $anyUnknown = true;
             }
 
@@ -297,7 +299,19 @@ class FelgenController extends Controller
             );
         }
 
-        return $this->renderProduct($request, $wheel, $configs, $vehicleId, $colours);
+        // The size each finish opens on, by the rule its card follows too (OpeningSize, M-6): one answer on both.
+        $openOn = [];
+
+        foreach ($wheel->configs->groupBy('wheel_finish_id') as $finishId => $group) {
+            $openOn[(int) $finishId] = OpeningSize::pick($group->map(static fn (WheelConfig $config): array => [
+                'id' => (int) $config->id,
+                'verdict' => $verdicts[$config->id] ?? null,
+                'inStock' => (bool) $config->available,
+                'priceCents' => (int) $config->price_cents,
+            ])->values()->all());
+        }
+
+        return $this->renderProduct($request, $wheel, $configs, $vehicleId, $colours, $openOn);
     }
 
     /**
@@ -376,8 +390,9 @@ class FelgenController extends Controller
     /**
      * @param  list<array<string, mixed>>  $configs
      * @param  Collection<int, BalanceWeightColour>  $colours
+     * @param  array<int, int|null>  $openOn  finish id → the size the page opens on (OpeningSize)
      */
-    private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours): Response
+    private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours, array $openOn = []): Response
     {
         $finishes = [];
 
@@ -430,6 +445,8 @@ class FelgenController extends Controller
                 ])->all(),
             'finishes' => $finishes,
             'configs' => $configs,
+            // The size each finish opens on, chosen on the server by the rule the cards follow (OpeningSize, M-6).
+            'openOn' => (object) $openOn,
             'hasVehicle' => $vehicleId !== null,
             // A seeded demonstration model: the page shows "Beispielsortiment" rather than "Auf
             // Lager" and says it cannot be ordered yet. The basket stays walkable; the checkout
