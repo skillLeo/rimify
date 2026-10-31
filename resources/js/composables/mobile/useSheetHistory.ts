@@ -2,10 +2,13 @@
  * Android back and browser back close an open bottom sheet instead of leaving the page.
  *
  * Opening a sheet pushes one history entry that copies the current Inertia state and adds a
- * marker. Inertia handles `popstate` in the bubble phase on `window`; this module listens in the
- * capture phase, which the DOM fires first even at the target, and swallows the event with
- * `stopImmediatePropagation()` while a sheet is open — so Inertia never sees the pop and never
- * re-renders the page. The page keeps its state; only the sheet closes.
+ * marker. Inertia handles `popstate` from a listener it adds on `window` when the app starts; this
+ * module's listener swallows the event with `stopImmediatePropagation()` while a sheet is open — so
+ * Inertia never sees the pop and never re-renders the page. The page keeps its state; only the sheet
+ * closes. At the window the browser calls listeners in the order they were added, capture or not
+ * (Chromium; WebKit puts capture first), so the listener is added in app.ts before the app starts —
+ * added on the first sheet, after Inertia's, it came too late on Android and every closed sheet threw
+ * the page's state away (HQ-24; popstateGuard.ts says the same for the admin's forms).
  *
  * Closing a sheet by any other means (handle, backdrop, button) pops that entry again, so the
  * history never carries a dead entry. A navigation while a sheet is open strips the marker in
@@ -49,7 +52,8 @@ function onPopstate(event: PopStateEvent): void {
     top.onBack()
 }
 
-function install(): void {
+/** Adds the listener. Call in app.ts before the app starts, so it runs ahead of Inertia's (HQ-24). */
+export function installSheetHistory(): void {
     if (installed || typeof window === 'undefined') {
         return
     }
@@ -68,7 +72,7 @@ export interface SheetHistory {
 }
 
 export function useSheetHistory(id: string, onBack: () => void): SheetHistory {
-    install()
+    installSheetHistory()
 
     function owns(): boolean {
         const top = stack[stack.length - 1]
