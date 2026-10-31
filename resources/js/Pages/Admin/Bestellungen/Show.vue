@@ -100,6 +100,8 @@ const props = defineProps<{
         smallBusiness?: boolean
         total: number
         demo: boolean
+        /** Born demo through the shop's checkout, not seeded (D-239, HQ-30). */
+        testPurchase?: boolean
         test: boolean
     }
     customer: { name: string | null; email: string | null; phone: string | null }
@@ -303,7 +305,9 @@ function tagClass(state: OrderState): string | null {
 
 <template>
     <AdminPage :title="`Bestellung ${order.number}`" :context="context">
-        <p v-if="order.demo" class="bs-demo" role="note">Diese Bestellung gehört zu den Demodaten. Niemand hat sie aufgegeben; es wird nichts versandt.</p>
+        <!-- A test purchase placed through the shop with demo goods is born demo too (D-239): somebody did place it (HQ-30). -->
+        <p v-if="order.demo && order.testPurchase" class="bs-demo" role="note">Ein Testkauf mit Demodaten, im Shop über die Testzahlung aufgegeben: Es ist kein Geld geflossen, und es wird nichts versandt.</p>
+        <p v-else-if="order.demo" class="bs-demo" role="note">Diese Bestellung gehört zu den Demodaten. Niemand hat sie aufgegeben; es wird nichts versandt.</p>
         <p v-else-if="order.test" class="bs-demo" role="note">Testbestellung über die Testzahlung – dabei fließt kein Geld, was auch immer der Status sagt.</p>
 
         <div class="bs-top">

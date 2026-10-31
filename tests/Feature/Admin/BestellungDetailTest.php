@@ -20,6 +20,7 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Commerce\OrderWriter;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
@@ -161,4 +162,16 @@ it('is refused to a role without the orders right (R-11)', function (): void {
     $order = Order::factory()->create();
 
     $this->actingAs(detailAdmin('content-editor'), 'admin')->get('/admin/bestellungen/'.$order->id)->assertForbidden();
+});
+
+it('tells a test purchase placed in the shop from seeded demo data — never „Niemand hat sie aufgegeben“ over one somebody placed (HQ-30)', function (): void {
+    // Human QA, 31.10.2026: a test purchase with the acceptance set's wheels is born demo (D-239), and its page said that
+    // nobody had placed it. The ref it was born with says who did: the shop's checkout.
+    $placed = Order::factory()->create(['is_demo' => true, 'demo_ref' => OrderWriter::DEMO_PREFIX.'qa:order']);
+    $seeded = Order::factory()->create(['is_demo' => true, 'demo_ref' => 'demo:bestellung:1']);
+
+    $this->actingAs(detailAdmin(), 'admin')->get('/admin/bestellungen/'.$placed->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('order.demo', true)->where('order.testPurchase', true));
+    $this->actingAs(detailAdmin(), 'admin')->get('/admin/bestellungen/'.$seeded->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('order.demo', true)->where('order.testPurchase', false));
 });
