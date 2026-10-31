@@ -28,14 +28,30 @@ export function useListingFilters(
 ): ListingFilters {
     const current = computed(() => filters() as FilterState)
 
+    // The set last asked for, until its answer is on screen. A second tap before the first answer
+    // cancels the first visit; built from the page's filters, it would drop the first tap while its
+    // box stayed ticked — 16 and 17 ticked, 17 alone shown (HQ-26). Built from this, taps add up.
+    let pending: FilterState | null = null
+    const latest = (): FilterState => pending ?? current.value
+
     function visit(next: FilterState): void {
+        pending = next
         // `preserveScroll` because the customer is looking at the filter they just changed, and
         // `replace` so a run of filter taps does not fill the history with near-identical entries.
-        router.get(path, next, { preserveScroll: true, preserveState: true, replace: true })
+        router.get(path, next, {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+            onFinish: () => {
+                if (pending === next) {
+                    pending = null
+                }
+            },
+        })
     }
 
     function toggle(facet: string, value: string): void {
-        const next = { ...current.value }
+        const next = { ...latest() }
         const raw = next[facet]
         const values = Array.isArray(raw) ? raw.map(String) : []
 
@@ -57,7 +73,7 @@ export function useListingFilters(
     }
 
     function toggleEntry(): void {
-        const next = { ...current.value }
+        const next = { ...latest() }
 
         if (next.ohne_eintragung === true) {
             delete next.ohne_eintragung
