@@ -106,4 +106,8 @@ return [
     'Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN' => ['ours', 'describes an admin screen and the rows we hold per vehicle'],
     'Vollständigkeit jedes freigegebenen Gutachtens beantwortet' => ['ours', 'names our own recorded answer (D-227), not the document'],
     'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what a reset level removes'],
+
+    // ── The Gutachten sketch (D-380): a paper's own code texts, quoted as the paper prints them ─────────────────────────
+    'Wird eine in diesem Gutachten aufgeführte Reifengröße verwendet' => ['backed', 'code 11B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper\'s own text in the sketch'],
+    'Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt' => ['backed', 'code 68B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper\'s own text in the sketch'],
 ];

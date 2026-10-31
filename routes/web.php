@@ -45,6 +45,7 @@ use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\RueckbuchungenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
+use App\Http\Controllers\Admin\SkizzeController;
 use App\Http\Controllers\Admin\SpeicherController;
 use App\Http\Controllers\Admin\SudoController;
 use App\Http\Controllers\Admin\SystemController;
@@ -86,6 +87,7 @@ use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\RobotsController;
 use App\Http\Controllers\Storefront\SesWebhookController;
 use App\Http\Controllers\Storefront\SitemapController;
+use App\Http\Controllers\Storefront\SkizzeController as SkizzeShopController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
@@ -132,6 +134,13 @@ Route::get('/felgen/{model}', [FelgenController::class, 'show'])->name('felgen.s
 Route::get('/gutachten/{document}/beispiel', [BeispielGutachtenController::class, 'show'])->whereNumber('document')->name('gutachten.beispiel');
 // Up to four wheels side by side; the keys travel in `?f=` so a comparison is a link.
 Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich.index');
+
+// The shop sketches of the Gutachten rework (Phase 1): example pages to click through before anything is built. A test
+// environment's alone, as the reset is (TestEnvironment) — the live shop has no such address.
+if (TestEnvironment::environmentAllows()) {
+    Route::get('/skizze/felge', [SkizzeShopController::class, 'felge'])->name('skizze.felge');
+    Route::get('/skizze/komplettraeder', [SkizzeShopController::class, 'komplettraeder'])->name('skizze.komplettraeder');
+}
 
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');
@@ -371,6 +380,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         // Gutachten › Auflagen: every document's own list, read-only; each is written on its Gutachten.
         Route::get('/auflagen', [AuflagenController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('auflagen.index');
+
+        // The admin sketches of the Gutachten rework (Phase 1), in memory only: a test environment's alone, never the live
+        // shop's (TestEnvironment); each under the permission of the area it sketches.
+        if (TestEnvironment::environmentAllows()) {
+            Route::get('/skizze/gutachten', [SkizzeController::class, 'gutachten'])->middleware(EnsureAdminMay::class.':approvals,view')->name('skizze.gutachten');
+            Route::get('/skizze/reifen', [SkizzeController::class, 'reifen'])->middleware(EnsureAdminMay::class.':catalogue,view')->name('skizze.reifen');
+        }
 
         // Gutachten › Konflikte: where documents disagree, the shop says UNKNOWN until a person decides here.
         Route::get('/konflikte', [KonflikteController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.index');

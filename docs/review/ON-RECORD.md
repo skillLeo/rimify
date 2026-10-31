@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**78 sentences: 1 open, 23 backed by a recorded field, 50 about the shop itself, 4 not sentences.**
+**80 sentences: 1 open, 25 backed by a recorded field, 50 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -47,6 +47,8 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht – der Shop sagt das dazu.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | the field being filled in: valid_from_production |
 | „Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs, der Geschwindigkeitsindex steht so im Gutachten.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the speed symbol recorded as the document's own minimum (source „document“, R-06) |
 | „Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the load index recorded as the document's own minimum (source „document“, R-06) |
+| „Wird eine in diesem Gutachten aufgeführte Reifengröße verwendet, die nicht bereits in der Fahrzeuggenehmigung für diesen Fahrzeug-Typ/ -Variante/ -Version bzw.“ | admin | `Pages/Admin/Skizze/gutachtenDemo.ts` | code 11B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper's own text in the sketch |
+| „Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 225/40R18 Hinterachse: 255/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig.“ | admin | `Pages/Admin/Skizze/gutachtenDemo.ts` | code 68B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper's own text in the sketch |
 
 ## About the shop — what it does, holds or requires, not what a document contains
 
