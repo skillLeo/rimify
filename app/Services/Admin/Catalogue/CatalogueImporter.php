@@ -101,6 +101,16 @@ final class CatalogueImporter
             $byKey[self::headerKey($header)] ??= $header;
         }
 
+        // A column that names its unit, as the fields here name theirs — „Durchmesser (Zoll)“, „Mittenlochbohrung in mm“
+        // — maps too; a spelling the file gives exactly comes first (Human QA, HQ-29).
+        foreach ($headers as $header) {
+            $bare = self::unitless($header);
+
+            if ($bare !== '') {
+                $byKey[$bare] ??= $header;
+            }
+        }
+
         foreach (self::FIELDS as $field => $spec) {
             $remembered = $saved[$field] ?? null;
 
@@ -128,6 +138,12 @@ final class CatalogueImporter
         $key = strtr($key, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss']);
 
         return (string) preg_replace('/[^a-z0-9]/', '', $key);
+    }
+
+    /** A header's key without the unit it ends on — „Achslast vorn in kg“ → `achslastvorn`, „Breite (Zoll)“ → `breite` (HQ-29). */
+    public static function unitless(string $header): string
+    {
+        return (string) preg_replace('/(?:in)?(?:kg|kmh|kw|zoll|mm|eur|euro|g)$/', '', self::headerKey($header));
     }
 
     /**

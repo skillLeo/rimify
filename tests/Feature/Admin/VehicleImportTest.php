@@ -458,3 +458,20 @@ it('lets only who may import and create vehicles bring a file in (R-11)', functi
 
     expect(Vehicle::query()->count())->toBe(0);
 });
+
+it('maps a column whose name carries its unit, as the fields name themselves — „Achslast vorn in kg“, „Zulässige Gesamtmasse kg“ (HQ-29)', function (): void {
+    // Human QA, 31.10.2026: only the exact spellings were known, so the total mass beside 8.1 and 8.2 went unread and
+    // the check against it said „Keine Spalte für Feld F.2 zugeordnet“.
+    $mapping = VehicleImporter::guessMapping(['HSN', 'TSN', 'Achslast vorn in kg', 'Achslast hinten kg', 'Höchstgeschwindigkeit in km/h', 'Leistung in kW', 'Zulässige Gesamtmasse kg']);
+
+    expect($mapping)->toMatchArray([
+        'achslast_vorn_kg' => 'Achslast vorn in kg',
+        'achslast_hinten_kg' => 'Achslast hinten kg',
+        'hoechstgeschwindigkeit_kmh' => 'Höchstgeschwindigkeit in km/h',
+        'leistung_kw' => 'Leistung in kW',
+        'gesamtmasse_kg' => 'Zulässige Gesamtmasse kg',
+    ]);
+
+    // A spelling the file gives exactly still wins over one it gives with a unit.
+    expect(VehicleImporter::guessMapping(['Leistung in kW', 'Leistung'])['leistung_kw'])->toBe('Leistung');
+});
