@@ -31,7 +31,7 @@ it('refuses a standalone tyre with a 422 and leaves the basket as it was', funct
 
     expect(session(Basket::SESSION_KEY))->toBeNull();
 
-    $this->get('/warenkorb')->assertInertia(fn (AssertableInertia $page) => $page->has('lines', 0)->where('totals.count', 0));
+    $this->get('/warenkorb')->assertInertia(fn (AssertableInertia $page) => $page->has('lines', 0)->where('totals.count', 0)->where('orderWait', null));
 });
 
 it('takes a wheel line whose tyre the verdict permits, and refuses one it does not', function (): void {
