@@ -420,6 +420,33 @@ describe('HeroSelector — Marke → Modell → Fahrzeug', () => {
 })
 
 describe('HeroSelector — HSN/TSN', () => {
+
+    // HQ-31 (Human QA, 31.10.2026): the HSN moves on to the TSN by itself after its fourth digit; the Tab a keyboard user
+    // presses there out of habit left the empty TSN for the help button, and the TSN went into nothing.
+    it('keeps the focus on the empty TSN for the first Tab after the HSN moved on by itself', async () => {
+        const wrapper = mountSelector()
+        await openTab(wrapper, 'HSN/TSN')
+        const hsn = byLabel(wrapper, 'HSN (Feld 2.1)')
+        const tsn = byLabel(wrapper, 'TSN (Feld 2.2)')
+
+        await hsn.setValue('0005')
+        expect(document.activeElement).toBe(tsn.element)
+
+        const first = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+        tsn.element.dispatchEvent(first)
+        expect(first.defaultPrevented).toBe(true)
+
+        // Only that one: a second Tab leaves, as does a Tab once something is typed, and Shift+Tab always goes back.
+        const second = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+        tsn.element.dispatchEvent(second)
+        expect(second.defaultPrevented).toBe(false)
+
+        await hsn.setValue('0006')
+        const back = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })
+        tsn.element.dispatchEvent(back)
+        expect(back.defaultPrevented).toBe(false)
+    })
+
     it('explains the two shapes under the fields on blur', async () => {
         const wrapper = mountSelector()
         await openTab(wrapper, 'HSN/TSN')

@@ -25,6 +25,7 @@ import { useShared } from '../../../composables/useShared'
 import { contactHref } from '../../../lib/contact'
 import { cleanHsn, cleanTsn, HSN_LENGTH, splitKeys, TSN_LENGTH, useVehiclePicker, type VariantRow } from '../../../composables/mobile/useVehiclePicker'
 import type { DocVariant } from '../../../art'
+import { useAutoAdvance } from '../../../composables/useAutoAdvance'
 import type { LookupResult, MakeOption } from '../../../types/pages'
 import type { GarageVehicle } from '../../../types/rimify'
 
@@ -169,8 +170,12 @@ function takeKeys(field: HTMLInputElement, raw: string): void {
 
     if (keys.hsn.length === HSN_LENGTH) {
         tsnField.value?.focus()
+        advance.moved()
     }
 }
+
+/* The first Tab after the HSN moved on to the TSN stays on the empty TSN (HQ-31). */
+const advance = useAutoAdvance()
 
 function onTsn(event: Event): void {
     picker.tsn.value = cleanTsn((event.target as HTMLInputElement).value)
@@ -582,7 +587,8 @@ const totalLabel = computed(() => (props.total === null ? null : decimal(props.t
                                 :aria-invalid="tsnError ? 'true' : undefined"
                                 :aria-describedby="`${uid}-keys-error`"
                                 @input="onTsn"
-                                @blur="validateTsn"
+                                @blur="advance.reset(); validateTsn()"
+                                @keydown="advance.keydown"
                                 @keydown.enter.prevent="submit"
                             >
                         </div>
