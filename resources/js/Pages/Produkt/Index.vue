@@ -64,7 +64,7 @@ const terms = computed(() => priceTerms(shared.value.smallBusiness === true))
 const page = usePage()
 /* `groesse` in the link — the RIMIFY-Check's „Alles zur Felge“ — opens the page on the size it answered (CHECK-13). */
 const linkedSize = Number(new URLSearchParams((page.url ?? '').split('?')[1] ?? '').get('groesse')) || null
-const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, linkedSize)
+const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, linkedSize, () => props.openOn ?? {})
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)

@@ -296,6 +296,8 @@ export interface CardFitment {
     tyresOpen?: boolean
     /** With `tyresOpen`: the wheel is approved with Auflagen in at least one size, as the product page's panel says. */
     wheelConditional?: boolean
+    /** The size the card speaks for, picked by the rule the product page opens by (OpeningSize, M-6): its link opens it. */
+    openOn?: number | null
 }
 
 export interface FacetOption {

@@ -1480,6 +1480,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Services\\Storefront\\HomeShelf' => __DIR__ . '/../..' . '/app/Services/Storefront/HomeShelf.php',
         'App\\Services\\Storefront\\HomeStats' => __DIR__ . '/../..' . '/app/Services/Storefront/HomeStats.php',
         'App\\Services\\Storefront\\MegaMenu' => __DIR__ . '/../..' . '/app/Services/Storefront/MegaMenu.php',
+        'App\\Services\\Storefront\\OpeningSize' => __DIR__ . '/../..' . '/app/Services/Storefront/OpeningSize.php',
         'App\\Services\\Storefront\\PostalCodes' => __DIR__ . '/../..' . '/app/Services/Storefront/PostalCodes.php',
         'App\\Services\\Storefront\\ProductCards' => __DIR__ . '/../..' . '/app/Services/Storefront/ProductCards.php',
         'App\\Services\\Storefront\\ProductJsonLd' => __DIR__ . '/../..' . '/app/Services/Storefront/ProductJsonLd.php',

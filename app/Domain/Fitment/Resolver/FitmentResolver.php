@@ -443,6 +443,21 @@ final readonly class FitmentResolver
 
         // Step 5's failure mode: the document covers the car but nothing is legally mountable.
         if (! $front->hasPermittedSizes() && ! $rear->hasPermittedSizes()) {
+            // A covering row with no tyre size on record says nothing of the tyres: the release door refuses such a row
+            // („Eine Zeile hat keine Reifengröße“), only data written past it holds one. Then the document has not ruled
+            // the car out, our record of it is short — „Noch nicht bestätigt“, never „nicht freigegeben“ (M-6, the
+            // operator's answer of 31.10.2026). Sizes on record that the car's kW band, its axles or a second document
+            // leave none of stay refused below: there the documents spoke.
+            if (array_filter($covering, static fn (FitmentRow $row): bool => $row->tyreSizes === []) !== []) {
+                return $this->negative(
+                    VerdictStatus::Unknown,
+                    $vehicle,
+                    $wheel,
+                    VerdictReason::of(VerdictReason::TYRE_SIZES_NOT_RECORDED),
+                    $covering[0]->document,
+                );
+            }
+
             return $this->negative(
                 VerdictStatus::NotPermitted,
                 $vehicle,

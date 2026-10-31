@@ -39,6 +39,13 @@ final readonly class VerdictReason
 
     public const NO_TYRE_SIZE = 'NO_TYRE_SIZE';
 
+    /**
+     * A row names the car and holds no tyre size at all: our record of the document is short, the document has not
+     * ruled the car out — the release door refuses such a row, only data written past it holds one. Not a refusal
+     * (M-6, the operator's answer of 31.10.2026).
+     */
+    public const TYRE_SIZES_NOT_RECORDED = 'TYRE_SIZES_NOT_RECORDED';
+
     public const REFERENCE_DATA_MISSING = 'REFERENCE_DATA_MISSING';
 
     /** A code on a covering row that its own document does not define (the corrections memo §1). */
@@ -126,6 +133,7 @@ final readonly class VerdictReason
             self::OUTSIDE_BUILD_WINDOW => 'Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs.',
             self::WIDTH_OR_ET_OUTSIDE_RANGE => 'Breite oder Einpresstiefe liegen außerhalb der Freigabe.',
             self::NO_TYRE_SIZE => 'Für diese Kombination ist keine Reifengröße freigegeben.',
+            self::TYRE_SIZES_NOT_RECORDED => 'Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst. Bis dahin können wir die Freigabe nicht bestätigen.',
             self::REFERENCE_DATA_MISSING => 'Für die Prüfung der Reifen fehlen uns gerade die Tabellen der Tragfähigkeits- und Geschwindigkeitsindizes. Das liegt an uns, nicht an deinem Fahrzeug – bis sie hinterlegt sind, können wir die Freigabe nicht bestätigen.',
             self::CONDITION_UNRESOLVED => 'Eine Auflage des Gutachtens ist bei uns noch nicht vollständig erfasst. Bis dahin können wir die Freigabe nicht bestätigen.',
             self::BODY_OR_DRIVE_EXCLUDED => 'Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.',

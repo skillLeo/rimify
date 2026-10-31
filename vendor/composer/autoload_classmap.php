@@ -701,6 +701,7 @@ return array(
     'App\\Services\\Storefront\\HomeShelf' => $baseDir . '/app/Services/Storefront/HomeShelf.php',
     'App\\Services\\Storefront\\HomeStats' => $baseDir . '/app/Services/Storefront/HomeStats.php',
     'App\\Services\\Storefront\\MegaMenu' => $baseDir . '/app/Services/Storefront/MegaMenu.php',
+    'App\\Services\\Storefront\\OpeningSize' => $baseDir . '/app/Services/Storefront/OpeningSize.php',
     'App\\Services\\Storefront\\PostalCodes' => $baseDir . '/app/Services/Storefront/PostalCodes.php',
     'App\\Services\\Storefront\\ProductCards' => $baseDir . '/app/Services/Storefront/ProductCards.php',
     'App\\Services\\Storefront\\ProductJsonLd' => $baseDir . '/app/Services/Storefront/ProductJsonLd.php',
