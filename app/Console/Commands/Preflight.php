@@ -96,6 +96,7 @@ final class Preflight extends Command
         $rows[] = ['Demodaten', $demo === 0 ? 'ok' : ($production ? 'fail' : 'warn'), $demo === 0 ? 'keine' : "{$demo} Datensätze – vor dem Start demo:purge"];
         $rows[] = $this->releases($production);
         $rows[] = $this->testReset($production);
+        $rows[] = $this->sketches($production);
 
         $current = $settings->current();
         $rows[] = ['Speicher: Quelle', $current->isBucket() ? 'ok' : ($production ? 'fail' : 'warn'), match ($current->source) {
@@ -289,6 +290,29 @@ final class Preflight extends Command
             $refusal !== null => 'hier gesperrt: '.$refusal,
             default => 'erreichbar, nur in dieser Testumgebung',
         }];
+    }
+
+    /** The sketches of the Gutachten rework (Phase 1), by route name: pages of example data, a test environment's alone. */
+    public const SKETCH_ROUTES = ['skizze.felge', 'skizze.komplettraeder', 'admin.skizze.gutachten', 'admin.skizze.reifen'];
+
+    /**
+     * The sketches exist in a test environment only, as the reset does (routes/web.php, TestEnvironment): a customer of
+     * the live shop who found one would read example prices and invented approvals as the shop's. A live shop on which
+     * one answers is NO-GO.
+     *
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function sketches(bool $production): array
+    {
+        $routed = array_values(array_filter(self::SKETCH_ROUTES, static fn (string $name): bool => Route::has($name)));
+
+        if ($production) {
+            return $routed === []
+                ? ['Skizzen', 'ok', 'im Live-Shop nicht erreichbar']
+                : ['Skizzen', 'fail', 'im Live-Shop erreichbar ('.implode(', ', $routed).') – die Routen dürfen hier nicht registriert sein (Routen-Cache neu bauen: php artisan optimize)'];
+        }
+
+        return ['Skizzen', 'ok', $routed === [] ? 'nicht registriert' : 'erreichbar, nur in dieser Testumgebung'];
     }
 
     /**
