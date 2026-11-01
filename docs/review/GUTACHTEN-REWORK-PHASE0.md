@@ -7,6 +7,17 @@ The brief, the proposal PDF, the transcript, the client's answers and the screen
 carried over with the same answers. Four points differ from the brief and are set out at the end. The sketch (Phase 1)
 shows the variant that leaves the verdict logic as it is.
 
+**Decided by the operator, 1 November 2026** (D-387 to D-390). The four differences at the end are accepted. So are
+the points raised in §3, §5, §8 and §9:
+- national approval numbers match by exact comparison inside `EgNumber`;
+- a car created in step 3 joins its group directly;
+- membership is frozen at release;
+- pairs stay keyed by approval number;
+- the PDF sits beside the form without pdf.js.
+
+Once the client approves the sketch, Phase 2 comes first, then Phase 3, then Phase 4. Phase 2 is built and tested
+against a second real paper, a Teilegutachten for wheel type RC200 8,5x20 (D-390).
+
 ---
 
 ## 1 · What „Zeilen hinzufügen" stores today
