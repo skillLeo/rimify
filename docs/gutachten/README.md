@@ -10,17 +10,10 @@ Two real Gutachten, read off their PDFs and typed into the admin through the adm
 
 ## Entering them
 
-```
-RIMIFY_ADMIN_EMAIL=… RIMIFY_ADMIN_PASSWORD=… node e2e/tools/gutachten-eingabe.mjs \
-  --dokument docs/gutachten/abe-55255.json --pdf "…/Borbet DB8GT2_19_ABE_BMW.pdf"
-RIMIFY_ADMIN_EMAIL=… RIMIFY_ADMIN_PASSWORD=… node e2e/tools/gutachten-eingabe.mjs \
-  --dokument docs/gutachten/366-0350-21-WIRD-N1.json --pdf "…/Borbet DB8GT2_18_ABE_BMW.pdf"
-```
-
-Then the first command once more: six of its cars are named by the Nachtrag, and their rows follow once the
-Nachtrag stands. The tool signs in as that admin, creates each document through „Neues Gutachten" with its PDF,
-and sends the requests the entry screens send. It releases nothing: a person checks each draft against its PDF
-and presses „Freigeben". Run again, it keeps what exists and corrects a code whose sentence differs.
+Through the five steps of „Neues Gutachten“, as any paper: the PDF, the wheel's one size, the cars, their tyres, the release
+(the Gutachten rework, D-391 to D-399). The tool that used to send a transcription to the row form's endpoints went with that
+form. `rimify:demo --abnahme` seeds the two documents as examples, and `tests/Support/Gutachten/TranscriptionEntry.php` types
+them through the five steps' endpoints for the acceptance test (`tests/Feature/Fitment/BorbetAcceptanceTest.php`).
 
 ## How they were read
 
