@@ -63,6 +63,7 @@ class TyreVariantRequest extends FormRequest
         $this->merge([
             'name' => $trim($this->input('name')),
             'brand_new' => $trim($this->input('brand_new')),
+            'supplier' => $trim($this->input('supplier')),
             'speed_symbol' => $upper($this->input('speed_symbol')),
             'eu_fuel_class' => $upper($this->input('eu_fuel_class')),
             'eu_wet_grip_class' => $upper($this->input('eu_wet_grip_class')),
@@ -101,6 +102,7 @@ class TyreVariantRequest extends FormRequest
 
             'price' => ['required', 'string', 'max:24'],
             'available' => ['required', 'boolean'],
+            'supplier' => ['nullable', 'string', 'max:120'],
         ];
     }
 
@@ -132,6 +134,7 @@ class TyreVariantRequest extends FormRequest
             'eprel_id.*' => 'Gib die EPREL-Nummer nur mit Ziffern ein, höchstens zehn.',
             'price.required' => 'Bitte gib den Preis je Reifen an.',
             'available.*' => 'Bitte wähl, ob der Reifen verfügbar ist.',
+            'supplier.max' => 'Der Lieferant darf höchstens 120 Zeichen lang sein.',
         ];
     }
 
@@ -269,6 +272,7 @@ class TyreVariantRequest extends FormRequest
             'eprel_id' => $text('eprel_id'),
             'price_cents' => (int) Money::fromGerman((string) $this->validated('price')),
             'available' => $this->boolean('available'),
+            'supplier' => $text('supplier'),
         ];
     }
 

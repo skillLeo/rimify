@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Catalogue;
 
-use App\Enums\TyreSeason;
+use App\Models\TyreModel;
+use App\Models\TyreModelImage;
 use App\Models\TyreVariant;
+use App\Support\GermanFormat;
 use App\Support\SearchTerm;
 use Illuminate\Contracts\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Katalog › Reifen: the one query behind the list (his admin item 10, D-302).
+ * Katalog › Reifen: the one query behind the list (his admin item 10, D-302; the Gutachten rework §9).
  *
- * A row is one tyre — one size of one profile, as the shop sells it — with whether the shop offers it now: available
- * (D-301), and its EU label complete on record (D-303). A demonstration tyre says so and is never changed here.
+ * A row is one tyre model with what its sizes add up to: how many, in which diameters, from what price, how many suppliers, how many
+ * of them the shop offers now — available (D-301) and their EU label complete on record (D-303). Search and filters find a model by
+ * any of its sizes. Fifty to a page, so it stays usable with hundreds. A demonstration tyre says so and is never changed here.
  *
  * Parameter binding only (R-14).
  *
@@ -23,12 +27,12 @@ use Illuminate\Support\Facades\DB;
  */
 final class TyreList
 {
-    public const PER_PAGE = 25;
+    public const PER_PAGE = 50;
 
-    /** The columns the list sorts by (F-32): the tyre's name, its size, its price. `reifen` A to Z is the plain list. */
-    public const SORTS = ['reifen', 'groesse', 'preis'];
+    /** The columns the list sorts by (F-32): the tyre's name, its lowest price, when it last changed. `reifen` A to Z is the plain list. */
+    public const SORTS = ['reifen', 'preis', 'geaendert'];
 
-    /** The Stand filter, as the list names it. */
+    /** The Stand filter, as the list names it: a model with at least one such size. */
     public const STANDS = [
         'im-shop' => 'Im Shop',
         'nicht-verfuegbar' => 'Nicht verfügbar',
@@ -38,25 +42,35 @@ final class TyreList
 
     /**
      * @param  Filters  $filters
-     * @return Builder<TyreVariant>
+     * @return Builder<TyreModel>
      */
     public function query(array $filters): Builder
     {
-        $query = TyreVariant::query()
-            ->select('tyre_variants.*')
-            ->join('brands', 'brands.id', '=', 'tyre_variants.brand_id')
-            ->addSelect('brands.name as brand_name');
+        $sizes = DB::table('tyre_variants as s')
+            ->whereNull('s.deleted_at')
+            ->select('s.brand_id', 's.name', 's.season')
+            ->selectRaw('COUNT(*) as sizes, MIN(s.price_cents) as price_from, MAX(s.updated_at) as changed')
+            ->groupBy('s.brand_id', 's.name', 's.season');
+
+        $query = TyreModel::query()
+            ->select('tyre_models.*')
+            ->addSelect('brands.name as brand_name', 'sizes.sizes', 'sizes.price_from', 'sizes.changed')
+            ->join('brands', 'brands.id', '=', 'tyre_models.brand_id')
+            ->joinSub($sizes, 'sizes', static function (JoinClause $join): void {
+                $join->on('sizes.brand_id', '=', 'tyre_models.brand_id')
+                    ->on('sizes.name', '=', 'tyre_models.name')
+                    ->on('sizes.season', '=', 'tyre_models.season');
+            });
 
         $this->filter($query, $filters);
 
         $direction = $filters['richtung'] === 'ab' ? 'desc' : 'asc';
-        $name = ['brands.name', 'tyre_variants.name'];
-        $size = ['tyre_variants.diameter_in', 'tyre_variants.width_mm', 'tyre_variants.aspect', 'tyre_variants.load_index'];
+        $name = ['brands.name', 'tyre_models.name', 'tyre_models.season'];
 
         // The chosen column first, in its direction; then the plain list's order, so rows that tie keep one place.
         $first = match ($filters['sort']) {
-            'groesse' => $size,
-            'preis' => ['tyre_variants.price_cents'],
+            'preis' => ['sizes.price_from'],
+            'geaendert' => ['sizes.changed'],
             default => $name,
         };
 
@@ -64,88 +78,114 @@ final class TyreList
             $query->orderBy($column, $direction);
         }
 
-        foreach ([...$name, ...$size] as $column) {
+        foreach ($name as $column) {
             if (! in_array($column, $first, true)) {
                 $query->orderBy($column);
             }
         }
 
-        return $query->orderBy('tyre_variants.id');
+        return $query->orderBy('tyre_models.id');
+    }
+
+    /** Every model with a size, whatever the filters say. */
+    public function total(): int
+    {
+        return $this->query(['q' => null, 'marke' => null, 'saison' => null, 'zoll' => null, 'stand' => null, 'sort' => 'reifen', 'richtung' => 'auf'])->count();
     }
 
     /**
-     * @param  Builder<TyreVariant>  $query
+     * A model is in the list if one of its sizes answers: a size as a wall prints it, an EPREL number, a diameter, a stand.
+     *
+     * @param  Builder<TyreModel>  $query
      * @param  Filters  $filters
      */
     private function filter(Builder $query, array $filters): void
     {
-        $term = $filters['q'];
-
-        if ($term !== null) {
-            // A size as a tyre's wall prints it — `225/45`, `225/45 R18`, `22545` — or words: brand, profile, EPREL number.
-            if (preg_match('#^(\d{3})\s*/?\s*(\d{2})?\s*(?:Z?R\s*(\d{2}))?#i', $term, $size) === 1) {
-                // Digits alone may as well be an EPREL number (`381090`): both are looked for.
-                $eprel = ctype_digit($term) ? '%'.$term.'%' : null;
-
-                $query->where(static function (Builder $where) use ($size, $eprel): void {
-                    $where->where(static function (Builder $match) use ($size): void {
-                        $match->where('tyre_variants.width_mm', (int) $size[1]);
-
-                        if (($size[2] ?? '') !== '') {
-                            $match->where('tyre_variants.aspect', (int) $size[2]);
-                        }
-
-                        if (($size[3] ?? '') !== '') {
-                            $match->where('tyre_variants.diameter_in', (int) $size[3]);
-                        }
-                    });
-
-                    if ($eprel !== null) {
-                        $where->orWhere('tyre_variants.eprel_id', 'like', $eprel);
-                    }
-                });
-            } else {
-                // Two spaces, an umlaut written out: still found (SearchTerm, Human QA 28.10.2026).
-                $query->where(static function (Builder $where) use ($term): void {
-                    foreach (SearchTerm::likes($term) as $like) {
-                        $where->orWhere('tyre_variants.name', 'like', $like)
-                            ->orWhere('brands.name', 'like', $like)
-                            ->orWhereRaw("CONCAT_WS(' ', brands.name, tyre_variants.name) LIKE ?", [$like])
-                            ->orWhere('tyre_variants.eprel_id', 'like', $like);
-                    }
-                });
-            }
-        }
-
         if ($filters['marke'] !== null) {
-            $query->where('tyre_variants.brand_id', $filters['marke']);
+            $query->where('tyre_models.brand_id', $filters['marke']);
         }
 
         if ($filters['saison'] !== null) {
-            $query->where('tyre_variants.season', $filters['saison']);
+            $query->where('tyre_models.season', $filters['saison']);
         }
 
-        if ($filters['zoll'] !== null) {
-            $query->where('tyre_variants.diameter_in', $filters['zoll']);
+        if ($filters['q'] === null && $filters['zoll'] === null && $filters['stand'] === null) {
+            return;
         }
 
-        match ($filters['stand']) {
-            'im-shop' => $query->where('tyre_variants.is_demo', false)->where('tyre_variants.available', true)->where(static fn (QueryBuilder $q) => self::labelComplete($q)),
-            'nicht-verfuegbar' => $query->where('tyre_variants.is_demo', false)->where('tyre_variants.available', false),
-            'label-fehlt' => $query->where('tyre_variants.is_demo', false)->whereNot(static fn (QueryBuilder $q) => self::labelComplete($q)),
-            'demo' => $query->where('tyre_variants.is_demo', true),
-            default => null,
-        };
+        $query->whereExists(function (QueryBuilder $size) use ($filters): void {
+            $size->selectRaw('1')
+                ->from('tyre_variants as f')
+                ->whereNull('f.deleted_at')
+                ->whereColumn('f.brand_id', 'tyre_models.brand_id')
+                ->whereColumn('f.name', 'tyre_models.name')
+                ->whereColumn('f.season', 'tyre_models.season');
+
+            if ($filters['q'] !== null) {
+                $this->search($size, $filters['q']);
+            }
+
+            if ($filters['zoll'] !== null) {
+                $size->where('f.diameter_in', $filters['zoll']);
+            }
+
+            match ($filters['stand']) {
+                'im-shop' => $size->where('f.is_demo', false)->where('f.available', true)->where(static fn (QueryBuilder $q) => self::labelComplete($q, 'f')),
+                'nicht-verfuegbar' => $size->where('f.is_demo', false)->where('f.available', false),
+                'label-fehlt' => $size->where('f.is_demo', false)->whereNot(static fn (QueryBuilder $q) => self::labelComplete($q, 'f')),
+                'demo' => $size->where('f.is_demo', true),
+                default => null,
+            };
+        });
+    }
+
+    /** A size as a tyre's wall prints it — `225/45`, `225/45 R18`, `22545` — or words: brand, model, EPREL number. */
+    private function search(QueryBuilder $size, string $term): void
+    {
+        if (preg_match('#^(\d{3})\s*/?\s*(\d{2})?\s*(?:Z?R\s*(\d{2}))?#i', $term, $parts) === 1) {
+            // Digits alone may as well be an EPREL number (`381090`): both are looked for.
+            $eprel = ctype_digit($term) ? '%'.$term.'%' : null;
+
+            $size->where(static function (QueryBuilder $where) use ($parts, $eprel): void {
+                $where->where(static function (QueryBuilder $match) use ($parts): void {
+                    $match->where('f.width_mm', (int) $parts[1]);
+
+                    if (($parts[2] ?? '') !== '') {
+                        $match->where('f.aspect', (int) $parts[2]);
+                    }
+
+                    if (($parts[3] ?? '') !== '') {
+                        $match->where('f.diameter_in', (int) $parts[3]);
+                    }
+                });
+
+                if ($eprel !== null) {
+                    $where->orWhere('f.eprel_id', 'like', $eprel);
+                }
+            });
+
+            return;
+        }
+
+        // Two spaces, an umlaut written out: still found (SearchTerm, Human QA 28.10.2026).
+        $size->where(static function (QueryBuilder $where) use ($term): void {
+            foreach (SearchTerm::likes($term) as $like) {
+                $where->orWhere('tyre_models.name', 'like', $like)
+                    ->orWhere('brands.name', 'like', $like)
+                    ->orWhereRaw("CONCAT_WS(' ', brands.name, tyre_models.name) LIKE ?", [$like])
+                    ->orWhere('f.eprel_id', 'like', $like);
+            }
+        });
     }
 
     /** Every entry of the EU label on record (D-303), as TyreVariant::whereOffered reads it. */
-    private static function labelComplete(QueryBuilder $query): void
+    private static function labelComplete(QueryBuilder $query, string $table = 'tyre_variants'): void
     {
         foreach (array_keys(TyreVariant::LABEL_FIELDS) as $column) {
-            $query->whereNotNull('tyre_variants.'.$column);
+            $query->whereNotNull($table.'.'.$column);
         }
 
-        $query->where('tyre_variants.eprel_id', '<>', '');
+        $query->where($table.'.eprel_id', '<>', '');
     }
 
     /** The live tyres a real one still lacks its label for (D-303): the backfill above the list. */
@@ -155,29 +195,59 @@ final class TyreList
     }
 
     /**
-     * One row as the list shows it.
+     * The rows of one page, as the list shows them: what the sizes add up to and the cover photo, read once for the page.
      *
-     * @return array<string, mixed>
+     * @param  list<TyreModel>  $models
+     * @return list<array<string, mixed>>
      */
-    public function row(TyreVariant $tyre): array
+    public function rows(array $models): array
     {
-        $missing = $tyre->missingLabel();
+        if ($models === []) {
+            return [];
+        }
 
-        return [
-            'id' => (int) $tyre->id,
-            'brand' => (string) $tyre->getAttribute('brand_name'),
-            'name' => (string) $tyre->name,
-            'season' => TyreSeason::from((string) $tyre->season)->longLabelDe(),
-            'size' => $tyre->label(),
-            'label' => $missing === [] ? self::labelSummary($tyre) : null,
-            'missingLabel' => $missing,
-            // Minor units: the page writes the amount (num.ts formatMoney).
-            'priceCents' => (int) $tyre->price_cents,
-            'available' => (bool) $tyre->available,
-            'demo' => (bool) $tyre->is_demo,
-            'offered' => $tyre->offered(),
-            'href' => '/admin/reifen/'.$tyre->id,
-        ];
+        $key = static fn (int $brand, string $name, string $season): string => $brand."\0".mb_strtolower($name)."\0".$season;
+        $sizes = TyreVariant::query()
+            ->whereIn('brand_id', array_map(static fn (TyreModel $m): int => (int) $m->brand_id, $models))
+            ->whereIn('name', array_map(static fn (TyreModel $m): string => (string) $m->name, $models))
+            ->get()
+            ->groupBy(static fn (TyreVariant $tyre): string => $key((int) $tyre->getAttribute('brand_id'), (string) $tyre->getAttribute('name'), (string) $tyre->getAttribute('season')));
+        $images = TyreModelImage::query()
+            ->whereIn('tyre_model_id', array_map(static fn (TyreModel $m): int => (int) $m->id, $models))
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('tyre_model_id');
+
+        return array_map(static function (TyreModel $model) use ($key, $sizes, $images): array {
+            $own = $sizes->get($key((int) $model->brand_id, (string) $model->name, (string) $model->season)) ?? collect();
+            $photos = $images->get($model->id) ?? collect();
+            $cover = $photos->first();
+            $diameters = $own->map(static fn (TyreVariant $tyre): int => (int) $tyre->diameter_in)->unique()->sort()->values();
+            $real = $own->reject(static fn (TyreVariant $tyre): bool => (bool) $tyre->is_demo);
+
+            return [
+                'id' => (int) $model->id,
+                'brand' => (string) $model->getAttribute('brand_name'),
+                'name' => (string) $model->name,
+                'season' => (string) $model->season,
+                'thumb' => $cover instanceof TyreModelImage ? $cover->manifest : null,
+                'photos' => $photos->count(),
+                'sizes' => $own->count(),
+                // `18 Zoll`, `17–19 Zoll`
+                'diameters' => $diameters->count() < 2
+                    ? $diameters->first().GermanFormat::NBSP.'Zoll'
+                    : $diameters->first().'–'.$diameters->last().GermanFormat::NBSP.'Zoll',
+                // Minor units: the page writes the amount (num.ts formatMoney).
+                'priceFromCents' => (int) $model->getAttribute('price_from'),
+                'suppliers' => $own->map(static fn (TyreVariant $tyre): string => mb_strtolower(trim((string) $tyre->supplier)))->filter()->unique()->count(),
+                'missingLabels' => $real->filter(static fn (TyreVariant $tyre): bool => $tyre->missingLabel() !== [])->count(),
+                'offered' => $real->filter(static fn (TyreVariant $tyre): bool => $tyre->offered())->count(),
+                'demo' => $own->contains(static fn (TyreVariant $tyre): bool => (bool) $tyre->is_demo),
+                'changed' => GermanFormat::date($own->max('updated_at')),
+                'href' => '/admin/reifen/modell/'.$model->id,
+            ];
+        }, $models);
     }
 
     /**

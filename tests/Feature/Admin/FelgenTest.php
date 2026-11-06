@@ -219,6 +219,20 @@ describe('a new Felge', function (): void {
             ]);
     });
 
+    // A version is the whole row (the Gutachten rework §8): the bolt pattern and the bore tell two apart, and both can be stored.
+    it('takes two bores and two bolt patterns of one size in one finish: each is a version', function (): void {
+        $payload = newFelgePayload();
+        $payload['configs'] = [
+            $payload['configs'][0],
+            [...$payload['configs'][0], 'sku' => 'PM-BOHRUNG', 'bore' => '72,6'],
+            [...$payload['configs'][0], 'sku' => 'PM-LOCHZAHL', 'bolt_holes' => 4],
+        ];
+
+        $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', $payload)->assertSessionHasNoErrors();
+
+        expect(WheelConfig::query()->count())->toBe(3);
+    });
+
     it('refuses the same Felge twice — brand, model and Radtypenbezeichnung — under the Radtypenbezeichnung (the admin audit\'s F-08)', function (): void {
         $this->actingAs(felgenAdmin(), 'admin')->post('/admin/felgen', newFelgePayload())->assertSessionHasNoErrors();
         $twin = 'Eine Felge mit dieser Marke, diesem Modell und dieser Radtypenbezeichnung gibt es schon: Prüfmarke Kontur. Neue Größen und Ausführungen trägst du dort ein.';

@@ -50,6 +50,8 @@ final class DemoCatalogue
         'wheel_configs',
         'wheel_finishes',
         'wheel_models',
+        'tyre_model_images',
+        'tyre_models',
         'tyre_variants',
         'balance_weight_colours',
         'tpms_sensor_prices',
@@ -73,6 +75,8 @@ final class DemoCatalogue
         'wheel_configs' => 'Größen der Beispielfelgen',
         'wheel_finishes' => 'Farben der Beispielfelgen',
         'wheel_models' => 'Beispielfelgen',
+        'tyre_model_images' => 'Fotos der Beispielreifen-Modelle',
+        'tyre_models' => 'Modelle der Beispielreifen',
         'tyre_variants' => 'Beispielreifen',
         'balance_weight_colours' => 'Wuchtgewicht-Farben der Demodaten',
         'tpms_sensor_prices' => 'RDKS-Preise der Demodaten',
@@ -202,6 +206,11 @@ final class DemoCatalogue
         self::deleteIn('wheel_configs', 'id', $configs);
         DB::table('wheel_finishes')->whereIn('wheel_model_id', self::models())->delete();
         DB::table('wheel_models')->where('is_demo', true)->delete();
+
+        // A demo tyre's model goes with it, before the brand its key names; one that still has a real size stays (D-407).
+        $tyreModels = self::tyreModels()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all();
+        self::deleteIn('tyre_model_images', 'tyre_model_id', $tyreModels);
+        self::deleteIn('tyre_models', 'id', $tyreModels);
         DB::table('tyre_variants')->where('is_demo', true)->delete();
 
         // The acceptance set's accessories (`rimify:demo --abnahme`), born demo: the shop's own are never touched.
@@ -262,17 +271,34 @@ final class DemoCatalogue
             'approval_documents' => DB::table($table)->whereIn('id', self::documents()),
             'wheel_configs', 'wheel_finishes' => DB::table($table)->whereIn('wheel_model_id', self::models()),
             'wheel_models', 'tyre_variants', 'balance_weight_colours', 'tpms_sensor_prices' => DB::table($table)->where('is_demo', true),
+            'tyre_models' => DB::table($table)->whereIn('id', self::tyreModels()),
+            'tyre_model_images' => DB::table($table)->whereIn('tyre_model_id', self::tyreModels()),
             // An invented brand of the example catalogue, or one the acceptance set brought (born demo) — and either only
             // while no real model or tyre carries it.
             'brands' => DB::table($table)->where(static fn (Builder $q) => $q->whereIn('name', CatalogueSeeder::BRANDS)->orWhere('is_demo', true))
                 ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('wheel_models as m')
                     ->whereColumn('m.brand_id', 'brands.id')->where('m.is_demo', false))
                 ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('tyre_variants as t')
-                    ->whereColumn('t.brand_id', 'brands.id')->where('t.is_demo', false)),
+                    ->whereColumn('t.brand_id', 'brands.id')->where('t.is_demo', false))
+                ->whereNotExists(static fn (Builder $q) => $q->selectRaw('1')->from('tyre_models as tm')
+                    ->whereColumn('tm.brand_id', 'brands.id')->whereNotIn('tm.id', self::tyreModels())),
             // Hidden cars are gone from every reader; only the ones still shown are counted.
             'vehicles' => DB::table($table)->where('is_demo', true)->whereNull('deleted_at'),
             default => throw new \InvalidArgumentException("{$table} is not part of the example catalogue."),
         };
+    }
+
+    /** The tyre models that are demo through and through: every size they have is, and they have one. */
+    private static function tyreModels(): Builder
+    {
+        $sizes = static fn (Builder $q): Builder => $q->selectRaw('1')->from('tyre_variants as v')
+            ->whereColumn('v.brand_id', 'tyre_models.brand_id')
+            ->whereColumn('v.name', 'tyre_models.name')
+            ->whereColumn('v.season', 'tyre_models.season');
+
+        return DB::table('tyre_models')->select('id')
+            ->whereExists(static fn (Builder $q) => $sizes($q)->where('v.is_demo', true))
+            ->whereNotExists(static fn (Builder $q) => $sizes($q)->where('v.is_demo', false));
     }
 
     private static function models(): Builder

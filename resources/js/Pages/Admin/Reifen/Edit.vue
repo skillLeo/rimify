@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * Katalog › Reifen › one tyre, or a new one (his admin item 10, D-302): one size of one profile — its brand, profile and
- * season, its size with load index and speed symbol, its EU tyre label (Regulation (EU) 2020/740) and how it is sold —
- * saved together through the save bar.
+ * Katalog › Reifen › one size of a tyre model, or a new one (his admin item 10, D-302; the Gutachten rework §9): its size with load
+ * index and speed symbol, its EU tyre label (Regulation (EU) 2020/740) and how it is sold, saved together through the save bar. Brand,
+ * name and season are the model's: set here for a new model's first size, changed on the model's page for all its sizes.
  *
  * Above the form stands what the shop does with the tyre now, read from the saved row: offered, or why not — not
  * available (D-301), or its label not complete on record (D-303). The label may be saved incomplete; the shop does not
@@ -10,7 +10,7 @@
  * A demonstration tyre is shown and never changed.
  */
 
-import { router } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
@@ -50,6 +50,7 @@ function fromProps(): TyreForm {
         eprel_id: tyre?.eprelId ?? '',
         price: tyre?.price ?? '',
         available: tyre?.available ?? true,
+        supplier: tyre?.supplier ?? '',
     }
 }
 
@@ -87,6 +88,8 @@ const editable = computed(() => !demo.value && (props.tyre ? props.can.edit : pr
 const readonly = computed(() => !editable.value)
 /* A tyre that was ordered keeps the size it was sold in: the order names its Auflagen by that size. */
 const sizeLocked = computed(() => readonly.value || props.tyre?.sold === true)
+/* Brand, name and season belong to the model: fixed on a size of it, whether it stands already or starts from one. */
+const modelFixed = computed(() => readonly.value || props.tyre !== null || props.template !== null)
 
 const errors = computed(() => form.errors as Record<string, string | undefined>)
 
@@ -107,7 +110,7 @@ const sizeLabel = computed(() => {
     return parts.every((part) => part !== '') ? `${parts[0]}/${parts[1]} R${parts[2]} ${parts[3]}${parts[4]}` : ''
 })
 
-const title = computed(() => (props.tyre ? props.tyre.fullTitle : 'Neuer Reifen'))
+const title = computed(() => (props.tyre ? props.tyre.fullTitle : props.template ? 'Neue Größe' : 'Neues Reifenmodell'))
 
 const context = computed(() => {
     if (!props.tyre) {
@@ -183,6 +186,13 @@ const more = computed<AdminPageAction[]>(() => {
 <template>
     <!-- A demonstration tyre says why it cannot be changed in its own box; „ansehen, aber nicht ändern“ is about rights. -->
     <AdminPage :title="title" :context="context" :more="more" :read-only="readonly && !demo">
+        <template v-if="modelHref" #primary>
+            <Link :href="modelHref" class="btn btn--secondary">
+                <Icon name="chevron-left" :size="20" />
+                Zum Reifenmodell
+            </Link>
+        </template>
+
         <!-- What the shop does with this tyre now, read from the saved row (D-301, D-303). -->
         <section v-if="tyre" class="rf-state" :class="{ 'rf-state--off': !tyre.offered && !tyre.demo }" aria-labelledby="rf-state-h">
             <h2 id="rf-state-h" class="rf-state__title">
@@ -224,13 +234,17 @@ const more = computed<AdminPageAction[]>(() => {
         <form class="rf-form" novalidate @submit.prevent="editor.save">
             <!-- ── Der Reifen ─────────────────────────────────────────────────── -->
             <section class="adm-section" aria-labelledby="rf-h-tyre">
+                <p v-if="modelHref && !readonly" class="adm-note rf-model-note">
+                    Marke, Modell und Saison gelten für alle Größen dieses Reifens.
+                    <Link :href="modelHref">Beim Reifenmodell ändern</Link>
+                </p>
                 <div class="adm-section__head">
-                    <h2 id="rf-h-tyre" class="adm-section__title">Der Reifen</h2>
+                    <h2 id="rf-h-tyre" class="adm-section__title">Reifenmodell</h2>
                 </div>
                 <div class="adm-fields rf-narrow">
                     <div class="form-field">
                         <label class="form-field__label" for="rf-brand">Marke</label>
-                        <select id="rf-brand" v-model="form.brand_id" class="input" :disabled="readonly" :aria-invalid="err('brand_id') ? 'true' : undefined" aria-describedby="rf-brand-err">
+                        <select id="rf-brand" v-model="form.brand_id" class="input" :disabled="modelFixed" :aria-invalid="err('brand_id') ? 'true' : undefined" aria-describedby="rf-brand-err">
                             <option :value="null" disabled>Marke wählen</option>
                             <option v-for="brand in brands" :key="brand.value" :value="brand.value">{{ brand.label }}</option>
                             <option :value="NEW_BRAND">Neue Marke anlegen …</option>
@@ -243,14 +257,14 @@ const more = computed<AdminPageAction[]>(() => {
                         <p id="rf-brand-new-err" class="form-field__error">{{ err('brand_new') }}</p>
                     </div>
                     <div class="form-field">
-                        <label class="form-field__label" for="rf-name">Profil</label>
-                        <input id="rf-name" v-model="form.name" class="input" type="text" maxlength="80" placeholder="PremiumContact 7" :readonly="readonly" :aria-invalid="err('name') ? 'true' : undefined" aria-describedby="rf-name-help rf-name-err">
-                        <p id="rf-name-help" class="form-field__help">Der Name der Profilreihe, so wie der Hersteller ihn schreibt.</p>
+                        <label class="form-field__label" for="rf-name">Modell</label>
+                        <input id="rf-name" v-model="form.name" class="input" type="text" maxlength="80" placeholder="PremiumContact 7" :readonly="modelFixed" :aria-invalid="err('name') ? 'true' : undefined" aria-describedby="rf-name-help rf-name-err">
+                        <p id="rf-name-help" class="form-field__help">Der Name des Modells, so wie der Hersteller ihn schreibt.</p>
                         <p id="rf-name-err" class="form-field__error">{{ err('name') }}</p>
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="rf-season">Saison</label>
-                        <select id="rf-season" v-model="form.season" class="input rf-mid" :disabled="readonly" :aria-invalid="err('season') ? 'true' : undefined" aria-describedby="rf-season-err">
+                        <select id="rf-season" v-model="form.season" class="input rf-mid" :disabled="modelFixed" :aria-invalid="err('season') ? 'true' : undefined" aria-describedby="rf-season-err">
                             <option value="" disabled>Saison wählen</option>
                             <option v-for="season in options.seasons" :key="season.value" :value="season.value">{{ season.label }}</option>
                         </select>
@@ -405,6 +419,12 @@ const more = computed<AdminPageAction[]>(() => {
                             </select>
                             <p id="rf-available-err" class="form-field__error">{{ err('available') }}</p>
                         </div>
+                        <div class="form-field">
+                            <label class="form-field__label" for="rf-supplier">Lieferant <span class="rf-optional">(optional)</span></label>
+                            <input id="rf-supplier" v-model="form.supplier" class="input" type="text" maxlength="120" :readonly="readonly" :aria-invalid="err('supplier') ? 'true' : undefined" aria-describedby="rf-supplier-help rf-supplier-err">
+                            <p id="rf-supplier-help" class="form-field__help">Nur intern, steht nie im Shop.</p>
+                            <p id="rf-supplier-err" class="form-field__error">{{ err('supplier') }}</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -424,6 +444,15 @@ const more = computed<AdminPageAction[]>(() => {
 </template>
 
 <style scoped>
+.rf-optional {
+    font-weight: 400;
+    color: var(--c-ink-3);
+}
+
+.rf-model-note {
+    margin-bottom: var(--sp-12);
+}
+
 .rf-form .form-field__error:empty {
     display: none;
 }

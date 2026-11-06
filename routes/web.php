@@ -40,12 +40,12 @@ use App\Http\Controllers\Admin\RatgeberController as AdminRatgeberController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RechnungsnummernController;
 use App\Http\Controllers\Admin\ReifenController;
+use App\Http\Controllers\Admin\ReifenModellController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\RueckbuchungenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
-use App\Http\Controllers\Admin\SkizzeController;
 use App\Http\Controllers\Admin\SpeicherController;
 use App\Http\Controllers\Admin\SudoController;
 use App\Http\Controllers\Admin\SystemController;
@@ -87,7 +87,6 @@ use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\RobotsController;
 use App\Http\Controllers\Storefront\SesWebhookController;
 use App\Http\Controllers\Storefront\SitemapController;
-use App\Http\Controllers\Storefront\SkizzeController as SkizzeShopController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
@@ -135,11 +134,6 @@ Route::get('/gutachten/{document}/beispiel', [BeispielGutachtenController::class
 // Up to four wheels side by side; the keys travel in `?f=` so a comparison is a link.
 Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich.index');
 
-// The shop sketches of the Gutachten rework (Phase 1): example pages to click through before anything is built. A test
-// environment's alone, as the reset is (TestEnvironment) — the live shop has no such address.
-if (TestEnvironment::environmentAllows()) {
-    Route::get('/skizze/komplettraeder', [SkizzeShopController::class, 'komplettraeder'])->name('skizze.komplettraeder');
-}
 
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');
@@ -383,12 +377,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Gutachten › Auflagen: every document's own list, read-only; each is written on its Gutachten.
         Route::get('/auflagen', [AuflagenController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('auflagen.index');
 
-        // The admin sketches of the Gutachten rework (Phase 1), in memory only: a test environment's alone, never the live
-        // shop's (TestEnvironment); each under the permission of the area it sketches.
-        if (TestEnvironment::environmentAllows()) {
-            Route::get('/skizze/reifen', [SkizzeController::class, 'reifen'])->middleware(EnsureAdminMay::class.':catalogue,view')->name('skizze.reifen');
-        }
-
         // Gutachten › Konflikte: where documents disagree, the shop says UNKNOWN until a person decides here.
         Route::get('/konflikte', [KonflikteController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.index');
         Route::get('/konflikte/{conflict}', [KonflikteController::class, 'show'])->whereNumber('conflict')->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.show');
@@ -511,6 +499,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('reifen.index');
         Route::get('/reifen/neu', [ReifenController::class, 'create'])->name('reifen.create');
         Route::post('/reifen', [ReifenController::class, 'store'])->name('reifen.store');
+        // One tyre model: its photographs and facts, its sizes below it (the Gutachten rework §9) — TyreModelPolicy through the Form Requests.
+        Route::get('/reifen/modell/{model}', [ReifenModellController::class, 'show'])->whereNumber('model')->name('reifen.modell');
+        Route::put('/reifen/modell/{model}', [ReifenModellController::class, 'update'])->whereNumber('model')->name('reifen.modell.update');
+        Route::post('/reifen/modell/{model}/foto', [ReifenModellController::class, 'image'])->whereNumber('model')->name('reifen.modell.foto');
+        Route::put('/reifen/modell/{model}/fotos/reihenfolge', [ReifenModellController::class, 'reorderImages'])->whereNumber('model')->name('reifen.modell.fotos.reihenfolge');
+        Route::put('/reifen/modell/{model}/fotos/{image}', [ReifenModellController::class, 'relabelImage'])->whereNumber(['model', 'image'])->name('reifen.modell.foto.beschreibung');
+        Route::delete('/reifen/modell/{model}/fotos/{image}', [ReifenModellController::class, 'removeImage'])->whereNumber(['model', 'image'])->name('reifen.modell.foto.entfernen');
         Route::get('/reifen/{tyre}', [ReifenController::class, 'edit'])->whereNumber('tyre')->name('reifen.edit');
         Route::put('/reifen/{tyre}', [ReifenController::class, 'update'])->whereNumber('tyre')->name('reifen.update');
         Route::delete('/reifen/{tyre}', [ReifenController::class, 'destroy'])->whereNumber('tyre')->name('reifen.destroy');

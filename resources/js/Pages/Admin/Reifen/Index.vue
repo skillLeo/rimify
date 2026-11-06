@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /**
- * Katalog › Reifen (his admin item 10, D-302): every tyre the shop can put on a Felge — one size of one profile per row —
- * and whether the shop offers it now. Offered means available (D-301) and its EU label complete on record (D-303); only
- * the exception is tagged, the normal state is plain text. A tyre whose label is still missing is kept and listed for the
- * backfill, one click away.
+ * Katalog › Reifen (his admin item 10, D-302; the Gutachten rework §9): every tyre model, with a photo where it has one, and what
+ * its sizes add up to. The shop offers a size that is available (D-301) with its EU label complete on record (D-303); only the
+ * exception is tagged, the normal state is plain text. Search, filters and the order stay in the address; fifty to a page.
  */
 
 import { Link, router, usePage } from '@inertiajs/vue3'
@@ -12,11 +11,14 @@ import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminSortHeader from '../../../Components/Admin/AdminSortHeader.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
+import Picture from '../../../Components/Ui/Picture.vue'
+import SeasonMark from '../../../Components/Ui/SeasonMark.vue'
+import TyreSilhouette from '../../../Components/Ui/TyreSilhouette.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
-import { decimal, withUnit } from '../../../format'
+import { anzahl, decimal } from '../../../format'
 import { nextSort, sortQuery, type ListSort } from '../../../lib/adminSort'
 import { formatMoney } from '../../../lib/num'
-import type { AdminReifenIndexProps, TyreRow } from '../../../types/admin/reifen'
+import type { AdminReifenIndexProps } from '../../../types/admin/reifen'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -37,7 +39,7 @@ function sortBy(column: string): void {
 }
 
 const context = computed(() => {
-    const text = `${decimal(props.pagination.total, 0)} Reifen`
+    const text = anzahl(props.pagination.total, 'Reifenmodell', 'Reifenmodelle')
 
     return props.filtered ? `${text} · gefiltert` : text
 })
@@ -80,12 +82,6 @@ function reset(): void {
     router.get(BASE, sortQuery(order.value, PLAIN), { preserveScroll: true, preserveState: true })
 }
 
-/** `B · A · 71 dB (B)` — the label's classes in the order the printed label stands them. */
-function labelLine(row: TyreRow): string {
-    const label = row.label
-
-    return label === null ? '' : `${label.fuel} · ${label.wet} · ${withUnit(label.noiseDb, 'dB')} (${label.noiseClass})`
-}
 </script>
 
 <template>
@@ -93,14 +89,14 @@ function labelLine(row: TyreRow): string {
         <template v-if="can.create" #primary>
             <Link href="/admin/reifen/neu" class="btn btn--primary">
                 <Icon name="plus" :size="20" />
-                Neuer Reifen
+                Neues Reifenmodell
             </Link>
         </template>
 
         <p class="adm-note rf-intro">
             Reifen verkauft der Shop als Komplettrad, nie allein. Angeboten wird ein Reifen auf Felgen, deren Gutachten seine
-            Größe für das Fahrzeug des Kunden freigibt. Dafür muss er verfügbar und sein EU-Reifenlabel vollständig
-            eingetragen sein.
+            Größe für das Fahrzeug des Kunden freigibt. Außerdem muss er verfügbar sein und ein vollständig eingetragenes
+            EU-Reifenlabel haben.
         </p>
 
         <div v-if="refusals.length" class="adm-alert" role="alert">
@@ -109,15 +105,15 @@ function labelLine(row: TyreRow): string {
 
         <!-- The backfill (D-303): real tyres whose label is not complete on record are kept, and not offered until it is. -->
         <p v-if="missingLabels > 0 && filters.stand !== 'label-fehlt'" class="adm-note rf-backfill">
-            {{ decimal(missingLabels, 0) }} {{ missingLabels === 1 ? 'Reifen ist' : 'Reifen sind' }} ohne vollständiges EU-Reifenlabel
+            {{ decimal(missingLabels, 0) }} {{ missingLabels === 1 ? 'Größe ist' : 'Größen sind' }} ohne vollständiges EU-Reifenlabel
             und {{ missingLabels === 1 ? 'wird' : 'werden' }} deshalb nicht angeboten.
-            <Link href="/admin/reifen?stand=label-fehlt">{{ missingLabels === 1 ? 'Nur diesen anzeigen' : 'Nur diese anzeigen' }}</Link>
+            <Link href="/admin/reifen?stand=label-fehlt">{{ missingLabels === 1 ? 'Nur das Modell mit dieser Größe anzeigen' : 'Nur Modelle mit diesen Größen anzeigen' }}</Link>
         </p>
 
         <form class="rf-search" role="search" :action="BASE" method="get" @submit.prevent="apply">
             <div class="form-field rf-search__q">
                 <label class="form-field__label" for="rf-q">Suche</label>
-                <input id="rf-q" v-model="form.q" class="input" type="search" name="q" maxlength="80" placeholder="Marke, Profil oder Größe wie 225/45 R18" autocomplete="off">
+                <input id="rf-q" v-model="form.q" class="input" type="search" name="q" maxlength="80" placeholder="Marke, Modell oder Größe wie 225/45 R18" autocomplete="off">
             </div>
             <div class="form-field">
                 <label class="form-field__label" for="rf-marke">Marke</label>
@@ -155,9 +151,9 @@ function labelLine(row: TyreRow): string {
             </div>
         </form>
 
-        <AdminState v-if="tyres.length === 0 && filtered" kind="filtered" :total="totalAll" @reset="reset" />
-        <AdminState v-else-if="tyres.length === 0" kind="empty" text="Reifen erscheinen hier, sobald du einen anlegst – jede Größe eines Profils als eigenen Reifen, mit ihrem EU-Reifenlabel.">
-            <Link v-if="can.create" href="/admin/reifen/neu" class="btn btn--primary">Neuer Reifen</Link>
+        <AdminState v-if="models.length === 0 && filtered" kind="filtered" :total="totalAll" @reset="reset" />
+        <AdminState v-else-if="models.length === 0" kind="empty" text="Reifenmodelle erscheinen hier, sobald du eines anlegst: Marke, Modell, Saison und Fotos, dazu seine Größen mit EU-Reifenlabel.">
+            <Link v-if="can.create" href="/admin/reifen/neu" class="btn btn--primary">Neues Reifenmodell</Link>
         </AdminState>
 
         <template v-else>
@@ -167,37 +163,41 @@ function labelLine(row: TyreRow): string {
                     <thead>
                         <tr>
                             <AdminSortHeader label="Reifen" column="reifen" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
-                            <AdminSortHeader label="Größe" column="groesse" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
-                            <th scope="col">EU-Reifenlabel</th>
-                            <AdminSortHeader label="Preis" column="preis" :sort="filters.sort" :richtung="filters.richtung" num @sort="sortBy" />
+                            <th scope="col">Saison</th>
+                            <th scope="col">Größen</th>
+                            <AdminSortHeader label="Preis ab" column="preis" :sort="filters.sort" :richtung="filters.richtung" num @sort="sortBy" />
+                            <th scope="col" class="num">Lieferanten</th>
                             <th scope="col">Stand</th>
+                            <AdminSortHeader label="Geändert" column="geaendert" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="tyre in tyres" :key="tyre.id">
+                        <tr v-for="model in models" :key="model.id">
                             <td data-label="Reifen">
-                                <Link :href="tyre.href" class="rf-name"><span class="rf-brand">{{ tyre.brand }}</span> {{ tyre.name }}</Link>
-                                <span v-if="tyre.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span>
-                                <span class="rf-sub">{{ tyre.season }}</span>
-                            </td>
-                            <td data-label="Größe" class="rf-size">{{ tyre.size }}</td>
-                            <td data-label="EU-Reifenlabel">
-                                <template v-if="tyre.label">
-                                    <span class="rf-label">{{ labelLine(tyre) }}</span>
-                                    <span v-if="tyre.label.snow || tyre.label.ice" class="rf-sub">
-                                        {{ [tyre.label.snow ? 'Schneegriffigkeit' : '', tyre.label.ice ? 'Eisgriffigkeit' : ''].filter(Boolean).join(' · ') }}
+                                <span class="rf-model">
+                                    <span class="rf-thumb" :class="{ 'rf-thumb--none': !model.thumb }">
+                                        <Picture v-if="model.thumb" :image="model.thumb" alt="" sizes="48px" />
+                                        <TyreSilhouette v-else :px="32" />
                                     </span>
-                                </template>
-                                <template v-else-if="tyre.demo">–</template>
-                                <span v-else class="adm-tag adm-tag--warn" :title="`Noch nicht eingetragen: ${tyre.missingLabel.join(', ')}`">Unvollständig</span>
+                                    <span class="rf-model__text">
+                                        <Link :href="model.href" class="rf-name"><span class="rf-brand">{{ model.brand }}</span> {{ model.name }}</Link>
+                                        <span v-if="model.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span>
+                                        <span class="rf-sub">{{ model.photos === 0 ? 'kein Foto' : anzahl(model.photos, 'Foto', 'Fotos') }}</span>
+                                    </span>
+                                </span>
                             </td>
-                            <td data-label="Preis" class="num">{{ formatMoney(tyre.priceCents) }}</td>
+                            <td data-label="Saison"><SeasonMark :season="model.season" /></td>
+                            <td data-label="Größen">{{ anzahl(model.sizes, 'Größe', 'Größen') }}, {{ model.diameters }}</td>
+                            <td data-label="Preis ab" class="num">{{ formatMoney(model.priceFromCents) }}</td>
+                            <td data-label="Lieferanten" class="num">{{ model.suppliers === 0 ? '–' : decimal(model.suppliers, 0) }}</td>
                             <td data-label="Stand" data-phone="status">
-                                <span v-if="tyre.demo" class="rf-quiet">Demodaten</span>
-                                <span v-else-if="!tyre.available" class="adm-tag adm-tag--neutral">Nicht verfügbar</span>
-                                <span v-else-if="!tyre.offered" class="adm-tag adm-tag--warn">Nicht im Shop</span>
-                                <template v-else>Im Shop</template>
+                                <span v-if="model.demo" class="rf-quiet">Demodaten</span>
+                                <span v-else-if="model.missingLabels > 0" class="adm-tag adm-tag--warn">{{ model.missingLabels === 1 ? '1 Größe ohne Label' : `${decimal(model.missingLabels, 0)} Größen ohne Label` }}</span>
+                                <span v-else-if="model.offered === 0" class="adm-tag adm-tag--neutral">Nicht im Shop</span>
+                                <template v-else-if="model.offered === model.sizes">Im Shop</template>
+                                <template v-else>{{ decimal(model.offered, 0) }} von {{ decimal(model.sizes, 0) }} im Shop</template>
                             </td>
+                            <td data-label="Geändert">{{ model.changed }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -243,6 +243,28 @@ function labelLine(row: TyreRow): string {
     gap: var(--sp-8);
 }
 
+.rf-model {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+}
+
+.rf-model__text {
+    min-width: 0;
+}
+
+/* A thumbnail a list of hundreds can carry: the photo or the neutral outline, one size. */
+.rf-thumb {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    overflow: hidden;
+    border-radius: var(--r-control);
+    background: var(--c-band);
+}
+
 .rf-name {
     color: var(--c-ink);
     font-weight: 500;
@@ -266,13 +288,6 @@ function labelLine(row: TyreRow): string {
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
     color: var(--c-ink-3);
-}
-
-/* The size as a tyre's wall prints it: a code, kept on one line. */
-.rf-size,
-.rf-label {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
 }
 
 .rf-quiet {

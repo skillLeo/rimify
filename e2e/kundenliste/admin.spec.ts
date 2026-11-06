@@ -489,6 +489,57 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     await expect(card.locator('.tile__name--link')).toHaveAttribute('href', new RegExp(`^/felgen/${slug}\\?ausfuehrung=\\d+$`))
 })
 
+test('a tyre model above its sizes: its photographs once, a thumbnail in the list, a supplier per size who stays internal @admin-210', async ({ page }, info) => {
+    const { stamp } = runKeys(info)
+    const profile = `Foto ${stamp.slice(-4)}`
+    const eprel = String(Date.now() + 1).slice(-9)
+
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/reifen/neu`, { waitUntil: 'networkidle' })
+    await page.selectOption('#rf-brand', '-1')
+    await page.fill('#rf-brand-new', 'Beispielmarke')
+    await page.fill('#rf-name', profile)
+    await page.selectOption('#rf-season', 'sommer')
+    await page.fill('#rf-width', '225')
+    await page.fill('#rf-aspect', '45')
+    await page.fill('#rf-diameter', '18')
+    await page.fill('#rf-load', '95')
+    await page.selectOption('#rf-speed', 'Y')
+    await page.fill('#rf-price', '129')
+    await page.fill('#rf-supplier', 'Prüflieferant')
+    await page.selectOption('#rf-fuel', 'B')
+    await page.selectOption('#rf-wet', 'A')
+    await page.fill('#rf-noise', '71')
+    await page.selectOption('#rf-noise-class', 'B')
+    await page.fill('#rf-eprel', eprel)
+    await page.locator('input[name="rf-snow"]').nth(1).check()
+    await page.locator('input[name="rf-ice"]').nth(1).check()
+    await page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' }).click()
+    await page.waitForURL(/\/admin\/reifen\/\d+$/)
+
+    // The list: one row per model, no photograph yet, its neutral outline.
+    const list = `${ABNAHME}/admin/reifen?q=${encodeURIComponent(profile)}`
+    const row = page.locator('.adm-table tbody tr', { hasText: profile })
+
+    await page.goto(list, { waitUntil: 'networkidle' })
+    await expect(row.locator('.rf-thumb--none')).toHaveCount(1)
+    await row.locator('a.rf-name').click()
+    await page.waitForURL(/\/admin\/reifen\/modell\/\d+$/)
+
+    // The model: its size with its supplier, and a photograph by the rim page's own upload.
+    await expect(page.locator('.adm-table tbody tr', { hasText: '225/45 R18 95Y' })).toContainText('Prüflieferant')
+    await expect(page.locator('.fe-photos__count')).toContainText('0 von höchstens 4')
+    await page.getByRole('button', { name: 'Foto hinzufügen' }).click()
+    await page.locator('input[type="file"]').setInputFiles({ name: 'reifen.jpg', mimeType: 'image/jpeg', buffer: await card() })
+    await page.locator('input[id$="-alt"]').fill(`${profile} von der Seite`)
+    await page.getByRole('button', { name: 'Hochladen' }).click()
+    await expect(page.locator('.fe-photos__count')).toContainText('1 von höchstens 4')
+
+    await page.goto(list, { waitUntil: 'networkidle' })
+    await expect(row.locator('.rf-thumb--none')).toHaveCount(0)
+    await expect(row.locator('.rf-thumb img')).toBeVisible()
+})
+
 test('a tyre made in the admin with its EU label: offered once the label is complete, and listed @admin-210', async ({ page }, info) => {
     const { stamp } = runKeys(info)
     const profile = `Muster ${stamp.slice(-4)}`
@@ -537,7 +588,13 @@ test('a tyre made in the admin with its EU label: offered once the label is comp
     // In the list, by brand, profile and size, with its label in one line.
     await page.goto(`${ABNAHME}/admin/reifen?q=${encodeURIComponent(profile)}`, { waitUntil: 'networkidle' })
     const row = page.locator('.adm-table tbody tr', { hasText: profile })
-    await expect(row).toContainText('225/45 R18 95Y')
-    await expect(row).toContainText('B · A · 71')
+    await expect(row).toContainText('18')
+    await expect(row).toContainText('1 Größe')
     await expect(row).toContainText('Im Shop')
+
+    // The model opens with its size: the size as the wall prints it, its label in one line.
+    await row.locator('a.rf-name').click()
+    const line = page.locator('.adm-table tbody tr', { hasText: '225/45 R18 95Y' })
+    await expect(line).toContainText('B · A · 71')
+    await expect(line).toContainText('Im Shop')
 })

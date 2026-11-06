@@ -16,7 +16,7 @@ class WheelConfigFactory extends Factory
 
     /**
      * The ET of the next configuration made: 25 to 45 in turn. Drawn at random, two sizes of one finish were the same size
-     * once in 420 pairs, and `uq_wheel_config` refused the second — a test red by chance (the look-back, 16.10.2026).
+     * once in 420 pairs, and the table's unique key refused the second — a test red by chance (the look-back, 16.10.2026).
      */
     private static int $etTurn = 0;
 

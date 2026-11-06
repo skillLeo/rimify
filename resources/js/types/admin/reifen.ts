@@ -1,22 +1,27 @@
 /** Katalog › Reifen (his admin item 10, D-302): the props the list and the form receive (ReifenController). */
+import type { ImageManifest } from '../../Components/Ui/Picture.vue'
 
-export interface TyreRow {
+/** One tyre model in the list, with what its sizes add up to (the Gutachten rework §9). */
+export interface TyreModelRow {
     id: number
     brand: string
     name: string
-    /** `Sommerreifen` */
+    /** `sommer`, `winter`, `ganzjahres` */
     season: string
-    /** `225/45 R18 95Y` */
-    size: string
-    /** Only where the label is complete on record (D-303). */
-    label: { fuel: string; wet: string; noiseDb: number; noiseClass: string; snow: boolean; ice: boolean } | null
-    /** The label's entries still to enter, by the form's names. */
-    missingLabel: string[]
-    priceCents: number
-    available: boolean
+    /** The cover, as `Picture` reads it; null where the model has no photograph. */
+    thumb: ImageManifest | null
+    photos: number
+    sizes: number
+    /** `18 Zoll`, `17–19 Zoll` */
+    diameters: string
+    priceFromCents: number
+    suppliers: number
+    /** Real sizes whose EU label is not complete on record (D-303). */
+    missingLabels: number
+    /** Real sizes the shop offers now: available and their label complete (D-301, D-303). */
+    offered: number
     demo: boolean
-    /** Offered by the shop now: available and its label complete, or a demonstration tyre (D-301, D-303). */
-    offered: boolean
+    changed: string | null
     href: string
 }
 
@@ -26,8 +31,8 @@ export interface Option {
 }
 
 export interface AdminReifenIndexProps {
-    tyres: TyreRow[]
-    filters: { q: string; marke: string; saison: string; zoll: string; stand: string; sort: 'reifen' | 'groesse' | 'preis'; richtung: 'auf' | 'ab' }
+    models: TyreModelRow[]
+    filters: { q: string; marke: string; saison: string; zoll: string; stand: string; sort: 'reifen' | 'preis' | 'geaendert'; richtung: 'auf' | 'ab' }
     options: { brands: Option[]; diameters: Option[]; stands: Option[] }
     missingLabels: number
     filtered: boolean
@@ -59,6 +64,8 @@ export interface TyreRecordProp {
     /** German digits, `129,00`. */
     price: string
     available: boolean
+    /** Who delivers this size; internal, never shown in the shop. */
+    supplier: string
     demo: boolean
     /** On an order: its size, load index and speed symbol stay as sold. */
     sold: boolean
@@ -72,6 +79,8 @@ export interface AdminReifenEditProps {
     /** What the form was opened on (EditStamp); null for a new tyre. A save against an older state is refused. */
     stamp: string | null
     tyre: TyreRecordProp | null
+    /** The model it belongs to: brand, name and season are changed there, for all its sizes. Null for a new tyre. */
+    modelHref?: string | null
     /** „Weitere Größe“: what a new tyre starts from. */
     template: { brandId: number; name: string; season: string } | null
     brands: { value: number; label: string }[]
@@ -82,6 +91,31 @@ export interface AdminReifenEditProps {
         noiseClasses: string[]
     }
     can: { create: boolean; edit: boolean; delete: boolean }
+}
+
+/** One tyre model's page: its photographs, its facts and its sizes (the Gutachten rework §9). */
+export interface AdminReifenModellProps {
+    model: { id: number; brandId: number; brand: string; name: string; season: string; title: string; demo: boolean; updated: string | null }
+    photos: { id: number; manifest: ImageManifest; alt: string }[]
+    photoOrderStamp: string
+    maxPhotos: number
+    sizes: {
+        id: number
+        size: string
+        supplier: string | null
+        priceCents: number
+        available: boolean
+        label: { fuel: string; wet: string; noiseDb: number; noiseClass: string; snow: boolean; ice: boolean } | null
+        missingLabel: string[]
+        eprel: string | null
+        demo: boolean
+        offered: boolean
+        href: string
+    }[]
+    stamp: string
+    brands: { value: number; label: string }[]
+    seasons: Option[]
+    can: { edit: boolean; create: boolean }
 }
 
 /** The form as it is sent: strings as typed, the two pictograms answered or not. */
@@ -104,4 +138,5 @@ export interface TyreForm {
     eprel_id: string
     price: string
     available: boolean
+    supplier: string
 }

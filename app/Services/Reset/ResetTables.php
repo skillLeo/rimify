@@ -79,6 +79,8 @@ final class ResetTables
         'wheel_finish_images',
         'wheel_configs',
         'tyre_variants',
+        'tyre_models',
+        'tyre_model_images',
         'catalogue_imports',
         // The Gutachten and their rows.
         'approval_documents',

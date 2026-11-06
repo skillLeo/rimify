@@ -276,7 +276,9 @@ final class WheelEditor
                             ->where('diameter_in', $values['diameter_in'])
                             ->where('width_in', $values['width_in'])
                             ->where('et_mm', $values['et_mm'])
-                            ->where('bolt_circle_mm', $values['bolt_circle_mm']);
+                            ->where('bolt_holes', $values['bolt_holes'])
+                            ->where('bolt_circle_mm', $values['bolt_circle_mm'])
+                            ->where('centre_bore_mm', $values['centre_bore_mm']);
                     });
                 })
                 ->first();

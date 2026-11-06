@@ -552,7 +552,8 @@ final class CatalogueImporter
         if ($finish instanceof WheelFinish) {
             $clash = WheelConfig::withTrashed()->where('wheel_finish_id', $finish->id)
                 ->where('diameter_in', $v['diameter_in'])->where('width_in', $v['width_in'])
-                ->where('et_mm', $v['et_mm'])->where('bolt_circle_mm', $v['bolt_circle_mm'])
+                ->where('et_mm', $v['et_mm'])->where('bolt_holes', $v['bolt_holes'])->where('bolt_circle_mm', $v['bolt_circle_mm'])
+                ->where('centre_bore_mm', $v['centre_bore_mm'])
                 ->value('sku');
 
             if ($clash !== null) {
@@ -562,7 +563,7 @@ final class CatalogueImporter
             }
         }
 
-        $sizeKey = mb_strtolower($v['brand'].'|'.$v['model'].'|'.$v['finish']).'|'.$v['diameter_in'].'|'.$v['width_in'].'|'.$v['et_mm'].'|'.$v['bolt_circle_mm'];
+        $sizeKey = mb_strtolower($v['brand'].'|'.$v['model'].'|'.$v['finish']).'|'.$v['diameter_in'].'|'.$v['width_in'].'|'.$v['et_mm'].'|'.$v['bolt_holes'].'|'.$v['bolt_circle_mm'].'|'.$v['centre_bore_mm'];
 
         if (isset($seenSize[$sizeKey])) {
             $entry['reasons'][] = 'Diese Größe steht in dieser Ausführung schon in Zeile '.$seenSize[$sizeKey].'.';
