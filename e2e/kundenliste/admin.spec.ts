@@ -120,8 +120,17 @@ test('one car\'s lines copied to another with its own approval number — and on
     const dialog = page.getByRole('dialog')
     await dialog.locator('label.check', { hasText: 'E46' }).locator('input').check()
     await dialog.locator('input[name="ef-copy-mode"][value="hinzufuegen"]').check()
-    await expect(dialog.locator('.ef-count')).toContainText('1 Fahrzeug', { timeout: 15_000 })
-    await dialog.getByRole('button', { name: 'Kopieren', exact: true }).click()
+    // One draft for both widths of a run: at the second the lines stand there already, and nothing is copied twice.
+    const count = dialog.locator('.ef-count')
+
+    await expect(count).toContainText(/1 Fahrzeug|Nichts kommt hinzu/, { timeout: 15_000 })
+
+    if ((await count.textContent())?.includes('Nichts kommt hinzu')) {
+        await page.keyboard.press('Escape')
+    } else {
+        await dialog.getByRole('button', { name: 'Kopieren', exact: true }).click()
+    }
+
     await expect(dialog).toBeHidden({ timeout: 15_000 })
 
     // A car's lines come from the server a moment after its title: read once they are there.
@@ -550,6 +559,14 @@ test('a tyre model above its sizes: its photographs once, a thumbnail in the lis
     await page.goto(list, { waitUntil: 'networkidle' })
     await expect(row.locator('.rf-thumb--none')).toHaveCount(0)
     await expect(row.locator('.rf-thumb img')).toBeVisible()
+
+    // And away again: the interaction review of Phase 4 found the removal refused, without a word, for want of a description.
+    await row.locator('a.rf-name').click()
+    await page.waitForURL(/\/admin\/reifen\/modell\/\d+$/)
+    await page.getByRole('button', { name: /Aktionen/ }).first().click()
+    await page.getByRole('menuitem', { name: /Entfernen/ }).click()
+    await page.getByRole('alertdialog').or(page.getByRole('dialog')).getByRole('button', { name: 'Entfernen', exact: true }).click()
+    await expect(page.locator('.fe-photos__count')).toContainText('0 von höchstens 4')
 })
 
 test('a tyre made in the admin with its EU label: offered once the label is complete, and listed @admin-210', async ({ page }, info) => {

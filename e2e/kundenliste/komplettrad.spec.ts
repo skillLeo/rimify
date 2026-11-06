@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '../fixtures'
-import { PRODUCT, box, onSize, open, pageProps, throughExtras, toTyres, withCar } from './support'
+import { CARS, PRODUCT, box, onSize, open, pageProps, throughExtras, toTyres, withCar } from './support'
 
 /*
  * The Komplettrad in its steps (the Gutachten rework §9, the client's change of 05.11.2026): 1 Felge, 2 Reifen, 3 Extras, 4 Warenkorb.
@@ -104,6 +104,65 @@ test('front and rear different on a phone: the tyres stand within a few screens,
     expect(card.y - step.y, 'the first tyre stands far down the page').toBeLessThan(1_400)
     await expect(page.locator('details[data-set-answer] summary')).toHaveText(/Auflagen und Hinweise aus dem Gutachten anzeigen$/)
     expect(await page.locator('details[data-set-answer]').getAttribute('open')).toBeNull()
+})
+
+// The interaction review of Phase 4: the second set's „Mit“ charged the first set's sensors unasked, and the same set could go in twice.
+test('a second set: the answer on the sensors goes for every wheel, said before it counts, and the basket charges what the step said', { tag: '@kunde-15' }, async ({ page }) => {
+    await withCar(page, 'x3', PRODUCT)
+    await onSize(page, 19, 'Schwarz matt')
+    await komplettrad(page)
+    await toTyres(page)
+
+    const cards = page.locator('[data-tyre-card]')
+
+    await throughExtras(page, cards.first())
+    await page.locator('.kf-add').click()
+    await expect(page.locator('.addp')).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    // In the basket by now: the way there, and no second add under one Summe.
+    await expect(page.locator('[data-held]')).toHaveText('Dieses Komplettrad liegt in deinem Warenkorb.')
+    await expect(page.locator('.kf-add')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Anderen Reifen wählen' }).click()
+    await expect(page.locator('.tc--on')).toHaveCount(0)
+    await cards.nth(1).locator('.tc__pick').click()
+    await page.getByRole('button', { name: 'Weiter: Extras' }).click()
+
+    // What stands for the wheels in the basket, and nothing chosen for this set because of it.
+    await expect(page.locator('[data-rdks-shared]')).toContainText('Ohne RDKS-Sensoren')
+    await expect(page.locator('input[name="kf-rdks"]:checked')).toHaveCount(0)
+
+    const yes = page.locator('.kf-opt', { hasText: 'Mit RDKS-Sensoren' })
+
+    await expect(yes).toContainText(/8 × 49,00\s€/)
+    await page.locator('.kf-swatch').first().click()
+    await yes.click()
+    await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
+    await expect(page.locator('.kf-sum')).toContainText('schon im Warenkorb')
+    await page.locator('.kf-add').click()
+    await expect(page.locator('.addp')).toBeVisible()
+
+    await open(page, '/warenkorb')
+    await expect(page.locator('.cart__summary')).toContainText(/RDKS-Sensoren \(8 × 49,00\s€\)/)
+})
+
+test('another car on the way: nothing chosen for the last one stands, and nothing paid', { tag: '@kunde-15' }, async ({ page }) => {
+    await withCar(page, 'x3', PRODUCT)
+
+    const id = await onSize(page, 19, 'Schwarz matt')
+
+    await komplettrad(page)
+    await toTyres(page)
+    await page.locator('[data-tyre-card] .tc__pick').first().click()
+    await page.getByRole('button', { name: 'Weiter: Extras' }).click()
+    await page.locator('.kf-opt', { hasText: 'Mit RDKS-Sensoren' }).click()
+
+    await open(page, `/komplettraeder?groesse=${id}&schritt=3&fahrzeug=${CARS.e46.key}`)
+
+    await expect(page.locator('#kf-tyres-h')).toBeVisible()
+    await expect(page.locator('.tc--on')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Weiter: Extras' })).toBeDisabled()
 })
 
 test('a step asked for without what it needs opens the first that can be shown', { tag: '@kunde-18' }, async ({ page }) => {
