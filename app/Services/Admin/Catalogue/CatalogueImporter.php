@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
 use App\Services\Admin\AuditTrail;
 use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
@@ -339,6 +340,14 @@ final class CatalogueImporter
                 } elseif ($entry['action'] === 'update') {
                     $this->update($import->rows[$i], $undo);
                 }
+            }
+
+            // A new colour of a size a paper covers has its rows from here on (the Gutachten rework). Taking the import back then
+            // asks for them to go first, as it does for every approval entered since.
+            $writer = new DocumentEntryWriter;
+
+            foreach ($undo['configs'] as $configId) {
+                $writer->colourAdded($configId, $admin);
             }
 
             $import->forceFill(['status' => CatalogueImport::APPLIED, 'undo' => $undo, 'applied_at' => now()])->save();

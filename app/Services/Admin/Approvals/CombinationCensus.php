@@ -38,13 +38,15 @@ final class CombinationCensus
     /**
      * @param  bool  $listedOnly  only the pairs a document with a list of combinations reaches — the only ones a
      *                            carry-over can touch
+     * @param  list<int>|null  $vehicleIds  only these cars: a census of every pair of a large data set takes many minutes
      * @return array<string, array<string, mixed>> keyed `vehicle:config`, in that order
      */
-    public function take(EloquentFitmentRepository $fitments, bool $listedOnly = false): array
+    public function take(EloquentFitmentRepository $fitments, bool $listedOnly = false, ?array $vehicleIds = null): array
     {
         $resolver = new FitmentResolver($this->vehicles, $fitments, $this->loadIndex, $this->speedSymbol, $this->clock);
         $pairs = Fitment::query()
             ->when($listedOnly, static fn ($q) => $q->whereIn('approval_document_id', DocumentTyreCombination::query()->select('approval_document_id')))
+            ->when($vehicleIds !== null, static fn ($q) => $q->whereIn('vehicle_id', (array) $vehicleIds))
             ->distinct()
             ->orderBy('vehicle_id')
             ->orderBy('wheel_config_id')
