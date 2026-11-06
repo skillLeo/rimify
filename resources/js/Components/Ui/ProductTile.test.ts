@@ -292,7 +292,7 @@ describe('ProductTile', () => {
         const none = wrapper.findAll('.tile__size--none')
         expect(none).toHaveLength(1)
         expect(none[0]!.text()).toContain('20')
-        expect(none[0]!.find('.visually-hidden').text()).toBe('(keine Freigabe für dein Fahrzeug)')
+        expect(none[0]!.find('.visually-hidden').text()).toBe('(für dein Fahrzeug nicht bestätigt)')
         expect(wrapper.find('.tile__sizes').text()).toContain('18 · 19 · 20')
         expect(wrapper.find('.tile__sizes').html()).not.toContain('line-through')
         expect(wrapper.find('.tile__sizes').html()).not.toContain('<s>')

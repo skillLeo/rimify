@@ -253,7 +253,7 @@ describe('ProductTile', () => {
         const wrapper = tile({ card: card({ diametersFitting: ['19'] }), vehicle: VEHICLE })
         const sentence = wrapper.find('.tile__sizes .visually-hidden')
 
-        expect(sentence.text()).toBe('(keine Freigabe für dein Fahrzeug)')
+        expect(sentence.text()).toBe('(für dein Fahrzeug nicht bestätigt)')
         expect(translateOf(sentence.element)).toBe('yes')
     })
 })

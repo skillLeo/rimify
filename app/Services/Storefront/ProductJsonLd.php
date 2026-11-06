@@ -128,7 +128,8 @@ final class ProductJsonLd
     /** @return array<string, mixed> */
     private static function variant(WheelConfig $config, ?WheelFinish $finish, string $name, string $url, Shipping $shipping): array
     {
-        $size = GermanFormat::wheelSize((float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm);
+        // The whole version: width and ET alone can name two (the Gutachten rework §8).
+        $size = GermanFormat::wheelLabel((float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm, (int) $config->bolt_holes, (float) $config->bolt_circle_mm, (float) $config->centre_bore_mm);
         $colour = $finish === null ? null : trim((string) $finish->name_de);
         $price = Money::fromMinor((int) $config->price_cents, (string) ($config->currency ?: 'EUR'));
 

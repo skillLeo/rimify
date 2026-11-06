@@ -407,7 +407,7 @@ final readonly class TyreEligibility
         // status, selected case by case and never through one "not sellable" branch (R-07):
         // only NOT_PERMITTED means "we checked and your car may not have this".
         if ($verdict->wheel === null) {
-            return KomplettradRefusal::VerdictUnknown;
+            return $verdict->stillOpen() ? KomplettradRefusal::VerdictOpen : KomplettradRefusal::VerdictUnknown;
         }
 
         // Since R-03 was split the wheel can be approved while the tyres are not: the sentence names the
@@ -418,7 +418,7 @@ final readonly class TyreEligibility
             VerdictStatus::NotPermitted => $wheelApproved ? KomplettradRefusal::TyresNotPermitted : KomplettradRefusal::VerdictNotPermitted,
             // Where the tyres wait only for the car's papers, the way on is the customer's own (D-286), not a message to us.
             VerdictStatus::Unknown => match (true) {
-                ! $wheelApproved => KomplettradRefusal::VerdictUnknown,
+                ! $wheelApproved => $verdict->stillOpen() ? KomplettradRefusal::VerdictOpen : KomplettradRefusal::VerdictUnknown,
                 $verdict->tyre?->awaitsPapers() === true => KomplettradRefusal::TyresAwaitPapers,
                 default => KomplettradRefusal::TyresUnknown,
             },

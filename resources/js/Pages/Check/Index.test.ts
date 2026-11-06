@@ -299,25 +299,17 @@ describe('RIMIFY-Check', () => {
         vi.useRealTimers()
     })
 
-    it('keeps the tyre and colour chosen when a refused add comes back as a new answer (CHECK-08)', async () => {
+    it('keeps a refusal of the add under the button when it comes back as a new answer (CHECK-08)', async () => {
         shared.vehicle = VEHICLE
-        const twoTyres = answer()
-        const first = twoTyres.config.komplettrad!.tyres[0]!
-        twoTyres.config.komplettrad!.tyres.push({ ...first, id: 8, name: 'Turanza' })
-        const wrapper = mountCheck({ answer: twoTyres })
-
-        await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
-        await wrapper.find('input[name="kc-tyre"][value="8"]').setValue()
-        await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
+        const rims = answer()
+        const wrapper = mountCheck({ answer: rims })
 
         // The refusal: the same size again, a new object, with the sentence under the button.
-        ;(forms[0]?.errors as Record<string, string>).tyreVariantId = 'Dieser Reifen ist zurzeit nicht verfügbar.'
-        await wrapper.setProps({ answer: JSON.parse(JSON.stringify(twoTyres)) as CheckAnswer })
+        ;(forms[0]?.errors as Record<string, string>).wheelConfigId = 'Diese Felge ist zurzeit nicht verfügbar.'
+        await wrapper.setProps({ answer: JSON.parse(JSON.stringify(rims)) as CheckAnswer })
         await flushPromises()
 
-        expect((wrapper.find('input[name="kc-tyre"][value="8"]').element as HTMLInputElement).checked).toBe(true)
-        expect((wrapper.find('input[name="kc-weights"][value="2"]').element as HTMLInputElement).checked).toBe(true)
-        expect(wrapper.find('.chk__error').text()).toContain('Dieser Reifen ist zurzeit nicht verfügbar')
+        expect(wrapper.find('.chk__error').text()).toContain('Diese Felge ist zurzeit nicht verfügbar')
     })
 
     it('leads to the product page on the size answered (CHECK-13)', () => {
@@ -337,7 +329,7 @@ describe('RIMIFY-Check', () => {
 
         await wrapper.find('.chk__go').trigger('click')
 
-        expect(forms[0]).toMatchObject({ wheelConfigId: 110, tyreVariantId: null, weightColourId: null, quantity: 4 })
+        expect(forms[0]).toMatchObject({ wheelConfigId: 110, tyreVariantId: null, quantity: 4 })
         const options = post.mock.calls[0]?.[1] as { onSuccess: (page: { component: string }) => void }
         expect(post.mock.calls[0]?.[0]).toBe('/warenkorb')
 
@@ -354,19 +346,16 @@ describe('RIMIFY-Check', () => {
         expect(post).toHaveBeenCalledTimes(1)
     })
 
-    it('buys the Komplettrad with the tyre and the colour chosen, priced in that colour', async () => {
+    it('leads a Komplettrad on to its steps from the size answered, with what it starts from', async () => {
         shared.vehicle = VEHICLE
         const wrapper = mountCheck({ answer: answer() })
 
         await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
-        expect(wrapper.find('.chk__price .price').text()).toBe('1.616,00 €')
 
-        await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
-        expect(wrapper.find('.chk__price .price').text()).toBe('1.636,00 €')
-
-        await wrapper.find('.chk__go').trigger('click')
-
-        expect(forms[0]).toMatchObject({ wheelConfigId: 110, tyreVariantId: 7, weightColourId: 2, quantity: 4 })
+        expect(wrapper.find('.chk__next').attributes('href')).toBe('/komplettraeder?groesse=110')
+        expect(wrapper.find('.chk__next').text()).toContain('Weiter zum Komplettrad')
+        expect(wrapper.find('.chk__price .price').text()).toMatch(/^ab /)
+        expect(wrapper.find('.chk__go').exists()).toBe(false)
     })
 
     it('sells nothing where the document does not cover the pair, and says why with two ways on', () => {
@@ -456,8 +445,7 @@ describe('RIMIFY-Check', () => {
 
         await wrapper.find('input[name="chk-mode"][value="komplettrad"]').setValue()
 
-        expect(wrapper.find('.chk__go').attributes('disabled')).toBeUndefined()
-        expect(wrapper.find('.chk__go').text()).not.toBe('Komplettrad gerade nicht möglich')
+        expect(wrapper.find('.chk__next').exists()).toBe(true)
     })
 
     it('says „Nicht verfügbar“ on the button of a size marked so @admin-207', () => {

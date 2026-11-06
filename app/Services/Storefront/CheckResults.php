@@ -82,6 +82,8 @@ final readonly class CheckResults
             'wheel' => $verdict->wheelLabel,
             'wheelLabel' => $verdict->wheelStatus?->labelDe(),
             'reason' => $verdict->reason?->textDe,
+            // A paper on record names the car and something is open: the body says nothing of „kein Gutachten“ then (D-405, R-17).
+            'stillOpen' => $verdict->stillOpen(),
             'requiresEntry' => $verdict->requiresEntry,
             // § 15 FZV as frozen with the answer (PapersWording): an older check has none, and claims none.
             'papersExempt' => $verdict->papersExempt(),

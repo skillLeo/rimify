@@ -319,3 +319,26 @@ export async function box(locator: Locator): Promise<{ x: number; y: number; wid
 
     return b
 }
+
+/** From a product page with „Kompletträder“ chosen: on to its steps, as far as the tyres, every one on the page. */
+export async function toTyres(page: Page): Promise<void> {
+    await page.locator('a.pdp__next').click()
+    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+
+    const more = page.getByRole('button', { name: /^Mehr anzeigen/ })
+
+    if ((await more.count()) > 0) {
+        await more.click()
+    }
+}
+
+/** A tyre chosen, on through the extras — nothing is chosen for the customer — to the step with the basket's button. */
+export async function throughExtras(page: Page, card: Locator, rdks: 'Mit RDKS-Sensoren' | 'Ohne RDKS-Sensoren' = 'Ohne RDKS-Sensoren'): Promise<void> {
+    await card.locator('.tc__pick').click()
+    await page.getByRole('button', { name: 'Weiter: Extras' }).click()
+    // The weights' colour, as a person chooses it: on the preview both of the client's colours cost extra (#15).
+    await page.locator('.kf-swatch').first().click()
+    await page.locator('.kf-opt', { hasText: rdks }).click()
+    await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
+    await expect(page.locator('.kf-basket')).toBeVisible()
+}

@@ -18,6 +18,8 @@ enum KomplettradRefusal: string
     case NoVehicle = 'NO_VEHICLE';
     case VerdictNotPermitted = 'VERDICT_NOT_PERMITTED';
     case VerdictUnknown = 'VERDICT_UNKNOWN';
+    /** A paper on record names the car and something it needs is open (D-405): never „kein Gutachten“ beside it (R-17). */
+    case VerdictOpen = 'VERDICT_OPEN';
     /** The wheel is approved, the tyres are not settled (R-03 split): never „kein Gutachten“ about a car the document names. */
     case TyresUnknown = 'TYRES_UNKNOWN';
     /** The wheel is approved, the tyres wait for fields of the car's papers (D-286): the way on is the customer's own. */
@@ -61,6 +63,7 @@ enum KomplettradRefusal: string
             self::NoVehicle => 'Für ein Komplettrad brauchen wir zuerst dein Fahrzeug – erst dann wissen wir, welche Reifengrößen für dich freigegeben sind.',
             self::VerdictNotPermitted => 'Diese Felge ist für dein Fahrzeug nicht freigegeben. Ein Komplettrad können wir dir dazu deshalb nicht anbieten.',
             self::VerdictUnknown => 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
+            self::VerdictOpen => 'Die Freigabe dieser Felge für dein Fahrzeug können wir noch nicht bestätigen. Ein Komplettrad können wir dir deshalb noch nicht anbieten – schreib uns, dann prüfen wir das für dich.',
             self::TyresUnknown => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Ein Komplettrad können wir dir deshalb nicht anbieten – schreib uns, dann prüfen wir das für dich.',
             self::TyresAwaitPapers => 'Die Felge ist für dein Fahrzeug freigegeben. Für die Reifen fehlen uns noch Werte aus deiner Zulassungsbescheinigung Teil I – sobald du sie eingetragen hast, zeigen wir dir die Reifen, die du fahren darfst.',
             self::TyresNotPermitted => 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Ein Komplettrad können wir dir deshalb nicht anbieten.',

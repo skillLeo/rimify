@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**79 sentences: 1 open, 23 backed by a recorded field, 51 about the shop itself, 4 not sentences.**
+**78 sentences: 1 open, 23 backed by a recorded field, 50 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -56,7 +56,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „RIMIFY zeigt dir nur Felgen, deren Gutachten dein Fahrzeug ausdrücklich nennt – mit den zulässigen Reifengrößen und allen Auflagen.“ | customer / operator | `Pages/Startseite/meta.ts` | the same promise, as the page description |
 | „Nur Felgen, deren Gutachten dein Fahrzeug nennt – mit Reifengrößen und Auflagen.“ | customer / operator | `Pages/Startseite/Mobile.vue` | the same promise, on the phone |
 | „Danach siehst du nur Felgen, deren Gutachten dein Auto nennt.“ | customer / operator | `Pages/FelgenSuchen/Index.vue` | the same promise, in the vehicle picker |
-| „Nur die Kombinationen, die das Gutachten für dein Fahrzeug nennt: {{ offer.perAxle }} Kompletträder für die Vorderachse, {{ offer.perAxle }} für die Hinterachse – montiert und gewuchtet.“ | customer / operator | `Components/Product/MischbereifungOffer.vue` | what the offer contains: the recorded front and rear pairs, nothing else |
 | „Rechenwerte ersetzen kein Gutachten.“ | customer / operator | `lib/rechner.ts` | a disclaimer on the calculator: its figures are not an approval |
 | „„Nachtrag“ meint hier den Stand der EG-Typgenehmigung deines Fahrzeugs, nicht den des Gutachtens.“ | customer / operator | `Components/Product/FitmentDetail.vue` | explains which of two things the word „Nachtrag“ names |
 | „Ein Dokument kann sich nicht selbst ablösen.“ | customer / operator | `Models/ApprovalDocument.php` | a rule of the record |

@@ -37,6 +37,8 @@ export interface SizeOption {
      */
     readonly unconfirmed: boolean
     readonly reason: string | null
+    /** Where it is struck: what its versions stand on, each kind once — what the legend may say of it (D-405). */
+    readonly standings: readonly VersionStanding[]
 }
 
 /**
@@ -57,7 +59,7 @@ export function tyreUnconfirmed(verdict: ProduktConfig['verdict']): boolean {
 /**
  * Why a version is not on offer for the car, in words true for each (D-383, D-387, R-17): a released paper rules the car out; or
  * nothing on record approves it; or a paper names the car and something it needs is still open — then „keine Freigabe“ would say
- * what no record says (D-214).
+ * what no record says (D-214). The server's words for the same line: FitmentVerdict::stillOpen().
  */
 export type VersionStanding = 'refused' | 'none' | 'open'
 
@@ -97,6 +99,8 @@ export interface Configurator {
     /** The versions the car may not have, or that nothing on record approves. Struck through and never a choice. */
     readonly others: ComputedRef<VariantOption[]>
     readonly fromPrice: ComputedRef<string | null>
+    /** The person's version, where the colour on screen does not have it: said on the page, never a swap in silence. */
+    readonly colourLacks: Ref<ProduktConfig | null>
     selectFinish(id: number): void
     selectSize(option: SizeOption): void
     selectVariant(option: VariantOption): void
@@ -125,11 +129,34 @@ function choosable(config: ProduktConfig): boolean {
     return sellable(config) || answerable(config)
 }
 
-/** Permitted and in stock first, then permitted, then the rest; cheapest within each. */
-function best(configs: ProduktConfig[]): ProduktConfig | null {
-    const rank = (c: ProduktConfig): number => (sellable(c) ? (c.inStock ? 0 : 1) : 2)
+/*
+ * The order of OpeningSize on the server: sold and available, then sold; of the rest its tyres open, a question the customer can
+ * answer, any other open answer, the refused last. The cheapest within each, the oldest row on a tie. So a diameter never leads
+ * to a refused version beside one that can still be answered.
+ */
+function rank(config: ProduktConfig): number {
+    if (sellable(config)) {
+        return config.inStock ? 0 : 1
+    }
 
-    return [...configs].sort((a, b) => rank(a) - rank(b) || a.priceCents - b.priceCents)[0] ?? null
+    if (tyreUnconfirmed(config.verdict)) {
+        return 2
+    }
+
+    if (answerable(config)) {
+        return 3
+    }
+
+    return config.verdict?.status === 'UNKNOWN' ? 4 : 5
+}
+
+function best(configs: ProduktConfig[]): ProduktConfig | null {
+    return [...configs].sort((a, b) => rank(a) - rank(b) || a.priceCents - b.priceCents || a.id - b.id)[0] ?? null
+}
+
+/* One version across colours: everything that makes it that version, and nothing a colour has to say (the rework §8). */
+function sameVersion(a: ProduktConfig, b: ProduktConfig): boolean {
+    return a.diameterIn === b.diameterIn && a.widthIn === b.widthIn && a.etMm === b.etMm && a.boltPattern === b.boltPattern && a.centreBore === b.centreBore
 }
 
 function reasonFor(configs: ProduktConfig[]): string {
@@ -146,6 +173,9 @@ export function useConfigurator(
 ): Configurator {
     const finishId = ref(firstFinishId)
     const configId = ref<number | null>(initialConfigId)
+    /* The version the person is after: what they last chose, or what was on screen when they first looked at another colour. */
+    let wanted: ProduktConfig | null = null
+    const colourLacks = ref<ProduktConfig | null>(null)
 
     const forFinish = computed(() => configs().filter((c) => c.finishId === finishId.value))
 
@@ -175,8 +205,7 @@ export function useConfigurator(
             .map(([diameter, group]): SizeOption => {
                 const unconfirmed = !group.some(choosable) && group.some((c) => tyreUnconfirmed(c.verdict))
                 const blocked = !group.some(choosable) && !unconfirmed
-                const representative =
-                    current !== null && group.includes(current) ? current : (best(group) ?? group.find((c) => tyreUnconfirmed(c.verdict)) ?? group[0]!)
+                const representative = current !== null && group.includes(current) ? current : best(group)!
 
                 return {
                     diameter,
@@ -187,6 +216,7 @@ export function useConfigurator(
                     blocked,
                     unconfirmed,
                     reason: blocked || unconfirmed ? reasonFor(group) : null,
+                    standings: blocked ? [...new Set(group.map((c) => standingOf(c.verdict)))] : [],
                 }
             })
             .sort((a, b) => a.diameter - b.diameter)
@@ -211,7 +241,7 @@ export function useConfigurator(
 
                 return {
                     id: config.id,
-                    label: twin ? `${config.versionLabel} · Mittenloch ${config.centreBore}` : config.versionLabel,
+                    label: twin ? `${config.versionLabel} · Mittenloch\u00A0${config.centreBore}` : config.versionLabel,
                     config,
                     blocked,
                     standing: blocked ? standingOf(config.verdict) : null,
@@ -231,42 +261,58 @@ export function useConfigurator(
     })
 
     /**
-     * A new colourway keeps the customer's size where it can: the same width and ET if that
-     * finish offers them permitted, otherwise the same diameter. Falling back to the default
-     * silently swapped a chosen 19" for an 18" — and its price — on a colour change.
+     * Another colour keeps the person's version: all of it, whatever this colour's answer for the car — struck there, it stays
+     * and says so, never a swap in silence (the rework §8). Where the colour does not make it, the page says so and shows the
+     * nearest of that diameter or the colour's opening size; on the way back the person's version is there again. Pressing
+     * the colour already on changes nothing.
      */
     function selectFinish(id: number): void {
-        const previous = selected.value
-        finishId.value = id
-        configId.value = null
-
-        if (previous === null) {
+        if (id === finishId.value) {
             return
         }
 
-        // The size the customer chose stays where the other finish has it and it can be chosen there — sold, waiting for a
-        // fact of the car, or approved with its tyres open (D-286): never a jump to another size for want of the papers.
-        const candidates = forFinish.value.filter((c) => (choosable(c) || tyreUnconfirmed(c.verdict)) && c.diameterIn === previous.diameterIn)
-        const same = candidates.find((c) => c.widthIn === previous.widthIn && c.etMm === previous.etMm)
-        const keep = same ?? best(candidates)
+        wanted ??= selected.value
+        finishId.value = id
+        configId.value = null
+        colourLacks.value = null
 
-        configId.value = keep?.id ?? null
+        const version = wanted
+
+        if (version === null) {
+            return
+        }
+
+        const same = forFinish.value.find((c) => sameVersion(c, version))
+
+        if (same !== undefined) {
+            configId.value = same.id
+
+            return
+        }
+
+        // Sold, waiting for a fact of the car, or approved with its tyres open (D-286): never a jump for want of the papers.
+        const nearest = best(forFinish.value.filter((c) => c.diameterIn === version.diameterIn && (choosable(c) || tyreUnconfirmed(c.verdict))))
+
+        colourLacks.value = version
+        configId.value = nearest?.id ?? null
+    }
+
+    function choose(chosen: ProduktConfig): void {
+        wanted = chosen
+        colourLacks.value = null
+        configId.value = chosen.id
     }
 
     function selectSize(option: SizeOption): void {
-        if (option.blocked) {
-            return
+        if (!option.blocked) {
+            choose(option.config)
         }
-
-        configId.value = option.config.id
     }
 
     function selectVariant(option: VariantOption): void {
-        if (option.blocked) {
-            return
+        if (!option.blocked) {
+            choose(option.config)
         }
-
-        configId.value = option.config.id
     }
 
     return {
@@ -278,6 +324,7 @@ export function useConfigurator(
         versions,
         others,
         fromPrice,
+        colourLacks,
         selectFinish,
         selectSize,
         selectVariant,

@@ -77,7 +77,9 @@ it('keeps the size where another finish has it, and opens the first finish until
         ->and($props['chosen']['size'])->toBe($twin->id)
         ->and(collect($props['wheelFinishes'])->pluck('name'))->toContain('Zweitfarbe')
         ->and(collect($props['wheelSizes'])->pluck('id')->all())->toContain($twin->id)
-        ->and(collect($props['wheelSizes'])->pluck('label')->first())->not->toContain('·  ');
+        ->and(collect($props['wheelSizes'])->pluck('label')->first())->not->toContain('·  ')
+        // The whole version: two sizes of one width and ET with different bolt patterns are two answers, never one line twice.
+        ->and(collect($props['wheelSizes'])->pluck('label')->first())->toContain('mm');
 
     // Nothing named: the first finish, its sizes listed, no size chosen while it has several.
     $fresh = checkProps($this->get('/rimify-check?felge='.$wheel->slug));

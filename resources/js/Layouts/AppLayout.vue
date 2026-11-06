@@ -26,7 +26,7 @@ import { provideShell } from '../composables/useShell'
 import { useShortcuts } from '../composables/useShortcuts'
 import { useShared } from '../composables/useShared'
 import { useShopFeedback } from '../composables/useShopFeedback'
-import { useVehicleChangeHref } from '../lib/vehicleChange'
+import { useRemoveVehicle, useVehicleChangeHref } from '../lib/vehicleChange'
 
 withDefaults(defineProps<{ title?: string }>(), { title: undefined })
 
@@ -35,6 +35,7 @@ const shared = useShared()
 const shopFeedback = useShopFeedback(() => Boolean(shared.value.reviewer))
 const shell = provideShell()
 const changeHref = useVehicleChangeHref()
+const removeVehicle = useRemoveVehicle()
 provideConsent(shared.value.consent ?? null)
 
 const vehicle = computed(() => shared.value.vehicle)
@@ -68,10 +69,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => stopNavigate?.())
-
-function removeVehicle(): void {
-    router.delete('/fahrzeug', { preserveScroll: true })
-}
 </script>
 
 <template>

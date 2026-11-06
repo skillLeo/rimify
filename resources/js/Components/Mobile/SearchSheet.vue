@@ -17,12 +17,13 @@ import { useShared } from '../../composables/useShared'
 import { useMobileShell } from '../../composables/mobile/useMobileShell'
 import { useSheetHistory } from '../../composables/mobile/useSheetHistory'
 import type { IconName } from '../../icons'
-import { useVehicleChangeHref } from '../../lib/vehicleChange'
+import { useVehicleChangeHref, useVehicleChooseHref } from '../../lib/vehicleChange'
 
 const shared = useShared()
 const shell = useMobileShell()
 const search = useSearch()
 const changeHref = useVehicleChangeHref()
+const chooseHref = useVehicleChooseHref()
 
 const open = computed({
     get: () => shell.searchOpen.value,
@@ -82,7 +83,7 @@ const quick = computed(() => {
         list.push({ label: `Passende Felgen für ${vehicle.short}`, sub: vehicle.label, href: '/felgen', icon: 'wheel' })
         list.push({ label: 'Fahrzeug ändern', sub: null, href: changeHref.value, icon: 'car' })
     } else {
-        list.push({ label: 'Fahrzeug wählen', sub: 'Marke und Modell oder HSN/TSN', href: '/felgen-suchen', icon: 'car' })
+        list.push({ label: 'Fahrzeug wählen', sub: 'Marke und Modell oder HSN/TSN', href: chooseHref.value, icon: 'car' })
     }
 
     list.push({ label: 'RIMIFY-Check', sub: 'Passt eine Felge an mein Auto?', href: '/rimify-check', icon: 'check-circle' })

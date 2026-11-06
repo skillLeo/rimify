@@ -95,7 +95,7 @@ const copy = computed<Copy>(() => {
                 // The wheel approved and only the tyres open (R-03 split): never „kein Gutachten“ then.
                 body: props.result?.wheelLabel
                     ? 'Die Felge ist freigegeben, die Reifen dazu können wir aber nicht bestätigen. Das heißt nicht, dass sie unzulässig sind – nur, dass wir nicht belegen können, dass sie zulässig sind.'
-                    : 'Für diese Kombination liegt uns kein Gutachten vor. Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir nicht belegen können, dass sie zulässig ist.',
+                    : `${props.result?.stillOpen ? '' : 'Für diese Kombination liegt uns kein Gutachten vor. '}Das heißt nicht, dass die Felge unzulässig ist – nur, dass wir nicht belegen können, dass sie zulässig ist.`,
                 primary: { href: askHref.value, label: 'Bei uns nachfragen' },
             }
         default:

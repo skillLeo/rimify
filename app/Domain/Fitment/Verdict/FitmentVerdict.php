@@ -268,6 +268,18 @@ final readonly class FitmentVerdict
     }
 
     /**
+     * „Noch nicht bestätigt“, where more is known than „no paper“: something is on record for the car and something it needs is
+     * open, so no sentence beside it may say „kein Gutachten“ (D-214, D-405, R-17). Reads the verdict and decides nothing. The
+     * page's word for the same line: useConfigurator's `standingOf`.
+     */
+    public function stillOpen(): bool
+    {
+        return $this->status === VerdictStatus::Unknown
+            && $this->reason !== null
+            && ! in_array($this->reason->code, VerdictReason::NOTHING_ON_RECORD, true);
+    }
+
+    /**
      * „Felge freigegeben · Reifengröße noch nicht bestätigt“ (finding 103, D-214): the document approves the wheel for
      * the car, and the tyres' half is open — for want of something on record, a table or an index, or for want of the
      * car's figures, which the customer holds in the papers (`tyre->papersOwed`, D-286). Not for want of a fact the

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '../fixtures'
-import { ABNAHME, PRODUCT, box, consent, newVisitor, onSize, open, pageProps, shot, shotAround, withCar } from './support'
+import { ABNAHME, PRODUCT, box, consent, newVisitor, onSize, open, pageProps, shot, shotAround, throughExtras, toTyres, withCar } from './support'
 
 /*
  * The client's list on the product page, against the acceptance shop (rimify:demo --abnahme): the BORBET DB8GT2 at 18
@@ -198,7 +198,7 @@ test('after the add: the line and the total, „Weiter einkaufen“ and „Zum W
     await expect(button).toBeFocused()
 })
 
-test('Nur Felgen or Komplettrad: switching keeps the rest, the tyre is picked right there, and its size\'s answer is the one shown', { tag: '@kunde-18' }, async ({ page }, info) => {
+test('Nur Felgen or Komplettrad: switching keeps the rest, the tyres are chosen in the steps after it, and what a size asks stands on its card and above the basket', { tag: '@kunde-18' }, async ({ page }, info) => {
     await withCar(page, 'x3', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
 
@@ -208,43 +208,46 @@ test('Nur Felgen or Komplettrad: switching keeps the rest, the tyre is picked ri
     await amount(page, 2)
     await mode(page, 'Komplettrad')
 
-    const config = await onScreen(page)
-    const tyres = config.komplettrad.tyres
+    const tyres = (await onScreen(page)).komplettrad.tyres
     expect(tyres.length, 'the X3 at 19 Zoll is offered tyres').toBeGreaterThan(1)
-    await expect(page.locator('.kc-row')).toHaveCount(tyres.length)
 
-    // Each tyre: the panel says what its size asks — the Eintragung or none — and names the size.
+    // Back to the rims: the amount kept.
+    await mode(page, 'Nur Felgen')
+    await expect(page.locator('.pdp__amount output')).toHaveText('2')
+
+    // On to the steps, from the size on screen: every tyre the server offers, and no other.
+    await mode(page, 'Komplettrad')
+    await toTyres(page)
+    await expect(page.locator('[data-tyre-card]')).toHaveCount(tyres.length)
+
+    // Each tyre: its card says what its size asks.
     const entries = new Set<boolean>()
 
-    for (const [i, tyre] of tyres.entries()) {
-        await page.locator('.kc-row').nth(i).click()
+    for (const tyre of tyres) {
         const answer = tyre.answer
 
         expect(answer?.chosen, `tyre ${tyre.sizeLabel} came without its size's answer`).toBeTruthy()
-        await expect(page.locator('.pdp__fit .fit__overview-h')).toContainText(`mit ${answer?.chosen}`)
-
-        const papers = page.locator('.pdp__fit .fit__entry--verdict')
-        if (answer?.entry) {
-            await expect(papers).not.toHaveText(/^Keine/)
-        } else {
-            await expect(papers).toHaveText(/^Keine (Eintragung|Abnahme)/)
-        }
-
+        await expect(page.locator(`[data-tyre-card="t${tyre.id}"] .tc__entry`)).toHaveCount(answer?.entry ? 1 : 0)
         entries.add(answer?.entry === true)
     }
 
     // ABE 55255 asks the X3 for the Abnahme with one of its sizes and not the others: the answer changes with the tyre.
     expect(entries.size, 'every tyre gave the same answer about the papers').toBe(2)
 
-    // Back to the rims: the amount kept.
-    await mode(page, 'Nur Felgen')
-    await expect(page.locator('.pdp__amount output')).toHaveText('2')
+    // Above the basket, the answer for the size chosen: named, with what it asks. The picture: the tyre that needs the Abnahme.
+    const strict = tyres.find((t) => t.answer?.entry === true)
+    const free = tyres.find((t) => t.answer?.entry !== true)
 
-    // The picture: the Komplettrad with the tyre that needs the Abnahme.
-    await mode(page, 'Komplettrad')
-    const strict = tyres.findIndex((t) => t.answer?.entry === true)
-    await page.locator('.kc-row').nth(strict).click()
-    await shot(page.locator('.pdp__buy'), 18, info)
+    await throughExtras(page, page.locator(`[data-tyre-card="t${free?.id}"]`))
+    await expect(page.locator('.kf-step .fit__overview-h')).toContainText(`mit ${free?.answer?.chosen}`)
+    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveText(/^Keine (Eintragung|Abnahme)/)
+
+    await page.goBack()
+    await page.goBack()
+    await throughExtras(page, page.locator(`[data-tyre-card="t${strict?.id}"]`))
+    await expect(page.locator('.kf-step .fit__overview-h')).toContainText(`mit ${strict?.answer?.chosen}`)
+    await expect(page.locator('.kf-step .fit__entry--verdict')).not.toHaveText(/^Keine/)
+    await shot(page.locator('.kf-step'), 18, info)
 
     // A combination the Gutachten does not answer cannot be bought: the E46 at 18 Zoll (no table above 210 km/h).
     await withCar(page, 'e46', PRODUCT)
@@ -260,9 +263,9 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await withCar(page, 'x3', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await mode(page, 'Komplettrad')
-    await page.locator('.kc-row').first().click()
-    await page.locator('.kc-opt', { hasText: 'Mit RDKS-Sensoren' }).click()
-    await add(page)
+    await toTyres(page)
+    await throughExtras(page, page.locator('[data-tyre-card]').first(), 'Mit RDKS-Sensoren')
+    await add(page, page.locator('.kf-add'))
 
     await open(page, '/warenkorb')
     const line = page.locator('.bl__line').first()
@@ -293,7 +296,7 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await newVisitor(page, context)
     await withCar(page, 'x3', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
-    await expect(page.locator('.kc')).toHaveCount(0)
+    await expect(page.locator('.pdp__next')).toHaveCount(0)
     await add(page)
     await open(page, '/warenkorb')
     await expect(page.locator('.bl__line')).toHaveCount(1)
@@ -317,24 +320,21 @@ test('front and rear only in the pairs the Gutachten lists, each axle on its own
     expect(pairs.length).toBeGreaterThan(1)
     expect(pairs.length).toBeLessThan(every.length)
 
-    const mix = page.locator('section.mix')
-    await expect(mix).toBeVisible()
-    // Found without being told where (the operator's brief of 29.10.2026, D-360): in the buy column, within one screen of
-    // the Komplettrad just chosen — never thousands of pixels further down, under the Gutachten's full text.
-    await expect(page.locator('.pdp__buy section.mix')).toBeVisible()
-    const chosen = await page.locator('.pdp__mode').boundingBox()
-    const heading = await mix.locator('#mix-heading').boundingBox()
-    expect((heading?.y ?? Infinity) - (chosen?.y ?? 0)).toBeLessThan(page.viewportSize()?.height ?? 900)
-    await expect(mix.locator('.mix__pairs .chip')).toHaveText(pairs.map((p) => `vorne ${p.front} · hinten ${p.rear}`))
+    // Found without being told where (the operator's brief of 29.10.2026, D-360): the Komplettrad's way on stands in the buy column.
+    await toTyres(page)
+
+    const chips = page.locator('.kf-pairs .kf-pair')
+    await expect(chips).toHaveText(pairs.map((p) => new RegExp(`vorne ${p.front.replace(/[/]/g, '\\/')} · hinten ${p.rear.replace(/[/]/g, '\\/')}`)))
 
     // Each pair: front and rear on their own axle load, the axle that asks more named, the table's number and page.
-    for (const [i, pair] of pairs.entries()) {
-        await mix.locator('.mix__pairs .chip').nth(i).click()
-        await expect(mix.locator('.mix__pair')).toContainText(`vorne ${pair.front}`)
-        await expect(mix.locator('.mix__min')).toHaveText(/vorne \(880\skg\) mindestens Tragfähigkeitsindex \d+ .* hinten \(1\.020\skg\) mindestens Tragfähigkeitsindex \d+/)
-        await expect(mix.locator('.mix__min')).toHaveText(/(Mehr verlangt die (Vorderachse|Hinterachse)|Beide Achsen verlangen denselben Tragfähigkeitsindex)\.$/)
-        await expect(mix.locator('.mix__source')).toContainText(/Kombination Nr\.\s\d+/)
+    for (const [i] of pairs.entries()) {
+        await chips.nth(i).click()
+        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/vorne \(880\skg\) mindestens Tragfähigkeitsindex \d+ .* hinten \(1\.020\skg\) mindestens Tragfähigkeitsindex \d+/)
+        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/(Mehr verlangt die (Vorderachse|Hinterachse)|Beide Achsen verlangen denselben Tragfähigkeitsindex)\.$/)
+        await expect(page.locator('.kf-source')).toContainText(/Kombination Nr\.\s\d+/)
     }
+
+    const mix = page.locator('.kf-step')
 
     await shot(mix, 20, info)
 })
@@ -395,7 +395,7 @@ test('no dead „Nur die Felgen bestellen“: where no Komplettrad can be offere
     await onSize(page, 18, 'Schwarz matt')
     await mode(page, 'Komplettrad')
 
-    const refusal = page.locator('.kc .kc__refusal')
+    const refusal = page.locator('.kr-refusal')
     await expect(refusal).toBeVisible()
     await expect(refusal).toContainText(/die Felge allein kannst du sofort bestellen\./i)
     await expect(refusal.getByRole('link', { name: 'Schreib uns' })).toHaveAttribute('href', /^\/kontakt\?/)

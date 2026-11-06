@@ -232,7 +232,7 @@ function onCompareLabelClick(event: MouseEvent): void {
         <span class="tile__meta">
             <span class="tile__finish" translate="no">{{ card.finishName }}</span>
             <span v-if="card.diameters.length" class="tile__sep" aria-hidden="true"> · </span>
-            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (keine Freigabe für dein Fahrzeug)</span></span></template>{{ NNBSP }}Zoll<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
+            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (für dein Fahrzeug nicht bestätigt)</span></span></template>{{ NNBSP }}Zoll<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
             <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
         </span>
 

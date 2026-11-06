@@ -381,6 +381,8 @@ export interface BasketLine {
     /** A seeded demonstration row on the line — the wheel model or, for a Komplettrad, its tyre. */
     demo?: boolean
     slug?: string
+    /** The product page on the version in this line. */
+    productHref?: string
     /**
      * Re-computed on every render, never trusted from the session: a document may have been
      * superseded since the line was added, and the basket is the last place that can say so
@@ -389,6 +391,8 @@ export interface BasketLine {
     verdict?: {
         status: VerdictStatus
         label: string
+        /** Why not, in the verdict's own words; null where it sells. */
+        reason?: string | null
         /** Every Auflage a Hinweis (#23, D-104): shown as „Freigegeben“. Additive. */
         notesOnly?: boolean
         sellable: boolean

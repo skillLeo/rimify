@@ -2,14 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Tyres\KomplettradRefusal;
+use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\FitmentStatus;
 use App\Models\WheelConfig;
+use App\Models\WheelFinish;
 use App\Services\Commerce\OrderWriter;
+use App\Services\Storefront\Basket;
 use App\Services\Storefront\ProductCards;
 use App\Support\GermanFormat;
 use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Storefront\KomplettradFixture;
 
@@ -96,7 +101,7 @@ it('answers „no document“ for a version nothing on record speaks about, neve
         ->and($shipped['verdict']['sellable'])->toBeFalse();
 });
 
-it('opens a link to one size on the colour that size is in, and lets a named colour stand', function (): void {
+it('opens a link to one size on the colour that size is in, whatever other colour the link names', function (): void {
     $this->seed(ApprovalSeeder::class);
     $model = DB::table('wheel_finishes')->select('wheel_model_id')->groupBy('wheel_model_id')->havingRaw('COUNT(*) > 1')->value('wheel_model_id');
 
@@ -111,9 +116,59 @@ it('opens a link to one size on the colour that size is in, and lets a named col
     $opened = fn (string $query): int => $this->get('/felgen/'.$slug.$query)->assertOk()->viewData('page')['props']['finishes'][0]['id'];
 
     expect($opened('?groesse='.$last->id))->toBe($last->wheel_finish_id)
-        ->and($opened('?ausfuehrung='.$first.'&groesse='.$last->id))->toBe($first)
+        // A size names its colour: another in the same link, or one that does not exist, changes nothing.
+        ->and($opened('?ausfuehrung='.$first.'&groesse='.$last->id))->toBe($last->wheel_finish_id)
+        ->and($opened('?ausfuehrung=99999999&groesse='.$last->id))->toBe($last->wheel_finish_id)
+        ->and($opened('?ausfuehrung='.$last->wheel_finish_id))->toBe($last->wheel_finish_id)
         // Nothing in the address that is not on this page: as without one.
         ->and($opened('?groesse=99999999'))->toBe($opened(''));
+});
+
+it('offers no colour without a version: nothing to choose there, and no way on', function (): void {
+    $this->seed(ApprovalSeeder::class);
+    $config = WheelConfig::query()->with('wheelModel')->firstOrFail();
+    $empty = WheelFinish::factory()->create(['wheel_model_id' => $config->wheel_model_id, 'name_de' => 'Ohne Größen']);
+
+    $finishes = collect($this->get('/felgen/'.$config->wheelModel->slug)->assertOk()->viewData('page')['props']['finishes']);
+
+    expect($finishes)->not->toBeEmpty()
+        ->and($finishes->pluck('id')->all())->not->toContain($empty->id);
+});
+
+it('keeps a wheel with no version at all on its page, with its colours', function (): void {
+    $this->seed(ApprovalSeeder::class);
+    $finish = WheelFinish::factory()->create();
+
+    $finishes = $this->get('/felgen/'.$finish->wheelModel->slug)->assertOk()->viewData('page')['props']['finishes'];
+
+    expect(collect($finishes)->pluck('id')->all())->toContain($finish->id);
+});
+
+it('leads from the cart back to the version in it, not to whatever the page opens on', function (): void {
+    $this->seed(CommerceSeeder::class);
+    $config = WheelConfig::query()->with('wheelModel')->where('stock_qty', '>', 4)->firstOrFail();
+
+    $this->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $config->id, 'tyreVariantId' => null, 'quantity' => 4])->assertSessionHasNoErrors();
+
+    $line = $this->get('/warenkorb')->assertOk()->viewData('page')['props']['lines'][0];
+
+    expect($line['productHref'])->toBe('/felgen/'.$config->wheelModel->slug.'?ausfuehrung='.$config->wheel_finish_id.'&groesse='.$config->id);
+});
+
+it('tells two bores of one size apart: each is a version, and each can be stored', function (): void {
+    $this->seed(ApprovalSeeder::class);
+    $config = WheelConfig::query()->firstOrFail();
+    $twin = $config->replicate(['fitments_count']);
+    $twin->sku = $config->sku.'-B';
+    $twin->centre_bore_mm = (float) $config->centre_bore_mm + 6;
+    $twin->save();
+
+    expect(WheelConfig::query()->where('wheel_finish_id', $config->wheel_finish_id)->where('et_mm', $config->et_mm)->where('width_in', $config->width_in)->where('diameter_in', $config->diameter_in)->count())->toBeGreaterThanOrEqual(2);
+
+    $same = $config->replicate();
+    $same->sku = $config->sku.'-C';
+
+    expect(fn () => $same->save())->toThrow(UniqueConstraintViolationException::class);
 });
 
 it('counts the versions on a card: all of them without a car, those the page offers with one', function (): void {
@@ -129,6 +184,34 @@ it('counts the versions on a card: all of them without a car, those the page off
     expect($of($cards->catalogue(limit: null))['versionCount'])->toBe($all)
         ->and($all)->toBeGreaterThan(1)
         ->and($of($cards->forVehicle($vehicleId, [], 200, 1)['cards'])['versionCount'])->toBeLessThan($all);
+});
+
+// The paper names the car, its tyre sizes are not entered: never „kein Gutachten“ beside it (D-214, D-405, R-17).
+it('says „noch nicht bestätigen“ where a paper on record leaves something open: on the Komplettrad, the add and the basket line', function (): void {
+    $this->seed(ApprovalSeeder::class);
+    $this->seed(CommerceSeeder::class);
+    [$vehicleId, $slug] = versionCar();
+    $cookie = [VehicleContext::COOKIE => (new VehicleContext($vehicleId, true))->encode()];
+    $configs = collect($this->withCookies($cookie)->get('/felgen/'.$slug)->assertOk()->viewData('page')['props']['configs']);
+    $open = $configs->first(static fn (array $row): bool => ($row['verdict']['reasonCode'] ?? null) === VerdictReason::TYRE_SIZES_NOT_RECORDED);
+
+    expect($open)->not->toBeNull('the seeded approvals must hold a paper with no tyre size on record')
+        ->and($open['komplettrad']['refusalCode'])->toBe(KomplettradRefusal::VerdictOpen->value)
+        ->and($open['komplettrad']['refusal'])->not->toContain('kein Gutachten');
+
+    $this->withCookies($cookie)->from('/felgen/'.$slug)
+        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $open['id'], 'tyreVariantId' => null, 'quantity' => 4])
+        ->assertSessionHasErrors(['wheelConfigId' => Basket::WHEEL_OPEN]);
+
+    expect(Basket::WHEEL_OPEN)->not->toContain('kein Gutachten');
+
+    // In the basket from before the car: the line says what is open, in the verdict's own words.
+    $this->withSession([Basket::SESSION_KEY => ['wheel:'.$open['id'] => ['kind' => 'WHEEL', 'wheelConfigId' => $open['id'], 'tyreVariantId' => null, 'weightColourId' => null, 'quantity' => 4]]]);
+
+    $line = $this->withCookies($cookie)->get('/warenkorb')->assertOk()->viewData('page')['props']['lines'][0];
+
+    expect($line['verdict']['status'])->toBe('UNKNOWN')
+        ->and($line['verdict']['reason'])->toBe(VerdictReason::sentenceFor(VerdictReason::TYRE_SIZES_NOT_RECORDED));
 });
 
 it('names the whole version in the cart, and freezes it on the order line', function (): void {

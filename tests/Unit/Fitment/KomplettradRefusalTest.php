@@ -31,11 +31,12 @@ it('carries a full German sentence for every refusal, naming no code and no cont
         ->and($sentence)->not->toMatch('/\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihnen)\b/u');
 })->with($everyCase);
 
-it('has exactly the twenty-three cases — the specification’s thirteen, the two halves of R-03, the papers of D-286, the four of D-105, the profile of D-336 and the two of D-335 — in its order', function (): void {
+it('has exactly the twenty-four cases — the specification’s thirteen, the open one of D-405, the two halves of R-03, the papers of D-286, the four of D-105, the profile of D-336 and the two of D-335 — in its order', function (): void {
     expect(KomplettradRefusal::values())->toBe([
         'NO_VEHICLE',
         'VERDICT_NOT_PERMITTED',
         'VERDICT_UNKNOWN',
+        'VERDICT_OPEN',
         'TYRES_UNKNOWN',
         'TYRES_AWAIT_PAPERS',
         'TYRES_NOT_PERMITTED',
@@ -56,7 +57,7 @@ it('has exactly the twenty-three cases — the specification’s thirteen, the t
         'MIXED_NOT_ONE_PROFILE',
         'AS_COMBINATION',
         'NO_COMBINATION',
-    ])->and(KomplettradRefusal::cases())->toHaveCount(23);
+    ])->and(KomplettradRefusal::cases())->toHaveCount(24);
 });
 
 it('never says „kein Gutachten“ when the wheel is approved and only the tyres are open (R-03 split)', function (): void {
@@ -79,6 +80,14 @@ it('keeps UNKNOWN apart from NOT_PERMITTED — R-07', function (): void {
         ->and(KomplettradRefusal::VerdictUnknown->sentenceDe())->not->toContain('nicht freigegeben')
         ->and(KomplettradRefusal::VerdictNotPermitted->sentenceDe())->toContain('nicht freigegeben')
         ->and(KomplettradRefusal::VerdictNotPermitted->sentenceDe())->not->toContain('kein Gutachten');
+});
+
+// Beside a Gutachten on record, „kein Gutachten“ says what no record says (D-214, D-405, R-17): no refusal, and no claim about the paper.
+it('says „noch nicht bestätigen“ where a paper names the car and something it needs is open', function (): void {
+    expect(KomplettradRefusal::VerdictOpen->sentenceDe())->not->toContain('kein Gutachten')
+        ->and(KomplettradRefusal::VerdictOpen->sentenceDe())->not->toContain('nicht freigegeben')
+        ->and(KomplettradRefusal::VerdictOpen->sentenceDe())->toContain('noch nicht bestätigen')
+        ->and(KomplettradRefusal::VerdictOpen->sentenceDe())->toContain('schreib uns');
 });
 
 it('names a route forward on every refusal a customer can act on', function (): void {

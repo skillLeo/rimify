@@ -164,7 +164,7 @@ const VERDICT_TONE: Record<string, string> = {
                                     <span v-if="line.isSet" class="tag tag--ok bl__set-tag">{{ line.setLabel }}</span>
                                 </p>
                                 <p class="bl__title">
-                                    <Link v-if="line.slug" :href="`/felgen/${line.slug}`" class="bl__link">
+                                    <Link v-if="line.slug" :href="line.productHref ?? `/felgen/${line.slug}`" class="bl__link">
                                         {{ line.title }}
                                     </Link>
                                     <template v-else>{{ line.title }}</template>
@@ -244,7 +244,7 @@ const VERDICT_TONE: Record<string, string> = {
                                     <p v-if="line.verdict.status === 'NOT_PERMITTED'">
                                         Diese Felge ist für dein aktuelles Fahrzeug nicht mehr freigegeben.
                                     </p>
-                                    <p v-else>Für diese Kombination liegt uns kein Gutachten vor.</p>
+                                    <p v-else>{{ line.verdict.reason ?? 'Für diese Kombination liegt uns kein Gutachten vor.' }}</p>
                                     <Link href="/felgen-suchen" class="bl__blocked-link">Anderes Fahrzeug wählen</Link>
                                 </div>
 

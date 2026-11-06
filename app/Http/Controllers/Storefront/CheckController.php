@@ -104,7 +104,8 @@ class CheckController extends Controller
             'wheelFinishes' => $finishes->map(static fn ($f): array => ['id' => (int) $f->id, 'name' => (string) $f->name_de])->all(),
             'wheelSizes' => $sizes->map(static fn (WheelConfig $c): array => [
                 'id' => (int) $c->id,
-                'label' => GermanFormat::wheelSize((float) $c->width_in, (float) $c->diameter_in, (int) $c->et_mm),
+                // The whole version: two of one width and ET are two answers, never one line twice (the Gutachten rework §8).
+                'label' => GermanFormat::wheelLabel((float) $c->width_in, (float) $c->diameter_in, (int) $c->et_mm, (int) $c->bolt_holes, (float) $c->bolt_circle_mm, (float) $c->centre_bore_mm),
             ])->all(),
             'chosen' => ['brand' => $brand?->slug, 'wheel' => $wheel?->slug, 'finish' => $finishId, 'size' => $config?->id],
             'notFound' => $notFound,

@@ -77,6 +77,35 @@ describe('restoredPages', () => {
         expect(reload).toHaveBeenCalledTimes(1)
     })
 
+    // The interaction review of Phase 3: a car chosen, then Back to the page without one — „Noch kein Fahrzeug gewählt“ over a car the shop has.
+    it('asks a restored shop page without a car too, and again whole where a car has come since', () => {
+        back('/felgen/nordfelge-fjord', { vehicle: null, catalogue: 'k1' })
+
+        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['vehicle', 'catalogue'] }))
+
+        answer({ vehicle: { id: 127, papers: null, build: null }, catalogue: 'k1' })
+        expect(reload).toHaveBeenCalledTimes(2)
+        expect(reload.mock.calls[1]).toEqual([])
+
+        reload.mockClear()
+        back('/felgen/nordfelge-fjord', { vehicle: null, catalogue: 'k1' })
+        answer({ vehicle: null, catalogue: 'k1' })
+        expect(reload).toHaveBeenCalledTimes(1)
+    })
+
+    it('never asks an admin page about a car', () => {
+        back('/admin/felgen', { catalogue: 'k1', admin: {} })
+
+        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['catalogue', 'admin'] }))
+    })
+
+    // A pick while the question is on its way: the answer brings no address of its own.
+    it('keeps the address the page has by the time the answer comes', () => {
+        back('/felgen/nordfelge-fjord', { vehicle: null, catalogue: 'k1' })
+
+        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ preserveUrl: true }))
+    })
+
     it('leaves a restored page that names no car and carries no catalogue, and every ordinary visit, alone @kunde-08', () => {
         back('/warenkorb')
         visit('/felgen?fahrzeug=0005-Z90-00001', { catalogue: 'k1' })
@@ -88,7 +117,7 @@ describe('restoredPages', () => {
     // must not show what the catalogue said before.
     it('asks a restored page again whole where the catalogue moved on while it lay in history @admin-216', () => {
         back('/felgen/borbet-db8gt2', { catalogue: 'k1' })
-        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['catalogue'] }))
+        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['vehicle', 'catalogue'] }))
 
         answer({ catalogue: 'k2' })
         expect(reload).toHaveBeenCalledTimes(2)
@@ -127,7 +156,7 @@ describe('restoredPages', () => {
         expect(reload).not.toHaveBeenCalled()
 
         pageshow(true)
-        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['catalogue'] }))
+        expect(reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['vehicle', 'catalogue'] }))
         answer({ catalogue: 'k2' })
         expect(reload).toHaveBeenCalledTimes(2)
     })

@@ -153,3 +153,112 @@ test('a card says how many versions stand behind its price', async ({ page }) =>
     await expect(page.locator('article.tile .tile__sizes', { hasText: 'Ausführungen' }).first()).toContainText(/\d+\sAusführungen/)
     await expectNoHorizontalOverflow(page)
 })
+
+/* The interaction review of Phase 3: what Back, a colour and a car did to the version chosen. */
+
+const COLOURS = '/felgen/nordfelge-fjord'
+
+async function chooseLastVersion(page: Page): Promise<string> {
+    const versions = page.locator('button.pdp__version')
+
+    await versions.last().click()
+    await expect(versions.last()).toHaveAttribute('aria-pressed', 'true')
+    // The address follows through Inertia, a moment later.
+    await page.waitForURL(/groesse=/)
+
+    return (await page.locator('.pdp__chosen').textContent()) ?? ''
+}
+
+test('Back finds the colour, the version and its price as they were left', async ({ page }) => {
+    await open(page, COLOURS)
+    await page.locator('.pdp__swatch').nth(1).click()
+
+    const colour = (await page.locator('.pdp__swatch--on').textContent())?.trim() ?? ''
+    const version = await chooseLastVersion(page)
+    const price = await page.locator('.pdp__total').textContent()
+
+    await page.locator('.pdp__crumbs a', { hasText: 'Felgen' }).click()
+    await page.waitForURL(/\/felgen(\?|$)/)
+    await page.goBack()
+
+    await expect(page.locator('.pdp__chosen')).toHaveText(version)
+    await expect(page.locator('.pdp__total')).toHaveText(price ?? '')
+    await expect(page.locator('.pdp__swatch--on')).toContainText(colour)
+})
+
+test('a link with a fragment opens the size it names', async ({ page }) => {
+    await open(page, COLOURS)
+
+    const { configs } = await props(page)
+    const named = configs.at(-1)!
+
+    await open(page, `${COLOURS}?groesse=${named.id}#groessen`)
+    await expect(page.locator('.pdp__chosen')).toContainText(named.fullLabel.split(' · ')[0]!)
+})
+
+test('a press on the colour already on changes nothing: the bolt pattern chosen stays', async ({ page }) => {
+    await open(page, WHEEL)
+
+    const other = page.locator('button.pdp__version', { hasText: '5 × 108' }).first()
+
+    await other.click()
+    await expect(other).toHaveAttribute('aria-pressed', 'true')
+    await page.waitForURL(/groesse=/)
+
+    const address = page.url()
+
+    await page.locator('.pdp__swatch--on').click()
+
+    await expect(other).toHaveAttribute('aria-pressed', 'true')
+    expect(page.url()).toBe(address)
+})
+
+test('the car chosen from the product page comes back to the wheel and the version', async ({ page }) => {
+    await open(page, COLOURS)
+
+    const version = await chooseLastVersion(page)
+    const address = new URL(page.url())
+
+    await page.locator('.pdp__fit-cta').click()
+    await page.waitForURL(/\/felgen-suchen\?zurueck=/)
+    await waitForApp(page)
+
+    await page.locator('[id="hsn-/felgen-suchen"]').fill('0603')
+    await page.locator('[id="tsn-/felgen-suchen"]').fill('BGU')
+    await page.locator('form:has([id="hsn-/felgen-suchen"]) button[type="submit"]').click()
+
+    await page.waitForURL(/\/felgen\/nordfelge-fjord\?.*fahrzeug=/)
+    expect(new URL(page.url()).searchParams.get('groesse')).toBe(address.searchParams.get('groesse'))
+    await expect(page.locator('.pdp__chosen')).toHaveText(version)
+
+    // Back past the selector to the page left without a car: it follows the car on screen, never „Noch kein Fahrzeug gewählt“.
+    await page.goBack()
+    await page.goBack()
+    await page.waitForURL(/\/felgen\/nordfelge-fjord/)
+    await expect(page.locator('.pdp__fit')).not.toContainText('Noch kein Fahrzeug gewählt')
+    await expect(page.locator('.pdp__fit-cta')).toHaveCount(0)
+})
+
+test('the cart leads back to the version in it, not to what the page opens on', async ({ page }) => {
+    await open(page, COLOURS)
+    await page.locator('.pdp__swatch').nth(1).click()
+
+    const version = await chooseLastVersion(page)
+
+    await page.locator('button.pdp__add').click()
+    await expect(page.locator('.addp')).toBeVisible()
+
+    await open(page, '/warenkorb')
+    await page.locator('.bl__link').first().click()
+    await page.waitForURL(/\/felgen\/nordfelge-fjord/)
+    await expect(page.locator('.pdp__chosen')).toHaveText(version)
+})
+
+test('a long wheel name wraps inside the column at 320: no sideways scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 })
+    await open(page, COLOURS)
+    await page.evaluate(() => {
+        document.querySelector('.pdp__buy h1')!.textContent = 'Kraftfahrzeug-Zulassungsbescheinigungsfelge'
+    })
+    await expectNoHorizontalOverflow(page)
+})

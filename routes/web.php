@@ -78,6 +78,7 @@ use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KasseZahlungController;
+use App\Http\Controllers\Storefront\KomplettradController;
 use App\Http\Controllers\Storefront\KontaktController;
 use App\Http\Controllers\Storefront\KontoController;
 use App\Http\Controllers\Storefront\PaymentWebhookController;
@@ -134,6 +135,8 @@ Route::get('/gutachten/{document}/beispiel', [BeispielGutachtenController::class
 // Up to four wheels side by side; the keys travel in `?f=` so a comparison is a link.
 Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich.index');
 
+// The Komplettrad, step by step (the Gutachten rework §9): Felge, Reifen, Extras, Warenkorb.
+Route::get('/komplettraeder', [KomplettradController::class, 'show'])->name('komplettrad.show');
 
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');

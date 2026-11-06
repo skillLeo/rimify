@@ -100,6 +100,9 @@ final readonly class Basket
     /** UNKNOWN is not NOT_PERMITTED (R-07): a car with no Gutachten on file is not told it is unapproved. */
     public const WHEEL_UNKNOWN = 'Zu dieser Felge liegt uns für dein Fahrzeug kein Gutachten vor. Schreib uns, dann prüfen wir das für dich.';
 
+    /** A paper on record names the car and something it needs is open (D-405): never „kein Gutachten“ beside it (R-17). */
+    public const WHEEL_OPEN = 'Die Freigabe dieser Felge für dein Fahrzeug können wir noch nicht bestätigen. Schreib uns, dann prüfen wir das für dich.';
+
     /** The wheel is approved, the tyres are not settled: the rim is not sold until they are (fail closed). */
     public const TYRES_UNKNOWN = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen dazu können wir aber nicht bestätigen. Deshalb verkaufen wir dir die Felge noch nicht – schreib uns, dann prüfen wir das für dich.';
 
@@ -1001,6 +1004,8 @@ final readonly class Basket
             'kind' => 'WHEEL',
             'wheelConfigId' => $config->id,
             'slug' => $model->slug,
+            // The version in this line, never whatever the product page opens on (the Gutachten rework §8).
+            'productHref' => '/felgen/'.$model->slug.'?ausfuehrung='.$config->wheel_finish_id.'&groesse='.$config->id,
             'brandName' => $model->brand->name,
             // What follows the brand: model and Radtypenbezeichnung, or the title typed (D-298).
             'title' => WheelTitle::name($model),
@@ -1196,7 +1201,11 @@ final readonly class Basket
             };
         }
 
-        return $verdict->status === VerdictStatus::NotPermitted ? self::WHEEL_NOT_PERMITTED : self::WHEEL_UNKNOWN;
+        return match (true) {
+            $verdict->status === VerdictStatus::NotPermitted => self::WHEEL_NOT_PERMITTED,
+            $verdict->stillOpen() => self::WHEEL_OPEN,
+            default => self::WHEEL_UNKNOWN,
+        };
     }
 
     /**
@@ -1215,6 +1224,8 @@ final readonly class Basket
             // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
             'notesOnly' => $notesOnly,
             'sellable' => $verdict->isSellable(),
+            // Why not, in the verdict's own words: a line whose paper leaves something open never reads „kein Gutachten“ (D-405, R-17).
+            'reason' => $verdict->reason?->textDe,
             'requiresEntry' => $verdict->requiresEntry,
             'papersExempt' => $verdict->papersExempt(),
             // The one short sentence the checkout repeats up to the order button (Block G); the Auflagen stay
@@ -1356,6 +1367,7 @@ final readonly class Basket
             'total' => GermanFormat::money($total, $currency),
             // What „Ja“ would add, whatever has been answered: the product page shows it on the tile before anyone answers.
             'yesTotal' => $unit === null ? null : LinePrice::total(Money::fromMinor($unit, $currency), $quantity)->format(),
+            'yesTotalCents' => $unit === null ? null : LinePrice::total(Money::fromMinor($unit, $currency), $quantity)->toMinor(),
             'notice' => $notice,
         ];
     }

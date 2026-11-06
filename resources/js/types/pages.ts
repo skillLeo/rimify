@@ -387,7 +387,7 @@ export interface ProduktProps {
 export interface KomplettradOptionsProp {
     colours: BasketWeightOption[]
     /** The basket's own RDKS block for the set this page adds; `yesTotal` is what „Ja“ would add. */
-    tpms: BasketTpms & { yesTotal: string | null }
+    tpms: BasketTpms & { yesTotal: string | null; yesTotalCents?: number | null }
 }
 
 /** One buyer's review as the product page shows it: no name, a verified purchase by construction (D-103). */
@@ -575,6 +575,7 @@ export type KomplettradRefusalCode =
     | 'NO_VEHICLE'
     | 'VERDICT_NOT_PERMITTED'
     | 'VERDICT_UNKNOWN'
+    | 'VERDICT_OPEN'
     | 'TYRES_UNKNOWN'
     | 'TYRES_AWAIT_PAPERS'
     | 'TYRES_NOT_PERMITTED'
@@ -624,6 +625,11 @@ export interface KomplettradTyreProp {
     /** The tyre alone, per tyre. */
     tyrePriceCents: number
     tyrePrice: string
+    /** Four of it alone, added up on the server. */
+    tyreSetCents?: number
+    tyreSet?: string
+    /** `Lastindex 95: bis 690 kg je Reifen · Y: bis 300 km/h` */
+    facts?: string
     /** Rim + tyre + mounting + weights for ONE wheel: the known components, an unpriced one left out. */
     perWheelCents: number
     perWheel: string
@@ -674,7 +680,15 @@ export interface MischbereifungSetProp {
     /** The rear tyre's maker and line — another where the document allows two (D-336). */
     rearBrandName?: string
     rearName?: string
+    season?: 'sommer' | 'winter' | 'ganzjahres'
     seasonLabel: string
+    /** Each axle's tyre alone, and the 2 + 2 of them, added up on the server. */
+    frontTyrePrice?: string
+    rearTyrePrice?: string
+    tyreSetCents?: number
+    tyreSet?: string
+    frontFacts?: string
+    rearFacts?: string
     /** `235/45 R19 95Y` */
     frontLabel: string
     rearLabel: string
@@ -765,6 +779,8 @@ export interface CheckResultView {
     wheel: string | null
     /** The wheel half, where the verdict has one. */
     wheelLabel: string | null
+    /** A paper on record names the car and something is open: no sentence beside it says „kein Gutachten“ (D-405). */
+    stillOpen?: boolean
     reason: string | null
     requiresEntry: boolean
     /** § 15 FZV as frozen with the answer: the papers need no correction. Additive. */

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The steps of a sketched flow, in one order that never changes (the Gutachten rework brief §7): done steps are ticked and
+ * The steps of a flow, in one order that never changes (the Gutachten rework brief §7): done steps are ticked and
  * lead back, the current one is marked, the next one opens once everything before it has been seen. The admin's five
  * Gutachten steps and the shop's Komplettrad steps wear the same bar, so the two read as one product (§9).
  */

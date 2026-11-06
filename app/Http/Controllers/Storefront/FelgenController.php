@@ -380,7 +380,7 @@ class FelgenController extends Controller
             // Not available: the subject of the „Anfrage“ that takes the button's place (his admin item 7, D-350).
             'enquiry' => $config->available || $rim === null
                 ? null
-                : AvailabilityEnquiry::subject($rim, (float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm),
+                : AvailabilityEnquiry::subject($rim, (float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm, (int) $config->bolt_holes, (float) $config->bolt_circle_mm, (float) $config->centre_bore_mm),
             'kbaNumber' => $config->kba_number,
             'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
             // The load rating per wheel, from the approval document; null when nobody has
@@ -402,8 +402,14 @@ class FelgenController extends Controller
     private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours, array $openOn = []): Response
     {
         $finishes = [];
+        $withVersions = array_flip(array_map(static fn (array $config): int => (int) $config['finishId'], $configs));
 
         foreach ($wheel->finishes as $finish) {
+            // A colour with no version is nothing to choose, and no way on. A wheel with none at all keeps its colours on its page.
+            if ($configs !== [] && ! isset($withVersions[$finish->id])) {
+                continue;
+            }
+
             $finishes[] = [
                 'id' => $finish->id,
                 'name' => $finish->name_de,
@@ -510,6 +516,8 @@ class FelgenController extends Controller
                 'swatchHex' => $c->swatch_hex,
                 'surchargeCents' => (int) $c->surcharge_cents,
                 'surcharge' => GermanFormat::money((int) $c->surcharge_cents, $c->currency),
+                // For the four wheels, as the last step's line says it.
+                'surchargeForFour' => LinePrice::total(Money::fromMinor((int) $c->surcharge_cents, $c->currency), self::SET_OF)->format(),
                 'isDefault' => (bool) $c->is_default,
             ])->values()->all(),
             'tpms' => app(Basket::class)->tpmsOffer($request, self::SET_OF),
@@ -611,6 +619,10 @@ class FelgenController extends Controller
                 'sizeLabel' => $variant->label(),
                 'tyrePriceCents' => (int) $variant->price_cents,
                 'tyrePrice' => Money::fromMinor((int) $variant->price_cents, $price->currency)->format(),
+                // The four tyres alone, as their card says it; computed here, as every figure (R-10).
+                'tyreSetCents' => LinePrice::total(Money::fromMinor((int) $variant->price_cents, $price->currency), self::SET_OF)->toMinor(),
+                'tyreSet' => LinePrice::total(Money::fromMinor((int) $variant->price_cents, $price->currency), self::SET_OF)->format(),
+                'facts' => $variant->factsDe(),
                 // The known components per wheel; an unconfigured mounting fee is left out and
                 // `priceOpen` says so — never a guessed number, never a silent 0,00 € (D-032).
                 'perWheelCents' => $perWheel->toMinor(),
@@ -788,6 +800,9 @@ class FelgenController extends Controller
                 $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
                 $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
                 $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
+                $frontTyre = Money::fromMinor((int) $front->price_cents, $frontPrice->currency);
+                $rearTyre = Money::fromMinor((int) $rear->price_cents, $rearPrice->currency);
+                $tyreSet = LinePrice::total($frontTyre, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearTyre, TyreEligibility::MIXED_PER_AXLE));
 
                 $sets[] = [
                     'key' => $front->id.'-'.$rear->id,
@@ -798,7 +813,15 @@ class FelgenController extends Controller
                     // Two profile types, or two makers, where the document allows it (D-336): the page names each axle's tyre.
                     'rearBrandName' => (string) $rear->brand?->name,
                     'rearName' => (string) $rear->name,
+                    'season' => (string) $front->season,
                     'seasonLabel' => TyreSeason::from((string) $front->season)->longLabelDe(),
+                    // The four tyres alone, as their card says it: each axle's own price, the set added up on the server.
+                    'frontTyrePrice' => $frontTyre->format(),
+                    'rearTyrePrice' => $rearTyre->format(),
+                    'tyreSetCents' => $tyreSet->toMinor(),
+                    'tyreSet' => $tyreSet->format(),
+                    'frontFacts' => $front->factsDe(),
+                    'rearFacts' => $rear->factsDe(),
                     'frontLabel' => $front->label(),
                     'rearLabel' => $rear->label(),
                     'perWheelFront' => $frontWheel->format(),
@@ -912,8 +935,8 @@ class FelgenController extends Controller
         $permitted = [];
 
         foreach ($configs as $config) {
-            // A link to a size names its colour too: the offers in the structured data carry nothing else (the rework §8).
-            if ($requested === 0 && $config['id'] === $size) {
+            // A link to a size names its colour, whatever else it says: the offers in the structured data carry nothing else (the rework §8).
+            if ($config['id'] === $size) {
                 $requested = (int) $config['finishId'];
             }
 

@@ -107,6 +107,11 @@ final readonly class KomplettradPricer
      * The mounting-and-balancing fee per wheel the admin set, or null while nobody has named one
      * (D-032). Anything but a non-negative integer is unset, never a guess.
      */
+    public function mountingPerWheel(): ?int
+    {
+        return $this->mountingPerWheelCents();
+    }
+
     private function mountingPerWheelCents(): ?int
     {
         return $this->settings->mountingPerWheelCents();
