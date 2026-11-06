@@ -1,11 +1,9 @@
 <script setup lang="ts">
 /**
- * Gutachten › one document — the workspace the compliance team enters a Gutachten in (the review
- * release §4.3): its facts and PDF, the Verwendungsbereich rows grouped by vehicle, the form that adds
- * rows for vehicles × sizes, the preview of what the shop will say, and the Freigabe.
- *
- * The Freigabe is the document's, never a row's: all rows become visible at once. What stops it is
- * said above the rows. A page number on a row opens the PDF at that page.
+ * Gutachten › one document, to read: a released paper, or a draft for who may only look (a draft someone may edit opens the five
+ * steps, Erfassung.vue). Its facts and PDF, its cars with their tyres — codes as short tags, the text on hover and in the
+ * Auflagenverzeichnis, never the wall of repeated text the rows once printed (screen 11) — the preview of what the shop says, and
+ * the way back: „Neue Fassung anlegen“.
  */
 
 import { router, usePage } from '@inertiajs/vue3'
@@ -13,108 +11,88 @@ import { computed, nextTick, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage, { type AdminPageAction } from '../../../Components/Admin/AdminPage.vue'
-import ConditionGroups from '../../../Components/Fitment/ConditionGroups.vue'
-import Dialog from '../../../Components/Ui/Dialog.vue'
-import { afterDialogsClose, focusRefused } from '../../../composables/admin/focusRefused'
-import { stampHeaders } from '../../../composables/admin/useDirtyForm'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
-import { sizesByAxle } from '../../../fitment/axles'
 import { decimal } from '../../../format'
-import type { AdminGutachtenShowProps, FitmentRowView, RowForm } from '../../../types/admin/gutachten'
+import type { AdminGutachtenShowProps } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import CountCard from './CountCard.vue'
-import CombinationsCard from './CombinationsCard.vue'
 import DeratingTable from './DeratingTable.vue'
 import { deratingAbsent as absentLine, deratingShown as isDeratingShown } from './derating'
 import DocumentExtras from './DocumentExtras.vue'
-import FactsDialog from './FactsDialog.vue'
+import PreviewSection from './Erfassung/PreviewSection.vue'
 import ReleaseDialog from './ReleaseDialog.vue'
-import RowComposer from './RowComposer.vue'
-import RowFields from './RowFields.vue'
-import { codesText, formFromRow, payload, settleSizes, unreadable } from './rows'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
-const props = defineProps<AdminGutachtenShowProps>()
+interface ReadLine {
+    id: number
+    front: string
+    rear: string
+    kw: string | null
+    codes: string[]
+}
+
+interface ReadCar {
+    id: number
+    car: string
+    k: string | null
+    wheel: string | null
+    finish: string | null
+    axle: string
+    page: number | null
+    lines: ReadLine[]
+    codes: string[]
+}
+
+const props = defineProps<AdminGutachtenShowProps & { readView: ReadCar[]; carryFailed?: string | null }>()
 
 const page = usePage()
 const draft = computed(() => props.document.status === 'draft')
-/* A new draft is counted before its first row (ADMIN-GEFUNDEN 511): until then the rows' form waits, so the count is read
-   off the PDF and not off the entry. A draft that already has rows is counted at release, and says so. */
-const countFirst = computed(() => draft.value && !props.document.count && props.rows.length === 0)
 
-/** Every row of the document — the page draws the first ROWS_SHOWN; what is released is all of them (F-37). */
-const rowsTotal = computed(() => props.rowsTotal ?? props.rows.length)
+/** Every row of the document, across colours: what a release brings into the shop. */
+const rowsTotal = computed(() => props.rowsTotal ?? 0)
 
 const context = computed(() => {
-    const n = rowsTotal.value
-    const rows = n === 1 ? '1 Zeile' : `${decimal(n, 0)} Zeilen`
+    const cars = props.readView.length
+    const said = cars === 1 ? '1 Fahrzeug' : `${decimal(cars, 0)} Fahrzeuge`
 
-    return `${props.document.statusLabel} · ${rows} · Fassung ${props.document.revision}`
-})
-
-/** Rows by vehicle, in the order the server sent them. */
-const groups = computed(() => {
-    const out: { vehicleId: number; vehicle: string; rows: FitmentRowView[] }[] = []
-
-    for (const row of props.rows) {
-        const last = out[out.length - 1]
-
-        if (last && last.vehicleId === row.vehicleId) {
-            last.rows.push(row)
-        } else {
-            out.push({ vehicleId: row.vehicleId, vehicle: row.vehicle, rows: [row] })
-        }
-    }
-
-    return out
+    return `${props.document.statusLabel} · ${said} · Fassung ${props.document.revision}`
 })
 
 function pageHref(n: number | null): string | null {
     return props.document.pdfUrl && n !== null ? `${props.document.pdfUrl}#page=${n}` : null
 }
 
+/* One code's text, on hover: the Auflagenverzeichnis below holds it whole. */
+function codeHint(code: string): string {
+    const entry = props.conditions.find((c) => c.code === code)
+
+    return entry ? `${code} · ${entry.kindLabel}\n${entry.text}` : `${code}: im Auflagenverzeichnis nicht hinterlegt`
+}
+
+function lineText(line: ReadLine): string {
+    if (line.front === '' || line.rear === '') {
+        return line.front === '' ? `nur hinten ${line.rear}` : `nur vorne ${line.front}`
+    }
+
+    return line.front === line.rear ? line.front : `vorne ${line.front} · hinten ${line.rear}`
+}
+
 const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).release ?? '')
 
 /* ── Tragfähigkeit bei hoher Geschwindigkeit (his admin item 15, D-295) ──────── */
 
-/** The document prints a table of tyre load at speed, as the record says (D-277): entered here, released only with it. */
-const deratingRequired = computed(() => props.document.shape.tyre_index_source === 'table')
-
-/** Shown whole where the document prints one — or where one is entered all the same; otherwise one line, folded away. */
 const deratingShown = computed(() => isDeratingShown(props.document.shape.tyre_index_source, props.derating.rows.length))
+const deratingAbsent = computed(() => absentLine(props.document.shape.tyre_index_source, false))
 
-/** The folded line, in finding 104's words, and why no table is asked for (derating.ts, R-17). */
-const deratingAbsent = computed(() => absentLine(props.document.shape.tyre_index_source, props.can.edit && draft.value))
+const more = computed<AdminPageAction[]>(() => (props.document.pdfUrl ? [{ label: 'PDF öffnen', href: props.document.pdfUrl, external: true, icon: 'documents' }] : []))
 
-/* ── Facts ─────────────────────────────────────────────────────────────────── */
-
-const factsOpen = ref(false)
-
-const more = computed<AdminPageAction[]>(() => {
-    const actions: AdminPageAction[] = []
-
-    if (props.document.pdfUrl) {
-        actions.push({ label: 'PDF öffnen', href: props.document.pdfUrl, external: true, icon: 'documents' })
-    }
-
-    if (props.can.edit) {
-        actions.push({ label: 'Angaben ändern', run: () => (factsOpen.value = true), icon: 'edit' })
-    }
-
-    return actions
-})
-
-/* ── Freigabe ──────────────────────────────────────────────────────────────── */
+/* ── Freigabe, for who may release and not edit ──────────────────────────────── */
 
 const releaseOpen = ref(false)
 /* „Ist alles erfasst?“ for a released document (D-227): answered once, read by the shop and the go-live check. */
 const answerOpen = ref(false)
 
-/*
- * What „Freigeben" does, said before it is pressed. A base without rows of its own (ABE 53841: its Verwendungsbereich
- * stands in its Nachtrag's Anlagen) brings no row into the shop — its facts reach the shop through its Nachträge.
- */
 const releaseNote = computed(() => {
     if (rowsTotal.value === 0) {
         return 'Mit der Freigabe übernimmt der Shop die Angaben dieses Grundgutachtens für seine Nachträge. Eigene Zeilen hat es nicht.'
@@ -125,10 +103,6 @@ const releaseNote = computed(() => {
         : `Mit der Freigabe gelten alle ${decimal(rowsTotal.value, 0)} Zeilen auf einmal im Shop. Prüf sie vorher in der Vorschau unten.`
 })
 
-/*
- * What becomes read-only, and what changing it then takes — said before „Freigeben“ is pressed (ADMIN-GEFUNDEN 510: the
- * client released his first Gutachten and looked for the way back nine times in six minutes).
- */
 const releaseBody = computed(() => {
     const what = rowsTotal.value === 0
         ? 'Der Shop übernimmt danach die Angaben dieses Grundgutachtens für seine Nachträge.'
@@ -157,11 +131,6 @@ function focusState(): void {
     void nextTick(() => document.getElementById('gs-state-h')?.focus())
 }
 
-/*
- * The Freigabe answers with the document released, and the dialog goes with the button that opened it (`can.release`):
- * removed with the focus inside it, the browser drops the keyboard to <body>. Once the page has redrawn, the keyboard
- * lands on the document's new state (GUTACHTEN-08b, found again by the gate of 15.10.2026).
- */
 watch(
     () => props.document.status,
     (now, was) => {
@@ -171,159 +140,12 @@ watch(
     },
     { flush: 'post' },
 )
-
-/* ── One row: change or take out ──────────────────────────────────────────── */
-
-const editing = ref<FitmentRowView | null>(null)
-const editForm = ref<RowForm | null>(null)
-const editErrors = ref<Record<string, string | undefined>>({})
-const editBusy = ref(false)
-const editOpen = computed({
-    get: () => editing.value !== null,
-    set: (open: boolean) => {
-        if (!open) {
-            editing.value = null
-        }
-    },
-})
-
-function edit(row: FitmentRowView): void {
-    editing.value = row
-    editForm.value = formFromRow(row)
-    editErrors.value = {}
-}
-
-function saveRow(): void {
-    const row = editing.value
-    const form = editForm.value
-
-    if (!row || !form || editBusy.value) {
-        return
-    }
-
-    // A size pasted with its minimum, or a pair, saved without leaving its field: settled first (his admin item 9).
-    settleSizes(form)
-
-    if (unreadable(form).length > 0) {
-        editErrors.value = { ...editErrors.value }
-        focusRefused('.gs-dialog')
-
-        return
-    }
-
-    editBusy.value = true
-    router.put(`/admin/gutachten/${props.document.id}/zeilen/${row.id}`, payload(form) as never, {
-        preserveScroll: true,
-        // The row as it was when the dialog opened: changed meanwhile, the save is refused (EditStamp, F-25).
-        headers: stampHeaders(row.stamp),
-        onSuccess: () => (editing.value = null),
-        onError: (bag) => {
-            editErrors.value = bag
-            focusRefused('.gs-dialog')
-        },
-        onFinish: () => (editBusy.value = false),
-    })
-}
-
-function editSizesChanged(): void {
-    editErrors.value = Object.fromEntries(Object.entries(editErrors.value).filter(([key]) => !key.startsWith('tyre_sizes')))
-}
-
-const removing = ref<FitmentRowView | null>(null)
-const removeOpen = computed({
-    get: () => removing.value !== null,
-    set: (open: boolean) => {
-        if (!open) {
-            removing.value = null
-        }
-    },
-})
-
-const removeBusy = ref(false)
-
-/* The confirm's sentence outlives `removing`, so it does not go blank while the dialog fades out. */
-const removeBody = ref('')
-
-watch(removing, (row) => {
-    if (row) {
-        removeBody.value = `${row.wheel} ${row.size} für ${row.vehicle} wird aus dem Verwendungsbereich entfernt.`
-    }
-})
-
-/*
- * One request, however often „Entfernen“ is pressed. Afterwards the keyboard goes to the row that now
- * stands where the removed one stood — or, with none left, to the Verwendungsbereich heading.
- */
-function remove(): void {
-    const row = removing.value
-
-    if (!row || removeBusy.value) {
-        return
-    }
-
-    // Closed first, sent once it is gone (see release()); removeBusy stops a second press in between.
-    const place = props.rows.findIndex((r) => r.id === row.id)
-    removeBusy.value = true
-    removing.value = null
-    afterDialogsClose(() => {
-        router.delete(`/admin/gutachten/${props.document.id}/zeilen/${row.id}`, {
-            preserveScroll: true,
-            onFinish: () => {
-                removeBusy.value = false
-                void nextTick(() => {
-                    const next = props.rows[Math.min(place, props.rows.length - 1)]
-                    const target = next ? document.querySelector<HTMLElement>(`[data-row-edit="${next.id}"]`) : null
-                    ;(target ?? document.getElementById('gs-rows-h'))?.focus()
-                })
-            },
-        })
-    })
-}
-
-/* ── Preview ───────────────────────────────────────────────────────────────── */
-
-/* The vehicle chosen for the preview: the one the server answered for, or the first the rows name. */
-const previewVehicle = ref<number | null>(props.previewVehicle ?? props.vehicles[0]?.id ?? null)
-const previewBusy = ref(false)
-
-watch(
-    () => props.vehicles,
-    (vehicles) => {
-        if (previewVehicle.value === null || !vehicles.some((v) => v.id === previewVehicle.value)) {
-            previewVehicle.value = props.previewVehicle ?? vehicles[0]?.id ?? null
-        }
-    }
-)
-
-/** The vehicle the verdicts on screen were computed for — named above them, so they are never read as another's. */
-const previewFor = computed(() => props.vehicles.find((v) => v.id === props.previewVehicle)?.label ?? null)
-
-function loadPreview(): void {
-    if (previewVehicle.value === null) {
-        return
-    }
-
-    previewBusy.value = true
-    router.reload({
-        only: ['preview', 'previewVehicle'],
-        data: { fahrzeug: previewVehicle.value },
-        onFinish: () => (previewBusy.value = false),
-    })
-}
-
-/** The preview's entry line, as the shop's panel says it. */
-const ENTRY_LINE = 'Eintragung in die Fahrzeugpapiere erforderlich.'
-
-const TONE: Record<string, string | null> = {
-    PERMITTED: null,
-    CONDITIONAL: 'adm-tag adm-tag--warn',
-    NOT_PERMITTED: 'adm-tag adm-tag--bad',
-    UNKNOWN: 'adm-tag adm-tag--neutral',
-}
 </script>
 
 <template>
     <AdminPage :title="document.label" :context="context" :more="more" :read-only="!can.edit && draft">
+        <p v-if="carryFailed" class="adm-alert" role="alert">{{ carryFailed }}</p>
+
         <template v-if="can.release" #primary>
             <button class="btn btn--primary" type="button" :disabled="blockers.length > 0" @click="releaseOpen = true">
                 <Icon name="publish" :size="20" />
@@ -375,10 +197,6 @@ const TONE: Record<string, string | null> = {
         <section class="adm-section" aria-labelledby="gs-facts-h">
             <div class="adm-section__head">
                 <h2 id="gs-facts-h" class="adm-section__title">Angaben</h2>
-                <button v-if="can.edit" class="btn btn--ghost" type="button" @click="factsOpen = true">
-                    <Icon name="edit" :size="20" />
-                    Ändern
-                </button>
             </div>
             <dl class="adm-facts gs-facts">
                 <div class="adm-facts__row"><dt>Art</dt><dd>{{ document.kindLabel }}<span v-if="document.demo" class="adm-tag adm-tag--neutral adm-demo">Demodaten</span></dd></div>
@@ -421,7 +239,7 @@ const TONE: Record<string, string | null> = {
             <div class="adm-section__head">
                 <h2 id="gs-count-h" class="adm-section__title">Zählung</h2>
             </div>
-            <CountCard :document-id="document.id" :stamp="stamps.document" :count="document.count ?? null" :editable="can.edit && draft" :page-count="document.pageCount" :rows="rowsTotal" />
+            <CountCard :document-id="document.id" :stamp="stamps.document" :count="document.count ?? null" :editable="false" :page-count="document.pageCount" :rows="rowsTotal" />
         </section>
 
         <!-- ── Auflagenverzeichnis: the codes this document prints, with its own sentences ── -->
@@ -435,7 +253,7 @@ const TONE: Record<string, string | null> = {
                 :conditions="conditions"
                 :choices="choices"
                 :unresolved="unresolved"
-                :editable="can.edit && draft"
+                :editable="false"
                 :page-count="document.pageCount"
                 :levels="levels"
                 :levels-editable="can.levels === true"
@@ -448,7 +266,7 @@ const TONE: Record<string, string | null> = {
             <div class="adm-section__head">
                 <h2 id="gs-extras-h" class="adm-section__title">Befestigung und Hinweise</h2>
             </div>
-            <DocumentExtras :document-id="document.id" :fasteners="fasteners" :notices="notices" :reworks="reworks" :conditions="conditions" :editable="can.edit && draft" :page-count="document.pageCount" />
+            <DocumentExtras :document-id="document.id" :fasteners="fasteners" :notices="notices" :reworks="reworks" :conditions="conditions" :editable="false" :page-count="document.pageCount" />
         </section>
 
         <!-- ── Its own table of tyre load at speed: whole where the document prints one, else one line (his item 15) ── -->
@@ -458,7 +276,7 @@ const TONE: Record<string, string | null> = {
                 <!-- A table the demo seed wrote carries the same tag as every other demo row. -->
                 <span v-if="derating.seededFrom" class="adm-tag adm-tag--neutral">Demodaten</span>
             </div>
-            <DeratingTable :document-id="document.id" :stamp="stamps.derating" :derating="derating" :editable="can.edit && draft" :page-count="document.pageCount" :required="deratingRequired" />
+            <DeratingTable :document-id="document.id" :stamp="stamps.derating" :derating="derating" :editable="false" :page-count="document.pageCount" :required="false" />
         </section>
         <details v-else class="adm-section gs-fold">
             <summary class="gs-fold__summary">
@@ -468,125 +286,42 @@ const TONE: Record<string, string | null> = {
             <p class="adm-note">{{ deratingAbsent }}</p>
         </details>
 
-        <!-- ── Its own „Bereifungskombinationen“ (D-256) ──────────────── -->
-        <section class="adm-section" aria-labelledby="gs-combinations-h">
-            <div class="adm-section__head">
-                <h2 id="gs-combinations-h" class="adm-section__title">Bereifungskombinationen</h2>
-            </div>
-            <CombinationsCard :document-id="document.id" :stamp="stamps.combinations" :combinations="combinations" :editable="can.edit && draft" :page-count="document.pageCount" />
-        </section>
-
-        <!-- ── Verwendungsbereich ────────────────────────────────────── -->
+        <!-- ── Its cars, each with its tyres: short tags, the text on hover and above ── -->
         <section class="adm-section" aria-labelledby="gs-rows-h">
             <div class="adm-section__head">
-                <h2 id="gs-rows-h" class="adm-section__title" tabindex="-1">Verwendungsbereich</h2>
+                <h2 id="gs-rows-h" class="adm-section__title" tabindex="-1">Fahrzeuge und Reifen</h2>
             </div>
 
-            <p v-if="rows.length === 0" class="adm-note">Noch keine Zeile. {{ can.edit ? (countFirst ? 'Erst zählen, dann erfassen: Sobald die Zählung oben gespeichert ist, legst du unten die ersten Zeilen an.' : 'Leg unten die ersten an: Fahrzeuge und Größen wählen, Reifengrößen und Auflagen eintragen.') : '' }}</p>
-            <p v-else-if="rows.length < rowsTotal" class="adm-note gs-cut" role="status">
-                Hier stehen die ersten {{ decimal(rows.length, 0) }} von {{ decimal(rowsTotal, 0) }} Zeilen, nach Fahrzeug geordnet. Die Freigabe umfasst alle {{ decimal(rowsTotal, 0) }}.
-            </p>
+            <p v-if="readView.length === 0" class="adm-note">Noch kein Fahrzeug.</p>
 
-            <div v-for="group in groups" :key="group.vehicleId" class="gs-group">
-                <h3 class="gs-group__title">{{ group.vehicle }}</h3>
-                <div class="adm-panel">
-                    <table class="adm-table gs-table">
-                        <caption class="visually-hidden">Zeilen für {{ group.vehicle }}</caption>
-                        <thead>
-                            <tr>
-                                <th scope="col">Felge</th>
-                                <th scope="col">Reifen</th>
-                                <th scope="col">Auflagen</th>
-                                <th scope="col">Eintragung</th>
-                                <th scope="col" class="num">Seite</th>
-                                <th v-if="can.edit" scope="col"><span class="visually-hidden">Aktionen</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in group.rows" :key="row.id">
-                                <td data-label="Felge">
-                                    <span class="gs-wheel">{{ row.wheel }}</span>
-                                    <span class="gs-sub">{{ row.size }}<template v-if="row.finish"> · {{ row.finish }}</template><template v-if="row.axle !== 'ALL'"> · {{ row.axleLabel }}</template></span>
-                                </td>
-                                <td data-label="Reifen">
-                                    <span v-if="row.tyreSizes.length === 0" class="gs-missing">Keine Reifengröße – im Shop nicht bestellbar</span>
-                                    <span v-else>
-                                        <span v-for="size in row.tyreSizes" :key="size.label" class="gs-line">{{ size.label }}<span v-if="size.codes.length" class="gs-codes" translate="no"> · {{ codesText(size.codes.map((c) => c.code)) }}</span></span>
-                                    </span>
-                                </td>
-                                <td data-label="Auflagen">
-                                    <span v-if="row.conditions.length === 0">–</span>
-                                    <span v-else>
-                                        <span v-for="c in row.conditions" :key="c.code" class="gs-line" :class="{ 'gs-undefined': !c.defined }"><b class="gs-code" translate="no">{{ c.code }}</b> {{ c.text ?? 'Nicht im Auflagenverzeichnis' }}<template v-if="c.note">{{ ' ' + c.note }}</template></span>
-                                    </span>
-                                </td>
-                                <td data-label="Eintragung">
-                                    {{ row.requiresEntry ? 'Ja' : 'Nein' }}
-                                    <span v-if="row.entryOverride" class="gs-sub">laut Prüfer: {{ row.entryOverrideReason }}</span>
-                                    <span v-else-if="row.entrySource.length" class="gs-sub">aus {{ row.entrySource.join(', ') }}</span>
-                                </td>
-                                <td data-label="Seite" class="num">
-                                    <a v-if="pageHref(row.sourcePage)" :href="pageHref(row.sourcePage)!" target="_blank" rel="noopener">S. {{ row.sourcePage }}</a>
-                                    <template v-else>{{ row.sourcePage ?? '–' }}</template>
-                                </td>
-                                <td v-if="can.edit" data-label="Aktionen" class="gs-actions">
-                                    <button class="adm-iconbtn" type="button" :data-row-edit="row.id" :aria-label="`Zeile ${row.wheel} ${row.size} ändern`" title="Ändern" @click="edit(row)">
-                                        <Icon name="edit" :size="20" />
-                                    </button>
-                                    <button class="adm-iconbtn" type="button" :aria-label="`Zeile ${row.wheel} ${row.size} entfernen`" title="Entfernen" @click="removing = row">
-                                        <Icon name="delete" :size="20" />
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section v-if="can.edit && !countFirst" class="adm-section" aria-labelledby="gs-add-h">
-            <div class="adm-section__head">
-                <h2 id="gs-add-h" class="adm-section__title">Zeilen hinzufügen</h2>
-            </div>
-            <RowComposer :document-id="document.id" :conditions="conditions" :page-count="document.pageCount" :body-forms="choices.bodyForms" :drives="choices.drives" />
-        </section>
-
-        <!-- ── Preview ───────────────────────────────────────────────── -->
-        <section v-if="vehicles.length" class="adm-section" aria-labelledby="gs-preview-h">
-            <div class="adm-section__head">
-                <h2 id="gs-preview-h" class="adm-section__title">Vorschau im Shop</h2>
-            </div>
-            <p class="adm-note">So antwortet der Shop{{ draft ? ' nach der Freigabe' : '' }} für dieses Fahrzeug – berechnet von derselben Prüfung, die jede Kundin und jeder Kunde bekommt.</p>
-            <form class="gs-preview-pick" @submit.prevent="loadPreview">
-                <label class="visually-hidden" for="gs-preview-vehicle">Fahrzeug für die Vorschau</label>
-                <select id="gs-preview-vehicle" v-model="previewVehicle" class="input" @change="loadPreview">
-                    <option v-for="vehicle in vehicles" :key="vehicle.id" :value="vehicle.id">{{ vehicle.label }}</option>
-                </select>
-                <button class="btn btn--secondary" type="submit" :disabled="previewBusy" :aria-busy="previewBusy ? 'true' : undefined">Vorschau zeigen</button>
-            </form>
-
-            <p v-if="preview && previewFor" class="gs-preview-for">Vorschau für {{ previewFor }}</p>
-            <ul v-if="preview && preview.length" class="gs-verdicts" aria-live="polite">
-                <li v-for="verdict in preview" :key="verdict.config" class="gs-verdict">
-                    <div class="gs-verdict__head">
-                        <span class="gs-verdict__wheel">{{ verdict.wheel }}</span>
-                        <span v-if="!verdict.notesOnly && TONE[verdict.status]" :class="TONE[verdict.status]">{{ verdict.statusLabel }}</span>
-                        <span v-else class="gs-verdict__ok">{{ verdict.statusLabel }}</span>
+            <ul v-else class="gs-cars">
+                <li v-for="car in readView" :key="car.id" class="gs-car">
+                    <div class="gs-car__head">
+                        <h3 class="gs-car__name">{{ car.car }}</h3>
+                        <span v-if="car.finish" class="adm-tag adm-tag--neutral">nur {{ car.finish }}</span>
+                        <span v-if="car.axle !== 'ALL'" class="adm-tag adm-tag--neutral">{{ car.axle === 'FRONT' ? 'nur Vorderachse' : 'nur Hinterachse' }}</span>
+                        <a v-if="pageHref(car.page)" class="gs-car__page" :href="pageHref(car.page)!" target="_blank" rel="noopener">S. {{ car.page }}</a>
+                        <span v-else-if="car.page" class="gs-car__page">S. {{ car.page }}</span>
                     </div>
-                    <p v-if="verdict.reason" class="gs-verdict__line">{{ verdict.reason }}</p>
-                    <p v-if="verdict.front.length" class="gs-verdict__line">Reifen: {{ sizesByAxle(verdict.front, verdict.rear) }}</p>
-                    <p v-if="verdict.requiresEntry" class="gs-verdict__line">{{ verdict.entryLine ?? ENTRY_LINE }}<template v-if="verdict.entryNote">{{ ' ' + verdict.entryNote }}</template></p>
-                    <p v-if="verdict.papersLine" class="gs-verdict__line">{{ verdict.papersLine }}</p>
-                    <!-- As the shop will show them: the combination's once, each tyre size's with that size (ConditionGroups).
-                         An Auflage that repeats the entry line word for word is not said twice. -->
-                    <ConditionGroups v-if="verdict.conditionGroups && verdict.conditions.length" class="gs-verdict__groups" :groups="verdict.conditionGroups" :omit="verdict.requiresEntry ? [ENTRY_LINE] : []" />
-                    <template v-else>
-                        <p v-for="(sentence, i) in verdict.conditions.filter((s) => !(verdict.requiresEntry && s === ENTRY_LINE))" :key="i" class="gs-verdict__line">{{ sentence }}</p>
-                    </template>
+                    <p class="gs-sub"><template v-if="car.k">Feld K {{ car.k }}</template><template v-if="car.k && car.wheel"> · </template><template v-if="car.wheel">{{ car.wheel }}</template></p>
+                    <p v-if="car.lines.length === 0" class="gs-missing">Keine Reifengröße – im Shop nicht bestellbar</p>
+                    <ul v-else class="gs-lines">
+                        <li v-for="line in car.lines" :key="line.id" class="gs-readline">
+                            <span class="gs-readline__tyres">{{ lineText(line) }}<template v-if="line.kw"> · {{ line.kw }} kW</template></span>
+                            <span v-if="line.codes.length" class="gs-tags" translate="no">
+                                <span v-for="code in line.codes" :key="code" class="gs-tag" :title="codeHint(code)">{{ code }}</span>
+                            </span>
+                        </li>
+                    </ul>
+                    <p v-if="car.codes.length" class="gs-general">
+                        Allgemeine Codes:
+                        <span class="gs-tags" translate="no"><span v-for="code in car.codes" :key="code" class="gs-tag" :title="codeHint(code)">{{ code }}</span></span>
+                    </p>
                 </li>
             </ul>
-            <p v-else-if="preview" class="adm-note">Für dieses Fahrzeug ist zu diesem Gutachten keine Zeile hinterlegt.</p>
         </section>
+
+        <PreviewSection />
 
         <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rowsTotal" :note="releaseBody" @done="focusState" />
         <ReleaseDialog v-if="can.answer" v-model:open="answerOpen" mode="answer" :document="document" :rows="rowsTotal" />
@@ -600,30 +335,6 @@ const TONE: Record<string, string | null> = {
             :busy="reviseBusy"
             @confirm="revise"
         />
-
-        <AdminConfirm
-            v-model:open="removeOpen"
-            title="Zeile entfernen?"
-            :body="removeBody"
-            confirm-label="Entfernen"
-            :busy="removeBusy"
-            @confirm="remove"
-        />
-
-        <Dialog v-model:open="editOpen" title="Zeile ändern" :description="editing ? `${editing.vehicle} · ${editing.wheel} ${editing.size}` : undefined" content-class="adm-dialog gs-dialog" initial-focus="#gs-edit-axle" wide>
-            <!-- A form, so Enter in a field saves, as in every other dialog of the panel. -->
-            <form id="gs-edit-form" novalidate @submit.prevent="saveRow">
-                <!-- Changed meanwhile elsewhere (EditStamp): nothing was saved, and what was typed stays. -->
-                <p v-if="editErrors._stamp" class="adm-alert" role="alert">{{ editErrors._stamp }}</p>
-                <RowFields v-if="editForm" v-model:form="editForm" :conditions="conditions" :errors="editErrors" id-prefix="gs-edit" :page-count="document.pageCount" @sizes-changed="editSizesChanged" />
-            </form>
-            <template #actions>
-                <button class="btn btn--secondary" type="button" @click="editOpen = false">Abbrechen</button>
-                <button class="btn btn--primary" type="submit" form="gs-edit-form" :disabled="editBusy" :aria-busy="editBusy ? 'true' : undefined">Speichern</button>
-            </template>
-        </Dialog>
-
-        <FactsDialog v-if="can.edit" v-model:open="factsOpen" :document="document" :stamp="stamps.document" :kinds="kinds" :replaceable="replaceable" :supplementable="supplementable" />
     </AdminPage>
 </template>
 
@@ -675,10 +386,6 @@ const TONE: Record<string, string | null> = {
     max-width: var(--adm-form-max);
 }
 
-.gs-group + .gs-group {
-    margin-top: var(--sp-24);
-}
-
 .gs-group__title {
     margin: 0 0 var(--sp-8);
     font-size: var(--fs-body);
@@ -687,28 +394,10 @@ const TONE: Record<string, string | null> = {
     overflow-wrap: anywhere;
 }
 
-.gs-wheel {
-    font-weight: 500;
-}
-
 .gs-sub {
     display: block;
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
-    color: var(--c-ink-3);
-}
-
-.gs-line {
-    display: block;
-    overflow-wrap: anywhere;
-}
-
-.gs-code {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
-
-.gs-codes {
     color: var(--c-ink-3);
 }
 
@@ -743,14 +432,6 @@ const TONE: Record<string, string | null> = {
     margin-bottom: var(--sp-12);
 }
 
-
-.gs-preview-for {
-    margin: var(--sp-12) 0 0;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    font-weight: 600;
-}
-
 .gs-missing {
     color: var(--c-ink-2);
 }
@@ -765,24 +446,6 @@ const TONE: Record<string, string | null> = {
     }
 }
 
-.gs-actions {
-    white-space: nowrap;
-    text-align: right;
-}
-
-.gs-preview-pick {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-8);
-    max-width: var(--adm-form-max);
-    margin-block: var(--sp-12) var(--sp-16);
-}
-
-.gs-preview-pick .input {
-    flex: 1 1 24ch;
-    min-width: 0;
-}
-
 .gs-verdicts {
     display: grid;
     gap: 0;
@@ -791,13 +454,6 @@ const TONE: Record<string, string | null> = {
     padding: 0;
     list-style: none;
     border-top: 1px solid var(--c-line);
-}
-
-.gs-verdict {
-    display: grid;
-    gap: var(--sp-4);
-    padding-block: var(--sp-12);
-    border-bottom: 1px solid var(--c-line);
 }
 
 .gs-verdict__head {
@@ -829,10 +485,85 @@ const TONE: Record<string, string | null> = {
     color: var(--c-ink-2);
 }
 
-@media (max-width: 767px) {
-    .gs-preview-pick .btn {
-        width: 100%;
-        min-height: var(--adm-control-h-lg);
-    }
+.gs-cars {
+    display: grid;
+    gap: var(--sp-16);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gs-car {
+    display: grid;
+    gap: var(--sp-8);
+    padding-block: var(--sp-12);
+    border-top: 1px solid var(--c-line);
+}
+
+.gs-car__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.gs-car__name {
+    margin: 0;
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    overflow-wrap: anywhere;
+}
+
+.gs-car__page {
+    margin-left: auto;
+    font-size: var(--fs-small);
+}
+
+.gs-lines {
+    display: grid;
+    gap: var(--sp-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.gs-readline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-4) var(--sp-12);
+}
+
+.gs-readline__tyres {
+    font-variant-numeric: tabular-nums;
+}
+
+.gs-tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+}
+
+.gs-tag {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding-inline: var(--sp-8);
+    border: 1px solid var(--c-line-2);
+    border-radius: var(--r-control);
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.gs-general {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-8);
+    margin: 0;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
 }
 </style>

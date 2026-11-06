@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '../fixtures';
-import { SHOTS, answerWithDocument, asDraft, busiestDocument, focused, guardWrites, openAsDraft, signIn } from './gutachten-support';
+import { chooseFirstWheel, freshNumber, newPaper, postAdmin, searchCars } from '../gutachten-erfassung-support';
+import { SHOTS, focused, signIn } from './gutachten-support';
 
 /*
  * B-03 (S2) — Block B review: a refused pasted legend („Legende einfügen" → „N Codes speichern").
@@ -14,33 +15,24 @@ import { SHOTS, answerWithDocument, asDraft, busiestDocument, focused, guardWrit
  * Expected: (a) the focus goes to the first refused field of the batch; (b) a sentence stays with the entry
  * it is about, or goes — it never lands on another entry.
  *
- * Nothing is written: a released document is answered in the browser as a draft (openAsDraft); the batch POST
- * is answered in the browser with the server's refusal of a code the document already has
+ * A draft of its own, in its whole list of codes; the server refuses a code the paper already has
  * (DocumentConditionBatchRequest: entries.*.code unique).
  */
 
 const REFUSAL = 'Diesen Code gibt es in diesem Gutachten schon.';
 
 async function refusedBatch(page: Page): Promise<void> {
-    await guardWrites(page);
-
-    const id = await busiestDocument(page);
-
-    await page.route(
-        (url) => url.pathname === `/admin/gutachten/${id}/auflagen/stapel`,
-        async (route) => {
-            if (route.request().method() !== 'POST') {
-                await route.fallback();
-
-                return;
-            }
-
-            // As the server answers it: the Auflagenverzeichnis sends its own error bag (errorBag: 'auflagen').
-            await answerWithDocument(route, id, asDraft, { auflagen: { 'entries.1.code': REFUSAL } });
-        },
-    );
-
-    await openAsDraft(page, id);
+    const url = await newPaper(page, freshNumber('E2E-LEGENDE'));
+    // The paper already has QA2: the second entry of the legend is refused by the server itself.
+    await postAdmin(page, `${url}/auflagen`, { code: 'QA2', kind: 'hinweis', text_de: 'Schon eingetragen.', source_page: 1 });
+    await chooseFirstWheel(page);
+    await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click();
+    await searchCars(page, 'BMW');
+    await page.locator('.ef-hit input').first().check();
+    await expect(page.locator('.ef-chosen__car')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Weiter: Reifen' }).click();
+    await page.getByRole('tab', { name: /Auflagen/ }).click();
+    await page.getByRole('button', { name: 'Ganze Legende einfügen' }).click();
 
     await page.getByRole('button', { name: 'Legende einfügen' }).click();
     await page.locator('#av-paste').fill('QA1 Erster Satz der Prüfung.\nQA2 Zweiter Satz der Prüfung.\nQA3 Dritter Satz der Prüfung.');

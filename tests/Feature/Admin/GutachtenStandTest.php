@@ -6,7 +6,6 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
 use App\Models\DocumentSpeedDerating;
-use App\Models\DocumentTyreCombination;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -16,10 +15,11 @@ use App\Services\Admin\Approvals\CountFigures;
 use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Tests\Support\Gutachten\EntryDriver;
 
 /*
  * The admin audit's F-25 on a draft Gutachten (ADMIN-AUDIT.md): „Angaben“, „Zählung“, the table of tyre load at speed,
- * the Bereifungskombinationen, a row and a code are each saved whole. A card opened before someone else's save would
+ * a car's lines and a code are each saved whole. A card opened before someone else's save would
  * put the old values back; it is refused in a sentence instead, and the other save stands.
  */
 
@@ -57,14 +57,6 @@ function standCount(array $overrides = []): array
 function standTable(string $y240 = '100'): array
 {
     return ['source_page' => 6, 'symbols' => ['V', 'W', 'Y'], 'rows' => [['speed_kmh' => 240, 'cells' => ['V' => '91', 'W' => '100', 'Y' => $y240]]]];
-}
-
-const STAND_ENTRY = 'e1*2007/46*0316*11';
-
-/** @return array<string, mixed> */
-function standCombinations(string $rear = '245/35 R18'): array
-{
-    return ['entry' => STAND_ENTRY, 'source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => $rear]]];
 }
 
 it('refuses „Angaben“ saved from a page opened before the last save, and keeps that save', function (): void {
@@ -105,40 +97,33 @@ it('refuses a table saved from a page opened before the last one, and keeps that
     expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->where('symbol', 'Y')->value('percent'))->toBe(95);
 });
 
-/** A draft's row as the form sends it: one tyre size, one page — the rest as given. */
-function standRow(array $override = []): array
+/** A car's lines as step 4 sends them: one tyre, one page. */
+function standLines(string $tyre, int $page): array
 {
-    return array_replace([
-        'axle' => 'ALL',
-        'entry_note' => '',
-        'source_page' => 2,
-        'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL']],
-        'conditions' => [],
-    ], $override);
+    return ['lines' => [['id' => null, 'front' => $tyre, 'rear' => $tyre, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => $page];
 }
 
-it('refuses „Zeile ändern“ saved from a page opened before the last save of that row, and keeps that save', function (): void {
+it('refuses a car\'s lines saved from a form opened before their last save, and keeps that save', function (): void {
     $document = standDraft();
-    $url = "/admin/gutachten/{$document->id}";
     $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => WheelFinish::factory()->create(['wheel_model_id' => $model->id])->id]);
-    $this->actingAs(standAdmin(), 'admin')->post("{$url}/zeilen", standRow(['vehicle_ids' => [Vehicle::factory()->create()->id], 'config_ids' => [$size->id]]))->assertSessionHasNoErrors();
-    $row = Fitment::query()->where('approval_document_id', $document->id)->sole();
-    $stale = collect(test()->actingAs(standAdmin(), 'admin')->get($url)->viewData('page')['props']['rows'])->firstWhere('id', $row->id)['stamp'] ?? null;
+    $entry = EntryDriver::car(test(), standAdmin(), $document->id, Vehicle::factory()->create()->id, $size->id);
+    $url = "/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}";
+    $this->actingAs(standAdmin(), 'admin')->putJson($url, standLines('225/40 R18', 2))->assertOk();
+    $stale = test()->actingAs(standAdmin(), 'admin')->getJson($url)->json('stamp');
     expect($stale)->toBeString()->not->toBe('');
 
-    $this->actingAs(standAdmin(), 'admin')->from($url)->put("{$url}/zeilen/{$row->id}", standRow(['source_page' => 5]))->assertSessionHasNoErrors();
-    $this->actingAs(standAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)
-        ->put("{$url}/zeilen/{$row->id}", standRow(['source_page' => 9, 'tyre_sizes' => [['width_mm' => 235, 'aspect' => 35, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL']]]))
-        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
+    $this->actingAs(standAdmin(), 'admin')->putJson($url, standLines('225/40 R18', 5))->assertOk();
+    $this->actingAs(standAdmin(), 'admin')->withHeader(EditStamp::HEADER, $stale)->putJson($url, standLines('235/35 R18', 9))
+        ->assertUnprocessable()->assertJsonValidationErrors(['_stamp' => EditStamp::MESSAGE]);
 
-    $row->refresh();
+    $row = Fitment::query()->where('approval_document_id', $document->id)->sole();
     expect($row->source_page)->toBe(5)
         ->and($row->tyreSizes()->pluck('width_mm')->all())->toBe([225]);
 
     // Opened after that save, the same form saves.
-    $fresh = collect(test()->actingAs(standAdmin(), 'admin')->get($url)->viewData('page')['props']['rows'])->firstWhere('id', $row->id)['stamp'];
-    $this->actingAs(standAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $fresh)->put("{$url}/zeilen/{$row->id}", standRow(['source_page' => 9]))->assertSessionHasNoErrors();
+    $fresh = test()->actingAs(standAdmin(), 'admin')->getJson($url)->json('stamp');
+    $this->actingAs(standAdmin(), 'admin')->withHeader(EditStamp::HEADER, $fresh)->putJson($url, standLines('225/40 R18', 9))->assertOk();
     expect($row->refresh()->source_page)->toBe(9);
 });
 
@@ -157,18 +142,4 @@ it('refuses a code saved from a page opened before the last save of that code, a
 
     expect($condition->refresh()->text_de)->toBe('Radschrauben nach 50 km mit dem Drehmoment des Herstellers nachziehen.')
         ->and($condition->source_page)->toBe(3);
-});
-
-it('refuses Bereifungskombinationen saved from a page opened before the last save, and keeps that save', function (): void {
-    $document = standDraft();
-    // A car of the entry the list belongs to (his admin item 19, D-358).
-    Fitment::factory()->draft()->create(['approval_document_id' => $document->id, 'vehicle_id' => Vehicle::factory()->create(['eg_nummer_raw' => STAND_ENTRY, 'eg_nummer_norm' => STAND_ENTRY])->id]);
-    $url = "/admin/gutachten/{$document->id}";
-    $stale = standStamp($document, 'combinations');
-
-    $this->actingAs(standAdmin(), 'admin')->from($url)->put("{$url}/bereifungskombinationen", standCombinations('255/35 R18'))->assertSessionHasNoErrors();
-    $this->actingAs(standAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)->put("{$url}/bereifungskombinationen", standCombinations('265/35 R18'))
-        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
-
-    expect(DocumentTyreCombination::query()->where('approval_document_id', $document->id)->value('rear_width_mm'))->toBe(255);
 });

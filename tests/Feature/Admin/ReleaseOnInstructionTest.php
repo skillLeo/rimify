@@ -16,6 +16,7 @@ use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Artisan;
+use Tests\Support\Gutachten\EntryDriver;
 
 /**
  * `rimify:gutachten-freigeben`: on a test environment the operator may give a release in writing and have it carried
@@ -43,7 +44,7 @@ function releasableDraft(): ApprovalDocument
     $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'width_in' => 8.0, 'et_mm' => 35]);
     $draft = ApprovalDocument::factory()->draft()->create(['report_number' => 'TG-ANWEISUNG', 'issued_on' => '2025-05-01']);
 
-    test()->actingAs(instructionAdmin(), 'admin')->post("/admin/gutachten/{$draft->id}/zeilen", [
+    EntryDriver::enter(test(), instructionAdmin(), $draft->id, [
         'vehicle_ids' => [$vehicle->id],
         'config_ids' => [$config->id],
         'axle' => 'ALL',
@@ -51,7 +52,7 @@ function releasableDraft(): ApprovalDocument
         'source_page' => 3,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => []]],
         'conditions' => [],
-    ])->assertSessionHasNoErrors();
+    ]);
 
     return $draft->refresh();
 }
@@ -142,7 +143,7 @@ it('stops where the button stops, with the same sentences', function (): void {
     $draft = ApprovalDocument::factory()->draft()->create(['report_number' => 'TG-LEER']);
 
     expect(releaseOnInstruction($draft))->toBe(1)
-        ->and(Artisan::output())->toContain('Es gibt noch keine Zeile im Verwendungsbereich.')
+        ->and(Artisan::output())->toContain('Es ist noch kein Fahrzeug eingetragen.')
         ->and($draft->refresh()->status)->toBe(DocumentStatus::Draft);
 });
 

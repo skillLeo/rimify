@@ -3,7 +3,7 @@ import { signIn, waitForApp } from './bugs/faq-support';
 import { expectNoHorizontalOverflow } from './support';
 
 /*
- * The sketches of the Gutachten rework (the operator's brief of 01.11.2026, Phase 1), as a smoke test: each of the four
+ * The sketches of the Gutachten rework (the operator's brief of 01.11.2026, Phase 1), as a smoke test: each of the three
  * opens with its banner, its main click path works, nothing overflows the screen — and not one request that could write
  * leaves the browser, whatever is clicked. The sketches hold example data only; this guards that they stay that way.
  */
@@ -26,44 +26,6 @@ async function open(page: Page, path: string): Promise<void> {
     await waitForApp(page);
     await expect(page.locator('[data-sketch-banner]')).toContainText('Skizze – keine echten Daten');
 }
-
-test('the Gutachten sketch walks its five steps, reads pasted tyres, and asks before release', async ({ page }) => {
-    await signIn(page);
-    const sent = writes(page);
-
-    await open(page, '/admin/skizze/gutachten?schritt=1');
-    await page.evaluate(() => sessionStorage.clear());
-    await open(page, '/admin/skizze/gutachten?schritt=1');
-
-    await expect(page.getByRole('heading', { name: 'Gutachten', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter: Felge' }).click();
-    await expect(page.getByRole('heading', { name: 'Für welche Felge gilt das Gutachten?' })).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click();
-    await expect(page.getByRole('heading', { name: 'Für welche Fahrzeuge?' })).toBeVisible();
-    await page.getByRole('button', { name: 'Weiter: Reifen' }).click();
-    await expect(page).toHaveURL(/schritt=4/);
-
-    // „Mehrere einfügen" on the empty Z3 row: two sizes and a pair read, a heading refused, then taken over.
-    await page.locator('.sk-todo__item', { hasText: 'BMW Z3' }).click();
-    await page.getByRole('button', { name: 'Mehrere einfügen' }).click();
-    await page.locator('#sk-paste').fill('225/40R18-88\nFolgende Kombinationen:\nNr. 1: 225/40R18 – 255/35R18');
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.locator('.sk-paste__line')).toHaveCount(3);
-    await expect(dialog.locator('.sk-paste__line--bad')).toHaveCount(1);
-    await dialog.getByRole('button', { name: '1 Reifen und 1 Kombination übernehmen' }).click();
-    await expect(page.locator('.sk-todo__item', { hasText: 'BMW Z3' })).toContainText('1 Reifen · 1 Kombination');
-
-    await page.getByRole('navigation', { name: 'Schritte zum Gutachten' }).getByRole('button', { name: /Freigeben/ }).click();
-    await expect(page).toHaveURL(/schritt=5/);
-
-    // Release waits for what is open: the undescribed codes, the cars without provenance, the two questions.
-    await expect(page.getByRole('heading', { name: 'Prüfen und freigeben' })).toBeVisible();
-    await expect(page.locator('.sk-release__open')).toContainText('ohne Beschreibung');
-    await expect(page.locator('.sk-release').getByRole('button', { name: 'Freigeben' })).toBeDisabled();
-
-    await expectNoHorizontalOverflow(page);
-    expect(sent, 'the sketch sent a request that could write').toEqual([]);
-});
 
 test('the tyre sketch lists models and opens one with its sizes and the question for the client', async ({ page }) => {
     await signIn(page);

@@ -43,7 +43,7 @@ function levelLabel(value: string | undefined): string {
 
 function setLevel(condition: DocumentConditionView, value: string): void {
     sent.value = true
-    router.put(`${base.value}/${condition.id}/stufe`, { level: value }, { preserveScroll: true })
+    router.put(`${base.value}/${condition.id}/stufe`, { level: value }, { preserveScroll: true, preserveState: true })
 }
 
 const page = usePage()
@@ -338,6 +338,7 @@ function confirmLimit(condition: DocumentConditionView): void {
     limitBusy.value = condition.id
     router.post(`/admin/gutachten/${props.documentId}/auflagen/${condition.id}/grenze`, { reason: limitReasons[condition.id] ?? '' }, {
         preserveScroll: true,
+        preserveState: true,
         errorBag: 'auflagen',
         onError: (errors) => {
             limitErrors[condition.id] = (errors as Record<string, string>).reason ?? ''

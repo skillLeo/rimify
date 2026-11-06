@@ -74,7 +74,7 @@ it('writes nothing refused when a read-only account opens a screen that asks wha
 it('still writes the attempt: the same account sending an edit to a Gutachten is refused, and that is written once', function (): void {
     $draft = ApprovalDocument::factory()->draft()->create();
 
-    $this->actingAs(quietAccount('support-agent'), 'admin')->post("/admin/gutachten/{$draft->id}/zeilen", [])->assertForbidden();
+    $this->actingAs(quietAccount('support-agent'), 'admin')->postJson("/admin/gutachten/{$draft->id}/erfassung/fahrzeuge", [])->assertForbidden();
 
     expect(quietDenials())->toBe(1);
 });

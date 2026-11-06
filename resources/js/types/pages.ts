@@ -927,6 +927,10 @@ export interface AdminGutachtenProps {
         pageCount: number | null
         fitmentCount: number
         publishedCount: number
+        /** A draft: the cars with tyres entered, of the cars chosen (the Gutachten rework §7). */
+        progress: { done: number; cars: number } | null
+        /** A released document with a new Fassung in the works. */
+        newVersion: boolean
         /** Seeded as an example: the list says „Demodaten“ beside the number. */
         demo?: boolean
         href: string

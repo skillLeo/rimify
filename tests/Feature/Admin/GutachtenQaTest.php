@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Http\Requests\Admin\FitmentRowsRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentCarEntry;
 use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
@@ -19,7 +19,9 @@ use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\EntryDriver;
 
 /**
  * The interaction review of Gutachten-Erfassung (docs/qa/BUGS.md, GUTACHTEN-01…51): every refusal is a
@@ -48,103 +50,87 @@ function qaSize(): WheelConfig
     return WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'width_in' => 8.0, 'et_mm' => 35]);
 }
 
-function qaRows(array $vehicleIds, array $configIds, array $override = []): array
+function qaEntry(ApprovalDocument $document): DocumentCarEntry
 {
-    return array_replace([
-        'vehicle_ids' => $vehicleIds,
-        'config_ids' => $configIds,
-        'axle' => 'ALL',
-        'entry_note' => '',
-        'source_page' => 2,
-        'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL']],
-        'conditions' => [],
-    ], $override);
+    return EntryDriver::car(test(), qaAdmin(), $document->id, Vehicle::factory()->create()->id, qaSize()->id);
+}
+
+/** Step 4's save of one car, with what the page sends beside the lines. */
+function qaSave(DocumentCarEntry $entry, array $body): TestResponse
+{
+    return test()->actingAs(qaAdmin(), 'admin')->putJson("/admin/gutachten/{$entry->approval_document_id}/erfassung/fahrzeuge/{$entry->id}", $body + ['lines' => [['id' => null, 'front' => '225/40 R18', 'rear' => '225/40 R18', 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 2]);
+}
+
+/** A line of one size for both axles. */
+function qaLine(string $tyre, string $kw = '', array $codes = []): array
+{
+    return ['id' => null, 'front' => $tyre, 'rear' => $tyre, 'kw' => $kw, 'codes' => $codes];
 }
 
 it('refuses limits typed the wrong way round with a sentence, never a server fault (GUTACHTEN-01)', function (): void {
-    $document = ApprovalDocument::factory()->draft()->create();
-    $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
+    $entry = qaEntry(ApprovalDocument::factory()->draft()->create());
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['width_min' => '9', 'width_max' => '8', 'et_min' => '45', 'et_max' => '30']))
-        ->assertSessionHasErrors(['width_max' => 'Die Breite bis ist kleiner als die Breite von.', 'et_max' => 'ET bis ist kleiner als ET von.']);
+    qaSave($entry, ['width_min' => '9', 'width_max' => '8', 'et_min' => '45', 'et_max' => '30'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['width_max' => '„Breite bis“ ist kleiner als „Breite von“.', 'et_max' => '„ET bis“ ist kleiner als „ET von“.']);
 
-    expect(Fitment::query()->count())->toBe(0);
+    expect(Fitment::query()->where('approval_document_id', $entry->approval_document_id)->whereHas('tyreSizes')->count())->toBe(0);
 });
 
-it('reads „+225“ and „225“ as one tyre size, and caps a batch (GUTACHTEN-01, -48)', function (): void {
+it('keeps two lines of one size on one tyre entry, and caps a selection of cars (GUTACHTEN-48)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
-    $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
-    $twice = [
-        ['width_mm' => '+225', 'aspect' => 40, 'diameter' => 18, 'axle' => 'ALL'],
-        ['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'axle' => 'ALL'],
-    ];
+    $entry = qaEntry($document);
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => $twice]))
-        ->assertSessionHasErrors(['tyre_sizes.1.width_mm' => 'Diese Reifengröße steht mit diesem kW-Bereich und diesen Indizes schon in der Liste.']);
+    qaSave($entry, ['lines' => [qaLine('225/40 R18'), qaLine('225/40R18')]])->assertOk();
 
-    $vehicles = Vehicle::factory()->count(50)->create()->pluck('id')->all();
-    $sizes = collect(range(1, 41))->map(fn (): int => qaSize()->id)->all();
+    expect(FitmentTyreSize::query()->count())->toBe(1);
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows($vehicles, $sizes))
-        ->assertSessionHasErrors('config_ids');
-
-    expect(FitmentRowsRequest::MAX_ROWS)->toBe(2000)->and(Fitment::query()->count())->toBe(0);
+    $this->actingAs(qaAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['vehicle_ids' => range(1, 501)])
+        ->assertUnprocessable()->assertJsonValidationErrors('vehicle_ids');
 });
 
 it('takes one size printed at two kW bands, or with two load indexes, as two entries (Block D)', function (): void {
     // ABE 55255, page 5: BMW Z3 — 225/35R19 at 85–110 kW and at 85–125 kW; the 18″ Nachtrag, page 7: 225/40R18
     // as 88Y and as 92.
-    $document = ApprovalDocument::factory()->draft()->create();
-    $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
-    $entries = [
-        ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 110, 'codes' => ['K2b']],
-        ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 125, 'codes' => ['R70']],
-        ['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'axle' => 'ALL', 'min_load_index' => 88, 'min_speed_symbol' => 'Y'],
-        ['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'axle' => 'ALL', 'min_load_index' => 92],
-    ];
+    $entry = qaEntry(ApprovalDocument::factory()->draft()->create());
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => $entries]))
-        ->assertSessionHasNoErrors();
+    qaSave($entry, ['lines' => [
+        qaLine('225/35 R19', '85-110', ['K2b']),
+        qaLine('225/35 R19', '85-125', ['R70']),
+        qaLine('225/40 R18 88Y'),
+        qaLine('225/40 R18 92'),
+    ]])->assertOk();
 
     expect(FitmentTyreSize::query()->count())->toBe(4);
-
-    // The same band and indexes twice is one entry typed twice.
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => [$entries[0], [...$entries[0], 'codes' => ['R70']]]]))
-        ->assertSessionHasErrors(['tyre_sizes.1.width_mm' => 'Diese Reifengröße steht mit diesem kW-Bereich und diesen Indizes schon in der Liste.']);
 });
 
-it('takes one code beside several sizes, as the documents print it, and refuses it twice beside one (Block D)', function (): void {
+it('reads one figure as a band of one power, and refuses a band it cannot read (§4: 170 kW)', function (): void {
+    $entry = qaEntry(ApprovalDocument::factory()->draft()->create());
+
+    qaSave($entry, ['lines' => [qaLine('225/40 R18 88', '170 kW')]])->assertOk();
+    expect(FitmentTyreSize::query()->sole()->only(['kw_min', 'kw_max']))->toBe(['kw_min' => 170, 'kw_max' => 170]);
+
+    qaSave($entry, ['lines' => [qaLine('225/40 R18 88', '195-85')]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['lines.0.kw' => 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: zwei ganze Zahlen, die kleinere zuerst, etwa 85-195.']);
+});
+
+it('takes one code beside several sizes, as the documents print it, and one typed twice beside one as once (Block D)', function (): void {
     // ABE 55255, page 2: K2b, K41 and K46 beside 215/35R19, 225/35R19 and 235/35R19 alike.
-    $document = ApprovalDocument::factory()->draft()->create();
-    $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
-    $sizes = [
-        ['width_mm' => 215, 'aspect' => 35, 'diameter' => 19, 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 125, 'codes' => ['K2b', 'K41', 'K46', 'T85']],
-        ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 195, 'codes' => ['K2b', 'K41', 'K43', 'K46', 'T84', 'T88']],
-    ];
+    $entry = qaEntry(ApprovalDocument::factory()->draft()->create());
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => $sizes]))
-        ->assertSessionHasNoErrors();
+    qaSave($entry, ['lines' => [
+        qaLine('215/35 R19', '85-125', ['K2b', 'K41', 'K46', 'T85', 'K2b']),
+        qaLine('225/35 R19', '85-195', ['K2b', 'K41', 'K43', 'K46', 'T84', 'T88']),
+    ]])->assertOk();
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => [[...$sizes[0], 'codes' => ['K2b', 'K41', 'K2b']]]]))
-        ->assertSessionHasErrors(['tyre_sizes.0.codes.2' => 'Dieser Code steht bei der Reifengröße zweimal.']);
+    expect(DB::table('fitment_tyre_size_conditions')->count())->toBe(10);
 });
 
 it('takes a code as the 18″ Nachtrag prints it in its Auflagen column — words, umlauts, a hyphen (Block D)', function (): void {
     // 24 pages, as the Nachtrag has: the factory's random count was sometimes below the page 7 cited here.
     $document = ApprovalDocument::factory()->draft()->create(['page_count' => 24]);
-    $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
+    $entry = qaEntry($document);
 
     $this->actingAs(qaAdmin(), 'admin')
         ->post("/admin/gutachten/{$document->id}/auflagen", ['code' => "Nicht\u{00A0}330D", 'kind' => 'verbot', 'text_de' => 'Diese Reifengröße ist nicht für den 330d zugelassen (im Gutachten: „Nicht 330D“).', 'source_page' => 7])
@@ -155,29 +141,11 @@ it('takes a code as the 18″ Nachtrag prints it in its Auflagen column — word
 
     expect(DocumentCondition::query()->where('approval_document_id', $document->id)->pluck('code')->all())->toEqualCanonicalizing(['Nicht 330D', 'Schrägheck 2-türig']);
 
-    $sizes = [['width_mm' => 245, 'aspect' => 35, 'diameter' => 18, 'axle' => 'ALL', 'min_load_index' => 92, 'codes' => ['Nicht 330D', '57F']]];
+    qaSave($entry, ['lines' => [qaLine('245/35 R18 92', '', ['Nicht 330D', '57F'])], 'codes' => [['code' => 'Schrägheck 2-türig', 'note' => null]]])->assertOk();
 
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['tyre_sizes' => $sizes, 'conditions' => [['code' => 'Schrägheck 2-türig']]]))
-        ->assertSessionHasNoErrors();
-
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['conditions' => [['code' => 'K1c/2']]]))
-        ->assertSessionHasErrors(['conditions.0.code' => DocumentConditions::CODE_MESSAGE]);
-});
-
-it('refuses a changed row that would twin another on the same axle (GUTACHTEN-23)', function (): void {
-    $document = ApprovalDocument::factory()->draft()->create();
-    $vehicle = Vehicle::factory()->create();
-    $size = qaSize();
-
-    $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['axle' => 'FRONT']));
-    $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [$size->id], ['axle' => 'REAR']));
-    $front = Fitment::query()->where('axle', 'FRONT')->firstOrFail();
-
-    $this->actingAs(qaAdmin(), 'admin')
-        ->put("/admin/gutachten/{$document->id}/zeilen/{$front->id}", qaRows([], [], ['axle' => 'REAR', 'vehicle_ids' => null, 'config_ids' => null]))
-        ->assertSessionHasErrors(['axle' => 'Für dieses Fahrzeug und diese Größe gibt es schon eine Zeile mit dieser Achse.']);
+    qaSave($entry, ['codes' => [['code' => 'K1c/2', 'note' => null]]])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['codes.0.code' => DocumentConditions::CODE_MESSAGE]);
 });
 
 it('fixes a released Gutachten’s Auflagen, and lets a draft’s change (GUTACHTEN-44)', function (): void {
@@ -255,16 +223,14 @@ it('finds a vehicle by HSN and TSN pasted with a no-break space or a hyphen (GUT
 
 it('never takes the Eintragung as typed: it follows from an Abnahme among the codes (the corrections memo §2)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
-    $vehicle = Vehicle::factory()->create();
     $this->actingAs(qaAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'A01', 'kind' => 'abnahme', 'text_de' => 'Die Anbauabnahme ist erforderlich.']);
+    $plain = qaEntry($document);
+    $abnahme = EntryDriver::car(test(), qaAdmin(), $document->id, Vehicle::factory()->create()->id, (int) DB::table('fitments')->where('approval_document_id', $document->id)->value('wheel_config_id'));
 
     // The old box is gone: a typed „yes“ without an Abnahme among the codes is not a yes.
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [qaSize()->id], ['requires_entry' => true]))
-        ->assertSessionHasNoErrors();
-    $this->actingAs(qaAdmin(), 'admin')
-        ->post("/admin/gutachten/{$document->id}/zeilen", qaRows([$vehicle->id], [qaSize()->id], ['conditions' => [['code' => 'A01', 'note' => '']]]))
-        ->assertSessionHasNoErrors();
+    qaSave($plain, ['requires_entry' => true])->assertOk();
+    qaSave($abnahme, ['codes' => [['code' => 'A01', 'note' => null]]])->assertOk();
 
-    expect(Fitment::query()->orderBy('id')->pluck('requires_entry')->all())->toBe([false, true]);
+    expect(Fitment::query()->where('vehicle_id', $plain->vehicle_id)->value('requires_entry'))->toBeFalse()
+        ->and(Fitment::query()->where('vehicle_id', $abnahme->vehicle_id)->value('requires_entry'))->toBeTrue();
 });

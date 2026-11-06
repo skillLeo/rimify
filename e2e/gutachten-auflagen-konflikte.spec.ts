@@ -8,7 +8,7 @@ import { SHOTS, busiestDocument, guardWrites, signIn, waitForApp } from './bugs/
  * /admin/gutachten, /admin/auflagen and /admin/konflikte is aborted in the browser (guardWrites).
  */
 
-test('a Gutachten shows its own Auflagenverzeichnis, and each row its codes with their sentences', async ({ page }, info) => {
+test('a Gutachten shows its own Auflagenverzeichnis, and each car its codes as tags with their sentences', async ({ page }, info) => {
     await signIn(page);
     await guardWrites(page);
 
@@ -21,12 +21,11 @@ test('a Gutachten shows its own Auflagenverzeichnis, and each row its codes with
     await expect(list.getByRole('heading', { name: 'Auflagenverzeichnis' })).toBeVisible();
     await expect(list.locator('table.adm-table tbody tr').first(), 'the document has no Auflagenverzeichnis').toBeVisible();
 
-    // A row names its codes with the document's own sentence, never a bare code (R-15).
-    const codes = page.locator('.gs-table td[data-label="Auflagen"] .gs-line');
+    // A tag carries the document's own sentence on hover; the list above holds it whole (R-15).
+    const codes = page.locator('.gs-car .gs-tag');
 
     if ((await codes.count()) > 0) {
-        await expect(codes.first().locator('.gs-code')).toBeVisible();
-        expect(((await codes.first().textContent()) ?? '').trim().length).toBeGreaterThan(8);
+        expect(((await codes.first().getAttribute('title')) ?? '').trim().length).toBeGreaterThan(8);
     }
 
     await list.screenshot({ path: `${SHOTS}/auflagenverzeichnis-${info.project.name}.png` });

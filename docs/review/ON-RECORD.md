@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**80 sentences: 1 open, 25 backed by a recorded field, 50 about the shop itself, 4 not sentences.**
+**79 sentences: 1 open, 23 backed by a recorded field, 51 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -40,15 +40,13 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Das Gutachten lässt die Kombination nur unter Bedingungen zu.“ | customer / operator | `Pages/CheckErgebnis/Index.vue` | a CONDITIONAL answer: the recorded conditions |
 | „Das Gutachten deckt diese Größe für dein Fahrzeug nicht ab.“ | customer / operator | `Pages/Check/Index.vue` | a NOT_PERMITTED answer: a recorded row restricts the car, or the document is asserted complete (approval_documents.completeness, D-227); an unnamed car in a document nobody asserted complete is „Noch nicht bestätigt“ |
 | „Das Gutachten lässt diese Kombination für das Fahrzeug nicht zu.“ | customer / operator | `Pages/CheckErgebnis/Index.vue` | a NOT_PERMITTED answer: a recorded row restricts the car, or the document is asserted complete (approval_documents.completeness, D-227); an unnamed car in a document nobody asserted complete is „Noch nicht bestätigt“ |
-| „Das Gutachten hat nur {$document->page_count} Seiten.“ | admin | `Http/Requests/Admin/DocumentCombinationsRequest.php`, `Http/Requests/Admin/DocumentConditionRequest.php`, `Http/Requests/Admin/DocumentDeratingRequest.php`, `Http/Requests/Admin/DocumentExtraRequest.php`, `Http/Requests/Admin/FitmentRowsRequest.php`, `Http/Requests/Admin/VehicleFromDocumentRequest.php` | approval_documents.page_count, read from the uploaded PDF |
+| „Das Gutachten hat nur {$document->page_count} Seiten.“ | admin | `Http/Requests/Admin/DocumentConditionRequest.php`, `Http/Requests/Admin/DocumentDeratingRequest.php`, `Http/Requests/Admin/DocumentExtraRequest.php`, `Http/Requests/Admin/Erfassung/EntryLinesRequest.php`, `Http/Requests/Admin/VehicleFromDocumentRequest.php` | approval_documents.page_count, read from the uploaded PDF |
 | „Wähl eine Karosserie aus der Liste oder „Nennt das Gutachten nicht“.“ | admin | `Http/Requests/Admin/VehicleFromDocumentRequest.php`, `Pages/Admin/Gutachten/VehicleFromDocument.vue` | this choice is the recorded absence: the person entering the document says it names none |
 | „Steht nicht im Dokument“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | this choice is the recorded absence |
 | „Beispieltabelle aus den Demodaten ({{ derating.seededFrom }}) – nicht aus diesem Gutachten übertragen.“ | admin | `Pages/Admin/Gutachten/DeratingTable.vue` | the recorded origin of a demo table (seeded_from) |
 | „Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht – der Shop sagt das dazu.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | the field being filled in: valid_from_production |
 | „Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs, der Geschwindigkeitsindex steht so im Gutachten.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the speed symbol recorded as the document's own minimum (source „document“, R-06) |
 | „Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the load index recorded as the document's own minimum (source „document“, R-06) |
-| „Wird eine in diesem Gutachten aufgeführte Reifengröße verwendet, die nicht bereits in der Fahrzeuggenehmigung für diesen Fahrzeug-Typ/ -Variante/ -Version bzw.“ | admin | `Pages/Admin/Skizze/gutachtenDemo.ts` | code 11B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper's own text in the sketch |
-| „Folgende Rad/Reifen-Kombination ist zulässig: Reifengröße: Vorderachse: 225/40R18 Hinterachse: 255/35R18 Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt, so ist die nicht aufgeführte Reifengröße nur auf einer anderen Felgengröße zulässig.“ | admin | `Pages/Admin/Skizze/gutachtenDemo.ts` | code 68B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper's own text in the sketch |
 
 ## About the shop — what it does, holds or requires, not what a document contains
 
@@ -92,9 +90,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Entwurf, noch nicht freigegeben“ | admin | `Pages/Admin/Gutachten/Neu.vue` | the state of a record |
 | „Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben.“ | admin | `Services/Admin/Approvals/DocumentRelease.php` | the state of a record: only a released one can be taken back (D-225) |
 | „Ein Nachtrag ohne eigene Angabe übernimmt es, sobald sein Grundgutachten freigegeben ist.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | a rule of the record |
-| „}: Buchstaben und Ziffern, höchstens 32 Zeichen, so wie im Gutachten.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
-| „Codes, die das Gutachten nur bei dieser Größe druckt, trägst du ins Feld für die Codes ein.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | an instruction for entering codes |
-| „Die Zeile bleibt „Noch nicht bestätigt“ und das Gutachten nicht freigebbar, bis der Code dort steht.“ | admin | `Pages/Admin/Gutachten/RowFields.vue` | a rule of the release |
 | „Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern.“ | admin | `Pages/Admin/Gutachten/Show.vue` | R-12's neighbour: a released record is not edited; a correction is a new revision (D-250) |
 | „Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten.“ | admin | `Services/Admin/Approvals/DocumentRevision.php` | a rule of the record: a revision is started from the released one (D-250) |
 | „Für keine Lücke wurde bisher ein Gutachten angefordert.“ | admin | `Pages/Admin/Nachfrage/Index.vue` | the state of our requests |
@@ -104,6 +99,10 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN, mit den Gutachten, die sie nennen.“ | admin | `Services/Admin/Review/ReviewBoard.php` | describes an admin screen and the rows we hold per vehicle |
 | „Vollständigkeit jedes freigegebenen Gutachtens beantwortet“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | names our own recorded answer (D-227), not the document |
 | „Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.“ | customer / operator | `Services/Reset/ResetLevel.php` | what a reset level removes |
+| „Steht sie nicht in diesem Gutachten, braucht sie eine andere Felgengröße, und der Shop bietet diese Kombination auf dieser Felge nicht an.“ | admin | `Pages/Admin/Gutachten/Erfassung/entryStore.ts` | an instruction to the person reading the paper: the rule its code 68B prints, for a size typed (document_tyre_lines) |
+| „Steht sie im Gutachten nur in dieser Kombination, setz unter „…“ den Haken.“ | admin | `Pages/Admin/Gutachten/Erfassung/entryStore.ts` | an instruction to the person reading the paper: the answer is stored (document_tyre_lines.front_on_rim, rear_on_rim) |
+| „Steht nur in dieser Kombination im Gutachten“ | admin | `Pages/Admin/Gutachten/Erfassung/LinesEditor.vue` | the field being filled in: document_tyre_lines.front_on_rim, rear_on_rim |
+| „Die gewählte Größe passt nicht zu dem, was du aus dem Gutachten eingetragen hast.“ | admin | `Pages/Admin/Gutachten/Erfassung/StepWheel.vue` | compares two recorded values: what staff typed from the paper (document_wheel_sizes.printed_*) and the size chosen |
 
 ## Not a sentence
 

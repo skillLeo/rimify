@@ -90,9 +90,6 @@ return [
     'Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben' => ['ours', 'the state of a record: only a released one can be taken back (D-225)'],
     'Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht' => ['backed', 'the field being filled in: valid_from_production'],
     'Ein Nachtrag ohne eigene Angabe übernimmt es' => ['ours', 'a rule of the record'],
-    'so wie im Gutachten.' => ['ours', 'an instruction for entering codes'],
-    'Codes, die das Gutachten nur bei dieser Größe druckt' => ['ours', 'an instruction for entering codes'],
-    'und das Gutachten nicht freigebbar, bis der Code dort steht' => ['ours', 'a rule of the release'],
     'Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern' => ['ours', 'R-12\'s neighbour: a released record is not edited; a correction is a new revision (D-250)'],
     'Eine neue Fassung entsteht nur aus einem freigegebenen Gutachten' => ['ours', 'a rule of the record: a revision is started from the released one (D-250)'],
     'Für keine Lücke wurde bisher ein Gutachten angefordert' => ['ours', 'the state of our requests'],
@@ -107,7 +104,9 @@ return [
     'Vollständigkeit jedes freigegebenen Gutachtens beantwortet' => ['ours', 'names our own recorded answer (D-227), not the document'],
     'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what a reset level removes'],
 
-    // ── The Gutachten sketch (D-380): a paper's own code texts, quoted as the paper prints them ─────────────────────────
-    'Wird eine in diesem Gutachten aufgeführte Reifengröße verwendet' => ['backed', 'code 11B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper\'s own text in the sketch'],
-    'Ist eine der beiden Reifengrößen im Gutachten nicht aufgeführt' => ['backed', 'code 68B of the Nachtrag N1 as the acceptance set records it (document_conditions.text_de), shown as the paper\'s own text in the sketch'],
+    // ── The five steps: staff read the paper, and these ask them to say what it prints ──────────────────────
+    'Steht sie nicht in diesem Gutachten, braucht sie eine andere Felgengröße' => ['ours', 'an instruction to the person reading the paper: the rule its code 68B prints, for a size typed (document_tyre_lines)'],
+    'Steht sie im Gutachten nur in dieser Kombination' => ['ours', 'an instruction to the person reading the paper: the answer is stored (document_tyre_lines.front_on_rim, rear_on_rim)'],
+    'Steht nur in dieser Kombination im Gutachten' => ['ours', 'the field being filled in: document_tyre_lines.front_on_rim, rear_on_rim'],
+    'was du aus dem Gutachten eingetragen hast' => ['ours', 'compares two recorded values: what staff typed from the paper (document_wheel_sizes.printed_*) and the size chosen'],
 ];

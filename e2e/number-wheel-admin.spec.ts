@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from './fixtures';
-import { busiestDocument, guardWrites, openAsDraft, signIn, waitForApp } from './bugs/gutachten-support';
+import { signIn, waitForApp } from './bugs/gutachten-support';
+import { chooseFirstWheel, freshNumber, newPaper, postAdmin, searchCars } from './gutachten-erfassung-support';
 
 /*
  * D-290 in the admin (the operator's brief of 19.10.2026 §3): the figures the team enters that feed a verdict keep their
@@ -7,8 +8,7 @@ import { busiestDocument, guardWrites, openAsDraft, signIn, waitForApp } from '.
  * before the browser can step it) and a car's axle load in the vehicle form (a text field with a numeric keyboard, which
  * the wheel never steps). The shop's half is number-wheel.spec.ts.
  *
- * Nothing is written: guardWrites aborts every write under /admin/gutachten and /admin/fahrzeuge in the browser, and the
- * document is a released one answered in the browser as a draft (gutachten-support.ts).
+ * The figures are not saved: a draft of its own stands counted, and the wheel is turned over the form without saving it.
  */
 
 /**
@@ -34,11 +34,17 @@ test.describe('D-290 a mouse wheel never moves a figure in the admin', () => {
         await expect(page.locator('#bare'), 'precondition: this browser does not step a focused number field under the wheel').not.toHaveValue('1160');
 
         await signIn(page);
-        await guardWrites(page);
 
         // The Gutachten entry: the count's axle limit, a number field that decides whether a rim sells alone (D-289).
-        const id = await busiestDocument(page);
-        await openAsDraft(page, id);
+        const url = await newPaper(page, freshNumber('E2E-RAD'));
+        await chooseFirstWheel(page);
+        await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click();
+        await searchCars(page, 'BMW');
+        await page.locator('.ef-hit input').first().check();
+        await expect(page.locator('.ef-chosen__car')).toHaveCount(1);
+        await postAdmin(page, `${url}/zaehlung`, { codes: 1, codes_page: 1, sizes: 1, sizes_page: 1, axle_limit_kg: null, axle_limit_page: null, abnahme: 'none', abnahme_page: null });
+        await page.goto(`${url}?schritt=5`, { waitUntil: 'domcontentloaded' });
+        await waitForApp(page);
         await page.locator('#zl-edit').click();
         const limit = page.locator('#zl-axle-limit-kg');
         await expect(limit).toHaveAttribute('type', 'number');

@@ -12,7 +12,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import AppLayout from '../../Layouts/AppLayout.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import SketchBanner from '../../Components/Sketch/SketchBanner.vue'
-import SketchSteps from '../../Components/Sketch/SketchSteps.vue'
+import SketchSteps from '../../Components/Ui/StepBar.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'

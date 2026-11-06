@@ -38,6 +38,8 @@ function doc(overrides: Partial<Document> = {}): Document {
         pageCount: 12,
         fitmentCount: 1408,
         publishedCount: 1276,
+        progress: null,
+        newVersion: false,
         href: '/admin/gutachten/1',
         ...overrides,
     }
@@ -142,5 +144,17 @@ describe('Gutachten › Dokumente', () => {
         expect(row.find('[data-label="Art"]').attributes('data-phone')).toBe('hide')
         expect(row.find('[data-label="Aussteller"]').attributes('data-phone')).toBe('hide')
         expect(row.find('[data-label="Status"]').attributes('data-phone')).toBe('status')
+    })
+})
+
+describe('how far a paper is (the Gutachten rework §7)', () => {
+    it('says how far a draft is, and which released paper has a new Fassung in the works', () => {
+        const wrapper = mountPage([doc({ id: 1, status: 'draft', progress: { done: 4, cars: 6 } }), doc({ id: 2, status: 'published', newVersion: true }), doc({ id: 3, status: 'published' })])
+        const rows = wrapper.findAll('tbody tr')
+
+        expect(rows[0]?.text()).toContain('4 von 6 Fahrzeugen')
+        expect(rows[1]?.text()).toContain('Neue Fassung in Arbeit')
+        expect(rows[2]?.text()).not.toContain('Neue Fassung in Arbeit')
+        expect(rows[2]?.text()).not.toContain('Fahrzeugen')
     })
 })

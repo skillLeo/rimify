@@ -16,6 +16,7 @@ use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\Gutachten\EntryDriver;
 
 /*
  * The client's item 8 (ADMIN-GEFUNDEN 514): BBS's Teilegutachten prints its codes with a closing bracket — `0)`, `R)`,
@@ -64,11 +65,11 @@ it('takes his codes as printed — in the Auflagenverzeichnis, from a pasted leg
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id]);
 
-    $this->actingAs(printedAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
-        'vehicle_ids' => [Vehicle::factory()->create()->id], 'config_ids' => [$size->id], 'axle' => 'FRONT', 'entry_note' => '', 'source_page' => 2,
-        'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'FRONT', 'codes' => ['16a)']]],
+    EntryDriver::enter($this, printedAdmin(), $document->id, [
+        'vehicle_ids' => [Vehicle::factory()->create()->id], 'config_ids' => [$size->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 2,
+        'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => ['16a)']]],
         'conditions' => [['code' => '0)', 'note' => null], ['code' => 'R)', 'note' => null]],
-    ])->assertSessionHasNoErrors();
+    ]);
 
     $row = DB::table('fitments')->where('approval_document_id', $document->id)->value('id');
     expect(DB::table('fitment_conditions')->where('fitment_id', $row)->orderBy('code')->pluck('code')->all())->toBe(['0', 'R'])

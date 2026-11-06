@@ -1,7 +1,8 @@
 import { expect, type Page } from '@playwright/test';
 import { SHOP } from '../shop';
 import { consentGiven, open } from '../support';
-import { answerWithDocument, asDraft, busiestDocument, guardWrites, openAsDraft, type ShowProps } from './gutachten-support';
+import { chooseFirstWheel, freshNumber, newPaper, postAdmin, searchCars } from '../gutachten-erfassung-support';
+import { waitForApp } from './gutachten-support';
 
 /*
  * Shared steps of the Block C interaction bug tests (docs/qa/BUGS.md, C-xx): the papers form in the
@@ -126,47 +127,33 @@ export const T88 = {
 
 export const REASON = 'So steht die Zahl auf Seite 4 des Gutachtens gedruckt.';
 
-function withT88(props: ShowProps, confirmed: boolean): void {
-    props.conditions = [
-        ...props.conditions.filter((c) => c.id !== T88.id),
-        { ...T88, limitConfirmed: confirmed ? { reason: REASON, by: 'QA', at: '29.09.2026' } : null },
-    ];
-}
-
 /**
- * Opens a released document as a draft whose Auflagenverzeichnis carries the unconfirmed T88, and answers its
- * confirmation (POST …/auflagen/{T88}/grenze) in the browser with the page as the server's `back()` would —
- * T88 confirmed. Returns every confirmation POST the page sent, in order.
+ * A draft of its own whose Auflagenverzeichnis carries the unconfirmed T88, the list open. Returns every confirmation POST the
+ * page sent, in order.
  */
-export async function openWithLimitWarning(page: Page): Promise<{ id: number; posts: string[] }> {
-    await guardWrites(page);
+export async function openWithLimitWarning(page: Page): Promise<{ posts: string[] }> {
+    const url = await newPaper(page, freshNumber('E2E-T88'));
+    await postAdmin(page, `${url}/auflagen`, { code: T88.code, kind: T88.kind, text_de: T88.text, source_page: 1, max_axle_load_kg: T88.maxAxleLoadKg });
 
-    const id = await busiestDocument(page);
-    const path = `/admin/gutachten/${id}/auflagen/${T88.id}/grenze`;
     const posts: string[] = [];
 
     page.on('request', (request) => {
-        if (request.method() === 'POST' && new URL(request.url()).pathname === path) {
+        if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/grenze')) {
             posts.push(request.postData() ?? '');
         }
     });
 
-    await page.route(
-        (url) => url.pathname === path,
-        async (route) => {
-            try {
-                await answerWithDocument(route, id, (props) => {
-                    asDraft(props);
-                    withT88(props, true);
-                });
-            } catch {
-                // The page itself cancelled this request (Inertia interrupts a visit in flight): nothing to answer.
-            }
-        },
-    );
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await waitForApp(page);
+    await chooseFirstWheel(page);
+    await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click();
+    await searchCars(page, 'BMW');
+    await page.locator('.ef-hit input').first().check();
+    await expect(page.locator('.ef-chosen__car')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Weiter: Reifen' }).click();
+    await page.getByRole('tab', { name: /Auflagen/ }).click();
+    await page.getByRole('button', { name: 'Ganze Legende einfügen' }).click();
+    await expect(page.locator('textarea[id^=av-limit-]'), 'the confirm form of T88 is not on the page').toBeVisible();
 
-    await openAsDraft(page, id, (props) => withT88(props, false));
-    await expect(page.locator(`#av-limit-${T88.id}`), 'the confirm form of T88 is not on the page').toBeVisible();
-
-    return { id, posts };
+    return { posts };
 }

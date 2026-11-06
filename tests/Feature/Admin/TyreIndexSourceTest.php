@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\EntryDriver;
 use Tests\Support\Gutachten\ReleaseAnswers;
 
 /*
@@ -38,7 +39,7 @@ beforeEach(function (): void {
     Storage::fake('docs_public');
 });
 
-const INDEX_UNANSWERED = 'Wähl unter „Angaben“, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.';
+const INDEX_UNANSWERED = 'Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.';
 const INDEX_TABLE_MISSING = 'Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, erfasst ist sie nicht. Trag sie ein oder ändere die Angabe.';
 
 function indexAdmin(): AdminUser
@@ -68,10 +69,10 @@ function indexDraft(?TyreIndexSource $source, array $printed = ['']): ApprovalDo
         array_keys($printed),
     );
 
-    test()->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
+    EntryDriver::enter(test(), indexAdmin(), $document->id, [
         'vehicle_ids' => [Vehicle::factory()->create()->id], 'config_ids' => [$config->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 4,
         'tyre_sizes' => $sizes, 'conditions' => [],
-    ])->assertSessionHasNoErrors();
+    ]);
 
     return $document->refresh();
 }
@@ -178,22 +179,25 @@ it('reads the client’s two documents as the team entered them: ABE 55255 by it
 });
 
 // His admin item 9: the minimum in two fields of its own — what the form sends, the server takes apart and checks apart.
-it('takes load index and speed symbol as two fields, and refuses either one the tables do not hold @admin-209', function (): void {
+it('reads load index and speed symbol apart, and keeps a line neither stands in the tables for, saying why @admin-209', function (): void {
     $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 12]);
     $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 19.0]);
     $vehicle = Vehicle::factory()->create();
-    $row = fn (mixed $loadIndex, string $symbol) => test()->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
-        'vehicle_ids' => [$vehicle->id], 'config_ids' => [$config->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 4, 'conditions' => [],
-        'tyre_sizes' => [['width_mm' => 245, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => $loadIndex, 'min_speed_symbol' => $symbol, 'axle' => 'ALL', 'codes' => []]],
-    ]);
+    $entry = EntryDriver::car(test(), indexAdmin(), $document->id, $vehicle->id, $config->id);
+    $line = fn (string $tyre) => test()->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}", [
+        'lines' => [['id' => null, 'front' => $tyre, 'rear' => $tyre, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
+    ])->assertOk();
 
-    $row(999, 'Y')->assertSessionHasErrors(['tyre_sizes.0.min_load_index' => 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.']);
+    // A tyre that does not stand in the tables is kept as typed, said, and writes nothing; the release waits for it.
+    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
+    expect(DB::table('fitment_tyre_sizes')->count())->toBe(0)
+        ->and(implode(' ', app(DocumentRelease::class)->check($document)))->toContain('nicht lesbar');
     // D-310: past 120 Regulation No 30 prints no capacity — the row waits rather than taking an estimate.
-    $row(121, 'Y')->assertSessionHasErrors(['tyre_sizes.0.min_load_index']);
-    $row(93, 'X')->assertSessionHasErrors(['tyre_sizes.0.min_speed_symbol' => 'Dieses Geschwindigkeitssymbol gibt es nicht.']);
-    $row(93, 'Y')->assertSessionHasNoErrors();
+    $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
+    $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X');
+    $line('245/35 R19 93Y')->assertJsonPath('car.lines.0.frontWhy', null);
 
     $size = DB::table('fitment_tyre_sizes')->orderByDesc('id')->first();
     expect($size?->min_load_index)->toBe(93)

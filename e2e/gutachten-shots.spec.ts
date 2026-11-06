@@ -43,29 +43,21 @@ test('Gutachten, Auflagen, Fahrzeuge and one order', async ({ page }, info) => {
     await page.locator(`a.gd-link[href$="/admin/gutachten/${released}"]`).first().click()
     await page.waitForURL(/\/admin\/gutachten\/\d+$/)
     await waitForApp(page)
-    await expect(page.getByRole('heading', { name: 'Verwendungsbereich' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Fahrzeuge und Reifen' })).toBeVisible()
     await page.getByRole('button', { name: 'Vorschau zeigen' }).click()
     await expect(page.locator('.gs-verdict').first()).toBeVisible()
     await page.screenshot({ path: `${DIR}/dokument-${width}.png`, fullPage: true })
 
-    // A draft, where the rows are entered: the composer below the Verwendungsbereich.
+    // A draft, where the cars and tyres are entered: the five steps.
     await page.goto('/admin/gutachten', { waitUntil: 'networkidle' })
     const draft = page.locator('tbody tr', { hasText: 'Entwurf' }).locator('.gd-link').first()
 
     if ((await draft.count()) > 0) {
         await draft.click()
-        await page.waitForURL(/\/admin\/gutachten\/\d+$/)
+        await page.waitForURL(/\/admin\/gutachten\/\d+/)
         await waitForApp(page)
-
-        // A draft without rows and without its count asks for the count first (ADMIN-GEFUNDEN 511): that card, then.
-        if (await page.locator('#zl-codes').isVisible()) {
-            await page.locator('.zl').first().screenshot({ path: `${DIR}/entwurf-zaehlung-${width}.png` })
-        } else {
-            await expect(page.getByRole('heading', { name: 'Zeilen hinzufügen' })).toBeVisible()
-            // The composer, not the whole page: a real Gutachten's draft (the Borbet Nachtrag, 110 rows) is
-            // taller at 390 px than Chromium can capture in one image.
-            await page.locator('.rc').first().screenshot({ path: `${DIR}/entwurf-${width}.png` })
-        }
+        await expect(page.getByRole('navigation', { name: 'Schritte zum Gutachten' })).toBeVisible()
+        await page.screenshot({ path: `${DIR}/entwurf-${width}.png` })
     }
 
     await page.goto('/admin/auflagen', { waitUntil: 'networkidle' })

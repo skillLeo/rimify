@@ -27,6 +27,7 @@ test('B-04 the production month can be typed with the keypad its field asks for'
     await page.goto('/admin/gutachten/neu', { waitUntil: 'domcontentloaded' });
     await waitForApp(page);
 
+    await page.locator('.gn-more__summary').click();
     await page.locator('.rsf-more__summary').click();
 
     const field = page.locator('#gn-production');

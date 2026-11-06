@@ -17,6 +17,7 @@ use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\Gutachten\EntryDriver;
 
 /*
  * Would today's release (D-227, D-228) have stopped the client's release of 10.10.2026 19:27? His Teilegutachten
@@ -47,11 +48,11 @@ function hisEntry(): ApprovalDocument
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'max_load_kg' => null]);
 
-    test()->actingAs($admin, 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
+    EntryDriver::enter(test(), $admin, $document->id, [
         'vehicle_ids' => Vehicle::factory()->count(2)->create()->pluck('id')->all(), 'config_ids' => [$size->id], 'axle' => 'REAR', 'entry_note' => '', 'source_page' => 1,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'REAR', 'codes' => []]],
         'conditions' => [['code' => '0', 'note' => null]],
-    ])->assertSessionHasNoErrors();
+    ]);
 
     return $document->refresh();
 }

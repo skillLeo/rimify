@@ -6,6 +6,7 @@ use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
+use App\Models\DocumentCarEntry;
 use App\Models\DocumentCondition;
 use App\Models\DocumentConditionRework;
 use App\Models\DocumentFastener;
@@ -22,6 +23,7 @@ use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\EntryDriver;
 use Tests\Support\Gutachten\ReleaseAnswers;
 
 /*
@@ -49,7 +51,7 @@ function revisionAdmin(string $role = 'super-admin'): AdminUser
 function releasedWithEverything(): ApprovalDocument
 {
     $document = ApprovalDocument::factory()->draft()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'page_count' => 8]);
-    test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", ['codes' => 2, 'codes_page' => 3, 'sizes' => 1, 'sizes_page' => 3, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'all', 'abnahme_page' => 4])->assertSessionHasNoErrors();
+    test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", ['codes' => 2, 'codes_page' => 3, 'sizes' => 2, 'sizes_page' => 3, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'all', 'abnahme_page' => 4])->assertSessionHasNoErrors();
 
     $note = DocumentCondition::factory()->kind(ConditionKind::Hinweis, 'Nur mit dem BBS-Zubehörsatz T.Nr. 09.31.149.')->create(['approval_document_id' => $document->id, 'code' => '0', 'level' => 'auflage']);
     $arch = DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Abnahme nach § 19 Abs. 3 StVZO.')->create(['approval_document_id' => $document->id, 'code' => 'A01']);
@@ -61,16 +63,24 @@ function releasedWithEverything(): ApprovalDocument
     $model = WheelModel::factory()->draft()->create(['is_demo' => false, 'name' => 'LeMans']);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0]);
-    test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
+    EntryDriver::enter(test(), revisionAdmin(), $document->id, [
         'vehicle_ids' => Vehicle::factory()->count(2)->create(['eg_nummer_raw' => 'e1*2007/46*0316*11', 'eg_nummer_norm' => 'e1*2007/46*0316*11'])->pluck('id')->all(),
         'config_ids' => [$size->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 3,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => ['A01']]],
         'conditions' => [['code' => '0', 'note' => null]],
-    ])->assertSessionHasNoErrors();
-    // The list of the entry its cars fall under (his admin item 19, D-358).
-    test()->actingAs(revisionAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/bereifungskombinationen", [
-        'entry' => 'e1*2007/46*0316*11', 'source_page' => 4, 'combinations' => [['number' => 1, 'front' => '225/40 R18', 'rear' => '225/40 R18']],
-    ])->assertSessionHasNoErrors();
+    ]);
+
+    // A pair on each car: the list of the entry its cars fall under (his admin item 19, D-358).
+    foreach (DocumentCarEntry::query()->where('approval_document_id', $document->id)->get() as $entry) {
+        test()->actingAs(revisionAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}", [
+            'lines' => [
+                ['id' => null, 'front' => '225/40 R18', 'rear' => '225/40 R18', 'kw' => '', 'codes' => ['A01']],
+                ['id' => null, 'front' => '225/40 R18', 'rear' => '255/35 R18', 'kw' => '', 'codes' => [], 'rear_on_rim' => true],
+            ],
+            'codes' => [['code' => '0', 'note' => null]],
+            'source_page' => 3,
+        ])->assertOk();
+    }
 
     test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertSessionHasNoErrors();
 

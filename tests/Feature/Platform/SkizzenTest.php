@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
- * The sketches of the Gutachten rework (the operator's brief of 01.11.2026, Phase 1): four pages of example data to click
+ * The sketches of the Gutachten rework (the operator's brief of 01.11.2026, Phase 1): three pages of example data to click
  * through before anything is built. They open where they should, under the permission of the area they sketch; they read
  * the address and nothing else; they write nothing; and they exist in a test environment only — the preflight says NO-GO
  * on a live shop where one answers.
@@ -48,30 +48,18 @@ function sketchWrites(Closure $run): array
     return [$all, $writes];
 }
 
-it('opens the Gutachten sketch at the step and the car group the address names', function (): void {
-    $this->actingAs(sketchAdmin('compliance-editor'), 'admin')
-        ->get('/admin/skizze/gutachten?schritt=4&zeile=x3')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Admin/Skizze/Gutachten')->where('schritt', 4)->where('zeile', 'x3'));
+it('has no Gutachten sketch any more: the five steps themselves took its place', function (): void {
+    $this->actingAs(sketchAdmin('compliance-editor'), 'admin')->get('/admin/skizze/gutachten')->assertNotFound();
+    expect(Route::has('admin.skizze.gutachten'))->toBeFalse();
 });
 
 it('opens a sketch at its start when the address names nothing it knows', function (): void {
-    $this->actingAs(sketchAdmin('super-admin'), 'admin')
-        ->get('/admin/skizze/gutachten?schritt=9&zeile=%3Cb%3E')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('schritt', null)->where('zeile', null));
-
     $this->get('/skizze/komplettraeder?schritt=0&ausfuehrung=..%2Fx')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('schritt', null)->where('ausfuehrung', null));
 });
 
 it('opens a sketch at its start for a value too long or shaped as a list, never sending the visitor away', function (): void {
-    $this->actingAs(sketchAdmin('super-admin'), 'admin')
-        ->get('/admin/skizze/gutachten?schritt=123&zeile=abcdefghi')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('schritt', null)->where('zeile', null));
-
     $this->actingAs(sketchAdmin('super-admin'), 'admin')
         ->get('/admin/skizze/reifen?modell[]=x')
         ->assertOk()
@@ -83,7 +71,6 @@ it('opens a sketch at its start for a value too long or shaped as a list, never 
 });
 
 it('keeps each admin sketch to the roles that may view the area it sketches', function (): void {
-    $this->actingAs(sketchAdmin('content-editor'), 'admin')->get('/admin/skizze/gutachten')->assertForbidden();
     $this->actingAs(sketchAdmin('content-editor'), 'admin')->get('/admin/skizze/reifen')->assertForbidden();
 
     $this->actingAs(sketchAdmin('catalogue-manager'), 'admin')
@@ -93,7 +80,7 @@ it('keeps each admin sketch to the roles that may view the area it sketches', fu
 });
 
 it('sends somebody who is not signed in to the admin sign-in, not to a sketch', function (): void {
-    $this->get('/admin/skizze/gutachten')->assertRedirect('/admin/anmelden');
+    $this->get('/admin/skizze/reifen')->assertRedirect('/admin/anmelden');
 });
 
 it('opens the shop sketches for anyone, with or without the example car', function (): void {
@@ -115,7 +102,6 @@ it('writes nothing, whichever sketch is opened', function (): void {
     $this->actingAs($admin, 'admin');
 
     [$all, $writes] = sketchWrites(function (): void {
-        $this->get('/admin/skizze/gutachten?schritt=4')->assertOk();
         $this->get('/admin/skizze/reifen')->assertOk();
         $this->get('/skizze/felge?fahrzeug=1')->assertOk();
         $this->get('/skizze/komplettraeder')->assertOk();
@@ -134,6 +120,6 @@ it('registers the sketches in a test environment, and the preflight refuses a li
     app()->detectEnvironment(static fn (): string => 'production');
 
     $this->artisan('rimify:preflight', ['--skip-s3' => true])
-        ->expectsOutputToContain('im Live-Shop erreichbar (skizze.felge, skizze.komplettraeder, admin.skizze.gutachten, admin.skizze.reifen)')
+        ->expectsOutputToContain('im Live-Shop erreichbar (skizze.felge, skizze.komplettraeder, admin.skizze.reifen)')
         ->assertFailed();
 });

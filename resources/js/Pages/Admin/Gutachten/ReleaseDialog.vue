@@ -10,7 +10,7 @@
  * the entry.
  */
 import { useForm } from '@inertiajs/vue3'
-import { computed, watch } from 'vue'
+import { computed, watch, nextTick } from 'vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
 import type { DocumentFacts } from '../../../types/admin/gutachten'
@@ -88,6 +88,12 @@ function submit(): void {
         onSuccess: () => {
             open.value = false
             emit('done')
+            // A draft's five steps make way for the read view under the dialog: the keyboard lands on the page's title, never on nothing.
+            void nextTick(() => {
+                if (document.activeElement === null || document.activeElement === document.body) {
+                    document.querySelector<HTMLElement>('.adm-page__title')?.focus({ preventScroll: true })
+                }
+            })
         },
         onError: () => focusRefused('.rd'),
     })

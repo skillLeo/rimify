@@ -1925,7 +1925,7 @@ a.adm-foot__health {
         bottom: calc(var(--bottomnav-h) + var(--sp-12) + env(safe-area-inset-bottom));
     }
 
-    .adm:has(.adm-savebar) ~ .toast-viewport {
+    .adm:has(.adm-savebar, .ef-actions) ~ .toast-viewport {
         bottom: calc(var(--bottomnav-h) + var(--stickybar-h) + var(--sp-12) + env(safe-area-inset-bottom));
     }
 
@@ -1937,7 +1937,7 @@ a.adm-foot__health {
 /* From 768 the toast sits bottom left, where the save bar says what state the form is in: on a form
    page it rides above the bar, so the confirmation never hides the status it confirms. */
 @media (min-width: 768px) {
-    .adm:has(.adm-savebar) ~ .toast-viewport {
+    .adm:has(.adm-savebar, .ef-actions) ~ .toast-viewport {
         bottom: calc(var(--adm-topbar-h) + var(--sp-12));
     }
 }

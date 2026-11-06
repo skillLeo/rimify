@@ -9,7 +9,6 @@ use App\Domain\Fitment\Verdict\ConditionLevel;
 use App\Enums\ApprovalKind;
 use App\Enums\ConditionSeverity;
 use App\Enums\DocumentStatus;
-use App\Enums\FitmentStatus;
 use App\Enums\PermissionAction;
 use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
@@ -25,19 +24,17 @@ use App\Models\DocumentCondition;
 use App\Models\DocumentConditionRework;
 use App\Models\DocumentFastener;
 use App\Models\DocumentNotice;
-use App\Models\DocumentTyreCombination;
 use App\Models\Fitment;
-use App\Models\FitmentCondition;
-use App\Models\FitmentTyreSize;
-use App\Models\FitmentTyreSizeCondition;
+use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
-use App\Services\Admin\Approvals\CombinationEntries;
 use App\Services\Admin\Approvals\CountFigures;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\DocumentRevision;
+use App\Services\Admin\Approvals\Entry\DocumentEntryReader;
+use App\Services\Admin\Approvals\Entry\EntryView;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\Approvals\LoadLimitCheck;
 use App\Services\Admin\Approvals\SamePdf;
@@ -57,6 +54,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -76,12 +74,11 @@ class GutachtenController extends Controller
 
     public const DIRECTORY = 'gutachten';
 
-    public const CREATED = 'Gutachten angelegt. Jetzt den Verwendungsbereich eintragen.';
+    public const CREATED = 'Gutachten angelegt. Wähl jetzt die Felge.';
 
     public const SAVED = 'Gespeichert.';
 
-    /** The rows one page draws; more are counted and named, never dropped silently (F-37). */
-    public const ROWS_SHOWN = 1000;
+    public const CARRY_FAILED = 'Was hier hinterlegt ist, lässt sich nicht verlustfrei in die neue Eingabe übernehmen. Deshalb bleibt es vorerst, wie es ist: Im Shop ändert sich nichts. Gib bitte der Technik Bescheid.';
 
     public function index(Request $request): Response
     {
@@ -137,9 +134,23 @@ class GutachtenController extends Controller
             DB::raw('COALESCE(f.published_count, 0) as published_count'),
         ], 'seite', ListPaging::requested($request->query('seite')));
 
+        // How far each draft on this page is: the cars with tyres entered, of the cars chosen. And the released papers with a new
+        // Fassung under way (the Gutachten rework §7).
+        $onPage = array_map(static fn (object $row): int => (int) $row->id, $page->items());
+        $progress = DB::table('document_car_entries as e')
+            ->select('e.approval_document_id')
+            ->selectRaw('COUNT(*) as cars')
+            ->selectRaw('SUM(EXISTS (SELECT 1 FROM document_tyre_lines l WHERE l.document_car_entry_id = e.id AND l.front_unread IS NULL AND l.rear_unread IS NULL)) as done')
+            ->whereIn('e.approval_document_id', $onPage)
+            ->groupBy('e.approval_document_id')
+            ->get()
+            ->keyBy('approval_document_id');
+        $revised = ApprovalDocument::query()->whereIn('supersedes_id', $onPage)->where('status', DocumentStatus::Draft->value)->pluck('supersedes_id')
+            ->mapWithKeys(static fn (mixed $id): array => [(int) $id => true]);
         $rows = [];
 
         foreach ($page->items() as $row) {
+            $counted = $progress->get($row->id);
             $rows[] = [
                 'id' => (int) $row->id,
                 // The number the document is known by, whichever kind it is.
@@ -155,6 +166,9 @@ class GutachtenController extends Controller
                 'pageCount' => $row->page_count === null ? null : (int) $row->page_count,
                 'fitmentCount' => (int) $row->fitment_count,
                 'publishedCount' => (int) $row->published_count,
+                // „4 von 6“: only of a draft, where it says how far the entry is.
+                'progress' => $row->status === DocumentStatus::Draft->value && $counted !== null ? ['done' => (int) $counted->done, 'cars' => (int) $counted->cars] : null,
+                'newVersion' => $revised->has((int) $row->id),
                 // Seeded as an example (the acceptance set, the demo catalogue): said in the list, not only in the row.
                 'demo' => (bool) $row->is_demo,
                 'href' => '/admin/gutachten/'.$row->id,
@@ -216,33 +230,46 @@ class GutachtenController extends Controller
         return redirect('/admin/gutachten/'.$document->id)->with('toast', self::CREATED);
     }
 
-    public function show(ApprovalStepRequest $request, ApprovalDocument $document, DocumentRelease $release, DocumentPreview $preview): Response
+    public function show(ApprovalStepRequest $request, ApprovalDocument $document, DocumentRelease $release, DocumentPreview $preview, DocumentEntryReader $reader, EntryView $entry): Response
     {
         $admin = $request->admin();
+        // A paper from before the five steps is carried into them the first time it is opened; the rows the shop reads stay as they
+        // are. Where its way back would change one, nothing is built: it can be read and nothing else, and it stays what it is in the shop.
+        $carryFailed = false;
+
+        try {
+            $reader->ensure($document);
+        } catch (RuntimeException $failed) {
+            report($failed);
+            $carryFailed = true;
+        }
+
+        $editing = ! $carryFailed && $document->status === DocumentStatus::Draft && $admin->canQuietly('update', $document);
         // On the app's request, not the Form Request: that is a copy, and the crumb is read from the original.
         request()->attributes->set(AdminNavigation::RECORD, FitmentRows::label($document));
 
-        $rows = Fitment::query()
-            ->with(['vehicle' => static fn ($q) => $q->withTrashed(), 'wheelConfig.wheelModel.brand', 'wheelConfig.wheelFinish', 'tyreSizes.conditionCodes', 'conditionCodes', 'entryOverrideBy'])
-            ->where('approval_document_id', $document->id)
-            ->orderBy('vehicle_id')
-            ->orderBy('wheel_config_id')
-            ->limit(self::ROWS_SHOWN)
-            ->get();
-        // Every row, counted: past ROWS_SHOWN the page said „alle 1.000 Zeilen gelten“ of a document that releases more
-        // (the admin audit's F-37). The page names the cut, and every sentence about the release counts them all.
-        $rowsTotal = $rows->count() < self::ROWS_SHOWN ? $rows->count() : Fitment::query()->where('approval_document_id', $document->id)->count();
+        // Every row, counted: every sentence about the release counts them all (the admin audit's F-37).
+        $rowsTotal = Fitment::query()->where('approval_document_id', $document->id)->count();
 
-        $vehicles = $rows->pluck('vehicle')->filter()->unique('id')->values();
+        // The cars a row names, for the preview. A car taken out of the data stays named: its rows still stand on the paper.
+        $vehicles = Vehicle::withTrashed()->whereIn('id', Fitment::query()->where('approval_document_id', $document->id)->select('vehicle_id'))->orderBy('id')->get();
         $chosen = $request->vehicleId() ?? $vehicles->first()?->id;
         /** @var array<string, DocumentCondition> $defined */
         $defined = $document->conditions()->get()->keyBy('code')->all();
         $uses = DocumentConditions::usesByCode($document);
         $started = $document->status === DocumentStatus::Published ? DocumentRevision::startedFor($document) : null;
 
-        return Inertia::render('Admin/Gutachten/Show', [
+        $view = $entry->of($document);
+
+        return Inertia::render($editing ? 'Admin/Gutachten/Erfassung' : 'Admin/Gutachten/Show', [
+            'entry' => $view,
+            'carryFailed' => $carryFailed ? self::CARRY_FAILED : null,
+            ...($editing ? [
+                'schritt' => $request->entryStep(),
+                'zeile' => $request->entryLine(),
+                'weiter' => self::nextStep($view),
+            ] : ['readView' => $entry->readView($document)]),
             'document' => self::documentFacts($document),
-            'rows' => $rows->map(static fn (Fitment $row): array => self::row($row, $defined))->values()->all(),
             'rowsTotal' => $rowsTotal,
             'vehicles' => $vehicles->map(static fn ($v): array => ['id' => (int) $v->id, 'label' => self::vehicleLabel($v)])->all(),
             // What the release will refuse, said before „Freigeben“ is pressed: the entry's own checks and its comparison with
@@ -285,16 +312,13 @@ class GutachtenController extends Controller
                 ])->values()->all(),
             // Its own table of tyre load at speed (ABE 55255, p. 6): rows of speeds, columns of symbols.
             'derating' => self::deratingView($document),
-            // Its own „Bereifungskombinationen“ (D-256): once there are any, the only tyres the shop offers on it.
-            'combinations' => self::combinationsView($document),
             // What each card was opened on: a save against an older state is refused (EditStamp, the admin audit's F-25).
             'stamps' => [
                 'document' => EditStamp::of(self::documentState($document->id)),
                 'derating' => EditStamp::of(self::deratingState($document)),
-                'combinations' => EditStamp::of(self::combinationsState($document)),
             ],
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
-                ->whereIn('candidate_fitment_id', $rows->pluck('id'))->count(),
+                ->whereIn('candidate_fitment_id', Fitment::query()->where('approval_document_id', $document->id)->select('id'))->count(),
             // Which buttons to draw: asked, not attempted — a released document's „no“ is no refusal (ADMIN-GEFUNDEN 509).
             'can' => [
                 'edit' => $admin->canQuietly('update', $document),
@@ -311,6 +335,30 @@ class GutachtenController extends Controller
             'levels' => array_map(static fn (ConditionLevel $l): array => ['value' => $l->value, 'label' => $l->labelDe()], ConditionLevel::cases()),
             'levelFloorSentence' => ConditionLevel::FLOOR_SENTENCE,
         ]);
+    }
+
+    /**
+     * The step a draft opens on, from 1, where neither the address nor this browser says: the first thing the paper still needs.
+     *
+     * @param  array<string, mixed>  $entry
+     */
+    private static function nextStep(array $entry): int
+    {
+        if ($entry['wheelSizes'] === []) {
+            return 2;
+        }
+
+        if ($entry['cars'] === []) {
+            return 3;
+        }
+
+        foreach ($entry['cars'] as $car) {
+            if ($car['done'] !== true) {
+                return 4;
+            }
+        }
+
+        return 5;
     }
 
     /**
@@ -348,16 +396,6 @@ class GutachtenController extends Controller
     }
 
     /**
-     * The list of tyre combinations as stored now (EditStamp, F-25).
-     *
-     * @return list<array<string, mixed>>
-     */
-    public static function combinationsState(ApprovalDocument $document): array
-    {
-        return $document->tyreCombinations()->reorder()->orderBy('id')->get()->map(static fn ($c): array => $c->getAttributes())->all();
-    }
-
-    /**
      * The document's table as the grid shows it: its columns in the order first entered (V, W, Y), its rows
      * by speed, each cell „97“, „–“ or empty.
      *
@@ -381,51 +419,6 @@ class GutachtenController extends Controller
             'seededFrom' => $cells->first()?->seeded_from,
             'symbols' => array_keys($symbols),
             'rows' => array_map(static fn (int $speed, array $row): array => ['speed' => $speed, 'cells' => $row], array_keys($rows), $rows),
-        ];
-    }
-
-    /**
-     * The document's own lists of tyre combinations as the card shows them (D-256), one per entry of its
-     * Verwendungsbereich since his admin item 19 (D-358): each EG type-approval number with the cars under it, its
-     * combinations in their numbering, each size as printed, and whether the list was carried over from the
-     * document-wide one („übernommen, bitte prüfen“). Rows no entry was given yet are listed apart: they match no car.
-     *
-     * @return array{sourcePage: int|null, entries: list<array{eg: string, cars: list<string>, carriedOver: bool, combinations: list<array{id: int, number: int, front: string, rear: string}>}>, unassigned: list<array{id: int, number: int, front: string, rear: string}>}
-     */
-    private static function combinationsView(ApprovalDocument $document): array
-    {
-        $rows = $document->tyreCombinations()->get();
-        $row = static fn (DocumentTyreCombination $c): array => [
-            'id' => (int) $c->id,
-            'number' => $c->number,
-            'front' => GermanFormat::tyreSize($c->front_width_mm, $c->front_aspect, $c->front_diameter_in),
-            'rear' => GermanFormat::tyreSize($c->rear_width_mm, $c->rear_aspect, $c->rear_diameter_in),
-        ];
-
-        $cars = DB::table('fitments')
-            ->join('vehicles', 'vehicles.id', '=', 'fitments.vehicle_id')
-            ->where('fitments.approval_document_id', $document->id)
-            ->whereNull('vehicles.deleted_at')
-            ->distinct()
-            ->orderBy('vehicles.make')->orderBy('vehicles.model')->orderBy('vehicles.variant')
-            ->get(['vehicles.eg_nummer_norm', 'vehicles.make', 'vehicles.model', 'vehicles.variant']);
-
-        $entries = [];
-
-        foreach (CombinationEntries::of($document->id) as $eg) {
-            $own = $rows->where('eg_number_norm', $eg);
-            $entries[] = [
-                'eg' => $eg,
-                'cars' => $cars->where('eg_nummer_norm', $eg)->map(static fn (object $v): string => VehicleName::of($v->make, $v->model, $v->variant))->unique()->values()->all(),
-                'carriedOver' => $own->contains(static fn (DocumentTyreCombination $c): bool => $c->carried_over),
-                'combinations' => $own->map($row)->values()->all(),
-            ];
-        }
-
-        return [
-            'sourcePage' => $rows->first()?->source_page,
-            'entries' => $entries,
-            'unassigned' => $rows->whereNull('eg_number_norm')->map($row)->values()->all(),
         ];
     }
 
@@ -454,14 +447,22 @@ class GutachtenController extends Controller
             AuditTrail::record($admin, 'approval.updated', ['document' => FitmentRows::label($document), 'pdf' => $pdf !== null], $document);
         });
 
-        return back()->with('toast', self::SAVED);
+        // Saved as it is typed in step 1: nothing to announce each time.
+        return $request->boolean('autosave') ? back() : back()->with('toast', self::SAVED);
     }
 
     /** „Neue Fassung anlegen“: a draft revision holding all the released one holds — or the one already started (510). */
     public function revise(DocumentRevisionRequest $request, ApprovalDocument $document, DocumentRevision $revisions): RedirectResponse
     {
         $started = DocumentRevision::startedFor($document) !== null;
-        $draft = $revisions->draftFrom($document, $request->admin());
+
+        try {
+            $draft = $revisions->draftFrom($document, $request->admin());
+        } catch (RuntimeException $failed) {
+            report($failed);
+
+            throw ValidationException::withMessages(['release' => self::CARRY_FAILED]);
+        }
 
         return redirect('/admin/gutachten/'.$draft->id)->with('toast', $started
             ? 'Für dieses Gutachten gibt es schon eine neue Fassung im Entwurf – hier ist sie.'
@@ -777,83 +778,6 @@ class GutachtenController extends Controller
             'kinds' => array_map(static fn (ConditionKind $k): array => ['value' => $k->value, 'label' => $k->labelDe(), 'section' => $k->sectionDe(), 'help' => $k->helpDe()], ConditionKind::cases()),
             'bodyForms' => DocumentConditions::BODY_FORMS,
             'drives' => DocumentConditions::DRIVES,
-        ];
-    }
-
-    /**
-     * @param  array<string, DocumentCondition>  $defined  the document's list, by code
-     * @return array<string, mixed>
-     */
-    private static function row(Fitment $row, array $defined): array
-    {
-        $config = $row->wheelConfig;
-        $codeView = static function (string $code, ?string $note) use ($defined): array {
-            $definition = $defined[$code] ?? null;
-
-            return [
-                'code' => $code,
-                'note' => (string) ($note ?? ''),
-                'text' => $definition?->text_de,
-                'kind' => $definition?->kind->value,
-                'page' => $definition?->source_page,
-                'defined' => $definition !== null,
-            ];
-        };
-        // The Eintragung as the codes derive it, with the code and page it comes from (§2).
-        $abnahme = static fn (array $codes): array => array_values(array_filter($codes, static fn (string $c): bool => ($defined[$c] ?? null)?->kind === ConditionKind::Abnahme));
-        $rowCodes = $row->conditionCodes->pluck('code')->map(static fn (mixed $c): string => (string) $c)->all();
-        $sizeCodes = $row->tyreSizes->flatMap(static fn (FitmentTyreSize $s) => $s->conditionCodes->pluck('code'))->map(static fn (mixed $c): string => (string) $c)->all();
-        $source = array_values(array_unique($abnahme([...$rowCodes, ...$sizeCodes])));
-
-        return [
-            'id' => (int) $row->id,
-            'vehicleId' => (int) $row->vehicle_id,
-            'vehicle' => $row->vehicle === null ? '–' : self::vehicleLabel($row->vehicle),
-            'configId' => (int) $row->wheel_config_id,
-            'wheel' => GutachtenController::modelName($config?->wheelModel),
-            'size' => $config === null ? '' : $config->label(),
-            'finish' => $config?->wheelFinish?->name_de,
-            'axle' => $row->axle->value,
-            'axleLabel' => $row->axle->labelDe(),
-            'requiresEntry' => $row->requires_entry,
-            'entryDerived' => $source !== [],
-            'entrySource' => array_map(static fn (string $c): string => $c.(($defined[$c] ?? null)?->source_page === null ? '' : ', Seite '.$defined[$c]->source_page), $source),
-            'entryOverride' => $row->entry_override,
-            'entryOverrideReason' => $row->entry_override_reason ?? '',
-            'entryOverrideBy' => $row->entryOverrideBy?->name,
-            'entryOverrideAt' => $row->entry_override_at === null ? null : GermanFormat::dateTime($row->entry_override_at),
-            'entryNote' => $row->entry_note_de ?? '',
-            'sourcePage' => $row->source_page,
-            'buildFrom' => $row->build_from?->format('Y-m-d') ?? '',
-            'buildTo' => $row->build_to?->format('Y-m-d') ?? '',
-            'widthMin' => $row->permitted_width_min === null ? '' : GermanFormat::trimmedDecimal($row->permitted_width_min, 2),
-            'widthMax' => $row->permitted_width_max === null ? '' : GermanFormat::trimmedDecimal($row->permitted_width_max, 2),
-            'etMin' => $row->permitted_et_min === null ? '' : (string) $row->permitted_et_min,
-            'etMax' => $row->permitted_et_max === null ? '' : (string) $row->permitted_et_max,
-            'centreBore' => $row->centre_bore_mm === null ? '' : GermanFormat::trimmedDecimal($row->centre_bore_mm, 2),
-            'status' => $row->status->value,
-            'tyreSizes' => $row->tyreSizes->map(static fn (FitmentTyreSize $s): array => [
-                'width_mm' => $s->width_mm,
-                'aspect' => $s->aspect,
-                'diameter' => (int) $s->diameter_in,
-                'min_load_index' => $s->min_load_index,
-                'min_speed_symbol' => $s->min_speed_symbol ?? '',
-                'axle' => $s->axle->value,
-                'kw_min' => $s->kw_min,
-                'kw_max' => $s->kw_max,
-                // The document's own minimum stands with the size, as the Gutachten prints it (R-06), and so
-                // does its kW band (Block D).
-                'label' => GermanFormat::tyreSize($s->width_mm, $s->aspect, (float) $s->diameter_in)
-                    .(($s->min_load_index ?? '').($s->min_speed_symbol ?? '') === '' ? '' : ' '.($s->min_load_index ?? '').($s->min_speed_symbol ?? ''))
-                    .($s->kw_min === null || $s->kw_max === null ? '' : ' · '.GermanFormat::integer($s->kw_min).GermanFormat::ENDASH.GermanFormat::integer($s->kw_max).GermanFormat::NBSP.'kW')
-                    .($s->axle->value === 'ALL' ? '' : ' ('.$s->axle->labelDe().')'),
-                'codes' => $s->conditionCodes->map(static fn (FitmentTyreSizeCondition $c): array => $codeView($c->code, null))->values()->all(),
-                'requiresEntry' => $row->entry_override === null ? $abnahme([...$rowCodes, ...$s->conditionCodes->pluck('code')->map(static fn (mixed $c): string => (string) $c)->all()]) !== [] : $row->entry_override === 'required',
-            ])->values()->all(),
-            'conditions' => $row->conditionCodes->map(static fn (FitmentCondition $c): array => $codeView($c->code, $c->note_de))->values()->all(),
-            'draft' => $row->status === FitmentStatus::Draft,
-            // The row as this page shows it: „Zeile ändern“ sends it back, and a save against an older state is refused (F-25).
-            'stamp' => EditStamp::of(FitmentRows::state($row)),
         ];
     }
 

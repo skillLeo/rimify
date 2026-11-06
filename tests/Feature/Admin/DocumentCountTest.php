@@ -16,6 +16,7 @@ use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\EntryDriver;
 
 /*
  * ADMIN-GEFUNDEN 511 (the operator's brief of 16.10.2026, Group A): the count of a Gutachten's Verwendungsbereich is
@@ -52,11 +53,11 @@ function enterHisRows(ApprovalDocument $document): void
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'max_load_kg' => null]);
 
-    test()->actingAs(countAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
+    EntryDriver::enter(test(), countAdmin(), $document->id, [
         'vehicle_ids' => Vehicle::factory()->count(2)->create()->pluck('id')->all(), 'config_ids' => [$size->id], 'axle' => 'REAR', 'entry_note' => '', 'source_page' => 1,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'REAR', 'codes' => []]],
         'conditions' => [['code' => '0', 'note' => null]],
-    ])->assertSessionHasNoErrors();
+    ]);
 }
 
 it('counts a new draft before its first row: each figure with its page, said to have been taken before the entry, and in the Protokoll', function (): void {

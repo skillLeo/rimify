@@ -18,6 +18,7 @@ use App\Models\WheelModel;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\EntryDriver;
 use Tests\Support\Gutachten\ReleaseAnswers;
 
 /**
@@ -53,7 +54,7 @@ function disagreeing(): array
     FitmentTyreSize::factory()->create(['fitment_id' => $row->id, 'width_mm' => 225, 'aspect' => 40, 'diameter_in' => 18.0]);
 
     $tg = ApprovalDocument::factory()->draft()->create(['report_number' => 'TG-KONFLIKT', 'issued_on' => '2025-05-01']);
-    test()->actingAs(konfliktAdmin(), 'admin')->post("/admin/gutachten/{$tg->id}/zeilen", [
+    EntryDriver::enter(test(), konfliktAdmin(), $tg->id, [
         'vehicle_ids' => [$vehicle->id],
         'config_ids' => [$config->id],
         'axle' => 'ALL',
@@ -61,7 +62,7 @@ function disagreeing(): array
         'source_page' => 3,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => []]],
         'conditions' => [],
-    ])->assertSessionHasNoErrors();
+    ]);
     test()->actingAs(konfliktAdmin(), 'admin')->post("/admin/gutachten/{$tg->id}/freigeben", ReleaseAnswers::for($tg))->assertSessionHasNoErrors();
 
     return ['vehicle' => $vehicle, 'config' => $config, 'abe' => $abe, 'tg' => $tg->refresh()];
