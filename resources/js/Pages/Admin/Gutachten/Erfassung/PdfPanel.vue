@@ -18,7 +18,8 @@ const zoom = ref<number | null>(null)
 const ZOOMS = [50, 75, 100, 125, 150]
 
 const pages = computed(() => page.props.document.pageCount)
-const src = computed(() => (page.props.document.hasPdf ? `/admin/gutachten/${state.documentId}/pdf#page=${state.pdfPage}&${zoom.value === null ? 'view=FitH&zoom=FitH' : `zoom=${zoom.value}`}` : null))
+/* `v`, the file's own hash: a replaced PDF is another address, or the browser would keep showing the old one for ten minutes. */
+const src = computed(() => (page.props.document.hasPdf ? `/admin/gutachten/${state.documentId}/pdf?v=${page.props.document.pdfVersion ?? ''}#page=${state.pdfPage}&${zoom.value === null ? 'view=FitH&zoom=FitH' : `zoom=${zoom.value}`}` : null))
 
 function go(to: number, field?: HTMLInputElement): void {
     const top = pages.value ?? Number.MAX_SAFE_INTEGER
@@ -61,7 +62,8 @@ function zoomBy(step: number): void {
         </div>
 
         <div class="ef-pdf__view">
-            <iframe v-if="src" :key="zoom ?? 'breite'" class="ef-pdf__frame" :src="src" title="Gutachten-PDF" />
+            <!-- A new frame per page and zoom: the browser's PDF viewer reads the address's fragment only when it loads, never a change of it. -->
+            <iframe v-if="src" :key="src" class="ef-pdf__frame" :src="src" title="Gutachten-PDF" />
             <p v-else class="adm-note">Noch kein PDF hinterlegt. Lad es in Schritt 1 hoch.</p>
         </div>
     </section>

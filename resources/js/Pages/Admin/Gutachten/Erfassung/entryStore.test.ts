@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { blankLine, carLine, carSummary, createEntryStore, duplicateKeys, isPair, ownSizes, pairWarnings, refusedOf, toEditLine, typedFront, typedRear, type CarView, type EntryView } from './entryStore'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { blankLine, send, carLine, carSummary, createEntryStore, duplicateKeys, isPair, ownSizes, pairWarnings, refusedOf, toEditLine, typedFront, typedRear, type CarView, type EntryView } from './entryStore'
 
 const car = (over: Partial<CarView>): CarView => ({
     id: 1,
@@ -159,5 +159,115 @@ describe('the to-do list', () => {
 
         store.state.entry = entry([car({ id: 1 })], store.state.entry.wheelSizes)
         expect(store.furthest()).toBe(4)
+    })
+})
+
+/*
+ * The store as the review of 06.11.2026 needs it: answers in the order of the changes, so the newest state stands; the screen only
+ * changes once what was typed is stored; and a failure says what happened.
+ */
+describe('saves and moving on', () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    function json(body: unknown, status = 200): Response {
+        return new Response(JSON.stringify(body), { status })
+    }
+
+    it('sends one save at a time, so a late answer can never bring back an older list', async () => {
+        const answers: ((r: Response) => void)[] = []
+        const urls: string[] = []
+
+        vi.stubGlobal('fetch', vi.fn((url: string) => {
+            urls.push(url)
+
+            return new Promise<Response>((resolve) => answers.push(resolve))
+        }))
+
+        const store = createEntryStore({ documentId: 9, entry: entry([car({})]), step: 3, car: 1, editable: true })
+        const older = store.save('PUT', '/a')
+        const newer = store.save('PUT', '/b')
+
+        await Promise.resolve()
+        expect(urls).toHaveLength(1)
+        expect(store.unsaved()).toBe(true)
+
+        answers.shift()!(json({ entry: entry([car({ id: 1 })]) }))
+        await older
+        await Promise.resolve()
+        expect(urls).toHaveLength(2)
+
+        answers.shift()!(json({ entry: entry([car({ id: 2 })]) }))
+        await newer
+
+        expect(store.state.entry.cars[0]!.id).toBe(2)
+        expect(store.unsaved()).toBe(false)
+    })
+
+    it('goes on with the next save after a refused one', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json({}, 500)).mockResolvedValueOnce(json({})))
+
+        const store = createEntryStore({ documentId: 9, entry: entry([]), step: 3, car: null, editable: true })
+        const first = store.save('PUT', '/a')
+        const second = store.save('PUT', '/b')
+
+        await expect(first).rejects.toThrow('nicht gespeichert')
+        await expect(second).resolves.toEqual({})
+        expect(store.state.save).toBe('saved')
+    })
+
+    it('remembers each new answer for Back', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ entry: entry([car({ id: 7 })]) })))
+
+        const remember = vi.fn()
+        const store = createEntryStore({ documentId: 9, entry: entry([]), step: 3, car: null, editable: true, remember })
+
+        await store.save('PUT', '/a')
+
+        expect(remember).toHaveBeenCalledWith(expect.objectContaining({ cars: [expect.objectContaining({ id: 7 })] }))
+    })
+
+    it('stays on the step and the car while what was typed is refused, and goes on once it is stored', async () => {
+        const store = createEntryStore({ documentId: 9, entry: entry([car({ id: 1 }), car({ id: 2 })]), step: 3, car: 1, editable: true })
+        const flush = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
+
+        store.hold({ flush, owed: () => true })
+
+        await store.go(4)
+        expect(store.state.step).toBe(3)
+
+        await store.go(4)
+        expect(store.state.step).toBe(4)
+
+        flush.mockResolvedValueOnce(false)
+        await store.openCar(2)
+        expect(store.state.carId).toBe(1)
+
+        await store.openCar(2)
+        expect(store.state.carId).toBe(2)
+        expect(store.state.focusEditor).toBe(true)
+    })
+
+    it('asks nothing of a part that has left the stage', async () => {
+        const store = createEntryStore({ documentId: 9, entry: entry([]), step: 3, car: null, editable: true })
+        const flush = vi.fn().mockResolvedValue(false)
+        const letGo = store.hold({ flush, owed: () => true })
+
+        expect(store.unsaved()).toBe(true)
+
+        letGo()
+
+        expect(store.unsaved()).toBe(false)
+        await expect(store.settled()).resolves.toBe(true)
+        expect(flush).not.toHaveBeenCalled()
+    })
+
+    it('names what happened: a sign-in run out or a right missing is not the connection', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json({}, 401)).mockResolvedValueOnce(json({}, 419)).mockResolvedValueOnce(json({}, 403)).mockResolvedValueOnce(json({}, 500)).mockRejectedValueOnce(new TypeError('Failed to fetch')))
+
+        await expect(send('PUT', '/a')).rejects.toThrow('Anmeldung ist abgelaufen')
+        await expect(send('PUT', '/a')).rejects.toThrow('Anmeldung ist abgelaufen')
+        await expect(send('PUT', '/a')).rejects.toThrow('Berechtigung')
+        await expect(send('PUT', '/a')).rejects.toThrow('Prüf die Verbindung')
+        await expect(send('PUT', '/a')).rejects.toThrow('Prüf die Verbindung')
     })
 })

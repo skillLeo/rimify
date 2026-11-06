@@ -25,6 +25,7 @@ use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Storage\StorageSettings;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Database\QueryException;
@@ -109,6 +110,25 @@ it('takes a PDF and the facts, and keeps the document a draft with the file’s 
         ->and($document->pdf_sha256)->toBe(hash('sha256', (string) Storage::disk('docs_public')->get((string) $document->pdf_key)))
         ->and(AuditLog::query()->where('description', 'approval.created')->exists())->toBeTrue();
     Storage::disk('docs_private')->assertDirectoryEmpty('pending');
+});
+
+it('names the file’s version on the page, so a replaced PDF is never the old one from the browser’s cache', function (): void {
+    $admin = erfassung();
+    $this->actingAs($admin, 'admin')->post('/admin/gutachten', ['upload_key' => pendingPdf(), 'kind' => 'ABE', 'kba_number' => '53810'])->assertSessionHasNoErrors();
+
+    $document = ApprovalDocument::query()->firstOrFail();
+    $version = fn (): ?string => $this->actingAs($admin, 'admin')->get("/admin/gutachten/{$document->id}")->viewData('page')['props']['document']['pdfVersion'];
+    $first = $version();
+
+    expect($first)->toBe(substr((string) $document->pdf_sha256, 0, 16));
+
+    $stamp = $this->actingAs($admin, 'admin')->get("/admin/gutachten/{$document->id}")->viewData('page')['props']['stamps']['document'];
+
+    $this->actingAs($admin, 'admin')
+        ->put("/admin/gutachten/{$document->id}", ['upload_key' => pendingPdf(), 'kind' => 'ABE', 'kba_number' => '53810', 'autosave' => true], [EditStamp::HEADER => $stamp])
+        ->assertSessionHasNoErrors();
+
+    expect($version())->not->toBe($first)->not->toBeNull();
 });
 
 it('asks each kind for its own number, and refuses a file that is not a PDF', function (): void {

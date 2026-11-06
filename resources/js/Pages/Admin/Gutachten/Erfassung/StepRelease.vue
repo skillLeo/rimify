@@ -7,7 +7,7 @@
  */
 
 import { router } from '@inertiajs/vue3'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
 import ReleaseDialog from '../ReleaseDialog.vue'
@@ -53,7 +53,13 @@ onMounted(refresh)
 
 function jump(car: CarView): void {
     state.carId = car.id
-    store.go(3)
+    void store.go(3)
+}
+
+/* The form is gone with the code it described: the keyboard goes on from the list, or the step where the list is gone too. */
+function describedDone(): void {
+    describing.value = null
+    void nextTick(() => (document.getElementById('ef-open-h') ?? document.getElementById('ef-release-h'))?.focus())
 }
 
 async function confirm(car: CarView): Promise<void> {
@@ -175,14 +181,14 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
             </section>
 
             <section v-if="codes.length" class="ef-check" aria-labelledby="ef-open-h">
-                <h3 id="ef-open-h" class="ef-check__title">Codes ohne Beschreibung</h3>
+                <h3 id="ef-open-h" class="ef-check__title" tabindex="-1">Codes ohne Beschreibung</h3>
                 <p class="adm-note">Der Shop zeigt eine Auflage als ganzen Satz. Ohne Beschreibung hätte er keinen.</p>
                 <ul class="ef-check__list">
                     <li v-for="code in codes" :key="code" class="ef-check__item">
                         <span class="ef-code ef-code--open">{{ code }}</span>
                         <button v-if="describing !== code" class="btn btn--secondary" type="button" @click="describing = code">{{ code }} beschreiben</button>
                         <div v-else class="ef-check__form">
-                            <CodeDefine :code="code" :id-prefix="`ef-release-${code}`" @done="describing = null" @cancel="describing = null" />
+                            <CodeDefine :code="code" :id-prefix="`ef-release-${code}`" @done="describedDone" @cancel="describing = null" />
                         </div>
                     </li>
                 </ul>
@@ -203,7 +209,7 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
         <PreviewSection />
 
-        <div v-if="blockers.length" class="ef-blockers" role="status">
+        <div v-if="blockers.length" class="ef-blockers" role="status" tabindex="-1" data-dialog-fallback>
             <p class="ef-blockers__title">Noch offen vor der Freigabe</p>
             <ul class="ef-blockers__list">
                 <li v-for="line in blockers" :key="line">{{ line }}</li>

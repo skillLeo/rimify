@@ -8,7 +8,7 @@
 
 import { focusRefused } from '../../../../composables/admin/focusRefused'
 import { router, useForm } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { stampHeaders } from '../../../../composables/admin/useDirtyForm'
 import type { DocumentConditionView } from '../../../../types/admin/gutachten'
 import { useEntry, useGutachtenPage } from './entryStore'
@@ -26,6 +26,10 @@ const page = useGutachtenPage()
 const existing = computed<DocumentConditionView | undefined>(() => page.props.conditions.find((c) => c.code === props.code))
 const kinds = computed(() => page.props.choices.kinds)
 
+/* Typed, then closed without saving or cancelling — a click beside the popover, another tab: it is here again on reopening. */
+const draftKey = `code:${props.code}`
+const draft = store.drafts.get(draftKey) as { fields: Record<string, unknown>; level: string } | undefined
+
 const form = useForm({
     code: props.code,
     kind: existing.value?.kind ?? '',
@@ -35,9 +39,19 @@ const form = useForm({
     drive: existing.value?.drive ?? { mode: 'only' as 'only' | 'not', drive: '' },
     max_axle_load_kg: (existing.value?.maxAxleLoadKg ?? '') as number | string,
     axle: (existing.value?.axle ?? '') as string,
+    ...(draft?.fields ?? {}),
 })
 
-const level = ref<string>(existing.value?.level ?? '')
+const level = ref<string>(draft?.level ?? existing.value?.level ?? '')
+
+watch([() => form.data(), level], ([fields, chosen]) => {
+    store.drafts.set(draftKey, { fields, level: chosen })
+}, { deep: true })
+
+function cancel(): void {
+    store.drafts.delete(draftKey)
+    emit('cancel')
+}
 const help = computed(() => kinds.value.find((k) => k.value === form.kind)?.help ?? '')
 const errors = computed(() => form.errors as Record<string, string | undefined>)
 const levels = computed(() => page.props.levels ?? [])
@@ -52,7 +66,16 @@ watch(floor, (now) => {
 
 const root = ref<HTMLFormElement | null>(null)
 
-function save(): void {
+onMounted(() => root.value?.querySelector<HTMLElement>('input, textarea')?.focus())
+
+async function save(): Promise<void> {
+    if (form.processing) {
+        return
+    }
+
+    // After the lines on their way: their answer would otherwise bring back a list from before this code.
+    await store.settled()
+
     const url = `/admin/gutachten/${store.state.documentId}/auflagen`
     const options = {
         preserveScroll: true,
@@ -68,6 +91,7 @@ function save(): void {
                 router.put(`${url}/${saved.id}/stufe`, { level: level.value }, { preserveScroll: true, preserveState: true, only: ['conditions', 'flash'] })
             }
 
+            store.drafts.delete(draftKey)
             emit('done', code)
         },
     }
@@ -98,6 +122,7 @@ function save(): void {
             <input :id="`${idPrefix}-code`" v-model="form.code" class="input ef-define__code" type="text" maxlength="32" spellcheck="false" :aria-invalid="errors.code ? 'true' : undefined">
             <p class="form-field__error">{{ errors.code }}</p>
         </div>
+        <p v-else-if="errors.code" class="adm-alert" role="alert">{{ errors.code }}</p>
 
         <div class="form-field">
             <label class="form-field__label" :for="`${idPrefix}-text`">Text, wie im Gutachten gedruckt</label>
@@ -175,7 +200,7 @@ function save(): void {
         <p v-if="errors._stamp" class="adm-alert" role="alert">{{ errors._stamp }}</p>
 
         <div class="ef-define__actions">
-            <button class="btn btn--secondary" type="button" @click="emit('cancel')">Abbrechen</button>
+            <button class="btn btn--secondary" type="button" @click="cancel">Abbrechen</button>
             <button class="btn btn--primary" type="submit" :disabled="form.processing" :aria-busy="form.processing ? 'true' : undefined">Speichern</button>
         </div>
     </form>

@@ -6,7 +6,7 @@
  * and nothing joins by itself later. The selection beside it lists cars.
  */
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
@@ -96,28 +96,47 @@ watch(query, () => {
 onMounted(() => document.getElementById('ef-cars-q')?.focus({ preventScroll: true }))
 
 async function add(body: { vehicle_ids: number[] } | { treffer: string }): Promise<void> {
-    busy.value = true
     failure.value = ''
 
     try {
         await store.save('POST', '/fahrzeuge', body)
     } catch (error) {
         failure.value = error instanceof Refused ? error.message : 'Das hat nicht geklappt. Versuch es noch einmal.'
-    } finally {
-        busy.value = false
     }
 }
 
-async function toggle(hit: CarHit): Promise<void> {
-    const car = selected.value.get(hit.id)
+async function addAll(): Promise<void> {
+    busy.value = true
+    await add({ treffer: query.value.trim() })
+    busy.value = false
+}
 
-    if (car === undefined) {
-        await add({ vehicle_ids: [hit.id] })
-    } else if (car.lines + car.unread + car.codes > 0) {
-        removing.value = car
-    } else {
-        await remove(car)
+/* One request per car, however often its box is pressed. */
+const ticking = new Set<number>()
+
+/*
+ * A box says what is chosen, whatever happened on the way: a question answered „Abbrechen“, a refusal. It stays usable meanwhile,
+ * so two ticks in a row are two cars, and the keyboard keeps its place.
+ */
+async function toggle(hit: CarHit, box: HTMLInputElement): Promise<void> {
+    if (!ticking.has(hit.id)) {
+        ticking.add(hit.id)
+
+        const car = selected.value.get(hit.id)
+
+        if (car === undefined) {
+            await add({ vehicle_ids: [hit.id] })
+        } else if (car.lines + car.unread + car.codes > 0) {
+            removing.value = car
+        } else {
+            await remove(car)
+        }
+
+        ticking.delete(hit.id)
     }
+
+    await nextTick()
+    box.checked = selected.value.has(hit.id)
 }
 
 /* One request, however often the button is pressed. */
@@ -163,13 +182,13 @@ function created(vehicle: VehicleHit): void {
 
                 <div v-if="hits.length" class="ef-cars__head">
                     <span class="ef-count" role="status">{{ total === 1 ? '1 Treffer' : `${decimal(total, 0)} Treffer` }}<template v-if="total > hits.length">, die ersten {{ decimal(hits.length, 0) }} stehen hier</template></span>
-                    <button v-if="state.editable" class="btn btn--secondary" type="button" :disabled="busy || (unticked === 0 && total === hits.length)" @click="add({ treffer: query.trim() })">Alle Treffer auswählen</button>
+                    <button v-if="state.editable" class="btn btn--secondary" type="button" :disabled="busy || (unticked === 0 && total === hits.length)" :aria-busy="busy ? 'true' : undefined" @click="addAll">Alle Treffer auswählen</button>
                 </div>
 
                 <ul v-if="hits.length" class="ef-hits">
                     <li v-for="hit in hits" :key="hit.id" class="ef-hit">
                         <label class="ef-hit__label">
-                            <input type="checkbox" :checked="selected.has(hit.id)" :disabled="!state.editable || busy" @change="toggle(hit)">
+                            <input type="checkbox" :checked="selected.has(hit.id)" :disabled="!state.editable" @change="toggle(hit, $event.target as HTMLInputElement)">
                             <span class="ef-hit__text">
                                 <span class="ef-hit__name">{{ hit.label }}</span>
                                 <span class="ef-hit__facts">

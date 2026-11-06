@@ -6,7 +6,7 @@
  * over until staff confirm.
  */
 
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import Dialog from '../../../../Components/Ui/Dialog.vue'
 import type { CarView } from './entryStore'
 import { pasteToSides, readPaste, tyreLabel } from './tyreInput'
@@ -15,13 +15,8 @@ defineProps<{ car: CarView }>()
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ take: [sides: { front: string; rear: string }[]] }>()
 
+/* Esc or a click beside it keeps what was pasted, for the next time it opens; only a yes or „Abbrechen“ lets it go. */
 const text = ref('')
-
-watch(open, (value) => {
-    if (value) {
-        text.value = ''
-    }
-})
 
 const lines = computed(() => readPaste(text.value))
 const read = computed(() => lines.value.filter((line) => line.status !== 'unread'))
@@ -30,6 +25,12 @@ const confirmLabel = computed(() => (count.value === 0 ? 'Übernehmen' : count.v
 
 function take(): void {
     emit('take', pasteToSides(read.value))
+    text.value = ''
+    open.value = false
+}
+
+function cancel(): void {
+    text.value = ''
     open.value = false
 }
 </script>
@@ -58,7 +59,7 @@ function take(): void {
             </div>
         </div>
         <template #actions>
-            <button class="btn btn--secondary" type="button" @click="open = false">Abbrechen</button>
+            <button class="btn btn--secondary" type="button" @click="cancel">Abbrechen</button>
             <button class="btn btn--primary" type="button" :disabled="count === 0" @click="take">{{ confirmLabel }}</button>
         </template>
     </Dialog>

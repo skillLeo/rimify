@@ -105,11 +105,24 @@ watch(errors, (now) => {
     }
 })
 
+/* Set before anything waits: a second click of a double click comes before the upload has said it started. */
+let submitting = false
+
 async function submit(): Promise<void> {
-    if (busy.value) {
+    if (busy.value || submitting) {
         return
     }
 
+    submitting = true
+
+    try {
+        await send()
+    } finally {
+        submitting = false
+    }
+}
+
+async function send(): Promise<void> {
     form.clearErrors()
 
     if (pdf.value === null) {

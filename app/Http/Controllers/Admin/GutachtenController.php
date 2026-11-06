@@ -650,6 +650,7 @@ class GutachtenController extends Controller
             'missingAnnexes' => (string) ($document->missing_annexes ?? ''),
             'pdfUrl' => $url,
             'hasPdf' => $document->pdf_key !== null,
+            'pdfVersion' => $document->pdf_sha256 === null ? null : substr($document->pdf_sha256, 0, 16),
             'pdfMissing' => $missing,
             // The same file under another name (ADMIN-GEFUNDEN 503): said, so a file typed under the wrong number shows it.
             'samePdf' => SamePdf::twins($document->pdf_sha256, $document)->map(static fn (ApprovalDocument $d): array => [

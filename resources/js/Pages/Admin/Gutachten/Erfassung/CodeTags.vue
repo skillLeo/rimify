@@ -5,9 +5,10 @@
  * offers „… beschreiben“ in place — one click, a small popover, no page change.
  */
 
+import { readCodes, isCodeWord } from './codes'
 import { useGutachtenPage } from './entryStore'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import type { DocumentConditionView } from '../../../../types/admin/gutachten'
 import CodeDefine from './CodeDefine.vue'
@@ -40,13 +41,8 @@ function hint(code: string): string {
     return `${code} · ${found.kindLabel}\n${found.text.length > 280 ? `${found.text.slice(0, 280)} …` : found.text}`
 }
 
-/* A code typed in another case is the paper's code: „11a“ is 11A, where the list holds it. */
-function spelled(code: string): string {
-    return list.value.find((c) => c.code.toLowerCase() === code.toLowerCase())?.code ?? code
-}
-
 function add(text: string): void {
-    const fresh = [...new Set(text.split(/[\s,;]+/).map((code) => spelled(code.trim())).filter((code) => code !== ''))].filter((code) => !codes.value.includes(code))
+    const fresh = readCodes(text, list.value.map((c) => c.code)).filter((code) => !codes.value.includes(code))
 
     if (fresh.length) {
         codes.value = [...codes.value, ...fresh]
@@ -55,12 +51,29 @@ function add(text: string): void {
     typed.value = ''
 }
 
+function focusField(): void {
+    void nextTick(() => document.getElementById(props.id)?.focus())
+}
+
+/* The cross is gone with its tag: the keyboard goes on from the field beside it. */
 function remove(code: string): void {
     codes.value = codes.value.filter((c) => c !== code)
+    focusField()
+}
+
+/*
+ * A space ends a code only where the word before it is one by itself: „11A“ is, „Nicht“ of „Nicht 330D“ is not, and no listed
+ * code goes on with it.
+ */
+function endsCode(): boolean {
+    const word = typed.value.trim().split(/\s+/).pop() ?? ''
+    const start = `${typed.value.trim().toLowerCase()} `
+
+    return isCodeWord(word) && !list.value.some((c) => c.code.toLowerCase().startsWith(start))
 }
 
 function key(event: KeyboardEvent): void {
-    if (event.key === 'Enter' || event.key === ',' || event.key === ';' || (event.key === ' ' && typed.value.trim() !== '')) {
+    if (event.key === 'Enter' || event.key === ',' || event.key === ';' || (event.key === ' ' && typed.value.trim() !== '' && endsCode())) {
         event.preventDefault()
         add(typed.value)
     } else if (event.key === 'Backspace' && typed.value === '' && codes.value.length) {
@@ -83,7 +96,7 @@ function key(event: KeyboardEvent): void {
                     <button v-if="!disabled" class="ef-tags__x" type="button" :aria-label="`${code} entfernen`" @click="remove(code)"><Icon name="close" :size="16" /></button>
                 </span>
                 <PopoverPortal>
-                    <PopoverContent class="adm-menu ef-popover" side="bottom" align="start" :side-offset="8" :collision-padding="16">
+                    <PopoverContent class="adm-menu ef-popover" side="bottom" align="start" :side-offset="8" :collision-padding="16" @close-auto-focus="(event: Event) => { event.preventDefault(); focusField() }">
                         <p class="ef-popover__title">{{ code }} beschreiben</p>
                         <CodeDefine :code="code" :id-prefix="`${id}-def-${code}`" @done="defining = null" @cancel="defining = null" />
                     </PopoverContent>
@@ -191,7 +204,8 @@ function key(event: KeyboardEvent): void {
    sizes, which the shop's 44 px would otherwise give its fields and buttons. */
 .ef-popover {
     width: min(420px, calc(100vw - 32px));
-    max-height: min(560px, calc(100vh - 32px));
+    /* Never past the window's edge, where „Speichern“ could not be reached: what is left on its side, and its own scroll beyond that. */
+    max-height: min(560px, var(--reka-popover-content-available-height, calc(100vh - 32px)));
     padding: var(--sp-16);
     overflow-y: auto;
 }

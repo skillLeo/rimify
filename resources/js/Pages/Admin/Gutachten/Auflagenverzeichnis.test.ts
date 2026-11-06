@@ -74,7 +74,7 @@ describe('Auflagenverzeichnis', () => {
         const props = (uses: number, editable = true) => ({ documentId: 13, conditions: [code(1, 0), code(2, uses)], choices: { kinds: [], bodyForms: [], drives: [] }, unresolved: [], editable, pageCount: 24 })
 
         expect(mount(Auflagenverzeichnis, { props: props(4) }).find('.av__in-use').text()).toBe(
-            'Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet („Zeile ändern“) – wie viele es sind, steht unter „Verwendet“.'
+            'Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet – wie viele es sind, steht unter „Verwendet“.'
         )
         expect(mount(Auflagenverzeichnis, { props: props(0) }).find('.av__in-use').exists()).toBe(false)
         // A released document changes nothing: no sentence about a way that is not open.

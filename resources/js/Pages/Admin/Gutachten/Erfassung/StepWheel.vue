@@ -5,12 +5,14 @@
  *
  * Beside it what the paper itself prints for the wheel, typed by staff: its Radtyp next to the wheel's Radtypenbezeichnung, so
  * they can see the two match (the second real paper sells as Rotiform NUE and prints RC200 8,5x20), and its Raddaten, compared
- * with the chosen size. A difference is a warning, never a block (the operator's note of 06.11.2026).
+ * with the chosen size. A difference is a warning, never a block (the operator's note of 06.11.2026). Saved as it is typed
+ * (autosave.ts); typed before a size is chosen, it waits here until there is one to go with.
  */
 
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
+import { createAutosave } from './autosave'
 import { Refused, send, useEntry } from './entryStore'
 
 interface SizeHit {
@@ -38,14 +40,25 @@ const found = ref<ModelHit[]>([])
 const more = ref(false)
 const searching = ref(false)
 const searched = ref(false)
+const searchFailed = ref(false)
 const errors = ref<Record<string, string>>({})
+const failure = ref('')
 const picked = ref<number | null>(chosen.value?.configId ?? null)
 
-const printed = reactive({
+/* Typed before a size was chosen, it has nothing to be stored with yet: the store keeps it for the way back. */
+const kept = chosen.value === null ? (store.drafts.get('printed') as { type: string; size: string; et: string; bolts: string } | undefined) : undefined
+
+const printed = reactive(kept ?? {
     type: chosen.value?.printed.type ?? '',
     size: printedSize(),
     et: chosen.value?.printed.et === null || chosen.value?.printed.et === undefined ? '' : String(chosen.value.printed.et),
     bolts: printedBolts(),
+})
+
+watch(printed, (now) => {
+    if (chosen.value === null) {
+        store.drafts.set('printed', { ...now })
+    }
 })
 
 function printedSize(): string {
@@ -68,6 +81,7 @@ async function search(): Promise<void> {
     const mine = ++asked
 
     searching.value = true
+    searchFailed.value = false
 
     try {
         const answer = await send<{ groups: ModelHit[]; more: boolean }>('GET', `/admin/gutachten/suche/felgen?q=${encodeURIComponent(query.value.trim())}`)
@@ -80,6 +94,7 @@ async function search(): Promise<void> {
     } catch {
         if (mine === asked) {
             found.value = []
+            searchFailed.value = true
         }
     } finally {
         if (mine === asked) {
@@ -99,13 +114,15 @@ onMounted(() => {
     }
 })
 
-async function save(): Promise<void> {
+async function write(): Promise<boolean> {
     if (picked.value === null || several.value) {
-        return
+        return true
     }
 
+    errors.value = {}
+    failure.value = ''
+
     try {
-        errors.value = {}
         await store.save('PUT', '/felge', {
             wheel_config_id: picked.value,
             printed_type: printed.type,
@@ -113,16 +130,55 @@ async function save(): Promise<void> {
             printed_et: printed.et.trim() === '' ? null : printed.et.trim(),
             printed_bolts: printed.bolts,
         })
-    } catch (failure) {
-        if (failure instanceof Refused) {
-            errors.value = Object.fromEntries(Object.entries(failure.errors).map(([key, list]) => [key, list[0] ?? '']))
+        store.drafts.delete('printed')
+
+        return true
+    } catch (error) {
+        if (error instanceof Refused) {
+            errors.value = Object.fromEntries(Object.entries(error.errors).map(([key, list]) => [key, list[0] ?? '']))
+        } else {
+            failure.value = error instanceof Error ? error.message : 'Das wurde nicht gespeichert.'
         }
+
+        // The size marked is the size stored: the reason says what to change.
+        picked.value = chosen.value?.configId ?? null
+
+        return false
     }
 }
 
+const autosave = createAutosave({
+    content: () => JSON.stringify([picked.value, printed]),
+    write,
+    delay: 700,
+    clean: () => {
+        errors.value = {}
+        failure.value = ''
+        state.save = 'saved'
+    },
+})
+
+watch([picked, printed], () => autosave.changed())
+
+let letGo = (): void => {}
+
+onMounted(() => {
+    autosave.mark()
+    letGo = store.hold(autosave)
+})
+
+onBeforeUnmount(() => {
+    letGo()
+    clearTimeout(timer)
+
+    if (autosave.owed()) {
+        void autosave.flush()
+    }
+})
+
 function choose(configId: number): void {
     picked.value = configId
-    void save()
+    void autosave.flush()
 }
 </script>
 
@@ -145,22 +201,22 @@ function choose(configId: number): void {
                 <div class="ef-printed__grid">
                     <div class="form-field">
                         <label class="form-field__label" for="ef-printed-type">Radtyp</label>
-                        <input id="ef-printed-type" v-model="printed.type" class="input" type="text" maxlength="64" spellcheck="false" placeholder="z. B. RC200 8,5x20" :disabled="!state.editable" @change="save">
+                        <input id="ef-printed-type" v-model="printed.type" class="input" type="text" maxlength="64" spellcheck="false" placeholder="z. B. RC200 8,5x20" :disabled="!state.editable">
                         <p v-if="chosen" class="form-field__help">Bei der Felge hinterlegt: {{ chosen.wheelType || 'keine Radtypenbezeichnung' }}</p>
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="ef-printed-size">Radgröße</label>
-                        <input id="ef-printed-size" v-model="printed.size" class="input" type="text" maxlength="32" spellcheck="false" placeholder="z. B. 8 1/2 J X 18 H2" :aria-invalid="errors.printed_size ? 'true' : undefined" :disabled="!state.editable" @change="save">
+                        <input id="ef-printed-size" v-model="printed.size" class="input" type="text" maxlength="32" spellcheck="false" placeholder="z. B. 8 1/2 J X 18 H2" :aria-invalid="errors.printed_size ? 'true' : undefined" :disabled="!state.editable">
                         <p class="form-field__error">{{ errors.printed_size }}</p>
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="ef-printed-et">Einpresstiefe</label>
-                        <input id="ef-printed-et" v-model="printed.et" class="input" type="text" inputmode="numeric" maxlength="4" placeholder="z. B. 35" :aria-invalid="errors.printed_et ? 'true' : undefined" :disabled="!state.editable" @change="save">
+                        <input id="ef-printed-et" v-model="printed.et" class="input" type="text" inputmode="numeric" maxlength="4" placeholder="z. B. 35" :aria-invalid="errors.printed_et ? 'true' : undefined" :disabled="!state.editable">
                         <p class="form-field__error">{{ errors.printed_et }}</p>
                     </div>
                     <div class="form-field">
                         <label class="form-field__label" for="ef-printed-bolts">Lochkreis</label>
-                        <input id="ef-printed-bolts" v-model="printed.bolts" class="input" type="text" maxlength="16" spellcheck="false" placeholder="z. B. 120/5" :aria-invalid="errors.printed_bolts ? 'true' : undefined" :disabled="!state.editable" @change="save">
+                        <input id="ef-printed-bolts" v-model="printed.bolts" class="input" type="text" maxlength="16" spellcheck="false" placeholder="z. B. 120/5" :aria-invalid="errors.printed_bolts ? 'true' : undefined" :disabled="!state.editable">
                         <p class="form-field__error">{{ errors.printed_bolts }}</p>
                     </div>
                 </div>
@@ -199,9 +255,11 @@ function choose(configId: number): void {
                 </label>
             </fieldset>
 
-            <p v-if="searched && !searching && found.length === 0" class="adm-note">Keine Felge gefunden. Felgen legst du unter Katalog › Felgen an.</p>
+            <p v-if="searchFailed" class="adm-alert" role="alert">Die Suche hat nicht geantwortet. Versuch es noch einmal.</p>
+            <p v-else-if="searched && !searching && found.length === 0" class="adm-note">Keine Felge gefunden. Felgen legst du unter Katalog › Felgen an.</p>
             <p v-if="more" class="adm-note">Es gibt mehr Treffer. Grenz die Suche ein.</p>
             <p v-if="errors.wheel_config_id" class="adm-alert" role="alert">{{ errors.wheel_config_id }}</p>
+            <p v-if="failure" class="adm-alert" role="alert">{{ failure }}</p>
         </div>
 
         <div class="ef-actions">

@@ -4,12 +4,17 @@
  * is vorne + hinten + codes, with a power band behind the line's „…“. Typing the front fills the rear with the same size, and the
  * rear can be changed. What is typed is saved as it is typed; what does not read yet is kept, said, and the release waits for it.
  * Warnings say, they never block.
+ *
+ * Nothing leaves this car unsaved (autosave.ts, entryStore): moving on sends what is owed and waits; a refusal or a lost connection
+ * keeps the person here, with the reason in the bar beside the button they pressed. A car whose lines did not load cannot be
+ * typed in: an empty list here would be saved over the stored one.
  */
 
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../../Components/Admin/DateField.vue'
 import { stampHeaders } from '../../../../composables/admin/useDirtyForm'
+import { createAutosave } from './autosave'
 import CodeTags from './CodeTags.vue'
 import CopyDialog from './CopyDialog.vue'
 import { Refused, blankLine, duplicateKeys, isPair, pairWarnings, refusedOf, send, toEditLine, typedFront, typedRear, useEntry, type CarDetail, type CarView, type EditLine } from './entryStore'
@@ -21,7 +26,11 @@ const props = defineProps<{ car: CarView; wheelName: string; sizeName: string }>
 const store = useEntry()
 const { state } = store
 
+const KW_UNREAD = 'Noch nicht gespeichert: Den kW-Bereich können wir nicht lesen. So geht es: 85-142, der kleinere Wert zuerst.'
+const PAGE_UNREAD = 'Die Seite bitte als ganze Zahl ab 1.'
+
 const loading = ref(true)
+const loadFailed = ref(false)
 const lines = ref<EditLine[]>([])
 const general = ref<string[]>([])
 const notes = ref<Record<string, string | null>>({})
@@ -30,24 +39,30 @@ const stamp = ref('')
 const openLine = ref<number | null>(null)
 const copyOpen = ref(false)
 const pasteOpen = ref(false)
-const refused = ref('')
+/* Why the last save did not go through, in the bar beside the buttons; what can be done about it beside that. */
+const problem = ref('')
 const stale = ref(false)
+const retryable = ref(false)
 const columns = reactive({ entry_note: '', entry_override: '', entry_override_reason: '', build_from: '', build_to: '', width_min: '', width_max: '', et_min: '', et_max: '', centre_bore: '' })
 const columnsOpen = ref(false)
 
+/* The page as it was loaded: what goes out while the field holds something that is no page. */
+let storedPage: number | null = null
+/* The row's own columns go out once someone has opened them, closed again or not. */
+let columnsSeen = false
+let ready = false
+
 const duplicates = computed(() => duplicateKeys(lines.value))
 const anyColumn = computed(() => Object.values(columns).some((value) => String(value ?? '').trim() !== ''))
-
-let ready = false
-let dirty = false
-let saving: Promise<void> | null = null
-let timer: ReturnType<typeof setTimeout> | undefined
+const pageBad = computed(() => page.value.trim() !== '' && !/^[1-9]\d{0,3}$/.test(page.value.trim()))
+const pageNumber = computed(() => (pageBad.value || page.value.trim() === '' ? (pageBad.value ? storedPage : null) : Number(page.value.trim())))
 
 function take(detail: CarDetail & { stamp?: string }): void {
     lines.value = detail.lines.map(toEditLine)
     general.value = detail.codes.map((code) => code.code)
     notes.value = Object.fromEntries(detail.codes.map((code) => [code.code, code.note]))
     page.value = detail.page === null ? '' : String(detail.page)
+    storedPage = detail.page
     stamp.value = detail.stamp ?? ''
 
     for (const key of Object.keys(columns) as (keyof typeof columns)[]) {
@@ -57,77 +72,117 @@ function take(detail: CarDetail & { stamp?: string }): void {
     }
 
     columnsOpen.value = anyColumn.value
+    columnsSeen = anyColumn.value
 }
 
-onMounted(async () => {
-    try {
-        take(await send<CarDetail & { stamp: string }>('GET', `${store.base}/fahrzeuge/${props.car.id}`))
-    } finally {
-        loading.value = false
-        await nextTick()
-        ready = true
+function filled(line: EditLine): boolean {
+    return line.front.trim() !== '' || line.rear.trim() !== ''
+}
+
+function fields(line: EditLine) {
+    return { front: line.front, rear: line.rear, kw: line.kw, codes: line.codes, front_on_rim: line.frontOnRim, rear_on_rim: line.rearOnRim }
+}
+
+const generalCodes = computed(() => general.value.map((code) => ({ code, note: notes.value[code] ?? null })))
+
+/* What a save would change on the server. A line's id is not in it, nor a line still empty: an answer or „+ Kombination“ is no change. */
+const content = computed(() => JSON.stringify([lines.value.filter(filled).map(fields), generalCodes.value, pageNumber.value, columns]))
+
+const autosave = createAutosave({
+    content: () => content.value,
+    write,
+    delay: 600,
+    clean: () => {
+        problem.value = ''
+        stale.value = false
+        retryable.value = false
+        state.save = 'saved'
+    },
+})
+
+watch(content, () => {
+    if (ready && state.editable) {
+        autosave.changed()
     }
 })
 
-function changed(): void {
-    if (!ready || !state.editable) {
-        return
-    }
+async function load(): Promise<void> {
+    ready = false
+    loading.value = true
+    loadFailed.value = false
 
-    dirty = true
-    clearTimeout(timer)
-    timer = setTimeout(() => void flush(), 600)
+    try {
+        take(await send<CarDetail & { stamp: string }>('GET', `${store.base}/fahrzeuge/${props.car.id}`))
+        problem.value = ''
+        stale.value = false
+        retryable.value = false
+        await nextTick()
+        autosave.mark()
+        ready = true
+    } catch {
+        loadFailed.value = true
+    } finally {
+        loading.value = false
+    }
 }
 
-watch([lines, general, page, columns], changed, { deep: true })
+let letGo = (): void => {}
 
-/* One save at a time; what changed meanwhile goes with the next. */
-async function flush(): Promise<void> {
-    clearTimeout(timer)
+onMounted(async () => {
+    letGo = store.hold(autosave)
+    await load()
 
-    if (saving !== null) {
-        await saving
+    if (state.focusEditor) {
+        state.focusEditor = false
+        await nextTick()
+        document.getElementById('ef-editor-h')?.focus()
+    }
+})
+
+/* Left another way than through the buttons, a car removed say: what is owed still goes. */
+onBeforeUnmount(() => {
+    letGo()
+
+    if (autosave.owed()) {
+        void autosave.flush()
+    }
+})
+
+watch(columnsOpen, (now) => {
+    columnsSeen = columnsSeen || now
+})
+
+async function write(): Promise<boolean> {
+    const unread = lines.value.find((line) => parseKwBand(line.kw) === null)
+
+    if (unread !== undefined) {
+        openLine.value = unread.key
+        problem.value = KW_UNREAD
+        stale.value = false
+        retryable.value = false
+
+        return false
     }
 
-    if (!dirty) {
-        return
-    }
-
-    dirty = false
-    saving = write().finally(() => {
-        saving = null
-    })
-    await saving
-}
-
-async function write(): Promise<void> {
-    const sent = lines.value.map((line) => line.key)
+    // The list as it goes out: the server drops an empty line, so its answer is in the order of these.
+    const sent = lines.value.filter(filled)
 
     try {
         const answer = await store.save<{ car: CarDetail; stamp: string }>('PUT', `/fahrzeuge/${props.car.id}`, {
-            lines: lines.value.map((line) => ({
-                id: line.id,
-                front: line.front,
-                rear: line.rear,
-                kw: line.kw,
-                codes: line.codes,
-                front_on_rim: line.frontOnRim,
-                rear_on_rim: line.rearOnRim,
-            })),
-            codes: general.value.map((code) => ({ code, note: notes.value[code] ?? null })),
-            source_page: page.value.trim() === '' ? null : Number(page.value),
-            ...(columnsOpen.value ? { ...columns, entry_override: columns.entry_override === '' ? null : columns.entry_override } : {}),
+            lines: lines.value.map((line) => ({ id: line.id, ...fields(line) })),
+            codes: generalCodes.value,
+            source_page: pageNumber.value,
+            ...(columnsSeen ? { ...columns, entry_override: columns.entry_override === '' ? null : columns.entry_override } : {}),
         }, stampHeaders(stamp.value))
 
         stamp.value = answer.stamp
-        refused.value = ''
+        problem.value = ''
+        stale.value = false
+        retryable.value = false
 
-        // New lines learn their id, where the list is still the one that was sent. A line left empty was dropped by the server.
-        const saved = answer.car.lines
-
-        if (lines.value.length === sent.length && saved.length === sent.length) {
-            lines.value.forEach((line, i) => {
-                const server = saved[i]
+        if (answer.car.lines.length === sent.length) {
+            sent.forEach((line, i) => {
+                const server = answer.car.lines[i]
 
                 if (server !== undefined) {
                     line.id = server.id
@@ -135,30 +190,15 @@ async function write(): Promise<void> {
                 }
             })
         }
+
+        return true
     } catch (failure) {
-        if (failure instanceof Refused) {
-            refused.value = failure.message
-            stale.value = Object.keys(failure.errors).includes('_stamp')
-        }
+        problem.value = failure instanceof Error ? failure.message : 'Das wurde nicht gespeichert.'
+        stale.value = failure instanceof Refused && Object.keys(failure.errors).includes('_stamp')
+        retryable.value = !(failure instanceof Refused)
+
+        return false
     }
-}
-
-onBeforeUnmount(() => {
-    clearTimeout(timer)
-
-    if (dirty && !stale.value) {
-        dirty = false
-        void write()
-    }
-})
-
-async function reload(): Promise<void> {
-    ready = false
-    take(await send<CarDetail & { stamp: string }>('GET', `${store.base}/fahrzeuge/${props.car.id}`))
-    refused.value = ''
-    stale.value = false
-    await nextTick()
-    ready = true
 }
 
 function focusLine(line: EditLine): void {
@@ -182,17 +222,16 @@ function removeLine(line: EditLine): void {
 /*
  * A size as the shop writes it, once the field is left. Tabbing from front to rear selects the rear for typing over: changing the
  * rear's text at that moment would drop the selection, and what is typed would be added behind it. So the rear stays as it is
- * until it is left itself.
+ * until it is left itself. A side left empty is the other's again, on screen as on the server: every line names both axles.
  */
 function tidy(line: EditLine, side: 'front' | 'rear', event?: FocusEvent): void {
     const tyre = readTyre(line[side])
+    const movingIntoRear = (event?.relatedTarget as HTMLElement | null)?.id === `ef-rear-${line.key}`
 
     if (tyre !== null) {
         const label = tyreLabel(tyre)
 
         if (side === 'front') {
-            const movingIntoRear = (event?.relatedTarget as HTMLElement | null)?.id === `ef-rear-${line.key}`
-
             if (movingIntoRear) {
                 line.front = label
             } else {
@@ -202,9 +241,8 @@ function tidy(line: EditLine, side: 'front' | 'rear', event?: FocusEvent): void 
             line.rear = label
             line.follows = line.rear === line.front
         }
-    } else if (side === 'rear' && line.rear.trim() === '' && !line.oneSided) {
-        // A rear left empty is the front's again: every line names both axles.
-        line.rear = line.front
+    } else if (line[side].trim() === '' && !line.oneSided && !movingIntoRear) {
+        line[side] = side === 'front' ? line.rear : line.front
         line.follows = true
     }
 }
@@ -235,6 +273,17 @@ function kwOk(line: EditLine): boolean {
     return parseKwBand(line.kw) !== null
 }
 
+/* The band as the paper means it, whichever way it was typed: `170 kW`, `85–142 kW`. */
+function kwTag(line: EditLine): string {
+    const band = parseKwBand(line.kw)
+
+    if (band === null || band === undefined) {
+        return ''
+    }
+
+    return band.kw_min === band.kw_max ? `${band.kw_min} kW` : `${band.kw_min}–${band.kw_max} kW`
+}
+
 function takePage(): void {
     page.value = String(state.pdfPage)
 }
@@ -243,18 +292,25 @@ const readable = computed(() => lines.value.some((line) => readTyre(line.front) 
 
 /** The next car with nothing entered, in the order of the list; step 5 when none is left. */
 async function next(): Promise<void> {
-    await flush()
+    if (!(await autosave.flush())) {
+        return
+    }
 
     const open = store.nextOpen(props.car.id)
 
     if (open === undefined) {
-        store.go(4)
+        await store.go(4)
     } else {
-        state.carId = open.id
+        await store.openCar(open.id)
     }
 }
 
-defineExpose({ flush })
+/* What is shown is what gets copied: only once the server holds every line on screen. */
+async function copy(): Promise<void> {
+    if (await autosave.flush()) {
+        copyOpen.value = true
+    }
+}
 </script>
 
 <template>
@@ -270,16 +326,16 @@ defineExpose({ flush })
             <p v-if="car.k" class="ef-editor__sub">Feld K {{ car.k }}</p>
         </header>
 
-        <p v-if="refused" class="adm-alert" role="alert">
-            {{ refused }}
-            <button v-if="stale" class="ef-link" type="button" @click="reload">Neu laden</button>
-        </p>
-
         <p v-if="car.conflict" class="ef-warn" role="status">
             Dieses Fahrzeug teilt seine Betriebserlaubnis mit mindestens einem anderen, und die Kombinationen unterscheiden sich. Welche Kombination es ist, steht in Schritt 5. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.
         </p>
 
         <p v-if="loading" class="adm-note">Wird geladen …</p>
+
+        <p v-else-if="loadFailed" class="adm-alert" role="alert">
+            Die Reifen dieses Fahrzeugs konnten nicht geladen werden, darum lässt sich hier gerade nichts eintragen. Was gespeichert ist, bleibt, wie es ist.
+            <button class="ef-link" type="button" @click="load">Noch einmal laden</button>
+        </p>
 
         <template v-else>
             <div class="ef-editor__block">
@@ -332,7 +388,7 @@ defineExpose({ flush })
                             </button>
                         </div>
                         <div class="ef-line__notes">
-                            <span v-if="line.kw && kwOk(line)" class="adm-tag adm-tag--neutral">{{ line.kw.replace('-', '–') }} kW</span>
+                            <span v-if="line.kw && kwOk(line)" class="adm-tag adm-tag--neutral">{{ kwTag(line) }}</span>
                             <span v-else-if="line.kw" class="ef-line__error">Den kW-Bereich können wir nicht lesen. So geht es: 85-142, der kleinere Wert zuerst.</span>
                             <span v-if="line.oneSided" class="adm-tag adm-tag--neutral">{{ line.front.trim() ? 'nur vorne' : 'nur hinten' }}, aus der bisherigen Eingabe</span>
                             <span v-if="line.outsideList" class="adm-tag adm-tag--neutral">nicht in der Kombinationsliste, aus der bisherigen Eingabe</span>
@@ -371,9 +427,10 @@ defineExpose({ flush })
             <div class="form-field">
                 <label class="form-field__label" for="ef-page">Seite im Gutachten <span class="ef-optional">(optional)</span></label>
                 <div class="adm-inline">
-                    <input id="ef-page" v-model="page" class="input ef-editor__pageinput" type="text" inputmode="numeric" :disabled="!state.editable">
+                    <input id="ef-page" v-model="page" class="input ef-editor__pageinput" type="text" inputmode="numeric" :aria-invalid="pageBad ? 'true' : undefined" aria-describedby="ef-page-err" :disabled="!state.editable">
                     <button v-if="state.editable" class="btn btn--ghost" type="button" @click="takePage">PDF-Seite {{ state.pdfPage }} übernehmen</button>
                 </div>
+                <p id="ef-page-err" class="form-field__error">{{ pageBad ? PAGE_UNREAD : '' }}</p>
             </div>
 
             <details class="ef-more" :open="columnsOpen" @toggle="columnsOpen = ($event.target as HTMLDetailsElement).open">
@@ -427,7 +484,12 @@ defineExpose({ flush })
             </details>
 
             <div class="ef-actions">
-                <button v-if="state.editable" class="btn btn--secondary ef-actions__left" type="button" :disabled="!readable" @click="flush().then(() => (copyOpen = true))">
+                <p v-if="problem" class="adm-alert ef-actions__problem" role="alert">
+                    {{ problem }}
+                    <button v-if="stale" class="ef-link" type="button" @click="load">Neu laden</button>
+                    <button v-else-if="retryable" class="ef-link" type="button" @click="autosave.flush()">Noch einmal versuchen</button>
+                </p>
+                <button v-if="state.editable" class="btn btn--secondary ef-actions__left" type="button" :disabled="!readable" @click="copy">
                     <Icon name="duplicate" :size="20" />
                     Kopieren nach …
                 </button>
@@ -450,7 +512,14 @@ defineExpose({ flush })
     min-width: 0;
 }
 
+/* The answer to why the page did not move on, beside what was pressed. */
+.ef-actions__problem {
+    flex-basis: 100%;
+    margin: 0;
+}
+
 .ef-editor__title {
+    scroll-margin-top: calc(var(--adm-topbar-h) + var(--sp-16));
     margin: 0;
     font-size: var(--fs-body);
     line-height: var(--lh-body);
@@ -584,14 +653,17 @@ defineExpose({ flush })
     }
 }
 
+/* Beside each other where „HL 255/35 R20 100“ fits in a field, one above the other where it would be cut. */
 .ef-pairfields {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(24 * var(--ch-text))), 1fr));
     gap: var(--sp-8);
 }
 
+/* A hint that wraps in one of them never moves the field in the other. */
 .ef-pairfields__field {
     display: grid;
+    align-content: start;
     gap: var(--sp-4);
     min-width: 0;
 }

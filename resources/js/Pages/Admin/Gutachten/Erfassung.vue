@@ -2,14 +2,16 @@
 /**
  * Gutachten › one draft: the five steps (the Gutachten rework, Phase 2) — Gutachten, Felge, Fahrzeuge, Reifen, Freigeben — in one
  * order that never changes, every change saved as it happens. The address carries the step and the car, so a step can be sent as a
- * link; coming back without one resumes where this browser left off, else at the first thing still open.
+ * link; coming back without one resumes where this browser left off, else at the first thing still open. Leaving while something
+ * typed is on its way waits for it, and a link or Back only goes on once the server holds it; a reload asks first.
  */
 
-import { usePage } from '@inertiajs/vue3'
-import { computed, onMounted, provide, watch } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted, provide, watch } from 'vue'
 import AdminPage, { type AdminPageAction } from '../../../Components/Admin/AdminPage.vue'
 import StepBar from '../../../Components/Ui/StepBar.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
+import { claimPopstateGuard } from '../../../composables/admin/popstateGuard'
 import type { AdminGutachtenShowProps } from '../../../types/admin/gutachten'
 import { ENTRY, STEPS, createEntryStore, type EntryView } from './Erfassung/entryStore'
 import StepCars from './Erfassung/StepCars.vue'
@@ -39,6 +41,8 @@ const store = createEntryStore({
     step: (props.schritt ?? props.weiter) - 1,
     car: props.zeile ?? props.entry.cars.find((car) => !car.done)?.id ?? props.entry.cars[0]?.id ?? null,
     editable: props.can.edit,
+    // Where Back finds it: the page as it opened would bring old values, and the next change would write those.
+    remember: (entry) => router.replaceProp('entry', entry),
 })
 const { state } = store
 
@@ -64,7 +68,78 @@ const context = computed(() => `${props.document.statusLabel} · Schritt ${state
 
 const more = computed<AdminPageAction[]>(() => (props.document.pdfUrl ? [{ label: 'PDF öffnen', href: props.document.pdfUrl, external: true, icon: 'documents' }] : []))
 
+/* Back has to pass here before Inertia swaps the page: this page goes back under the button while what is owed goes out (useDirtyForm). */
+let ownState: unknown = null
+let ownUrl = ''
+let letThrough = false
+
+function rememberOwn(): void {
+    ownState = window.history.state as unknown
+    ownUrl = window.location.href
+}
+
+function holdBack(event: PopStateEvent): boolean {
+    if (letThrough) {
+        letThrough = false
+
+        return false
+    }
+
+    if (!store.unsaved() || event.state === null || ownState === null) {
+        return false
+    }
+
+    window.history.pushState(ownState, '', ownUrl)
+    void store.settled().then((ok) => {
+        if (ok) {
+            letThrough = true
+            window.history.back()
+        }
+    })
+
+    return true
+}
+
+function askBeforeReload(event: BeforeUnloadEvent): void {
+    if (store.unsaved()) {
+        event.preventDefault()
+        // Older engines only ask when a value is set; the text itself is never shown.
+        event.returnValue = ''
+    }
+}
+
+/* Back online: whatever could not be sent goes now. */
+function tryAgain(): void {
+    void store.settled()
+}
+
+const unbind: (() => void)[] = []
+
 onMounted(() => {
+    rememberOwn()
+    window.addEventListener('beforeunload', askBeforeReload)
+    window.addEventListener('online', tryAgain)
+    unbind.push(
+        claimPopstateGuard(holdBack),
+        router.on('navigate', rememberOwn),
+        router.on('success', rememberOwn),
+        // A link away waits for what is owed. The page's own reloads and saves go through.
+        router.on('before', (event) => {
+            const visit = event.detail.visit
+
+            if (visit.method !== 'get' || visit.async || visit.prefetch || visit.url.pathname === window.location.pathname || !store.unsaved()) {
+                return
+            }
+
+            event.preventDefault()
+            void store.settled().then((ok) => {
+                if (ok) {
+                    router.visit(visit.url.href)
+                }
+            })
+        }),
+    )
+
     // Back where this browser left off, unless the address names a step.
     if (props.schritt === null) {
         try {
@@ -95,7 +170,13 @@ onMounted(() => {
                 url.searchParams.delete('zeile')
             }
 
-            window.history.replaceState(window.history.state, '', url)
+            // Through Inertia, or Back would restore the address the page opened with, and its step (useEtRechner).
+            router.replace({
+                url: url.pathname + url.search + url.hash,
+                preserveScroll: true,
+                preserveState: true,
+                props: (current) => ({ ...current, schritt: step + 1, zeile: step === 3 ? car : null }),
+            })
 
             try {
                 localStorage.setItem(STORE_KEY, JSON.stringify({ step, car }))
@@ -107,6 +188,12 @@ onMounted(() => {
     )
 })
 
+onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', askBeforeReload)
+    window.removeEventListener('online', tryAgain)
+    unbind.forEach((off) => off())
+})
+
 const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).release ?? '')
 </script>
 
@@ -115,7 +202,6 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
         <StepBar class="ef-page__steps" :steps="STEPS" :current="state.step" :reached="store.furthest()" label="Schritte zum Gutachten" @go="store.go" />
 
         <p class="visually-hidden" aria-live="polite">Schritt {{ state.step + 1 }} von {{ STEPS.length }}: {{ STEPS[state.step] }}</p>
-        <p v-if="state.save === 'failed' && state.failure" class="adm-alert" role="alert">{{ state.failure }}</p>
         <p v-if="releaseError && state.step !== 4" class="adm-alert" role="alert">{{ releaseError }}</p>
 
         <StepPaper v-if="state.step === 0" />
@@ -136,6 +222,11 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 /* Shared by the five steps; every class starts with `ef-`. */
 .ef-step {
     min-width: 0;
+}
+
+/* The field the keyboard is in stands clear of the bar that stays in sight. */
+.ef-step :is(input, select, textarea, button) {
+    scroll-margin-block: calc(var(--adm-topbar-h) + var(--sp-16));
 }
 
 .ef-step > .adm-section__title + .adm-note {

@@ -3,6 +3,10 @@
  * (`entry`), the step and the car on screen, and the one car being typed in. Every change is saved as it happens; the answer is
  * what the page redraws from, so what staff see is what is stored. The rows the shop reads are written on the server, in the
  * same transaction.
+ *
+ * Saves go out one after the other, so the answers come back in the order of the changes and the newest state stands. Leaving a
+ * step or a car goes through here too: the part on screen says what it still owes, and the screen only changes once the server
+ * has it. If it refuses, the person stays where the problem is.
  */
 
 import { usePage } from '@inertiajs/vue3'
@@ -130,6 +134,8 @@ export function refusedOf(line: Pick<ServerLine, 'front' | 'rear' | 'frontWhy' |
 }
 
 const NOT_SAVED = 'Das wurde nicht gespeichert. Prüf die Verbindung und versuch es noch einmal.'
+const SIGNED_OUT = 'Das wurde nicht gespeichert: Deine Anmeldung ist abgelaufen. Melde dich in einem neuen Tab wieder an und versuch es dann noch einmal. Deine Eingaben bleiben hier stehen.'
+const FORBIDDEN = 'Das wurde nicht gespeichert: Dafür fehlt deinem Konto die Berechtigung.'
 
 /** Sends a save or asks a question, as JSON, with the admin's XSRF header. */
 export async function send<T>(method: string, url: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
@@ -157,6 +163,14 @@ export async function send<T>(method: string, url: string, body?: unknown, heade
         const answer = (await response.json()) as { errors?: Record<string, string[]> }
 
         throw new Refused(answer.errors ?? {})
+    }
+
+    if (response.status === 401 || response.status === 419) {
+        throw new Error(SIGNED_OUT)
+    }
+
+    if (response.status === 403) {
+        throw new Error(FORBIDDEN)
     }
 
     if (!response.ok) {
@@ -305,7 +319,18 @@ export interface EntryStoreOptions {
     step: number
     car: number | null
     editable: boolean
+    /** A new answer: the page keeps it where Back finds it, or Back would bring the state before it (and the next change would write that). */
+    remember?: (entry: EntryView) => void
 }
+
+/** A part of the steps with something typed in: what the screen asks of it before it changes. */
+export interface Holder {
+    flush: () => Promise<boolean>
+    owed: () => boolean
+}
+
+/** What was typed into a form that closed before it was saved: it comes back when the form does. */
+export type Draft = Record<string, unknown>
 
 export function createEntryStore(options: EntryStoreOptions) {
     const state = reactive({
@@ -317,12 +342,36 @@ export function createEntryStore(options: EntryStoreOptions) {
         /** The page the PDF panel shows. */
         pdfPage: 1,
         save: 'idle' as SaveState,
-        failure: '',
-        /** A step's save is under way: its own button waits. */
-        busy: false,
+        /** A person moved to another car: the next editor takes the focus, so the keyboard stays with the work. */
+        focusEditor: false,
     })
 
     const base = `/admin/gutachten/${options.documentId}/erfassung`
+    const holders = new Set<Holder>()
+    const drafts = new Map<string, Draft>()
+    let tail: Promise<unknown> = Promise.resolve()
+    let underWay = 0
+
+    /** A part with something typed in comes on stage; the function it gets takes it off again. */
+    function hold(holder: Holder): () => void {
+        holders.add(holder)
+
+        return () => holders.delete(holder)
+    }
+
+    /** Whether something typed has not reached the server: a reload then asks first. */
+    function unsaved(): boolean {
+        return underWay > 0 || [...holders].some((holder) => holder.owed())
+    }
+
+    /** Everything typed sent and answered. False: something was refused or did not arrive, and the part on screen says what. */
+    async function settled(): Promise<boolean> {
+        const results = await Promise.all([...holders].map((holder) => holder.flush()))
+
+        await tail
+
+        return results.every(Boolean)
+    }
 
     function furthest(): number {
         if (state.entry.wheelSizes.length === 0) {
@@ -332,7 +381,12 @@ export function createEntryStore(options: EntryStoreOptions) {
         return state.entry.cars.length === 0 ? 2 : STEPS.length - 1
     }
 
-    function go(step: number): void {
+    /** To another step, once what was typed here is saved: a refusal keeps the person here, with its reason. */
+    async function go(step: number): Promise<void> {
+        if (!(await settled())) {
+            return
+        }
+
         state.step = Math.max(0, Math.min(STEPS.length - 1, step))
 
         if (typeof window !== 'undefined') {
@@ -345,27 +399,51 @@ export function createEntryStore(options: EntryStoreOptions) {
         return state.entry.cars.find((c) => c.id === id)
     }
 
-    /** One save: the state on screen is what the server answered. A refusal keeps what was typed and says why. */
-    async function save<T>(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
-        state.save = 'saving'
-        state.failure = ''
-
-        try {
-            const answer = await send<T & { entry?: EntryView }>(method, `${base}${path}`, body, headers)
-
-            if (answer.entry) {
-                state.entry = answer.entry
-            }
-
-            state.save = 'saved'
-
-            return answer
-        } catch (failure) {
-            state.save = 'failed'
-            state.failure = failure instanceof Error ? failure.message : 'Das wurde nicht gespeichert.'
-
-            throw failure
+    /** To another car, once what was typed for this one is saved. */
+    async function openCar(id: number): Promise<void> {
+        if (id === state.carId || !(await settled())) {
+            return
         }
+
+        state.focusEditor = true
+        state.carId = id
+    }
+
+    /**
+     * One save, after the ones before it: the state on screen is what the server answered last. A refusal keeps what was typed;
+     * whoever asked says why, where it happened.
+     */
+    function save<T>(method: string, path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
+        const run = async (): Promise<T> => {
+            state.save = 'saving'
+
+            try {
+                const answer = await send<T & { entry?: EntryView }>(method, `${base}${path}`, body, headers)
+
+                if (answer.entry) {
+                    state.entry = answer.entry
+                    options.remember?.(answer.entry)
+                }
+
+                state.save = 'saved'
+
+                return answer
+            } catch (failure) {
+                state.save = 'failed'
+
+                throw failure
+            } finally {
+                underWay--
+            }
+        }
+
+        underWay++
+
+        const result = tail.then(run, run)
+
+        tail = result.catch(() => undefined)
+
+        return result
     }
 
     /** The next car with nothing entered, in the order of the list; none where every one has something. */
@@ -376,7 +454,7 @@ export function createEntryStore(options: EntryStoreOptions) {
         return [...cars.slice(at + 1), ...cars.slice(0, Math.max(at, 0))].find((c) => !c.done)
     }
 
-    return { state, base, furthest, go, car, save, nextOpen }
+    return { state, base, drafts, hold, unsaved, settled, furthest, go, openCar, car, save, nextOpen }
 }
 
 export type EntryStore = ReturnType<typeof createEntryStore>

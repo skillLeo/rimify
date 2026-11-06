@@ -5,7 +5,7 @@
  * the codes fields complete from this list.
  */
 
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import CodeDefine from './CodeDefine.vue'
 import { useEntry, useGutachtenPage } from './entryStore'
@@ -19,7 +19,9 @@ const editing = ref<string | null>(null)
 const adding = ref(false)
 const legendOpen = ref(false)
 
-const open = computed(() => state.entry.undescribed)
+const described = computed(() => new Set(page.props.conditions.map((c) => c.code)))
+/* A list from just before a code was described may still name it: it stands here once. */
+const open = computed(() => state.entry.undescribed.filter((code) => !described.value.has(code)))
 const total = computed(() => page.props.conditions.length + open.value.length)
 
 const shown = computed(() => {
@@ -31,21 +33,39 @@ const shown = computed(() => {
             .map((c) => ({ code: c.code, kindLabel: c.kindLabel, text: c.text as string | null, level: c.level ?? null })),
     ]
 
-    return q === '' ? list : list.filter((code) => `${code.code} ${code.text ?? ''}`.toLowerCase().includes(q))
+    // The code being described stays, whatever the search says: its form holds what was typed.
+    return q === '' ? list : list.filter((code) => code.code === editing.value || `${code.code} ${code.text ?? ''}`.toLowerCase().includes(q))
 })
+
+const panel = ref<HTMLElement | null>(null)
+
+/* The form is gone with what opened it: the keyboard goes back to the button that did. */
+function closed(selector: string): void {
+    void nextTick(() => panel.value?.querySelector<HTMLElement>(selector)?.focus())
+}
+
+function closeNew(): void {
+    adding.value = false
+    closed('.ef-codespanel__add')
+}
+
+function closeEdit(code: string): void {
+    editing.value = null
+    closed(`[data-code="${CSS.escape(code)}"]`)
+}
 </script>
 
 <template>
-    <section class="ef-codespanel" aria-labelledby="ef-codes-h">
+    <section ref="panel" class="ef-codespanel" aria-labelledby="ef-panel-h">
         <div class="ef-codespanel__head">
-            <h3 id="ef-codes-h" class="ef-side__title">Auflagen dieses Gutachtens</h3>
+            <h3 id="ef-panel-h" class="ef-side__title">Auflagen dieses Gutachtens</h3>
             <span class="ef-count">{{ total === 1 ? '1 Code' : `${total} Codes` }}<template v-if="open.length"> · {{ open.length }} ohne Beschreibung</template></span>
         </div>
-        <label class="visually-hidden" for="ef-codes-q">Codes durchsuchen</label>
-        <input id="ef-codes-q" v-model="query" class="input" type="search" placeholder="Code oder Wort im Text" autocomplete="off">
+        <label class="visually-hidden" for="ef-panel-q">Codes durchsuchen</label>
+        <input id="ef-panel-q" v-model="query" class="input" type="search" placeholder="Code oder Wort im Text" autocomplete="off">
 
         <div v-if="adding" class="ef-codespanel__form">
-            <CodeDefine code="" id-prefix="ef-new-code" @done="adding = false" @cancel="adding = false" />
+            <CodeDefine code="" id-prefix="ef-new-code" @done="closeNew" @cancel="closeNew" />
         </div>
         <div v-else-if="state.editable" class="ef-codespanel__adds">
             <button class="btn btn--ghost ef-codespanel__add" type="button" @click="adding = true"><Icon name="plus" :size="20" /> Code hinzufügen</button>
@@ -58,11 +78,11 @@ const shown = computed(() => {
                     <span class="ef-code" :class="{ 'ef-code--open': code.text === null }">{{ code.code }}</span>
                     <span v-if="code.text !== null" class="ef-codeitem__kind">{{ code.kindLabel }}</span>
                     <span v-else class="adm-tag adm-tag--warn">ohne Beschreibung</span>
-                    <button v-if="state.editable && editing !== code.code" class="ef-codeitem__edit" type="button" @click="editing = code.code">{{ code.text === null ? 'Beschreiben' : 'Ändern' }}</button>
+                    <button v-if="state.editable && editing !== code.code" class="ef-codeitem__edit" type="button" :data-code="code.code" @click="editing = code.code">{{ code.text === null ? 'Beschreiben' : 'Ändern' }}</button>
                 </div>
                 <p v-if="code.text !== null && editing !== code.code" class="ef-codeitem__text" :title="code.text">{{ code.text }}</p>
                 <div v-if="editing === code.code" class="ef-codespanel__form">
-                    <CodeDefine :code="code.code" :id-prefix="`ef-edit-${code.code}`" @done="editing = null" @cancel="editing = null" />
+                    <CodeDefine :code="code.code" :id-prefix="`ef-edit-${code.code}`" @done="closeEdit(code.code)" @cancel="closeEdit(code.code)" />
                 </div>
             </li>
         </ul>

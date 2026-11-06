@@ -34,6 +34,8 @@ export interface DocumentFacts {
     missingAnnexes?: string
     pdfUrl: string | null
     hasPdf: boolean
+    /** The start of the file's hash: part of the address the page shows it on, so a replaced file is never the old one from the browser's cache. */
+    pdfVersion?: string | null
     /** A key is stored, the file is not in the storage. */
     pdfMissing?: boolean
     /** The other documents carrying the very same file, outside its own revision line (ADMIN-GEFUNDEN 503). */

@@ -12,7 +12,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, inject, nextTick, reactive, ref, type Ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
@@ -21,6 +21,7 @@ import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import { formatNumber } from '../../../lib/num'
 import type { ConditionChoices, DocumentConditionView, UnresolvedCode } from '../../../types/admin/gutachten'
 import { splitLegend } from './legend'
+import { LEGEND_DRAFT } from './legendDraft'
 
 const props = defineProps<{
     documentId: number
@@ -241,9 +242,11 @@ function remove(): void {
 
 /* ── A pasted legend ───────────────────────────────────────────────────────── */
 
-const pasteOpen = ref(false)
-const pasted = ref('')
-const split = ref<(Entry & { key: number })[]>([])
+/* In a dialog that can close over them, they live with whoever opened it (LegendDialog). */
+const legendDraft = inject(LEGEND_DRAFT, null)
+const pasteOpen = legendDraft?.open ?? ref(false)
+const pasted = legendDraft?.pasted ?? ref('')
+const split = (legendDraft?.split ?? ref([])) as unknown as Ref<(Entry & { key: number })[]>
 const pasteSent = ref(false)
 
 function openPaste(): void {
@@ -440,7 +443,7 @@ function confirmLimit(condition: DocumentConditionView): void {
 
         <!-- A rule, not a missing button (the admin audit's rules): a code a row carries cannot be removed from under it. -->
         <p v-if="editable && conditions.some((c) => c.uses > 0)" class="adm-note av__in-use">
-            Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet („Zeile ändern“) – wie viele es sind, steht unter „Verwendet“.
+            Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet – wie viele es sind, steht unter „Verwendet“.
         </p>
 
         <!-- „Im Shop“ (#23, D-104): what each level does there — the label of the answer, no colour of a sentence (D-247) —

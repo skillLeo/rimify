@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * Step 1, Gutachten (the Gutachten rework §7): the PDF, the Art and the number are all a paper needs; date and issuer are optional;
- * everything else is folded under „Weitere Angaben“. Saved as it is typed: what does not pass stays in its field and says why.
+ * everything else is folded under „Weitere Angaben“. Saved as it is typed, one save at a time: what does not pass stays in its
+ * field and says why, and the step is only left once the server holds what was typed (autosave.ts).
  */
 
 import { useForm } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import DateField from '../../../../Components/Admin/DateField.vue'
 import DocumentSelect from '../../../../Components/Admin/DocumentSelect.vue'
@@ -19,6 +20,7 @@ import DeratingTable from '../DeratingTable.vue'
 import { deratingAbsent as absentLine, deratingShown as isDeratingShown } from '../derating'
 import DocumentExtras from '../DocumentExtras.vue'
 import RecordFields from '../RecordFields.vue'
+import { createAutosave } from './autosave'
 import { useEntry, useGutachtenPage } from './entryStore'
 
 const store = useEntry()
@@ -59,9 +61,10 @@ const errors = computed(() => form.errors as Record<string, string | undefined>)
 const uploading = computed(() => upload.state.value === 'uploading' || upload.state.value === 'retrying')
 const numberMissing = computed(() => String(form[numberField.value.key] ?? '').trim() === '')
 
-async function save(): Promise<void> {
-    if (!state.editable || uploading.value || numberMissing.value) {
-        return
+async function write(): Promise<boolean> {
+    // The field says what is missing; nothing to send until it is there.
+    if (!state.editable || numberMissing.value) {
+        return false
     }
 
     form.upload_key = ''
@@ -76,39 +79,70 @@ async function save(): Promise<void> {
                 pdf.value = null
             }
 
-            return
+            return false
         }
 
         form.upload_key = key
     }
 
     state.save = 'saving'
-    form.transform((data) => ({ ...data, ...shape.value, autosave: true })).put(`/admin/gutachten/${state.documentId}`, {
-        preserveScroll: true,
-        preserveState: true,
-        headers: stampHeaders(page.props.stamps?.document),
-        onSuccess: () => {
-            state.save = 'saved'
-            pdf.value = null
-        },
-        onError: () => {
-            state.save = 'failed'
-        },
+
+    return new Promise<boolean>((resolve) => {
+        let ok = false
+
+        form.transform((data) => ({ ...data, ...shape.value, autosave: true })).put(`/admin/gutachten/${state.documentId}`, {
+            preserveScroll: true,
+            preserveState: true,
+            headers: stampHeaders(page.props.stamps?.document),
+            onSuccess: () => {
+                ok = true
+                pdf.value = null
+            },
+            onError: (bag) => {
+                // A file refused goes: chosen still, it would go out with every later change, and take those down with it.
+                if (bag.upload_key) {
+                    pdf.value = null
+                }
+            },
+            onFinish: () => {
+                state.save = ok ? 'saved' : 'failed'
+                resolve(ok)
+            },
+        })
     })
 }
 
-let timer: ReturnType<typeof setTimeout> | undefined
+const autosave = createAutosave({
+    content: () => JSON.stringify([form.kind, form.kba_number, form.report_number, form.approval_mark, form.issuer, form.issued_on, form.page_count, form.supersedes_id, shape.value]),
+    write,
+    delay: 700,
+    clean: () => {
+        form.clearErrors()
+        state.save = 'saved'
+    },
+})
 
-function later(): void {
-    clearTimeout(timer)
-    timer = setTimeout(() => void save(), 700)
-}
-
-watch(() => [form.kind, form.kba_number, form.report_number, form.approval_mark, form.issuer, form.issued_on, form.page_count, form.supersedes_id], later)
-watch(shape, later, { deep: true })
+watch(() => [form.kind, form.kba_number, form.report_number, form.approval_mark, form.issuer, form.issued_on, form.page_count, form.supersedes_id], () => autosave.changed())
+watch(shape, () => autosave.changed(), { deep: true })
 watch(pdf, (file) => {
     if (file !== null) {
-        void save()
+        autosave.force()
+        void autosave.flush()
+    }
+})
+
+let letGo = (): void => {}
+
+onMounted(() => {
+    autosave.mark()
+    letGo = store.hold(autosave)
+})
+
+onBeforeUnmount(() => {
+    letGo()
+
+    if (autosave.owed()) {
+        void autosave.flush()
     }
 })
 
@@ -116,11 +150,6 @@ const deratingRequired = computed(() => doc.value.shape.tyre_index_source === 't
 const deratingShown = computed(() => isDeratingShown(doc.value.shape.tyre_index_source, page.props.derating.rows.length))
 const deratingAbsent = computed(() => absentLine(doc.value.shape.tyre_index_source, state.editable))
 
-async function next(): Promise<void> {
-    clearTimeout(timer)
-    await save()
-    go(1)
-}
 </script>
 
 <template>
@@ -221,7 +250,7 @@ async function next(): Promise<void> {
         </div>
 
         <div class="ef-actions">
-            <button class="btn btn--primary" type="button" :disabled="numberMissing || uploading" @click="next">
+            <button class="btn btn--primary" type="button" :disabled="numberMissing || uploading" @click="go(1)">
                 Weiter: Felge
                 <Icon name="arrow-right" :size="20" />
             </button>

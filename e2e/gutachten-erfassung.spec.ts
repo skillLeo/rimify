@@ -80,7 +80,7 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
     await page.locator('select[id*="-def-68B-kind"]').selectOption('hinweis')
     await page.locator('.ef-popover').getByRole('button', { name: 'Speichern' }).click()
     await expect(page.locator('.ef-code--open', { hasText: '68B' })).toHaveCount(0, { timeout: 15_000 })
-    await expect(page.locator('.ef-code', { hasText: '68B' })).toHaveAttribute('title', /Nur in der Kombination/)
+    await expect(page.locator('.ef-line .ef-code', { hasText: '68B' })).toHaveAttribute('title', /Nur in der Kombination/)
 
     // „Aktuelle PDF-Seite übernehmen“: our page control's number.
     await page.getByRole('button', { name: 'Nächste Seite' }).click()

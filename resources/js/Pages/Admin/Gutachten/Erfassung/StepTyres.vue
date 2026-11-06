@@ -42,12 +42,12 @@ const percent = computed(() => (cars.value.length === 0 ? 0 : Math.round((done.v
                     <button id="ef-tab-codes" class="ef-side__tab" role="tab" type="button" :aria-selected="tab === 'codes'" aria-controls="ef-panel-codes" @click="tab = 'codes'">Auflagen</button>
                 </div>
 
-                <div v-if="tab === 'todo'" id="ef-panel-todo" role="tabpanel" aria-labelledby="ef-tab-todo" class="ef-todo">
+                <div v-show="tab === 'todo'" id="ef-panel-todo" role="tabpanel" aria-labelledby="ef-tab-todo" class="ef-todo">
                     <p class="ef-side__title">{{ done }} von {{ cars.length }} erledigt</p>
                     <div class="ef-progress" role="progressbar" :aria-valuenow="done" :aria-valuemin="0" :aria-valuemax="cars.length" aria-label="Fahrzeuge mit Reifen"><span class="ef-progress__bar" :style="{ width: `${percent}%` }" /></div>
                     <ul class="ef-todo__list">
                         <li v-for="car in cars" :key="car.id">
-                            <button class="ef-todo__item" type="button" :aria-current="current?.id === car.id ? 'true' : undefined" @click="state.carId = car.id">
+                            <button class="ef-todo__item" type="button" :aria-current="current?.id === car.id ? 'true' : undefined" @click="store.openCar(car.id)">
                                 <span class="ef-todo__name">{{ carLine(car.label) }}</span>
                                 <span class="ef-todo__size">{{ carSummary(car) }}<template v-if="car.finish"> · nur {{ car.finish }}</template><template v-if="car.axle !== 'ALL'"> · {{ car.axle === 'FRONT' ? 'nur vorne' : 'nur hinten' }}</template></span>
                                 <span v-if="car.conflict" class="adm-tag adm-tag--warn ef-todo__state">Prüfen</span>
@@ -58,7 +58,8 @@ const percent = computed(() => (cars.value.length === 0 ? 0 : Math.round((done.v
                     </ul>
                 </div>
 
-                <CodesPanel v-else id="ef-panel-codes" role="tabpanel" aria-labelledby="ef-tab-codes" />
+                <!-- Kept while the to-do list shows: a code half described in here is still there on the way back. -->
+                <CodesPanel v-show="tab === 'codes'" id="ef-panel-codes" role="tabpanel" aria-labelledby="ef-tab-codes" />
             </aside>
 
             <LinesEditor v-if="current && size" :key="current.id" class="ef-tyres__editor" :car="current" :wheel-name="size.wheel" :size-name="size.label" />

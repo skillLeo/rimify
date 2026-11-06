@@ -5,18 +5,23 @@
  * before the five steps; the page's props carry the result back into the list and the tags.
  */
 
+import { provide, ref } from 'vue'
 import Dialog from '../../../../Components/Ui/Dialog.vue'
 import Auflagenverzeichnis from '../Auflagenverzeichnis.vue'
+import { LEGEND_DRAFT } from '../legendDraft'
 import { useEntry, useGutachtenPage } from './entryStore'
 
 const open = defineModel<boolean>('open', { required: true })
 
 const { state } = useEntry()
 const page = useGutachtenPage()
+
+/* A legend pasted and split: Esc or a click beside the dialog closes it, and it is still here on reopening. */
+provide(LEGEND_DRAFT, { open: ref(false), pasted: ref(''), split: ref([]) })
 </script>
 
 <template>
-    <Dialog v-model:open="open" wide title="Auflagenverzeichnis" description="Die Codes dieses Gutachtens. Füg sie einzeln oder als ganze Legende ein.">
+    <Dialog v-model:open="open" wide content-class="ef-legend" title="Auflagenverzeichnis" description="Die Codes dieses Gutachtens. Füg sie einzeln oder als ganze Legende ein.">
         <Auflagenverzeichnis
             :document-id="state.documentId"
             :conditions="page.props.conditions"
@@ -30,3 +35,14 @@ const page = useGutachtenPage()
         />
     </Dialog>
 </template>
+
+<style>
+/* Portalled out of the page. The whole table has to fit: „Im Shop“, „Seite“, „Verwendet“ and its menu are what the dialog is for. */
+.dialog.ef-legend {
+    max-width: min(1040px, calc(100vw - 2 * var(--sp-20)));
+}
+
+.ef-legend .adm-panel {
+    overflow-x: auto;
+}
+</style>
