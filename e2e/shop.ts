@@ -27,7 +27,8 @@ export const E2E_FEATURES = {
  */
 export const SHOP_DB = {
     DB_PORT: process.env.E2E_SHOP_DB_PORT ?? '3308',
-    DB_DATABASE: 'rimify_wf_e2e',
+    // Another name beside a gate running on the same server (the seeder refuses any but `*_e2e`).
+    DB_DATABASE: process.env.E2E_SHOP_DB_NAME ?? 'rimify_wf_e2e',
 }
 
 /**
@@ -39,5 +40,5 @@ export const EMPTY_SHOP = process.env.E2E_EMPTY_SHOP_URL ?? 'http://127.0.0.1:80
 
 export const EMPTY_SHOP_DB = {
     DB_PORT: process.env.E2E_SHOP_DB_PORT ?? '3308',
-    DB_DATABASE: 'rimify_wf_e2e_leer',
+    DB_DATABASE: process.env.E2E_EMPTY_SHOP_DB_NAME ?? 'rimify_wf_e2e_leer',
 }
