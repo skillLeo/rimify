@@ -150,6 +150,6 @@ test('the cart and the checkout name the whole version', async ({ page }) => {
 test('a card says how many versions stand behind its price', async ({ page }) => {
     await open(page, '/felgen')
 
-    await expect(page.locator('article.tile .tile__sizes', { hasText: 'Ausführungen' }).first()).toContainText(/\d+ Ausführungen/)
+    await expect(page.locator('article.tile .tile__sizes', { hasText: 'Ausführungen' }).first()).toContainText(/\d+\sAusführungen/)
     await expectNoHorizontalOverflow(page)
 })

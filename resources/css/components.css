@@ -841,6 +841,19 @@
             display: inline;
         }
 
+        /* The versions' count on a line of its own, and the room for it on every tile of a row: prices stay on one line. */
+        .tile__versions {
+            display: block;
+        }
+
+        .tile__versions-sep {
+            display: none;
+        }
+
+        .tile__meta {
+            min-height: calc(3 * var(--lh-small));
+        }
+
         .tile__cta {
             flex: 1;
         }

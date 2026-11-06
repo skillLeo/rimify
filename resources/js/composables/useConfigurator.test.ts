@@ -338,6 +338,17 @@ describe('the versions of the chosen diameter', () => {
         expect(c.others.value).toEqual([])
     })
 
+    it('keeps one order for versions of the same width and ET: the bolt pattern decides, not the database', () => {
+        const same = { widthIn: 8, etMm: 45 }
+        const configs = [
+            config({ id: 1, ...same, versionLabel: 'Breite 8J · ET 45 · Lochkreis 5 × 112' }),
+            config({ id: 2, ...same, versionLabel: 'Breite 8J · ET 45 · Lochkreis 5 × 108' }),
+        ]
+
+        expect(useConfigurator(() => configs, 10).versions.value.map((v) => v.id)).toEqual([2, 1])
+        expect(useConfigurator(() => [...configs].reverse(), 10).versions.value.map((v) => v.id)).toEqual([2, 1])
+    })
+
     it('names the bore only where it alone tells two versions apart', () => {
         const same = { widthIn: 8, etMm: 35, versionLabel: 'Breite 8J · ET 35 · Lochkreis 5 × 112' }
         const configs = [

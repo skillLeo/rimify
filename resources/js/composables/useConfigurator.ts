@@ -202,7 +202,7 @@ export function useConfigurator(
         const row = forFinish.value.filter((c) => c.diameterIn === current.diameterIn)
 
         return [...row]
-            .sort((a, b) => a.widthIn - b.widthIn || a.etMm - b.etMm)
+            .sort((a, b) => a.widthIn - b.widthIn || a.etMm - b.etMm || a.versionLabel.localeCompare(b.versionLabel, 'de', { numeric: true }))
             .map((config) => {
                 const unconfirmed = !choosable(config) && tyreUnconfirmed(config.verdict)
                 const blocked = !choosable(config) && !unconfirmed

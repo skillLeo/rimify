@@ -834,7 +834,7 @@ claimBottomEdge(() => stickyShown.value)
                             {{ othersLine }}
                             <button
                                 v-if="!selectedIsOther"
-                                class="pdp__version-more"
+                                class="link pdp__version-more"
                                 type="button"
                                 :aria-expanded="othersAsked"
                                 @click="othersAsked = !othersAsked"
@@ -847,7 +847,7 @@ claimBottomEdge(() => stickyShown.value)
                                 v-for="version in config.others.value"
                                 :key="version.id"
                                 class="pdp__version pdp__version--struck"
-                                :class="{ 'pdp__version--on': selected?.id === version.id }"
+                                :class="{ 'pdp__version--on': selected?.id === version.id, 'pdp__version--open': version.standing === 'open' }"
                             >
                                 <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
                                 <span class="pdp__version-why">{{ version.standing ? STANDING_WORD[version.standing] : '' }}</span>
@@ -1375,6 +1375,14 @@ claimBottomEdge(() => stickyShown.value)
     display: grid;
     gap: var(--sp-8);
     margin-top: var(--space-2);
+    container-type: inline-size;
+}
+
+/* A narrow chip keeps its spec on one line and the price under it, so a group of chips is one height. */
+@container (width < 480px) {
+    .pdp__version {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .pdp__version {
@@ -1425,10 +1433,18 @@ button.pdp__version:focus-visible {
 /* Unverified is neither forbidden nor unavailable (finding 103): dashed as its diameter's chip, and it can be chosen. */
 .pdp__version--unconfirmed {
     border-style: dashed;
+    border-color: var(--c-ink-3);
 }
 
 .pdp__version--unconfirmed.pdp__version--on {
     border-style: dashed;
+    border-color: var(--c-blue);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    button.pdp__version--unconfirmed:not(.pdp__version--on):hover {
+        border-color: var(--c-ink);
+    }
 }
 
 .pdp__version-spec {
@@ -1437,7 +1453,7 @@ button.pdp__version:focus-visible {
 }
 
 .pdp__version-price {
-    font-weight: 700;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -1460,16 +1476,30 @@ button.pdp__version:focus-visible {
     display: inline-flex;
 }
 
+/* Off, not a choice: the band's fill and no frame, as the design's disabled state (§6) — but the chosen one keeps its frame. */
 .pdp__version--struck {
+    background: var(--c-band);
     color: var(--c-ink-3);
     cursor: default;
 }
 
+.pdp__version--struck:not(.pdp__version--on) {
+    border-color: transparent;
+}
+
 .pdp__version--struck .pdp__version-spec {
+    font-weight: 400;
     text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+/* A paper names the car and something is open: no refusal, and never drawn as one (finding 103, R-07). */
+.pdp__version--open .pdp__version-spec {
+    text-decoration: none;
 }
 
 .pdp__version-why {
+    color: var(--c-ink-2);
     font-size: var(--fs-micro);
     line-height: var(--lh-micro);
     white-space: nowrap;
@@ -1479,9 +1509,13 @@ button.pdp__version:focus-visible {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0 var(--sp-8);
+    gap: var(--sp-4) var(--sp-8);
     margin-top: var(--space-2);
     color: var(--c-ink-2);
+}
+
+.pdp__versions + .pdp__version-hint {
+    margin-top: var(--sp-12);
 }
 
 .pdp__version-hint--car {
@@ -1494,19 +1528,18 @@ button.pdp__version:focus-visible {
     flex: none;
 }
 
-.pdp__version-more {
-    min-height: 44px;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--c-blue);
-    font: inherit;
-    text-decoration: underline;
-    cursor: pointer;
+@media (pointer: fine) {
+    .pdp__version-more {
+        min-height: 24px;
+    }
+}
+
+.pdp__version-more:active {
+    color: var(--c-blue-press);
 }
 
 .pdp__chosen {
-    margin-top: var(--space-2);
+    margin-top: var(--sp-16);
 }
 
 .pdp__fit {

@@ -390,6 +390,8 @@ describe('Produkt page', () => {
             const struck = wrapper.findAll('.pdp__version--struck')
 
             expect(struck.map((s) => s.find('.pdp__version-why').text())).toEqual(['nicht freigegeben', 'keine Freigabe vorliegend', 'noch nicht bestätigt'])
+            // Unconfirmed is no refusal, and is not drawn as one (finding 103, R-07).
+            expect(struck.map((s) => s.classes().includes('pdp__version--open'))).toEqual([false, false, true])
             expect(wrapper.findAll('.pdp__variants button.pdp__version')).toHaveLength(1)
             expect(wrapper.find('.pdp__version-more').text()).toBe('Ausblenden')
         })

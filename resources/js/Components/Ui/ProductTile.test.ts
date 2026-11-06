@@ -143,9 +143,9 @@ describe('ProductTile', () => {
     })
 
     it('says how many versions stand behind „ab …“, and nothing for one (the rework §8)', () => {
-        expect(mountTile({ card: card(1, { versionCount: 3 }) }).text()).toContain('3 Ausführungen')
+        expect(mountTile({ card: card(1, { versionCount: 3 }) }).text()).toContain('3\u00A0Ausführungen')
         expect(mountTile({ card: card(1, { versionCount: 1 }) }).text()).not.toContain('Ausführung')
-        expect(mountTile({ card: card(1, { versionCount: 2, diametersFitting: ['18'] }), vehicle }).text()).toContain('2 Ausführungen')
+        expect(mountTile({ card: card(1, { versionCount: 2, diametersFitting: ['18'] }), vehicle }).text()).toContain('2\u00A0Ausführungen')
     })
 
     it('names no VAT in the legal line when the seller is a Kleinunternehmer (§ 19 UStG)', () => {

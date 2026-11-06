@@ -142,7 +142,7 @@ const sizeList = computed(() => {
 })
 const sizesPlain = computed(() => (props.card.diameters.length ? zoll(props.card.diameters) : ''))
 /* The versions behind „ab …“ (the rework §8), said where there is more than one: for one, the price says it all. */
-const versionsText = computed(() => ((props.card.versionCount ?? 0) > 1 ? `${props.card.versionCount} Ausführungen` : ''))
+const versionsText = computed(() => ((props.card.versionCount ?? 0) > 1 ? `${props.card.versionCount}\u00A0Ausführungen` : ''))
 
 /* A per-wheel price: the catalogue prices a set of four, the tile says what one costs. */
 const perWheel = computed(() => formatMoney(props.card.fromPriceCents))
@@ -232,8 +232,8 @@ function onCompareLabelClick(event: MouseEvent): void {
         <span class="tile__meta">
             <span class="tile__finish" translate="no">{{ card.finishName }}</span>
             <span v-if="card.diameters.length" class="tile__sep" aria-hidden="true"> · </span>
-            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (keine Freigabe für dein Fahrzeug)</span></span></template>{{ NNBSP }}Zoll<span v-if="versionsText" translate="yes"> · {{ versionsText }}</span></span>
-            <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}<span v-if="versionsText" translate="yes"> · {{ versionsText }}</span></span>
+            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (keine Freigabe für dein Fahrzeug)</span></span></template>{{ NNBSP }}Zoll<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
+            <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
         </span>
 
         <p class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
