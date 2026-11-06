@@ -1005,10 +1005,15 @@ final readonly class Basket
             // What follows the brand: model and Radtypenbezeichnung, or the title typed (D-298).
             'title' => WheelTitle::name($model),
             'subtitle' => $config->wheelFinish->name_de,
-            'sizeLabel' => GermanFormat::wheelSize(
+            // The version's whole spec (the Gutachten rework §8): from here it reaches the checkout, the order's frozen label,
+            // the confirmation page, the mails and the admin's order.
+            'sizeLabel' => GermanFormat::wheelLabel(
                 (float) $config->width_in,
                 (float) $config->diameter_in,
                 (int) $config->et_mm,
+                (int) $config->bolt_holes,
+                (float) $config->bolt_circle_mm,
+                (float) $config->centre_bore_mm,
             ),
             'art' => [
                 'kind' => 'wheel',

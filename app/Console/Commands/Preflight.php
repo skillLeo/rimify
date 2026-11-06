@@ -293,7 +293,7 @@ final class Preflight extends Command
     }
 
     /** The sketches of the Gutachten rework (Phase 1), by route name: pages of example data, a test environment's alone. */
-    public const SKETCH_ROUTES = ['skizze.felge', 'skizze.komplettraeder', 'admin.skizze.reifen'];
+    public const SKETCH_ROUTES = ['skizze.komplettraeder', 'admin.skizze.reifen'];
 
     /**
      * The sketches exist in a test environment only, as the reset does (routes/web.php, TestEnvironment): a customer of

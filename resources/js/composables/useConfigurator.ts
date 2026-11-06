@@ -16,7 +16,8 @@
  * configurations is permitted: striking 18" because its first row is not permitted, while another
  * 18" row is, tells the customer something false about their car. The width/ET options inside the
  * chosen diameter are offered separately (`variants`), so every permitted configuration is
- * reachable.
+ * reachable: each is one version of the rim, chosen on its own (the Gutachten rework §8), `versions`
+ * those the car may have and `others` the rest — never a swap, and never hidden for good.
  */
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
@@ -53,13 +54,32 @@ export function tyreUnconfirmed(verdict: ProduktConfig['verdict']): boolean {
     )
 }
 
-/** One width/ET configuration inside the chosen diameter. */
+/**
+ * Why a version is not on offer for the car, in words true for each (D-383, D-387, R-17): a released paper rules the car out; or
+ * nothing on record approves it; or a paper names the car and something it needs is still open — then „keine Freigabe“ would say
+ * what no record says (D-214).
+ */
+export type VersionStanding = 'refused' | 'none' | 'open'
+
+const NOTHING_ON_RECORD = ['NO_DOCUMENT', 'ANNEX_MISSING', 'COVERAGE_UNCONFIRMED']
+
+function standingOf(verdict: ProduktConfig['verdict']): VersionStanding {
+    if (verdict?.status === 'NOT_PERMITTED') {
+        return 'refused'
+    }
+
+    return verdict?.reasonCode && !NOTHING_ON_RECORD.includes(verdict.reasonCode) ? 'open' : 'none'
+}
+
+/** One version of the rim inside the chosen diameter. */
 export interface VariantOption {
     readonly id: number
-    /** `8,5J × 18 · ET 40`, formatted on the server by the one German helper (R-10). */
+    /** `Breite 8,5J · ET 40 · Lochkreis 5 × 112`, formatted on the server by the one German helper (R-10). */
     readonly label: string
     readonly config: ProduktConfig
     readonly blocked: boolean
+    /** Why it is not on offer, where it is not. */
+    readonly standing: VersionStanding | null
     /** Approved with its tyres unconfirmed (finding 103): grey, choosable — as a diameter chip. */
     readonly unconfirmed: boolean
     readonly reason: string | null
@@ -70,8 +90,12 @@ export interface Configurator {
     readonly configId: Ref<number | null>
     readonly selected: ComputedRef<ProduktConfig | null>
     readonly sizes: ComputedRef<SizeOption[]>
-    /** The width/ET configurations of the selected diameter. Worth showing when there are two or more. */
+    /** Every version of the selected diameter, narrowest first. */
     readonly variants: ComputedRef<VariantOption[]>
+    /** The versions a customer can pick: every one without a car; with one, those a released paper approves. */
+    readonly versions: ComputedRef<VariantOption[]>
+    /** The versions the car may not have, or that nothing on record approves. Struck through and never a choice. */
+    readonly others: ComputedRef<VariantOption[]>
     readonly fromPrice: ComputedRef<string | null>
     selectFinish(id: number): void
     selectSize(option: SizeOption): void
@@ -175,16 +199,30 @@ export function useConfigurator(
             return []
         }
 
-        return forFinish.value
-            .filter((c) => c.diameterIn === current.diameterIn)
+        const row = forFinish.value.filter((c) => c.diameterIn === current.diameterIn)
+
+        return [...row]
             .sort((a, b) => a.widthIn - b.widthIn || a.etMm - b.etMm)
             .map((config) => {
                 const unconfirmed = !choosable(config) && tyreUnconfirmed(config.verdict)
                 const blocked = !choosable(config) && !unconfirmed
+                // Width, ET and bolt pattern tell versions apart; where they do not, the bore has to.
+                const twin = row.some((other) => other.id !== config.id && other.versionLabel === config.versionLabel)
 
-                return { id: config.id, label: config.sizeLabel, config, blocked, unconfirmed, reason: blocked || unconfirmed ? reasonFor([config]) : null }
+                return {
+                    id: config.id,
+                    label: twin ? `${config.versionLabel} · Mittenloch ${config.centreBore}` : config.versionLabel,
+                    config,
+                    blocked,
+                    standing: blocked ? standingOf(config.verdict) : null,
+                    unconfirmed,
+                    reason: blocked || unconfirmed ? reasonFor([config]) : null,
+                }
             })
     })
+
+    const versions = computed(() => variants.value.filter((v) => !v.blocked))
+    const others = computed(() => variants.value.filter((v) => v.blocked))
 
     const fromPrice = computed(() => {
         const cheapest = [...forFinish.value].sort((a, b) => a.priceCents - b.priceCents)[0]
@@ -237,6 +275,8 @@ export function useConfigurator(
         selected,
         sizes,
         variants,
+        versions,
+        others,
         fromPrice,
         selectFinish,
         selectSize,

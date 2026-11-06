@@ -44,25 +44,6 @@ test('the tyre sketch lists models and opens one with its sizes and the question
     expect(sent).toEqual([]);
 });
 
-test('the product page sketch shows every version without a car and only the approved ones with it', async ({ page }) => {
-    const sent = writes(page);
-
-    await open(page, '/skizze/felge');
-    await expect(page.locator('.sf-version')).toHaveCount(2);
-    await expect(page.locator('.sf-version').first()).toContainText('Breite 8,5 J · ET 30 · Lochkreis 5 × 120');
-    await expect(page.getByText('Wähle dein Fahrzeug, dann zeigen wir nur die Ausführungen, die dafür freigegeben sind.')).toBeVisible();
-
-    await page.getByRole('button', { name: /Mit Fahrzeug/ }).click();
-    await expect(page.locator('.sf-version:not(.sf-version--struck)')).toHaveCount(1);
-    await expect(page.locator('.sf-hint')).toContainText('keine Freigabe vor');
-    await page.getByRole('button', { name: 'Anzeigen' }).click();
-    await expect(page.locator('.sf-version--struck')).toHaveCount(1);
-    await expect(page).toHaveURL(/fahrzeug=1/);
-
-    await expectNoHorizontalOverflow(page);
-    expect(sent).toEqual([]);
-});
-
 test('the Komplettrad sketch goes from the tyre cards to the basket, with no extra chosen for the customer', async ({ page }) => {
     const sent = writes(page);
 

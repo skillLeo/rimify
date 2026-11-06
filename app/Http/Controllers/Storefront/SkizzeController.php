@@ -17,14 +17,6 @@ use Inertia\Response;
  */
 final class SkizzeController extends Controller
 {
-    public function felge(SkizzeRequest $request): Response
-    {
-        return Inertia::render('Skizze/Felge', [
-            'mitFahrzeug' => $request->withCar(),
-            'ausfuehrung' => $request->version(),
-        ]);
-    }
-
     public function komplettraeder(SkizzeRequest $request): Response
     {
         return Inertia::render('Skizze/Komplettraeder', [

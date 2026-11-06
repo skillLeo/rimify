@@ -65,7 +65,7 @@ it('opens a sketch at its start for a value too long or shaped as a list, never 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('modell', null));
 
-    $this->get('/skizze/felge?ausfuehrung='.str_repeat('a', 60))
+    $this->get('/skizze/komplettraeder?ausfuehrung='.str_repeat('a', 60))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('ausfuehrung', null));
 });
@@ -84,13 +84,9 @@ it('sends somebody who is not signed in to the admin sign-in, not to a sketch', 
 });
 
 it('opens the shop sketches for anyone, with or without the example car', function (): void {
-    $this->get('/skizze/felge?fahrzeug=1&ausfuehrung=blue-18a')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->component('Skizze/Felge')->where('mitFahrzeug', true)->where('ausfuehrung', 'blue-18a'));
-
-    $this->get('/skizze/felge')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('mitFahrzeug', false)->where('ausfuehrung', null));
+    // The product page's versions are built: its sketch is gone (the Gutachten rework, Phase 3).
+    $this->get('/skizze/felge')->assertNotFound();
+    expect(Route::has('skizze.felge'))->toBeFalse();
 
     $this->get('/skizze/komplettraeder?schritt=2&ausfuehrung=blue-18a')
         ->assertOk()
@@ -103,7 +99,6 @@ it('writes nothing, whichever sketch is opened', function (): void {
 
     [$all, $writes] = sketchWrites(function (): void {
         $this->get('/admin/skizze/reifen')->assertOk();
-        $this->get('/skizze/felge?fahrzeug=1')->assertOk();
         $this->get('/skizze/komplettraeder')->assertOk();
     });
 
@@ -120,6 +115,6 @@ it('registers the sketches in a test environment, and the preflight refuses a li
     app()->detectEnvironment(static fn (): string => 'production');
 
     $this->artisan('rimify:preflight', ['--skip-s3' => true])
-        ->expectsOutputToContain('im Live-Shop erreichbar (skizze.felge, skizze.komplettraeder, admin.skizze.reifen)')
+        ->expectsOutputToContain('im Live-Shop erreichbar (skizze.komplettraeder, admin.skizze.reifen)')
         ->assertFailed();
 });

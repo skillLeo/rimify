@@ -414,6 +414,8 @@ export interface ProduktConfig {
     widthIn: number
     etMm: number
     sizeLabel: string
+    /** One version of the rim, as its chip names it: `Breite 8,5J · ET 30 · Lochkreis 5 × 120` (the rework §8). */
+    versionLabel: string
     fullLabel: string
     boltPattern: string
     /** The rim's own bore, `66,5 mm`. The bore a document states for the chosen car is in the verdict. */

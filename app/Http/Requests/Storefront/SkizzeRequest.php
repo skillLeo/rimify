@@ -7,8 +7,8 @@ namespace App\Http\Requests\Storefront;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Where a shop sketch of the Gutachten rework opens (the operator's brief of 01.11.2026, Phase 1): with or without the
- * example car, the version chosen, the step of the Komplettrad — read from the address, so a click path can be sent as a
+ * Where a shop sketch of the Gutachten rework opens (the operator's brief of 01.11.2026, Phase 1): the version chosen and
+ * the step of the Komplettrad — read from the address, so a click path can be sent as a
  * link and the server renders the same state the browser shows. A value that does not read opens the sketch at its start.
  */
 final class SkizzeRequest extends FormRequest
@@ -27,12 +27,6 @@ final class SkizzeRequest extends FormRequest
     public function rules(): array
     {
         return [];
-    }
-
-    /** `?fahrzeug=1`: the sketch's example car is chosen. */
-    public function withCar(): bool
-    {
-        return $this->query('fahrzeug') === '1';
     }
 
     public function version(): ?string

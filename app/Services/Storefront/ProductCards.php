@@ -87,6 +87,7 @@ final readonly class ProductCards
                 $diameters,
                 $this->claim($verdicts, $configIds[$key] ?? [], $facts),
                 $disclosure,
+                $this->versionsOffered($verdicts, $configIds[$key] ?? []),
             );
         }
 
@@ -210,6 +211,33 @@ final readonly class ProductCards
     }
 
     /**
+     * How many of a card's versions its product page offers the car — by the rule its chips follow (useConfigurator): sold,
+     * sold as a rim alone, approved with the tyres open, or waiting only for a fact the customer can give.
+     *
+     * @param  array<int, FitmentVerdict>  $verdicts
+     * @param  list<int>  $configIds
+     */
+    private function versionsOffered(array $verdicts, array $configIds): int
+    {
+        $offered = 0;
+
+        foreach ($configIds as $configId) {
+            $verdict = $verdicts[$configId] ?? null;
+
+            if ($verdict !== null && (
+                $verdict->isSellable()
+                || $verdict->forRimAlone() !== null
+                || $verdict->tyreUnconfirmed()
+                || ($verdict->status === VerdictStatus::Unknown && $verdict->missingFacts !== [])
+            )) {
+                $offered++;
+            }
+        }
+
+        return $offered;
+    }
+
+    /**
      * What the pick of a card's size reads of each configuration on the page (OpeningSize): its diameter as the card spells
      * it, its price and whether it is available.
      *
@@ -319,6 +347,7 @@ final readonly class ProductCards
                 DB::raw('MIN(wc.price_cents) as from_price_cents'),
                 // Available or not, never a count (D-299): a card can be bought where any of its sizes can.
                 DB::raw('MAX(wc.available) as any_available'),
+                DB::raw('COUNT(wc.id) as version_count'),
                 DB::raw('GROUP_CONCAT(DISTINCT wc.diameter_in ORDER BY wc.diameter_in) as diameters'),
             ]);
 
@@ -342,6 +371,7 @@ final readonly class ProductCards
                 fromPriceCents: (int) $row->from_price_cents,
                 available: (bool) $row->any_available,
                 diameters: $this->diameters(is_string($row->diameters) ? $row->diameters : ''),
+                versionCount: (int) $row->version_count,
                 fitment: null,
                 image: $this->manifest($row->image_manifest),
                 isDemo: (bool) $row->is_demo,
@@ -428,7 +458,7 @@ final readonly class ProductCards
      * @param  array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
      * @return array<string, mixed>
      */
-    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim, string $disclosure): array
+    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim, string $disclosure, int $versionCount = 0): array
     {
         $modelId = (int) ($row['model_id'] ?? 0);
         $finishId = (int) ($row['finish_id'] ?? 0);
@@ -456,6 +486,7 @@ final readonly class ProductCards
             fromPriceCents: (int) ($row['from_price_cents'] ?? 0),
             available: (bool) ($row['any_available'] ?? false),
             diameters: $diameters[$key] ?? [],
+            versionCount: $versionCount,
             fitment: $claim,
             image: $look['image'],
             isDemo: $look['is_demo'],
@@ -486,6 +517,7 @@ final readonly class ProductCards
         int $fromPriceCents,
         bool $available,
         array $diameters,
+        int $versionCount,
         ?array $fitment,
         ?array $image,
         bool $isDemo,
@@ -520,6 +552,8 @@ final readonly class ProductCards
             // Not available in any size: the subject of the card's „Anfrage“ (D-350), filled in by withEnquiries().
             'enquiry' => null,
             'diameters' => $diameters,
+            // The versions behind „ab …“ (the rework §8); with a vehicle, those the product page offers it.
+            'versionCount' => $versionCount,
             // With a vehicle: the subset of `diameters` a document permits on it, same spelling.
             // Null without a vehicle — no size is claimed to fit anything.
             'diametersFitting' => $diametersFitting,

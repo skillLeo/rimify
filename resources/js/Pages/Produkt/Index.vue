@@ -28,7 +28,7 @@
  * is open, Escape or the close button to leave, focus back on the photograph after.
  */
 
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
@@ -68,6 +68,53 @@ const config = useConfigurator(() => props.configs, props.finishes[0]?.id ?? 0, 
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
+
+/*
+ * The version a person chose stays in the address, beside the car (the Gutachten rework §8): a link opens on it and Back
+ * finds it. Only then, so the address names a choice and never the page's own opening size. Through Inertia, or Back would
+ * restore the address the page opened with (useEtRechner).
+ */
+watch([config.finishId, config.configId], ([finishId, configId]) => {
+    const url = new URL(window.location.href)
+
+    url.searchParams.set('ausfuehrung', String(finishId))
+
+    if (configId === null) {
+        url.searchParams.delete('groesse')
+    } else {
+        url.searchParams.set('groesse', String(configId))
+    }
+
+    router.replace({ url: url.pathname + url.search + url.hash, preserveScroll: true, preserveState: true })
+})
+
+/* The others are asked for; a version the car may not have that is on the page already is said at once, never swapped. */
+const othersAsked = ref(false)
+const selectedIsOther = computed(() => config.others.value.some((other) => other.id === selected.value?.id))
+const othersShown = computed(() => othersAsked.value || selectedIsOther.value)
+
+watch([config.finishId, () => selected.value?.diameterIn], () => {
+    othersAsked.value = false
+})
+
+/* In words true for each: ruled out by a paper, no approval on record, or a paper that names the car with something still open (D-383, D-405, R-17). */
+const STANDING_WORD = { refused: 'nicht freigegeben', none: 'keine Freigabe vorliegend', open: 'noch nicht bestätigt' } as const
+
+const othersLine = computed(() => {
+    const count = (standing: string): number => config.others.value.filter((other) => other.standing === standing).length
+    // „Weitere“ only beside versions on the page: with none shown there is nothing for it to add to.
+    const more = config.versions.value.length > 0 ? 'weitere ' : ''
+    const stated = (n: number, word: string): string => `${n} ${more}${n === 1 ? 'Ausführung ist' : 'Ausführungen sind'} für dein Fahrzeug ${word}`
+    const none = count('none')
+    const parts = [
+        count('refused') > 0 ? stated(count('refused'), 'nicht freigegeben') : '',
+        none > 0 ? `für ${none} ${more}${none === 1 ? 'Ausführung' : 'Ausführungen'} liegt uns für dein Fahrzeug keine Freigabe vor` : '',
+        count('open') > 0 ? stated(count('open'), 'noch nicht bestätigt') : '',
+    ].filter(Boolean)
+    const line = parts.join('; ')
+
+    return `${line.charAt(0).toUpperCase()}${line.slice(1)}.`
+})
 
 /**
  * GPSR's electronic address: a web address as its link, an e-mail address as text to copy — no button on the shop opens
@@ -756,29 +803,58 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="unconfirmedNote" class="t-small quiet pdp__note" data-note="unconfirmed">{{ unconfirmedNote }}</p>
                     </div>
 
-                    <!-- Finding 138: a diameter the Gutachten approves in more than one width or ET offers each of them —
-                         the diameter's chip opens one, and every other is a press away here. -->
-                    <div v-if="config.variants.value.length > 1" class="pdp__block pdp__variants">
-                        <span id="pdp-variants-label" class="label">Breite und Einpresstiefe (ET)</span>
-                        <div class="chip-row pdp__chips" role="group" aria-labelledby="pdp-variants-label">
+                    <!-- One chip per version of the rim (the Gutachten rework §8, finding 138): width, ET, bolt pattern and
+                         price chosen together, so nothing can combine into a wheel that does not exist. -->
+                    <div v-if="config.variants.value.length" class="pdp__block pdp__variants">
+                        <span id="pdp-variants-label" class="label">Ausführung</span>
+                        <div v-if="config.versions.value.length" class="pdp__versions" role="group" aria-labelledby="pdp-variants-label">
                             <button
-                                v-for="variant in config.variants.value"
-                                :key="variant.id"
-                                class="chip"
-                                :class="{
-                                    'chip--on': selected?.id === variant.id,
-                                    'chip--blocked': variant.blocked,
-                                    'chip--unconfirmed': variant.unconfirmed,
-                                }"
+                                v-for="version in config.versions.value"
+                                :key="version.id"
+                                class="pdp__version"
+                                :class="{ 'pdp__version--on': selected?.id === version.id, 'pdp__version--unconfirmed': version.unconfirmed }"
                                 type="button"
-                                :disabled="variant.blocked"
-                                :aria-pressed="selected?.id === variant.id"
-                                :title="variant.reason ?? undefined"
-                                @click="config.selectVariant(variant)"
+                                :aria-pressed="selected?.id === version.id"
+                                :title="version.reason ?? undefined"
+                                @click="config.selectVariant(version)"
                             >
-                                <span translate="no">{{ variant.label }}</span>
+                                <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
+                                <span class="pdp__version-price" translate="no">{{ version.config.price }}</span>
+                                <span v-if="!version.config.inStock" class="tag tag--unknown pdp__version-tag">Auf Anfrage</span>
+                                <span v-if="version.unconfirmed" class="tag tag--unknown pdp__version-tag">Noch nicht bestätigt</span>
+                                <span class="pdp__version-check" aria-hidden="true"><Icon name="check" :size="20" /></span>
                             </button>
                         </div>
+
+                        <p v-if="!hasVehicle" class="t-small pdp__version-hint pdp__version-hint--car">
+                            <Icon name="car" :size="20" />
+                            <span>Wähle dein Fahrzeug, dann zeigen wir nur die Ausführungen, die dafür freigegeben sind.</span>
+                        </p>
+                        <p v-else-if="config.others.value.length" class="t-small pdp__version-hint">
+                            {{ othersLine }}
+                            <button
+                                v-if="!selectedIsOther"
+                                class="pdp__version-more"
+                                type="button"
+                                :aria-expanded="othersAsked"
+                                @click="othersAsked = !othersAsked"
+                            >
+                                {{ othersAsked ? 'Ausblenden' : 'Anzeigen' }}
+                            </button>
+                        </p>
+                        <div v-if="othersShown && config.others.value.length" class="pdp__versions pdp__versions--others">
+                            <span
+                                v-for="version in config.others.value"
+                                :key="version.id"
+                                class="pdp__version pdp__version--struck"
+                                :class="{ 'pdp__version--on': selected?.id === version.id }"
+                            >
+                                <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
+                                <span class="pdp__version-why">{{ version.standing ? STANDING_WORD[version.standing] : '' }}</span>
+                            </span>
+                        </div>
+
+                        <p v-if="selected" class="t-small quiet pdp__chosen">Gewählt: <ValueText :text="selected.fullLabel" /></p>
                     </div>
 
                     <!-- With a Komplettrad's tyre chosen, the answer for that tyre's size (#18): its Eintragung, its Auflagen. -->
@@ -1291,6 +1367,145 @@ claimBottomEdge(() => stickyShown.value)
 }
 
 .pdp__note {
+    margin-top: var(--space-2);
+}
+
+/* One version of the rim: its whole spec and its price, a tile to press rather than a chip of a few characters. */
+.pdp__versions {
+    display: grid;
+    gap: var(--sp-8);
+    margin-top: var(--space-2);
+}
+
+.pdp__version {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--sp-4) var(--sp-12);
+    min-height: 48px;
+    padding: var(--sp-8) var(--sp-40) var(--sp-8) var(--sp-16);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    font: inherit;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--d-1) var(--ease-std), background-color var(--d-1) var(--ease-std);
+}
+
+/* One selected state for every tile on the page: 2 px blue and the check, no tint (D-132). */
+.pdp__version--on {
+    padding: calc(var(--sp-8) - 1px) calc(var(--sp-40) - 1px) calc(var(--sp-8) - 1px) calc(var(--sp-16) - 1px);
+    border: 2px solid var(--c-blue);
+}
+
+button.pdp__version:active {
+    background: var(--c-band);
+}
+
+button.pdp__version:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    button.pdp__version:hover {
+        border-color: var(--c-ink-3);
+    }
+
+    button.pdp__version--on:hover {
+        border-color: var(--c-blue);
+    }
+}
+
+/* Unverified is neither forbidden nor unavailable (finding 103): dashed as its diameter's chip, and it can be chosen. */
+.pdp__version--unconfirmed {
+    border-style: dashed;
+}
+
+.pdp__version--unconfirmed.pdp__version--on {
+    border-style: dashed;
+}
+
+.pdp__version-spec {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.pdp__version-price {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.pdp__version-tag {
+    grid-column: 1 / -1;
+    justify-self: start;
+}
+
+.pdp__version-check {
+    position: absolute;
+    top: 50%;
+    right: var(--sp-12);
+    display: none;
+    color: var(--c-blue);
+    transform: translateY(-50%);
+}
+
+.pdp__version--on .pdp__version-check {
+    display: inline-flex;
+}
+
+.pdp__version--struck {
+    color: var(--c-ink-3);
+    cursor: default;
+}
+
+.pdp__version--struck .pdp__version-spec {
+    text-decoration: line-through;
+}
+
+.pdp__version-why {
+    font-size: var(--fs-micro);
+    line-height: var(--lh-micro);
+    white-space: nowrap;
+}
+
+.pdp__version-hint {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--sp-8);
+    margin-top: var(--space-2);
+    color: var(--c-ink-2);
+}
+
+.pdp__version-hint--car {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: var(--sp-8);
+}
+
+.pdp__version-hint--car :deep(svg) {
+    flex: none;
+}
+
+.pdp__version-more {
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--c-blue);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.pdp__chosen {
     margin-top: var(--space-2);
 }
 

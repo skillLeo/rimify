@@ -239,6 +239,8 @@ export interface ProductCardProp {
     enquiry?: string | null
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
+    /** The versions this card stands for; with a car, those the product page offers it (the rework §8). */
+    versionCount?: number
     /**
      * The subset of `diameters` with a `PERMITTED`/`CONDITIONAL` configuration for the vehicle, or one whose wheel is
      * approved with its tyres not yet confirmed (D-286); null without a vehicle (or while the server does not send it —

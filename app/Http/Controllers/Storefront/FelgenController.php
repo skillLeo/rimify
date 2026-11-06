@@ -348,6 +348,13 @@ class FelgenController extends Controller
                 (float) $config->diameter_in,
                 (int) $config->et_mm,
             ),
+            // One version of the rim, as its chip names it (the Gutachten rework §8).
+            'versionLabel' => GermanFormat::wheelVersion(
+                (float) $config->width_in,
+                (int) $config->et_mm,
+                (int) $config->bolt_holes,
+                (float) $config->bolt_circle_mm,
+            ),
             'fullLabel' => GermanFormat::wheelLabel(
                 (float) $config->width_in,
                 (float) $config->diameter_in,
@@ -408,7 +415,7 @@ class FelgenController extends Controller
             ];
         }
 
-        $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'));
+        $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'), $request->integer('groesse'));
         $jsonLd = ProductJsonLd::for($wheel, url('/felgen/'.$wheel->slug));
 
         return Inertia::render('Produkt/Index', [
@@ -900,11 +907,16 @@ class FelgenController extends Controller
      * @param  list<array<string, mixed>>  $configs
      * @return list<array{id: int, name: string, hex: string|null, artFinish: string, image: array<string, mixed>|null}>
      */
-    private function openingFinishFirst(array $finishes, array $configs, int $requested): array
+    private function openingFinishFirst(array $finishes, array $configs, int $requested, int $size = 0): array
     {
         $permitted = [];
 
         foreach ($configs as $config) {
+            // A link to a size names its colour too: the offers in the structured data carry nothing else (the rework §8).
+            if ($requested === 0 && $config['id'] === $size) {
+                $requested = (int) $config['finishId'];
+            }
+
             $verdict = $config['verdict'] ?? null;
 
             if (is_array($verdict) && ($verdict['sellable'] ?? false) === true) {

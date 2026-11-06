@@ -200,7 +200,7 @@ watch(() => [filter.mode, filter.price, filter.sort, filter.seasons.length, filt
                         <p class="kr-wheel__name" translate="no">{{ WHEEL.brand }} {{ WHEEL.model }} · {{ finish?.name }}</p>
                         <p class="kr-wheel__spec">{{ versionShort(version) }} · {{ formatMoney(version.setCents) }} für 4</p>
                         <p class="kr-wheel__verdict"><VerdictBadge status="CONDITIONAL" /> für deinen {{ CAR.name }}</p>
-                        <Link class="kr-link" :href="`/skizze/felge?fahrzeug=1&ausfuehrung=${version.id}`">Andere Ausführung wählen</Link>
+                        <Link class="kr-link" href="/felgen">Andere Ausführung wählen</Link>
                     </div>
                 </div>
                 <div class="kr-actions">

@@ -27,6 +27,7 @@ function config(overrides: Partial<ProduktConfig>): ProduktConfig {
         widthIn: 8,
         etMm: 35,
         sizeLabel: '8J × 18 · ET 35',
+        versionLabel: 'Breite 8J · ET 35 · Lochkreis 5 × 112',
         fullLabel: '8J × 18 · ET 35 · 5×112 · 66,6 mm',
         boltPattern: '5×112',
         centreBore: '66,6 mm',
@@ -188,15 +189,15 @@ describe('useConfigurator', () => {
     it('offers every width and ET inside the chosen diameter, refused ones disabled', () => {
         // Demo Zehnspeiche Z-08 "Himalaya Grau": 8J ET45 carries an Auflage, 8,5J ET40 is permitted outright.
         const configs = [
-            config({ id: 41, widthIn: 8, etMm: 45, sizeLabel: '8J × 18 · ET 45', priceCents: 89900, verdict: verdict({ status: 'CONDITIONAL' }) }),
-            config({ id: 42, widthIn: 8.5, etMm: 40, sizeLabel: '8,5J × 18 · ET 40', priceCents: 94900 }),
-            config({ id: 45, widthIn: 9, etMm: 35, sizeLabel: '9J × 18 · ET 35', priceCents: 99900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) }),
+            config({ id: 41, widthIn: 8, etMm: 45, versionLabel: 'Breite 8J · ET 45 · Lochkreis 5 × 112', priceCents: 89900, verdict: verdict({ status: 'CONDITIONAL' }) }),
+            config({ id: 42, widthIn: 8.5, etMm: 40, versionLabel: 'Breite 8,5J · ET 40 · Lochkreis 5 × 112', priceCents: 94900 }),
+            config({ id: 45, widthIn: 9, etMm: 35, versionLabel: 'Breite 9J · ET 35 · Lochkreis 5 × 112', priceCents: 99900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) }),
             config({ id: 46, diameterIn: 19, widthIn: 8.5, etMm: 40, priceCents: 109900 }),
         ]
 
         const c = useConfigurator(() => configs, 10)
 
-        expect(c.variants.value.map((v) => v.label)).toEqual(['8J × 18 · ET 45', '8,5J × 18 · ET 40', '9J × 18 · ET 35'])
+        expect(c.variants.value.map((v) => v.label)).toEqual(['Breite 8J · ET 45 · Lochkreis 5 × 112', 'Breite 8,5J · ET 40 · Lochkreis 5 × 112', 'Breite 9J · ET 35 · Lochkreis 5 × 112'])
         expect(c.variants.value[2]).toMatchObject({ blocked: true, reason: 'ET außerhalb des Gutachtens.' })
 
         c.selectVariant(c.variants.value[1]!)
@@ -286,5 +287,91 @@ describe('useConfigurator', () => {
         ]
 
         expect(useConfigurator(() => configs, 10).fromPrice.value).toBe('999,00 €')
+    })
+})
+
+/*
+ * The Gutachten rework §8: one version = one size row of the rim, chosen on its own. Without a car every version of the
+ * colour and diameter; with one, those a released paper approves, and the others counted apart — refused by a paper, or
+ * none on record (D-383, R-17).
+ */
+describe('the versions of the chosen diameter', () => {
+    const refused = verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dein Fahrzeug nicht freigegeben.' })
+    const noPaper = verdict({ status: 'UNKNOWN', sellable: false, reason: 'Für diese Kombination liegt uns kein Gutachten vor.', reasonCode: 'NO_DOCUMENT' })
+    const unentered = verdict({ status: 'UNKNOWN', sellable: false, reason: 'Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst.', reasonCode: 'TYRE_SIZES_NOT_RECORDED' })
+
+    it('without a car, shows every version of the colour and the diameter, and no other', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8.5, etMm: 30, versionLabel: 'Breite 8,5J · ET 30 · Lochkreis 5 × 120' }),
+            config({ id: 2, widthIn: 8, etMm: 40, versionLabel: 'Breite 8J · ET 40 · Lochkreis 5 × 112' }),
+            config({ id: 3, widthIn: 9, etMm: 40, diameterIn: 19 }),
+            config({ id: 4, widthIn: 8, etMm: 35, finishId: 11 }),
+        ]
+        const c = useConfigurator(() => configs, 10, 1)
+
+        expect(c.versions.value.map((v) => v.id)).toEqual([2, 1])
+        expect(c.versions.value.map((v) => v.label)).toEqual(['Breite 8J · ET 40 · Lochkreis 5 × 112', 'Breite 8,5J · ET 30 · Lochkreis 5 × 120'])
+        expect(c.others.value).toEqual([])
+    })
+
+    it('with a car, keeps those it may have and sets the others apart, by what is on record', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8, verdict: verdict({}) }),
+            config({ id: 2, widthIn: 8.5, verdict: refused }),
+            config({ id: 3, widthIn: 9, verdict: noPaper }),
+            config({ id: 4, widthIn: 9.5, verdict: unentered }),
+        ]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.versions.value.map((v) => v.id)).toEqual([1])
+        expect(c.others.value.map((v) => [v.id, v.standing])).toEqual([[2, 'refused'], [3, 'none'], [4, 'open']])
+    })
+
+    it('counts a version that only waits for the tyres or a fact of the car among those shown: a paper approves it', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8, verdict: verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN' }, missing: [] } as unknown as Partial<ConfigVerdict>) }),
+            config({ id: 2, widthIn: 8.5, verdict: verdict({ status: 'UNKNOWN', sellable: false, missing: ['bodyForm'] } as Partial<ConfigVerdict>) }),
+        ]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.versions.value.map((v) => v.id)).toEqual([1, 2])
+        expect(c.others.value).toEqual([])
+    })
+
+    it('names the bore only where it alone tells two versions apart', () => {
+        const same = { widthIn: 8, etMm: 35, versionLabel: 'Breite 8J · ET 35 · Lochkreis 5 × 112' }
+        const configs = [
+            config({ id: 1, ...same, centreBore: '66,6 mm' }),
+            config({ id: 2, ...same, centreBore: '72,6 mm' }),
+            config({ id: 3, widthIn: 9, etMm: 35, versionLabel: 'Breite 9J · ET 35 · Lochkreis 5 × 112', centreBore: '66,6 mm' }),
+        ]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.versions.value.map((v) => v.label)).toEqual([
+            'Breite 8J · ET 35 · Lochkreis 5 × 112 · Mittenloch 66,6 mm',
+            'Breite 8J · ET 35 · Lochkreis 5 × 112 · Mittenloch 72,6 mm',
+            'Breite 9J · ET 35 · Lochkreis 5 × 112',
+        ])
+    })
+
+    it('never swaps a version named in the link for another in silence: it stays chosen, among the others', () => {
+        const configs = [config({ id: 1, widthIn: 8, verdict: verdict({}) }), config({ id: 2, widthIn: 8.5, verdict: refused })]
+        const c = useConfigurator(() => configs, 10, 2)
+
+        expect(c.selected.value?.id).toBe(2)
+        expect(c.others.value.map((v) => v.id)).toEqual([2])
+        expect(c.versions.value.map((v) => v.id)).toEqual([1])
+    })
+
+    it('says which version was picked by a person: nothing until one is, so the address names only a choice', () => {
+        const configs = [config({ id: 1, widthIn: 8 }), config({ id: 2, widthIn: 8.5 })]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.configId.value).toBeNull()
+
+        c.selectVariant(c.versions.value[1]!)
+
+        expect(c.configId.value).toBe(2)
+        expect(c.selected.value?.id).toBe(2)
     })
 })

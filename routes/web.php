@@ -138,7 +138,6 @@ Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich
 // The shop sketches of the Gutachten rework (Phase 1): example pages to click through before anything is built. A test
 // environment's alone, as the reset is (TestEnvironment) — the live shop has no such address.
 if (TestEnvironment::environmentAllows()) {
-    Route::get('/skizze/felge', [SkizzeShopController::class, 'felge'])->name('skizze.felge');
     Route::get('/skizze/komplettraeder', [SkizzeShopController::class, 'komplettraeder'])->name('skizze.komplettraeder');
 }
 

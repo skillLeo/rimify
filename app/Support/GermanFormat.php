@@ -132,6 +132,16 @@ final class GermanFormat
         );
     }
 
+    /** `Breite 8,5J · ET 30 · Lochkreis 5 × 120` — one version of a rim as its chip names it (the Gutachten rework §8). */
+    public static function wheelVersion(float|int|string $widthIn, int $etMm, int $boltHoles, float|int|string $boltCircleMm): string
+    {
+        return implode(' '.self::MIDDOT.' ', [
+            'Breite'.self::NBSP.self::rimWidth($widthIn),
+            self::offset($etMm),
+            'Lochkreis'.self::NBSP.self::boltPattern($boltHoles, $boltCircleMm),
+        ]);
+    }
+
     /** `8,5J × 18 · ET 35 · 5/112 · 66,6 mm` */
     public static function wheelLabel(
         float|int|string $widthIn,
