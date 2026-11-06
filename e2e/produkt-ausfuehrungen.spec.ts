@@ -186,6 +186,19 @@ test('Back finds the colour, the version and its price as they were left', async
     await expect(page.locator('.pdp__swatch--on')).toContainText(colour)
 })
 
+test('Back finds „Kompletträder“ too: what the address does not hold stays with the history entry', async ({ page }) => {
+    await open(page, COLOURS)
+    await chooseLastVersion(page)
+    await page.locator('.pdp__mode .bmc-tile', { hasText: 'Kompletträder' }).click()
+    await expect(page.locator('.pdp__mode input[value="komplettrad"]')).toBeChecked()
+
+    await page.locator('.pdp__crumbs a', { hasText: 'Felgen' }).click()
+    await page.waitForURL(/\/felgen(\?|$)/)
+    await page.goBack()
+
+    await expect(page.locator('.pdp__mode input[value="komplettrad"]')).toBeChecked()
+})
+
 test('a link with a fragment opens the size it names', async ({ page }) => {
     await open(page, COLOURS)
 
@@ -252,6 +265,21 @@ test('the cart leads back to the version in it, not to what the page opens on', 
     await page.locator('.bl__link').first().click()
     await page.waitForURL(/\/felgen\/nordfelge-fjord/)
     await expect(page.locator('.pdp__chosen')).toHaveText(version)
+})
+
+test('Back after emptying the basket: no panel of the add, and the badge counts what is there', async ({ page }) => {
+    await open(page, COLOURS)
+    await page.locator('button.pdp__add').click()
+    await expect(page.locator('.addp')).toBeVisible()
+
+    await open(page, '/warenkorb')
+    await page.getByRole('button', { name: /Entfernen/ }).first().click()
+    await expect(page.locator('.bl__line')).toHaveCount(0)
+
+    await page.goBack()
+    await page.waitForURL(/\/felgen\/nordfelge-fjord/)
+    await expect(page.locator('.cart-btn__n')).toHaveCount(0)
+    await expect(page.locator('.addp')).toHaveCount(0)
 })
 
 test('a long wheel name wraps inside the column at 320: no sideways scroll', async ({ page }) => {

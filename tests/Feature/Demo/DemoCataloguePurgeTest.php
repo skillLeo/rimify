@@ -124,10 +124,6 @@ it('takes a demo tyre’s model with it, photographs and all, and leaves a model
     $demoModel = TyreModel::query()->where('name', 'Nur Demo')->sole();
     TyreModelImage::query()->create(['tyre_model_id' => $demoModel->id, 'position' => 0, 'alt_de' => 'Nur Demo', 'manifest' => ['name' => 'x']]);
 
-    // The purge's count names them; „Beides“ has a real size and stays out of it.
-    expect(DemoCatalogue::counts()['tyre_model_images'])->toBe(1)
-        ->and(DemoCatalogue::counts()['tyre_models'])->toBeGreaterThanOrEqual(1);
-
     DemoCatalogue::purge();
 
     expect(TyreModel::query()->where('name', 'Nur Demo')->exists())->toBeFalse()

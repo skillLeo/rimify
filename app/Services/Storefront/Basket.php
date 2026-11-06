@@ -93,6 +93,9 @@ final readonly class Basket
     public const TPMS_NO_VEHICLE_NOTICE = 'Für RDKS-Sensoren brauchen wir dein Fahrzeug – der Preis hängt von der Automarke ab.';
 
     /* What the add-time gate answers (§4.4), each a full sentence. */
+    /** The page answered for another car than the one chosen by now, in another window: nothing is added for a car not on screen. */
+    public const VEHICLE_CHANGED = 'Dein Fahrzeug wurde in einem anderen Fenster geändert. Prüf die Angaben und leg es noch einmal in den Warenkorb.';
+
     public const WHEEL_GONE = 'Diese Felge gibt es nicht mehr.';
 
     public const WHEEL_NOT_PERMITTED = 'Diese Felge ist für dein Fahrzeug nicht freigegeben.';
@@ -613,6 +616,23 @@ final readonly class Basket
         $request->session()->forget(self::SESSION_TPMS);
     }
 
+    /**
+     * What the basket holds of Kompletträder, for the steps that lead to another: its wheels — the one answer on the sensors goes for them
+     * all (D-411) — and its lines. As the render counts them, so a line whose wheel has gone counts for nothing. Read only where it holds any.
+     *
+     * @return array{wheels: int, keys: list<string>}
+     */
+    public function setsHeld(Request $request): array
+    {
+        if (! $this->containsSet($request)) {
+            return ['wheels' => 0, 'keys' => []];
+        }
+
+        $tpms = $this->summary($request)['totals']['tpms'];
+
+        return ['wheels' => (int) $tpms['quantity'], 'keys' => array_map('strval', array_keys($this->rawKeyed($request)))];
+    }
+
     /** Whether any line in the session is a Komplettrad — read from the session shape alone, without a render. */
     public function containsSet(Request $request): bool
     {
@@ -653,12 +673,14 @@ final readonly class Basket
                 $mixed !== null ? 'Komplettrad, '.$mixed['axleLabel'] : $line['setLabel'],
                 $line['sizeLabel'],
                 $line['subtitle'],
-                $tyre === null ? null : trim($tyre['brandName'].' '.$tyre['name'].' '.$tyre['sizeLabel']),
+                // The size in one piece, on a phone too.
+                $tyre === null ? null : trim($tyre['brandName'].' '.$tyre['name'].' '.str_replace(' ', GermanFormat::NBSP, (string) $tyre['sizeLabel'])),
             ]));
 
             $lines[] = [
                 'title' => trim($line['brandName'].' '.$line['title']),
-                'detail' => implode(' · ', $detail),
+                // No line begins with its „·“.
+                'detail' => implode(GermanFormat::NBSP.'· ', $detail),
                 'quantity' => $quantity,
                 'price' => LinePrice::total(Money::fromMinor((int) $line['unitPriceCents']), $quantity)->format(),
             ];
@@ -1418,7 +1440,8 @@ final readonly class Basket
         return is_string($make) && trim($make) !== '' ? $make : null;
     }
 
-    private function vehicleId(Request $request): ?int
+    /** The car this request answers for: the chosen one, as the cookie holds it. */
+    public function vehicleId(Request $request): ?int
     {
         $raw = $request->cookie(VehicleContext::COOKIE);
 

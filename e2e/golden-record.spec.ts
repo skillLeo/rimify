@@ -40,8 +40,9 @@ test.setTimeout(240_000)
 
 /** The supplier file: one size, every value plainly a stand-in (price 1,00 €, brand „Platzhalter“). */
 const CSV = [
-    'sku;marke;modell;ausfuehrung;durchmesser;breite;et;lochkreis;mittenloch;preis;bestand',
-    `${SKU};Platzhalter;${MODEL};Silber;18;8;35;5x112;66,6;1,00;8`,
+    // The Radtypenbezeichnung: no Felge is published without it (D-298).
+    'sku;marke;modell;radtyp;ausfuehrung;durchmesser;breite;et;lochkreis;mittenloch;preis;bestand',
+    `${SKU};Platzhalter;${MODEL};PR 18;Silber;18;8;35;5x112;66,6;1,00;8`,
 ].join('\n')
 
 /* The whole page, from its top: a full-page picture taken while scrolled draws the sticky rail and bar mid-page. */
@@ -108,7 +109,8 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await shot(page, '02-felge-veroeffentlicht')
 
     // ── 3 · Gutachten › Neues Gutachten ───────────────────────────────────────────────────
-    await page.goto('/admin/gutachten', { waitUntil: 'networkidle' })
+    // By its number: the list comes in pages (F-31), and a run's own document need not stand on the first.
+    await page.goto(`/admin/gutachten?q=${encodeURIComponent(KBA)}`, { waitUntil: 'networkidle' })
     await waitForApp(page)
     const existing = page.locator('tbody tr', { hasText: KBA }).locator('.gd-link')
 
@@ -201,13 +203,12 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     // A placeholder has none to type: it gets ABE 55255's example table, marked as the demo seed's so nobody
     // reads it as this document's content (the operator's decision of 29.09.2026) — the step ApprovalSeeder
     // runs too.
-    // The button exists only on a draft; a released placeholder already has its table.
-    const tableButton = page.locator('#dt-edit')
-
-    if ((await tableButton.count()) > 0 && (await tableButton.textContent())?.includes('Tabelle eintragen')) {
+    // Only a draft takes it; a released placeholder already has its table.
+    if (await stepBar.isVisible()) {
         execFileSync('php', ['artisan', 'demo:placeholder-tables'], { stdio: 'pipe' })
         await page.reload({ waitUntil: 'networkidle' })
         await waitForApp(page)
+        await stepBar.getByRole('button', { name: /Freigeben/ }).click()
     }
 
     await shot(page, '04b-tragfaehigkeitstabelle')

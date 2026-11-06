@@ -50,8 +50,6 @@ final class DemoCatalogue
         'wheel_configs',
         'wheel_finishes',
         'wheel_models',
-        'tyre_model_images',
-        'tyre_models',
         'tyre_variants',
         'balance_weight_colours',
         'tpms_sensor_prices',
@@ -75,8 +73,6 @@ final class DemoCatalogue
         'wheel_configs' => 'Größen der Beispielfelgen',
         'wheel_finishes' => 'Farben der Beispielfelgen',
         'wheel_models' => 'Beispielfelgen',
-        'tyre_model_images' => 'Fotos der Beispielreifen-Modelle',
-        'tyre_models' => 'Modelle der Beispielreifen',
         'tyre_variants' => 'Beispielreifen',
         'balance_weight_colours' => 'Wuchtgewicht-Farben der Demodaten',
         'tpms_sensor_prices' => 'RDKS-Preise der Demodaten',
@@ -207,7 +203,8 @@ final class DemoCatalogue
         DB::table('wheel_finishes')->whereIn('wheel_model_id', self::models())->delete();
         DB::table('wheel_models')->where('is_demo', true)->delete();
 
-        // A demo tyre's model goes with it, before the brand its key names; one that still has a real size stays (D-407).
+        // A demo tyre's model goes with it, before the brand its key names; one that still has a real size stays (D-407). Not counted
+        // among the demo rows: a model is its sizes, and every admin page asks those counts.
         $tyreModels = self::tyreModels()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all();
         self::deleteIn('tyre_model_images', 'tyre_model_id', $tyreModels);
         self::deleteIn('tyre_models', 'id', $tyreModels);
@@ -271,8 +268,6 @@ final class DemoCatalogue
             'approval_documents' => DB::table($table)->whereIn('id', self::documents()),
             'wheel_configs', 'wheel_finishes' => DB::table($table)->whereIn('wheel_model_id', self::models()),
             'wheel_models', 'tyre_variants', 'balance_weight_colours', 'tpms_sensor_prices' => DB::table($table)->where('is_demo', true),
-            'tyre_models' => DB::table($table)->whereIn('id', self::tyreModels()),
-            'tyre_model_images' => DB::table($table)->whereIn('tyre_model_id', self::tyreModels()),
             // An invented brand of the example catalogue, or one the acceptance set brought (born demo) — and either only
             // while no real model or tyre carries it.
             'brands' => DB::table($table)->where(static fn (Builder $q) => $q->whereIn('name', CatalogueSeeder::BRANDS)->orWhere('is_demo', true))

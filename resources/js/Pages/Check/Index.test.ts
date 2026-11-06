@@ -16,6 +16,9 @@ const visit = vi.fn()
 let forms: Array<Record<string, unknown>> = []
 const shared: { vehicle: VehicleProp | null; smallBusiness: boolean } = { vehicle: null, smallBusiness: false }
 
+// What Inertia keeps in the history entry (useRemember): the same object again when the page comes back.
+const remembered = vi.hoisted(() => ({} as Record<string, object>))
+
 vi.mock('@inertiajs/vue3', () => ({
     Head: defineComponent({ setup: () => () => null }),
     Link: defineComponent({
@@ -24,6 +27,7 @@ vi.mock('@inertiajs/vue3', () => ({
     }),
     router: { get: (...args: unknown[]) => get(...args), visit: (...args: unknown[]) => visit(...args) },
     usePage: () => ({ url: '/rimify-check?felge=db8gt2', props: shared }),
+    useRemember: <T extends object>(data: T, key: string) => (remembered[key] ??= data) as T,
     useForm: <T extends object>(data: T) => {
         const form = reactive({
             ...data,
@@ -186,6 +190,7 @@ function mountCheck(overrides: Partial<CheckProps> = {}): VueWrapper {
 }
 
 beforeEach(() => {
+    Object.keys(remembered).forEach((key) => delete remembered[key])
     post.mockReset()
     get.mockReset()
     visit.mockReset()
@@ -344,6 +349,18 @@ describe('RIMIFY-Check', () => {
         expect(wrapper.find('.chk__go').attributes('aria-busy')).toBe('true')
         await wrapper.find('.chk__go').trigger('click')
         expect(post).toHaveBeenCalledTimes(1)
+    })
+
+    it('finds Kompletträder again when Back brings the page back', async () => {
+        shared.vehicle = VEHICLE
+        const first = mountCheck({ answer: answer() })
+
+        await first.find('input[name="chk-mode"][value="komplettrad"]').setValue()
+        first.unmount()
+
+        const again = mountCheck({ answer: answer() })
+
+        expect((again.find('input[name="chk-mode"][value="komplettrad"]').element as HTMLInputElement).checked).toBe(true)
     })
 
     it('leads a Komplettrad on to its steps from the size answered, with what it starts from', async () => {

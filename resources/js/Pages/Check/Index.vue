@@ -13,8 +13,8 @@
  * One page for every width.
  */
 
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
-import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { Head, Link, router, useForm, usePage, useRemember } from '@inertiajs/vue3'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, toRef, useTemplateRef, watch } from 'vue'
 import { setSummary } from '../Komplettrad/komplettradFlow'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import BuyModeChoice from '../../Components/Product/BuyModeChoice.vue'
@@ -30,6 +30,7 @@ import { tyreUnconfirmed } from '../../composables/useConfigurator'
 import { focusPapersForm, waitsForPapers } from '../../lib/papersForm'
 import { useShared } from '../../composables/useShared'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
+import { OFFLINE_ADD } from '../../lib/basketAdd'
 import { contactHref } from '../../lib/contact'
 import type { CheckProps } from '../../types/pages'
 import type { VerdictStatus } from '../../types/rimify'
@@ -191,7 +192,9 @@ const config = computed(() => props.answer?.config ?? null)
 /* The rim alone sells while the tyres wait for the car's papers, where the wheel's approval does not (D-289). */
 const sellable = computed(() => config.value?.verdict?.sellable === true || config.value?.verdict?.rimSellable === true)
 
-const mode = ref<'felgen' | 'komplettrad'>('felgen')
+/* Back finds it as it was left: kept in the history entry (useRemember). */
+const kept = useRemember(reactive({ mode: 'felgen' as 'felgen' | 'komplettrad' }), 'check-kauf') as { mode: 'felgen' | 'komplettrad' }
+const mode = toRef(kept, 'mode')
 const isSet = computed(() => mode.value === 'komplettrad')
 /* The Komplettrad goes on in its own steps from this size (the Gutachten rework §9): here only whether there is one, and from what price. */
 const setOffer = computed(() => setSummary(config.value))
@@ -213,7 +216,7 @@ const shownPrice = computed(() => {
 
 const shownNote = computed(() => {
     if (isSet.value) {
-        return setFrom.value === null ? '' : `${setFromUnit.value}, Komplettrad mit Montage, ${terms.value.note}`
+        return setFrom.value === null ? '' : `${setFromUnit.value}, ${setOffer.value.priceOpen ? 'Komplettrad' : 'Komplettrad mit Montage'}, ${terms.value.note}`
     }
 
     return rimAmount.value === 1 ? `für 1 Felge, ${terms.value.note}` : `für ${rimAmount.value} Felgen, pro Felge ${config.value?.price ?? ''}, ${terms.value.note}`
@@ -224,6 +227,8 @@ const basket = useForm({
     wheelConfigId: 0,
     tyreVariantId: null as number | null,
     quantity: 4,
+    /* The car this page answers for: an add under another, chosen meanwhile in another window, is refused rather than made for it. */
+    vehicleId: null as number | null,
 })
 
 /* After the add, the page is on its way to the basket: nothing more is bought from it (CHECK-07). */
@@ -272,7 +277,6 @@ const buyLabel = computed(() => {
 })
 
 /* Without a connection the add never reached us: said under the button, nothing in the basket (CHECK-09). */
-const OFFLINE_ADD = 'Keine Verbindung – es wurde nichts in den Warenkorb gelegt. Versuch es gleich noch einmal.'
 const buyOffline = ref(false)
 
 const addError = computed(
@@ -306,6 +310,7 @@ function buy(): void {
     basket.wheelConfigId = current.id
     basket.tyreVariantId = null
     basket.quantity = rimAmount.value
+    basket.vehicleId = shared.value.vehicle?.id ?? null
     basket.post('/warenkorb', {
         preserveScroll: true,
         // Only the add's own answer — this page again — leads on to the basket; an error page stays on screen.

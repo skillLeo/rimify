@@ -163,7 +163,25 @@ describe('what the product page says of it', () => {
 
         expect(setSummary(two)).toMatchObject({ ready: true, from: '900,00 €', fromUnit: 'pro Rad' })
         expect(setSummary(pairs)).toMatchObject({ ready: true, from: '3.000,00 €', fromUnit: 'für 2 + 2' })
-        expect(setSummary(null)).toMatchObject({ ready: false, from: null })
+        expect(setSummary(null)).toMatchObject({ ready: false, from: null, priceOpen: false })
+    })
+})
+
+describe('the EU label’s title', () => {
+    it('keeps a size in one piece, on a phone too', () => {
+        const label = { fuel: 'B', wetGrip: 'A', noiseDb: 70, noiseClass: 'B', snowGrip: true, iceGrip: false, eprelId: '123' } as never
+        const offer = offerOf(config({ komplettrad: { refusal: null, refusalCode: null, minSentence: null, priceOpen: false, quantity: 4, tyres: [tyre({ label })] } }), {})
+
+        expect(offer.same[0]!.sides[0]!.eu?.title).toContain('245/45\u00A0R19\u00A0100Y')
+    })
+})
+
+describe('what the product page may promise of the price', () => {
+    it('says the fee is open where nobody has named it, so „mit Montage“ never stands above „Ohne Montage“', () => {
+        const open = config({ komplettrad: { refusal: null, refusalCode: null, minSentence: null, priceOpen: true, quantity: 4, tyres: [tyre()] } })
+
+        expect(setSummary(open).priceOpen).toBe(true)
+        expect(setSummary(config()).priceOpen).toBe(false)
     })
 })
 

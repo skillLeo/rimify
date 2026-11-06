@@ -42,6 +42,8 @@ class BasketLineRequest extends FormRequest
             // The RDKS answer given beside a Komplettrad on the product page (#15): recorded as the checkout's own.
             'rdks' => ['nullable', Rule::in(['ja', 'nein'])],
             'quantity' => ['required', 'integer', 'min:1', 'max:99'],
+            // The car the page answered for: an add under another, chosen meanwhile in another window, is refused.
+            'vehicleId' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -96,6 +98,14 @@ class BasketLineRequest extends FormRequest
     }
 
     /** The RDKS answer that came with a Komplettrad, `ja` or `nein`; null where none was given (rims, or another page). */
+    /** The car the page that sent this answered for, where it said. */
+    public function expectedVehicle(): ?int
+    {
+        $id = $this->validated('vehicleId');
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
     public function rdks(): ?string
     {
         $value = $this->validated('rdks');

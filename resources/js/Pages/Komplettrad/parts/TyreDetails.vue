@@ -5,7 +5,7 @@
  * at 390 px the facts wrap, the label stays as wide as the dialog lets it.
  */
 
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import Dialog from '../../../Components/Ui/Dialog.vue'
 import Picture from '../../../Components/Ui/Picture.vue'
 import SeasonMark from '../../../Components/Ui/SeasonMark.vue'
@@ -26,7 +26,10 @@ watch(open, (value) => {
 })
 
 const title = computed(() => (props.card ? [props.card.brands.join(' · '), props.card.name].filter(Boolean).join(' ') : 'Reifen'))
-const photo = computed(() => props.card?.photos[view.value] ?? null)
+/* A photograph that does not load leaves the row: the next one, or the neutral outline, never a broken image. */
+const failed = reactive(new Set<string>())
+const shots = computed(() => (props.card?.photos ?? []).filter((item) => !failed.has(item.name)))
+const photo = computed(() => shots.value[view.value] ?? shots.value[0] ?? null)
 const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu !== null))
 </script>
 
@@ -34,13 +37,13 @@ const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu
     <Dialog v-model:open="open" :title="title" content-class="tc-details" wide>
         <div v-if="card" class="td">
             <div class="td__gallery">
-                <div class="td__picture">
-                    <Picture v-if="photo" :image="photo" :alt="String(photo.alt ?? '')" sizes="(min-width: 768px) 560px, 90vw" />
-                    <TyreSilhouette v-else :px="200" />
+                <div class="td__picture" @error.capture="photo && failed.add(photo.name)">
+                    <Picture v-if="photo" :key="photo.name" :image="photo" :alt="String(photo.alt ?? '')" sizes="(min-width: 768px) 560px, 90vw" />
+                    <TyreSilhouette v-else />
                 </div>
-                <div v-if="card.photos.length > 1" class="td__thumbs" role="group" aria-label="Ansichten">
+                <div v-if="shots.length > 1" class="td__thumbs" role="group" aria-label="Ansichten">
                     <button
-                        v-for="(item, index) in card.photos"
+                        v-for="(item, index) in shots"
                         :key="item.name"
                         class="td__thumb"
                         :class="{ 'td__thumb--on': index === view }"
@@ -67,7 +70,7 @@ const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu
                     </div>
                     <div>
                         <dt>Preis</dt>
-                        <dd><span translate="no">{{ card.set }}</span> {{ card.unit }} · {{ card.each }}</dd>
+                        <dd><span class="td__size" translate="no">{{ card.set }}</span><span class="td__meaning">{{ card.unit }} · {{ card.each }}</span></dd>
                     </div>
                     <div>
                         <dt>Verfügbarkeit</dt>
@@ -80,7 +83,7 @@ const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu
         </div>
         <template #actions>
             <button class="btn btn--secondary" type="button" @click="open = false">Schließen</button>
-            <button class="btn btn--primary" type="button" @click="emit('choose'); open = false">{{ chosen ? 'Ausgewählt' : 'Auswählen' }}</button>
+            <button v-if="!chosen" class="btn btn--primary" type="button" @click="emit('choose'); open = false">Auswählen</button>
         </template>
     </Dialog>
 </template>
@@ -99,16 +102,29 @@ const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu
 }
 
 .td__picture {
+    position: relative;
     display: grid;
     place-items: center;
     aspect-ratio: 4 / 3;
+    width: 100%;
     max-width: 100%;
+    max-height: 40dvh;
     overflow: hidden;
-    border-radius: var(--r-control);
+    border-radius: var(--r-tile);
     background: var(--c-band);
 }
 
-.td__picture :deep(img) {
+.td__picture :deep(.tyre-silhouette) {
+    width: 45%;
+}
+
+/* The picture fills the well, and the photograph shows whole in it: a square one sized to its content ran 25 % past a 4:3 well. */
+.td__picture :deep(.picture) {
+    position: absolute;
+    inset: 0;
+}
+
+.td__picture :deep(.picture img) {
     display: block;
     width: 100%;
     height: 100%;
@@ -151,6 +167,7 @@ const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu
 .td__list > div {
     display: grid;
     grid-template-columns: minmax(0, calc(12 * var(--ch-text))) minmax(0, 1fr);
+    align-items: baseline;
     gap: var(--sp-8);
 }
 
@@ -182,5 +199,26 @@ const labels = computed(() => (props.card?.sides ?? []).filter((side) => side.eu
 .td__label {
     width: 100%;
     min-width: 0;
+}
+</style>
+
+<style>
+/*
+ * The buttons stay in sight, however long a real tyre's label makes the dialog (over 1.000 px against 860 at 1440 × 900). Not scoped: the
+ * dialog is portalled. A sticky box stops at the scroll box's padding, so it reaches past it to the edge.
+ */
+/* However long the name: the close button stays on the dialog, at 320 px too. */
+.tc-details .dialog__head > :first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tc-details .dialog__actions {
+    position: sticky;
+    bottom: calc(-1 * var(--sp-32));
+    margin: var(--sp-24) calc(-1 * var(--sp-32)) calc(-1 * var(--sp-32));
+    padding: var(--sp-12) var(--sp-32) var(--sp-16);
+    border-top: 1px solid var(--c-line);
+    background: var(--c-surface);
 }
 </style>

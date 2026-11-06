@@ -42,6 +42,8 @@ test('steps in the address: rim, tyres, extras, basket — Back goes one back, a
     await page.locator('[data-tyre-card] .tc__pick').first().click()
     await expect(page.locator('.tc--on')).toHaveCount(1)
     await expect(page.locator('.kf-pick')).toContainText('Gewählt:')
+    // The step's one action stays in sight, however long the list: on a phone it stood 1.300 px below the tile.
+    await expect(page.getByRole('button', { name: 'Weiter: Extras' })).toBeInViewport()
 
     // 3 Extras: nothing preselected, and the basket waits for the answer on the sensors.
     await page.getByRole('button', { name: 'Weiter: Extras' }).click()
@@ -163,6 +165,9 @@ test('„Details“ shows all about a tyre without choosing it, and fits a phone
     expect(clipped.sideways, 'the dialog scrolls sideways').toBeLessThanOrEqual(0)
     expect(clipped.past, 'something stands past the dialog’s edge').toEqual([])
     await noSidewaysScroll(page)
+
+    // Its buttons in sight, however long a real tyre's label makes the dialog.
+    await expect(dialog.getByRole('button', { name: 'Auswählen' })).toBeInViewport()
 
     await dialog.getByRole('button', { name: 'Auswählen' }).click()
     await expect(page.locator('.tc--on')).toHaveCount(1)

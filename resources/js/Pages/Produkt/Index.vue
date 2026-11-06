@@ -46,6 +46,7 @@ import { useShared } from '../../composables/useShared'
 import { claimBottomEdge } from '../../composables/useShell'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { decimal, withUnit } from '../../format'
+import { OFFLINE_ADD } from '../../lib/basketAdd'
 import { contactHref as contactFormHref } from '../../lib/contact'
 import { focusPapersForm, waitsForPapers } from '../../lib/papersForm'
 import { useVehicleChangeHref } from '../../lib/vehicleChange'
@@ -264,7 +265,10 @@ const basket = useForm({
     wheelConfigId: 0,
     tyreVariantId: null as number | null,
     quantity: 4,
+    /* The car this page answers for: an add under another, chosen meanwhile in another window, is refused rather than made for it. */
+    vehicleId: null as number | null,
 })
+const offline = ref(false)
 
 /*
  * Nur Felgen or Komplettrad (the client's #18): one choice in the panel, and switching keeps everything else — the finish, the size
@@ -280,10 +284,15 @@ const isSet = computed(() => mode.value === 'komplettrad')
 const setOffer = computed(() => setSummary(selected.value))
 const setFrom = computed(() => setOffer.value.from)
 const setFromUnit = computed(() => setOffer.value.fromUnit)
+/* No „mit Montage“ above „Ohne Montage und Auswuchten“: where nobody has named the fee, the figure holds none. */
+const setWords = computed(() => (setOffer.value.priceOpen ? 'Komplettrad' : 'Komplettrad mit Montage'))
 const komplettradHref = computed(() => (selected.value ? `/komplettraeder?groesse=${selected.value.id}` : '/felgen'))
 
 /* A refusal of the last add belongs to the choice it was made under: another mode or size starts clean (PDP-09). */
-watch([mode, () => selected.value?.id], () => basket.clearErrors())
+watch([mode, () => selected.value?.id], () => {
+    basket.clearErrors()
+    offline.value = false
+})
 
 /*
  * How many rims (#17): four preselected — a car takes four — and the price beside it is the server's figure for that
@@ -477,10 +486,10 @@ const shownNote = computed(() => {
         return amountNote.value
     }
 
-    return setFrom.value === null ? '' : `${setFromUnit.value}, Komplettrad mit Montage, ${terms.value.note}`
+    return setFrom.value === null ? '' : `${setFromUnit.value}, ${setWords.value}, ${terms.value.note}`
 })
 
-const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.quantity ?? null)
+const addError = computed(() => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.quantity ?? (offline.value ? OFFLINE_ADD : null))
 
 function addToBasket(): void {
     if (papersFirst.value) {
@@ -497,8 +506,18 @@ function addToBasket(): void {
     basket.wheelConfigId = selected.value.id
     basket.tyreVariantId = null
     basket.quantity = amount.value
+    basket.vehicleId = shared.value.vehicle?.id ?? null
+    offline.value = false
     // The address the page has by the time the answer comes: a version picked meanwhile stays in it.
-    basket.post('/warenkorb', { preserveScroll: true, preserveUrl: true })
+    basket.post('/warenkorb', {
+        preserveScroll: true,
+        preserveUrl: true,
+        onNetworkError: () => {
+            offline.value = true
+
+            return false
+        },
+    })
 }
 
 const weight = computed(() => {
@@ -995,7 +1014,7 @@ claimBottomEdge(() => stickyShown.value)
     <div v-if="stickyShown" class="stickybar pdp__sticky">
         <div v-if="shownPrice" class="pdp__sticky-price">
             <p class="price" translate="no">{{ shownPrice }}</p>
-            <p v-if="isSet" class="price-note">{{ setFromUnit }}, Komplettrad mit Montage</p>
+            <p v-if="isSet" class="price-note">{{ setFromUnit }}, {{ setWords }}</p>
             <p v-else class="price-note">{{ amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
             <!-- The PAngV line beside every price, the bar's too (the operator's brief of 14.10.2026 §8). -->
             <p class="price-legal pdp__sticky-legal">{{ terms.note }}</p>

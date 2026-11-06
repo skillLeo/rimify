@@ -92,6 +92,20 @@ const tpms = computed(() => props.totals.tpms ?? null)
 /** The question is asked only of a basket with a Komplettrad (D-034). */
 const tpmsApplicable = computed(() => tpms.value?.applicable === true)
 
+/*
+ * Asked once (D-408): answered in the Komplettrad's steps, it stands here as an answer that can be changed. The question comes where no
+ * answer applies — a car changed after the add —, where a „Ja“ has lost its price, and once the customer asks to change it.
+ */
+const rdksChanging = ref(false)
+const rdksAsked = computed(() => rdksChanging.value || tpms.value?.choice === null || (tpms.value?.choice === 'ja' && tpms.value.available !== true))
+
+watch(() => tpms.value?.choice, (choice) => {
+    // Answered here: it stays open under the customer's hand, until they go on.
+    if (choice === null) {
+        rdksChanging.value = true
+    }
+})
+
 /** The server's own sentence for an unanswered question — the same one it refuses the order with. */
 const TPMS_UNANSWERED = 'Bitte sag uns noch, ob du RDKS-Sensoren brauchst.'
 
@@ -1172,7 +1186,16 @@ function verdictSentence(line: BasketLine): string {
                                 <h2 class="t-h2 ko__step-title" tabindex="-1" data-step-title>Optionen &amp; Versand</h2>
 
                                 <!-- Reifendruck-Sensoren: asked here because the client asked for exactly that (D-039). -->
-                                <fieldset v-if="tpmsApplicable && tpms" class="ko__group ko__rdks">
+                                <p v-if="tpmsApplicable && tpms && !rdksAsked" class="ko__rdks-answer" data-rdks-answered>
+                                    <span>
+                                        <template v-if="tpms.choice === 'ja'">Mit RDKS-Sensoren · <span class="tabular">{{ tpms.line }}</span></template>
+                                        <template v-else>Ohne RDKS-Sensoren</template>
+                                    </span>
+                                    <button class="btn btn--quiet ko__change" type="button" @click="rdksChanging = true">
+                                        Ändern<span class="visually-hidden"> (RDKS-Sensoren)</span>
+                                    </button>
+                                </p>
+                                <fieldset v-else-if="tpmsApplicable && tpms" class="ko__group ko__rdks">
                                     <legend class="t-h3">Reifendruck-Sensoren (RDKS)</legend>
                                     <p id="ko-rdks-q" class="ko__rdks-q">Brauchst du RDKS-Sensoren?</p>
                                     <p class="t-small ko__rdks-help">
@@ -1790,6 +1813,15 @@ function verdictSentence(line: BasketLine): string {
 }
 
 /* ── RDKS ─────────────────────────────────────────────────────────────────── */
+
+.ko__rdks-answer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8) var(--sp-16);
+    margin: 0 0 var(--sp-24);
+}
 
 .ko__rdks-q {
     font-weight: 700;

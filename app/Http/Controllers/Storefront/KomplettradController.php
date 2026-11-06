@@ -10,6 +10,7 @@ use App\Http\Requests\Storefront\KomplettradRequest;
 use App\Models\WheelConfig;
 use App\Services\Admin\Catalogue\TyreModels;
 use App\Services\Commerce\KomplettradPricer;
+use App\Services\Storefront\Basket;
 use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\WheelTitle;
@@ -32,6 +33,7 @@ class KomplettradController extends Controller
         private readonly FelgenController $felgen,
         private readonly TyreModels $models,
         private readonly KomplettradPricer $pricer,
+        private readonly Basket $basket,
     ) {}
 
     public function show(KomplettradRequest $request): Response|RedirectResponse
@@ -42,13 +44,22 @@ class KomplettradController extends Controller
             ->whereHas('wheelModel', static fn ($q) => $q->where('status', CatalogueStatus::Published->value))
             ->first();
 
-        // No such size: back to the rims, never a dead end.
+        // No such size: back to the rims, never a dead end, and with a word where a size was named.
         if ($config === null) {
-            return redirect('/felgen');
+            return $request->size() === 0 ? redirect('/felgen') : redirect('/felgen')->with('toast', 'Diese Ausführung finden wir nicht mehr im Shop.');
         }
 
-        $answer = $this->felgen->answerFor($request, $config);
+        // Its steps are the same question on the same size, no check of its own.
+        $answer = $this->felgen->answerFor($request, $config, countsAsCheck: false);
         $row = $answer['config'];
+        $held = $this->basket->setsHeld($request);
+        $options = $answer['komplettradOptions'];
+
+        // The basket holds one answer on the sensors, for all its wheels (D-411): the question names what it costs for all of them.
+        if (is_array($options)) {
+            $options['tpms'] = $this->basket->tpmsOffer($request, self::SET_OF + $held['wheels']);
+        }
+
         $model = $config->wheelModel;
         $finish = $config->wheelFinish;
         $mounting = $this->pricer->mountingPerWheel();
@@ -66,7 +77,8 @@ class KomplettradController extends Controller
                 'art' => ['finish' => $finish->art_finish, 'spokes' => (int) $model->spoke_count],
             ],
             'config' => $row,
-            'options' => $answer['komplettradOptions'],
+            'options' => $options,
+            'inBasket' => $held,
             'photos' => (object) $this->models->photosOf(self::tyreIds($row)),
             // Null while nobody has named a fee (D-032): the page says so, never a guessed figure.
             'mounting' => $mounting === null ? null : [

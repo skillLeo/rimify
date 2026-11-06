@@ -124,7 +124,10 @@ test('one car\'s lines copied to another with its own approval number — and on
     await dialog.getByRole('button', { name: 'Kopieren', exact: true }).click()
     await expect(dialog).toBeHidden({ timeout: 15_000 })
 
+    // A car's lines come from the server a moment after its title: read once they are there.
     await car(page, 'E46')
+    await expect(page.locator('[id^=ef-front-]').first()).toBeVisible({ timeout: 15_000 })
+
     const e46 = await lines(page)
 
     for (const [front, rear] of HIS) {
@@ -154,6 +157,14 @@ test('load index and speed symbol read apart — a size pasted as printed settle
     await shotAround(page, [page.locator('.ef-line').last()], 209, info)
 })
 
+/** The released document of that number: the list may hold a new Fassung of it, which opens on the steps. */
+async function openReleased(page: Page, number: string): Promise<void> {
+    await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
+    await page.locator('tbody tr', { hasText: number }).filter({ hasText: 'Freigegeben' }).locator('.gd-link').first().click()
+    await page.waitForURL(/\/admin\/gutachten\/\d+(\?.*)?$/)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(number)
+}
+
 /** A document of the acceptance set, by a piece of its number, opened from the Gutachten list. */
 async function openDocument(page: Page, number: string): Promise<void> {
     await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
@@ -178,11 +189,12 @@ test('the table of tyre load at speed: whole where the document prints one, one 
     await expect(fold).toContainText('Laut den Angaben verweist es für Lastindex und Geschwindigkeitssymbol auf die Fahrzeugpapiere.')
     await shotAround(page, [fold], 215, info)
 
-    // ABE 55255 prints its table: there the section stands whole, and says the release waits for it.
-    await openDocument(page, '55255')
+    // ABE 55255 prints its table: in the read view the section stands whole. That the release waits for it is said where it can
+    // still be entered, in the steps (Erfassung/StepPaper.vue). The released paper: a new Fassung of it may stand in the list too.
+    await openReleased(page, '55255')
     const section = page.locator('section[aria-labelledby="gs-derating-h"]')
     await expect(section).toBeVisible()
-    await expect(section).toContainText('Laut den Angaben druckt dieses Gutachten eine solche Tabelle')
+    await expect(section).toContainText('so, wie dieses Gutachten es druckt')
     await expect(page.locator('details.gs-fold')).toHaveCount(0)
 })
 
@@ -470,7 +482,7 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     await expect(page.locator('button.pdp__add')).toHaveCount(0)
     const rim = `Beispielmarke ${model} BM 18`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const subject = new URL((await enquiry.getAttribute('href')) ?? '', ABNAHME).searchParams.get('betreff') ?? ''
-    expect(subject).toMatch(new RegExp(`^Anfrage zur Verfügbarkeit: ${rim} .+, \\d+(,\\d+)?J × \\d+(,\\d)?, ET -?\\d+$`))
+    expect(subject).toMatch(new RegExp(`^Anfrage zur Verfügbarkeit: ${rim} .+, \\d+(,\\d+)?J × \\d+(,\\d)?, ET -?\\d+, \\d+ × [\\d,]+, [\\d,]+ mm$`))
     await shotAround(page, [page.locator('.pdp__each'), page.locator('.pdp__stock'), page.locator('.pdp__unavailable'), enquiry], 207, info)
 
     // The form opens with that subject, the visitor writes name, e-mail and message only.

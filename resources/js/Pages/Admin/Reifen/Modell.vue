@@ -6,7 +6,7 @@
  */
 
 import { Link } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
@@ -30,6 +30,15 @@ const editor = useDirtyForm(
 )
 
 const form = editor.form
+
+/* After a save the server's row is the truth: a new brand is then simply the brand, no longer a field still open. */
+watch(
+    () => [props.model.brandId, props.model.name, props.model.season],
+    () => {
+        form.defaults({ brand_id: props.model.brandId as number, brand_new: '', name: props.model.name, season: props.model.season })
+        form.reset()
+    },
+)
 
 /* Sent as the server reads it: a chosen brand or a new one, never both. */
 form.transform((data) => ({
@@ -69,7 +78,7 @@ const photoSubject = computed(() => ({
             <div class="adm-section__head">
                 <h2 id="rm-photos-h" class="adm-section__title">Fotos</h2>
             </div>
-            <p class="adm-note rm-note">Bis zu vier Fotos je Modell, zum Beispiel Seitenansicht, Lauffläche, Profil und Schrägansicht. Sie gelten für alle Größen. Das erste ist das Hauptbild im Shop.</p>
+            <p class="adm-note rm-note">Bis zu vier Fotos je Modell, zum Beispiel Seitenansicht, Lauffläche, Profil und Schrägansicht. Sie gelten für alle Größen.</p>
             <FinishPhotos
                 :model-id="model.id"
                 :finish-id="model.id"
@@ -120,7 +129,7 @@ const photoSubject = computed(() => ({
         <section class="adm-section" aria-labelledby="rm-sizes-h">
             <div class="adm-section__head">
                 <h2 id="rm-sizes-h" class="adm-section__title">Größen</h2>
-                <Link v-if="can.create && !model.demo && firstSize" :href="`/admin/reifen/neu?wie=${firstSize}`" class="btn btn--secondary">
+                <Link v-if="can.create && !model.demo" :href="firstSize ? `/admin/reifen/neu?wie=${firstSize}` : `/admin/reifen/neu?modell=${model.id}`" class="btn btn--secondary">
                     <Icon name="plus" :size="20" />
                     Größe hinzufügen
                 </Link>
@@ -154,7 +163,7 @@ const photoSubject = computed(() => ({
                                 <template v-else-if="line.demo">–</template>
                                 <span v-else class="adm-tag adm-tag--warn" :title="`Noch nicht eingetragen: ${line.missingLabel.join(', ')}`">Unvollständig</span>
                             </td>
-                            <td data-label="EPREL">{{ line.eprel ?? '–' }}</td>
+                            <td data-label="EPREL" data-phone="hide">{{ line.eprel ?? '–' }}</td>
                             <td data-label="Stand" data-phone="status">
                                 <span v-if="line.demo" class="rm-quiet">Demodaten</span>
                                 <span v-else-if="!line.available" class="adm-tag adm-tag--neutral">Nicht verfügbar</span>

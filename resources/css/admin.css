@@ -2763,18 +2763,18 @@ a.adm-foot__health {
         position: relative;
     }
 
-    :is(.adm-table__key, .fz-name, .fg-name, .ob-number)::after {
+    :is(.adm-table__key, .fz-name, .fg-name, .ob-number, .rf-name, .rm-size)::after {
         content: '';
         position: absolute;
         inset: 0;
     }
 
     /* Its key line is at least a finger high, too. */
-    .adm-table tbody td:first-child:has(> :is(.adm-table__key, .fz-name, .fg-name, .ob-number)) {
+    .adm-table tbody td:first-child:has(:is(.adm-table__key, .fz-name, .fg-name, .ob-number, .rf-name, .rm-size)) {
         min-height: var(--adm-control-h-lg);
     }
 
-    .adm-table tbody td :is(button, input, select, textarea, label, a):not(.adm-table__key, .fz-name, .fg-name, .ob-number) {
+    .adm-table tbody td :is(button, input, select, textarea, label, a):not(.adm-table__key, .fz-name, .fg-name, .ob-number, .rf-name, .rm-size) {
         position: relative;
         z-index: var(--z-raised);
     }

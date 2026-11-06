@@ -19,6 +19,7 @@ use App\Support\GermanFormat;
 use App\Support\WheelTitle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -102,11 +103,7 @@ class CheckController extends Controller
                 ->map(static fn (WheelModel $m): array => ['slug' => $m->slug, 'name' => WheelTitle::nameFor((string) $brand->name, $m->name, $m->type_designation, $m->title)])
                 ->all(),
             'wheelFinishes' => $finishes->map(static fn ($f): array => ['id' => (int) $f->id, 'name' => (string) $f->name_de])->all(),
-            'wheelSizes' => $sizes->map(static fn (WheelConfig $c): array => [
-                'id' => (int) $c->id,
-                // The whole version: two of one width and ET are two answers, never one line twice (the Gutachten rework §8).
-                'label' => GermanFormat::wheelLabel((float) $c->width_in, (float) $c->diameter_in, (int) $c->et_mm, (int) $c->bolt_holes, (float) $c->bolt_circle_mm, (float) $c->centre_bore_mm),
-            ])->all(),
+            'wheelSizes' => self::versionsApart($sizes),
             'chosen' => ['brand' => $brand?->slug, 'wheel' => $wheel?->slug, 'finish' => $finishId, 'size' => $config?->id],
             'notFound' => $notFound,
             // „Ändern“ on a chosen car, in the address (CHECK-01, -02): every drill step keeps the selector open, a choice
@@ -125,6 +122,31 @@ class CheckController extends Controller
                 ...app(FelgenController::class)->answerFor($request, $config),
             ],
         ]);
+    }
+
+    /**
+     * The sizes of a colour as a list a phone can read (CHECK-05): width, diameter and ET. Where those name two versions (the Gutachten
+     * rework §8), the bolt pattern too, and the bore where even that is not enough: two answers are never one line twice.
+     *
+     * @param  Collection<int, WheelConfig>  $sizes
+     * @return list<array{id: int, label: string}>
+     */
+    private static function versionsApart(Collection $sizes): array
+    {
+        $short = static fn (WheelConfig $c): string => GermanFormat::wheelSize((float) $c->width_in, (float) $c->diameter_in, (int) $c->et_mm);
+        $patterned = static fn (WheelConfig $c): string => $short($c).' '.GermanFormat::MIDDOT.' '.GermanFormat::boltPattern((int) $c->bolt_holes, (float) $c->bolt_circle_mm);
+        $shorts = $sizes->countBy($short);
+        $patterns = $sizes->countBy($patterned);
+
+        return $sizes->map(static function (WheelConfig $c) use ($short, $patterned, $shorts, $patterns): array {
+            $label = match (true) {
+                $shorts[$short($c)] === 1 => $short($c),
+                $patterns[$patterned($c)] === 1 => $patterned($c),
+                default => $patterned($c).' '.GermanFormat::MIDDOT.' '.GermanFormat::millimetres((float) $c->centre_bore_mm),
+            };
+
+            return ['id' => (int) $c->id, 'label' => $label];
+        })->values()->all();
     }
 
     /**

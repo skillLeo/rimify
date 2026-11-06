@@ -30,7 +30,7 @@ it('flashes the rims just added, at their price, and the basket as it now stands
         ->assertSessionHas('added', fn (array $added): bool => $added['heading'] === 'Zum Warenkorb hinzugefügt.'
             && count($added['lines']) === 1
             && $added['lines'][0]['title'] === trim($model->brand->name.' '.$model->name)
-            && str_starts_with($added['lines'][0]['detail'], 'Felge · ')
+            && str_starts_with($added['lines'][0]['detail'], 'Felge'.GermanFormat::NBSP.'· ')
             // The amount just added and its price — not the four the line now holds.
             && $added['lines'][0]['quantity'] === 2
             && $added['lines'][0]['price'] === GermanFormat::money(2 * (int) $set->config->price_cents)
@@ -45,8 +45,8 @@ it('flashes a Komplettrad with its tyre named', function (): void {
     $this->withCookies($set->cookies())
         ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, 'tyreVariantId' => $tyre->id, 'quantity' => 4])
         ->assertSessionHas('added', fn (array $added): bool => $added['heading'] === 'Komplettrad zum Warenkorb hinzugefügt.'
-            && str_starts_with($added['lines'][0]['detail'], 'Komplettrad · ')
-            && str_contains($added['lines'][0]['detail'], $tyre->label())
+            && str_starts_with($added['lines'][0]['detail'], 'Komplettrad'.GermanFormat::NBSP.'· ')
+            && str_contains($added['lines'][0]['detail'], str_replace(' ', GermanFormat::NBSP, $tyre->label()))
             && $added['lines'][0]['quantity'] === 4);
 });
 

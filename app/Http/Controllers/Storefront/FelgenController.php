@@ -482,12 +482,12 @@ class FelgenController extends Controller
      *
      * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}
      */
-    public function answerFor(Request $request, WheelConfig $config): array
+    public function answerFor(Request $request, WheelConfig $config, bool $countsAsCheck = true): array
     {
         $vehicleId = $this->vehicleId($request);
         $live = $vehicleId === null ? null : ($this->resolver->resolveMany($vehicleId, [(int) $config->id])[(int) $config->id] ?? null);
 
-        if ($live !== null) {
+        if ($live !== null && $countsAsCheck) {
             VerdictTally::record('check', [$live->status]);
         }
 

@@ -9,6 +9,7 @@ use App\Models\Brand;
 use App\Models\Vehicle;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Support\GermanFormat;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
 use Inertia\Testing\AssertableInertia;
@@ -63,6 +64,34 @@ it('asks for the car before it answers, and keeps the wheel and the size chosen'
             ->where('changing', false));
 });
 
+// The interaction review of Phase 3: „8J × 18 · ET 45“ twice, one sold and one refused. And short enough for a phone's list where nothing needs telling apart.
+it('tells versions of one width and ET apart in the list, by what differs, and leaves the others short', function (): void {
+    $set = KomplettradFixture::permitted();
+    $config = $set->config;
+    $wheel = $config->wheelModel;
+    $short = GermanFormat::wheelSize((float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm);
+    $sizes = fn (): array => $this->withCookies($set->cookies())->get('/rimify-check?hersteller='.$wheel->brand->slug.'&felge='.$wheel->slug.'&ausfuehrung='.$config->wheel_finish_id)->assertOk()->viewData('page')['props']['wheelSizes'];
+
+    expect(collect($sizes())->firstWhere('id', $config->id)['label'])->toBe($short);
+
+    $pattern = $config->replicate();
+    $pattern->sku = $config->sku.'-LK';
+    $pattern->bolt_circle_mm = (float) $config->bolt_circle_mm + 8;
+    $pattern->save();
+
+    $list = collect($sizes());
+
+    expect($list->firstWhere('id', $config->id)['label'])->toBe($short.' · '.GermanFormat::boltPattern((int) $config->bolt_holes, (float) $config->bolt_circle_mm))
+        ->and($list->firstWhere('id', $pattern->id)['label'])->toBe($short.' · '.GermanFormat::boltPattern((int) $pattern->bolt_holes, (float) $pattern->bolt_circle_mm));
+
+    $bore = $config->replicate();
+    $bore->sku = $config->sku.'-MB';
+    $bore->centre_bore_mm = (float) $config->centre_bore_mm + 6;
+    $bore->save();
+
+    expect(collect($sizes())->firstWhere('id', $bore->id)['label'])->toEndWith(GermanFormat::millimetres((float) $bore->centre_bore_mm));
+});
+
 it('keeps the size where another finish has it, and opens the first finish until one is chosen (CHECK-05)', function (): void {
     $set = KomplettradFixture::permitted();
     $wheel = $set->config->wheelModel;
@@ -77,9 +106,7 @@ it('keeps the size where another finish has it, and opens the first finish until
         ->and($props['chosen']['size'])->toBe($twin->id)
         ->and(collect($props['wheelFinishes'])->pluck('name'))->toContain('Zweitfarbe')
         ->and(collect($props['wheelSizes'])->pluck('id')->all())->toContain($twin->id)
-        ->and(collect($props['wheelSizes'])->pluck('label')->first())->not->toContain('·  ')
-        // The whole version: two sizes of one width and ET with different bolt patterns are two answers, never one line twice.
-        ->and(collect($props['wheelSizes'])->pluck('label')->first())->toContain('mm');
+        ->and(collect($props['wheelSizes'])->pluck('label')->first())->not->toContain('·  ');
 
     // Nothing named: the first finish, its sizes listed, no size chosen while it has several.
     $fresh = checkProps($this->get('/rimify-check?felge='.$wheel->slug));

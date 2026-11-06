@@ -45,6 +45,17 @@ function modellOf(string $name = 'Grip 7', ?Brand $brand = null): TyreModel
     return TyreModel::query()->where('name', $name)->sole();
 }
 
+it('starts a size for a model left without one from its brand, name and season', function (): void {
+    $model = modellOf();
+    TyreVariant::query()->where('name', $model->name)->delete();
+
+    $this->actingAs(modellAdmin(), 'admin')->get('/admin/reifen/neu?modell='.$model->id)->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('template.brandId', (int) $model->brand_id)
+            ->where('template.name', $model->name)
+            ->where('template.season', $model->season));
+});
+
 function modellStamp(mixed $test, TyreModel $model): string
 {
     return $test->actingAs(modellAdmin(), 'admin')->get('/admin/reifen/modell/'.$model->id)->assertOk()->viewData('page')['props']['stamp'];
@@ -181,7 +192,7 @@ it('reorders, relabels and removes photographs, renumbering what stays; a stale 
     $this->actingAs(modellAdmin(), 'admin')->put('/admin/reifen/modell/'.$model->id.'/fotos/'.$a, ['alt' => 'Prüfreifen Grip 7, Lauffläche'])->assertSessionHasNoErrors();
     expect(TyreModelImage::query()->find($a)->alt_de)->toBe('Prüfreifen Grip 7, Lauffläche');
 
-    $this->actingAs(modellAdmin(), 'admin')->delete('/admin/reifen/modell/'.$model->id.'/fotos/'.$c, ['alt' => 'Prüfreifen Grip 7, weg damit'])->assertSessionHasNoErrors();
+    $this->actingAs(modellAdmin(), 'admin')->delete('/admin/reifen/modell/'.$model->id.'/fotos/'.$c)->assertSessionHasNoErrors();
 
     expect($order())->toBe([$a, $b])
         ->and(TyreModelImage::query()->orderBy('position')->pluck('position')->all())->toBe([1, 2])
@@ -194,7 +205,7 @@ it('never takes another model’s photograph through this model’s address', fu
     $second = modellOf('Grip 8', $brand);
     $image = TyreModelImage::query()->create(['tyre_model_id' => $second->id, 'position' => 1, 'manifest' => ['kind' => 'photo'], 'alt_de' => 'Prüfreifen Grip 8, Seite']);
 
-    $this->actingAs(modellAdmin(), 'admin')->delete('/admin/reifen/modell/'.$first->id.'/fotos/'.$image->id, ['alt' => 'Prüfreifen Grip 8, Seite'])->assertNotFound();
+    $this->actingAs(modellAdmin(), 'admin')->delete('/admin/reifen/modell/'.$first->id.'/fotos/'.$image->id, ['_x' => '1'])->assertNotFound();
 
     expect(TyreModelImage::query()->count())->toBe(1);
 });

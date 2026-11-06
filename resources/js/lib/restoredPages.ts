@@ -43,6 +43,8 @@ export function recheck(page: { url: string; props?: Record<string, unknown> }):
     const only = [
         ...(asksCar ? ['vehicle'] : []),
         ...(catalogue !== null ? ['catalogue'] : []),
+        // What the session says now: the panel of an add long past came back with the page, and the badge counted a basket since emptied.
+        ...(shop ? ['flash', 'cartCount'] : []),
         ...(catalogue !== null && page.props?.admin !== undefined ? ['admin'] : []),
     ]
 

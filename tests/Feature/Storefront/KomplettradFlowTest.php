@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Domain\Storefront\VehicleKey;
 use App\Enums\CatalogueStatus;
 use App\Models\BalanceWeightColour;
+use App\Models\TpmsSensorPrice;
 use App\Models\TyreModel;
 use App\Models\TyreModelImage;
 use App\Services\Admin\Catalogue\TyreModels;
 use App\Services\Storefront\Basket;
 use App\Support\GermanFormat;
+use App\Support\MakeName;
 use App\Support\Money;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
@@ -60,6 +62,11 @@ it('leads back to the rims where the size is no size, never a dead end', functio
     'not a number' => '/komplettraeder?groesse=abc',
     'nobody’s' => '/komplettraeder?groesse=99999999',
 ]);
+
+it('says where a size has gone, on the way back to the rims', function (): void {
+    $this->get('/komplettraeder?groesse=99999999')->assertRedirect('/felgen')->assertSessionHas('toast', 'Diese Ausführung finden wir nicht mehr im Shop.');
+    $this->get('/komplettraeder')->assertRedirect('/felgen')->assertSessionMissing('toast');
+});
 
 it('shows no size of a model that is not on sale', function (): void {
     $set = KomplettradFixture::permitted();
@@ -173,7 +180,62 @@ it('says what a tyre’s figures mean, also for the symbol with no upper limit: 
     $tyre = $set->tyre(['load_index' => 100]);
     $card = collect(flowProps($this, $set)['config']['komplettrad']['tyres'])->firstWhere('id', $tyre->id);
 
-    expect($card['facts'])->toBe('Lastindex 100: bis 800'.GermanFormat::NBSP.'kg je Reifen · (Y): über 300'.GermanFormat::NBSP.'km/h');
+    expect($card['facts'])->toBe('Tragfähigkeitsindex 100: bis 800'.GermanFormat::NBSP.'kg je Reifen · (Y): über 300'.GermanFormat::NBSP.'km/h');
+});
+
+/*
+ * The basket holds one answer on the sensors, for all its wheels (D-411): the interaction review of Phase 4 found a second set's „Mit“
+ * charging the first set's sensors at a price the step had not said.
+ */
+it('prices the sensors for every wheel in the basket, and says what the basket holds', function (): void {
+    $set = KomplettradFixture::permitted();
+    $tyre = $set->tyre();
+    $other = $set->tyre(['name' => 'Anderer', 'width_mm' => $tyre->width_mm]);
+    TpmsSensorPrice::factory()->ofMake(MakeName::key($set->vehicle->make), MakeName::normalise($set->vehicle->make))->create(['price_cents' => 4_900]);
+
+    $alone = flowProps($this, $set);
+
+    expect($alone['inBasket'])->toBe(['wheels' => 0, 'keys' => []])
+        ->and($alone['options']['tpms']['quantity'])->toBe(4);
+
+    $this->withCookies($set->cookies())->from('/komplettraeder?groesse='.$set->config->id)
+        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, 'tyreVariantId' => $tyre->id, 'rdks' => 'nein', 'quantity' => 4])
+        ->assertSessionHasNoErrors();
+
+    $next = flowProps($this, $set);
+
+    expect($next['inBasket']['wheels'])->toBe(4)
+        ->and($next['inBasket']['keys'])->toBe(['wheel:'.$set->config->id.':tyre:'.$tyre->id])
+        ->and($next['options']['tpms']['quantity'])->toBe(8)
+        ->and($next['options']['tpms']['choice'])->toBe('nein');
+
+    // The second set, „Mit“: what the step said is what the basket charges.
+    $this->withCookies($set->cookies())->from('/komplettraeder?groesse='.$set->config->id)
+        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, 'tyreVariantId' => $other->id, 'rdks' => 'ja', 'quantity' => 4])
+        ->assertSessionHasNoErrors();
+
+    $tpms = $this->withCookies($set->cookies())->get('/warenkorb')->viewData('page')['props']['totals']['tpms'];
+
+    expect($tpms['quantity'])->toBe(8)
+        ->and($tpms['total'])->toBe($next['options']['tpms']['yesTotal']);
+});
+
+it('counts a set per axle as its four wheels, and no line without a tyre', function (): void {
+    $set = KomplettradFixture::permitted();
+
+    $this->withCookies($set->cookies())->from('/felgen')
+        ->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $set->config->id, 'tyreVariantId' => null, 'quantity' => 4])
+        ->assertSessionHasNoErrors();
+
+    expect(flowProps($this, $set)['inBasket']['wheels'])->toBe(0);
+});
+
+it('is no RIMIFY-Check: opening the steps counts as no question asked', function (): void {
+    $set = KomplettradFixture::permitted();
+
+    flowProps($this, $set);
+
+    expect(DB::table('verdict_tallies')->where('surface', 'check')->count())->toBe(0);
 });
 
 it('names no fee nobody has named: the steps say so, never a guessed figure', function (): void {

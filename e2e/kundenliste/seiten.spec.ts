@@ -179,7 +179,8 @@ async function admin(page: Page): Promise<void> {
 test('the level of an Auflage is set per Gutachten and code — and an Abnahme can never be made a mere Hinweis, the form says why', { tag: '@kunde-23' }, async ({ page }, info) => {
     await admin(page)
     await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
-    await page.locator('a', { hasText: '55255' }).first().click()
+    // The released paper: a new Fassung of it may stand in the list too, and opens on the steps.
+    await page.locator('tbody tr', { hasText: '55255' }).filter({ hasText: 'Freigegeben' }).locator('.gd-link').first().click()
     await page.waitForLoadState('networkidle')
 
     const table = page.locator('.av__table')

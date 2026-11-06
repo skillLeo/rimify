@@ -31,6 +31,11 @@ class TyreModelImageRequest extends FormRequest
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
+        // Taking a photograph away asks nothing of it: a description required here left the photo stuck, with no word why.
+        if ($this->isMethod('delete')) {
+            return [];
+        }
+
         return [
             'image' => [$this->isMethod('post') ? 'required' : 'prohibited', 'file', 'max:'.(12 * 1024)],
             'alt' => ['required', 'string', 'min:8', 'max:200'],

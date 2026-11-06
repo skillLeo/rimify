@@ -483,6 +483,18 @@ describe('Produkt page', () => {
             expect(opened('/felgen/x?groesse=999').finish).toBe('Graphit matt')
         })
 
+        it('says a lost connection at the add, and names the car the page answers for', async () => {
+            const wrapper = mountPage({ finishes, configs })
+
+            await wrapper.find('button.pdp__add').trigger('click')
+
+            const options = post.mock.calls[0]?.[1] as { onNetworkError: () => boolean }
+
+            expect(options.onNetworkError()).toBe(false)
+            await flushPromises()
+            expect(wrapper.find('.pdp__add-error').text()).toContain('Keine Verbindung')
+        })
+
         it('keeps the address the page has while an add comes back: the last pick wins', async () => {
             const wrapper = mountPage({ finishes, configs })
 
@@ -921,10 +933,20 @@ describe('Produkt page', () => {
         expect(next.attributes('href')).toBe('/komplettraeder?groesse=11')
         expect(wrapper.find('.pdp__total').text()).toBe('ab 965,00 €')
         expect(wrapper.find('.pdp__each').text()).toBe('pro Rad, Komplettrad mit Montage, inkl. MwSt., zzgl. Versandkosten')
+        expect(wrapper.text()).not.toContain('Ohne Montage und Auswuchten')
         // A set is four, chosen in the steps: no amount stepper, no tyre list, and no basket button here.
         expect(wrapper.find('.amt').exists()).toBe(false)
         expect(wrapper.find('button.pdp__add').exists()).toBe(false)
         expect(post).not.toHaveBeenCalled()
+    })
+
+    it('promises no mounting beside a fee nobody has named: the line under the price says what is left out, and nothing above contradicts it', async () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad({ priceOpen: true }), amounts: AMOUNTS })] })
+
+        await chooseSet(wrapper)
+
+        expect(wrapper.find('.pdp__each').text()).toBe('pro Rad, Komplettrad, inkl. MwSt., zzgl. Versandkosten')
+        expect(wrapper.text()).toContain('Ohne Montage und Auswuchten')
     })
 
     it('keeps the amount of rims when switching to Komplettrad and back, and adds rims without a tyre @kunde-18', async () => {

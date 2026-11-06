@@ -350,6 +350,7 @@ onBeforeUnmount(() => {
 .addp__btn {
     justify-content: center;
     min-height: 44px;
+    padding-inline: var(--sp-12);
     white-space: normal;
 }
 

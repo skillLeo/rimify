@@ -177,7 +177,7 @@ function reset(): void {
                                 <span class="rf-model">
                                     <span class="rf-thumb" :class="{ 'rf-thumb--none': !model.thumb }">
                                         <Picture v-if="model.thumb" :image="model.thumb" alt="" sizes="48px" />
-                                        <TyreSilhouette v-else :px="32" />
+                                        <TyreSilhouette v-else plain />
                                     </span>
                                     <span class="rf-model__text">
                                         <Link :href="model.href" class="rf-name"><span class="rf-brand">{{ model.brand }}</span> {{ model.name }}</Link>
@@ -189,7 +189,7 @@ function reset(): void {
                             <td data-label="Saison"><SeasonMark :season="model.season" /></td>
                             <td data-label="Größen">{{ anzahl(model.sizes, 'Größe', 'Größen') }}, {{ model.diameters }}</td>
                             <td data-label="Preis ab" class="num">{{ formatMoney(model.priceFromCents) }}</td>
-                            <td data-label="Lieferanten" class="num">{{ model.suppliers === 0 ? '–' : decimal(model.suppliers, 0) }}</td>
+                            <td data-label="Lieferanten" class="num" data-phone="hide">{{ model.suppliers === 0 ? '–' : decimal(model.suppliers, 0) }}</td>
                             <td data-label="Stand" data-phone="status">
                                 <span v-if="model.demo" class="rf-quiet">Demodaten</span>
                                 <span v-else-if="model.missingLabels > 0" class="adm-tag adm-tag--warn">{{ model.missingLabels === 1 ? '1 Größe ohne Label' : `${decimal(model.missingLabels, 0)} Größen ohne Label` }}</span>
@@ -197,7 +197,7 @@ function reset(): void {
                                 <template v-else-if="model.offered === model.sizes">Im Shop</template>
                                 <template v-else>{{ decimal(model.offered, 0) }} von {{ decimal(model.sizes, 0) }} im Shop</template>
                             </td>
-                            <td data-label="Geändert">{{ model.changed }}</td>
+                            <td data-label="Geändert" data-phone="hide">{{ model.changed }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -263,6 +263,10 @@ function reset(): void {
     overflow: hidden;
     border-radius: var(--r-control);
     background: var(--c-band);
+}
+
+.rf-thumb :deep(.tyre-silhouette) {
+    width: 32px;
 }
 
 .rf-name {

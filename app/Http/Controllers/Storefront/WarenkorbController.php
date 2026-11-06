@@ -52,6 +52,13 @@ class WarenkorbController extends Controller
 
     public function store(BasketLineRequest $request): RedirectResponse
     {
+        // The page answered for another car than the one chosen by now, in another window: nothing is added for a car not on screen.
+        $expected = $request->expectedVehicle();
+
+        if ($expected !== null && $expected !== $this->basket->vehicleId($request)) {
+            return back()->withErrors(['wheelConfigId' => Basket::VEHICLE_CHANGED]);
+        }
+
         $tyreVariantId = $request->tyreVariantId();
         $rearTyreVariantId = $request->rearTyreVariantId();
         // A set per axle is 2 + 2 whatever was posted (D-335): two wheels on each axle, four in all.

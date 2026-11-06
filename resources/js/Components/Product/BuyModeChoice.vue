@@ -59,6 +59,7 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
 
 .bmc__legend {
     margin-bottom: var(--sp-8);
+    padding: 0;
 }
 
 /* One under the other below 768: side by side, a phone left each tile 115 px and the Komplettrad line four rows. */

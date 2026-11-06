@@ -167,7 +167,7 @@ class TyreVariant extends Model
     }
 
     /**
-     * What the two figures on the wall mean, from the shop's own tables: `Lastindex 95: bis 690 kg je Reifen · Y: bis 300 km/h`. A
+     * What the two figures on the wall mean, from the shop's own tables: `Tragfähigkeitsindex 95: bis 690 kg je Reifen · Y: bis 300 km/h`. A
      * figure a table does not hold is left out, never guessed.
      */
     public function factsDe(): string
@@ -176,7 +176,7 @@ class TyreVariant extends Model
         $kg = ReferenceTables::LOAD_INDEX_CAPACITY_KG[$this->load_index] ?? null;
 
         if ($kg !== null) {
-            $parts[] = 'Lastindex '.$this->load_index.': bis '.GermanFormat::kilograms($kg).' je Reifen';
+            $parts[] = 'Tragfähigkeitsindex '.$this->load_index.': bis '.GermanFormat::kilograms($kg).' je Reifen';
         }
 
         foreach (ReferenceTables::SPEED_SYMBOLS as $row) {

@@ -5,6 +5,8 @@
  * Gutachten steps and the shop's Komplettrad steps wear the same bar, so the two read as one product (§9).
  */
 
+import Icon from './Icon.vue'
+
 defineProps<{
     steps: string[]
     /** The step on screen, from 0. */
@@ -35,9 +37,7 @@ const emit = defineEmits<{ go: [index: number] }>()
                     @click="emit('go', index)"
                 >
                     <span class="sk-steps__n" aria-hidden="true">
-                        <svg v-if="index < current" viewBox="0 0 16 16" width="14" height="14" focusable="false">
-                            <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
+                        <Icon v-if="index < current" name="check" :size="16" />
                         <template v-else>{{ index + 1 }}</template>
                     </span>
                     <span class="sk-steps__label">{{ step }}</span>
@@ -153,6 +153,10 @@ const emit = defineEmits<{ go: [index: number] }>()
 
     .sk-steps__item--current {
         flex: 3 1 0;
+    }
+
+    .sk-steps__item:not(.sk-steps__item--current) .sk-steps__button {
+        justify-content: center;
     }
 }
 </style>

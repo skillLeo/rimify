@@ -100,6 +100,11 @@ const TYRE_CLASSES: readonly string[] = ['A', 'B', 'C', 'D', 'E']
 const NOISE_CLASSES: readonly string[] = ['A', 'B', 'C']
 
 /* A label with a class the regulation does not know is not shown; it is never "corrected". */
+/* A size in one piece on the label's title line, on a phone too: never „235/45“ over „R19 99W“. */
+function oneSize(size: string): string {
+    return size.replace(/ /g, '\u00A0')
+}
+
 function euFrom(label: TyreLabelProp | null | undefined, title: string): EuLabel | null {
     if (!label || !label.fuel || !label.wetGrip || !TYRE_CLASSES.includes(label.fuel) || !TYRE_CLASSES.includes(label.wetGrip) || label.noiseDb === null || !label.noiseClass || !NOISE_CLASSES.includes(label.noiseClass)) {
         return null
@@ -127,7 +132,7 @@ function tyreCard(tyre: KomplettradTyreProp, photos: Record<string, ImageManifes
         name: tyre.name,
         season: tyre.season,
         seasonLabel: tyre.seasonLabel,
-        sides: [{ axle: null, line: null, size: tyre.sizeLabel, facts: tyre.facts ?? '', eu: euFrom(tyre.label, `${tyre.brandName} ${tyre.name} · ${tyre.sizeLabel}`) }],
+        sides: [{ axle: null, line: null, size: tyre.sizeLabel, facts: tyre.facts ?? '', eu: euFrom(tyre.label, `${tyre.brandName} ${tyre.name} · ${oneSize(tyre.sizeLabel)}`) }],
         setCents: tyre.tyreSetCents ?? 0,
         set: tyre.tyreSet ?? '',
         each: `${tyre.tyrePrice} je Reifen`,
@@ -149,10 +154,10 @@ function setCard(set: MischbereifungSetProp, pair: MischbereifungPairProp, photo
     const rearName = set.rearName ?? set.name
     const sameSize = set.frontLabel === set.rearLabel
     const sides: CardSide[] = sameSize && one
-        ? [{ axle: 'vorne und hinten', line: null, size: set.frontLabel, facts: set.frontFacts ?? '', eu: euFrom(set.frontEu, `${set.brandName} ${set.name} · ${set.frontLabel}`) }]
+        ? [{ axle: 'vorne und hinten', line: null, size: set.frontLabel, facts: set.frontFacts ?? '', eu: euFrom(set.frontEu, `${set.brandName} ${set.name} · ${oneSize(set.frontLabel)}`) }]
         : [
-              { axle: 'vorne', line: names.front, size: set.frontLabel, facts: set.frontFacts ?? '', eu: euFrom(set.frontEu, `${set.brandName} ${set.name} · ${set.frontLabel}`) },
-              { axle: 'hinten', line: names.rear, size: set.rearLabel, facts: set.rearFacts ?? '', eu: euFrom(one ? set.frontEu : set.rearEu, `${rearBrand} ${rearName} · ${set.rearLabel}`) },
+              { axle: 'vorne', line: names.front, size: set.frontLabel, facts: set.frontFacts ?? '', eu: euFrom(set.frontEu, `${set.brandName} ${set.name} · ${oneSize(set.frontLabel)}`) },
+              { axle: 'hinten', line: names.rear, size: set.rearLabel, facts: set.rearFacts ?? '', eu: euFrom(one ? set.frontEu : set.rearEu, `${rearBrand} ${rearName} · ${oneSize(set.rearLabel)}`) },
           ]
 
     return {
@@ -228,9 +233,9 @@ export function offerOf(config: ProduktConfig, photos: Record<string, ImageManif
  * What the product page and the RIMIFY-Check say of a version's Komplettrad before its steps: whether there is one, why not, and from
  * what price — the server's lowest figure, per wheel, or the lowest 2 + 2 where only pairs stand.
  */
-export function setSummary(config: ProduktConfig | null): { ready: boolean; refusal: string | null; refusalCode: string | null; from: string | null; fromUnit: string } {
+export function setSummary(config: ProduktConfig | null): { ready: boolean; refusal: string | null; refusalCode: string | null; from: string | null; fromUnit: string; priceOpen: boolean } {
     if (config === null) {
-        return { ready: false, refusal: null, refusalCode: null, from: null, fromUnit: 'pro Rad' }
+        return { ready: false, refusal: null, refusalCode: null, from: null, fromUnit: 'pro Rad', priceOpen: false }
     }
 
     const offer = offerOf(config, {})
@@ -244,6 +249,8 @@ export function setSummary(config: ProduktConfig | null): { ready: boolean; refu
         refusalCode: offer.refusalCode,
         from: same?.perWheel ?? pair?.forFour ?? null,
         fromUnit: same !== null ? 'pro Rad' : 'für 2 + 2',
+        // The fee nobody has named: the page then promises no mounting in its figure.
+        priceOpen: offer.priceOpen,
     }
 }
 
@@ -376,6 +383,8 @@ export function flowSum(
     colour: (BasketWeightOption & { surchargeForFour?: string }) | null,
     tpms: KomplettradOptionsProp['tpms'] | null | undefined,
     rdks: Rdks,
+    /** Wheels of Kompletträder in the basket already: the one answer on the sensors goes for them too (D-411). */
+    wheelsInBasket = 0,
 ): FlowSum {
     const tyres = card.sides.map((side) => `${side.axle === null ? '4 ×' : side.axle === 'vorne und hinten' ? '2 + 2 ×' : `2 × ${side.axle}`} ${side.size}`).join(' · ')
     const lines: BasketLine[] = [
@@ -391,7 +400,7 @@ export function flowSum(
     const sensors = rdks === 'ja' && tpms?.available === true
 
     if (sensors) {
-        lines.push({ label: 'RDKS-Sensoren', detail: `${tpms.line ?? ''}, gleich mit eingesetzt`, price: tpms.yesTotal ?? '' })
+        lines.push({ label: 'RDKS-Sensoren', detail: `${tpms.line ?? ''}, ${wheelsInBasket > 0 ? 'für alle Räder im Warenkorb' : 'gleich mit eingesetzt'}`, price: tpms.yesTotal ?? '' })
     }
 
     return {
