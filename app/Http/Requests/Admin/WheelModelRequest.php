@@ -229,7 +229,9 @@ class WheelModelRequest extends FormRequest
                         GermanNumber::parse((string) ($config['diameter'] ?? ''), 1),
                         GermanNumber::parse((string) ($config['width'] ?? ''), 2),
                         $et,
+                        $config['bolt_holes'] ?? '',
                         GermanNumber::parse((string) ($config['bolt_circle'] ?? ''), 1),
+                        GermanNumber::parse((string) ($config['bore'] ?? ''), 2),
                     ]);
 
                     if (isset($seen[$size]) && ! $validator->errors()->has("configs.{$i}.width")) {

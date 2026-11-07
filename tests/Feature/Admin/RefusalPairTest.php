@@ -16,6 +16,7 @@ use Database\Seeders\ContentSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\Gutachten\EntryDriver;
 use Tests\Support\Gutachten\ReleaseAnswers;
 
 /*
@@ -57,11 +58,11 @@ it('writes no pair any more: releasing and opening a Gutachten write nothing ref
     $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $size = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id]);
-    $this->actingAs($admin, 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [
+    EntryDriver::enter($this, $admin, $document->id, [
         'vehicle_ids' => [Vehicle::factory()->create()->id], 'config_ids' => [$size->id], 'axle' => 'ALL', 'entry_note' => '', 'source_page' => 4,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => []]],
         'conditions' => [],
-    ])->assertSessionHasNoErrors();
+    ]);
 
     // A draft, opened by its Super-Admin: nothing refused.
     $before = lastEntry();
@@ -81,7 +82,7 @@ it('writes no pair any more: releasing and opening a Gutachten write nothing ref
 
     // What a real refusal looks like: an edit sent to the released document — 403, and written once.
     $before = lastEntry();
-    $this->actingAs($admin, 'admin')->post("/admin/gutachten/{$document->id}/zeilen", [])->assertForbidden();
+    $this->actingAs($admin, 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", [])->assertForbidden();
     expect(refusedSince($before))->toHaveCount(1);
 });
 

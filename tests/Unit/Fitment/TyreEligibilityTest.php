@@ -13,6 +13,7 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\Severity;
+use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use Tests\Support\Fitment\FitmentFixtures;
 use Tests\Support\Fitment\InMemoryFitmentRepository;
@@ -137,6 +138,17 @@ it('refuses an UNKNOWN verdict with its own sentence, never the NOT_PERMITTED on
         ->and($refusal?->sentenceDe())->toContain('kein Gutachten')
         ->and($refusal?->sentenceDe())->not->toBe(KomplettradRefusal::VerdictNotPermitted->sentenceDe())
         ->and(eligibilityOver()->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::VerdictUnknown);
+});
+
+it('refuses a row with no tyre size on record as still open, never as „kein Gutachten“ (D-405, R-17)', function (): void {
+    $verdict = liveVerdict(FitmentFixtures::row(sizes: []));
+    $refusal = eligibilityOver()->permits($verdict, permittedTyre());
+
+    expect($verdict->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->reason?->code)->toBe(VerdictReason::TYRE_SIZES_NOT_RECORDED)
+        ->and($verdict->stillOpen())->toBeTrue()
+        ->and($refusal)->toBe(KomplettradRefusal::VerdictOpen)
+        ->and(eligibilityOver()->offerFor($verdict)->refusal)->toBe(KomplettradRefusal::VerdictOpen);
 });
 
 it('refuses a NOT_PERMITTED verdict as not permitted', function (): void {

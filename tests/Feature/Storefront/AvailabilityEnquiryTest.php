@@ -41,11 +41,19 @@ function enquirySet(bool $keepOne = false): KomplettradFixture
     return $set;
 }
 
-it('names the rim, the size and the ET, a comma before the ET', function (): void {
-    expect(AvailabilityEnquiry::subject('Borbet DB8GT2 Schwarz matt', 8.5, 19.0, 35))
-        ->toBe('Anfrage zur Verfügbarkeit: Borbet DB8GT2 Schwarz matt, 8,5J × 19, ET 35')
-        ->and(AvailabilityEnquiry::subject('Borbet DB8GT2 Schwarz matt', '8.00', '18.0', -5))
-        ->toBe('Anfrage zur Verfügbarkeit: Borbet DB8GT2 Schwarz matt, 8J × 18, ET -5');
+it('names the rim and its whole version, a comma before each part (the Gutachten rework §8)', function (): void {
+    expect(AvailabilityEnquiry::subject('Borbet DB8GT2 Schwarz matt', 8.5, 19.0, 35, 5, 120.0, 72.56))
+        ->toBe('Anfrage zur Verfügbarkeit: Borbet DB8GT2 Schwarz matt, 8,5J × 19, ET 35, 5 × 120, 72,56 mm')
+        ->and(AvailabilityEnquiry::subject('Borbet DB8GT2 Schwarz matt', '8.00', '18.0', -5, 5, '112.0', '66.60'))
+        ->toBe('Anfrage zur Verfügbarkeit: Borbet DB8GT2 Schwarz matt, 8J × 18, ET -5, 5 × 112, 66,6 mm');
+});
+
+it('keeps a long name within the form’s limit: the size stays whole, the bolt pattern and the bore give way, never cut in the middle', function (): void {
+    $long = str_repeat('Felge ', 16);
+    $subject = AvailabilityEnquiry::subject(trim($long), 8.5, 19.0, 35, 5, 120.0, 72.56);
+
+    expect(mb_strlen($subject))->toBeLessThanOrEqual(AvailabilityEnquiry::MAX)
+        ->and($subject)->toEndWith('8,5J × 19, ET 35');
 });
 
 it('names every size of a card where they fit in a subject, its diameters where they do not — never one cut short', function (): void {
@@ -79,7 +87,7 @@ it('gives a size not available its „Anfrage“ on the product page, and an ava
             expect($gone['inStock'])->toBeFalse()
                 ->and($gone['enquiry'])->toStartWith('Anfrage zur Verfügbarkeit: '.$model->brand->name.' ')
                 ->and($gone['enquiry'])->toContain(' '.$colour.', '.GermanFormat::rimWidth((float) $config->width_in).' × ')
-                ->and($gone['enquiry'])->toEndWith(', ET '.$config->et_mm);
+                ->and($gone['enquiry'])->toContain(', ET '.$config->et_mm.', ');
 
             // Every size of another colour is still available, and offers no „Anfrage“.
             $rows->where('inStock', true)->each(fn (array $row) => expect($row['enquiry'])->toBeNull());
@@ -128,7 +136,7 @@ it('keeps the card buyable — no „Anfrage“ — while one of its sizes is av
 });
 
 it('opens the contact form with that subject and the page it came from; name, e-mail and message are the visitor’s @admin-207', function (): void {
-    $subject = AvailabilityEnquiry::subject('Borbet DB8GT2 Schwarz matt', 8.5, 19.0, 35);
+    $subject = AvailabilityEnquiry::subject('Borbet DB8GT2 Schwarz matt', 8.5, 19.0, 35, 5, 120.0, 72.56);
 
     $this->get('/kontakt?'.http_build_query(['betreff' => $subject, 'von' => '/felgen/borbet-db8gt2']))->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page

@@ -10,7 +10,13 @@ use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentCarEntry;
 use App\Models\Fitment;
+use App\Models\Vehicle;
+use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
+use App\Services\Admin\Approvals\Entry\EntryModel;
+use App\Services\Admin\Approvals\Entry\EntryView;
+use App\Services\Admin\Approvals\Entry\PairListCheck;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Dashboard\Coverage;
 use App\Services\GoLive\TyreConfirmations;
@@ -19,6 +25,7 @@ use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
 use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
+use App\Support\VehicleName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -69,18 +76,18 @@ final class DocumentRelease
             $base = ApprovalDocument::query()->where('supplement_to_id', $document->id)->exists();
 
             if (! $base) {
-                $blockers[] = 'Es gibt noch keine Zeile im Verwendungsbereich.';
+                $blockers[] = 'Es ist noch kein Fahrzeug eingetragen.';
             }
 
             return $blockers;
         }
 
-        $sizeless = (clone $rows)->whereDoesntHave('tyreSizes')->count();
+        $sizeless = (clone $rows)->whereDoesntHave('tyreSizes')->distinct()->count('vehicle_id');
 
         if ($sizeless > 0) {
             $blockers[] = $sizeless === 1
-                ? 'Eine Zeile hat keine Reifengröße. Ohne sie kann der Shop keinen Reifen nennen.'
-                : "{$sizeless} Zeilen haben keine Reifengröße. Ohne sie kann der Shop keinen Reifen nennen.";
+                ? 'Bei einem Fahrzeug fehlen noch die Reifen. Ohne sie kann der Shop für dieses Fahrzeug keine Reifengröße nennen.'
+                : "Bei {$sizeless} Fahrzeugen fehlen noch die Reifen. Ohne sie kann der Shop für diese Fahrzeuge keine Reifengröße nennen.";
         }
 
         array_push($blockers, ...self::tyreIndexBlockers($document, $rows));
@@ -111,7 +118,70 @@ final class DocumentRelease
                 .' Leg ihn dort an oder nimm ihn aus den Zeilen.';
         }
 
+        array_push($blockers, ...self::entryBlockers($document));
+
         return $blockers;
+    }
+
+    /**
+     * What the five steps add to the door: a line that does not read, a side still empty, a tyre that does not fit its wheel, a car with
+     * no tyres on one of several wheel combinations, and a pair the engine would give a car nobody entered it for — pairs are held per
+     * field K, and two cars of one K answer as one (PairListCheck).
+     *
+     * @return list<string>
+     */
+    private static function entryBlockers(ApprovalDocument $document): array
+    {
+        $model = EntryModel::of($document);
+
+        if (! $model->isEntered()) {
+            return [];
+        }
+
+        $blockers = [];
+        $several = $model->entries->pluck('document_wheel_combination_id')->unique()->count() > 1;
+
+        // One gap, one sentence: per combination with its count, the car's name only where it is one car.
+        if ($several) {
+            foreach ($model->entries->filter(static fn (DocumentCarEntry $entry): bool => $entry->lines->isEmpty())->groupBy('document_wheel_combination_id') as $empty) {
+                /** @var DocumentCarEntry $first */
+                $first = $empty->first();
+                $label = $first->combination === null ? '' : EntryView::combinationLabel($first->combination);
+                /** @var Vehicle|null $only */
+                $only = $first->vehicle;
+
+                $blockers[] = $empty->count() === 1
+                    ? sprintf('Bei %s fehlen für die Felgenkombination „%s“ noch die Reifen. Trag sie ein oder nimm die Kombination bei diesem Fahrzeug heraus.', $only === null ? 'einem Fahrzeug' : VehicleName::from($only), $label)
+                    : sprintf('Für die Felgenkombination „%s“ fehlen bei %d Fahrzeugen noch die Reifen. Trag sie ein oder nimm die Kombination bei diesen Fahrzeugen heraus.', $label, $empty->count());
+            }
+        }
+
+        foreach ($model->entries as $entry) {
+            /** @var Vehicle|null $car */
+            $car = $entry->vehicle;
+            $name = $car === null ? 'einem Fahrzeug' : VehicleName::from($car);
+            $combination = $entry->combination === null ? '' : EntryView::combinationLabel($entry->combination);
+
+            foreach ($entry->lines as $line) {
+                foreach (['front', 'rear'] as $side) {
+                    $misfit = EntryModel::misfit($entry, $line, $side);
+
+                    if ($misfit !== null) {
+                        $blockers[] = sprintf('Bei %s (%s): %s', $name, $combination, $misfit);
+                    }
+                }
+
+                if (EntryModel::twoSidedOpen($line) && ! $line->unread()) {
+                    $blockers[] = sprintf('Bei %s (%s) steht eine Reifenzeile nur mit einer Seite; %s fehlt noch die Größe.', $name, $combination, $line->front() === null ? 'vorne' : 'hinten');
+                }
+
+                if ($line->unread()) {
+                    $blockers[] = sprintf('Bei %s ist eine Reifenzeile nicht lesbar: „%s“. Korrigier sie oder nimm sie heraus.', $car === null ? 'einem Fahrzeug' : VehicleName::from($car), (string) ($line->front_unread ?? $line->rear_unread));
+                }
+            }
+        }
+
+        return [...$blockers, ...PairListCheck::sentences((new PairListCheck(new DocumentEntryWriter))->of($model)['conflicts'])];
     }
 
     /**
@@ -129,7 +199,7 @@ final class DocumentRelease
         $source = $document->tyre_index_source;
 
         if ($source === null) {
-            return ['Wähl unter „Angaben“, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.'];
+            return ['Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.'];
         }
 
         // Transcribed from this document, not the demo seed's example table.
@@ -262,6 +332,11 @@ final class DocumentRelease
      */
     public function release(ApprovalDocument $document, AdminUser $admin, ?string $instruction = null, ?ReleaseDeclaration $declaration = null): array
     {
+        // What the shop will read, once more from what was entered: a car's field K or a new colour may have changed since the last save.
+        if ($document->status === DocumentStatus::Draft && EntryModel::of($document)->isEntered()) {
+            (new DocumentEntryWriter)->write($document, $admin);
+        }
+
         $blockers = $this->check($document);
 
         if ($declaration !== null) {

@@ -135,8 +135,11 @@ const wheelFailed = ref(false)
     color: var(--c-on-dark-2);
 }
 
+/* A long label on a narrow window wraps inside the page. */
 .komplett__button {
+    max-width: 100%;
     margin-top: var(--sp-32);
+    white-space: normal;
 }
 
 /* The wheel's box is square and centred, so the turn never changes the layout box. */

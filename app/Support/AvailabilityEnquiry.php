@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * The subject of an „Anfrage“ about a rim that is not available (his admin item 7, D-350): the rim, its size and its ET,
+ * The subject of an „Anfrage“ about a rim that is not available (his admin item 7, D-350): the rim and its whole version,
  * so the message names the article before the customer has written a word. The contact form takes it as its subject
  * (`/kontakt?betreff=…`) and the visitor's car from their own session, as every link to the form does (KontaktController),
  * and the message goes where every other one goes (ContactRecipient, the client's #12).
@@ -17,10 +17,17 @@ final class AvailabilityEnquiry
 
     private const PREFIX = 'Anfrage zur Verfügbarkeit: ';
 
-    /** `Anfrage zur Verfügbarkeit: Borbet DB8GT2 Schwarz matt, 8,5J × 19, ET 35` */
-    public static function subject(string $rim, float|int|string $widthIn, float|int|string $diameterIn, int $etMm): string
+    /**
+     * `Anfrage zur Verfügbarkeit: Borbet DB8GT2 Schwarz matt, 8,5J × 19, ET 35, 5 × 120, 72,56 mm`. Where a long name leaves no room,
+     * the size stays whole and the rest gives way: never a subject cut off in the middle of a figure.
+     */
+    public static function subject(string $rim, float|int|string $widthIn, float|int|string $diameterIn, int $etMm, int $boltHoles, float|int|string $boltCircleMm, float|int|string $centreBoreMm): string
     {
-        return self::PREFIX.$rim.', '.self::size($widthIn, $diameterIn, $etMm);
+        $size = self::PREFIX.$rim.', '.self::size($widthIn, $diameterIn, $etMm);
+        $version = str_replace([GermanFormat::NBSP, GermanFormat::NNBSP], ' ', GermanFormat::boltPattern($boltHoles, $boltCircleMm).', '.GermanFormat::millimetres($centreBoreMm));
+        $whole = $size.', '.$version;
+
+        return mb_strlen($whole) <= self::MAX ? $whole : $size;
     }
 
     /**

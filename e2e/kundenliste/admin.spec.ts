@@ -23,171 +23,157 @@ async function admin(page: Page): Promise<void> {
 
 /**
  * A draft of the released ABE 55255 to enter into: its new Fassung (D-250) — opened where one was started, started where
- * none was. The released document itself takes no entry (R-11).
+ * none was. The released document itself takes no entry (R-11). Lands on step 4.
  */
 async function draftOf55255(page: Page): Promise<void> {
     await openDocument(page, '55255')
 
     // The document's page in one of its three states: the draft itself, its new Fassung started, or none started yet.
-    const edit = page.locator('#kb-edit')
-    await expect(edit.or(page.getByRole('link', { name: 'Neue Fassung öffnen' })).or(page.getByRole('button', { name: 'Neue Fassung anlegen' })).first()).toBeVisible()
+    const steps = page.getByRole('navigation', { name: 'Schritte zum Gutachten' })
+    await expect(steps.or(page.getByRole('link', { name: 'Neue Fassung öffnen' })).or(page.getByRole('button', { name: 'Neue Fassung anlegen' })).first()).toBeVisible()
 
-    if (await edit.isVisible()) {
-        return
+    if (!(await steps.isVisible())) {
+        const started = page.getByRole('link', { name: 'Neue Fassung öffnen' })
+
+        if ((await started.count()) > 0) {
+            await started.click()
+        } else {
+            await page.getByRole('button', { name: 'Neue Fassung anlegen' }).click()
+            await page.getByRole('dialog').getByRole('button', { name: 'Neue Fassung anlegen' }).click()
+        }
+
+        await page.waitForLoadState('networkidle')
+        await expect(steps).toBeVisible()
     }
 
-    const started = page.getByRole('link', { name: 'Neue Fassung öffnen' })
-
-    if ((await started.count()) > 0) {
-        await started.click()
-    } else {
-        await page.getByRole('button', { name: 'Neue Fassung anlegen' }).click()
-        await page.getByRole('dialog').getByRole('button', { name: 'Neue Fassung anlegen' }).click()
-    }
-
-    await page.waitForLoadState('networkidle')
-    await expect(page.locator('#kb-edit')).toBeVisible()
+    await steps.getByRole('button', { name: /Reifen/ }).click()
 }
 
-// His item 8, his own example: one front size, three rear sizes — „combination 1 … 2 … 3“.
+/** A car of the paper, from the to-do list, by a piece of its name. */
+async function car(page: Page, name: string): Promise<void> {
+    await page.locator('.ef-todo__item', { hasText: name }).first().click()
+    await expect(page.locator('.ef-editor__title')).toContainText(name)
+}
+
+/** The lines of the car on screen, as their two fields hold them. */
+async function lines(page: Page): Promise<string[]> {
+    const fronts = await page.locator('[id^=ef-front-]').evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value))
+    const rears = await page.locator('[id^=ef-rear-]').evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value))
+
+    return fronts.map((front, i) => `${front} | ${rears[i] ?? ''}`)
+}
+
+/** A car's lines stored: set up before what changes them. */
+function stored(page: Page): Promise<unknown> {
+    return page.waitForResponse((r) => /\/erfassung\/fahrzeuge\/\d+$/.test(new URL(r.url()).pathname) && r.request().method() === 'PUT' && r.ok(), { timeout: 15_000 })
+}
+
+// His item 8, his own example in this paper's size: one front size, three rear sizes — „combination 1 … 2 … 3“. ABE 55255 is for
+// the 19-inch wheel, and a tyre that does not fit its rim is held back at its line (D-418).
 const HIS = [
-    ['225/40 R18', '225/40 R18'],
-    ['225/40 R18', '245/35 R18'],
-    ['225/40 R18', '255/35 R18'],
+    ['225/35 R19', '225/35 R19'],
+    ['225/35 R19', '245/30 R19'],
+    ['225/35 R19', '255/30 R19'],
 ] as const
 
-/** The three vehicle types ABE 55255 names in the acceptance set, by field K as its Verwendungsbereich prints them. */
-const K = { x3: 'e1*2001/116*0249*..', e90: 'e1*2001/116*0308*00-08', e46: 'e1*97/27*0097*..' } as const
-
-/** His list, typed into the card for one EG number (his admin item 19, D-358) and saved. */
-async function enterHis(page: Page, entry: string): Promise<void> {
-    const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
-    await card.locator('#kb-entry').selectOption(entry)
-    await card.locator('#kb-edit').click()
-
-    const rows = card.locator('table.kb-grid tbody tr')
-
-    while ((await rows.count()) > HIS.length) {
-        await card.getByRole('button', { name: /^Kombination .+ entfernen$/ }).last().click()
-    }
-
-    while ((await rows.count()) < HIS.length) {
-        await card.locator('#kb-add-row').click()
-    }
-
-    await card.locator('#kb-page').fill('1')
-
-    for (const [i, [front, rear]] of HIS.entries()) {
-        await card.locator(`#kb-number-${i}`).fill(String(i + 1))
-        await card.locator(`#kb-front-${i}`).fill(front)
-        await card.locator(`#kb-rear-${i}`).fill(rear)
-    }
-
-    await card.locator('#kb-save').click()
-    await expect(card.locator('table.kb-table tbody tr')).toHaveCount(HIS.length)
+/** His list, pasted for one car and read: one line a pair. */
+async function enterHis(page: Page): Promise<void> {
+    await page.getByRole('button', { name: 'Mehrere einfügen' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.locator('#ef-paste').fill(HIS.map(([front, rear], i) => `Nr. ${i + 1}: ${front} – ${rear}`).join('\n'))
+    await expect(dialog.locator('.ef-paste__line')).toHaveCount(HIS.length)
+    const saved = stored(page)
+    await dialog.getByRole('button', { name: `${HIS.length} Zeilen übernehmen` }).click()
+    await saved
 }
 
-test('the Bereifungskombinationen take his list as he wrote it — for one EG number: number, front, rear, page — and stand as a closed list', { tag: '@admin-208' }, async ({ page }, info) => {
+test('the combinations take his list as he wrote it — vorne and hinten, beside the car they are for', { tag: '@admin-208' }, async ({ page }, info) => {
     await admin(page)
     await draftOf55255(page)
+    await car(page, 'X3')
+    await enterHis(page)
 
-    const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
-    // The vehicle type first (his admin item 19): the X3's EG number.
-    await card.locator('#kb-entry').selectOption(K.x3)
-    await card.locator('#kb-edit').click()
+    const shown = await lines(page)
 
-    const rows = card.locator('table.kb-grid tbody tr')
-
-    while ((await rows.count()) > HIS.length) {
-        await card.getByRole('button', { name: /^Kombination .+ entfernen$/ }).last().click()
+    for (const [front, rear] of HIS) {
+        expect(shown).toContain(`${front} | ${rear}`)
     }
 
-    while ((await rows.count()) < HIS.length) {
-        await card.locator('#kb-add-row').click()
-    }
-
-    await card.locator('#kb-page').fill('1')
-
-    for (const [i, [front, rear]] of HIS.entries()) {
-        await card.locator(`#kb-number-${i}`).fill(String(i + 1))
-        await card.locator(`#kb-front-${i}`).fill(front)
-        await card.locator(`#kb-rear-${i}`).fill(rear)
-    }
-
-    await card.locator('#kb-save').click()
-
-    // Saved and shown as the list it is, in his numbering, with the page it stands on.
-    const saved = card.locator('table.kb-table tbody tr')
-    await expect(saved).toHaveCount(HIS.length)
-
-    for (const [i, [front, rear]] of HIS.entries()) {
-        await expect(saved.nth(i)).toContainText(String(i + 1))
-        await expect(saved.nth(i)).toContainText(front)
-        await expect(saved.nth(i)).toContainText(rear)
-    }
-
-    await expect(card).toContainText('Seite 1 im Gutachten.')
-    // The card says what the list does in the shop: these pairs and no others, for this type.
-    await expect(card).toContainText('Der Shop bietet für diesen Typ dann nur diese')
-
-    await shotAround(page, [card], 208, info)
+    await shotAround(page, [page.locator('.ef-editor')], 208, info)
 })
 
-test('one EG number\'s list copied to another to check, and one combination put on a third — each type keeps its own list', { tag: '@admin-219' }, async ({ page }, info) => {
+test('one car\'s lines copied to another with its own approval number — and only there', { tag: '@admin-219' }, async ({ page }, info) => {
     await admin(page)
     await draftOf55255(page)
-    await enterHis(page, K.x3)
+    await car(page, 'X3')
+    await enterHis(page)
 
-    const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
-    const shown = async (entry: string): Promise<string[]> => {
-        await card.locator('#kb-entry').selectOption(entry)
+    const before = async (name: string): Promise<string[]> => {
+        await car(page, name)
 
-        return (await card.locator('table.kb-table tbody tr').allTextContents()).map((t) => t.replace(/\s+/g, ' ').trim())
+        return lines(page)
     }
 
-    // „Kombinationen kopieren von …“: the X3's list into the E46's form — checked, then saved as the E46's own.
-    await card.locator('#kb-entry').selectOption(K.e46)
-    await card.locator('#kb-edit').click()
-    await card.locator('#kb-copy-from').selectOption(K.x3)
-    await card.locator('.kb-copy').getByRole('button', { name: 'Übernehmen' }).click()
-    await expect(card.locator('.kb-copied')).toContainText(`3 Kombinationen von ${K.x3} übernommen`)
-    await card.locator('#kb-save').click()
-    await expect(card.locator('table.kb-table tbody tr')).toHaveCount(HIS.length)
+    const e90 = await before('E90')
 
-    // „Auf mehrere EG-Nummern anwenden“: the X3's Nr. 2 for the E90 as well.
-    const before = await shown(K.e90)
-    await card.locator('#kb-entry').selectOption(K.x3)
-    await card.locator('table.kb-table tbody tr').nth(1).getByRole('button', { name: /Auf mehrere EG-Nummern anwenden/ }).click()
+    await car(page, 'X3')
+    await page.getByRole('button', { name: /Kopieren nach/ }).click()
     const dialog = page.getByRole('dialog')
-    await dialog.getByRole('checkbox', { name: new RegExp(K.e90.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')) }).check()
-    await dialog.getByRole('button', { name: 'Für eine EG-Nummer eintragen' }).click()
-    await expect(dialog).toBeHidden()
+    await dialog.locator('label.check', { hasText: 'E46' }).locator('input').check()
+    await dialog.locator('input[name="ef-copy-mode"][value="hinzufuegen"]').check()
+    // One draft for both widths of a run: at the second the lines stand there already, and nothing is copied twice.
+    const count = dialog.locator('.ef-count')
 
-    const e90 = await shown(K.e90)
-    expect(e90.some((row) => row.includes('225/40 R18') && row.includes('245/35 R18'))).toBe(true)
-    expect(e90.length).toBeLessThanOrEqual(before.length + 1)
-    expect(await shown(K.e46)).toHaveLength(HIS.length)
+    await expect(count).toContainText(/1 Fahrzeug|Nichts kommt hinzu/, { timeout: 15_000 })
 
-    await shotAround(page, [card], 219, info)
+    if ((await count.textContent())?.includes('Nichts kommt hinzu')) {
+        await page.keyboard.press('Escape')
+    } else {
+        await dialog.getByRole('button', { name: 'Kopieren', exact: true }).click()
+    }
+
+    await expect(dialog).toBeHidden({ timeout: 15_000 })
+
+    // A car's lines come from the server a moment after its title: read once they are there.
+    await car(page, 'E46')
+    await expect(page.locator('[id^=ef-front-]').first()).toBeVisible({ timeout: 15_000 })
+
+    const e46 = await lines(page)
+
+    for (const [front, rear] of HIS) {
+        expect(e46).toContain(`${front} | ${rear}`)
+    }
+
+    await expect(page.locator('.ef-editor__sub', { hasText: 'kopiert von' })).toBeVisible()
+    await shotAround(page, [page.locator('.ef-editor')], 219, info)
+
+    expect(await before('E90'), 'a car nobody copied to').toEqual(e90)
 })
 
-test('load index and speed symbol in two fields of their own — a size pasted as printed settles into them', { tag: '@admin-209' }, async ({ page }, info) => {
+test('load index and speed symbol read apart — a size pasted as printed settles into the shop\'s writing and says what it read', { tag: '@admin-209' }, async ({ page }, info) => {
     await admin(page)
     await draftOf55255(page)
+    await car(page, 'X3')
 
-    // Typed — or pasted from the PDF — with its minimum: on leaving the field, the minimum moves into its own two fields.
-    const size = page.locator('#rc-size-0')
-    await size.fill('245/35 R19 93Y')
-    await size.blur()
+    await page.getByRole('button', { name: 'Kombination', exact: true }).click()
+    const front = page.locator('[id^=ef-front-]').last()
+    await front.fill('245/35R19-93Y')
+    await front.blur()
 
-    await expect(size).toHaveValue('245/35 R19')
-    await expect(page.locator('#rc-size-0-li')).toHaveValue('93')
-    await expect(page.locator('#rc-size-0-symbol')).toHaveValue('Y')
-    await expect(page.locator('#rc-size-0-err')).toHaveText('')
+    await expect(front).toHaveValue('245/35 R19 93Y')
+    await expect(page.locator('.ef-line').last().locator('.ef-line__hint').first()).toHaveText('Lastindex 93 · Symbol Y')
+    await expect(page.locator('[id^=ef-rear-]').last()).toHaveValue('245/35 R19 93Y')
 
-    // Nothing is saved: the picture shows the fields as they stand.
-    await shotAround(page, [page.locator('.rc fieldset').first()], 209, info)
+    await shotAround(page, [page.locator('.ef-line').last()], 209, info)
 })
+
+/** The released document of that number: the list may hold a new Fassung of it, which opens on the steps. */
+async function openReleased(page: Page, number: string): Promise<void> {
+    await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
+    await page.locator('tbody tr', { hasText: number }).filter({ hasText: 'Freigegeben' }).locator('.gd-link').first().click()
+    await page.waitForURL(/\/admin\/gutachten\/\d+(\?.*)?$/)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(number)
+}
 
 /** A document of the acceptance set, by a piece of its number, opened from the Gutachten list. */
 async function openDocument(page: Page, number: string): Promise<void> {
@@ -213,11 +199,12 @@ test('the table of tyre load at speed: whole where the document prints one, one 
     await expect(fold).toContainText('Laut den Angaben verweist es für Lastindex und Geschwindigkeitssymbol auf die Fahrzeugpapiere.')
     await shotAround(page, [fold], 215, info)
 
-    // ABE 55255 prints its table: there the section stands whole, and says the release waits for it.
-    await openDocument(page, '55255')
+    // ABE 55255 prints its table: in the read view the section stands whole. That the release waits for it is said where it can
+    // still be entered, in the steps (Erfassung/StepPaper.vue). The released paper: a new Fassung of it may stand in the list too.
+    await openReleased(page, '55255')
     const section = page.locator('section[aria-labelledby="gs-derating-h"]')
     await expect(section).toBeVisible()
-    await expect(section).toContainText('Laut den Angaben druckt dieses Gutachten eine solche Tabelle')
+    await expect(section).toContainText('so, wie dieses Gutachten es druckt')
     await expect(page.locator('details.gs-fold')).toHaveCount(0)
 })
 
@@ -505,7 +492,7 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     await expect(page.locator('button.pdp__add')).toHaveCount(0)
     const rim = `Beispielmarke ${model} BM 18`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const subject = new URL((await enquiry.getAttribute('href')) ?? '', ABNAHME).searchParams.get('betreff') ?? ''
-    expect(subject).toMatch(new RegExp(`^Anfrage zur Verfügbarkeit: ${rim} .+, \\d+(,\\d+)?J × \\d+(,\\d)?, ET -?\\d+$`))
+    expect(subject).toMatch(new RegExp(`^Anfrage zur Verfügbarkeit: ${rim} .+, \\d+(,\\d+)?J × \\d+(,\\d)?, ET -?\\d+, \\d+ × [\\d,]+, [\\d,]+ mm$`))
     await shotAround(page, [page.locator('.pdp__each'), page.locator('.pdp__stock'), page.locator('.pdp__unavailable'), enquiry], 207, info)
 
     // The form opens with that subject, the visitor writes name, e-mail and message only.
@@ -522,6 +509,65 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     await expect(card.locator('.tile__cta')).toHaveCount(0)
     expect(new URL((await card.locator('.tile__enquiry').getAttribute('href')) ?? '', ABNAHME).searchParams.get('betreff')).toMatch(/^Anfrage zur Verfügbarkeit: /)
     await expect(card.locator('.tile__name--link')).toHaveAttribute('href', new RegExp(`^/felgen/${slug}\\?ausfuehrung=\\d+$`))
+})
+
+test('a tyre model above its sizes: its photographs once, a thumbnail in the list, a supplier per size who stays internal @admin-210', async ({ page }, info) => {
+    const { stamp } = runKeys(info)
+    const profile = `Foto ${stamp.slice(-4)}`
+    const eprel = String(Date.now() + 1).slice(-9)
+
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/reifen/neu`, { waitUntil: 'networkidle' })
+    await page.selectOption('#rf-brand', '-1')
+    await page.fill('#rf-brand-new', 'Beispielmarke')
+    await page.fill('#rf-name', profile)
+    await page.selectOption('#rf-season', 'sommer')
+    await page.fill('#rf-width', '225')
+    await page.fill('#rf-aspect', '45')
+    await page.fill('#rf-diameter', '18')
+    await page.fill('#rf-load', '95')
+    await page.selectOption('#rf-speed', 'Y')
+    await page.fill('#rf-price', '129')
+    await page.fill('#rf-supplier', 'Prüflieferant')
+    await page.selectOption('#rf-fuel', 'B')
+    await page.selectOption('#rf-wet', 'A')
+    await page.fill('#rf-noise', '71')
+    await page.selectOption('#rf-noise-class', 'B')
+    await page.fill('#rf-eprel', eprel)
+    await page.locator('input[name="rf-snow"]').nth(1).check()
+    await page.locator('input[name="rf-ice"]').nth(1).check()
+    await page.locator('.adm-savebar').getByRole('button', { name: 'Speichern' }).click()
+    await page.waitForURL(/\/admin\/reifen\/\d+$/)
+
+    // The list: one row per model, no photograph yet, its neutral outline.
+    const list = `${ABNAHME}/admin/reifen?q=${encodeURIComponent(profile)}`
+    const row = page.locator('.adm-table tbody tr', { hasText: profile })
+
+    await page.goto(list, { waitUntil: 'networkidle' })
+    await expect(row.locator('.rf-thumb--none')).toHaveCount(1)
+    await row.locator('a.rf-name').click()
+    await page.waitForURL(/\/admin\/reifen\/modell\/\d+$/)
+
+    // The model: its size with its supplier, and a photograph by the rim page's own upload.
+    await expect(page.locator('.adm-table tbody tr', { hasText: '225/45 R18 95Y' })).toContainText('Prüflieferant')
+    await expect(page.locator('.fe-photos__count')).toContainText('0 von höchstens 4')
+    await page.getByRole('button', { name: 'Foto hinzufügen' }).click()
+    await page.locator('input[type="file"]').setInputFiles({ name: 'reifen.jpg', mimeType: 'image/jpeg', buffer: await card() })
+    await page.locator('input[id$="-alt"]').fill(`${profile} von der Seite`)
+    await page.getByRole('button', { name: 'Hochladen' }).click()
+    await expect(page.locator('.fe-photos__count')).toContainText('1 von höchstens 4')
+
+    await page.goto(list, { waitUntil: 'networkidle' })
+    await expect(row.locator('.rf-thumb--none')).toHaveCount(0)
+    await expect(row.locator('.rf-thumb img')).toBeVisible()
+
+    // And away again: the interaction review of Phase 4 found the removal refused, without a word, for want of a description.
+    await row.locator('a.rf-name').click()
+    await page.waitForURL(/\/admin\/reifen\/modell\/\d+$/)
+    await page.getByRole('button', { name: /Aktionen/ }).first().click()
+    await page.getByRole('menuitem', { name: /Entfernen/ }).click()
+    await page.getByRole('alertdialog').or(page.getByRole('dialog')).getByRole('button', { name: 'Entfernen', exact: true }).click()
+    await expect(page.locator('.fe-photos__count')).toContainText('0 von höchstens 4')
 })
 
 test('a tyre made in the admin with its EU label: offered once the label is complete, and listed @admin-210', async ({ page }, info) => {
@@ -572,7 +618,13 @@ test('a tyre made in the admin with its EU label: offered once the label is comp
     // In the list, by brand, profile and size, with its label in one line.
     await page.goto(`${ABNAHME}/admin/reifen?q=${encodeURIComponent(profile)}`, { waitUntil: 'networkidle' })
     const row = page.locator('.adm-table tbody tr', { hasText: profile })
-    await expect(row).toContainText('225/45 R18 95Y')
-    await expect(row).toContainText('B · A · 71')
+    await expect(row).toContainText('18')
+    await expect(row).toContainText('1 Größe')
     await expect(row).toContainText('Im Shop')
+
+    // The model opens with its size: the size as the wall prints it, its label in one line.
+    await row.locator('a.rf-name').click()
+    const line = page.locator('.adm-table tbody tr', { hasText: '225/45 R18 95Y' })
+    await expect(line).toContainText('B · A · 71')
+    await expect(line).toContainText('Im Shop')
 })

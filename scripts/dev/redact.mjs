@@ -7,7 +7,8 @@
 // What it knows and masks, longest first:
 //   - the value of every key in .env and .env.* (not .env.example) whose name says secret: PASSWORD, PWD, SECRET, TOKEN,
 //     PRIVATE, CREDENTIAL, a name ending in KEY, and APP_KEY;
-//   - every cell of a „Passwort“ column in docs/review/ACCOUNTS.md (the review accounts' passwords);
+//   - every cell of a „Passwort“ column in docs/review/ACCOUNTS.md (the review accounts' passwords), in this checkout and,
+//     from a linked worktree, in the main checkout;
 //   - every line of .redact, a local file of further values (one per line, never committed);
 //   - anything shaped like a credential, whatever it belongs to: Stripe keys (sk_/rk_/pk_ live and test, whsec_), an
 //     AWS access key id (AKIA…), a private-key block, and the value after MYSQL_PWD=, password=, secret= or token=.
@@ -23,6 +24,14 @@ import { fileURLToPath } from 'node:url'
 export const MASK = '[verborgen]'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+/** Where the main checkout is, from a linked worktree: the review accounts' file stands there only. */
+export function mainCheckout(root) {
+    const gitFile = read(join(root, '.git'))
+    const m = /^gitdir:\s*(.+?)[\\/]\.git[\\/]worktrees[\\/]/m.exec(gitFile)
+
+    return m ? m[1].trim() : null
+}
+
 const SECRET_NAME = /(PASSWORD|PASSWD|PWD|SECRET|TOKEN|PRIVATE|CREDENTIAL|_KEY$|^APP_KEY$)/i
 
 const read = (path) => {
@@ -115,9 +124,14 @@ export function knownSecrets(root = ROOT) {
     const env = files.map((name) => read(join(root, name)))
     const open = new Set(env.flatMap(openValues))
 
+    // A linked worktree has no accounts file of its own (it is never committed): the main checkout's is the one a command
+    // can reach from here, so it is masked here too (found by two reviews on 07.11.2026, which printed it).
+    const main = mainCheckout(root)
+    const accounts = [root, ...(main === null ? [] : [main])].flatMap((dir) => fromAccounts(read(join(dir, 'docs', 'review', 'ACCOUNTS.md'))))
+
     const values = [
         ...env.flatMap(fromEnv).filter((value) => !open.has(value)),
-        ...fromAccounts(read(join(root, 'docs', 'review', 'ACCOUNTS.md'))),
+        ...accounts,
         ...read(join(root, '.redact')).split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
     ]
 

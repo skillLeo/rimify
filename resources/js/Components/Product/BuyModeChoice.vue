@@ -12,6 +12,8 @@ import Icon from '../Ui/Icon.vue'
 defineProps<{
     /** `229,00 €` — one rim of the size on screen, or null before a size is known. */
     rimPrice?: string | null
+    /** What `rimPrice` is for: `pro Felge`, or `für 4 Felgen` where two versions are one set. */
+    rimPriceUnit?: string
     /** `533,00 €` — the lowest Komplettrad price per wheel the server offers, or null where there is none. */
     setFrom?: string | null
     /** What `setFrom` is for: `pro Rad`, or `für 2 + 2` where the Komplettrad is a combination of the Gutachten (D-335). */
@@ -32,7 +34,7 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
                 <span class="bmc-tile__name">Nur Felgen</span>
                 <span class="bmc-tile__sub">
                     Ohne Reifen
-                    <span v-if="rimPrice" class="bmc-tile__price"><span class="num" translate="no">{{ rimPrice }}</span> pro Felge</span>
+                    <span v-if="rimPrice" class="bmc-tile__price"><span class="num" translate="no">{{ rimPrice }}</span> {{ rimPriceUnit ?? 'pro Felge' }}</span>
                 </span>
                 <span class="bmc-tile__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
             </label>
@@ -59,6 +61,7 @@ const mode = defineModel<'felgen' | 'komplettrad'>({ default: 'felgen' })
 
 .bmc__legend {
     margin-bottom: var(--sp-8);
+    padding: 0;
 }
 
 /* One under the other below 768: side by side, a phone left each tile 115 px and the Komplettrad line four rows. */

@@ -35,7 +35,7 @@ import { provideShell } from '../composables/useShell'
 import { useShared } from '../composables/useShared'
 import { useShopFeedback } from '../composables/useShopFeedback'
 import { useShortcuts } from '../composables/useShortcuts'
-import { useVehicleChangeHref } from '../lib/vehicleChange'
+import { useRemoveVehicle, useVehicleChangeHref } from '../lib/vehicleChange'
 import { isNavigationVisit, provideMobileShell } from '../composables/mobile/useMobileShell'
 import { installNavigationDirection, markNext } from '../composables/mobile/useNavigationDirection'
 import { stripSheetState } from '../composables/mobile/useSheetHistory'
@@ -60,6 +60,7 @@ const frame = provideShell()
 provideConsent(shared.value.consent ?? null)
 const shell = provideMobileShell()
 const changeHref = useVehicleChangeHref()
+const forgetVehicle = useRemoveVehicle()
 
 const vehicle = computed(() => shared.value.vehicle)
 
@@ -150,7 +151,7 @@ onBeforeUnmount(() => {
 
 function removeVehicle(): void {
     shell.vehicleOpen.value = false
-    router.delete('/fahrzeug', { preserveScroll: true })
+    forgetVehicle()
 }
 
 function fromVehicleSheet(href: string | undefined): void {

@@ -12,7 +12,7 @@
  * at every width. It sits in the flow of the row, so it cannot cover content at any width.
  */
 
-import { Link, router, usePage } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Icon from '../Ui/Icon.vue'
@@ -24,11 +24,13 @@ import SearchBox from './SearchBox.vue'
 import VehicleBar from './VehicleBar.vue'
 import { useShell } from '../../composables/useShell'
 import { useShared } from '../../composables/useShared'
-import { useVehicleChangeHref } from '../../lib/vehicleChange'
+import { useRemoveVehicle, useVehicleChangeHref, useVehicleChooseHref } from '../../lib/vehicleChange'
 
 const shared = useShared()
 const shell = useShell()
 const changeHref = useVehicleChangeHref()
+const chooseHref = useVehicleChooseHref()
+const removeVehicle = useRemoveVehicle()
 
 const vehicle = computed(() => shared.value.vehicle)
 const page = usePage()
@@ -53,10 +55,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => observer?.disconnect())
-
-function removeVehicle(): void {
-    router.delete('/fahrzeug', { preserveScroll: true })
-}
 </script>
 
 <template>
@@ -108,7 +106,7 @@ function removeVehicle(): void {
                         </DropdownMenuContent>
                     </DropdownMenuPortal>
                 </DropdownMenuRoot>
-                <Link v-else href="/felgen-suchen" class="chip sh__vchip from-lg">
+                <Link v-else :href="chooseHref" class="chip sh__vchip from-lg">
                     <Icon name="car" :size="20" />
                     Fahrzeug wählen
                 </Link>
@@ -127,7 +125,7 @@ function removeVehicle(): void {
                     <Icon name="car" :size="24" />
                     <span class="sh__dot" aria-hidden="true" />
                 </button>
-                <Link v-else href="/felgen-suchen" class="icon-btn until-lg" aria-label="Fahrzeug wählen">
+                <Link v-else :href="chooseHref" class="icon-btn until-lg" aria-label="Fahrzeug wählen">
                     <Icon name="car" :size="24" />
                 </Link>
 

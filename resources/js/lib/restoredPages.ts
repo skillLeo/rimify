@@ -3,7 +3,7 @@
  * browser from its back/forward cache — neither asks the server. What it says may have moved on since:
  *
  * - the car's papers or build (the figures entered on another page, D-286), or the car itself where the address names
- *   none: its answers are then another car's;
+ *   none — a car chosen since included: its answers are then another car's;
  * - the catalogue its answers come from: a Gutachten corrected, a wheel published or taken off the shop (the client's
  *   admin item 16, D-294).
  *
@@ -37,9 +37,14 @@ function catalogueOf(props: Props): string | null {
 export function recheck(page: { url: string; props?: Record<string, unknown> }): void {
     const car = carOf(page.props)
     const catalogue = catalogueOf(page.props)
+    // Every page of the shop: one left without a car may have one by now. Never an admin page: it has no car to answer for.
+    const shop = catalogue !== null && page.props?.admin === undefined
+    const asksCar = namesVehicle(page.url) || car !== null || shop
     const only = [
-        ...(namesVehicle(page.url) || car !== null ? ['vehicle'] : []),
+        ...(asksCar ? ['vehicle'] : []),
         ...(catalogue !== null ? ['catalogue'] : []),
+        // What the session says now: the panel of an add long past came back with the page, and the badge counted a basket since emptied.
+        ...(shop ? ['flash', 'cartCount'] : []),
         ...(catalogue !== null && page.props?.admin !== undefined ? ['admin'] : []),
     ]
 
@@ -49,8 +54,10 @@ export function recheck(page: { url: string; props?: Record<string, unknown> }):
 
     router.reload({
         only,
+        // The answer carries no address of its own: a pick made while it was on its way stays in the one the page has by then.
+        preserveUrl: true,
         onSuccess: (fresh) => {
-            if ((car !== null && carOf(fresh.props) !== car) || (catalogue !== null && catalogueOf(fresh.props) !== catalogue)) {
+            if ((asksCar && carOf(fresh.props) !== car) || (catalogue !== null && catalogueOf(fresh.props) !== catalogue)) {
                 router.reload()
             }
         },

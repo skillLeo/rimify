@@ -10,6 +10,7 @@ use App\Domain\Storefront\Garage;
 use App\Domain\Storefront\VehicleContext;
 use App\Domain\Storefront\VehicleKey;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Storefront\ForgetVehicleRequest;
 use App\Http\Requests\Storefront\ResolveKeyNumbersRequest;
 use App\Http\Requests\Storefront\SelectVehicleRequest;
 use App\Models\CatalogueGapEvent;
@@ -100,10 +101,12 @@ class FahrzeugController extends Controller
             ]);
     }
 
-    public function destroy(): RedirectResponse
+    /** The selector for the next car — or the page the car was chosen for, where it names itself: it then answers for no car. */
+    public function destroy(ForgetVehicleRequest $request): RedirectResponse
     {
-        return redirect()
-            ->route('felgen.suchen')
+        $back = $request->returnTo();
+
+        return ($back === null ? redirect()->route('felgen.suchen') : redirect()->to($back))
             ->withCookie(Cookie::forget(VehicleContext::COOKIE))
             ->with('toast', 'Fahrzeug entfernt.');
     }

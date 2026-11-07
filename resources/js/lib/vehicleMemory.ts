@@ -18,8 +18,8 @@ import type { VisitOptions } from '@inertiajs/core'
 
 export const VEHICLE_PARAM = 'fahrzeug'
 
-/** The pages that answer for one car (VehicleFromUrl::ROUTES): `/`, `/felgen`, `/felgen/{model}`, `/vergleich`, `/rimify-check`. */
-const VEHICLE_PAGES = /^\/(?:felgen(?:\/[^/]+)?|vergleich|rimify-check)?\/?$/
+/** The pages that answer for one car (VehicleFromUrl::ROUTES): `/`, `/felgen`, `/felgen/{model}`, `/komplettraeder`, `/vergleich`, `/rimify-check`. */
+const VEHICLE_PAGES = /^\/(?:felgen(?:\/[^/]+)?|komplettraeder|vergleich|rimify-check)?\/?$/
 
 /** Whether a page's address names a car. */
 export function namesVehicle(url: string): boolean {

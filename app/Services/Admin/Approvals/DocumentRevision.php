@@ -8,6 +8,7 @@ use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Services\Admin\Approvals\Entry\DocumentEntryReader;
 use App\Services\Admin\AuditTrail;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -29,11 +30,12 @@ final class DocumentRevision
     public const TABLES = [
         'approval_documents', 'document_conditions', 'document_condition_reworks', 'document_fasteners', 'document_notices',
         'document_speed_deratings', 'document_tyre_combinations', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes',
-        'fitment_tyre_size_conditions',
+        'fitment_tyre_size_conditions', 'fitment_wheel_sets', 'document_wheel_sizes', 'document_wheel_combinations', 'document_car_entries', 'document_car_entry_codes',
+        'document_tyre_lines', 'document_tyre_line_codes', 'document_kept_combinations',
     ];
 
     /** Columns the database computes itself, never written (`DocumentRevisionTest` holds this list to the schema). */
-    public const GENERATED = ['fitment_tyre_sizes' => ['entry_key']];
+    public const GENERATED = ['fitment_tyre_sizes' => ['entry_key'], 'document_car_entries' => ['scope_key']];
 
     /** The draft revision of a released document — made now, or the one already started. */
     public function draftFrom(ApprovalDocument $released, AdminUser $admin): ApprovalDocument
@@ -49,6 +51,8 @@ final class DocumentRevision
         }
 
         return DB::transaction(function () use ($released, $admin): ApprovalDocument {
+            // What it copies below includes what was entered: a paper from before the five steps is carried into them first.
+            (new DocumentEntryReader)->ensure($released);
             $revision = (int) $released->revision + 1;
             $id = self::insertCopy('approval_documents', (array) DB::table('approval_documents')->where('id', $released->id)->first(), [
                 'status' => DocumentStatus::Draft->value,
@@ -84,6 +88,15 @@ final class DocumentRevision
                 }
             }
 
+            foreach (DB::table('fitment_wheel_sets')->whereIn('front_fitment_id', array_keys($rows))->orderBy('id')->get() as $set) {
+                // A row left behind (its car gone) takes its set with it.
+                if (isset($rows[(int) $set->front_fitment_id], $rows[(int) $set->rear_fitment_id])) {
+                    self::insertCopy('fitment_wheel_sets', (array) $set, ['front_fitment_id' => $rows[(int) $set->front_fitment_id], 'rear_fitment_id' => $rows[(int) $set->rear_fitment_id]]);
+                }
+            }
+
+            self::copyEntry($released->id, $id);
+
             $draft = ApprovalDocument::query()->findOrFail($id);
 
             AuditTrail::record($admin, 'approval.revision_started', [
@@ -95,6 +108,31 @@ final class DocumentRevision
 
             return $draft;
         });
+    }
+
+    /**
+     * What staff entered, so the five steps open on the new Fassung as they closed on the old one. The rows above were copied as
+     * they stood: it writes back to exactly those (DocumentEntryProof).
+     */
+    private static function copyEntry(int $from, int $to): void
+    {
+        self::copyChildren('document_kept_combinations', 'approval_document_id', $from, $to);
+        $entries = [];
+
+        $sizes = self::copyChildren('document_wheel_sizes', 'approval_document_id', $from, $to);
+
+        foreach (DB::table('document_wheel_combinations')->where('approval_document_id', $from)->orderBy('id')->get() as $combination) {
+            $copy = self::insertCopy('document_wheel_combinations', (array) $combination, ['approval_document_id' => $to, 'front_wheel_size_id' => $sizes[(int) $combination->front_wheel_size_id], 'rear_wheel_size_id' => $sizes[(int) $combination->rear_wheel_size_id]]);
+            $entries += self::copyChildren('document_car_entries', 'document_wheel_combination_id', (int) $combination->id, $copy, ['approval_document_id' => $to, 'copied_from_id' => null]);
+        }
+
+        foreach ($entries as $entryFrom => $entryTo) {
+            self::copyChildren('document_car_entry_codes', 'document_car_entry_id', $entryFrom, $entryTo);
+
+            foreach (self::copyChildren('document_tyre_lines', 'document_car_entry_id', $entryFrom, $entryTo) as $lineFrom => $lineTo) {
+                self::copyChildren('document_tyre_line_codes', 'document_tyre_line_id', $lineFrom, $lineTo);
+            }
+        }
     }
 
     /** The draft that already supersedes it, if someone started one. */

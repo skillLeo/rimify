@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
+use App\Models\TyreModel;
 use App\Models\TyreVariant;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -35,6 +36,7 @@ class TyreViewRequest extends FormRequest
     {
         return [
             'wie' => ['nullable', 'integer', 'min:1'],
+            'modell' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -43,7 +45,14 @@ class TyreViewRequest extends FormRequest
     {
         $id = $this->validated('wie');
 
-        return $id === null ? null : TyreVariant::query()->with('brand')->find((int) $id);
+        if ($id !== null) {
+            return TyreVariant::query()->with('brand')->find((int) $id);
+        }
+
+        // A model left without a size: its brand, name and season, so its photographs find their way back.
+        $model = TyreModel::query()->find((int) ($this->validated('modell') ?? 0));
+
+        return $model === null ? null : new TyreVariant(['brand_id' => $model->brand_id, 'name' => $model->name, 'season' => $model->season]);
     }
 
     public function admin(): AdminUser

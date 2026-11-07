@@ -33,6 +33,7 @@ use App\Services\Admin\Catalogue\WheelList;
 use App\Services\Admin\Lists\AdminLists;
 use App\Services\Admin\Lists\ListViews;
 use App\Services\Storage\ImageUpload;
+use App\Services\Storage\PhotoManifest;
 use App\Services\Storage\UploadRejected;
 use App\Services\Storefront\ProductJsonLd;
 use App\Support\EditStamp;
@@ -42,7 +43,6 @@ use App\Support\WheelTitle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -307,32 +307,7 @@ class FelgenController extends Controller
             throw ValidationException::withMessages(['image' => $e->getMessage()]);
         }
 
-        $url = Storage::disk($stored['disk'])->url($stored['path']);
-        $app = rtrim((string) config('app.url'), '/');
-
-        // On the site's own disk the address is kept root-relative: the page loads it from whichever
-        // name it was opened under (www or not, a staging alias), and the CSP's 'self' covers it.
-        if ($app !== '' && str_starts_with($url, $app.'/')) {
-            $url = substr($url, strlen($app));
-        }
-
-        $ext = pathinfo($stored['path'], PATHINFO_EXTENSION);
-        $suffix = '-'.$stored['width'].'.'.$ext;
-
-        $manifest = [
-            'name' => basename($stored['path'], $suffix),
-            'base' => str_ends_with($url, $suffix) ? substr($url, 0, -strlen($suffix)) : $url,
-            'width' => $stored['width'],
-            'height' => $stored['height'],
-            'widths' => [$stored['width']],
-            'fallback' => $ext,
-            // One file as uploaded: no other formats to offer before it.
-            'formats' => [],
-            'placeholder' => 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1" fill="'.($finish->hex ?? '#E4E6E8').'"/></svg>'),
-            'kind' => 'photo',
-            'disk' => $stored['disk'],
-            'path' => $stored['path'],
-        ];
+        $manifest = PhotoManifest::of($stored, $finish->hex ?? '#E4E6E8');
 
         DB::transaction(function () use ($photos, $finish, $manifest, $request, $model): void {
             $photos->add($finish, $manifest, $request->alt());

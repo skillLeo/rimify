@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
 use App\Services\Admin\AuditTrail;
 use App\Support\CatalogueVersion;
 use App\Support\GermanFormat;
@@ -341,6 +342,14 @@ final class CatalogueImporter
                 }
             }
 
+            // A new colour of a size a paper covers has its rows from here on (the Gutachten rework). Taking the import back then
+            // asks for them to go first, as it does for every approval entered since.
+            $writer = new DocumentEntryWriter;
+
+            foreach ($undo['configs'] as $configId) {
+                $writer->colourAdded($configId, $admin);
+            }
+
             $import->forceFill(['status' => CatalogueImport::APPLIED, 'undo' => $undo, 'applied_at' => now()])->save();
             $mappings = Setting::get(self::MAPPINGS_SETTING);
             // array_replace, not a spread: a supplier named by digits alone is an integer key, and kept.
@@ -543,7 +552,8 @@ final class CatalogueImporter
         if ($finish instanceof WheelFinish) {
             $clash = WheelConfig::withTrashed()->where('wheel_finish_id', $finish->id)
                 ->where('diameter_in', $v['diameter_in'])->where('width_in', $v['width_in'])
-                ->where('et_mm', $v['et_mm'])->where('bolt_circle_mm', $v['bolt_circle_mm'])
+                ->where('et_mm', $v['et_mm'])->where('bolt_holes', $v['bolt_holes'])->where('bolt_circle_mm', $v['bolt_circle_mm'])
+                ->where('centre_bore_mm', $v['centre_bore_mm'])
                 ->value('sku');
 
             if ($clash !== null) {
@@ -553,7 +563,7 @@ final class CatalogueImporter
             }
         }
 
-        $sizeKey = mb_strtolower($v['brand'].'|'.$v['model'].'|'.$v['finish']).'|'.$v['diameter_in'].'|'.$v['width_in'].'|'.$v['et_mm'].'|'.$v['bolt_circle_mm'];
+        $sizeKey = mb_strtolower($v['brand'].'|'.$v['model'].'|'.$v['finish']).'|'.$v['diameter_in'].'|'.$v['width_in'].'|'.$v['et_mm'].'|'.$v['bolt_holes'].'|'.$v['bolt_circle_mm'].'|'.$v['centre_bore_mm'];
 
         if (isset($seenSize[$sizeKey])) {
             $entry['reasons'][] = 'Diese Größe steht in dieser Ausführung schon in Zeile '.$seenSize[$sizeKey].'.';

@@ -118,32 +118,47 @@ it('keeps a tyre saved with its label incomplete, offers it not, and says what i
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Reifen/Index')
             ->where('missingLabels', 1)
-            ->where('tyres.0.offered', false)
-            ->where('tyres.0.label', null)
-            ->where('tyres.0.missingLabel', ['Rollgeräuschklasse', 'Eisgriffigkeit', 'EPREL-Nummer']));
+            ->where('models.0.offered', 0)
+            ->where('models.0.missingLabels', 1));
 });
 
-it('lists the tyres by brand, profile and size, and filters them by stand, size, diameter and season @admin-210', function (): void {
+it('lists the tyre models with what their sizes add up to, and finds one by any of its sizes: stand, size, diameter, season @admin-210', function (): void {
     $brand = Brand::factory()->named('Prüfreifen')->create(['is_wheel_brand' => false]);
-    $sold = TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->create(['name' => 'Grip 7', 'season' => 'sommer']);
-    $unavailable = TyreVariant::factory()->for($brand)->size(245, 40, 19.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'available' => false]);
-    $unlabelled = TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->unlabelled()->create(['name' => 'Winter 3', 'season' => 'winter']);
-    $demo = TyreVariant::factory()->for($brand)->size(205, 55, 16.0)->unlabelled()->create(['name' => 'Beispiel', 'season' => 'sommer', 'is_demo' => true]);
+    TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'price_cents' => 12_900, 'supplier' => 'Delticom']);
+    TyreVariant::factory()->for($brand)->size(245, 40, 19.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'available' => false, 'price_cents' => 15_900, 'supplier' => 'Reifen Stiebling']);
+    TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->unlabelled()->create(['name' => 'Winter 3', 'season' => 'winter']);
+    TyreVariant::factory()->for($brand)->size(205, 55, 16.0)->unlabelled()->create(['name' => 'Beispiel', 'season' => 'sommer', 'is_demo' => true]);
 
-    $ids = fn (string $query): array => collect(
-        $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen'.$query)->assertOk()->viewData('page')['props']['tyres']
-    )->pluck('id')->all();
+    $names = fn (string $query): array => collect(
+        $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen'.$query)->assertOk()->viewData('page')['props']['models']
+    )->pluck('name')->all();
 
-    expect($ids(''))->toBe([$demo->id, $sold->id, $unavailable->id, $unlabelled->id])
-        ->and($ids('?stand=im-shop'))->toBe([$sold->id])
-        ->and($ids('?stand=nicht-verfuegbar'))->toBe([$unavailable->id])
-        ->and($ids('?stand=label-fehlt'))->toBe([$unlabelled->id])
-        ->and($ids('?stand=demo'))->toBe([$demo->id])
-        ->and($ids('?q=225/45'))->toBe([$sold->id, $unlabelled->id])
-        ->and($ids('?q=245%2F40+R19'))->toBe([$unavailable->id])
-        ->and($ids('?q=Winter'))->toBe([$unlabelled->id])
-        ->and($ids('?zoll=19'))->toBe([$unavailable->id])
-        ->and($ids('?saison=winter'))->toBe([$unlabelled->id]);
+    expect($names(''))->toBe(['Beispiel', 'Grip 7', 'Winter 3'])
+        ->and($names('?stand=im-shop'))->toBe(['Grip 7'])
+        ->and($names('?stand=nicht-verfuegbar'))->toBe(['Grip 7'])
+        ->and($names('?stand=label-fehlt'))->toBe(['Winter 3'])
+        ->and($names('?stand=demo'))->toBe(['Beispiel'])
+        ->and($names('?q=225/45'))->toBe(['Grip 7', 'Winter 3'])
+        ->and($names('?q=245%2F40+R19'))->toBe(['Grip 7'])
+        ->and($names('?q=Winter'))->toBe(['Winter 3'])
+        ->and($names('?zoll=19'))->toBe(['Grip 7'])
+        ->and($names('?saison=winter'))->toBe(['Winter 3']);
+
+    $row = collect($this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen')->viewData('page')['props']['models'])->firstWhere('name', 'Grip 7');
+
+    expect($row)->toMatchArray([
+        'brand' => 'Prüfreifen',
+        'season' => 'sommer',
+        'sizes' => 2,
+        'diameters' => "18–19\u{00A0}Zoll",
+        'priceFromCents' => 12_900,
+        'suppliers' => 2,
+        'missingLabels' => 0,
+        'offered' => 1,
+        'photos' => 0,
+        'thumb' => null,
+        'demo' => false,
+    ])->and($row['href'])->toStartWith('/admin/reifen/modell/');
 
     $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen?stand=gibt-es-nicht')
         ->assertRedirect('/admin/reifen')
@@ -192,17 +207,17 @@ it('refuses one tyre twice, and one EPREL number on two tyres @admin-210', funct
 });
 
 it('finds a tyre by its EPREL number, though the number starts like a size @admin-210', function (): void {
-    $labelled = TyreVariant::factory()->size(225, 45, 18.0)->create(['eprel_id' => '381090']);
-    $sized = TyreVariant::factory()->size(381, 40, 19.0)->create(['eprel_id' => '555555']);
+    TyreVariant::factory()->size(225, 45, 18.0)->create(['name' => 'Beschriftet', 'eprel_id' => '381090']);
+    TyreVariant::factory()->size(381, 40, 19.0)->create(['name' => 'Gemessen', 'eprel_id' => '555555']);
 
-    $ids = fn (string $query): array => collect(
-        $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen'.$query)->assertOk()->viewData('page')['props']['tyres']
-    )->pluck('id')->sort()->values()->all();
+    $names = fn (string $query): array => collect(
+        $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen'.$query)->assertOk()->viewData('page')['props']['models']
+    )->pluck('name')->sort()->values()->all();
 
     // `381090` read as a size is 381/09 and finds nothing; as an EPREL number it finds its tyre. `381` finds both.
-    expect($ids('?q=381090'))->toBe([$labelled->id])
-        ->and($ids('?q=381'))->toBe([$labelled->id, $sized->id])
-        ->and($ids('?q=225/45'))->toBe([$labelled->id]);
+    expect($names('?q=381090'))->toBe(['Beschriftet'])
+        ->and($names('?q=381'))->toBe(['Beschriftet', 'Gemessen'])
+        ->and($names('?q=225/45'))->toBe(['Beschriftet']);
 });
 
 it('says every refusal of a save in one round: a wrong width does not hide a price of 0,00 @admin-210', function (): void {

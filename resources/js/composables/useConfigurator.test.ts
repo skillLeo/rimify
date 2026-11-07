@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { useConfigurator } from './useConfigurator'
-import type { ConfigVerdict, ProduktConfig } from '../types/pages'
+import { sellable, useConfigurator } from './useConfigurator'
+import type { ConfigVerdict, ProduktConfig, ProduktSet } from '../types/pages'
 
 function verdict(overrides: Partial<ConfigVerdict>): ConfigVerdict {
     return {
@@ -27,6 +27,7 @@ function config(overrides: Partial<ProduktConfig>): ProduktConfig {
         widthIn: 8,
         etMm: 35,
         sizeLabel: '8J × 18 · ET 35',
+        versionLabel: 'Breite 8J · ET 35 · Lochkreis 5 × 112',
         fullLabel: '8J × 18 · ET 35 · 5×112 · 66,6 mm',
         boltPattern: '5×112',
         centreBore: '66,6 mm',
@@ -188,15 +189,15 @@ describe('useConfigurator', () => {
     it('offers every width and ET inside the chosen diameter, refused ones disabled', () => {
         // Demo Zehnspeiche Z-08 "Himalaya Grau": 8J ET45 carries an Auflage, 8,5J ET40 is permitted outright.
         const configs = [
-            config({ id: 41, widthIn: 8, etMm: 45, sizeLabel: '8J × 18 · ET 45', priceCents: 89900, verdict: verdict({ status: 'CONDITIONAL' }) }),
-            config({ id: 42, widthIn: 8.5, etMm: 40, sizeLabel: '8,5J × 18 · ET 40', priceCents: 94900 }),
-            config({ id: 45, widthIn: 9, etMm: 35, sizeLabel: '9J × 18 · ET 35', priceCents: 99900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) }),
+            config({ id: 41, widthIn: 8, etMm: 45, versionLabel: 'Breite 8J · ET 45 · Lochkreis 5 × 112', priceCents: 89900, verdict: verdict({ status: 'CONDITIONAL' }) }),
+            config({ id: 42, widthIn: 8.5, etMm: 40, versionLabel: 'Breite 8,5J · ET 40 · Lochkreis 5 × 112', priceCents: 94900 }),
+            config({ id: 45, widthIn: 9, etMm: 35, versionLabel: 'Breite 9J · ET 35 · Lochkreis 5 × 112', priceCents: 99900, verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) }),
             config({ id: 46, diameterIn: 19, widthIn: 8.5, etMm: 40, priceCents: 109900 }),
         ]
 
         const c = useConfigurator(() => configs, 10)
 
-        expect(c.variants.value.map((v) => v.label)).toEqual(['8J × 18 · ET 45', '8,5J × 18 · ET 40', '9J × 18 · ET 35'])
+        expect(c.variants.value.map((v) => v.label)).toEqual(['Breite 8J · ET 45 · Lochkreis 5 × 112', 'Breite 8,5J · ET 40 · Lochkreis 5 × 112', 'Breite 9J · ET 35 · Lochkreis 5 × 112'])
         expect(c.variants.value[2]).toMatchObject({ blocked: true, reason: 'ET außerhalb des Gutachtens.' })
 
         c.selectVariant(c.variants.value[1]!)
@@ -286,5 +287,329 @@ describe('useConfigurator', () => {
         ]
 
         expect(useConfigurator(() => configs, 10).fromPrice.value).toBe('999,00 €')
+    })
+})
+
+/*
+ * The Gutachten rework §8: one version = one size row of the rim, chosen on its own. Without a car every version of the
+ * colour and diameter; with one, those a released paper approves, and the others counted apart — refused by a paper, or
+ * none on record (D-383, R-17).
+ */
+describe('the versions of the chosen diameter', () => {
+    const refused = verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dein Fahrzeug nicht freigegeben.' })
+    const noPaper = verdict({ status: 'UNKNOWN', sellable: false, reason: 'Für diese Kombination liegt uns kein Gutachten vor.', reasonCode: 'NO_DOCUMENT' })
+    const unentered = verdict({ status: 'UNKNOWN', sellable: false, reason: 'Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst.', reasonCode: 'TYRE_SIZES_NOT_RECORDED' })
+
+    it('without a car, shows every version of the colour and the diameter, and no other', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8.5, etMm: 30, versionLabel: 'Breite 8,5J · ET 30 · Lochkreis 5 × 120' }),
+            config({ id: 2, widthIn: 8, etMm: 40, versionLabel: 'Breite 8J · ET 40 · Lochkreis 5 × 112' }),
+            config({ id: 3, widthIn: 9, etMm: 40, diameterIn: 19 }),
+            config({ id: 4, widthIn: 8, etMm: 35, finishId: 11 }),
+        ]
+        const c = useConfigurator(() => configs, 10, 1)
+
+        expect(c.versions.value.map((v) => v.id)).toEqual([2, 1])
+        expect(c.versions.value.map((v) => v.label)).toEqual(['Breite 8J · ET 40 · Lochkreis 5 × 112', 'Breite 8,5J · ET 30 · Lochkreis 5 × 120'])
+        expect(c.others.value).toEqual([])
+    })
+
+    it('with a car, keeps those it may have and sets the others apart, by what is on record', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8, verdict: verdict({}) }),
+            config({ id: 2, widthIn: 8.5, verdict: refused }),
+            config({ id: 3, widthIn: 9, verdict: noPaper }),
+            config({ id: 4, widthIn: 9.5, verdict: unentered }),
+        ]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.versions.value.map((v) => v.id)).toEqual([1])
+        expect(c.others.value.map((v) => [v.id, v.standing])).toEqual([[2, 'refused'], [3, 'none'], [4, 'open']])
+    })
+
+    it('counts a version that only waits for the tyres or a fact of the car among those shown: a paper approves it', () => {
+        const configs = [
+            config({ id: 1, widthIn: 8, verdict: verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN' }, missing: [] } as unknown as Partial<ConfigVerdict>) }),
+            config({ id: 2, widthIn: 8.5, verdict: verdict({ status: 'UNKNOWN', sellable: false, missing: ['bodyForm'] } as Partial<ConfigVerdict>) }),
+        ]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.versions.value.map((v) => v.id)).toEqual([1, 2])
+        expect(c.others.value).toEqual([])
+    })
+
+    it('keeps one order for versions of the same width and ET: the bolt pattern decides, not the database', () => {
+        const same = { widthIn: 8, etMm: 45 }
+        const configs = [
+            config({ id: 1, ...same, versionLabel: 'Breite 8J · ET 45 · Lochkreis 5 × 112' }),
+            config({ id: 2, ...same, versionLabel: 'Breite 8J · ET 45 · Lochkreis 5 × 108' }),
+        ]
+
+        expect(useConfigurator(() => configs, 10).versions.value.map((v) => v.id)).toEqual([2, 1])
+        expect(useConfigurator(() => [...configs].reverse(), 10).versions.value.map((v) => v.id)).toEqual([2, 1])
+    })
+
+    it('names the bore only where it alone tells two versions apart', () => {
+        const same = { widthIn: 8, etMm: 35, versionLabel: 'Breite 8J · ET 35 · Lochkreis 5 × 112' }
+        const configs = [
+            config({ id: 1, ...same, centreBore: '66,6 mm' }),
+            config({ id: 2, ...same, centreBore: '72,6 mm' }),
+            config({ id: 3, widthIn: 9, etMm: 35, versionLabel: 'Breite 9J · ET 35 · Lochkreis 5 × 112', centreBore: '66,6 mm' }),
+        ]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.versions.value.map((v) => v.label)).toEqual([
+            'Breite 8J · ET 35 · Lochkreis 5 × 112 · Mittenloch\u00A066,6 mm',
+            'Breite 8J · ET 35 · Lochkreis 5 × 112 · Mittenloch\u00A072,6 mm',
+            'Breite 9J · ET 35 · Lochkreis 5 × 112',
+        ])
+    })
+
+    it('never swaps a version named in the link for another in silence: it stays chosen, among the others', () => {
+        const configs = [config({ id: 1, widthIn: 8, verdict: verdict({}) }), config({ id: 2, widthIn: 8.5, verdict: refused })]
+        const c = useConfigurator(() => configs, 10, 2)
+
+        expect(c.selected.value?.id).toBe(2)
+        expect(c.others.value.map((v) => v.id)).toEqual([2])
+        expect(c.versions.value.map((v) => v.id)).toEqual([1])
+    })
+
+    describe('across colours, one version stays that version (the interaction review of Phase 3)', () => {
+        const pattern = (id: number, finishId: number, boltPattern: string, over: Partial<ProduktConfig> = {}): ProduktConfig =>
+            config({ id, finishId, boltPattern, versionLabel: `Breite 8J · ET 35 · Lochkreis ${boltPattern}`, fullLabel: `8J × 18 · ET 35 · ${boltPattern} · 66,6 mm`, ...over })
+
+        it('does nothing on a press of the colour already on: the bolt pattern chosen stays', () => {
+            const configs = [pattern(1, 10, '5 × 112'), pattern(2, 10, '5 × 108')]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectVariant(c.versions.value.find((v) => v.id === 2)!)
+            c.selectFinish(10)
+
+            expect(c.selected.value?.id).toBe(2)
+            expect(c.configId.value).toBe(2)
+        })
+
+        it('keeps the bolt pattern in another colour: width and ET alone do not make a version', () => {
+            const configs = [pattern(1, 10, '5 × 112'), pattern(2, 10, '5 × 120'), pattern(3, 20, '5 × 112'), pattern(4, 20, '5 × 120')]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectVariant(c.versions.value.find((v) => v.id === 2)!)
+            c.selectFinish(20)
+
+            expect(c.selected.value?.id).toBe(4)
+            expect(c.colourLacks.value).toBeNull()
+        })
+
+        it('keeps the bore too: two bores of one size are two versions', () => {
+            const configs = [pattern(1, 10, '5 × 112', { centreBore: '66,6 mm' }), pattern(2, 10, '5 × 112', { centreBore: '72,6 mm' }), pattern(3, 20, '5 × 112', { centreBore: '66,6 mm' }), pattern(4, 20, '5 × 112', { centreBore: '72,6 mm' })]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectVariant(c.versions.value.find((v) => v.id === 2)!)
+            c.selectFinish(20)
+
+            expect(c.selected.value?.id).toBe(4)
+        })
+
+        it('stays on the same version where the car may not have it in this colour: struck, and never swapped in silence', () => {
+            const refused = verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Nicht freigegeben.' })
+            const configs = [
+                config({ id: 1, finishId: 10, widthIn: 8, verdict: verdict({}) }),
+                config({ id: 2, finishId: 10, widthIn: 8.5, verdict: verdict({}) }),
+                config({ id: 3, finishId: 20, widthIn: 8, verdict: verdict({}) }),
+                config({ id: 4, finishId: 20, widthIn: 8.5, verdict: refused }),
+            ]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectVariant(c.versions.value.find((v) => v.id === 2)!)
+            c.selectFinish(20)
+
+            expect(c.selected.value?.id).toBe(4)
+            expect(c.others.value.map((v) => v.id)).toEqual([4])
+            expect(c.colourLacks.value).toBeNull()
+        })
+
+        it('says what a colour lacks, shows the nearest of the same diameter, and finds the person’s version again on the way back', () => {
+            const configs = [
+                config({ id: 1, finishId: 10, diameterIn: 18, widthIn: 8 }),
+                config({ id: 2, finishId: 10, diameterIn: 18, widthIn: 8.5 }),
+                config({ id: 3, finishId: 20, diameterIn: 18, widthIn: 8 }),
+                config({ id: 4, finishId: 20, diameterIn: 19, widthIn: 8.5 }),
+            ]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectVariant(c.versions.value.find((v) => v.id === 2)!)
+            c.selectFinish(20)
+
+            expect(c.selected.value?.id).toBe(3)
+            expect(c.colourLacks.value?.id).toBe(2)
+
+            c.selectFinish(10)
+
+            expect(c.selected.value?.id).toBe(2)
+            expect(c.colourLacks.value).toBeNull()
+        })
+
+        it('says it too where the colour lacks the whole diameter, and goes on from what the person then chooses', () => {
+            const configs = [
+                config({ id: 1, finishId: 10, diameterIn: 18, widthIn: 8 }),
+                config({ id: 2, finishId: 10, diameterIn: 19, widthIn: 8.5 }),
+                config({ id: 3, finishId: 20, diameterIn: 18, widthIn: 8 }),
+            ]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectSize(c.sizes.value.find((s) => s.diameter === 19)!)
+            c.selectFinish(20)
+
+            expect(c.selected.value?.id).toBe(3)
+            expect(c.colourLacks.value?.id).toBe(2)
+
+            // Chosen now: this is the version from here on, and the note is over.
+            c.selectVariant(c.versions.value.find((v) => v.id === 3)!)
+            expect(c.colourLacks.value).toBeNull()
+
+            c.selectFinish(10)
+            expect(c.selected.value?.id).toBe(1)
+        })
+
+        it('takes the version on screen where nobody chose one, and keeps it through two colours', () => {
+            const configs = [
+                config({ id: 1, finishId: 10, widthIn: 8 }),
+                config({ id: 2, finishId: 20, widthIn: 9 }),
+                config({ id: 3, finishId: 30, widthIn: 8 }),
+            ]
+            const c = useConfigurator(() => configs, 10)
+
+            c.selectFinish(20)
+            expect(c.colourLacks.value?.id).toBe(1)
+
+            c.selectFinish(30)
+            expect(c.selected.value?.id).toBe(3)
+            expect(c.colourLacks.value).toBeNull()
+        })
+    })
+
+    describe('what a diameter leads to, in the order of OpeningSize', () => {
+        const refused = verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Nicht freigegeben.' })
+        const question = verdict({ status: 'UNKNOWN', sellable: false, missing: ['bodyForm'] as never, reasonCode: 'BODY_OR_DRIVE_UNKNOWN' })
+        const tyresOpen = verdict({ status: 'UNKNOWN', sellable: false, wheelStatus: 'PERMITTED', tyre: { status: 'UNKNOWN', label: '', lines: [], thresholds: [], fromVehicleData: false } as never })
+        const nothing = verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'NO_DOCUMENT' })
+        const led = (rows: Array<[number, ConfigVerdict, number]>): number =>
+            useConfigurator(() => [config({ id: 99, diameterIn: 17, verdict: verdict({}) }), ...rows.map(([id, v, price]) => config({ id, diameterIn: 18, widthIn: 8 + id / 10, verdict: v, priceCents: price }))], 10)
+                .sizes.value.find((s) => s.diameter === 18)!.config.id
+
+        it('leads to the version that can still be answered, never to a cheaper refused one', () => {
+            expect(led([[1, refused, 70400], [2, question, 74400]])).toBe(2)
+        })
+
+        it('ranks its tyres open before a question, a question before no paper, and no paper before a refusal', () => {
+            expect(led([[1, refused, 100], [2, nothing, 200], [3, question, 300], [4, tyresOpen, 400]])).toBe(4)
+            expect(led([[1, refused, 100], [2, nothing, 200], [3, question, 300]])).toBe(3)
+            expect(led([[1, refused, 100], [2, nothing, 200]])).toBe(2)
+        })
+
+        it('takes the oldest row on a tie, as the server does', () => {
+            expect(led([[2, refused, 100], [1, refused, 100]])).toBe(1)
+        })
+    })
+
+    it('says what the versions of a struck diameter stand on, each kind once', () => {
+        const refused = verdict({ status: 'NOT_PERMITTED', sellable: false })
+        const open = verdict({ status: 'UNKNOWN', sellable: false, reasonCode: 'TYRE_SIZES_NOT_RECORDED' })
+        const configs = [config({ id: 1, diameterIn: 18, verdict: refused }), config({ id: 2, diameterIn: 18, widthIn: 9, verdict: open }), config({ id: 3, diameterIn: 18, widthIn: 10, verdict: refused }), config({ id: 4, diameterIn: 19, verdict: verdict({}) })]
+        const sizes = useConfigurator(() => configs, 10).sizes.value
+
+        expect(sizes.find((s) => s.diameter === 18)!.standings).toEqual(['refused', 'open'])
+        expect(sizes.find((s) => s.diameter === 19)!.standings).toEqual([])
+    })
+
+    it('says which version was picked by a person: nothing until one is, so the address names only a choice', () => {
+        const configs = [config({ id: 1, widthIn: 8 }), config({ id: 2, widthIn: 8.5 })]
+        const c = useConfigurator(() => configs, 10)
+
+        expect(c.configId.value).toBeNull()
+
+        c.selectVariant(c.versions.value[1]!)
+
+        expect(c.configId.value).toBe(2)
+        expect(c.selected.value?.id).toBe(2)
+    })
+})
+
+describe('a set of two versions, front and rear (the client\'s fourth change)', () => {
+    const approved = verdict({})
+    const version = (id: number, diameterIn: number, extra: Partial<ProduktConfig> = {}): ProduktConfig =>
+        ({ id, finishId: 1, diameterIn, widthIn: 8.5, etMm: 35, boltPattern: '5 × 120', centreBore: '72,5 mm', versionLabel: `Breite 8,5J · ET 35 · ${id}`, price: '229,00 €', priceCents: 22_900, inStock: true, verdict: approved, ...extra }) as ProduktConfig
+    const set = (key: string, frontId: number, rearId: number, diameters: number[], finishId = 1): ProduktSet =>
+        ({ key, frontId, rearId, finishId, diameters, label: `Satz ${key}`, bolt: '', frontFull: '', rearFull: '', priceCents: 99_600, price: '996,00 €', priceNote: '', inStock: true, enquiry: null, verdict: approved }) as ProduktSet
+
+    it('opens on the set where the car has only sets, and gives its versions no chip of their own', () => {
+        const front = version(1, 18, { onlyInSet: true })
+        const rear = version(2, 19, { onlyInSet: true })
+        const config = useConfigurator(() => [front, rear], 1, null, () => ({ 1: 1 }), () => [set('1-2', 1, 2, [18, 19])])
+
+        expect(config.selectedSet.value?.key).toBe('1-2')
+        expect(config.versions.value).toEqual([])
+        expect(config.others.value).toEqual([])
+        expect(config.setsHere.value.map((s) => s.key)).toEqual(['1-2'])
+        expect(config.sizes.value.every((size) => !size.blocked)).toBe(true)
+    })
+
+    it('never counts such a version as sellable on its own, whatever its verdict says', () => {
+        expect(sellable(version(1, 18, { onlyInSet: true }))).toBe(false)
+        expect(sellable(version(1, 18))).toBe(true)
+    })
+
+    it('keeps the set when the other diameter of it is pressed: the same thing to buy, the other version in view', () => {
+        const front = version(1, 18, { onlyInSet: true })
+        const rear = version(2, 19, { onlyInSet: true })
+        const config = useConfigurator(() => [front, rear], 1, null, () => ({ 1: 1 }), () => [set('1-2', 1, 2, [18, 19])])
+
+        config.selectSize(config.sizes.value.find((size) => size.diameter === 19)!)
+
+        expect(config.selected.value?.id).toBe(2)
+        expect(config.selectedSet.value?.key).toBe('1-2')
+    })
+
+    it('offers a plain version beside a set, and choosing it leaves the set', () => {
+        const plain = version(1, 18)
+        const rear = version(2, 19, { onlyInSet: true })
+        const config = useConfigurator(() => [plain, rear], 1, null, () => ({ 1: 1 }), () => [set('1-2', 1, 2, [18, 19])])
+
+        expect(config.selectedSet.value).toBeNull()
+        expect(config.versions.value.map((v) => v.id)).toEqual([1])
+
+        config.selectSet(config.setsHere.value[0]!)
+        expect(config.selectedSet.value?.key).toBe('1-2')
+
+        config.selectVariant(config.versions.value[0]!)
+        expect(config.selectedSet.value).toBeNull()
+        expect(config.selected.value?.id).toBe(1)
+    })
+
+    it('finds the same set in another colour, by its versions, and says nothing of a set a colour does not have', () => {
+        const configs = [
+            version(1, 18, { onlyInSet: true }),
+            version(2, 19, { onlyInSet: true }),
+            version(3, 18, { onlyInSet: true, finishId: 2 }),
+            version(4, 19, { onlyInSet: true, finishId: 2 }),
+            version(5, 18, { finishId: 3 }),
+        ]
+        const config = useConfigurator(() => configs, 1, null, () => ({ 1: 1, 2: 3, 3: 5 }), () => [set('1-2', 1, 2, [18, 19]), set('3-4', 3, 4, [18, 19], 2)])
+
+        config.selectSet(config.setsHere.value[0]!)
+        config.selectFinish(2)
+        expect(config.selectedSet.value?.key).toBe('3-4')
+
+        config.selectFinish(3)
+        expect(config.selectedSet.value).toBeNull()
+        expect(config.selected.value?.id).toBe(5)
+    })
+
+    it('strikes a version for one axle that stands in no set, in its own words', () => {
+        const axle = version(1, 18, { onlyInSet: true })
+        const config = useConfigurator(() => [axle], 1)
+
+        expect(config.others.value.map((v) => v.standing)).toEqual(['axle'])
+        expect(config.sizes.value[0]?.blocked).toBe(true)
     })
 })

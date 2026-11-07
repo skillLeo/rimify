@@ -15,5 +15,5 @@ export default function globalSetup(): void {
     const options = { cwd: new URL('../..', import.meta.url), env: { ...process.env, ...ABNAHME_DB, DEMO_DATA: '1' }, stdio: 'pipe' as const }
 
     execFileSync(php, ['artisan', 'migrate:fresh', '--seed', '--seeder=Database\\Seeders\\KundenlisteShopSeeder', '--force', '--no-interaction'], options)
-    execFileSync(php, ['artisan', 'rimify:demo', '--abnahme', '--no-interaction'], options)
+    execFileSync(php, ['artisan', 'rimify:demo', '--abnahme', '--satz', '--no-interaction'], options)
 }

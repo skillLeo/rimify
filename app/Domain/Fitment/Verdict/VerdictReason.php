@@ -69,6 +69,12 @@ final readonly class VerdictReason
     /** The document does not say what the tyres need at the car's figures: no table, no row, no index. */
     public const TYRE_UNKNOWN = 'TYRE_UNKNOWN';
 
+    /**
+     * The reasons that say no paper speaks for the car: no document, or one whose rows do not reach it. Every other UNKNOWN has a
+     * paper or a fact in hand and something still open — what may be said of it differs (D-405; FitmentVerdict::stillOpen()).
+     */
+    public const NOTHING_ON_RECORD = [self::NO_DOCUMENT, self::ANNEX_MISSING, self::COVERAGE_UNCONFIRMED];
+
     public function __construct(
         public string $code,
         public string $textDe,

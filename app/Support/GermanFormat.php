@@ -132,6 +132,34 @@ final class GermanFormat
         );
     }
 
+    /** `Breite 8,5J · ET 30 · Lochkreis 5 × 120` — one version of a rim as its chip names it (the Gutachten rework §8). */
+    public static function wheelVersion(float|int|string $widthIn, int $etMm, int $boltHoles, float|int|string $boltCircleMm): string
+    {
+        return implode(' '.self::MIDDOT.' ', [
+            'Breite'.self::NBSP.self::rimWidth($widthIn),
+            self::offset($etMm),
+            'Lochkreis'.self::NBSP.self::boltPattern($boltHoles, $boltCircleMm),
+        ]);
+    }
+
+    /** `Vorne 2 × 8,5 × 18 ET 35`: one axle of a set of two versions, two wheels on it (the client's fourth change). */
+    public static function wheelSetAxle(string $axle, float|int|string $widthIn, float|int|string $diameterIn, int $etMm): string
+    {
+        return $axle.self::NBSP.'2'.self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($widthIn).self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($diameterIn, 1).self::NBSP.self::offset($etMm);
+    }
+
+    /** `Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35`: the set in one line. */
+    public static function wheelSet(
+        float|int|string $frontWidthIn,
+        float|int|string $frontDiameterIn,
+        int $frontEtMm,
+        float|int|string $rearWidthIn,
+        float|int|string $rearDiameterIn,
+        int $rearEtMm,
+    ): string {
+        return self::wheelSetAxle('Vorne', $frontWidthIn, $frontDiameterIn, $frontEtMm).' '.self::MIDDOT.' '.self::wheelSetAxle('Hinten', $rearWidthIn, $rearDiameterIn, $rearEtMm);
+    }
+
     /** `8,5J × 18 · ET 35 · 5/112 · 66,6 mm` */
     public static function wheelLabel(
         float|int|string $widthIn,

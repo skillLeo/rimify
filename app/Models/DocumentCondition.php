@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\ConditionLevel;
+use App\Domain\Fitment\Verdict\HintColour;
 use Database\Factories\DocumentConditionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property array{mode: string, drive: string}|null $drive antrieb: only with, or not with, a drive
  * @property int|null $max_axle_load_kg reifen_tragfaehigkeit: the permitted axle load this code allows up to
  * @property string|null $axle reifen_achse: FRONT or REAR
+ * @property HintColour $shop_colour the colour it gives the shop's hint (#23): presentation only
  * @property ConditionLevel|null $level how loud it is in the shop (#23, D-104): Hinweis, Auflage, nicht zulässig — never below its kind's floor
  * @property string|null $limit_confirmed_reason why a load-index limit that differs from the table stands as the document states it
  * @property int|null $limit_confirmed_by
@@ -39,7 +41,7 @@ class DocumentCondition extends Model
     /** @use HasFactory<DocumentConditionFactory> */
     use HasFactory;
 
-    protected $fillable = ['approval_document_id', 'code', 'kind', 'text_de', 'source_page', 'body_forms', 'drive', 'max_axle_load_kg', 'axle', 'level'];
+    protected $fillable = ['approval_document_id', 'code', 'kind', 'text_de', 'source_page', 'body_forms', 'drive', 'max_axle_load_kg', 'axle', 'level', 'shop_colour'];
 
     /**
      * An Auflage written without a level gets the operator's default (ConditionLevel::defaultFor); one below its kind's
@@ -60,6 +62,7 @@ class DocumentCondition extends Model
         return [
             'kind' => ConditionKind::class,
             'level' => ConditionLevel::class,
+            'shop_colour' => HintColour::class,
             'source_page' => 'integer',
             'body_forms' => 'array',
             'drive' => 'array',

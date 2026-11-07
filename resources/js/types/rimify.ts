@@ -239,6 +239,8 @@ export interface ProductCardProp {
     enquiry?: string | null
     /** `17 · 18 · 19` as already-formatted German decimals. */
     diameters: string[]
+    /** The versions this card stands for; with a car, those the product page offers it (the rework §8). */
+    versionCount?: number
     /**
      * The subset of `diameters` with a `PERMITTED`/`CONDITIONAL` configuration for the vehicle, or one whose wheel is
      * approved with its tyres not yet confirmed (D-286); null without a vehicle (or while the server does not send it —
@@ -290,6 +292,13 @@ export interface CardFitment {
     conditions?: string[]
     /** Further Auflagen depend on the rim or tyre size: said on the product page, per size. */
     conditionsVary?: boolean
+    /** Only as a set of two versions, front and rear: the card says so, the page opens on the set. */
+    onlyAsSet?: boolean
+    /** The set's price for four where the card speaks for one, the lowest of them; `setPriceFrom` where there are several. */
+    setPrice?: string | null
+    setPriceFrom?: boolean
+    /** The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says. */
+    hint?: 'green' | 'yellow'
     /** Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. */
     notesOnly?: boolean
     /** No size sells, and the wheel is approved with its tyres not yet confirmed (finding 103, D-286). Additive. */
@@ -379,6 +388,8 @@ export interface BasketLine {
     /** A seeded demonstration row on the line — the wheel model or, for a Komplettrad, its tyre. */
     demo?: boolean
     slug?: string
+    /** The product page on the version in this line. */
+    productHref?: string
     /**
      * Re-computed on every render, never trusted from the session: a document may have been
      * superseded since the line was added, and the basket is the last place that can say so
@@ -387,6 +398,8 @@ export interface BasketLine {
     verdict?: {
         status: VerdictStatus
         label: string
+        /** Why not, in the verdict's own words; null where it sells. */
+        reason?: string | null
         /** Every Auflage a Hinweis (#23, D-104): shown as „Freigegeben“. Additive. */
         notesOnly?: boolean
         sellable: boolean
@@ -426,11 +439,16 @@ export interface BasketLine {
     priceOpen?: boolean
     /** Full German sentences, never codes; empty when nothing is wrong (R-15). */
     blockReasons?: string[]
+    /** A version this car may have only in a set: that set's page (D-425). Null on every other line. */
+    setHref?: string | null
 }
 
 /** One axle of a mixed set, as the basket and the order record it (D-105). */
 export interface BasketMixed {
     setKey: string
+    /** Two versions of the rim, one per axle (the client's fourth change): the other axle's, as this line names it. */
+    wheelSet?: boolean
+    partnerWheel?: string
     axle: 'FRONT' | 'REAR'
     /** `Vorderachse` */
     axleLabel: string

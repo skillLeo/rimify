@@ -44,7 +44,11 @@ export async function scrollPastBuyButton(page: Page): Promise<void> {
     await expect(page.locator('.pdp__sticky'), 'the price bar did not appear below the main button').toBeVisible();
 }
 
-/** Until every running animation inside `selector` has finished (the panel arrives from above). */
+/**
+ * Until no animation inside `selector` is running any more (the panel arrives from above). A cancelled one counts: Vue's
+ * Transition ends by its own timer too, takes its class away at the last frame and so cancels the animation, whose
+ * `finished` then rejects with the panel already at rest — 3 runs in 195, a red that said nothing about the panel.
+ */
 export async function settled(page: Page, selector: string): Promise<void> {
-    await page.locator(selector).evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)));
+    await page.locator(selector).evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined))));
 }

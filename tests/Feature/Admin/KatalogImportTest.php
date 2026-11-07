@@ -90,6 +90,18 @@ it('reads a supplier CSV in a Probelauf, maps its columns by name, and writes no
             ->where('can.apply', true));
 });
 
+// A version is the whole row (the Gutachten rework §8): a second bore of one size is no clash.
+it('reads a second bore of one size as a version of its own, and the same row twice as the same size', function (): void {
+    $row = feedRows()[0];
+    $twoBores = probelauf(supplierCsv([$row, ['TST-18-80-35-B', ...array_slice($row, 1, 7), '72,6', '189,00', '12']]));
+
+    expect($twoBores->summary)->toMatchArray(['create' => 2, 'refused' => 0]);
+
+    $sameTwice = probelauf(supplierCsv([$row, ['TST-18-80-35-C', ...array_slice($row, 1)]]));
+
+    expect($sameTwice->summary)->toMatchArray(['create' => 1, 'refused' => 1]);
+});
+
 it('imports the Probelauf: new models are drafts, prices read the German way, the mapping is kept', function (): void {
     $run = probelauf(supplierCsv(feedRows()));
 

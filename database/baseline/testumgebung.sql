@@ -1,5 +1,5 @@
 -- RIMIFY rimify-snapshot/1: Grundstand der Testumgebung (php artisan rimify:reset-baseline)
---@meta {"format":"rimify-snapshot/1","purpose":"Grundstand der Testumgebung (php artisan rimify:reset-baseline)","migrations":["0001_01_01_000000_create_users_table","0001_01_01_000001_create_cache_table","0001_01_01_000002_create_jobs_table","2026_09_20_000101_create_permission_tables","2026_09_20_000102_create_activity_log_table","2026_09_20_000103_create_media_table","2026_09_20_000104_create_telescope_entries_table","2026_09_20_100100_create_admin_users_table","2026_09_20_100200_create_vehicles_table","2026_09_20_100300_create_catalogue_tables","2026_09_20_100400_create_approval_documents_table","2026_09_20_100500_create_fitments_table","2026_09_20_100600_create_condition_tables","2026_09_20_100700_create_reference_and_conflict_tables","2026_09_21_100800_add_supersede_guard_to_approval_documents","2026_09_21_100900_add_presentation_columns_to_catalogue","2026_09_21_200100_create_commerce_tables","2026_09_21_200200_create_order_line_fitments_table","2026_09_21_200300_create_content_and_access_tables","2026_09_21_200400_add_role_metadata_to_roles","2026_09_21_210000_fix_navigation_links","2026_09_22_000100_phase0_navigation_and_search","2026_09_23_000100_phase0_homepage_data","2026_09_23_000200_create_fitment_subscriptions_table","2026_09_23_000300_add_demo_flag_and_image_manifest_to_catalogue","2026_09_24_000100_add_max_load_to_wheel_configs","2026_09_25_000100_create_komplettrad_option_tables","2026_09_25_000200_add_komplettrad_columns_to_commerce","2026_09_25_000300_add_is_wheel_brand_to_brands","2026_09_25_000400_add_centre_bore_to_fitments","2026_09_26_000100_add_preferences_to_admin_users","2026_09_26_000200_german_role_labels","2026_09_26_000310_create_admin_invitations_table","2026_09_26_000320_add_sessions_revoked_at_to_admin_users","2026_09_26_000330_let_closed_invitations_release_their_role","2026_09_26_000400_index_audit_logs_for_filters","2026_09_26_000500_add_drafts_and_revisions_to_pages","2026_09_26_000510_add_team_edit_marks_to_faq_and_nav","2026_09_26_000520_add_content_version_to_pages","2026_09_26_000600_create_notifications_table","2026_09_26_000700_add_order_list_columns","2026_09_27_000800_create_verdict_tallies_table","2026_09_27_000900_create_demand_marks_table","2026_09_27_001000_create_saved_views_table","2026_09_28_000100_add_columns_to_saved_views","2026_09_28_000200_mark_demo_rows","2026_09_28_000300_create_storage_settings_table","2026_09_28_000400_demo_models_never_published","2026_09_28_000500_catalogue_admin","2026_09_28_000600_create_review_feedback_table","2026_09_28_000700_vehicle_provenance","2026_09_28_000800_create_wheel_finish_images_table","2026_09_28_000900_catalogue_import_supplier","2026_09_28_001000_vehicle_source_values","2026_09_28_001100_brands_unique_among_live","2026_09_28_001200_document_conditions","2026_09_28_001300_derived_entry_per_tyre_size","2026_09_28_001400_conflict_decisions","2026_09_28_001500_document_record_shape","2026_09_28_001600_six_spoke_wheels","2026_09_28_001700_document_speed_deratings","2026_09_28_001800_load_limit_confirmation","2026_09_28_001900_derating_seed_origin","2026_09_28_002000_vehicles_from_documents","2026_09_29_000100_check_results","2026_09_29_000200_tyre_size_power_band","2026_09_29_000300_tyre_size_entries","2026_09_29_100100_payments","2026_09_29_100200_refunds_disputes_invoices","2026_09_29_100300_brand_manufacturer","2026_09_29_100400_customer_accounts","2026_09_30_100100_invoice_series_opening","2026_10_01_000100_reword_three_faq_answers","2026_10_01_100100_document_papers_and_annexes","2026_10_01_100200_add_internal_note_to_wheel_models","2026_10_02_000100_reviews_and_delivery","2026_10_02_000200_condition_levels","2026_10_02_000300_order_line_axle","2026_10_02_000500_contact_messages","2026_10_05_000100_record_database_environment","2026_10_06_000100_create_mail_settings_and_suppressions","2026_10_07_000100_acceptance_set","2026_10_07_000200_demo_never_published_null_safe","2026_10_14_000100_document_completeness","2026_10_14_000200_faq_entry_question_quotes","2026_10_15_000100_order_origin","2026_10_16_000100_document_counts","2026_10_17_000100_document_tyre_combinations","2026_10_17_000200_fitments_document_status_index","2026_10_18_000100_document_tyre_index_source","2026_10_18_000200_audit_logs_people_index","2026_10_18_000300_vehicle_imports","2026_10_18_000310_vehicle_numbers_per_source","2026_10_18_000400_wheel_title_and_availability","2026_10_19_000100_tyre_availability_and_label","2026_10_19_000200_load_index_to_120","2026_10_23_000100_legal_placeholder_flag","2026_10_24_000100_drop_unreal_role_cells","2026_10_29_000100_wheel_model_stated_rating","2026_10_29_000200_pages_soft_delete","2026_10_29_000300_order_public_id_and_number_counter","2026_10_29_000400_order_line_components","2026_10_29_000500_tyre_combinations_per_eg_number","2026_10_29_000600_stripe_invoices_on_orders"],"last_migration":{"name":"2026_10_29_000600_stripe_invoices_on_orders","batch":1},"schema":"d2285d6dbdd60c20704cc1589205e03063653dd9cc3b78d63208aee3273cade7","app":{"commit":"b6a1be2c","release_seed":10},"tables":["addresses","admin_invitations","admin_users","approval_documents","audit_logs","balance_weight_colours","brands","cache","cache_locks","catalogue_gap_events","catalogue_imports","check_results","contact_messages","customers","customer_accounts","demand_marks","disputes","document_conditions","document_condition_reworks","document_fasteners","document_notices","document_speed_deratings","document_tyre_combinations","failed_jobs","faq_entries","fitments","fitment_conditions","fitment_conflicts","fitment_subscriptions","fitment_tyre_sizes","fitment_tyre_size_conditions","invoices","invoice_exports","invoice_sequences","jobs","job_batches","load_index_table","mail_settings","mail_suppressions","media","migrations","model_has_permissions","model_has_roles","nav_items","notifications","orders","order_lines","order_line_fitments","order_number_counter","pages","page_blocks","page_revisions","password_reset_tokens","payment_events","payment_settings","permissions","refunds","reviews","review_feedback","roles","role_has_permissions","role_permissions","saved_views","search_misses","sessions","settings","speed_symbol_table","storage_settings","stripe_events","telescope_entries","telescope_entries_tags","telescope_monitoring","tpms_sensor_prices","tyre_variants","users","vehicles","vehicle_imports","verdict_tallies","wheel_configs","wheel_finishes","wheel_finish_images","wheel_models"]}
+--@meta {"format":"rimify-snapshot/1","purpose":"Grundstand der Testumgebung (php artisan rimify:reset-baseline)","migrations":["0001_01_01_000000_create_users_table","0001_01_01_000001_create_cache_table","0001_01_01_000002_create_jobs_table","2026_09_20_000101_create_permission_tables","2026_09_20_000102_create_activity_log_table","2026_09_20_000103_create_media_table","2026_09_20_000104_create_telescope_entries_table","2026_09_20_100100_create_admin_users_table","2026_09_20_100200_create_vehicles_table","2026_09_20_100300_create_catalogue_tables","2026_09_20_100400_create_approval_documents_table","2026_09_20_100500_create_fitments_table","2026_09_20_100600_create_condition_tables","2026_09_20_100700_create_reference_and_conflict_tables","2026_09_21_100800_add_supersede_guard_to_approval_documents","2026_09_21_100900_add_presentation_columns_to_catalogue","2026_09_21_200100_create_commerce_tables","2026_09_21_200200_create_order_line_fitments_table","2026_09_21_200300_create_content_and_access_tables","2026_09_21_200400_add_role_metadata_to_roles","2026_09_21_210000_fix_navigation_links","2026_09_22_000100_phase0_navigation_and_search","2026_09_23_000100_phase0_homepage_data","2026_09_23_000200_create_fitment_subscriptions_table","2026_09_23_000300_add_demo_flag_and_image_manifest_to_catalogue","2026_09_24_000100_add_max_load_to_wheel_configs","2026_09_25_000100_create_komplettrad_option_tables","2026_09_25_000200_add_komplettrad_columns_to_commerce","2026_09_25_000300_add_is_wheel_brand_to_brands","2026_09_25_000400_add_centre_bore_to_fitments","2026_09_26_000100_add_preferences_to_admin_users","2026_09_26_000200_german_role_labels","2026_09_26_000310_create_admin_invitations_table","2026_09_26_000320_add_sessions_revoked_at_to_admin_users","2026_09_26_000330_let_closed_invitations_release_their_role","2026_09_26_000400_index_audit_logs_for_filters","2026_09_26_000500_add_drafts_and_revisions_to_pages","2026_09_26_000510_add_team_edit_marks_to_faq_and_nav","2026_09_26_000520_add_content_version_to_pages","2026_09_26_000600_create_notifications_table","2026_09_26_000700_add_order_list_columns","2026_09_27_000800_create_verdict_tallies_table","2026_09_27_000900_create_demand_marks_table","2026_09_27_001000_create_saved_views_table","2026_09_28_000100_add_columns_to_saved_views","2026_09_28_000200_mark_demo_rows","2026_09_28_000300_create_storage_settings_table","2026_09_28_000400_demo_models_never_published","2026_09_28_000500_catalogue_admin","2026_09_28_000600_create_review_feedback_table","2026_09_28_000700_vehicle_provenance","2026_09_28_000800_create_wheel_finish_images_table","2026_09_28_000900_catalogue_import_supplier","2026_09_28_001000_vehicle_source_values","2026_09_28_001100_brands_unique_among_live","2026_09_28_001200_document_conditions","2026_09_28_001300_derived_entry_per_tyre_size","2026_09_28_001400_conflict_decisions","2026_09_28_001500_document_record_shape","2026_09_28_001600_six_spoke_wheels","2026_09_28_001700_document_speed_deratings","2026_09_28_001800_load_limit_confirmation","2026_09_28_001900_derating_seed_origin","2026_09_28_002000_vehicles_from_documents","2026_09_29_000100_check_results","2026_09_29_000200_tyre_size_power_band","2026_09_29_000300_tyre_size_entries","2026_09_29_100100_payments","2026_09_29_100200_refunds_disputes_invoices","2026_09_29_100300_brand_manufacturer","2026_09_29_100400_customer_accounts","2026_09_30_100100_invoice_series_opening","2026_10_01_000100_reword_three_faq_answers","2026_10_01_100100_document_papers_and_annexes","2026_10_01_100200_add_internal_note_to_wheel_models","2026_10_02_000100_reviews_and_delivery","2026_10_02_000200_condition_levels","2026_10_02_000300_order_line_axle","2026_10_02_000500_contact_messages","2026_10_05_000100_record_database_environment","2026_10_06_000100_create_mail_settings_and_suppressions","2026_10_07_000100_acceptance_set","2026_10_07_000200_demo_never_published_null_safe","2026_10_14_000100_document_completeness","2026_10_14_000200_faq_entry_question_quotes","2026_10_15_000100_order_origin","2026_10_16_000100_document_counts","2026_10_17_000100_document_tyre_combinations","2026_10_17_000200_fitments_document_status_index","2026_10_18_000100_document_tyre_index_source","2026_10_18_000200_audit_logs_people_index","2026_10_18_000300_vehicle_imports","2026_10_18_000310_vehicle_numbers_per_source","2026_10_18_000400_wheel_title_and_availability","2026_10_19_000100_tyre_availability_and_label","2026_10_19_000200_load_index_to_120","2026_10_23_000100_legal_placeholder_flag","2026_10_24_000100_drop_unreal_role_cells","2026_10_29_000100_wheel_model_stated_rating","2026_10_29_000200_pages_soft_delete","2026_10_29_000300_order_public_id_and_number_counter","2026_10_29_000400_order_line_components","2026_10_29_000500_tyre_combinations_per_eg_number","2026_10_29_000600_stripe_invoices_on_orders","2026_11_06_000100_gutachten_entry_tables","2026_11_06_000200_carry_gutachten_into_the_entry","2026_11_07_000100_tyre_models","2026_11_07_000200_wheel_version_key","2026_11_08_000100_condition_shop_colour"],"last_migration":{"name":"2026_11_08_000100_condition_shop_colour","batch":1},"schema":"a79db96a439ccd0abfab399d36f68e2ccd25f5b96eb96f03c537e2a56d2918a5","app":{"commit":"6b1d0bf8","release_seed":10},"tables":["addresses","admin_invitations","admin_users","approval_documents","audit_logs","balance_weight_colours","brands","cache","cache_locks","catalogue_gap_events","catalogue_imports","check_results","contact_messages","customers","customer_accounts","demand_marks","disputes","document_car_entries","document_car_entry_codes","document_conditions","document_condition_reworks","document_fasteners","document_kept_combinations","document_notices","document_speed_deratings","document_tyre_combinations","document_tyre_lines","document_tyre_line_codes","document_wheel_combinations","document_wheel_sizes","failed_jobs","faq_entries","fitments","fitment_conditions","fitment_conflicts","fitment_subscriptions","fitment_tyre_sizes","fitment_tyre_size_conditions","fitment_wheel_sets","invoices","invoice_exports","invoice_sequences","jobs","job_batches","load_index_table","mail_settings","mail_suppressions","media","migrations","model_has_permissions","model_has_roles","nav_items","notifications","orders","order_lines","order_line_fitments","order_number_counter","pages","page_blocks","page_revisions","password_reset_tokens","payment_events","payment_settings","permissions","refunds","reviews","review_feedback","roles","role_has_permissions","role_permissions","saved_views","search_misses","sessions","settings","speed_symbol_table","storage_settings","stripe_events","telescope_entries","telescope_entries_tags","telescope_monitoring","tpms_sensor_prices","tyre_models","tyre_model_images","tyre_variants","users","vehicles","vehicle_imports","verdict_tallies","wheel_configs","wheel_finishes","wheel_finish_images","wheel_models"]}
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 --@drop addresses
@@ -159,6 +159,7 @@ CREATE TABLE `approval_documents` (
   `updated_at` timestamp NULL DEFAULT NULL,
   `is_demo` tinyint(1) NOT NULL DEFAULT 0,
   `demo_ref` varchar(48) DEFAULT NULL,
+  `printed_wheels` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'the paper''s own wheel data as typed: only ever compared, for a warning' CHECK (json_valid(`printed_wheels`)),
   PRIMARY KEY (`id`),
   UNIQUE KEY `approval_documents_demo_ref_unique` (`demo_ref`),
   KEY `approval_documents_created_by_foreign` (`created_by`),
@@ -589,6 +590,66 @@ CREATE TABLE `disputes` (
   CONSTRAINT `disputes_order_id_foreign` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
   CONSTRAINT `chk_dispute_outcome` CHECK (`outcome` is null or `outcome` in ('won','lost','accepted'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_car_entries
+DROP TABLE IF EXISTS `document_car_entries`;
+--@create document_car_entries
+CREATE TABLE `document_car_entries` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `approval_document_id` bigint(20) unsigned NOT NULL,
+  `document_wheel_combination_id` bigint(20) unsigned NOT NULL,
+  `vehicle_id` bigint(20) unsigned NOT NULL,
+  `wheel_config_id` bigint(20) unsigned DEFAULT NULL,
+  `axle` varchar(8) NOT NULL DEFAULT 'ALL',
+  `scope_key` int(10) unsigned GENERATED ALWAYS AS (ifnull(`wheel_config_id`,0)) STORED COMMENT 'the colour in the key: a UNIQUE over the nullable column would let two in',
+  `source_page` smallint(5) unsigned DEFAULT NULL,
+  `build_from` date DEFAULT NULL,
+  `build_to` date DEFAULT NULL,
+  `permitted_width_min` decimal(4,2) DEFAULT NULL,
+  `permitted_width_max` decimal(4,2) DEFAULT NULL,
+  `permitted_et_min` smallint(6) DEFAULT NULL,
+  `permitted_et_max` smallint(6) DEFAULT NULL,
+  `centre_bore_mm` decimal(5,2) DEFAULT NULL,
+  `entry_note_de` text DEFAULT NULL,
+  `entry_override` varchar(16) DEFAULT NULL,
+  `entry_override_reason` text DEFAULT NULL,
+  `entry_override_by` bigint(20) unsigned DEFAULT NULL,
+  `entry_override_at` timestamp NULL DEFAULT NULL,
+  `copied_from_id` bigint(20) unsigned DEFAULT NULL,
+  `position` int(10) unsigned NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_document_car_entry` (`document_wheel_combination_id`,`vehicle_id`,`axle`,`scope_key`),
+  KEY `document_car_entries_vehicle_id_foreign` (`vehicle_id`),
+  KEY `document_car_entries_wheel_config_id_foreign` (`wheel_config_id`),
+  KEY `document_car_entries_entry_override_by_foreign` (`entry_override_by`),
+  KEY `document_car_entries_copied_from_id_foreign` (`copied_from_id`),
+  KEY `idx_document_car_entry_order` (`approval_document_id`,`position`),
+  CONSTRAINT `document_car_entries_approval_document_id_foreign` FOREIGN KEY (`approval_document_id`) REFERENCES `approval_documents` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `document_car_entries_copied_from_id_foreign` FOREIGN KEY (`copied_from_id`) REFERENCES `document_car_entries` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `document_car_entries_document_wheel_combination_id_foreign` FOREIGN KEY (`document_wheel_combination_id`) REFERENCES `document_wheel_combinations` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `document_car_entries_entry_override_by_foreign` FOREIGN KEY (`entry_override_by`) REFERENCES `admin_users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `document_car_entries_vehicle_id_foreign` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`id`),
+  CONSTRAINT `document_car_entries_wheel_config_id_foreign` FOREIGN KEY (`wheel_config_id`) REFERENCES `wheel_configs` (`id`),
+  CONSTRAINT `chk_document_car_entries_axle` CHECK (`axle` in ('ALL','FRONT','REAR')),
+  CONSTRAINT `chk_car_entry_build_window` CHECK (`build_from` is null or `build_to` is null or `build_from` <= `build_to`),
+  CONSTRAINT `chk_car_entry_width_range` CHECK (`permitted_width_min` is null or `permitted_width_max` is null or `permitted_width_min` <= `permitted_width_max`),
+  CONSTRAINT `chk_car_entry_et_range` CHECK (`permitted_et_min` is null or `permitted_et_max` is null or `permitted_et_min` <= `permitted_et_max`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_car_entry_codes
+DROP TABLE IF EXISTS `document_car_entry_codes`;
+--@create document_car_entry_codes
+CREATE TABLE `document_car_entry_codes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `document_car_entry_id` bigint(20) unsigned NOT NULL,
+  `code` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'as printed',
+  `note_de` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_document_car_entry_code` (`document_car_entry_id`,`code`),
+  CONSTRAINT `document_car_entry_codes_document_car_entry_id_foreign` FOREIGN KEY (`document_car_entry_id`) REFERENCES `document_car_entries` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@drop document_conditions
 DROP TABLE IF EXISTS `document_conditions`;
 --@create document_conditions
@@ -609,6 +670,7 @@ CREATE TABLE `document_conditions` (
   `limit_confirmed_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
+  `shop_colour` varchar(8) NOT NULL DEFAULT 'green',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_document_condition_code` (`approval_document_id`,`code`),
   KEY `document_conditions_limit_confirmed_by_foreign` (`limit_confirmed_by`),
@@ -618,7 +680,8 @@ CREATE TABLE `document_conditions` (
   CONSTRAINT `chk_document_condition_text` CHECK (trim(`text_de`) <> ''),
   CONSTRAINT `chk_document_condition_axle` CHECK (`axle` is null or `axle` in ('FRONT','REAR')),
   CONSTRAINT `chk_document_conditions_level` CHECK (`level` in ('hinweis','auflage','nicht_zulaessig')),
-  CONSTRAINT `chk_condition_level_floor` CHECK (`kind` not in ('abnahme','karosseriearbeit') or `level` <> 'hinweis')
+  CONSTRAINT `chk_condition_level_floor` CHECK (`kind` not in ('abnahme','karosseriearbeit') or `level` <> 'hinweis'),
+  CONSTRAINT `chk_document_conditions_shop_colour` CHECK (`shop_colour` in ('green','yellow'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@drop document_condition_reworks
 DROP TABLE IF EXISTS `document_condition_reworks`;
@@ -660,6 +723,29 @@ CREATE TABLE `document_fasteners` (
   UNIQUE KEY `uq_document_fastener_number` (`approval_document_id`,`number`),
   CONSTRAINT `document_fasteners_approval_document_id_foreign` FOREIGN KEY (`approval_document_id`) REFERENCES `approval_documents` (`id`) ON DELETE CASCADE,
   CONSTRAINT `chk_fastener_torque` CHECK (`torque_nm` is null or `torque_nm` between 50 and 300)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_kept_combinations
+DROP TABLE IF EXISTS `document_kept_combinations`;
+--@create document_kept_combinations
+CREATE TABLE `document_kept_combinations` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `approval_document_id` bigint(20) unsigned NOT NULL,
+  `eg_number` varchar(64) DEFAULT NULL,
+  `eg_number_norm` varchar(64) DEFAULT NULL,
+  `number` smallint(5) unsigned NOT NULL,
+  `front_width_mm` smallint(5) unsigned NOT NULL,
+  `front_aspect` tinyint(3) unsigned NOT NULL,
+  `front_diameter_in` decimal(4,1) NOT NULL,
+  `rear_width_mm` smallint(5) unsigned NOT NULL,
+  `rear_aspect` tinyint(3) unsigned NOT NULL,
+  `rear_diameter_in` decimal(4,1) NOT NULL,
+  `source_page` smallint(5) unsigned DEFAULT NULL,
+  `carried_over` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `document_kept_combinations_approval_document_id_foreign` (`approval_document_id`),
+  CONSTRAINT `document_kept_combinations_approval_document_id_foreign` FOREIGN KEY (`approval_document_id`) REFERENCES `approval_documents` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@drop document_notices
 DROP TABLE IF EXISTS `document_notices`;
@@ -723,6 +809,96 @@ CREATE TABLE `document_tyre_combinations` (
   CONSTRAINT `document_tyre_combinations_approval_document_id_foreign` FOREIGN KEY (`approval_document_id`) REFERENCES `approval_documents` (`id`) ON DELETE CASCADE,
   CONSTRAINT `chk_combination_number` CHECK (`number` >= 1),
   CONSTRAINT `chk_combination_sizes` CHECK (`front_width_mm` between 100 and 400 and `rear_width_mm` between 100 and 400 and `front_aspect` between 20 and 90 and `rear_aspect` between 20 and 90 and `front_diameter_in` between 10 and 30 and `rear_diameter_in` between 10 and 30)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_tyre_lines
+DROP TABLE IF EXISTS `document_tyre_lines`;
+--@create document_tyre_lines
+CREATE TABLE `document_tyre_lines` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `document_car_entry_id` bigint(20) unsigned NOT NULL,
+  `position` int(10) unsigned NOT NULL DEFAULT 0,
+  `front_width_mm` smallint(5) unsigned DEFAULT NULL,
+  `front_aspect` smallint(5) unsigned DEFAULT NULL,
+  `front_diameter_in` decimal(4,1) DEFAULT NULL,
+  `front_load_index` smallint(5) unsigned DEFAULT NULL,
+  `front_speed_symbol` varchar(3) DEFAULT NULL,
+  `front_marker` varchar(4) DEFAULT NULL,
+  `front_unread` varchar(64) DEFAULT NULL,
+  `rear_width_mm` smallint(5) unsigned DEFAULT NULL,
+  `rear_aspect` smallint(5) unsigned DEFAULT NULL,
+  `rear_diameter_in` decimal(4,1) DEFAULT NULL,
+  `rear_load_index` smallint(5) unsigned DEFAULT NULL,
+  `rear_speed_symbol` varchar(3) DEFAULT NULL,
+  `rear_marker` varchar(4) DEFAULT NULL,
+  `rear_unread` varchar(64) DEFAULT NULL,
+  `kw_min` smallint(5) unsigned DEFAULT NULL,
+  `kw_max` smallint(5) unsigned DEFAULT NULL,
+  `from_rows` tinyint(1) NOT NULL DEFAULT 0,
+  `in_list` tinyint(1) DEFAULT NULL,
+  `list_entry` varchar(64) DEFAULT NULL,
+  `list_number` smallint(5) unsigned DEFAULT NULL,
+  `list_page` smallint(5) unsigned DEFAULT NULL,
+  `list_carried_over` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_document_tyre_line_order` (`document_car_entry_id`,`position`),
+  CONSTRAINT `document_tyre_lines_document_car_entry_id_foreign` FOREIGN KEY (`document_car_entry_id`) REFERENCES `document_car_entries` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chk_tyre_line_kw` CHECK (`kw_min` is null or `kw_max` is null or `kw_min` <= `kw_max`),
+  CONSTRAINT `chk_tyre_line_side` CHECK (`front_width_mm` is not null or `rear_width_mm` is not null or `front_unread` is not null or `rear_unread` is not null)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_tyre_line_codes
+DROP TABLE IF EXISTS `document_tyre_line_codes`;
+--@create document_tyre_line_codes
+CREATE TABLE `document_tyre_line_codes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `document_tyre_line_id` bigint(20) unsigned NOT NULL,
+  `code` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'as printed',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_document_tyre_line_code` (`document_tyre_line_id`,`code`),
+  CONSTRAINT `document_tyre_line_codes_document_tyre_line_id_foreign` FOREIGN KEY (`document_tyre_line_id`) REFERENCES `document_tyre_lines` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_wheel_combinations
+DROP TABLE IF EXISTS `document_wheel_combinations`;
+--@create document_wheel_combinations
+CREATE TABLE `document_wheel_combinations` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `approval_document_id` bigint(20) unsigned NOT NULL,
+  `front_wheel_size_id` bigint(20) unsigned NOT NULL,
+  `rear_wheel_size_id` bigint(20) unsigned NOT NULL,
+  `position` int(10) unsigned NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_document_wheel_combination` (`approval_document_id`,`front_wheel_size_id`,`rear_wheel_size_id`),
+  KEY `document_wheel_combinations_front_wheel_size_id_foreign` (`front_wheel_size_id`),
+  KEY `document_wheel_combinations_rear_wheel_size_id_foreign` (`rear_wheel_size_id`),
+  CONSTRAINT `document_wheel_combinations_approval_document_id_foreign` FOREIGN KEY (`approval_document_id`) REFERENCES `approval_documents` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `document_wheel_combinations_front_wheel_size_id_foreign` FOREIGN KEY (`front_wheel_size_id`) REFERENCES `document_wheel_sizes` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `document_wheel_combinations_rear_wheel_size_id_foreign` FOREIGN KEY (`rear_wheel_size_id`) REFERENCES `document_wheel_sizes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop document_wheel_sizes
+DROP TABLE IF EXISTS `document_wheel_sizes`;
+--@create document_wheel_sizes
+CREATE TABLE `document_wheel_sizes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `approval_document_id` bigint(20) unsigned NOT NULL,
+  `wheel_model_id` bigint(20) unsigned NOT NULL,
+  `diameter_in` decimal(4,1) NOT NULL,
+  `width_in` decimal(4,2) NOT NULL,
+  `et_mm` smallint(6) NOT NULL,
+  `bolt_holes` tinyint(3) unsigned NOT NULL,
+  `bolt_circle_mm` decimal(5,1) NOT NULL,
+  `centre_bore_mm` decimal(5,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_document_wheel_size` (`approval_document_id`,`wheel_model_id`,`diameter_in`,`width_in`,`et_mm`,`bolt_holes`,`bolt_circle_mm`,`centre_bore_mm`),
+  KEY `document_wheel_sizes_wheel_model_id_foreign` (`wheel_model_id`),
+  CONSTRAINT `document_wheel_sizes_approval_document_id_foreign` FOREIGN KEY (`approval_document_id`) REFERENCES `approval_documents` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `document_wheel_sizes_wheel_model_id_foreign` FOREIGN KEY (`wheel_model_id`) REFERENCES `wheel_models` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@drop failed_jobs
 DROP TABLE IF EXISTS `failed_jobs`;
@@ -923,6 +1099,21 @@ CREATE TABLE `fitment_tyre_size_conditions` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`fitment_tyre_size_id`,`code`),
   CONSTRAINT `fitment_tyre_size_conditions_fitment_tyre_size_id_foreign` FOREIGN KEY (`fitment_tyre_size_id`) REFERENCES `fitment_tyre_sizes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop fitment_wheel_sets
+DROP TABLE IF EXISTS `fitment_wheel_sets`;
+--@create fitment_wheel_sets
+CREATE TABLE `fitment_wheel_sets` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `front_fitment_id` bigint(20) unsigned NOT NULL,
+  `rear_fitment_id` bigint(20) unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_fitment_wheel_set` (`front_fitment_id`,`rear_fitment_id`),
+  KEY `fitment_wheel_sets_rear_fitment_id_foreign` (`rear_fitment_id`),
+  CONSTRAINT `fitment_wheel_sets_front_fitment_id_foreign` FOREIGN KEY (`front_fitment_id`) REFERENCES `fitments` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fitment_wheel_sets_rear_fitment_id_foreign` FOREIGN KEY (`rear_fitment_id`) REFERENCES `fitments` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@drop invoices
 DROP TABLE IF EXISTS `invoices`;
@@ -1195,7 +1386,7 @@ CREATE TABLE `migrations` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@rows migrations
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (1, '0001_01_01_000000_create_users_table', 1), (2, '0001_01_01_000001_create_cache_table', 1), (3, '0001_01_01_000002_create_jobs_table', 1), (4, '2026_09_20_000101_create_permission_tables', 1), (5, '2026_09_20_000102_create_activity_log_table', 1), (6, '2026_09_20_000103_create_media_table', 1), (7, '2026_09_20_000104_create_telescope_entries_table', 1), (8, '2026_09_20_100100_create_admin_users_table', 1), (9, '2026_09_20_100200_create_vehicles_table', 1), (10, '2026_09_20_100300_create_catalogue_tables', 1), (11, '2026_09_20_100400_create_approval_documents_table', 1), (12, '2026_09_20_100500_create_fitments_table', 1), (13, '2026_09_20_100600_create_condition_tables', 1), (14, '2026_09_20_100700_create_reference_and_conflict_tables', 1), (15, '2026_09_21_100800_add_supersede_guard_to_approval_documents', 1), (16, '2026_09_21_100900_add_presentation_columns_to_catalogue', 1), (17, '2026_09_21_200100_create_commerce_tables', 1), (18, '2026_09_21_200200_create_order_line_fitments_table', 1), (19, '2026_09_21_200300_create_content_and_access_tables', 1), (20, '2026_09_21_200400_add_role_metadata_to_roles', 1), (21, '2026_09_21_210000_fix_navigation_links', 1), (22, '2026_09_22_000100_phase0_navigation_and_search', 1), (23, '2026_09_23_000100_phase0_homepage_data', 1), (24, '2026_09_23_000200_create_fitment_subscriptions_table', 1), (25, '2026_09_23_000300_add_demo_flag_and_image_manifest_to_catalogue', 1), (26, '2026_09_24_000100_add_max_load_to_wheel_configs', 1), (27, '2026_09_25_000100_create_komplettrad_option_tables', 1), (28, '2026_09_25_000200_add_komplettrad_columns_to_commerce', 1), (29, '2026_09_25_000300_add_is_wheel_brand_to_brands', 1), (30, '2026_09_25_000400_add_centre_bore_to_fitments', 1), (31, '2026_09_26_000100_add_preferences_to_admin_users', 1), (32, '2026_09_26_000200_german_role_labels', 1), (33, '2026_09_26_000310_create_admin_invitations_table', 1), (34, '2026_09_26_000320_add_sessions_revoked_at_to_admin_users', 1), (35, '2026_09_26_000330_let_closed_invitations_release_their_role', 1), (36, '2026_09_26_000400_index_audit_logs_for_filters', 1), (37, '2026_09_26_000500_add_drafts_and_revisions_to_pages', 1), (38, '2026_09_26_000510_add_team_edit_marks_to_faq_and_nav', 1), (39, '2026_09_26_000520_add_content_version_to_pages', 1), (40, '2026_09_26_000600_create_notifications_table', 1), (41, '2026_09_26_000700_add_order_list_columns', 1), (42, '2026_09_27_000800_create_verdict_tallies_table', 1), (43, '2026_09_27_000900_create_demand_marks_table', 1), (44, '2026_09_27_001000_create_saved_views_table', 1), (45, '2026_09_28_000100_add_columns_to_saved_views', 1), (46, '2026_09_28_000200_mark_demo_rows', 1), (47, '2026_09_28_000300_create_storage_settings_table', 1), (48, '2026_09_28_000400_demo_models_never_published', 1), (49, '2026_09_28_000500_catalogue_admin', 1), (50, '2026_09_28_000600_create_review_feedback_table', 1), (51, '2026_09_28_000700_vehicle_provenance', 1), (52, '2026_09_28_000800_create_wheel_finish_images_table', 1), (53, '2026_09_28_000900_catalogue_import_supplier', 1), (54, '2026_09_28_001000_vehicle_source_values', 1), (55, '2026_09_28_001100_brands_unique_among_live', 1), (56, '2026_09_28_001200_document_conditions', 1), (57, '2026_09_28_001300_derived_entry_per_tyre_size', 1), (58, '2026_09_28_001400_conflict_decisions', 1), (59, '2026_09_28_001500_document_record_shape', 1), (60, '2026_09_28_001600_six_spoke_wheels', 1), (61, '2026_09_28_001700_document_speed_deratings', 1), (62, '2026_09_28_001800_load_limit_confirmation', 1), (63, '2026_09_28_001900_derating_seed_origin', 1), (64, '2026_09_28_002000_vehicles_from_documents', 1), (65, '2026_09_29_000100_check_results', 1), (66, '2026_09_29_000200_tyre_size_power_band', 1), (67, '2026_09_29_000300_tyre_size_entries', 1), (68, '2026_09_29_100100_payments', 1), (69, '2026_09_29_100200_refunds_disputes_invoices', 1), (70, '2026_09_29_100300_brand_manufacturer', 1), (71, '2026_09_29_100400_customer_accounts', 1), (72, '2026_09_30_100100_invoice_series_opening', 1), (73, '2026_10_01_000100_reword_three_faq_answers', 1), (74, '2026_10_01_100100_document_papers_and_annexes', 1), (75, '2026_10_01_100200_add_internal_note_to_wheel_models', 1), (76, '2026_10_02_000100_reviews_and_delivery', 1), (77, '2026_10_02_000200_condition_levels', 1), (78, '2026_10_02_000300_order_line_axle', 1), (79, '2026_10_02_000500_contact_messages', 1), (80, '2026_10_05_000100_record_database_environment', 1), (81, '2026_10_06_000100_create_mail_settings_and_suppressions', 1), (82, '2026_10_07_000100_acceptance_set', 1), (83, '2026_10_07_000200_demo_never_published_null_safe', 1), (84, '2026_10_14_000100_document_completeness', 1), (85, '2026_10_14_000200_faq_entry_question_quotes', 1), (86, '2026_10_15_000100_order_origin', 1), (87, '2026_10_16_000100_document_counts', 1), (88, '2026_10_17_000100_document_tyre_combinations', 1), (89, '2026_10_17_000200_fitments_document_status_index', 1), (90, '2026_10_18_000100_document_tyre_index_source', 1), (91, '2026_10_18_000200_audit_logs_people_index', 1), (92, '2026_10_18_000300_vehicle_imports', 1), (93, '2026_10_18_000310_vehicle_numbers_per_source', 1), (94, '2026_10_18_000400_wheel_title_and_availability', 1), (95, '2026_10_19_000100_tyre_availability_and_label', 1), (96, '2026_10_19_000200_load_index_to_120', 1), (97, '2026_10_23_000100_legal_placeholder_flag', 1), (98, '2026_10_24_000100_drop_unreal_role_cells', 1), (99, '2026_10_29_000100_wheel_model_stated_rating', 1), (100, '2026_10_29_000200_pages_soft_delete', 1), (101, '2026_10_29_000300_order_public_id_and_number_counter', 1), (102, '2026_10_29_000400_order_line_components', 1), (103, '2026_10_29_000500_tyre_combinations_per_eg_number', 1), (104, '2026_10_29_000600_stripe_invoices_on_orders', 1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (1, '0001_01_01_000000_create_users_table', 1), (2, '0001_01_01_000001_create_cache_table', 1), (3, '0001_01_01_000002_create_jobs_table', 1), (4, '2026_09_20_000101_create_permission_tables', 1), (5, '2026_09_20_000102_create_activity_log_table', 1), (6, '2026_09_20_000103_create_media_table', 1), (7, '2026_09_20_000104_create_telescope_entries_table', 1), (8, '2026_09_20_100100_create_admin_users_table', 1), (9, '2026_09_20_100200_create_vehicles_table', 1), (10, '2026_09_20_100300_create_catalogue_tables', 1), (11, '2026_09_20_100400_create_approval_documents_table', 1), (12, '2026_09_20_100500_create_fitments_table', 1), (13, '2026_09_20_100600_create_condition_tables', 1), (14, '2026_09_20_100700_create_reference_and_conflict_tables', 1), (15, '2026_09_21_100800_add_supersede_guard_to_approval_documents', 1), (16, '2026_09_21_100900_add_presentation_columns_to_catalogue', 1), (17, '2026_09_21_200100_create_commerce_tables', 1), (18, '2026_09_21_200200_create_order_line_fitments_table', 1), (19, '2026_09_21_200300_create_content_and_access_tables', 1), (20, '2026_09_21_200400_add_role_metadata_to_roles', 1), (21, '2026_09_21_210000_fix_navigation_links', 1), (22, '2026_09_22_000100_phase0_navigation_and_search', 1), (23, '2026_09_23_000100_phase0_homepage_data', 1), (24, '2026_09_23_000200_create_fitment_subscriptions_table', 1), (25, '2026_09_23_000300_add_demo_flag_and_image_manifest_to_catalogue', 1), (26, '2026_09_24_000100_add_max_load_to_wheel_configs', 1), (27, '2026_09_25_000100_create_komplettrad_option_tables', 1), (28, '2026_09_25_000200_add_komplettrad_columns_to_commerce', 1), (29, '2026_09_25_000300_add_is_wheel_brand_to_brands', 1), (30, '2026_09_25_000400_add_centre_bore_to_fitments', 1), (31, '2026_09_26_000100_add_preferences_to_admin_users', 1), (32, '2026_09_26_000200_german_role_labels', 1), (33, '2026_09_26_000310_create_admin_invitations_table', 1), (34, '2026_09_26_000320_add_sessions_revoked_at_to_admin_users', 1), (35, '2026_09_26_000330_let_closed_invitations_release_their_role', 1), (36, '2026_09_26_000400_index_audit_logs_for_filters', 1), (37, '2026_09_26_000500_add_drafts_and_revisions_to_pages', 1), (38, '2026_09_26_000510_add_team_edit_marks_to_faq_and_nav', 1), (39, '2026_09_26_000520_add_content_version_to_pages', 1), (40, '2026_09_26_000600_create_notifications_table', 1), (41, '2026_09_26_000700_add_order_list_columns', 1), (42, '2026_09_27_000800_create_verdict_tallies_table', 1), (43, '2026_09_27_000900_create_demand_marks_table', 1), (44, '2026_09_27_001000_create_saved_views_table', 1), (45, '2026_09_28_000100_add_columns_to_saved_views', 1), (46, '2026_09_28_000200_mark_demo_rows', 1), (47, '2026_09_28_000300_create_storage_settings_table', 1), (48, '2026_09_28_000400_demo_models_never_published', 1), (49, '2026_09_28_000500_catalogue_admin', 1), (50, '2026_09_28_000600_create_review_feedback_table', 1), (51, '2026_09_28_000700_vehicle_provenance', 1), (52, '2026_09_28_000800_create_wheel_finish_images_table', 1), (53, '2026_09_28_000900_catalogue_import_supplier', 1), (54, '2026_09_28_001000_vehicle_source_values', 1), (55, '2026_09_28_001100_brands_unique_among_live', 1), (56, '2026_09_28_001200_document_conditions', 1), (57, '2026_09_28_001300_derived_entry_per_tyre_size', 1), (58, '2026_09_28_001400_conflict_decisions', 1), (59, '2026_09_28_001500_document_record_shape', 1), (60, '2026_09_28_001600_six_spoke_wheels', 1), (61, '2026_09_28_001700_document_speed_deratings', 1), (62, '2026_09_28_001800_load_limit_confirmation', 1), (63, '2026_09_28_001900_derating_seed_origin', 1), (64, '2026_09_28_002000_vehicles_from_documents', 1), (65, '2026_09_29_000100_check_results', 1), (66, '2026_09_29_000200_tyre_size_power_band', 1), (67, '2026_09_29_000300_tyre_size_entries', 1), (68, '2026_09_29_100100_payments', 1), (69, '2026_09_29_100200_refunds_disputes_invoices', 1), (70, '2026_09_29_100300_brand_manufacturer', 1), (71, '2026_09_29_100400_customer_accounts', 1), (72, '2026_09_30_100100_invoice_series_opening', 1), (73, '2026_10_01_000100_reword_three_faq_answers', 1), (74, '2026_10_01_100100_document_papers_and_annexes', 1), (75, '2026_10_01_100200_add_internal_note_to_wheel_models', 1), (76, '2026_10_02_000100_reviews_and_delivery', 1), (77, '2026_10_02_000200_condition_levels', 1), (78, '2026_10_02_000300_order_line_axle', 1), (79, '2026_10_02_000500_contact_messages', 1), (80, '2026_10_05_000100_record_database_environment', 1), (81, '2026_10_06_000100_create_mail_settings_and_suppressions', 1), (82, '2026_10_07_000100_acceptance_set', 1), (83, '2026_10_07_000200_demo_never_published_null_safe', 1), (84, '2026_10_14_000100_document_completeness', 1), (85, '2026_10_14_000200_faq_entry_question_quotes', 1), (86, '2026_10_15_000100_order_origin', 1), (87, '2026_10_16_000100_document_counts', 1), (88, '2026_10_17_000100_document_tyre_combinations', 1), (89, '2026_10_17_000200_fitments_document_status_index', 1), (90, '2026_10_18_000100_document_tyre_index_source', 1), (91, '2026_10_18_000200_audit_logs_people_index', 1), (92, '2026_10_18_000300_vehicle_imports', 1), (93, '2026_10_18_000310_vehicle_numbers_per_source', 1), (94, '2026_10_18_000400_wheel_title_and_availability', 1), (95, '2026_10_19_000100_tyre_availability_and_label', 1), (96, '2026_10_19_000200_load_index_to_120', 1), (97, '2026_10_23_000100_legal_placeholder_flag', 1), (98, '2026_10_24_000100_drop_unreal_role_cells', 1), (99, '2026_10_29_000100_wheel_model_stated_rating', 1), (100, '2026_10_29_000200_pages_soft_delete', 1), (101, '2026_10_29_000300_order_public_id_and_number_counter', 1), (102, '2026_10_29_000400_order_line_components', 1), (103, '2026_10_29_000500_tyre_combinations_per_eg_number', 1), (104, '2026_10_29_000600_stripe_invoices_on_orders', 1), (105, '2026_11_06_000100_gutachten_entry_tables', 1), (106, '2026_11_06_000200_carry_gutachten_into_the_entry', 1), (107, '2026_11_07_000100_tyre_models', 1), (108, '2026_11_07_000200_wheel_version_key', 1), (109, '2026_11_08_000100_condition_shop_colour', 1);
 --@drop model_has_permissions
 DROP TABLE IF EXISTS `model_has_permissions`;
 --@create model_has_permissions
@@ -1952,6 +2143,35 @@ BEGIN
     END IF;
 END;;
 DELIMITER ;
+--@drop tyre_models
+DROP TABLE IF EXISTS `tyre_models`;
+--@create tyre_models
+CREATE TABLE `tyre_models` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `brand_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `season` varchar(16) NOT NULL COMMENT 'sommer | winter | ganzjahres',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_tyre_model` (`brand_id`,`name`,`season`),
+  CONSTRAINT `tyre_models_brand_id_foreign` FOREIGN KEY (`brand_id`) REFERENCES `brands` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+--@drop tyre_model_images
+DROP TABLE IF EXISTS `tyre_model_images`;
+--@create tyre_model_images
+CREATE TABLE `tyre_model_images` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `tyre_model_id` bigint(20) unsigned NOT NULL,
+  `position` smallint(5) unsigned NOT NULL,
+  `manifest` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`manifest`)),
+  `alt_de` varchar(200) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tyre_model_image_order` (`tyre_model_id`,`position`),
+  CONSTRAINT `tyre_model_images_tyre_model_id_foreign` FOREIGN KEY (`tyre_model_id`) REFERENCES `tyre_models` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@drop tyre_variants
 DROP TABLE IF EXISTS `tyre_variants`;
 --@create tyre_variants
@@ -1978,6 +2198,7 @@ CREATE TABLE `tyre_variants` (
   `stock_qty` int(10) unsigned NOT NULL DEFAULT 0,
   `is_demo` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'seeded demo row, never real stock',
   `available` tinyint(1) NOT NULL DEFAULT 1 COMMENT 'verfügbar / nicht verfügbar (D-301); stock_qty is kept and no longer read',
+  `supplier` varchar(120) DEFAULT NULL,
   `demo_ref` varchar(48) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -2172,8 +2393,8 @@ CREATE TABLE `wheel_configs` (
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_wheel_config` (`wheel_model_id`,`wheel_finish_id`,`diameter_in`,`width_in`,`et_mm`,`bolt_circle_mm`),
   UNIQUE KEY `wheel_configs_sku_unique` (`sku`),
+  UNIQUE KEY `uq_wheel_version` (`wheel_model_id`,`wheel_finish_id`,`diameter_in`,`width_in`,`et_mm`,`bolt_holes`,`bolt_circle_mm`,`centre_bore_mm`),
   KEY `wheel_configs_wheel_finish_id_foreign` (`wheel_finish_id`),
   KEY `idx_config_lookup` (`wheel_model_id`,`wheel_finish_id`,`diameter_in`,`width_in`,`et_mm`),
   KEY `idx_config_size` (`diameter_in`,`width_in`,`et_mm`),
@@ -2260,4 +2481,4 @@ CREATE TABLE `wheel_models` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 --@footer
 SET FOREIGN_KEY_CHECKS = 1;
---@end {"tables":{"addresses":{"rows":0,"auto_increment":null,"triggers":1},"admin_invitations":{"rows":0,"auto_increment":null,"triggers":0},"admin_users":{"rows":3,"auto_increment":null,"triggers":1},"approval_documents":{"rows":0,"auto_increment":null,"triggers":2},"audit_logs":{"rows":0,"auto_increment":null,"triggers":2},"balance_weight_colours":{"rows":0,"auto_increment":null,"triggers":1},"brands":{"rows":0,"auto_increment":null,"triggers":1},"cache":{"rows":0,"auto_increment":null,"triggers":0},"cache_locks":{"rows":0,"auto_increment":null,"triggers":0},"catalogue_gap_events":{"rows":0,"auto_increment":null,"triggers":1},"catalogue_imports":{"rows":0,"auto_increment":null,"triggers":0},"check_results":{"rows":0,"auto_increment":null,"triggers":1},"contact_messages":{"rows":0,"auto_increment":null,"triggers":0},"customers":{"rows":0,"auto_increment":null,"triggers":1},"customer_accounts":{"rows":0,"auto_increment":null,"triggers":0},"demand_marks":{"rows":0,"auto_increment":null,"triggers":0},"disputes":{"rows":0,"auto_increment":null,"triggers":0},"document_conditions":{"rows":0,"auto_increment":null,"triggers":0},"document_condition_reworks":{"rows":0,"auto_increment":null,"triggers":0},"document_fasteners":{"rows":0,"auto_increment":null,"triggers":0},"document_notices":{"rows":0,"auto_increment":null,"triggers":0},"document_speed_deratings":{"rows":0,"auto_increment":null,"triggers":0},"document_tyre_combinations":{"rows":0,"auto_increment":null,"triggers":0},"failed_jobs":{"rows":0,"auto_increment":null,"triggers":0},"faq_entries":{"rows":8,"auto_increment":null,"triggers":0},"fitments":{"rows":0,"auto_increment":null,"triggers":0},"fitment_conditions":{"rows":0,"auto_increment":null,"triggers":0},"fitment_conflicts":{"rows":0,"auto_increment":null,"triggers":0},"fitment_subscriptions":{"rows":0,"auto_increment":null,"triggers":0},"fitment_tyre_sizes":{"rows":0,"auto_increment":null,"triggers":0},"fitment_tyre_size_conditions":{"rows":0,"auto_increment":null,"triggers":0},"invoices":{"rows":0,"auto_increment":null,"triggers":3},"invoice_exports":{"rows":0,"auto_increment":null,"triggers":0},"invoice_sequences":{"rows":0,"auto_increment":null,"triggers":3},"jobs":{"rows":0,"auto_increment":null,"triggers":0},"job_batches":{"rows":0,"auto_increment":null,"triggers":0},"load_index_table":{"rows":51,"auto_increment":null,"triggers":0},"mail_settings":{"rows":0,"auto_increment":null,"triggers":0},"mail_suppressions":{"rows":0,"auto_increment":null,"triggers":0},"media":{"rows":0,"auto_increment":null,"triggers":0},"migrations":{"rows":104,"auto_increment":null,"triggers":0},"model_has_permissions":{"rows":0,"auto_increment":null,"triggers":0},"model_has_roles":{"rows":3,"auto_increment":null,"triggers":0},"nav_items":{"rows":21,"auto_increment":null,"triggers":0},"notifications":{"rows":0,"auto_increment":null,"triggers":0},"orders":{"rows":0,"auto_increment":null,"triggers":2},"order_lines":{"rows":0,"auto_increment":null,"triggers":1},"order_line_fitments":{"rows":0,"auto_increment":null,"triggers":2},"order_number_counter":{"rows":1,"auto_increment":null,"triggers":0},"pages":{"rows":11,"auto_increment":null,"triggers":0},"page_blocks":{"rows":29,"auto_increment":null,"triggers":0},"page_revisions":{"rows":0,"auto_increment":null,"triggers":0},"password_reset_tokens":{"rows":0,"auto_increment":null,"triggers":0},"payment_events":{"rows":0,"auto_increment":null,"triggers":2},"payment_settings":{"rows":0,"auto_increment":null,"triggers":0},"permissions":{"rows":0,"auto_increment":null,"triggers":0},"refunds":{"rows":0,"auto_increment":null,"triggers":0},"reviews":{"rows":0,"auto_increment":null,"triggers":0},"review_feedback":{"rows":0,"auto_increment":null,"triggers":0},"roles":{"rows":7,"auto_increment":null,"triggers":0},"role_has_permissions":{"rows":0,"auto_increment":null,"triggers":0},"role_permissions":{"rows":231,"auto_increment":null,"triggers":0},"saved_views":{"rows":0,"auto_increment":null,"triggers":0},"search_misses":{"rows":0,"auto_increment":null,"triggers":0},"sessions":{"rows":0,"auto_increment":null,"triggers":0},"settings":{"rows":1,"auto_increment":null,"triggers":0},"speed_symbol_table":{"rows":14,"auto_increment":null,"triggers":0},"storage_settings":{"rows":0,"auto_increment":null,"triggers":0},"stripe_events":{"rows":0,"auto_increment":null,"triggers":0},"telescope_entries":{"rows":0,"auto_increment":null,"triggers":0},"telescope_entries_tags":{"rows":0,"auto_increment":null,"triggers":0},"telescope_monitoring":{"rows":0,"auto_increment":null,"triggers":0},"tpms_sensor_prices":{"rows":0,"auto_increment":null,"triggers":1},"tyre_variants":{"rows":0,"auto_increment":null,"triggers":0},"users":{"rows":0,"auto_increment":null,"triggers":0},"vehicles":{"rows":0,"auto_increment":null,"triggers":1},"vehicle_imports":{"rows":0,"auto_increment":null,"triggers":0},"verdict_tallies":{"rows":0,"auto_increment":null,"triggers":1},"wheel_configs":{"rows":0,"auto_increment":null,"triggers":0},"wheel_finishes":{"rows":0,"auto_increment":null,"triggers":0},"wheel_finish_images":{"rows":0,"auto_increment":null,"triggers":0},"wheel_models":{"rows":0,"auto_increment":null,"triggers":0}},"triggers":27}
+--@end {"tables":{"addresses":{"rows":0,"auto_increment":null,"triggers":1},"admin_invitations":{"rows":0,"auto_increment":null,"triggers":0},"admin_users":{"rows":3,"auto_increment":null,"triggers":1},"approval_documents":{"rows":0,"auto_increment":null,"triggers":2},"audit_logs":{"rows":0,"auto_increment":null,"triggers":2},"balance_weight_colours":{"rows":0,"auto_increment":null,"triggers":1},"brands":{"rows":0,"auto_increment":null,"triggers":1},"cache":{"rows":0,"auto_increment":null,"triggers":0},"cache_locks":{"rows":0,"auto_increment":null,"triggers":0},"catalogue_gap_events":{"rows":0,"auto_increment":null,"triggers":1},"catalogue_imports":{"rows":0,"auto_increment":null,"triggers":0},"check_results":{"rows":0,"auto_increment":null,"triggers":1},"contact_messages":{"rows":0,"auto_increment":null,"triggers":0},"customers":{"rows":0,"auto_increment":null,"triggers":1},"customer_accounts":{"rows":0,"auto_increment":null,"triggers":0},"demand_marks":{"rows":0,"auto_increment":null,"triggers":0},"disputes":{"rows":0,"auto_increment":null,"triggers":0},"document_car_entries":{"rows":0,"auto_increment":null,"triggers":0},"document_car_entry_codes":{"rows":0,"auto_increment":null,"triggers":0},"document_conditions":{"rows":0,"auto_increment":null,"triggers":0},"document_condition_reworks":{"rows":0,"auto_increment":null,"triggers":0},"document_fasteners":{"rows":0,"auto_increment":null,"triggers":0},"document_kept_combinations":{"rows":0,"auto_increment":null,"triggers":0},"document_notices":{"rows":0,"auto_increment":null,"triggers":0},"document_speed_deratings":{"rows":0,"auto_increment":null,"triggers":0},"document_tyre_combinations":{"rows":0,"auto_increment":null,"triggers":0},"document_tyre_lines":{"rows":0,"auto_increment":null,"triggers":0},"document_tyre_line_codes":{"rows":0,"auto_increment":null,"triggers":0},"document_wheel_combinations":{"rows":0,"auto_increment":null,"triggers":0},"document_wheel_sizes":{"rows":0,"auto_increment":null,"triggers":0},"failed_jobs":{"rows":0,"auto_increment":null,"triggers":0},"faq_entries":{"rows":8,"auto_increment":null,"triggers":0},"fitments":{"rows":0,"auto_increment":null,"triggers":0},"fitment_conditions":{"rows":0,"auto_increment":null,"triggers":0},"fitment_conflicts":{"rows":0,"auto_increment":null,"triggers":0},"fitment_subscriptions":{"rows":0,"auto_increment":null,"triggers":0},"fitment_tyre_sizes":{"rows":0,"auto_increment":null,"triggers":0},"fitment_tyre_size_conditions":{"rows":0,"auto_increment":null,"triggers":0},"fitment_wheel_sets":{"rows":0,"auto_increment":null,"triggers":0},"invoices":{"rows":0,"auto_increment":null,"triggers":3},"invoice_exports":{"rows":0,"auto_increment":null,"triggers":0},"invoice_sequences":{"rows":0,"auto_increment":null,"triggers":3},"jobs":{"rows":0,"auto_increment":null,"triggers":0},"job_batches":{"rows":0,"auto_increment":null,"triggers":0},"load_index_table":{"rows":51,"auto_increment":null,"triggers":0},"mail_settings":{"rows":0,"auto_increment":null,"triggers":0},"mail_suppressions":{"rows":0,"auto_increment":null,"triggers":0},"media":{"rows":0,"auto_increment":null,"triggers":0},"migrations":{"rows":109,"auto_increment":null,"triggers":0},"model_has_permissions":{"rows":0,"auto_increment":null,"triggers":0},"model_has_roles":{"rows":3,"auto_increment":null,"triggers":0},"nav_items":{"rows":21,"auto_increment":null,"triggers":0},"notifications":{"rows":0,"auto_increment":null,"triggers":0},"orders":{"rows":0,"auto_increment":null,"triggers":2},"order_lines":{"rows":0,"auto_increment":null,"triggers":1},"order_line_fitments":{"rows":0,"auto_increment":null,"triggers":2},"order_number_counter":{"rows":1,"auto_increment":null,"triggers":0},"pages":{"rows":11,"auto_increment":null,"triggers":0},"page_blocks":{"rows":29,"auto_increment":null,"triggers":0},"page_revisions":{"rows":0,"auto_increment":null,"triggers":0},"password_reset_tokens":{"rows":0,"auto_increment":null,"triggers":0},"payment_events":{"rows":0,"auto_increment":null,"triggers":2},"payment_settings":{"rows":0,"auto_increment":null,"triggers":0},"permissions":{"rows":0,"auto_increment":null,"triggers":0},"refunds":{"rows":0,"auto_increment":null,"triggers":0},"reviews":{"rows":0,"auto_increment":null,"triggers":0},"review_feedback":{"rows":0,"auto_increment":null,"triggers":0},"roles":{"rows":7,"auto_increment":null,"triggers":0},"role_has_permissions":{"rows":0,"auto_increment":null,"triggers":0},"role_permissions":{"rows":231,"auto_increment":null,"triggers":0},"saved_views":{"rows":0,"auto_increment":null,"triggers":0},"search_misses":{"rows":0,"auto_increment":null,"triggers":0},"sessions":{"rows":0,"auto_increment":null,"triggers":0},"settings":{"rows":1,"auto_increment":null,"triggers":0},"speed_symbol_table":{"rows":14,"auto_increment":null,"triggers":0},"storage_settings":{"rows":0,"auto_increment":null,"triggers":0},"stripe_events":{"rows":0,"auto_increment":null,"triggers":0},"telescope_entries":{"rows":0,"auto_increment":null,"triggers":0},"telescope_entries_tags":{"rows":0,"auto_increment":null,"triggers":0},"telescope_monitoring":{"rows":0,"auto_increment":null,"triggers":0},"tpms_sensor_prices":{"rows":0,"auto_increment":null,"triggers":1},"tyre_models":{"rows":0,"auto_increment":null,"triggers":0},"tyre_model_images":{"rows":0,"auto_increment":null,"triggers":0},"tyre_variants":{"rows":0,"auto_increment":null,"triggers":0},"users":{"rows":0,"auto_increment":null,"triggers":0},"vehicles":{"rows":0,"auto_increment":null,"triggers":1},"vehicle_imports":{"rows":0,"auto_increment":null,"triggers":0},"verdict_tallies":{"rows":0,"auto_increment":null,"triggers":1},"wheel_configs":{"rows":0,"auto_increment":null,"triggers":0},"wheel_finishes":{"rows":0,"auto_increment":null,"triggers":0},"wheel_finish_images":{"rows":0,"auto_increment":null,"triggers":0},"wheel_models":{"rows":0,"auto_increment":null,"triggers":0}},"triggers":27}

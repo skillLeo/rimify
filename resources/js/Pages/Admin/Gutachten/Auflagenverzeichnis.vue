@@ -12,7 +12,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, inject, nextTick, reactive, ref, type Ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
@@ -21,6 +21,7 @@ import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import { formatNumber } from '../../../lib/num'
 import type { ConditionChoices, DocumentConditionView, UnresolvedCode } from '../../../types/admin/gutachten'
 import { splitLegend } from './legend'
+import { LEGEND_DRAFT } from './legendDraft'
 
 const props = defineProps<{
     documentId: number
@@ -41,9 +42,14 @@ function levelLabel(value: string | undefined): string {
     return props.levels?.find((l) => l.value === value)?.label ?? '–'
 }
 
+function setColour(condition: DocumentConditionView, value: string): void {
+    sent.value = true
+    router.put(`${base.value}/${condition.id}/farbe`, { shop_colour: value }, { preserveScroll: true, preserveState: true })
+}
+
 function setLevel(condition: DocumentConditionView, value: string): void {
     sent.value = true
-    router.put(`${base.value}/${condition.id}/stufe`, { level: value }, { preserveScroll: true })
+    router.put(`${base.value}/${condition.id}/stufe`, { level: value }, { preserveScroll: true, preserveState: true })
 }
 
 const page = usePage()
@@ -241,9 +247,11 @@ function remove(): void {
 
 /* ── A pasted legend ───────────────────────────────────────────────────────── */
 
-const pasteOpen = ref(false)
-const pasted = ref('')
-const split = ref<(Entry & { key: number })[]>([])
+/* In a dialog that can close over them, they live with whoever opened it (LegendDialog). */
+const legendDraft = inject(LEGEND_DRAFT, null)
+const pasteOpen = legendDraft?.open ?? ref(false)
+const pasted = legendDraft?.pasted ?? ref('')
+const split = (legendDraft?.split ?? ref([])) as unknown as Ref<(Entry & { key: number })[]>
 const pasteSent = ref(false)
 
 function openPaste(): void {
@@ -338,6 +346,7 @@ function confirmLimit(condition: DocumentConditionView): void {
     limitBusy.value = condition.id
     router.post(`/admin/gutachten/${props.documentId}/auflagen/${condition.id}/grenze`, { reason: limitReasons[condition.id] ?? '' }, {
         preserveScroll: true,
+        preserveState: true,
         errorBag: 'auflagen',
         onError: (errors) => {
             limitErrors[condition.id] = (errors as Record<string, string>).reason ?? ''
@@ -371,7 +380,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <th scope="col">Code</th>
                         <th scope="col">Art</th>
                         <th scope="col">Satz aus dem Gutachten</th>
-                        <th v-if="levels" scope="col">Im Shop</th>
+                        <th scope="col">Im Shop</th>
                         <th scope="col" class="num">Seite</th>
                         <th scope="col" class="num">Verwendet</th>
                         <th v-if="editable" scope="col"><span class="visually-hidden">Aktionen</span></th>
@@ -385,8 +394,8 @@ function confirmLimit(condition: DocumentConditionView): void {
                             <span v-if="parameter(condition)" class="adm-table__sub">{{ parameter(condition) }}</span>
                         </td>
                         <td data-label="Satz" class="av__text">{{ condition.text }}</td>
-                        <td v-if="levels" data-label="Im Shop" class="av__level">
-                            <template v-if="levelsEditable">
+                        <td data-label="Im Shop" class="av__level">
+                            <template v-if="levels && levelsEditable">
                                 <label class="visually-hidden" :for="`av-level-${condition.id}`">Stufe von Code {{ condition.code }} im Shop</label>
                                 <select
                                     :id="`av-level-${condition.id}`"
@@ -405,7 +414,16 @@ function confirmLimit(condition: DocumentConditionView): void {
                                     </option>
                                 </select>
                             </template>
-                            <template v-else>{{ levelLabel(condition.level) }}</template>
+                            <template v-else-if="levels">{{ levelLabel(condition.level) }}</template>
+                            <!-- How „Mit Auflagen“ looks in the shop (#23): beside the level it answers with, never a word of the answer. -->
+                            <template v-if="levelsEditable">
+                                <label class="visually-hidden" :for="`av-colour-${condition.id}`">Farbe von Code {{ condition.code }} im Shop</label>
+                                <select :id="`av-colour-${condition.id}`" class="input av__colour-select" :value="condition.shopColour" :disabled="busy" @change="setColour(condition, ($event.target as HTMLSelectElement).value)">
+                                    <option value="green">Farbe: Grün</option>
+                                    <option value="yellow">Farbe: Gelb</option>
+                                </select>
+                            </template>
+                            <span v-else class="av__colour-word">Farbe: {{ condition.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</span>
                         </td>
                         <td data-label="Seite" class="num">{{ condition.page ?? '–' }}</td>
                         <td data-label="Verwendet" data-phone="hide" class="num">{{ uses(condition) }}</td>
@@ -439,7 +457,7 @@ function confirmLimit(condition: DocumentConditionView): void {
 
         <!-- A rule, not a missing button (the admin audit's rules): a code a row carries cannot be removed from under it. -->
         <p v-if="editable && conditions.some((c) => c.uses > 0)" class="adm-note av__in-use">
-            Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet („Zeile ändern“) – wie viele es sind, steht unter „Verwendet“.
+            Einen Code, den eine Zeile noch verwendet, kannst du nicht entfernen. Nimm ihn zuerst aus jeder Zeile heraus, die ihn verwendet – wie viele es sind, steht unter „Verwendet“.
         </p>
 
         <!-- „Im Shop“ (#23, D-104): what each level does there — the label of the answer, no colour of a sentence (D-247) —
@@ -710,9 +728,20 @@ function confirmLimit(condition: DocumentConditionView): void {
 }
 
 /* The level reads whole (Human QA 28.10.2026): „Auflage – etwas ist zu tun oder eingeschränkt“ was cut to „… oder ei“. */
-.av__level-select {
+.av__level-select,
+.av__colour-select {
     width: auto;
     max-width: none;
+}
+
+.av__colour-select {
+    margin-top: var(--sp-4);
+}
+
+.av__colour-word {
+    display: block;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
 }
 
 /* On a phone the card gives the level its whole width, under its label. */
@@ -721,7 +750,8 @@ function confirmLimit(condition: DocumentConditionView): void {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .av__level-select {
+    .av__level-select,
+    .av__colour-select {
         width: 100%;
     }
 }

@@ -38,10 +38,15 @@ class BasketLineRequest extends FormRequest
             // where the combination names one size on both axles. Whether the pair may go on this car, and that it is two
             // wheels on each axle, is the fitment engine's and the basket's question, not a validation rule.
             'rearTyreVariantId' => ['nullable', 'integer', 'min:1'],
+            // Two versions of the rim, front and rear (the client's fourth change): the rear axle's; `wheelConfigId` is then the front
+            // axle's. Whether a paper names the two together for this car is the fitment engine's question.
+            'rearWheelConfigId' => ['nullable', 'integer', 'min:1'],
             'weightColourId' => ['nullable', 'integer', 'min:1'],
             // The RDKS answer given beside a Komplettrad on the product page (#15): recorded as the checkout's own.
             'rdks' => ['nullable', Rule::in(['ja', 'nein'])],
             'quantity' => ['required', 'integer', 'min:1', 'max:99'],
+            // The car the page answered for: an add under another, chosen meanwhile in another window, is refused.
+            'vehicleId' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -88,6 +93,13 @@ class BasketLineRequest extends FormRequest
     }
 
     /** The rear axle's tyre of a mixed set; null for everything else. */
+    public function rearWheelConfigId(): ?int
+    {
+        $value = $this->validated('rearWheelConfigId');
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
     public function rearTyreVariantId(): ?int
     {
         $value = $this->validated('rearTyreVariantId');
@@ -96,6 +108,14 @@ class BasketLineRequest extends FormRequest
     }
 
     /** The RDKS answer that came with a Komplettrad, `ja` or `nein`; null where none was given (rims, or another page). */
+    /** The car the page that sent this answered for, where it said. */
+    public function expectedVehicle(): ?int
+    {
+        $id = $this->validated('vehicleId');
+
+        return is_numeric($id) ? (int) $id : null;
+    }
+
     public function rdks(): ?string
     {
         $value = $this->validated('rdks');

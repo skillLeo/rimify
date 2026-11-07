@@ -79,7 +79,13 @@ function onCloseAutoFocus(event: Event): void {
 
     if (!event.defaultPrevented && opener?.isConnected) {
         event.preventDefault()
-        opener.focus()
+
+        // What opened it may be off by now — a release refused for what is still open: focus would fall to the end of the page.
+        if (opener.matches(':disabled')) {
+            document.querySelector<HTMLElement>('[data-dialog-fallback]')?.focus()
+        } else {
+            opener.focus()
+        }
     }
 
     opener = null

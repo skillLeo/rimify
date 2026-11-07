@@ -8,6 +8,7 @@ use App\Domain\Storefront\VehicleKey;
 use App\Models\Vehicle;
 use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Demo\AcceptanceShelf;
+use App\Services\Demo\AcceptanceWheelSet;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -23,7 +24,8 @@ final class DemoAcceptanceCommand extends Command
         {--pdfs= : Where the Gutachten PDFs are (default: the documents disk of this installation)}
         {--neben-gleicher-pdf : Write the set beside a real Gutachten that is the very same PDF file (the operator\'s decision for the client\'s preview, 14.10.2026)}
         {--beispiel-pdfs : Give a set already written its marked example copies of the Gutachten PDFs, in place (decision 6, 17.10.2026)}
-        {--regal : Also three demonstration rims for the homepage shelf, stars and „Anfrage“ (AcceptanceShelf, 29.10.2026)}';
+        {--regal : Also three demonstration rims for the homepage shelf, stars and „Anfrage“ (AcceptanceShelf, 29.10.2026)}
+        {--satz : Also a fourth demo car on a paper naming 18 inch in front and 19 behind (AcceptanceWheelSet, 07.11.2026)}';
 
     protected $description = 'Write the acceptance set the client reviews his list in (local, staging and testing only)';
 
@@ -32,6 +34,11 @@ final class DemoAcceptanceCommand extends Command
         // The preview's demonstration rims alone, beside a set already written (the operator's brief of 29.10.2026).
         if ($this->option('regal') && ! $this->option('abnahme')) {
             return $this->shelf();
+        }
+
+        // The set of two versions alone, beside a set already written (the operator's brief of 07.11.2026).
+        if ($this->option('satz') && ! $this->option('abnahme')) {
+            return $this->wheelSet();
         }
 
         if (! $this->option('abnahme')) {
@@ -80,7 +87,28 @@ final class DemoAcceptanceCommand extends Command
         }
 
         // The preview's shelf of eight, the stars and „Anfrage“ shown on demonstration rims (the operator's brief of 29.10.2026).
-        return $this->option('regal') ? $this->shelf() : self::SUCCESS;
+        if ($this->option('regal') && $this->shelf() !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        return $this->option('satz') ? $this->wheelSet() : self::SUCCESS;
+    }
+
+    private function wheelSet(): int
+    {
+        try {
+            $set = (new AcceptanceWheelSet)->seed();
+        } catch (RuntimeException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info($set === []
+            ? 'Der Satz vorne und hinten ist schon da.'
+            : sprintf('Satz vorne und hinten geschrieben: %d Zeilen, alle als Demodaten (abnahme:satz:).', array_sum($set)));
+
+        return self::SUCCESS;
     }
 
     private function shelf(): int

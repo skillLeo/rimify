@@ -201,7 +201,7 @@ const groups = computed<Group[]>(() => {
             id: 'preis',
             label: 'Preis',
             rows: [
-                row('price', 'Preis pro Felge', 'text', items.map((item) => ({ text: `ab ${perWheel(item)}` }))),
+                row('price', 'Preis pro Felge', 'text', items.map((item) => ({ text: item.fitment?.setPrice ? `${item.fitment.setPrice} für 4 Felgen` : `ab ${perWheel(item)}` }))),
                 row('legal', 'Hinweis', 'muted', items.map(() => ({ text: terms.value.note }))),
             ],
         },
@@ -411,7 +411,8 @@ onBeforeUnmount(() => {
                         <span class="small quiet" translate="no">{{ item.brandName }}</span>
                         <span class="h4" translate="no">{{ item.modelName }}</span>
                         <span class="small muted" translate="no">{{ item.finishName }}</span>
-                        <span class="body num compare__price">ab <ValueText :text="perWheel(item)" whole /> pro Felge</span>
+                        <span v-if="item.fitment?.setPrice" class="body num compare__price" data-only-set><ValueText :text="item.fitment.setPrice" whole /> für 4 Felgen, nur als Satz</span>
+                        <span v-else class="body num compare__price">ab <ValueText :text="perWheel(item)" whole /> pro Felge</span>
                         <span class="micro quiet">{{ terms.note }}</span>
                         <VerdictBadge v-if="vehicle && item.verdict" :status="item.verdict.status" :notes-only="item.verdict.notesOnly === true" class="compare__badge" />
                         <button class="icon-btn compare__remove" type="button" :aria-label="`${item.brandName} ${item.modelName} aus dem Vergleich entfernen`" @click="remove(item, i)">
@@ -483,7 +484,7 @@ onBeforeUnmount(() => {
                             <span class="small muted"><ValueText :text="item.buy.sizeLabel" /> · für {{ vehicle?.short }}</span>
                         </template>
                         <template v-else-if="item.buy.kind === 'choose'">
-                            <Link :href="item.buy.href" class="btn btn--secondary btn--block">Größe wählen</Link>
+                            <Link :href="item.buy.href" class="btn btn--secondary btn--block">{{ item.buy.set ? 'Satz ansehen' : 'Größe wählen' }}</Link>
                         </template>
                         <template v-else>
                             <span class="small muted">Nicht freigegeben für {{ vehicle?.short }}</span>

@@ -49,6 +49,23 @@ function jsonLdFelge(array $model = []): WheelModel
     return $wheel->refresh();
 }
 
+it('tells the versions of one size apart by name and size: width and ET alone do not make a version', function (): void {
+    $model = jsonLdFelge();
+    $config = WheelConfig::query()->where('wheel_model_id', $model->id)->orderBy('id')->firstOrFail();
+    $twin = $config->replicate();
+    $twin->sku = $config->sku.'-B';
+    $twin->bolt_circle_mm = 108.0;
+    $twin->save();
+
+    $variants = jsonLdOf($this->get('/felgen/'.$model->slug))['hasVariant'];
+    $sizes = collect($variants)->pluck('size');
+    $names = collect($variants)->pluck('name');
+
+    expect($sizes->unique()->count())->toBe($sizes->count())
+        ->and($names->unique()->count())->toBe($names->count())
+        ->and($sizes->filter(static fn (string $size): bool => str_contains($size, 'ET') && str_contains($size, 'mm'))->count())->toBe($sizes->count());
+});
+
 it('carries a ProductGroup with one Product and Offer per size, as the page shows them @admin-214', function (): void {
     $wheel = jsonLdFelge();
     $data = jsonLdOf($this->get('/felgen/'.$wheel->slug)->assertOk());

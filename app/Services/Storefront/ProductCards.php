@@ -7,6 +7,10 @@ namespace App\Services\Storefront;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSet;
+use App\Domain\Fitment\Resolver\WheelSetOffer;
+use App\Domain\Fitment\Resolver\WheelSets;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\TyreCheck;
@@ -35,6 +39,7 @@ final readonly class ProductCards
         private ListingQuery $listing,
         private FitmentResolver $resolver,
         private VehicleRepository $vehicles,
+        private WheelSets $wheelSets,
     ) {}
 
     /**
@@ -81,12 +86,19 @@ final readonly class ProductCards
         foreach ($result['rows'] as $row) {
             $key = (int) ($row['model_id'] ?? 0).':'.(int) ($row['finish_id'] ?? 0);
 
+            $offer = $vehicle === null || $verdicts === [] ? new WheelSetOffer : $this->wheelSets->of($vehicleId, array_intersect_key($verdicts, array_flip($configIds[$key] ?? [])));
+
+            // A size filter leaves the set's other version off the page's list: its figures are needed all the same.
+            $partners = array_diff(array_merge([], ...array_map(static fn (WheelSet $set): array => [$set->frontConfigId, $set->rearConfigId], $offer->sets)), array_keys($facts));
+            $facts += $partners === [] ? [] : $this->sizeFacts(['partners' => array_values($partners)]);
+
             $cards[] = $this->fromListingRow(
                 $row,
                 $presentation,
                 $diameters,
-                $this->claim($verdicts, $configIds[$key] ?? [], $facts),
+                $this->claim($verdicts, $configIds[$key] ?? [], $facts, $offer),
                 $disclosure,
+                $this->versionsOffered($verdicts, $configIds[$key] ?? [], $offer),
             );
         }
 
@@ -127,7 +139,7 @@ final readonly class ProductCards
      * @param  array<int, array{diameter: string, priceCents: int, inStock: bool}>  $facts  configuration id → what the pick reads
      * @return array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, conditionsVary: bool, diametersFitting: list<string>, tyresOpen: bool, wheelConditional: bool, openOn: int|null}
      */
-    private function claim(array $verdicts, array $configIds, array $facts = []): array
+    private function claim(array $verdicts, array $configIds, array $facts = [], WheelSetOffer $offer = new WheelSetOffer): array
     {
         $key = static fn (Condition $c): string => $c->code."\u{0}".$c->sentenceDe();
         $fitting = [];
@@ -137,6 +149,15 @@ final readonly class ProductCards
 
             if ($verdict !== null && ($verdict->isSellable() || $verdict->tyreUnconfirmed()) && isset($facts[$configId])) {
                 $fitting[$facts[$configId]['diameter']] = true;
+            }
+        }
+
+        // A set needs both its diameters: under a size filter the other one is no less the car's.
+        foreach ($offer->sets as $set) {
+            foreach ([$set->frontConfigId, $set->rearConfigId] as $configId) {
+                if (isset($facts[$configId])) {
+                    $fitting[$facts[$configId]['diameter']] = true;
+                }
             }
         }
 
@@ -150,14 +171,22 @@ final readonly class ProductCards
             'verdict' => $verdicts[$configId] ?? null,
             'inStock' => $facts[$configId]['inStock'] ?? false,
             'priceCents' => $facts[$configId]['priceCents'] ?? 0,
+            'onlyInSet' => $offer->onlyInSet($configId),
         ], $configIds));
         $verdict = $openOn === null ? null : ($verdicts[$openOn] ?? null);
+        // Where the card speaks for a version sold only within a set, it speaks for the set: never the answer for one axle alone, and
+        // never one rim's price for what is sold only as four.
+        $onlyAsSet = $openOn !== null && $offer->onlyInSet($openOn);
+        $verdict = $onlyAsSet ? $offer->setOf($openOn)?->combined() : $verdict;
+        $setTotals = array_map(static fn (WheelSet $set): int => TyreEligibility::MIXED_PER_AXLE * (($facts[$set->frontConfigId]['priceCents'] ?? 0) + ($facts[$set->rearConfigId]['priceCents'] ?? 0)), $offer->sets);
+        $setPrice = $onlyAsSet && $setTotals !== [] ? GermanFormat::money(min($setTotals)) : null;
+        $setPriceFrom = count(array_unique($setTotals)) > 1;
 
         // No verdict (no vehicle, or not asked about) is no claim — never a default yes.
         if ($verdict === null) {
             return [
                 'status' => VerdictStatus::Unknown->value, 'requiresEntry' => false, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false,
-                'diametersFitting' => [], 'tyresOpen' => false, 'wheelConditional' => false, 'openOn' => $openOn,
+                'diametersFitting' => [], 'tyresOpen' => false, 'wheelConditional' => false, 'openOn' => $onlyAsSet ? null : $openOn, 'onlyAsSet' => false,
             ];
         }
 
@@ -168,7 +197,7 @@ final readonly class ProductCards
             return [
                 'status' => $verdict->status->value, 'requiresEntry' => $verdict->requiresEntry, 'notesOnly' => false, 'conditions' => [], 'conditionsVary' => false,
                 'diametersFitting' => $open ? $diametersFitting : [], 'tyresOpen' => $open,
-                'wheelConditional' => $open && $verdict->wheelStatus === VerdictStatus::Conditional, 'openOn' => $openOn,
+                'wheelConditional' => $open && $verdict->wheelStatus === VerdictStatus::Conditional, 'openOn' => $openOn, 'onlyAsSet' => $onlyAsSet, 'setPrice' => $setPrice, 'setPriceFrom' => $setPriceFrom,
             ];
         }
 
@@ -199,6 +228,8 @@ final readonly class ProductCards
             'requiresEntry' => $verdict->requiresEntry,
             // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
             'notesOnly' => $verdict->status === VerdictStatus::Conditional && ! $verdict->requiresEntry && $verdict->notesOnly(),
+            // The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says.
+            'hint' => $verdict->hintColour()->value,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $conditions),
             'conditionsVary' => $vary,
             'diametersFitting' => $diametersFitting,
@@ -206,7 +237,39 @@ final readonly class ProductCards
             'wheelConditional' => false,
             // The size the card speaks for: its link opens the page on it (`groesse`).
             'openOn' => $openOn,
+            // Only as a set of two versions (the client's fourth change): the card says so, the page opens on the set.
+            'onlyAsSet' => $onlyAsSet,
+            'setPrice' => $setPrice,
+            'setPriceFrom' => $setPriceFrom,
         ];
+    }
+
+    /**
+     * How many of a card's versions its product page offers the car — by the rule its chips follow (useConfigurator): sold,
+     * sold as a rim alone, approved with the tyres open, or waiting only for a fact the customer can give.
+     *
+     * @param  array<int, FitmentVerdict>  $verdicts
+     * @param  list<int>  $configIds
+     */
+    private function versionsOffered(array $verdicts, array $configIds, WheelSetOffer $offer = new WheelSetOffer): int
+    {
+        // A set is one thing on offer; a version sold only within one is not another.
+        $offered = count($offer->sets);
+
+        foreach ($configIds as $configId) {
+            $verdict = $verdicts[$configId] ?? null;
+
+            if ($verdict !== null && ! $offer->onlyInSet($configId) && (
+                $verdict->isSellable()
+                || $verdict->forRimAlone() !== null
+                || $verdict->tyreUnconfirmed()
+                || ($verdict->status === VerdictStatus::Unknown && $verdict->missingFacts !== [])
+            )) {
+                $offered++;
+            }
+        }
+
+        return $offered;
     }
 
     /**
@@ -319,6 +382,7 @@ final readonly class ProductCards
                 DB::raw('MIN(wc.price_cents) as from_price_cents'),
                 // Available or not, never a count (D-299): a card can be bought where any of its sizes can.
                 DB::raw('MAX(wc.available) as any_available'),
+                DB::raw('COUNT(wc.id) as version_count'),
                 DB::raw('GROUP_CONCAT(DISTINCT wc.diameter_in ORDER BY wc.diameter_in) as diameters'),
             ]);
 
@@ -342,6 +406,7 @@ final readonly class ProductCards
                 fromPriceCents: (int) $row->from_price_cents,
                 available: (bool) $row->any_available,
                 diameters: $this->diameters(is_string($row->diameters) ? $row->diameters : ''),
+                versionCount: (int) $row->version_count,
                 fitment: null,
                 image: $this->manifest($row->image_manifest),
                 isDemo: (bool) $row->is_demo,
@@ -428,7 +493,7 @@ final readonly class ProductCards
      * @param  array{status: string, requiresEntry: bool, notesOnly: bool, conditions: list<string>, diametersFitting: list<string>}  $claim
      * @return array<string, mixed>
      */
-    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim, string $disclosure): array
+    private function fromListingRow(array $row, array $presentation, array $diameters, array $claim, string $disclosure, int $versionCount = 0): array
     {
         $modelId = (int) ($row['model_id'] ?? 0);
         $finishId = (int) ($row['finish_id'] ?? 0);
@@ -456,6 +521,7 @@ final readonly class ProductCards
             fromPriceCents: (int) ($row['from_price_cents'] ?? 0),
             available: (bool) ($row['any_available'] ?? false),
             diameters: $diameters[$key] ?? [],
+            versionCount: $versionCount,
             fitment: $claim,
             image: $look['image'],
             isDemo: $look['is_demo'],
@@ -486,6 +552,7 @@ final readonly class ProductCards
         int $fromPriceCents,
         bool $available,
         array $diameters,
+        int $versionCount,
         ?array $fitment,
         ?array $image,
         bool $isDemo,
@@ -520,6 +587,8 @@ final readonly class ProductCards
             // Not available in any size: the subject of the card's „Anfrage“ (D-350), filled in by withEnquiries().
             'enquiry' => null,
             'diameters' => $diameters,
+            // The versions behind „ab …“ (the rework §8); with a vehicle, those the product page offers it.
+            'versionCount' => $versionCount,
             // With a vehicle: the subset of `diameters` a document permits on it, same spelling.
             // Null without a vehicle — no size is claimed to fit anything.
             'diametersFitting' => $diametersFitting,

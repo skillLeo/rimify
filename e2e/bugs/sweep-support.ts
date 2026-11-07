@@ -6,9 +6,9 @@ import { DEV, consentGiven, open } from '../support';
  *
  * They need the shop the client walks: the BORBET DB8GT2 published, ABE 53841, ABE 55255 and Nachtrag
  * 366-0350-21-WIRD/N1 released, and the cars those documents name (BMW X3 X83, MINI Paceman UKL-C/X …). The
- * preview (staging) has them. `SWEEP_BASE_URL` names the shop; without it the development shop (:8000), which has
- * them once the Borbet documents are released there. A shop without them fails the precondition loudly — then the
- * spec proves nothing, and says so.
+ * preview (staging) has them. `SWEEP_BASE_URL` names the shop; without it the development shop (DEV), whose database
+ * e2e/global-setup.ts gives the released documents and the published DB8GT2 before every run (tests/E2eData, D-427).
+ * A shop without them fails the precondition loudly — then the spec proves nothing, and says so.
  *
  * Nothing here writes product data:
  *   - a car is chosen the way the guided route chooses one (POST /fahrzeug): cookies only, FahrzeugController::store

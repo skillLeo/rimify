@@ -34,6 +34,10 @@ class WarenkorbController extends Controller
     public const SET_TYRES_REMOVED_TOAST = 'Die Reifen beider Achsen wurden entfernt – du bestellst jetzt nur die Felgen.';
 
     /** A set per axle added again: it stays the one set, 2 + 2 (D-335) — never „hinzugefügt“ over nothing added. */
+    public const TYRES_OFF_SET_HELD_TOAST = 'Die Reifen sind entfernt. Diese Felgen lagen schon im Warenkorb, es bleibt bei einem Satz aus vier Felgen.';
+
+    public const RIM_SET_HELD_TOAST = 'Diese Felgen sind schon im Warenkorb – zwei je Achse, die Anzahl ist fest.';
+
     public const SET_HELD_TOAST = 'Diese Kompletträder sind schon im Warenkorb – zwei je Achse, die Anzahl ist fest.';
 
     public function __construct(private readonly Basket $basket) {}
@@ -52,11 +56,21 @@ class WarenkorbController extends Controller
 
     public function store(BasketLineRequest $request): RedirectResponse
     {
+        // The page answered for another car than the one chosen by now, in another window: nothing is added for a car not on screen.
+        $expected = $request->expectedVehicle();
+
+        if ($expected !== null && $expected !== $this->basket->vehicleId($request)) {
+            // The page's address may name the car it answered for: going back to it would choose that car again, for every window.
+            return redirect()->to(self::withoutCarInAddress(url()->previous()))->withErrors(['wheelConfigId' => Basket::VEHICLE_CHANGED]);
+        }
+
         $tyreVariantId = $request->tyreVariantId();
         $rearTyreVariantId = $request->rearTyreVariantId();
+        $rearWheelConfigId = $request->rearWheelConfigId();
+        $perAxle = $rearTyreVariantId !== null || $rearWheelConfigId !== null;
         // A set per axle is 2 + 2 whatever was posted (D-335): two wheels on each axle, four in all.
-        $quantity = $rearTyreVariantId === null ? $request->quantity() : TyreEligibility::MIXED_PER_AXLE;
-        $wheels = $rearTyreVariantId === null ? $quantity : $quantity + $quantity;
+        $quantity = $perAxle ? TyreEligibility::MIXED_PER_AXLE : $request->quantity();
+        $wheels = $perAxle ? $quantity + $quantity : $quantity;
 
         // Every line is a wheel (the request refuses anything else), and every wheel is checked —
         // with its tyre and at the posted quantity, so four Kompletträder against one tyre in
@@ -68,6 +82,7 @@ class WarenkorbController extends Controller
             $request->weightColourId(),
             $quantity,
             $rearTyreVariantId,
+            $rearWheelConfigId,
         );
 
         if ($refusal !== null) {
@@ -84,9 +99,9 @@ class WarenkorbController extends Controller
             return back()->withErrors(['rdks' => Basket::TPMS_UNAVAILABLE_REFUSAL]);
         }
 
-        $key = $this->basket->key($request->wheelConfigId(), $tyreVariantId, $rearTyreVariantId);
+        $key = $this->basket->key($request->wheelConfigId(), $tyreVariantId, $rearTyreVariantId, $rearWheelConfigId);
         // A set per axle the basket holds already stays the one set (D-335): the add says so.
-        $held = $rearTyreVariantId !== null && $this->basket->holds($request, $key);
+        $held = $perAxle && $this->basket->holds($request, $key);
 
         $this->basket->add(
             $request,
@@ -95,6 +110,7 @@ class WarenkorbController extends Controller
             $tyreVariantId,
             $request->weightColourId(),
             $rearTyreVariantId,
+            $rearWheelConfigId,
         );
 
         // The answer, with the quote it was given at, becomes the checkout's own — asked once, not twice.
@@ -111,8 +127,8 @@ class WarenkorbController extends Controller
         // A combination of the Gutachten is the Komplettrad itself (D-335); different sizes from a printed table are
         // Mischbereifung; one size on both axles is a Komplettrad either way.
         $sentence = match (true) {
+            $held => $tyreVariantId === null ? self::RIM_SET_HELD_TOAST : self::SET_HELD_TOAST,
             $tyreVariantId === null => 'Zum Warenkorb hinzugefügt.',
-            $held => self::SET_HELD_TOAST,
             $rearTyreVariantId !== null && ($added['listed'] ?? false) !== true && ! self::sameSize($tyreVariantId, $rearTyreVariantId) => 'Mischbereifung zum Warenkorb hinzugefügt.',
             default => 'Komplettrad zum Warenkorb hinzugefügt.',
         };
@@ -127,6 +143,22 @@ class WarenkorbController extends Controller
         $this->basket->setQuantity($request, $line, max(0, min(99, $quantity)));
 
         return back();
+    }
+
+    private static function withoutCarInAddress(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ! isset($parts['query'])) {
+            return $url;
+        }
+
+        parse_str($parts['query'], $query);
+        unset($query['fahrzeug']);
+
+        $rest = http_build_query($query);
+
+        return ($parts['path'] ?? '/').($rest === '' ? '' : '?'.$rest);
     }
 
     public function destroy(Request $request, string $line): RedirectResponse
@@ -152,9 +184,11 @@ class WarenkorbController extends Controller
     public function destroyTyre(Request $request, string $line): RedirectResponse
     {
         $set = $this->basket->isSetPerAxle($request, $line);
+        // A set is two and two, fixed: where the same rims lie in the basket already, it stays one set, and that is said.
+        $rimsHeld = $this->basket->rimSetHeldBeside($request, $line);
 
         return $this->basket->removeTyre($request, $line)
-            ? back()->with('toast', $set ? self::SET_TYRES_REMOVED_TOAST : self::TYRE_REMOVED_TOAST)
+            ? back()->with('toast', $rimsHeld ? self::TYRES_OFF_SET_HELD_TOAST : ($set ? self::SET_TYRES_REMOVED_TOAST : self::TYRE_REMOVED_TOAST))
             : back();
     }
 

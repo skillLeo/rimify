@@ -11,6 +11,7 @@ use App\Models\Brand;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
 use App\Services\Admin\AuditTrail;
 use App\Support\WheelTitle;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -93,6 +94,13 @@ final class WheelEditor
             $counts = $this->configs($model, $configs, $finishIds);
             $this->dropUnusedFinishes($model, array_values($finishIds));
             $model->touch();
+
+            // A colour of a size a paper covers has its rows from here on: colour plays no part in the approval (the Gutachten rework).
+            $writer = new DocumentEntryWriter;
+
+            foreach ($model->configs()->pluck('id') as $id) {
+                $writer->colourAdded((int) $id, $admin);
+            }
 
             AuditTrail::record($admin, $creating ? 'wheel.created' : 'wheel.updated', [
                 'name' => $brand->name.' '.$model->name,
@@ -268,7 +276,9 @@ final class WheelEditor
                             ->where('diameter_in', $values['diameter_in'])
                             ->where('width_in', $values['width_in'])
                             ->where('et_mm', $values['et_mm'])
-                            ->where('bolt_circle_mm', $values['bolt_circle_mm']);
+                            ->where('bolt_holes', $values['bolt_holes'])
+                            ->where('bolt_circle_mm', $values['bolt_circle_mm'])
+                            ->where('centre_bore_mm', $values['centre_bore_mm']);
                     });
                 })
                 ->first();

@@ -144,6 +144,23 @@ it('adds a permitted Komplettrad as one line keyed on the wheel and the tyre, wi
         );
 });
 
+// Two windows: the add goes to the car the cookie holds, while the page says another. Refused, in words, and nothing added.
+it('refuses an add for a car that is no longer the chosen one, in a sentence of its own, and writes nothing', function (): void {
+    $set = KomplettradFixture::permitted();
+    $tyre = $set->tyre();
+
+    $this->withCookies($set->cookies())->from('/komplettraeder?groesse='.$set->config->id)
+        ->post('/warenkorb', [...komplettradPost($set->config->id, $tyre->id), 'vehicleId' => $set->vehicle->id + 999])
+        ->assertRedirect('/komplettraeder?groesse='.$set->config->id)
+        ->assertSessionHasErrors(['wheelConfigId' => Basket::VEHICLE_CHANGED]);
+
+    expect(session(Basket::SESSION_KEY))->toBeNull();
+
+    $this->withCookies($set->cookies())->from('/komplettraeder?groesse='.$set->config->id)
+        ->post('/warenkorb', [...komplettradPost($set->config->id, $tyre->id), 'vehicleId' => $set->vehicle->id])
+        ->assertSessionHasNoErrors();
+});
+
 it('refuses a tyre the verdict does not permit with the engine\'s sentence and writes nothing to the session', function (): void {
     $set = KomplettradFixture::permitted();
     // A size no document lists: one aspect step off the permitted one.

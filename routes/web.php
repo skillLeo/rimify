@@ -24,10 +24,10 @@ use App\Http\Controllers\Admin\FragenController;
 use App\Http\Controllers\Admin\GutachtenAngabenController;
 use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
+use App\Http\Controllers\Admin\GutachtenErfassungController;
 use App\Http\Controllers\Admin\GutachtenFahrzeugController;
-use App\Http\Controllers\Admin\GutachtenKombinationenController;
+use App\Http\Controllers\Admin\GutachtenSucheController;
 use App\Http\Controllers\Admin\GutachtenTabelleController;
-use App\Http\Controllers\Admin\GutachtenZeilenController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
@@ -40,12 +40,12 @@ use App\Http\Controllers\Admin\RatgeberController as AdminRatgeberController;
 use App\Http\Controllers\Admin\RdksPreiseController;
 use App\Http\Controllers\Admin\RechnungsnummernController;
 use App\Http\Controllers\Admin\ReifenController;
+use App\Http\Controllers\Admin\ReifenModellController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RollenController;
 use App\Http\Controllers\Admin\RueckbuchungenController;
 use App\Http\Controllers\Admin\SavedViewsController;
 use App\Http\Controllers\Admin\SeitenController;
-use App\Http\Controllers\Admin\SkizzeController;
 use App\Http\Controllers\Admin\SpeicherController;
 use App\Http\Controllers\Admin\SudoController;
 use App\Http\Controllers\Admin\SystemController;
@@ -78,6 +78,7 @@ use App\Http\Controllers\Storefront\FelgenController;
 use App\Http\Controllers\Storefront\FelgenrechnerController;
 use App\Http\Controllers\Storefront\KasseController;
 use App\Http\Controllers\Storefront\KasseZahlungController;
+use App\Http\Controllers\Storefront\KomplettradController;
 use App\Http\Controllers\Storefront\KontaktController;
 use App\Http\Controllers\Storefront\KontoController;
 use App\Http\Controllers\Storefront\PaymentWebhookController;
@@ -87,7 +88,6 @@ use App\Http\Controllers\Storefront\RechtlichesController;
 use App\Http\Controllers\Storefront\RobotsController;
 use App\Http\Controllers\Storefront\SesWebhookController;
 use App\Http\Controllers\Storefront\SitemapController;
-use App\Http\Controllers\Storefront\SkizzeController as SkizzeShopController;
 use App\Http\Controllers\Storefront\StartseiteController;
 use App\Http\Controllers\Storefront\TestzahlungController;
 use App\Http\Controllers\Storefront\VergleichController;
@@ -135,12 +135,8 @@ Route::get('/gutachten/{document}/beispiel', [BeispielGutachtenController::class
 // Up to four wheels side by side; the keys travel in `?f=` so a comparison is a link.
 Route::get('/vergleich', [VergleichController::class, 'index'])->name('vergleich.index');
 
-// The shop sketches of the Gutachten rework (Phase 1): example pages to click through before anything is built. A test
-// environment's alone, as the reset is (TestEnvironment) — the live shop has no such address.
-if (TestEnvironment::environmentAllows()) {
-    Route::get('/skizze/felge', [SkizzeShopController::class, 'felge'])->name('skizze.felge');
-    Route::get('/skizze/komplettraeder', [SkizzeShopController::class, 'komplettraeder'])->name('skizze.komplettraeder');
-}
+// The Komplettrad, step by step (the Gutachten rework §9): Felge, Reifen, Extras, Warenkorb.
+Route::get('/komplettraeder', [KomplettradController::class, 'show'])->name('komplettrad.show');
 
 Route::get('/rimify-check', [CheckController::class, 'index'])->name('check.index');
 Route::get('/rimify-check/ergebnis/{token}', [CheckController::class, 'ergebnis'])->name('check.ergebnis');
@@ -330,9 +326,24 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // through its Form Request. `/neu` and `/suche` are fixed segments, never a `{document}`.
         Route::get('/gutachten/neu', [GutachtenController::class, 'create'])->name('gutachten.create');
         Route::post('/gutachten', [GutachtenController::class, 'store'])->middleware('throttle:30,1,gutachten-store')->name('gutachten.store');
-        Route::get('/gutachten/suche/fahrzeuge', [GutachtenZeilenController::class, 'vehicles'])->middleware('throttle:120,1,gutachten-suche-fahrzeuge')->name('gutachten.suche.fahrzeuge');
-        Route::get('/gutachten/suche/felgen', [GutachtenZeilenController::class, 'wheels'])->middleware('throttle:120,1,gutachten-suche-felgen')->name('gutachten.suche.felgen');
+        Route::get('/gutachten/suche/fahrzeuge', [GutachtenSucheController::class, 'vehicles'])->middleware('throttle:120,1,gutachten-suche-fahrzeuge')->name('gutachten.suche.fahrzeuge');
+        Route::get('/gutachten/suche/felgen', [GutachtenSucheController::class, 'wheels'])->middleware('throttle:120,1,gutachten-suche-felgen')->name('gutachten.suche.felgen');
         Route::get('/gutachten/{document}', [GutachtenController::class, 'show'])->whereNumber('document')->name('gutachten.show');
+        Route::get('/gutachten/{document}/pdf', [GutachtenErfassungController::class, 'pdf'])->whereNumber('document')->name('gutachten.pdf');
+        // The five steps' saves (the Gutachten rework, Phase 2): each answers with the state the page redraws from.
+        Route::put('/gutachten/{document}/erfassung/felge', [GutachtenErfassungController::class, 'wheel'])->whereNumber('document')->name('gutachten.erfassung.felge');
+        Route::post('/gutachten/{document}/erfassung/kombinationen', [GutachtenErfassungController::class, 'addCombination'])->whereNumber('document')->name('gutachten.erfassung.kombination.add');
+        Route::put('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'changeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.change');
+        Route::delete('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'removeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.remove');
+        Route::post('/gutachten/{document}/erfassung/zellen', [GutachtenErfassungController::class, 'addCell'])->whereNumber('document')->name('gutachten.erfassung.zelle.add');
+        Route::delete('/gutachten/{document}/erfassung/fahrzeuge/{entry}/zelle', [GutachtenErfassungController::class, 'removeCell'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.zelle.remove');
+        Route::post('/gutachten/{document}/erfassung/fahrzeuge', [GutachtenErfassungController::class, 'addCars'])->whereNumber('document')->name('gutachten.erfassung.fahrzeuge');
+        Route::get('/gutachten/{document}/erfassung/fahrzeuge/{entry}', [GutachtenErfassungController::class, 'car'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug');
+        Route::put('/gutachten/{document}/erfassung/fahrzeuge/{entry}', [GutachtenErfassungController::class, 'saveCar'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.speichern');
+        Route::delete('/gutachten/{document}/erfassung/fahrzeuge/{entry}', [GutachtenErfassungController::class, 'removeCar'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.entfernen');
+        Route::post('/gutachten/{document}/erfassung/fahrzeuge/{entry}/kopieren', [GutachtenErfassungController::class, 'copy'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.kopieren');
+        Route::post('/gutachten/{document}/erfassung/fahrzeuge/{entry}/geprueft', [GutachtenErfassungController::class, 'confirmCar'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.geprueft');
+        Route::put('/gutachten/{document}/erfassung/lastindex', [GutachtenErfassungController::class, 'indexSource'])->whereNumber('document')->name('gutachten.erfassung.lastindex');
         Route::put('/gutachten/{document}', [GutachtenController::class, 'update'])->whereNumber('document')->name('gutachten.update');
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
         // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ for a released document (D-227).
@@ -341,16 +352,14 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/zaehlung', [GutachtenController::class, 'count'])->whereNumber('document')->name('gutachten.zaehlung');
         // The way back into a released document: a draft revision holding all it holds (ADMIN-GEFUNDEN 510).
         Route::post('/gutachten/{document}/neue-fassung', [GutachtenController::class, 'revise'])->whereNumber('document')->name('gutachten.neue-fassung');
-        Route::post('/gutachten/{document}/zeilen', [GutachtenZeilenController::class, 'store'])->whereNumber('document')->name('gutachten.zeilen.store');
         // A car exactly as the document names it — no HSN or TSN, none made up (Block C, item 7).
         Route::post('/gutachten/{document}/fahrzeuge', [GutachtenFahrzeugController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1,gutachten-fahrzeuge-store')->name('gutachten.fahrzeuge.store');
-        Route::put('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'update'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.update');
-        Route::delete('/gutachten/{document}/zeilen/{fitment}', [GutachtenZeilenController::class, 'destroy'])->whereNumber(['document', 'fitment'])->name('gutachten.zeile.entfernen');
         // A Gutachten's own Auflagenverzeichnis (the corrections memo §1): its codes, written while it is a draft.
         Route::post('/gutachten/{document}/auflagen', [GutachtenAuflagenController::class, 'store'])->whereNumber('document')->name('gutachten.auflagen.store');
         Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
         Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
         // #23, D-104: how loud one Auflage is in the shop — on a released document too (ApprovalDocumentPolicy::setLevels).
+        Route::put('/gutachten/{document}/auflagen/{condition}/farbe', [GutachtenAuflagenController::class, 'colour'])->whereNumber(['document', 'condition'])->name('gutachten.auflagen.farbe');
         Route::put('/gutachten/{document}/auflagen/{condition}/stufe', [GutachtenAuflagenController::class, 'level'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.stufe');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
         // A load-index limit that differs from the table, confirmed as printed with a reason.
@@ -364,10 +373,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/gutachten/{document}/nacharbeit/{rework}', [GutachtenAngabenController::class, 'destroyRework'])->whereNumber(['document', 'rework'])->name('gutachten.nacharbeit.entfernen');
         // Its own table of tyre load at speed (ABE 55255, p. 6), saved whole.
         Route::put('/gutachten/{document}/tragfaehigkeitstabelle', [GutachtenTabelleController::class, 'update'])->whereNumber('document')->name('gutachten.tabelle.update');
-        // Its own „Bereifungskombinationen“ (D-256), saved whole per EG number of its Verwendungsbereich (D-358), and one
-        // combination put on several EG numbers at once.
-        Route::put('/gutachten/{document}/bereifungskombinationen', [GutachtenKombinationenController::class, 'update'])->whereNumber('document')->name('gutachten.kombinationen.update');
-        Route::post('/gutachten/{document}/bereifungskombinationen/anwenden', [GutachtenKombinationenController::class, 'apply'])->whereNumber('document')->name('gutachten.kombinationen.apply');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on
@@ -380,13 +385,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
         // Gutachten › Auflagen: every document's own list, read-only; each is written on its Gutachten.
         Route::get('/auflagen', [AuflagenController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('auflagen.index');
-
-        // The admin sketches of the Gutachten rework (Phase 1), in memory only: a test environment's alone, never the live
-        // shop's (TestEnvironment); each under the permission of the area it sketches.
-        if (TestEnvironment::environmentAllows()) {
-            Route::get('/skizze/gutachten', [SkizzeController::class, 'gutachten'])->middleware(EnsureAdminMay::class.':approvals,view')->name('skizze.gutachten');
-            Route::get('/skizze/reifen', [SkizzeController::class, 'reifen'])->middleware(EnsureAdminMay::class.':catalogue,view')->name('skizze.reifen');
-        }
 
         // Gutachten › Konflikte: where documents disagree, the shop says UNKNOWN until a person decides here.
         Route::get('/konflikte', [KonflikteController::class, 'index'])->middleware(EnsureAdminMay::class.':approvals,view')->name('konflikte.index');
@@ -510,6 +508,13 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ->name('reifen.index');
         Route::get('/reifen/neu', [ReifenController::class, 'create'])->name('reifen.create');
         Route::post('/reifen', [ReifenController::class, 'store'])->name('reifen.store');
+        // One tyre model: its photographs and facts, its sizes below it (the Gutachten rework §9) — TyreModelPolicy through the Form Requests.
+        Route::get('/reifen/modell/{model}', [ReifenModellController::class, 'show'])->whereNumber('model')->name('reifen.modell');
+        Route::put('/reifen/modell/{model}', [ReifenModellController::class, 'update'])->whereNumber('model')->name('reifen.modell.update');
+        Route::post('/reifen/modell/{model}/foto', [ReifenModellController::class, 'image'])->whereNumber('model')->name('reifen.modell.foto');
+        Route::put('/reifen/modell/{model}/fotos/reihenfolge', [ReifenModellController::class, 'reorderImages'])->whereNumber('model')->name('reifen.modell.fotos.reihenfolge');
+        Route::put('/reifen/modell/{model}/fotos/{image}', [ReifenModellController::class, 'relabelImage'])->whereNumber(['model', 'image'])->name('reifen.modell.foto.beschreibung');
+        Route::delete('/reifen/modell/{model}/fotos/{image}', [ReifenModellController::class, 'removeImage'])->whereNumber(['model', 'image'])->name('reifen.modell.foto.entfernen');
         Route::get('/reifen/{tyre}', [ReifenController::class, 'edit'])->whereNumber('tyre')->name('reifen.edit');
         Route::put('/reifen/{tyre}', [ReifenController::class, 'update'])->whereNumber('tyre')->name('reifen.update');
         Route::delete('/reifen/{tyre}', [ReifenController::class, 'destroy'])->whereNumber('tyre')->name('reifen.destroy');

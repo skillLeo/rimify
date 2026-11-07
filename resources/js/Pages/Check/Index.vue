@@ -13,13 +13,14 @@
  * One page for every width.
  */
 
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
-import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { Head, Link, router, useForm, usePage, useRemember } from '@inertiajs/vue3'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, toRef, useTemplateRef, watch } from 'vue'
+import { setSummary } from '../Komplettrad/komplettradFlow'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import BuyModeChoice from '../../Components/Product/BuyModeChoice.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
-import KomplettradChoice from '../../Components/Product/KomplettradChoice.vue'
+import KomplettradRefusal from '../../Components/Product/KomplettradRefusal.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import VerdictBadge from '../../Components/Ui/VerdictBadge.vue'
 import VehicleSelector from '../../Components/Vehicle/VehicleSelector.vue'
@@ -29,6 +30,7 @@ import { tyreUnconfirmed } from '../../composables/useConfigurator'
 import { focusPapersForm, waitsForPapers } from '../../lib/papersForm'
 import { useShared } from '../../composables/useShared'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
+import { OFFLINE_ADD } from '../../lib/basketAdd'
 import { contactHref } from '../../lib/contact'
 import type { CheckProps } from '../../types/pages'
 import type { VerdictStatus } from '../../types/rimify'
@@ -188,137 +190,45 @@ function revealAnswer(): void {
 
 const config = computed(() => props.answer?.config ?? null)
 /* The rim alone sells while the tyres wait for the car's papers, where the wheel's approval does not (D-289). */
-const sellable = computed(() => config.value?.verdict?.sellable === true || config.value?.verdict?.rimSellable === true)
+const sellable = computed(() => config.value?.onlyInSet !== true && (config.value?.verdict?.sellable === true || config.value?.verdict?.rimSellable === true))
 
-const mode = ref<'felgen' | 'komplettrad'>('felgen')
+/* Back finds it as it was left: kept in the history entry (useRemember). */
+const kept = useRemember(reactive({ mode: 'felgen' as 'felgen' | 'komplettrad' }), 'check-kauf') as { mode: 'felgen' | 'komplettrad' }
+const mode = toRef(kept, 'mode')
 const isSet = computed(() => mode.value === 'komplettrad')
-const offer = computed(() => config.value?.komplettrad ?? null)
-const options = computed(() => props.answer?.komplettradOptions ?? null)
-
-const tyreId = ref<number | null>(null)
-const colourId = ref<number | null>(null)
-const rdks = ref<'ja' | 'nein' | null>(null)
-
-/*
- * A new answer brings its own tyres and options. What was chosen stays where the new answer still offers it — a refused
- * add comes back as a new answer object too, and its refusal belongs under the choice it was made under (CHECK-08).
- */
-watch(
-    () => props.answer,
-    () => {
-        const tyres = offer.value?.tyres.map((t) => t.id) ?? []
-        const colours = options.value?.colours ?? []
-
-        if (tyreId.value === null || !tyres.includes(tyreId.value)) {
-            tyreId.value = tyres[0] ?? null
-        }
-
-        if (colourId.value === null || !colours.some((c) => c.id === colourId.value)) {
-            colourId.value = colours.find((c) => c.isDefault)?.id ?? colours[0]?.id ?? null
-        }
-
-        rdks.value ??= options.value?.tpms.choice ?? null
-    },
-    { immediate: true }
-)
-
-const tyre = computed(() => offer.value?.tyres.find((t) => t.id === tyreId.value) ?? null)
-
-/* Where the Gutachten lists its tyre combinations the Komplettrad is one of them, 2 + 2 (D-335) — as on the product page. */
-const combinations = computed(() => (offer.value?.combinations?.length ? offer.value.combinations : null))
-const setKey = ref<string | null>(null)
-const chosenSet = computed(() => combinations.value?.flatMap((c) => c.sets).find((s) => s.key === setKey.value) ?? null)
-const chosenAnswer = computed(() => {
-    if (!isSet.value) {
-        return null
-    }
-
-    return combinations.value ? combinations.value.find((c) => c.sets.some((s) => s.key === setKey.value))?.answer ?? null : tyre.value?.answer ?? null
-})
-
-/* `ab 965,00 € je Rad`: the server's lowest figure in the colour chosen, as on the product page (PDP-13) — a combination's 2 + 2. */
-const setFrom = computed(() => {
-    if (combinations.value) {
-        const sets = combinations.value.flatMap((c) => c.sets).map((s) => s.prices?.find((p) => p.colourId === colourId.value) ?? s)
-
-        return sets.length === 0 ? null : sets.reduce((low, p) => (p.forFourCents < low.forFourCents ? p : low)).forFour
-    }
-
-    const priced = (offer.value?.tyres ?? []).map(
-        (t) => t.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: t.perWheel, forFourCents: t.forFourCents }
-    )
-
-    return priced.length === 0 ? null : priced.reduce((low, p) => (p.forFourCents < low.forFourCents ? p : low)).perWheel
-})
-
-const setFromUnit = computed(() => (combinations.value ? 'für 2 + 2' : 'pro Rad'))
-
-const setPrice = computed(() => {
-    const set = chosenSet.value
-
-    if (set !== null) {
-        const priced = set.prices?.find((p) => p.colourId === colourId.value) ?? set
-
-        return { perWheel: null, forFour: priced.forFour, perWheelFront: priced.perWheelFront, perWheelRear: priced.perWheelRear }
-    }
-
-    const current = tyre.value
-
-    if (current === null) {
-        return null
-    }
-
-    const priced = current.prices?.find((p) => p.colourId === colourId.value) ?? { perWheel: current.perWheel, forFour: current.forFour }
-
-    return { perWheel: priced.perWheel, forFour: priced.forFour, perWheelFront: null, perWheelRear: null }
-})
+/* The Komplettrad goes on in its own steps from this size (the Gutachten rework §9): here only whether there is one, and from what price. */
+const setOffer = computed(() => setSummary(config.value))
+const setFrom = computed(() => setOffer.value.from)
+const setFromUnit = computed(() => setOffer.value.fromUnit)
+const komplettradHref = computed(() => (config.value ? `/komplettraeder?groesse=${config.value.id}` : '/felgen'))
 
 /* The rims of a car: four — a size is available or not, never counted (his admin item 7, D-299) — priced by the server. */
 const rimAmount = computed(() => 4)
 const rimPrice = computed(() => config.value?.amounts?.find((a) => a.quantity === rimAmount.value) ?? null)
 
-const shownPrice = computed(() => (isSet.value ? setPrice.value?.forFour ?? null : rimPrice.value?.text ?? config.value?.price ?? null))
+const shownPrice = computed(() => {
+    if (isSet.value) {
+        return setFrom.value === null ? null : `ab ${setFrom.value}`
+    }
+
+    return rimPrice.value?.text ?? config.value?.price ?? null
+})
 
 const shownNote = computed(() => {
     if (isSet.value) {
-        const price = setPrice.value
-
-        if (price === null) {
-            return ''
-        }
-
-        // A combination (D-335): two for each axle, each axle's wheel priced on its own — one price where both cost the same —,
-        // the PAngV line on its own (`setLegal`).
-        if (price.perWheelFront !== null && price.perWheelRear !== null) {
-            return price.perWheelFront === price.perWheelRear
-                ? `für 2 + 2 Kompletträder, pro Rad ${price.perWheelFront}`
-                : `für 2 + 2 Kompletträder, pro Rad vorne ${price.perWheelFront}, hinten ${price.perWheelRear}`
-        }
-
-        return `für ${offer.value?.quantity ?? 4} Kompletträder, pro Rad ${price.perWheel}, ${terms.value.note}`
+        return setFrom.value === null ? '' : `${setFromUnit.value}, ${setOffer.value.priceOpen ? 'Komplettrad' : 'Komplettrad mit Montage'}, ${terms.value.note}`
     }
 
     return rimAmount.value === 1 ? `für 1 Felge, ${terms.value.note}` : `für ${rimAmount.value} Felgen, pro Felge ${config.value?.price ?? ''}, ${terms.value.note}`
-})
-
-/* The PAngV line of a combination's price, on its own line as on the product page. */
-const setLegal = computed(() => (isSet.value && chosenSet.value !== null ? terms.value.note : null))
-
-const sensorLine = computed(() => {
-    const tpms = options.value?.tpms
-
-    return isSet.value && rdks.value === 'ja' && tpms?.available && tpms.yesTotal ? `+ ${tpms.yesTotal} für ${tpms.quantity} RDKS-Sensoren` : null
 })
 
 const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
     tyreVariantId: null as number | null,
-    /* A combination of the Gutachten (D-335): the rear axle's tyre — the front's own where it names one size on both. */
-    rearTyreVariantId: null as number | null,
-    weightColourId: null as number | null,
-    rdks: null as 'ja' | 'nein' | null,
     quantity: 4,
+    /* The car this page answers for: an add under another, chosen meanwhile in another window, is refused rather than made for it. */
+    vehicleId: null as number | null,
 })
 
 /* After the add, the page is on its way to the basket: nothing more is bought from it (CHECK-07). */
@@ -332,7 +242,8 @@ const canBuy = computed(() => {
         return false
     }
 
-    return isSet.value ? (combinations.value ? chosenSet.value !== null : tyre.value !== null) : true
+    // A Komplettrad goes on in its steps, not from this button.
+    return !isSet.value
 })
 
 /*
@@ -358,7 +269,7 @@ const buyLabel = computed(() => {
         return 'Werte eintragen'
     }
 
-    if (isSet.value && (combinations.value ? chosenSet.value === null : tyre.value === null)) {
+    if (isSet.value) {
         return 'Komplettrad gerade nicht möglich'
     }
 
@@ -366,18 +277,17 @@ const buyLabel = computed(() => {
 })
 
 /* Without a connection the add never reached us: said under the button, nothing in the basket (CHECK-09). */
-const OFFLINE_ADD = 'Keine Verbindung – es wurde nichts in den Warenkorb gelegt. Versuch es gleich noch einmal.'
 const buyOffline = ref(false)
 
 const addError = computed(
-    () => basket.errors.tyreVariantId ?? basket.errors.rearTyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.rdks ?? basket.errors.quantity ?? (buyOffline.value ? OFFLINE_ADD : null)
+    () => basket.errors.tyreVariantId ?? basket.errors.wheelConfigId ?? basket.errors.quantity ?? (buyOffline.value ? OFFLINE_ADD : null)
 )
 
 /*
  * A refusal belongs to the choice it was made under: another size, mode, tyre or colour starts clean (PDP-09). The size,
  * not the answer object — a refusal arrives as a new answer object for the same size (CHECK-08).
  */
-watch([() => props.answer?.config.id, mode, tyreId, setKey, colourId], () => {
+watch([() => props.answer?.config.id, mode], () => {
     basket.clearErrors()
     buyOffline.value = false
 })
@@ -398,13 +308,9 @@ function buy(): void {
 
     buyOffline.value = false
     basket.wheelConfigId = current.id
-    const set = isSet.value ? chosenSet.value : null
-    basket.tyreVariantId = set !== null ? set.frontTyreId : isSet.value ? (tyre.value?.id ?? null) : null
-    // A combination of the Gutachten (D-335): its rear tyre beside the front, two of each — 2 + 2, nothing else.
-    basket.rearTyreVariantId = set !== null ? set.rearTyreId : null
-    basket.weightColourId = isSet.value ? colourId.value : null
-    basket.rdks = isSet.value ? rdks.value : null
-    basket.quantity = set !== null ? (offer.value?.perAxle ?? 2) : isSet.value ? (offer.value?.quantity ?? 4) : rimAmount.value
+    basket.tyreVariantId = null
+    basket.quantity = rimAmount.value
+    basket.vehicleId = shared.value.vehicle?.id ?? null
     basket.post('/warenkorb', {
         preserveScroll: true,
         // Only the add's own answer — this page again — leads on to the basket; an error page stays on screen.
@@ -438,6 +344,13 @@ const productHref = computed(() => {
 /* Why there is nothing to buy, in the verdict's own terms; the panel beside it says the rest. */
 const noSale = computed(() => {
     const verdict = config.value?.verdict ?? null
+
+    // A version for one axle, or only beside another: the answer stands, and four of it are not for sale.
+    if (config.value?.onlyInSet === true) {
+        return config.value.setKey
+            ? 'Für dein Fahrzeug ist diese Ausführung nur zusammen mit einer anderen für die zweite Achse freigegeben, nicht als vier gleiche Felgen. Den Satz findest du auf der Produktseite.'
+            : 'Für dein Fahrzeug ist diese Ausführung nur für eine Achse freigegeben, nicht als vier gleiche Felgen.'
+    }
 
     // The wheel approved and only its tyres open (finding 103, D-286): never „no approval we can show“ about a wheel the
     // document approves, said as the panel says it — and where the tyres wait for the car's papers, the way on is the
@@ -632,33 +545,27 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                     <FitmentPanel
                         :verdict="config.verdict ?? null"
                         :vehicle="vehicle"
-                        :config-id="config.id"
+                        :config-id="config.onlyInSet ? null : config.id"
                         issue-label="RIMIFY-Check drucken"
-                        :chosen="chosenAnswer"
                     />
 
                     <div class="chk__buy">
                         <template v-if="sellable">
                             <BuyModeChoice v-model="mode" name="chk-mode" :rim-price="config.price" :set-from="setFrom" :set-from-unit="setFromUnit" />
 
-                            <KomplettradChoice
-                                v-if="isSet && offer"
-                                v-model="tyreId"
-                                v-model:set-key="setKey"
-                                v-model:colour-id="colourId"
-                                v-model:rdks="rdks"
-                                :offer="offer"
-                                :options="options"
-                            />
+                            <KomplettradRefusal v-if="isSet && setOffer.refusal" :sentence="setOffer.refusal" :code="setOffer.refusalCode" />
 
                             <div v-if="shownPrice" class="chk__price">
                                 <p class="price" translate="no">{{ shownPrice }}</p>
                                 <p class="price-note">{{ shownNote }}</p>
-                                <p v-if="setLegal" class="price-legal">{{ setLegal }}</p>
-                                <p v-if="sensorLine" class="price-note">{{ sensorLine }}</p>
                             </div>
 
+                            <Link v-if="isSet && setOffer.ready && !setAwaitsPapers && config.inStock" :href="komplettradHref" class="btn btn--primary btn--block btn--lg chk__next">
+                                Weiter zum Komplettrad
+                                <Icon name="arrow-right" :size="20" />
+                            </Link>
                             <button
+                                v-else
                                 class="btn btn--primary btn--block btn--lg chk__go"
                                 type="button"
                                 :disabled="!canBuy && !basket.processing && !leaving && !setAwaitsPapers"
@@ -681,6 +588,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                                     <button class="btn btn--secondary btn--sm" type="button" @click="focusPapersForm">Werte eintragen</button>
                                 </p>
                                 <p v-else class="chk__nosale-go">
+                                    <Link v-if="config.setKey" :href="`${productHref}&satz=${config.setKey}`" class="btn btn--primary btn--sm" data-go-set>Zum Satz</Link>
                                     <Link href="/felgen" class="btn btn--secondary btn--sm">Passende Felgen für {{ vehicle.short }}</Link>
                                     <Link :href="askHref" class="link">Bei uns nachfragen</Link>
                                 </p>
@@ -883,6 +791,15 @@ const STATES: { status: VerdictStatus; text: string }[] = [
 
 .chk__nosale-text {
     margin: 0;
+}
+
+.chk__nosale > div {
+    min-width: 0;
+}
+
+.chk__nosale-go .btn {
+    max-width: 100%;
+    white-space: normal;
 }
 
 .chk__nosale-go {

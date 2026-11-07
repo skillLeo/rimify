@@ -22,7 +22,6 @@ use App\Support\GermanFormat;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -104,8 +103,8 @@ class UebersichtController extends Controller
             'chartKeys' => array_keys(array_filter($plan, static fn (mixed $chart): bool => $chart !== false)),
             'charts' => Inertia::defer(fn (): array => self::each($plan), 'default', true),
             // The matrix's size before it arrives: one row per make, so its skeleton is exactly as tall
-            // as the matrix that replaces it and nothing under it moves (a count, not the matrix).
-            'coverageRows' => fn (): int => $approvals ? DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make') : 0,
+            // as the matrix that replaces it and nothing under it moves (the cached matrix's count, D-428).
+            'coverageRows' => fn (): int => $approvals ? $coverage->rowCount() : 0,
             'can' => [
                 'export' => $admin->may(PermissionModule::Reports, PermissionAction::Export),
             ],

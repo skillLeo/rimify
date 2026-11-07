@@ -115,7 +115,18 @@ final readonly class FitmentVerdict
          * are, so the frozen order line says it word for word.
          */
         public ?string $rimAloneNoteDe = null,
+        /**
+         * Only on the answer for a set of two versions (`WheelSet::combined()`): the rim on the rear axle, `$wheel` being the front's.
+         * Never stored and never frozen. A verdict for one wheel leaves it null, and that one wheel stands on both axles.
+         */
+        public ?WheelConfigRecord $rearWheel = null,
     ) {}
+
+    /** The rim on this axle: a set's own for each, otherwise the one wheel. */
+    public function wheelOn(string $axle): ?WheelConfigRecord
+    {
+        return $axle === 'REAR' ? ($this->rearWheel ?? $this->wheel) : $this->wheel;
+    }
 
     /**
      * The answer for the rim sold alone, where it may be (`sellsAlone`, D-289): the wheel's own verdict — its Eintragung
@@ -268,6 +279,18 @@ final readonly class FitmentVerdict
     }
 
     /**
+     * „Noch nicht bestätigt“, where more is known than „no paper“: something is on record for the car and something it needs is
+     * open, so no sentence beside it may say „kein Gutachten“ (D-214, D-405, R-17). Reads the verdict and decides nothing. The
+     * page's word for the same line: useConfigurator's `standingOf`.
+     */
+    public function stillOpen(): bool
+    {
+        return $this->status === VerdictStatus::Unknown
+            && $this->reason !== null
+            && ! in_array($this->reason->code, VerdictReason::NOTHING_ON_RECORD, true);
+    }
+
+    /**
      * „Felge freigegeben · Reifengröße noch nicht bestätigt“ (finding 103, D-214): the document approves the wheel for
      * the car, and the tyres' half is open — for want of something on record, a table or an index, or for want of the
      * car's figures, which the customer holds in the papers (`tyre->papersOwed`, D-286). Not for want of a fact the
@@ -300,6 +323,29 @@ final readonly class FitmentVerdict
      * papers (R-03), no fact missing — and every Auflage, of every size, is a Hinweis (the blended list, D-094: the
      * louder reading wins). The status itself is untouched; this decides the words and the colour.
      */
+    /**
+     * The colour of the „Mit Auflagen“ hint (#23): yellow if any code that makes the answer conditional is yellow, otherwise green. An
+     * answer conditional for a reason no code of the paper speaks for (our own sentence, a figure still open) stays the caution it was.
+     */
+    public function hintColour(): HintColour
+    {
+        $coded = false;
+
+        foreach ($this->conditions as $condition) {
+            if (! $condition->downgradesVerdict()) {
+                continue;
+            }
+
+            if ($condition->hintColour === null || $condition->hintColour === HintColour::Yellow) {
+                return HintColour::Yellow;
+            }
+
+            $coded = true;
+        }
+
+        return $coded ? HintColour::Green : HintColour::Yellow;
+    }
+
     public function notesOnly(): bool
     {
         if ($this->status !== VerdictStatus::Conditional || $this->requiresEntry || $this->missingFacts !== [] || $this->conditions === []) {

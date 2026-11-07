@@ -17,6 +17,7 @@ use App\Services\Admin\AuditDescriber;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Artisan;
+use Tests\Support\Gutachten\EntryDriver;
 
 /*
  * `rimify:gutachten-zuruecknehmen` (D-225): an entry that leans the permissive way comes off the shop until it is
@@ -42,7 +43,7 @@ function takeBackReleased(): ApprovalDocument
     $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'width_in' => 8.5, 'et_mm' => 30]);
     $draft = ApprovalDocument::factory()->draft()->create(['report_number' => 'TG-ZURUECK', 'issued_on' => '2003-04-22']);
 
-    test()->actingAs($admin, 'admin')->post("/admin/gutachten/{$draft->id}/zeilen", [
+    EntryDriver::enter(test(), $admin, $draft->id, [
         'vehicle_ids' => [$vehicle->id],
         'config_ids' => [$config->id],
         'axle' => 'ALL',
@@ -50,7 +51,7 @@ function takeBackReleased(): ApprovalDocument
         'source_page' => 1,
         'tyre_sizes' => [['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => []]],
         'conditions' => [],
-    ])->assertSessionHasNoErrors();
+    ]);
 
     app(DocumentRelease::class)->release($draft->refresh(), $admin);
 

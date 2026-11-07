@@ -16,6 +16,12 @@ import type { AmountPrice, ConfigVerdict, KomplettradOfferProp, ProduktConfig, P
 const post = vi.fn()
 let forms: Array<Record<string, unknown>> = []
 
+// The address as Inertia knows it, and every replace the page asks for: the version chosen is kept in it (the rework §8).
+const current = vi.hoisted(() => ({ url: '/felgen/motec-mcr4', routeName: 'felgen.show' }))
+// What Inertia keeps in the history entry (useRemember): the same object again when the page comes back.
+const remembered = vi.hoisted(() => ({} as Record<string, object>))
+const replaced = vi.hoisted(() => [] as Array<{ url: string; preserveState?: boolean; preserveScroll?: boolean }>)
+
 // The way on to the papers form (lib/papersForm): what the page's button calls where the tyres wait for the car's papers.
 const focusPapers = vi.hoisted(() => vi.fn())
 
@@ -30,12 +36,16 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
+    router: { replace: (visit: { url: string }) => replaced.push(visit) },
     usePage: () => ({
+        url: current.url,
         props: {
             vehicle: null,
+            routeName: current.routeName,
             contact: { email: 'hallo@beispiel.de', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9–17 Uhr' },
         },
     }),
+    useRemember: <T extends object>(data: T, key: string) => (remembered[key] ??= data) as T,
     useForm: <T extends object>(data: T) => {
         const form = reactive({
             ...data,
@@ -77,6 +87,7 @@ function config(overrides: Partial<RatedConfig> = {}): RatedConfig {
         sizeLabel: '8,5J × 19 · ET 45',
         // The rim's own bore: 66,5 mm, the figure Motec's catalogue and the Teilegutachten give.
         // What an ABE states for one particular car travels inside the verdict, never here.
+        versionLabel: 'Breite 8,5J · ET 45 · Lochkreis 5 × 112',
         fullLabel: '8,5J × 19 · ET 45 · LK 5 × 112 · 66,5 mm',
         boltPattern: '5 × 112',
         centreBore: '66,5 mm',
@@ -204,6 +215,10 @@ function mountPage(overrides: Partial<ProduktProps & { demo: boolean }> = {}): V
 beforeEach(() => {
     post.mockReset()
     forms = []
+    current.url = '/felgen/motec-mcr4'
+    Object.keys(remembered).forEach((key) => delete remembered[key])
+    replaced.length = 0
+    window.history.replaceState(null, '', '/felgen/motec-mcr4')
 })
 
 afterEach(() => {
@@ -311,37 +326,254 @@ describe('Produkt page', () => {
         expect(block.text()).toContain('Die Angaben des Herstellers zu dieser Felge liegen uns noch nicht vor.')
     })
 
-    // Finding 138: a diameter the car may have in two widths or offsets offers both beside the diameter — the chip opened
-    // one of them, and the other was reachable only from a link, with no way back.
-    it('offers every width and ET of the chosen diameter, and the chosen one is the size on the page', async () => {
+    // The Gutachten rework §8 (and finding 138): one chip per version — width, ET, bolt pattern and price, each chosen on its
+    // own — and never separate selectors that could combine into a wheel that does not exist.
+    describe('Ausführung', () => {
         const conditional = verdict({ status: 'CONDITIONAL', label: 'Freigegeben mit Auflagen' })
-        const narrow = config({ id: 45, widthIn: 8.5, etMm: 35, sizeLabel: '8,5J × 19 · ET 35', verdict: conditional })
-        const wide = config({ id: 46, widthIn: 9.5, etMm: 40, sizeLabel: '9,5J × 19 · ET 40', priceCents: 89_600, price: '896,00 €', verdict: verdict() })
-        const refused = config({ id: 47, widthIn: 10, etMm: 25, sizeLabel: '10J × 19 · ET 25', verdict: verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) })
-        const wrapper = mountPage({ hasVehicle: true, configs: [narrow, wide, refused] })
-        const row = wrapper.find('.pdp__variants')
-        const chips = row.findAll('button.chip')
+        const narrow = config({ id: 45, widthIn: 8.5, etMm: 35, versionLabel: 'Breite 8,5J · ET 35 · Lochkreis 5 × 120', fullLabel: '8,5J × 19 · ET 35 · 5 × 120 · 72,6 mm', price: '796,00 €', verdict: conditional })
+        const wide = config({ id: 46, widthIn: 9.5, etMm: 40, versionLabel: 'Breite 9,5J · ET 40 · Lochkreis 5 × 120', priceCents: 89_600, price: '896,00 €', verdict: verdict() })
+        const refused = config({ id: 47, widthIn: 10, etMm: 25, versionLabel: 'Breite 10J · ET 25 · Lochkreis 5 × 120', verdict: verdict({ status: 'NOT_PERMITTED', label: 'Nicht freigegeben', sellable: false, reason: 'ET außerhalb des Gutachtens.' }) })
+        const none = config({ id: 48, widthIn: 11, etMm: 20, versionLabel: 'Breite 11J · ET 20 · Lochkreis 5 × 120', verdict: verdict({ status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, reason: 'Für diese Kombination liegt uns kein Gutachten vor.', reasonCode: 'NO_DOCUMENT' }) })
+        const open = config({ id: 50, widthIn: 13, etMm: 20, versionLabel: 'Breite 13J · ET 20 · Lochkreis 5 × 120', verdict: verdict({ status: 'UNKNOWN', label: 'Noch nicht bestätigt', sellable: false, reason: 'Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst.', reasonCode: 'TYRE_SIZES_NOT_RECORDED' }) })
+        const none2 = config({ id: 49, widthIn: 12, etMm: 20, versionLabel: 'Breite 12J · ET 20 · Lochkreis 5 × 120', verdict: none.verdict })
 
-        expect(row.find('.label').text()).toBe('Breite und Einpresstiefe (ET)')
-        expect(chips.map((c) => c.text())).toEqual(['8,5J × 19 · ET 35', '9,5J × 19 · ET 40', '10J × 19 · ET 25'])
-        // The one refused for the car is shown, struck, with its reason — never hidden.
-        expect(chips[2]!.attributes('disabled')).toBeDefined()
-        expect(chips[2]!.attributes('title')).toBe('ET außerhalb des Gutachtens.')
+        it('without a car shows every version with its full spec and price, and says what a car would change', () => {
+            const free = [{ ...narrow, verdict: null }, { ...wide, verdict: null }]
+            const row = mountPage({ hasVehicle: false, configs: free }).find('.pdp__variants')
 
-        const opened = chips.find((c) => c.attributes('aria-pressed') === 'true')!
-        const other = opened.text() === '8,5J × 19 · ET 35' ? chips[1]! : chips[0]!
+            expect(row.find('.label').text()).toBe('Ausführung')
+            expect(row.findAll('button.pdp__version').map((c) => c.find('.pdp__version-spec').text())).toEqual([
+                'Breite 8,5J · ET 35 · Lochkreis 5 × 120',
+                'Breite 9,5J · ET 40 · Lochkreis 5 × 120',
+            ])
+            expect(row.findAll('.pdp__version-price').map((p) => p.text())).toEqual(['796,00 €', '896,00 €'])
+            expect(row.text()).toContain('Wähle dein Fahrzeug, dann zeigen wir nur die Ausführungen, die dafür freigegeben sind.')
+        })
 
-        await other.trigger('click')
+        it('shows one version as well: its width, ET and bolt pattern stand on the page before anything is chosen', () => {
+            const row = mountPage({ hasVehicle: true, configs: [wide] }).find('.pdp__variants')
 
-        expect(other.attributes('aria-pressed')).toBe('true')
-        expect(wrapper.findAll('.pdp__variants button[aria-pressed="true"]')).toHaveLength(1)
+            expect(row.findAll('button.pdp__version').map((c) => c.find('.pdp__version-spec').text())).toEqual(['Breite 9,5J · ET 40 · Lochkreis 5 × 120'])
+        })
 
-        // And back: the other size is one press away again.
-        await opened.trigger('click')
-        expect(opened.attributes('aria-pressed')).toBe('true')
+        it('with a car shows those a paper approves, and the choice is the size on the page', async () => {
+            const wrapper = mountPage({ hasVehicle: true, configs: [narrow, wide, refused] })
+            const chips = wrapper.findAll('.pdp__variants button.pdp__version')
 
-        // One size of the diameter: nothing to choose, no row.
-        expect(mountPage({ hasVehicle: true, configs: [wide] }).find('.pdp__variants').exists()).toBe(false)
+            expect(chips).toHaveLength(2)
+
+            const opened = chips.find((c) => c.attributes('aria-pressed') === 'true')!
+            const other = opened.text().includes('8,5J') ? chips[1]! : chips[0]!
+
+            await other.trigger('click')
+
+            expect(other.attributes('aria-pressed')).toBe('true')
+            expect(wrapper.findAll('.pdp__variants button[aria-pressed="true"]')).toHaveLength(1)
+
+            // And back: the other version is one press away again.
+            await opened.trigger('click')
+            expect(opened.attributes('aria-pressed')).toBe('true')
+        })
+
+        it('counts the others in words true for each: refused by a paper, or none on record', () => {
+            expect(mountPage({ hasVehicle: true, configs: [wide, refused] }).find('.pdp__version-hint').text()).toContain('1 weitere Ausführung ist für dein Fahrzeug nicht freigegeben.')
+            expect(mountPage({ hasVehicle: true, configs: [wide, none, none2] }).find('.pdp__version-hint').text()).toContain('Für 2 weitere Ausführungen liegt uns für dein Fahrzeug keine Freigabe vor.')
+            expect(mountPage({ hasVehicle: true, configs: [wide, refused, none] }).find('.pdp__version-hint').text()).toContain('1 weitere Ausführung ist für dein Fahrzeug nicht freigegeben; für 1 weitere Ausführung liegt uns für dein Fahrzeug keine Freigabe vor.')
+            // A paper names the car and its tyres are not entered: an approval is on record, so „keine Freigabe“ would be false (D-214).
+            expect(mountPage({ hasVehicle: true, configs: [wide, open] }).find('.pdp__version-hint').text()).toContain('1 weitere Ausführung ist für dein Fahrzeug noch nicht bestätigt.')
+            // Nothing else on the page for „weitere“ to add to.
+            expect(mountPage({ hasVehicle: true, configs: [refused] }).find('.pdp__version-hint').text()).toContain('1 Ausführung ist für dein Fahrzeug nicht freigegeben.')
+        })
+
+        it('brings the others back struck through on request, never as a choice', async () => {
+            const wrapper = mountPage({ hasVehicle: true, configs: [wide, refused, none, open] })
+
+            expect(wrapper.find('.pdp__version--struck').exists()).toBe(false)
+
+            await wrapper.find('.pdp__version-more').trigger('click')
+
+            const struck = wrapper.findAll('.pdp__version--struck')
+
+            expect(struck.map((s) => s.find('.pdp__version-why').text())).toEqual(['nicht freigegeben', 'keine Freigabe vorliegend', 'noch nicht bestätigt'])
+            // Unconfirmed is no refusal, and is not drawn as one (finding 103, R-07).
+            expect(struck.map((s) => s.classes().includes('pdp__version--open'))).toEqual([false, false, true])
+            expect(wrapper.findAll('.pdp__variants button.pdp__version')).toHaveLength(1)
+            expect(wrapper.find('.pdp__version-more').text()).toBe('Ausblenden')
+        })
+
+        it('shows nothing to count where every version of the diameter may be had', () => {
+            expect(mountPage({ hasVehicle: true, configs: [narrow, wide] }).find('.pdp__version-hint').exists()).toBe(false)
+        })
+
+        it('says „Auf Anfrage“ on a version not available, and still offers it', () => {
+            const out = { ...wide, inStock: false, enquiry: 'Anfrage zu dieser Felge' }
+            const chip = mountPage({ hasVehicle: true, configs: [narrow, out] }).findAll('.pdp__variants button.pdp__version')[1]!
+
+            expect(chip.text()).toContain('Auf Anfrage')
+            expect(chip.attributes('disabled')).toBeUndefined()
+        })
+
+        it('says the chosen version in full under the chips, centre bore included', () => {
+            expect(mountPage({ hasVehicle: true, configs: [narrow] }).find('.pdp__chosen').text()).toContain('8,5J × 19 · ET 35 · 5 × 120 · 72,6 mm')
+        })
+
+        it('opens the others on a link to a version the car may not have, and says so on the chip: never swapped in silence', () => {
+            current.url = '/felgen/motec-mcr4?groesse=47'
+            const wrapper = mountPage({ hasVehicle: true, configs: [wide, refused] })
+
+            const struck = wrapper.findAll('.pdp__version--struck')
+
+            expect(struck).toHaveLength(1)
+            expect(struck[0]!.classes()).toContain('pdp__version--on')
+            expect(wrapper.find('.pdp__version-more').exists()).toBe(false)
+            expect(wrapper.find('.pdp__add').attributes('disabled')).toBeDefined()
+        })
+
+        it('keeps the version a person chose in the address, beside the car, and leaves it alone until then', async () => {
+            current.url = '/felgen/motec-mcr4?fahrzeug=0005-Z46-00001'
+            window.history.replaceState(null, '', '/felgen/motec-mcr4?fahrzeug=0005-Z46-00001')
+            replaced.length = 0
+
+            const wrapper = mountPage({ hasVehicle: true, configs: [narrow, wide] })
+
+            expect(replaced).toEqual([])
+
+            await wrapper.findAll('.pdp__variants button.pdp__version')[1]!.trigger('click')
+
+            expect(replaced).toHaveLength(1)
+            expect(replaced[0]!.url).toContain('fahrzeug=0005-Z46-00001')
+            expect(replaced[0]!.url).toContain('groesse=46')
+            expect(replaced[0]!.preserveState).toBe(true)
+        })
+    })
+
+    /* What Back brings back: the props of the first load under the address as it was left (the interaction review of Phase 3). */
+    describe('its address', () => {
+        const finishes = [
+            { id: 1, name: 'Graphit matt', hex: null, artFinish: 'silver', image: photo },
+            { id: 2, name: 'Schwarz glänzend', hex: null, artFinish: 'black', image: photo },
+        ]
+        const row = (id: number, finishId: number, widthIn: number): RatedConfig =>
+            config({ id, finishId, widthIn, fullLabel: `Version ${id}`, versionLabel: `Breite ${widthIn}J · ET 45 · Lochkreis 5 × 112`, price: `${id},00 €` })
+        const configs = [row(1, 1, 8), row(2, 1, 8.5), row(4, 2, 8), row(5, 2, 8.5)]
+        const opened = (url: string): { finish: string | undefined; version: string } => {
+            current.url = url
+
+            const wrapper = mountPage({ finishes, configs })
+
+            return { finish: wrapper.find('.pdp__swatch--on').text(), version: wrapper.find('.pdp__chosen').text() }
+        }
+
+        it('comes back on the colour and version the address names, whatever the first load opened on', () => {
+            expect(opened('/felgen/x?ausfuehrung=2&groesse=5')).toEqual({ finish: 'Schwarz glänzend', version: 'Gewählt: Version 5' })
+        })
+
+        it('reads a size before the fragment: a link to „#groessen“ opens that size', () => {
+            expect(opened('/felgen/x?groesse=2#groessen')).toEqual({ finish: 'Graphit matt', version: 'Gewählt: Version 2' })
+        })
+
+        it('lets a real version name its colour, whatever else the address says', () => {
+            expect(opened('/felgen/x?ausfuehrung=2&groesse=2').finish).toBe('Graphit matt')
+            expect(opened('/felgen/x?ausfuehrung=999&groesse=5').finish).toBe('Schwarz glänzend')
+        })
+
+        it('opens a colour named alone, and the first load’s where the address names none of its own', () => {
+            expect(opened('/felgen/x?ausfuehrung=2').finish).toBe('Schwarz glänzend')
+            expect(opened('/felgen/x?ausfuehrung=999').finish).toBe('Graphit matt')
+            expect(opened('/felgen/x?groesse=999').finish).toBe('Graphit matt')
+        })
+
+        it('says a lost connection at the add, and names the car the page answers for', async () => {
+            const wrapper = mountPage({ finishes, configs })
+
+            await wrapper.find('button.pdp__add').trigger('click')
+
+            const options = post.mock.calls[0]?.[1] as { onNetworkError: () => boolean }
+
+            expect(options.onNetworkError()).toBe(false)
+            await flushPromises()
+            expect(wrapper.find('.pdp__add-error').text()).toContain('Keine Verbindung')
+        })
+
+        it('keeps the address the page has while an add comes back: the last pick wins', async () => {
+            const wrapper = mountPage({ finishes, configs })
+
+            await wrapper.find('button.pdp__add').trigger('click')
+
+            expect(post.mock.calls[0]?.[1]).toMatchObject({ preserveUrl: true, preserveScroll: true })
+        })
+
+        it('finds Komplettrad and the amount again when it comes back, per product', async () => {
+            const first = mountPage({ finishes, configs: configs.map((c) => ({ ...c, amounts: AMOUNTS })) })
+
+            await first.find('input[type="radio"][value="komplettrad"]').setValue()
+            first.unmount()
+            wrappers = []
+
+            const again = mountPage({ finishes, configs: configs.map((c) => ({ ...c, amounts: AMOUNTS })) })
+
+            expect((again.find('input[type="radio"][value="komplettrad"]').element as HTMLInputElement).checked).toBe(true)
+        })
+    })
+
+    describe('a colour change', () => {
+        const finishes = [
+            { id: 1, name: 'Graphit matt', hex: null, artFinish: 'silver', image: photo },
+            { id: 2, name: 'Silber', hex: null, artFinish: 'silver', image: photo },
+        ]
+
+        it('says what the colour does not have and what stands there instead, and that goes with the choice', async () => {
+            const configs = [
+                config({ id: 1, finishId: 1, widthIn: 8, fullLabel: '8J × 18 · ET 45' }),
+                config({ id: 2, finishId: 1, widthIn: 8.5, fullLabel: '8,5J × 18 · ET 45' }),
+                config({ id: 3, finishId: 2, widthIn: 8, fullLabel: '8J × 18 · ET 45' }),
+            ]
+            const wrapper = mountPage({ finishes, configs })
+
+            expect(wrapper.find('.pdp__colour-note').exists()).toBe(false)
+
+            await wrapper.findAll('button.pdp__version')[1]!.trigger('click')
+            await wrapper.findAll('.pdp__swatch')[1]!.trigger('click')
+
+            expect(wrapper.find('.pdp__colour-note').text()).toBe('In Silber führen wir 8,5J × 18 · ET 45 nicht. Du siehst stattdessen 8J × 18 · ET 45.')
+
+            await wrapper.findAll('.pdp__swatch')[0]!.trigger('click')
+
+            expect(wrapper.find('.pdp__colour-note').exists()).toBe(false)
+            expect(wrapper.find('.pdp__chosen').text()).toBe('Gewählt: 8,5J × 18 · ET 45')
+        })
+
+        it('keeps the amount through a size with no amounts to offer', async () => {
+            const configs = [config({ id: 1, finishId: 1, amounts: AMOUNTS }), config({ id: 2, finishId: 2, amounts: [] })]
+            const wrapper = mountPage({ finishes, configs })
+
+            await wrapper.findAll('.pdp__swatch')[1]!.trigger('click')
+            await wrapper.findAll('.pdp__swatch')[0]!.trigger('click')
+
+            expect(wrapper.find('.pdp__total').text()).toBe(AMOUNTS[3]!.text)
+        })
+    })
+
+    it('comes back to this wheel and version from choosing a car: the selector is told where from', () => {
+        current.url = '/felgen/motec-mcr4?ausfuehrung=2&groesse=5#groessen'
+
+        const wrapper = mountPage({ hasVehicle: false })
+
+        expect(wrapper.find('.pdp__fit-cta').attributes('href')).toBe(`/felgen-suchen?zurueck=${encodeURIComponent('/felgen/motec-mcr4?ausfuehrung=2&groesse=5')}`)
+    })
+
+    it('offers no „Anfrage“ on a version the car may not have: nothing to enquire about', () => {
+        const refused = verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Nicht freigegeben.' })
+
+        current.url = '/felgen/x?groesse=12'
+
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ id: 11, widthIn: 8, verdict: verdict() }), config({ id: 12, widthIn: 8.5, inStock: false, enquiry: 'Anfrage zur Verfügbarkeit: x', verdict: refused })] })
+
+        expect(wrapper.find('a.pdp__enquiry').exists()).toBe(false)
+    })
+
+    it('says what the prices on the versions are, beside them (D-064, D-233)', () => {
+        expect(mountPage().find('.pdp__version-terms').text()).toBe('Preise pro Felge, inkl. MwSt., zzgl. Versandkosten')
     })
 
     it('says "Verfügbar" for a real model that can be bought, and nothing about a demo range @admin-207', () => {
@@ -648,6 +880,23 @@ describe('Produkt page', () => {
         expect(note('UNKNOWN')).toBe('Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor.')
     })
 
+    // Beside a Gutachten on record, „keine Freigabe“ says what no record says (D-214, D-405, R-17).
+    it('says a struck-through size is unconfirmed where a paper names the car and something is open', () => {
+        const sized = (...rows: Array<Partial<ConfigVerdict>>): string =>
+            mountPage({
+                hasVehicle: true,
+                configs: [...rows.map((v, i) => config({ id: 20 + i, widthIn: 8 + i, diameterIn: 19, verdict: verdict({ sellable: false, ...v }) })), config({ id: 11, diameterIn: 18, verdict: verdict() })],
+            }).find('.pdp__note').text()
+        const open = { status: 'UNKNOWN' as const, reasonCode: 'TYRE_SIZES_NOT_RECORDED' }
+        const none = { status: 'UNKNOWN' as const, reasonCode: 'NO_DOCUMENT' }
+        const refused = { status: 'NOT_PERMITTED' as const }
+
+        expect(sized(open)).toBe('Durchgestrichene Größen können wir für dein Fahrzeug noch nicht bestätigen.')
+        expect(sized(open, refused)).toBe('Durchgestrichene Größen sind für dein Fahrzeug nicht freigegeben, oder wir können sie noch nicht bestätigen.')
+        expect(sized(open, none)).toBe('Für durchgestrichene Größen liegt uns für dein Fahrzeug keine Freigabe vor, oder wir können sie noch nicht bestätigen.')
+        expect(sized(open, none, refused)).toBe('Durchgestrichene Größen: für dein Fahrzeug nicht freigegeben, keine Freigabe vorliegend oder noch nicht bestätigt.')
+    })
+
     it('draws the wheel without a zoom when there is no photograph', () => {
         const wrapper = mountPage({ finishes: [{ id: 1, name: 'Silber', hex: null, artFinish: 'silver', image: null }] })
 
@@ -669,30 +918,35 @@ describe('Produkt page', () => {
         expect(modes[1]!.find('.bmc-tile__sub').text()).toMatch(/^Mit Reifen, fertig montiert\s+ab 965,00 € pro Rad$/)
         expect(modes[1]!.find('.bmc-tile__price').text()).toBe('ab 965,00 € pro Rad')
         expect((wrapper.find('input[value="felgen"]').element as HTMLInputElement).checked).toBe(true)
-        // No tyre on screen while the rims alone are chosen.
-        expect(wrapper.find('.kc').exists()).toBe(false)
+        // No way on to the tyres while the rims alone are chosen.
+        expect(wrapper.find('.pdp__next').exists()).toBe(false)
         expect(wrapper.find('button.pdp__add').text()).toBe('In den Warenkorb')
     })
 
-    it('shows the permitted tyres with Komplettrad chosen, prices the set and adds the tyre as a set of four @kunde-18', async () => {
+    it('leads a Komplettrad on to its steps from the size on screen, says what it starts from, and adds nothing from here @kunde-18', async () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), amounts: AMOUNTS })] })
         await chooseSet(wrapper)
 
-        const choice = wrapper.find('.kc')
-        expect(choice.text()).toContain(MIN_SENTENCE)
-        expect(choice.text()).toContain('Potenza Sport')
-        expect(choice.find('.kc-row--on').exists()).toBe(true)
-        expect(wrapper.find('.pdp__total').text()).toBe('3.860,00 €')
-        expect(wrapper.find('.pdp__each').text()).toBe('für 4 Kompletträder, pro Rad 965,00 €, inkl. MwSt., zzgl. Versandkosten')
-        // A set is four: no amount stepper beside it.
+        const next = wrapper.find('.pdp__next')
+
+        expect(next.text()).toContain('Weiter zum Komplettrad')
+        expect(next.attributes('href')).toBe('/komplettraeder?groesse=11')
+        expect(wrapper.find('.pdp__total').text()).toBe('ab 965,00 €')
+        expect(wrapper.find('.pdp__each').text()).toBe('pro Rad, Komplettrad mit Montage, inkl. MwSt., zzgl. Versandkosten')
+        expect(wrapper.text()).not.toContain('Ohne Montage und Auswuchten')
+        // A set is four, chosen in the steps: no amount stepper, no tyre list, and no basket button here.
         expect(wrapper.find('.amt').exists()).toBe(false)
+        expect(wrapper.find('button.pdp__add').exists()).toBe(false)
+        expect(post).not.toHaveBeenCalled()
+    })
 
-        await wrapper.find('button.pdp__add').trigger('click')
+    it('promises no mounting beside a fee nobody has named: the line under the price says what is left out, and nothing above contradicts it', async () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad({ priceOpen: true }), amounts: AMOUNTS })] })
 
-        expect(post).toHaveBeenCalledTimes(1)
-        expect(post.mock.calls[0]?.[0]).toBe('/warenkorb')
-        expect(forms.find((form) => form.kind === 'WHEEL')).toMatchObject({ wheelConfigId: 11, tyreVariantId: 7, quantity: 4 })
-        expect(wrapper.find('button.pdp__add').text()).toBe('Als Komplettrad in den Warenkorb')
+        await chooseSet(wrapper)
+
+        expect(wrapper.find('.pdp__each').text()).toBe('pro Rad, Komplettrad, inkl. MwSt., zzgl. Versandkosten')
+        expect(wrapper.text()).toContain('Ohne Montage und Auswuchten')
     })
 
     it('keeps the amount of rims when switching to Komplettrad and back, and adds rims without a tyre @kunde-18', async () => {
@@ -718,56 +972,25 @@ describe('Produkt page', () => {
         })
         await chooseSet(wrapper)
 
-        expect(wrapper.find('.kc__refusal').text()).toContain(sentence)
-        expect(wrapper.find('.kc__refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
+        expect(wrapper.find('.kr-refusal').text()).toContain(sentence)
+        expect(wrapper.find('.kr-refusal a[href^="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
+        expect(wrapper.find('.pdp__next').exists()).toBe(false)
         expect(wrapper.find('button.pdp__add').text()).toBe('Komplettrad gerade nicht möglich')
         expect(wrapper.find('button.pdp__add').attributes('disabled')).toBeDefined()
         // No link that only pointed at the page's own button (#25).
         expect(wrapper.text()).not.toContain('Nur die Felgen bestellen')
     })
 
-    it('sends the colour and the RDKS answer with a Komplettrad, prices the colour picked, and sends neither with rims (#15) @kunde-15', async () => {
-        const priced = komplettrad({
-            tyres: [
-                {
-                    ...komplettrad().tyres[0]!,
-                    prices: [
-                        { colourId: 1, perWheel: '965,00 €', forFourCents: 386_000, forFour: '3.860,00 €' },
-                        { colourId: 2, perWheel: '970,00 €', forFourCents: 388_000, forFour: '3.880,00 €' },
-                    ],
-                },
-            ],
-        })
-        const wrapper = mountPage({
-            hasVehicle: true,
-            configs: [config({ komplettrad: priced, amounts: AMOUNTS })],
-            komplettradOptions: {
-                colours: [
-                    { id: 1, name: 'Silber', swatchHex: null, surchargeCents: 0, surcharge: '0,00 €', isDefault: true },
-                    { id: 2, name: 'Schwarz', swatchHex: null, surchargeCents: 500, surcharge: '5,00 €', isDefault: false },
-                ],
-                tpms: {
-                    applicable: true, quantity: 4, available: true, makeLabel: 'BMW', unitPriceCents: 4_900, unitPrice: '49,00 €',
-                    line: '4 × 49,00 €', choice: null, totalCents: 0, total: '0,00 €', yesTotal: '196,00 €', notice: null,
-                },
-            },
-        })
-
-        // Under „Nur Felgen“ nothing of it is on screen, and nothing of it is sent.
-        expect(wrapper.find('.kc__group').exists()).toBe(false)
-        await wrapper.find('button.pdp__add').trigger('click')
-        expect(forms.find((f) => f.kind === 'WHEEL')).toMatchObject({ tyreVariantId: null, weightColourId: null, rdks: null })
-
-        await chooseSet(wrapper)
-        await wrapper.find('input[name="kc-weights"][value="2"]').setValue()
-        await wrapper.find('input[name="kc-rdks"][value="ja"]').setValue()
-
-        expect(wrapper.find('.pdp__total').text()).toBe('3.880,00 €')
-        expect(wrapper.find('.pdp__each').text()).toContain('pro Rad 970,00 €')
-        expect(wrapper.find('.pdp__sensors').text()).toBe('+ 196,00 € für 4 RDKS-Sensoren')
+    it('sends nothing of a Komplettrad with rims: no tyre, no colour, no sensors (#15) @kunde-15', async () => {
+        const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), amounts: AMOUNTS })] })
 
         await wrapper.find('button.pdp__add').trigger('click')
-        expect(forms.find((f) => f.kind === 'WHEEL')).toMatchObject({ tyreVariantId: 7, weightColourId: 2, rdks: 'ja', quantity: 4 })
+
+        const sent = forms.find((f) => f.kind === 'WHEEL')
+
+        expect(sent).toMatchObject({ tyreVariantId: null })
+        expect(sent).not.toHaveProperty('weightColourId')
+        expect(sent).not.toHaveProperty('rdks')
     })
 
     it('starts another choice clean: a refusal of the last add goes with the mode it was made under', async () => {
@@ -804,9 +1027,10 @@ describe('Produkt page', () => {
         expect(wrapper.find('.pdp__stock').text()).toBe('Verfügbar')
     })
 
-    it('offers front and rear in different sizes in the buy column, where the Komplettrad is chosen — never a dead button above them @kunde-20', async () => {
+    it('leads on where only front and rear in different sizes stand, never a dead button or „four alike“ above them @kunde-20', async () => {
         // The E90's 19 Zoll on ABE 55255: front and rear sizes differ, the table V19 prints the pairs.
-        const mischbereifung = {
+        const set = { key: '7-8', frontTyreId: 7, rearTyreId: 8, brandName: 'Bridgestone', name: 'Potenza', seasonLabel: 'Sommerreifen', frontLabel: '225/35 R19 88Y', rearLabel: '255/30 R19 92Y', perWheelFront: '950,00 €', perWheelRear: '990,00 €', forFourCents: 388_000, forFour: '3.880,00 €', isDemo: false }
+        const mischbereifung = (sets: typeof set[]) => ({
             refusal: null,
             refusalCode: null,
             perAxle: 2,
@@ -814,37 +1038,31 @@ describe('Produkt page', () => {
             sourcePage: 12,
             priceOpen: false,
             pairs: [
-                { key: '1', number: 1, front: '225/35 R19', rear: '255/30 R19', minSentence: 'Vorne mindestens 88Y, hinten 92Y.', sets: [] },
-                { key: '2', number: 2, front: '235/35 R19', rear: '255/30 R19', minSentence: 'Vorne mindestens 91Y, hinten 92Y.', sets: [] },
+                { key: '1', number: 1, front: '225/35 R19', rear: '255/30 R19', minSentence: 'Vorne mindestens 88Y, hinten 92Y.', sets },
             ],
-        }
-        const staggered = 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben – vier gleiche Reifen gibt es dafür nicht.'
-        const wrapper = mountPage({
-            hasVehicle: true,
-            configs: [config({ komplettrad: komplettrad({ refusal: staggered, refusalCode: 'STAGGERED_LAYOUT', tyres: [] }), mischbereifung })],
         })
-
-        // Under „Nur Felgen“ none of it (#15).
-        expect(wrapper.find('.mix').exists()).toBe(false)
+        const staggered = 'Vorne und hinten sind für dein Fahrzeug unterschiedliche Reifengrößen freigegeben – vier gleiche Reifen gibt es dafür nicht.'
+        const page = (sets: typeof set[]) => mountPage({
+            hasVehicle: true,
+            configs: [config({ komplettrad: komplettrad({ refusal: staggered, refusalCode: 'STAGGERED_LAYOUT', tyres: [] }), mischbereifung: mischbereifung(sets) })],
+        })
+        const wrapper = page([set])
 
         await chooseSet(wrapper)
 
-        const buy = wrapper.find('.pdp__buy')
-        expect(buy.find('#mix-heading').exists()).toBe(true)
-        expect(buy.findAll('.mix .chip').map((chip) => chip.text())).toEqual(['vorne 225/35 R19 · hinten 255/30 R19', 'vorne 235/35 R19 · hinten 255/30 R19'])
-        expect(buy.text()).toContain('für die Vorderachse')
-        expect(buy.text()).toContain('für die Hinterachse')
-        // The four-of-a-kind refusal and its dead button are gone: the pairs are the Komplettrad here.
+        expect(wrapper.find('.pdp__next').attributes('href')).toBe('/komplettraeder?groesse=11')
+        expect(wrapper.find('.pdp__total').text()).toBe('ab 3.880,00 €')
+        expect(wrapper.find('.pdp__each').text()).toContain('für 2 + 2')
         expect(wrapper.text()).not.toContain('vier gleiche Reifen gibt es dafür nicht')
-        expect(wrapper.find('button.pdp__add').exists()).toBe(false)
-        expect(wrapper.find('.pdp__sticky').exists()).toBe(false)
 
-        // Where four identical tyres are offered too, they keep the main button, and the pairs follow it.
-        const both = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), mischbereifung })] })
-        await chooseSet(both)
-        const order = both.findAll('.pdp__buy .kc, .pdp__buy button.pdp__add, .pdp__buy .mix').map((el) => (el.classes('mix') ? 'mix' : el.classes('pdp__add') ? 'add' : 'kc'))
+        // Pairs with no tyre on the shelf: what is missing, with the way on — still not „four alike“.
+        const empty = page([])
 
-        expect(order).toEqual(['kc', 'add', 'mix'])
+        await chooseSet(empty)
+
+        expect(empty.find('.pdp__next').exists()).toBe(false)
+        expect(empty.text()).not.toContain('vier gleiche Reifen gibt es dafür nicht')
+        expect(empty.find('.kr-refusal').text()).toContain('Reifen')
     })
 
     it('prints the server\'s refusal of an add under the button', async () => {

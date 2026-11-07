@@ -43,6 +43,21 @@ final class Coverage
         return Cache::remember(self::CACHE_KEY, self::CACHE_SECONDS, fn (): array => $this->compute());
     }
 
+    /**
+     * How many makes the matrix has — the skeleton's rows. The cached matrix's own while one is cached, so a make added
+     * within its hour is not in the skeleton before it is in the matrix (UEB-02, D-428); a count, not the matrix, otherwise.
+     */
+    public function rowCount(): int
+    {
+        $cached = Cache::get(self::CACHE_KEY);
+
+        if (is_array($cached) && is_array($cached['rows'] ?? null)) {
+            return count($cached['rows']);
+        }
+
+        return DB::table('vehicles')->whereNull('deleted_at')->distinct()->count('make');
+    }
+
     public static function forget(): void
     {
         Cache::forget(self::CACHE_KEY);

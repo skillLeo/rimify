@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
+use App\Models\DocumentCarEntry;
 use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentConflict;
@@ -24,6 +25,7 @@ use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Storage\StorageSettings;
+use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Database\QueryException;
@@ -31,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
+use Tests\Support\Gutachten\EntryDriver;
 use Tests\Support\Gutachten\ReleaseAnswers;
 
 /**
@@ -97,7 +100,7 @@ it('takes a PDF and the facts, and keeps the document a draft with the file’s 
         'issuer' => 'Kraftfahrt-Bundesamt',
         'issued_on' => '2026-03-02',
         'page_count' => 12,
-    ])->assertRedirect()->assertSessionHas('toast', 'Gutachten angelegt. Jetzt den Verwendungsbereich eintragen.');
+    ])->assertRedirect()->assertSessionHas('toast', 'Gutachten angelegt. Wähl jetzt die Felge.');
 
     $document = ApprovalDocument::query()->firstOrFail();
 
@@ -107,6 +110,25 @@ it('takes a PDF and the facts, and keeps the document a draft with the file’s 
         ->and($document->pdf_sha256)->toBe(hash('sha256', (string) Storage::disk('docs_public')->get((string) $document->pdf_key)))
         ->and(AuditLog::query()->where('description', 'approval.created')->exists())->toBeTrue();
     Storage::disk('docs_private')->assertDirectoryEmpty('pending');
+});
+
+it('names the file’s version on the page, so a replaced PDF is never the old one from the browser’s cache', function (): void {
+    $admin = erfassung();
+    $this->actingAs($admin, 'admin')->post('/admin/gutachten', ['upload_key' => pendingPdf(), 'kind' => 'ABE', 'kba_number' => '53810'])->assertSessionHasNoErrors();
+
+    $document = ApprovalDocument::query()->firstOrFail();
+    $version = fn (): ?string => $this->actingAs($admin, 'admin')->get("/admin/gutachten/{$document->id}")->viewData('page')['props']['document']['pdfVersion'];
+    $first = $version();
+
+    expect($first)->toBe(substr((string) $document->pdf_sha256, 0, 16));
+
+    $stamp = $this->actingAs($admin, 'admin')->get("/admin/gutachten/{$document->id}")->viewData('page')['props']['stamps']['document'];
+
+    $this->actingAs($admin, 'admin')
+        ->put("/admin/gutachten/{$document->id}", ['upload_key' => pendingPdf(), 'kind' => 'ABE', 'kba_number' => '53810', 'autosave' => true], [EditStamp::HEADER => $stamp])
+        ->assertSessionHasNoErrors();
+
+    expect($version())->not->toBe($first)->not->toBeNull();
 });
 
 it('asks each kind for its own number, and refuses a file that is not a PDF', function (): void {
@@ -186,18 +208,22 @@ describe('a PDF is known by its file, not by the number typed beside it (ADMIN-G
     });
 });
 
-it('adds a row for every vehicle and size chosen, with tyre sizes and Auflagen, and leaves a row already there', function (): void {
+it('writes a row for every car and every colour of the one size chosen, with tyre sizes and Auflagen, and keeps what a car already has', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $vehicles = Vehicle::factory()->count(2)->create()->all();
-    $sizes = [wheelSize(8.0), wheelSize(8.5)];
+    $size = wheelSize(8.0);
+    // Colour plays no part in the approval: a second colour of that size, and another size of the wheel that stays out of it.
+    $colour = WheelFinish::factory()->create(['wheel_model_id' => $size->wheel_model_id]);
+    WheelConfig::factory()->create(['wheel_model_id' => $size->wheel_model_id, 'wheel_finish_id' => $colour->id, 'diameter_in' => 18.0, 'width_in' => 8.0, 'et_mm' => 35, 'bolt_holes' => $size->bolt_holes, 'bolt_circle_mm' => $size->bolt_circle_mm, 'centre_bore_mm' => $size->centre_bore_mm]);
+    WheelConfig::factory()->create(['wheel_model_id' => $size->wheel_model_id, 'wheel_finish_id' => $colour->id, 'diameter_in' => 19.0, 'width_in' => 9.0, 'et_mm' => 40]);
     DocumentCondition::factory()->kind(ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.')->create(['approval_document_id' => $document->id, 'code' => 'K1']);
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload($vehicles, $sizes, [
+    EntryDriver::enter($this, erfassung(), $document->id, rowPayload($vehicles, [$size], [
         'conditions' => [['code' => 'K1', 'note' => 'Nur an der Hinterachse.']],
-    ]))->assertSessionHas('toast', '4 Zeilen angelegt.');
+    ]));
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicles[0]], [$sizes[0]]))
-        ->assertSessionHas('toast', 'Keine neue Zeile: Diese Zeile gab es schon; sie bleibt, wie sie war.');
+    // Ticked again: the car stays as it is.
+    $this->actingAs(erfassung(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['vehicle_ids' => [$vehicles[0]->id]])->assertOk()->assertJsonPath('added', 0);
 
     $row = Fitment::query()->with(['tyreSizes', 'conditionCodes'])->where('approval_document_id', $document->id)->firstOrFail();
 
@@ -209,14 +235,21 @@ it('adds a row for every vehicle and size chosen, with tyre sizes and Auflagen, 
         ->and($row->conditionCodes->first()?->note_de)->toBe('Nur an der Hinterachse.');
 });
 
-it('refuses a row without a tyre size, and a page past the document’s end', function (): void {
+it('refuses a page past the document’s end, and keeps a car without tyres from release', function (): void {
     $document = ApprovalDocument::factory()->draft()->create(['page_count' => 10]);
+    $entry = EntryDriver::car($this, erfassung(), $document->id, Vehicle::factory()->create()->id, wheelSize()->id);
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()], ['tyre_sizes' => [], 'source_page' => 11]))
-        ->assertSessionHasErrors([
-            'tyre_sizes' => 'Eine Zeile braucht mindestens eine Reifengröße.',
-            'source_page' => 'Das Gutachten hat nur 10 Seiten.',
-        ]);
+    $this->actingAs(erfassung(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}", ['lines' => [], 'codes' => [], 'source_page' => 11])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['source_page' => 'Das Gutachten hat nur 10 Seiten.']);
+
+    // One page says so in the singular.
+    $document->forceFill(['page_count' => 1])->save();
+    $this->actingAs(erfassung(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}", ['lines' => [], 'codes' => [], 'source_page' => 2])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['source_page' => 'Das Gutachten hat nur 1 Seite.']);
+
+    expect(app(DocumentRelease::class)->check($document))->toContain('Bei einem Fahrzeug fehlen noch die Reifen. Ohne sie kann der Shop für dieses Fahrzeug keine Reifengröße nennen.');
 });
 
 it('previews what the shop will say — by the shop’s own resolver — before anything is released', function (): void {
@@ -225,7 +258,7 @@ it('previews what the shop will say — by the shop’s own resolver — before 
     $size = wheelSize();
     DocumentCondition::factory()->kind(ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.')->create(['approval_document_id' => $document->id, 'code' => 'K1']);
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size], ['conditions' => [['code' => 'K1', 'note' => null]]]));
+    EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$vehicle], [$size], ['conditions' => [['code' => 'K1', 'note' => null]]]));
 
     $preview = app(DocumentPreview::class)->for($document, $vehicle->id);
 
@@ -240,7 +273,7 @@ it('previews what the shop will say — by the shop’s own resolver — before 
 it('releases the whole document at once, and replaces the revision it supersedes', function (): void {
     $old = ApprovalDocument::factory()->create(['report_number' => 'TG-ALT']);
     $document = ApprovalDocument::factory()->draft()->create(['supersedes_id' => $old->id, 'revision' => 2]);
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload(Vehicle::factory()->count(2)->create()->all(), [wheelSize()]));
+    EntryDriver::enter($this, erfassung(), $document->id, rowPayload(Vehicle::factory()->count(2)->create()->all(), [wheelSize()]));
 
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
         ->assertSessionHas('toast', 'Freigegeben: 2 Zeilen sind jetzt im Shop.');
@@ -251,23 +284,23 @@ it('releases the whole document at once, and replaces the revision it supersedes
         ->and($old->refresh()->status)->toBe(DocumentStatus::Superseded)
         ->and(AuditLog::query()->where('description', 'approval.released')->exists())->toBeTrue();
 
-    // Released is released: its rows no longer change here.
-    $row = Fitment::query()->where('approval_document_id', $document->id)->firstOrFail();
-    $this->actingAs(erfassung(), 'admin')->delete("/admin/gutachten/{$document->id}/zeilen/{$row->id}")->assertForbidden();
+    // Released is released: its cars no longer change here.
+    $entry = DocumentCarEntry::query()->where('approval_document_id', $document->id)->firstOrFail();
+    $this->actingAs(erfassung(), 'admin')->deleteJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}")->assertForbidden();
 });
 
 it('does not release a document without rows or without its PDF, and says why', function (): void {
     $document = ApprovalDocument::factory()->draft()->create(['pdf_key' => null]);
 
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
-        ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: Das PDF des Gutachtens fehlt. Es gibt noch keine Zeile im Verwendungsbereich.']);
+        ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: Das PDF des Gutachtens fehlt. Es ist noch kein Fahrzeug eingetragen.']);
 });
 
 it('releases a base without rows once a Nachtrag supplements it — for its own facts, which its Nachträge then carry', function (): void {
     // ABE 53841: its Verwendungsbereich is „Anlage/n zum Prüfbericht 1–16“; point 10 frees the papers (§ 15 FZV).
     $base = ApprovalDocument::factory()->abe()->draft()->create(['papers_correction_required' => false]);
 
-    expect(app(DocumentRelease::class)->check($base))->toBe(['Es gibt noch keine Zeile im Verwendungsbereich.']);
+    expect(app(DocumentRelease::class)->check($base))->toBe(['Es ist noch kein Fahrzeug eingetragen.']);
 
     $nachtrag = ApprovalDocument::factory()->create(['kind' => 'NACHTRAG', 'supplement_to_id' => $base->id]);
 
@@ -311,7 +344,7 @@ it('keeps what a document says of the papers (§ 15 FZV) and the Anlagen it lack
 it('never releases a row on a development car, in any environment — and does on a car from a Gutachten (DATA-01)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $development = Vehicle::factory()->development()->create();
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$development], [wheelSize()]));
+    EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$development], [wheelSize()]));
     $sentence = 'Eine Zeile nennt ein Fahrzeug ohne belegte Herkunft, etwa aus den Entwicklungsdaten. Freigeben lässt sich nur eine Zeile, deren Fahrzeug aus einem Import der Fahrzeugdaten oder aus einem Gutachten stammt oder von Hand geprüft wurde.';
 
     expect(Fitment::query()->where('approval_document_id', $document->id)->count())->toBe(1)
@@ -334,7 +367,7 @@ it('never releases a row on a development car, in any environment — and does o
     $source = ApprovalDocument::factory()->create(['report_number' => 'TG-QUELLE']);
     $fromDocument = Vehicle::factory()->create(['source' => 'gutachten', 'source_document_id' => $source->id, 'source_page' => 7]);
     $other = ApprovalDocument::factory()->draft()->create();
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/zeilen", rowPayload([$fromDocument], [wheelSize()]));
+    EntryDriver::enter($this, erfassung(), $other->id, rowPayload([$fromDocument], [wheelSize()]));
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$other->id}/freigeben", ReleaseAnswers::for($other))->assertSessionHasNoErrors();
 
     expect($other->refresh()->status)->toBe(DocumentStatus::Published);
@@ -358,7 +391,7 @@ it('records where two documents disagree, releases anyway, and says the shop ans
     Fitment::factory()->requiringEntry()->create(['approval_document_id' => $existing->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $size->id]);
 
     $document = ApprovalDocument::factory()->draft()->create();
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size]));
+    EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$vehicle], [$size]));
 
     $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
         ->assertSessionHas('toast', fn (string $t): bool => str_contains($t, 'Widerspr') && str_contains($t, '„Noch nicht bestätigt“'));
@@ -374,7 +407,8 @@ it('asks the Gutachten rights on the server (R-11)', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
 
     $this->actingAs(erfassung('support-agent'), 'admin')->get('/admin/gutachten/neu')->assertForbidden();
-    $this->actingAs(erfassung('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()]))->assertForbidden();
+    $this->actingAs(erfassung('support-agent'), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['wheel_config_id' => wheelSize()->id])->assertForbidden();
+    $this->actingAs(erfassung('support-agent'), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['vehicle_ids' => [Vehicle::factory()->create()->id]])->assertForbidden();
     $this->actingAs(erfassung('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertForbidden();
 
     $this->actingAs(erfassung('support-agent'), 'admin')->get("/admin/gutachten/{$document->id}")
@@ -392,7 +426,7 @@ it('finds vehicles by HSN/TSN or by name, and sizes by model or SKU', function (
     $this->actingAs(erfassung(), 'admin')->getJson('/admin/gutachten/suche/fahrzeuge?q=bmw%203er')
         ->assertJsonPath('items.0.id', $bmw->id);
     $this->actingAs(erfassung(), 'admin')->getJson('/admin/gutachten/suche/felgen?q='.urlencode((string) $size->getAttribute('sku')))
-        ->assertOk()->assertJsonPath('groups.0.sizes.0.id', $size->id);
+        ->assertOk()->assertJsonPath('groups.0.sizes.0.configId', $size->id);
 });
 
 describe('each document’s own Auflagenverzeichnis (the corrections memo §1, §2)', function (): void {
@@ -412,8 +446,8 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
         defineCode($abe, 'A01', 'abnahme', 'Die Anbauabnahme durch einen amtlich anerkannten Prüfer ist erforderlich.', 6);
         defineCode($tg, 'A01', 'hinweis', 'Die Reifen müssen eine M+S-Kennung tragen.', 3);
 
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$abe->id}/zeilen", rowPayload([$vehicle], [$narrow], ['conditions' => [['code' => 'A01', 'note' => null]]]))->assertSessionHasNoErrors();
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$tg->id}/zeilen", rowPayload([$vehicle], [$wide], ['conditions' => [['code' => 'A01', 'note' => null]]]))->assertSessionHasNoErrors();
+        EntryDriver::enter($this, erfassung(), $abe->id, rowPayload([$vehicle], [$narrow], ['conditions' => [['code' => 'A01', 'note' => null]]]));
+        EntryDriver::enter($this, erfassung(), $tg->id, rowPayload([$vehicle], [$wide], ['conditions' => [['code' => 'A01', 'note' => null]]]));
         $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$abe->id}/freigeben", ReleaseAnswers::for($abe))->assertSessionHasNoErrors();
         $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$tg->id}/freigeben", ReleaseAnswers::for($tg))->assertSessionHasNoErrors();
 
@@ -435,8 +469,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
         $size = wheelSize();
 
         // Typed as printed before the list holds it: taken, said, and it stops the Freigabe.
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size], ['conditions' => [['code' => 'K1c', 'note' => null]]]))
-            ->assertSessionHasNoErrors();
+        EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$vehicle], [$size], ['conditions' => [['code' => 'K1c', 'note' => null]]]));
 
         $preview = app(DocumentPreview::class)->for($document, $vehicle->id);
 
@@ -445,7 +478,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
             ->and(app(DocumentRelease::class)->check($document))->toBe(['Code K1c ist im Auflagenverzeichnis dieses Gutachtens nicht hinterlegt (eine Zeile). Leg ihn dort an oder nimm ihn aus den Zeilen.']);
 
         $this->actingAs(erfassung(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('unresolved', [['code' => 'K1c', 'rows' => 1]])->where('rows.0.conditions.0.defined', false));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('unresolved', [['code' => 'K1c', 'rows' => 1]])->where('entry.undescribed', ['K1c']));
 
         // Compared exactly as printed: K1C is not K1c.
         defineCode($document, 'K1C', 'hinweis', 'Ein anderer Code mit großem C.');
@@ -467,26 +500,25 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
             ['width_mm' => 225, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => []],
             ['width_mm' => 235, 'aspect' => 40, 'diameter' => 18, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'codes' => ['A01']],
         ];
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size], ['tyre_sizes' => $sizes]))->assertSessionHasNoErrors();
+        EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$vehicle], [$size], ['tyre_sizes' => $sizes]));
         $row = Fitment::query()->where('approval_document_id', $document->id)->sole();
+        $entry = DocumentCarEntry::query()->where('approval_document_id', $document->id)->sole();
+        $url = "/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}";
 
-        expect($row->requires_entry)->toBeTrue();
-        $this->actingAs(erfassung(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('rows.0.tyreSizes.0.requiresEntry', false)
-                ->where('rows.0.tyreSizes.1.requiresEntry', true)
-                ->where('rows.0.entrySource', ['A01, Seite 6'])
-                ->where('rows.0.entryOverride', null));
+        // The shop itself tells the sizes apart: one needs the Abnahme, and the other does not.
+        expect($row->requires_entry)->toBeTrue()
+            ->and(app(DocumentPreview::class)->for($document, $vehicle->id)[0]['requiresEntry'])->toBeTrue();
 
-        $update = array_diff_key(rowPayload([], [], ['tyre_sizes' => $sizes]), ['vehicle_ids' => true, 'config_ids' => true]);
+        $lines = fn (): array => array_map(static fn (array $line): array => ['id' => $line['id'], 'front' => $line['front'], 'rear' => $line['rear'], 'kw' => $line['kw'], 'codes' => $line['codes']], $this->actingAs(erfassung(), 'admin')->getJson($url)->json('lines'));
 
         // Not typed: an override without its reason is refused.
-        $this->actingAs(erfassung(), 'admin')->put("/admin/gutachten/{$document->id}/zeilen/{$row->id}", $update + ['entry_override' => 'not_required'])
-            ->assertSessionHasErrors(['entry_override_reason' => 'Wer die abgeleitete Eintragung ändert, schreibt dazu, warum – etwa die Aussage des Prüfers.']);
+        $this->actingAs(erfassung(), 'admin')->putJson($url, ['lines' => $lines(), 'codes' => [], 'source_page' => 4, 'entry_override' => 'not_required'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['entry_override_reason' => 'Schreib dazu, warum du die abgeleitete Eintragung änderst – etwa die Aussage des Prüfers.']);
 
         $reason = 'Der Prüfer bestätigt: Die Abnahme ist bei 235/40 R18 nur mit Schneeketten nötig.';
-        $this->actingAs(erfassung(), 'admin')->put("/admin/gutachten/{$document->id}/zeilen/{$row->id}", $update + ['entry_override' => 'not_required', 'entry_override_reason' => $reason])
-            ->assertSessionHasNoErrors();
+        $this->actingAs(erfassung(), 'admin')->putJson($url, ['lines' => $lines(), 'codes' => [], 'source_page' => 4, 'entry_override' => 'not_required', 'entry_override_reason' => $reason])
+            ->assertOk();
         $row->refresh();
         $preview = app(DocumentPreview::class)->for($document, $vehicle->id);
 
@@ -509,8 +541,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
 
         $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'Cpe', 'kind' => 'karosserieform', 'text_de' => 'Nur für Fahrzeuge mit Coupé-Karosserie.', 'body_forms' => ['Coupe', 'Cabrio']])
             ->assertSessionHasNoErrors();
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$coupe, $kombi, $unknown], [$size], ['conditions' => [['code' => 'Cpe', 'note' => null]]]))
-            ->assertSessionHasNoErrors();
+        EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$coupe, $kombi, $unknown], [$size], ['conditions' => [['code' => 'Cpe', 'note' => null]]]));
 
         $status = fn (Vehicle $v): string => app(DocumentPreview::class)->for($document, $v->id)[0]['status'];
 
@@ -524,7 +555,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
     it('never takes a code away that a row still carries, and fixes a released document’s list', function (): void {
         $document = ApprovalDocument::factory()->draft()->create(['page_count' => 12]);
         defineCode($document, 'A12', 'verbot', 'Die Verwendung von Schneeketten ist nicht zulässig.');
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'A12', 'note' => null]]]));
+        EntryDriver::enter($this, erfassung(), $document->id, rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'A12', 'note' => null]]]));
         $condition = DocumentCondition::query()->where('approval_document_id', $document->id)->sole();
 
         $this->actingAs(erfassung(), 'admin')->delete("/admin/gutachten/{$document->id}/auflagen/{$condition->id}")
@@ -538,7 +569,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
     it('shows every document’s own list, read-only, with the codes it does not define', function (): void {
         $document = ApprovalDocument::factory()->draft()->create(['page_count' => 12]);
         defineCode($document, 'A01', 'abnahme', 'Die Anbauabnahme durch einen amtlich anerkannten Prüfer ist erforderlich.', 6);
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'T88', 'note' => null]]]));
+        EntryDriver::enter($this, erfassung(), $document->id, rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'T88', 'note' => null]]]));
 
         $this->actingAs(erfassung(), 'admin')->get('/admin/auflagen')
             ->assertOk()
@@ -557,7 +588,7 @@ describe('each document’s own Auflagenverzeichnis (the corrections memo §1, �
         DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Die Anbauabnahme durch einen amtlich anerkannten Prüfer ist erforderlich.')
             ->create(['approval_document_id' => $released->id, 'code' => 'A01']);
         $onlyRows = ApprovalDocument::factory()->draft()->create(['page_count' => 12]);
-        $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$onlyRows->id}/zeilen", rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'T88', 'note' => null]]]));
+        EntryDriver::enter($this, erfassung(), $onlyRows->id, rowPayload([Vehicle::factory()->create()], [wheelSize()], ['conditions' => [['code' => 'T88', 'note' => null]]]));
 
         $props = $this->actingAs(erfassung(), 'admin')->get('/admin/auflagen')->assertOk()->viewData('page')['props'];
 
@@ -598,21 +629,23 @@ it('keeps the kW band the document prints beside a size, and refuses one typed t
     $document = ApprovalDocument::factory()->draft()->create(['page_count' => 13]);
     $vehicle = Vehicle::factory()->create();
     $size = wheelSize(8.5, 35);
+    $size->forceFill(['diameter_in' => 19.0])->save();
     $sizes = [
         ['width_mm' => 215, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 125, 'codes' => []],
         ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 195, 'codes' => []],
     ];
 
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([$vehicle], [$size], ['tyre_sizes' => $sizes]))
-        ->assertSessionHasNoErrors();
+    EntryDriver::enter($this, erfassung(), $document->id, rowPayload([$vehicle], [$size], ['tyre_sizes' => $sizes]));
 
     expect(FitmentTyreSize::query()->orderBy('width_mm')->get(['width_mm', 'kw_min', 'kw_max'])->map(fn ($s) => [$s->width_mm, $s->kw_min, $s->kw_max])->all())
         ->toBe([[215, 85, 125], [225, 85, 195]]);
 
-    $this->actingAs(erfassung(), 'admin')->get("/admin/gutachten/{$document->id}")
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('rows.0.tyreSizes.0.label', fn (string $l) => str_contains($l, '85–125')));
+    $entry = DocumentCarEntry::query()->where('approval_document_id', $document->id)->sole();
+    $url = "/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}";
 
-    $reversed = [['width_mm' => 235, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 195, 'kw_max' => 85, 'codes' => []]];
-    $this->actingAs(erfassung(), 'admin')->post("/admin/gutachten/{$document->id}/zeilen", rowPayload([Vehicle::factory()->create()], [$size], ['tyre_sizes' => $reversed]))
-        ->assertSessionHasErrors(['tyre_sizes.0.kw_max' => 'Das Ende des kW-Bereichs ist kleiner als sein Anfang.']);
+    $this->actingAs(erfassung(), 'admin')->getJson($url)->assertJsonPath('lines.0.kw', '85-125');
+
+    $this->actingAs(erfassung(), 'admin')->putJson($url, ['lines' => [['id' => null, 'front' => '235/35 R19', 'rear' => '235/35 R19', 'kw' => '195-85', 'codes' => []]], 'codes' => [], 'source_page' => 4])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['lines.0.kw' => 'Den kW-Bereich bitte so, wie das Gutachten ihn druckt: zwei ganze Zahlen, die kleinere zuerst, etwa 85-195.']);
 });

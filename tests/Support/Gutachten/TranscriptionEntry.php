@@ -14,10 +14,9 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * The Borbet transcriptions (docs/gutachten) typed in through the admin's own endpoints, the way
- * e2e/tools/gutachten-eingabe.mjs types them into a running shop: every request passes the Form Request and the
- * Policy a person's does. One car's blocks in one document become its one row, with what only one block
- * prints moved to that block's sizes.
+ * The Borbet transcriptions (docs/gutachten) typed in through the admin's own endpoints: every request passes the Form
+ * Request and the Policy a person's does. One car's blocks in one document become its one entry, with what only one
+ * block prints moved to that block's sizes.
  */
 final class TranscriptionEntry
 {
@@ -128,15 +127,13 @@ final class TranscriptionEntry
         foreach ($keys as $key) {
             $row = self::rowFor(array_values(array_filter($groups, static fn (array $g): bool => in_array($key, $g['cars'], true))));
 
-            $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$this->documents[$tag]}/zeilen", [
+            EntryDriver::enter($this->test, $this->admin, $this->documents[$tag], [
                 'vehicle_ids' => [$this->car($key)],
                 'config_ids' => $configIds,
-                'axle' => 'ALL',
-                'entry_note' => '',
                 'source_page' => $row['page'],
                 'tyre_sizes' => $row['sizes'],
                 'conditions' => array_map(static fn (string $code): array => ['code' => $code, 'note' => ''], $row['codes']),
-            ])->assertSessionHasNoErrors();
+            ]);
         }
     }
 

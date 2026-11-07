@@ -94,7 +94,7 @@ it('finds a tyre by a profile written without its umlaut', function (): void {
     $brand = Brand::factory()->create(['name' => 'Reifenmarke', 'is_wheel_brand' => false]);
     TyreVariant::factory()->create(['brand_id' => $brand->id, 'name' => 'Grün Sport', 'is_demo' => false]);
 
-    $count = fn (string $q): int => count(searchProps($this->actingAs(searchAdmin(), 'admin')->get('/admin/reifen?q='.urlencode($q)))['tyres']);
+    $count = fn (string $q): int => count(searchProps($this->actingAs(searchAdmin(), 'admin')->get('/admin/reifen?q='.urlencode($q)))['models']);
 
     expect($count('Grün'))->toBe(1)->and($count('Gruen'))->toBe(1);
 });

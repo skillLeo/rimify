@@ -47,7 +47,7 @@ class ApprovalStepRequest extends FormRequest
     {
         return match ($this->step()) {
             'fahrzeuge', 'felgen' => ['q' => ['nullable', 'string', 'max:80']],
-            'show' => ['fahrzeug' => ['nullable', 'integer', 'min:1']],
+            'show' => ['fahrzeug' => ['nullable', 'integer', 'min:1'], 'schritt' => ['nullable'], 'zeile' => ['nullable']],
             default => [],
         };
     }
@@ -59,6 +59,22 @@ class ApprovalStepRequest extends FormRequest
             'q.*' => 'Der Suchbegriff ist zu lang.',
             'fahrzeug.*' => 'Dieses Fahrzeug gibt es nicht.',
         ];
+    }
+
+    /** The step of the entry the address names, from 1; anything else names none. */
+    public function entryStep(): ?int
+    {
+        $step = $this->query('schritt');
+
+        return is_string($step) && preg_match('/^[1-5]$/', $step) === 1 ? (int) $step : null;
+    }
+
+    /** The car of the entry the address names; anything else names none. */
+    public function entryLine(): ?int
+    {
+        $line = $this->query('zeile');
+
+        return is_string($line) && preg_match('/^\d{1,10}$/', $line) === 1 ? (int) $line : null;
     }
 
     public function step(): string

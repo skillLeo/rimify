@@ -15,11 +15,13 @@ use App\Http\Requests\Admin\TyreVariantRequest;
 use App\Http\Requests\Admin\TyreViewRequest;
 use App\Models\AdminUser;
 use App\Models\Brand;
+use App\Models\TyreModel;
 use App\Models\TyreVariant;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\CatalogueBrands;
 use App\Services\Admin\Catalogue\TyreList;
+use App\Services\Admin\Catalogue\TyreModels;
 use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\Money;
@@ -49,13 +51,16 @@ class ReifenController extends Controller
     private const AUDITED = [
         'brand_id', 'name', 'season', 'width_mm', 'aspect', 'diameter_in', 'load_index', 'speed_symbol',
         'eu_fuel_class', 'eu_wet_grip_class', 'eu_noise_db', 'eu_noise_class', 'eu_snow_grip', 'eu_ice_grip', 'eprel_id',
-        'price_cents', 'available',
+        'price_cents', 'available', 'supplier',
     ];
 
-    public function __construct(private readonly TyreList $list) {}
+    public function __construct(private readonly TyreList $list, private readonly TyreModels $models) {}
 
     public function index(TyreFilterRequest $request): Response|RedirectResponse
     {
+        // Sizes can come by other roads than this list's form: each has its model before the list is read.
+        $this->models->sync();
+
         $filters = $request->filters();
         $canonical = $request->canonical();
         $page = $this->list->query($filters)->paginate(TyreList::PER_PAGE, ['*'], 'seite', $request->page());
@@ -64,12 +69,12 @@ class ReifenController extends Controller
             return redirect()->to(self::url($canonical, $page->lastPage()));
         }
 
-        /** @var list<TyreVariant> $tyres */
-        $tyres = array_values($page->items());
+        /** @var list<TyreModel> $models */
+        $models = array_values($page->items());
         $admin = $request->admin();
 
         return Inertia::render('Admin/Reifen/Index', [
-            'tyres' => array_map($this->list->row(...), $tyres),
+            'models' => $this->list->rows($models),
             'filters' => [
                 'q' => $canonical['q'] ?? '',
                 'marke' => $canonical['marke'] ?? '',
@@ -85,7 +90,7 @@ class ReifenController extends Controller
             // An order alone filters nothing (F-32).
             'filtered' => array_diff_key($canonical, ['sort' => true, 'richtung' => true]) !== [],
             'query' => $canonical,
-            'totalAll' => TyreVariant::query()->count(),
+            'totalAll' => $this->list->total(),
             'pagination' => [
                 'current' => $page->currentPage(),
                 'last' => $page->lastPage(),
@@ -201,6 +206,7 @@ class ReifenController extends Controller
                 'eprelId' => $tyre->eprel_id ?? '',
                 'price' => Money::fromMinor((int) $tyre->price_cents)->toGerman(),
                 'available' => (bool) $tyre->available,
+                'supplier' => $tyre->supplier ?? '',
                 'demo' => (bool) $tyre->is_demo,
                 // Ordered once: its size stays the size sold (TyreVariantRequest::SOLD).
                 'sold' => $tyre->wasOrdered(),
@@ -212,6 +218,8 @@ class ReifenController extends Controller
             ],
             // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
             'stamp' => $tyre === null ? null : EditStamp::of(TyreVariant::query()->whereKey($tyre->id)->first()?->getAttributes()),
+            // The model it belongs to: brand, name and season are changed there, for all its sizes (the Gutachten rework §9).
+            'modelHref' => $tyre === null ? null : self::modelHref($tyre),
             // „Weitere Größe“: brand, profile and season of the tyre it starts from — never its size or its label.
             'template' => $template === null || $template->is_demo ? null : [
                 'brandId' => (int) $template->brand_id,
@@ -233,6 +241,13 @@ class ReifenController extends Controller
             ],
             'can' => self::can($admin),
         ];
+    }
+
+    private static function modelHref(TyreVariant $tyre): string
+    {
+        $model = TyreModel::query()->firstOrCreate(['brand_id' => $tyre->brand_id, 'name' => $tyre->name, 'season' => $tyre->season]);
+
+        return '/admin/reifen/modell/'.$model->id;
     }
 
     /** @return array{create: bool, edit: bool, delete: bool} */

@@ -179,7 +179,8 @@ async function admin(page: Page): Promise<void> {
 test('the level of an Auflage is set per Gutachten and code — and an Abnahme can never be made a mere Hinweis, the form says why', { tag: '@kunde-23' }, async ({ page }, info) => {
     await admin(page)
     await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
-    await page.locator('a', { hasText: '55255' }).first().click()
+    // The released paper: a new Fassung of it may stand in the list too, and opens on the steps.
+    await page.locator('tbody tr', { hasText: '55255' }).filter({ hasText: 'Freigegeben' }).locator('.gd-link').first().click()
     await page.waitForLoadState('networkidle')
 
     const table = page.locator('.av__table')
@@ -197,6 +198,48 @@ test('the level of an Auflage is set per Gutachten and code — and an Abnahme c
     await expect(page.locator('.av__levels-note')).toContainText('Eine Abnahme oder Arbeit an der Karosserie ist immer eine Auflage')
 
     await shotAround(page, [table.locator('thead tr'), abnahme], 23, info)
+})
+
+test('the colour of an Auflage: a column and a filter under Auflagen, and the shop\'s „Mit Auflagen“ turns with it while its words stay', { tag: '@kunde-23' }, async ({ page }, info) => {
+    await admin(page)
+    await page.goto(`${ABNAHME}/admin/auflagen`, { waitUntil: 'networkidle' })
+
+    const section = page.locator('.al-doc').filter({ hasText: '55255' }).filter({ has: page.locator('.al-status', { hasText: 'Freigegeben' }) }).first()
+    await expect(section.locator('thead')).toContainText('Farbe im Shop')
+    const select = section.locator('tbody tr', { has: page.locator('.adm-table__key', { hasText: /^A01$/ }) }).locator('select.al-colour')
+
+    // Precondition: nothing yellow on this car's answers yet, and the filter finds nothing of this paper's under yellow.
+    await expect(select).toHaveValue('green')
+    const hint = page.locator('main .tile .verdict').first()
+    await withCar(page, 'e46')
+    await expect(hint).toHaveText('Mit Auflagen')
+    await expect(hint).toHaveClass(/verdict--ok/)
+
+    const colour = async (value: 'green' | 'yellow'): Promise<void> => {
+        await page.goto(`${ABNAHME}/admin/auflagen`, { waitUntil: 'networkidle' })
+        await Promise.all([page.waitForResponse((r) => r.request().method() === 'PUT' && new URL(r.url()).pathname.endsWith('/farbe')), select.selectOption(value)])
+        await expect(select).toHaveValue(value)
+    }
+
+    try {
+        await colour('yellow')
+
+        // The filter shows what is yellow, this code among it.
+        await page.locator('#al-farbe').selectOption('yellow')
+        await page.waitForURL(/farbe=yellow/)
+        await expect(page.locator('.adm-table__key', { hasText: /^A01$/ }).first()).toBeVisible()
+        await shot(page.locator('.al-doc').first(), 23, info)
+
+        // The same answer, the same words, another colour.
+        await withCar(page, 'e46')
+        await expect(hint).toHaveText('Mit Auflagen')
+        await expect(hint).toHaveClass(/verdict--warn/)
+    } finally {
+        await colour('green')
+    }
+
+    await withCar(page, 'e46')
+    await expect(hint).toHaveClass(/verdict--ok/)
 })
 
 test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document and page — „Jetzt kaufen“ with the tyres beside it, and nothing to buy where it does not fit', { tag: '@kunde-28' }, async ({ page }, info) => {

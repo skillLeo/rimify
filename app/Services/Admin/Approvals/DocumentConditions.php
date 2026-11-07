@@ -7,6 +7,7 @@ namespace App\Services\Admin\Approvals;
 use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\ConditionLevel;
+use App\Domain\Fitment\Verdict\HintColour;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
@@ -23,7 +24,7 @@ use Illuminate\Validation\ValidationException;
  * code. A pasted legend block is split in the browser (splitLegend) and stored only as the person confirmed it.
  * A code a row still carries is never taken away — the row would lose its sentence.
  *
- * @phpstan-type ConditionInput array{code: string, kind: string, text_de: string, source_page: int|null, body_forms: list<string>|null, drive: array{mode: string, drive: string}|null, max_axle_load_kg: int|null, axle: string|null}
+ * @phpstan-type ConditionInput array{code: string, kind: string, text_de: string, source_page: int|null, body_forms: list<string>|null, drive: array{mode: string, drive: string}|null, max_axle_load_kg: int|null, axle: string|null, shop_colour?: string}
  */
 final class DocumentConditions
 {
@@ -120,6 +121,23 @@ final class DocumentConditions
                 'code' => $condition->code,
                 'old' => $old?->value,
                 'level' => $condition->level?->value,
+            ], $document);
+        });
+    }
+
+    /** The colour it gives the shop's hint (#23). Presentation only: no answer changes with it. */
+    public function setColour(DocumentCondition $condition, HintColour $colour, AdminUser $admin): void
+    {
+        DB::transaction(function () use ($condition, $colour, $admin): void {
+            $old = $condition->shop_colour;
+            $condition->forceFill(['shop_colour' => $colour])->save();
+            $document = $condition->document()->firstOrFail();
+
+            AuditTrail::record($admin, 'approval.condition_colour_set', [
+                'document' => FitmentRows::label($document),
+                'code' => $condition->code,
+                'old' => $old->labelDe(),
+                'colour' => $colour->labelDe(),
             ], $document);
         });
     }
@@ -272,6 +290,8 @@ final class DocumentConditions
             'drive' => $kind === ConditionKind::Antrieb ? $input['drive'] : null,
             'max_axle_load_kg' => $kind === ConditionKind::ReifenTragfaehigkeit ? $input['max_axle_load_kg'] : null,
             'axle' => $kind === ConditionKind::ReifenAchse ? $input['axle'] : null,
+            // Only where it was sent: the column's own default, green, otherwise; an edit of the text keeps the colour.
+            ...(isset($input['shop_colour']) ? ['shop_colour' => $input['shop_colour']] : []),
         ];
     }
 }

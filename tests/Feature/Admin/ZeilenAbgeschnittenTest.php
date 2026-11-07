@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Axle;
 use App\Http\Controllers\Admin\FahrzeugeController;
-use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Vehicle;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 /*
  * The admin audit's F-37: a Gutachten's page drew its first 1.000 rows and a vehicle's its first 500, and dropped the
  * rest without a word — the release then said „Alle 1.000 Zeilen gelten danach sofort im Shop“ of a document that
- * releases every row. Both pages now count every row and say where the table is cut.
+ * releases every row. A Gutachten's page now lists cars and counts every row; a vehicle's says where its table is cut.
  */
 
 beforeEach(fn () => $this->seed([AccessSeeder::class, ReferenceDataSeeder::class]));
@@ -54,16 +53,15 @@ function manyRows(array $documents, array $vehicles, array $configs): int
     return count($rows);
 }
 
-it('counts every row of a Gutachten past the rows it draws, so the release says how many it brings into the shop', function (): void {
+it('counts every row of a Gutachten, so the release says how many it brings into the shop', function (): void {
     $document = ApprovalDocument::factory()->draft()->create();
     $total = manyRows([$document->id], Vehicle::factory()->count(12)->create()->modelKeys(), WheelConfig::factory()->count(28)->create()->modelKeys());
 
-    expect($total)->toBe(1_008)->and($total)->toBeGreaterThan(GutachtenController::ROWS_SHOWN);
+    expect($total)->toBe(1_008);
 
     $props = test()->actingAs(cutAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")->assertOk()->viewData('page')['props'];
 
-    expect($props['rows'])->toHaveCount(GutachtenController::ROWS_SHOWN)
-        ->and($props['rowsTotal'])->toBe(1_008);
+    expect($props['rowsTotal'])->toBe(1_008);
 });
 
 it('counts every row naming a vehicle past the rows its page draws', function (): void {
@@ -76,13 +74,4 @@ it('counts every row naming a vehicle past the rows its page draws', function ()
 
     expect($props['rows'])->toHaveCount(FahrzeugeController::ROWS_SHOWN)
         ->and($props['rowsTotal'])->toBe(504);
-});
-
-it('gives the rows it draws as the total below the cut', function (): void {
-    $document = ApprovalDocument::factory()->draft()->create();
-    manyRows([$document->id], [Vehicle::factory()->create()->id], [WheelConfig::factory()->create()->id]);
-
-    $props = test()->actingAs(cutAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")->assertOk()->viewData('page')['props'];
-
-    expect($props['rows'])->toHaveCount(3)->and($props['rowsTotal'])->toBe(3);
 });

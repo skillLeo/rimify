@@ -13,13 +13,14 @@ use App\Domain\Fitment\Verdict\VerdictStatus;
  * itself and the page picked its own in the browser, and six cards said „Noch nicht bestätigt“ over pages that said
  * „Nicht freigegeben“.
  *
- * Sold and available first, then sold; of the rest, the size whose answer is still open — its tyres first, then any
- * other open question —, the refused last. The cheapest within each, the oldest row on a tie.
+ * Sold and available first, then sold; then a version sold only within a set, for the page then opens on the set; of the rest,
+ * the size whose answer is still open — its tyres first, then any other open question —, the refused last. The cheapest within
+ * each, the oldest row on a tie.
  */
 final class OpeningSize
 {
     /**
-     * @param  list<array{id: int, verdict: FitmentVerdict|null, inStock: bool, priceCents: int}>  $sizes
+     * @param  list<array{id: int, verdict: FitmentVerdict|null, inStock: bool, priceCents: int, onlyInSet?: bool}>  $sizes
      */
     public static function pick(array $sizes): ?int
     {
@@ -32,10 +33,14 @@ final class OpeningSize
         return $sizes[0]['id'];
     }
 
-    /** @param  array{verdict: FitmentVerdict|null, inStock: bool}  $size */
+    /** @param  array{verdict: FitmentVerdict|null, inStock: bool, onlyInSet?: bool}  $size */
     private static function rank(array $size): int
     {
         $verdict = $size['verdict'];
+
+        if (($size['onlyInSet'] ?? false) === true && $verdict !== null) {
+            return $verdict->isSellable() || $verdict->forRimAlone() !== null ? 2 : 5;
+        }
 
         // No car chosen: every size is offered, as the page offers it. A rim sold alone while its tyres wait (D-289) sells.
         if ($verdict === null || $verdict->isSellable() || $verdict->forRimAlone() !== null) {
@@ -43,9 +48,9 @@ final class OpeningSize
         }
 
         if ($verdict->tyreUnconfirmed()) {
-            return 2;
+            return 3;
         }
 
-        return $verdict->status === VerdictStatus::Unknown ? 3 : 4;
+        return $verdict->status === VerdictStatus::Unknown ? 4 : 5;
     }
 }

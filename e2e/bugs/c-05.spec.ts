@@ -1,6 +1,6 @@
 import { expect, test } from '../fixtures';
 import { focused, signIn } from './gutachten-support';
-import { REASON, SHOTS, T88, openWithLimitWarning } from './c-support';
+import { REASON, SHOTS, openWithLimitWarning } from './c-support';
 
 /*
  * C-05 (S2) — Block C review: a confirmed load-index limit drops the keyboard to <body>.
@@ -21,7 +21,7 @@ test('C-05 after „Zahl bestätigen" the keyboard stays in the Auflagenverzeich
     await signIn(page);
     await openWithLimitWarning(page);
 
-    const reason = page.locator(`#av-limit-${T88.id}`);
+    const reason = page.locator('textarea[id^=av-limit-]');
 
     await reason.focus();
     await page.keyboard.type(REASON);

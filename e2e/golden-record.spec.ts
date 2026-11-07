@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from './fixtures'
 import { signIn, waitForApp } from './bugs/faq-support'
+import { placeholderPdf, searchCars } from './gutachten-erfassung-support'
 
 /*
  * The golden record (the admin review release §1): one Felge carried through the whole product,
@@ -14,7 +15,7 @@ import { signIn, waitForApp } from './bugs/faq-support'
  *   1  Katalog › Import: a supplier file with one size → Probelauf → Importieren
  *   2  Katalog › Felgen: the imported Felge → Veröffentlichen
  *   3  Gutachten › Neues Gutachten: the PDF, Art, KBA-Nummer, pages
- *   4  Verwendungsbereich: vehicle × size, tyre size, an Auflage from the Katalog, the page
+ *   4  The five steps: the wheel's size, a car, a tyre, an Auflage described on the way, the page
  *  4b  Its table of tyre load at speed: the example one, marked as the demo seed's (demo:placeholder-tables)
  *   5  Vorschau: what the shop will answer, by the shop's own check
  *   6  Freigeben
@@ -37,46 +38,11 @@ const PAGE = 2
 
 test.setTimeout(240_000)
 
-/** A PDF of `pages` pages that says on each one that it is a placeholder and no Gutachten. */
-function placeholderPdf(pages: number): Buffer {
-    const escape = (text: string): string => text.replace(/[\\()]/g, (c) => `\\${c}`)
-    const bodies: string[] = []
-    const kids: number[] = []
-    let next = 4
-
-    for (let n = 1; n <= pages; n += 1) {
-        const page = next++
-        const content = next++
-        kids.push(page)
-        const lines = ['PLATZHALTER - kein echtes Gutachten', 'RIMIFY Probelauf der Vorschau', `Seite ${n} von ${pages}`, 'Dieses Dokument sagt nichts ueber ein Fahrzeug.']
-        const stream = `BT /F1 20 Tf 60 760 Td ${lines.map((line, i) => `${i ? '0 -32 Td ' : ''}(${escape(line)}) Tj`).join(' ')} ET`
-        bodies[content] = `<< /Length ${Buffer.byteLength(stream, 'latin1')} >>\nstream\n${stream}\nendstream`
-        bodies[page] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ${content} 0 R >>`
-    }
-
-    bodies[1] = '<< /Type /Catalog /Pages 2 0 R >>'
-    bodies[2] = `<< /Type /Pages /Kids [${kids.map((id) => `${id} 0 R`).join(' ')}] /Count ${pages} >>`
-    bodies[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'
-
-    let out = '%PDF-1.4\n'
-    const offsets: number[] = []
-
-    for (let id = 1; id < next; id += 1) {
-        offsets[id] = Buffer.byteLength(out, 'latin1')
-        out += `${id} 0 obj\n${bodies[id]}\nendobj\n`
-    }
-
-    const xref = Buffer.byteLength(out, 'latin1')
-    out += `xref\n0 ${next}\n0000000000 65535 f \n${offsets.slice(1).map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`
-    out += `trailer\n<< /Size ${next} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
-
-    return Buffer.from(out, 'latin1')
-}
-
 /** The supplier file: one size, every value plainly a stand-in (price 1,00 €, brand „Platzhalter“). */
 const CSV = [
-    'sku;marke;modell;ausfuehrung;durchmesser;breite;et;lochkreis;mittenloch;preis;bestand',
-    `${SKU};Platzhalter;${MODEL};Silber;18;8;35;5x112;66,6;1,00;8`,
+    // The Radtypenbezeichnung: no Felge is published without it (D-298).
+    'sku;marke;modell;radtyp;ausfuehrung;durchmesser;breite;et;lochkreis;mittenloch;preis;bestand',
+    `${SKU};Platzhalter;${MODEL};PR 18;Silber;18;8;35;5x112;66,6;1,00;8`,
 ].join('\n')
 
 /* The whole page, from its top: a full-page picture taken while scrolled draws the sticky rail and bar mid-page. */
@@ -123,6 +89,17 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await page.waitForURL(/\/admin\/felgen\/\d+$/)
     await waitForApp(page)
 
+    // A shop seeded before the rule has the stand-in without its Radtypenbezeichnung, and no Felge is published without it (D-298).
+    const designation = page.locator('#fe-type')
+
+    if ((await designation.count()) > 0 && (await designation.inputValue()) === '') {
+        await designation.fill('PR 18')
+        await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+        await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled({ timeout: 20_000 })
+        await page.reload({ waitUntil: 'networkidle' })
+        await waitForApp(page)
+    }
+
     // The stand-in's size must be available to be bought — available or not, never counted (D-299).
     const available = page.getByLabel('Verfügbarkeit, Zeile 1')
 
@@ -143,7 +120,8 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await shot(page, '02-felge-veroeffentlicht')
 
     // ── 3 · Gutachten › Neues Gutachten ───────────────────────────────────────────────────
-    await page.goto('/admin/gutachten', { waitUntil: 'networkidle' })
+    // By its number: the list comes in pages (F-31), and a run's own document need not stand on the first.
+    await page.goto(`/admin/gutachten?q=${encodeURIComponent(KBA)}`, { waitUntil: 'networkidle' })
     await waitForApp(page)
     const existing = page.locator('tbody tr', { hasText: KBA }).locator('.gd-link')
 
@@ -154,25 +132,15 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         await page.locator('#gn-kind').selectOption('ABE')
         await page.locator('#gn-number').fill(KBA)
         await page.locator('#gn-issuer').fill('Platzhalter – kein echtes Gutachten')
+        await page.locator('.gn-more__summary').click()
         await page.locator('#gn-pages').fill('4')
         // How it gives its tyres' index, asked before release (D-277): a placeholder prints nothing, so the answer that
         // asks the most of a car — the papers.
         await page.locator('input[name="gn-index"][value="papers"]').check()
         await shot(page, '03-gutachten-neu')
         await page.getByRole('button', { name: 'Gutachten anlegen' }).click()
-        await page.waitForURL(/\/admin\/gutachten\/\d+$/, { timeout: 30_000 })
+        await page.waitForURL(/\/admin\/gutachten\/\d+/, { timeout: 30_000 })
         await waitForApp(page)
-
-        // ── 3b · Zählung — before the first row, from the PDF, each figure with its page (ADMIN-GEFUNDEN 511): the row
-        // entered below carries one Auflage of the Katalog and one tyre size, and no Abnahme.
-        await page.locator('#zl-codes').fill('1')
-        await page.locator('#zl-codes-page').fill('2')
-        await page.locator('#zl-sizes').fill('1')
-        await page.locator('#zl-sizes-page').fill('2')
-        await page.locator('input[name="zl-abnahme"][value="none"]').check()
-        await page.getByRole('button', { name: 'Zählung speichern' }).click()
-        await expect(page.locator('#zl-edit')).toBeVisible({ timeout: 20_000 })
-        await shot(page, '03b-zaehlung')
     } else {
         // The placeholder another checkout typed: the checkouts share the admin's database, not its disk. Its own PDF —
         // the same bytes, by their SHA-256 — goes back where it is expected, where this disk lacks it (29.10.2026: the
@@ -181,43 +149,65 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         writeFileSync(file, placeholderPdf(4))
         execFileSync('php', ['artisan', 'demo:placeholder-tables', `--pdf=${file}`], { stdio: 'pipe' })
         await existing.first().click()
-        await page.waitForURL(/\/admin\/gutachten\/\d+$/)
+        await page.waitForURL(/\/admin\/gutachten\/\d+/)
     }
 
     await waitForApp(page)
-    const documentUrl = page.url()
+    const documentUrl = page.url().replace(/\?.*$/, '')
 
-    // ── 4 · Verwendungsbereich ────────────────────────────────────────────────────────────
-    const draft = await page.getByRole('heading', { name: 'Zeilen hinzufügen' }).isVisible()
+    // ── 4 · The five steps ──────────────────────────────────────────────────────
+    const stepBar = page.getByRole('navigation', { name: 'Schritte zum Gutachten' })
 
-    if (draft && (await page.locator('.gs-group').count()) === 0) {
-        // The first vehicle the search offers whose legal data is complete (R-03) — in the vehicles' own column: the
-        // sizes are `.rc-hits` too, and the size list can answer first (GUTACHTEN-54's flake, 03.10.2026).
-        const vehicles = page.locator('section[aria-labelledby="rc-h-vehicles"]')
-        const hit = vehicles.locator('.rc-hits li', { hasNotText: 'Angaben für die Prüfung fehlen' }).first()
-        await expect(hit).toBeVisible({ timeout: 20_000 })
-        await hit.locator('input[type="checkbox"]').check()
-        await expect(vehicles.locator('.rc-chips li'), 'the car was not chosen').toHaveCount(1)
-
-        // The search's own list, not the first one shown before anything was typed.
+    if (await stepBar.isVisible()) {
+        // Step 2: the Felge's wheel combination, its one version front and rear; colour plays no part.
+        await stepBar.getByRole('button', { name: /Felge/ }).click()
         const searched = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/suche/felgen') && new URL(r.url()).searchParams.get('q') === MODEL)
-        await page.locator('#rc-wheel-q').fill(MODEL)
+        await page.locator('#ef-wheel-q').fill(MODEL)
         await searched
-        const model = page.locator('.rc-group', { hasText: MODEL }).first()
-        await expect(model).toBeVisible({ timeout: 20_000 })
-        await model.locator('.rc-hit--model input').check()
+        const loaded = page.waitForResponse((r) => new URL(r.url()).searchParams.has('modell'))
+        await page.locator('.ef-model').first().click()
+        await loaded
+        await page.locator('.ef-axle').first().locator('.ef-size input').first().check()
+        const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/kombinationen') && r.request().method() === 'POST')
+        await page.getByRole('button', { name: 'Kombination hinzufügen' }).click()
+        await stored
+        await shot(page, '04-felge')
+        await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click()
 
-        await page.locator('#rc-size-0').fill('225/40 R18')
-        await page.locator('#rc-page').fill(String(PAGE))
-        // An Auflage of the Katalog — one that is not about the Eintragung, which the row's own box says.
-        await page.locator('.rf-cond', { hasNotText: 'Eintragung' }).first().locator('input[type="checkbox"]').check()
+        // Step 3: the first car the search offers whose legal data is complete (R-03).
+        await searchCars(page, 'BMW')
+        await page.locator('.ef-hit', { hasNotText: 'Angaben für die Prüfung fehlen' }).first().locator('input').check()
+        await expect(page.locator('.ef-chosen__car')).toHaveCount(1)
+        await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+
+        // Step 4: a tyre, an Auflage described on the way, the page.
+        await page.getByRole('button', { name: 'Kombination', exact: true }).click()
+        await page.locator('[id^=ef-front-]').first().fill('225/40 R18')
+        await page.locator('[id^=ef-front-]').first().blur()
+        const codes = page.locator('input[id^=ef-codes-]').first()
+        await codes.fill('P1')
+        await codes.press('Enter')
+        await page.getByRole('button', { name: 'beschreiben' }).first().click()
+        await page.locator('textarea[id*="-def-P1-text"]').fill('Platzhalter: Radschrauben nach 50 km nachziehen.')
+        await page.locator('select[id*="-def-P1-kind"]').selectOption('hinweis')
+        await page.locator('.ef-popover').getByRole('button', { name: 'Speichern' }).click()
+        await expect(page.locator('.ef-code--open', { hasText: 'P1' })).toHaveCount(0, { timeout: 15_000 })
+        const lineStored = page.waitForResponse((r) => /\/erfassung\/fahrzeuge\/\d+$/.test(new URL(r.url()).pathname) && r.request().method() === 'PUT')
+        await page.locator('#ef-page').fill(String(PAGE))
+        await lineStored
         await shot(page, '04-zeilen-anlegen')
-        await page.locator('.rc-foot .btn--primary').click()
-        await expect(page.locator('.gs-group').first()).toBeVisible({ timeout: 20_000 })
+        await stepBar.getByRole('button', { name: /Freigeben/ }).click()
+
+        const unproven = page.getByRole('button', { name: 'Daten geprüft' })
+
+        for (let left = await unproven.count(); left > 0; left -= 1) {
+            await unproven.first().click()
+            await expect(unproven).toHaveCount(left - 1, { timeout: 15_000 })
+        }
     }
 
     // The vehicle the rows name, with its key numbers, for the shop.
-    const title = (await page.locator('.gs-group__title').first().textContent()) ?? ''
+    const title = (await page.locator('.gs-car__name, td[data-label="Fahrzeug"]').first().textContent()) ?? ''
     const match = /^(.*?) · .*HSN (\d{4}) · TSN ([A-Z0-9]{3})/.exec(title.trim())
     expect(match, `the rows name a vehicle with its keys: ${title}`).not.toBeNull()
     const keys = { name: match![1]!, hsn: match![2]!, tsn: match![3]! }
@@ -228,31 +218,36 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     // A placeholder has none to type: it gets ABE 55255's example table, marked as the demo seed's so nobody
     // reads it as this document's content (the operator's decision of 29.09.2026) — the step ApprovalSeeder
     // runs too.
-    // The button exists only on a draft; a released placeholder already has its table.
-    const tableButton = page.locator('#dt-edit')
-
-    if ((await tableButton.count()) > 0 && (await tableButton.textContent())?.includes('Tabelle eintragen')) {
+    // Only a draft takes it; a released placeholder already has its table.
+    if (await stepBar.isVisible()) {
         execFileSync('php', ['artisan', 'demo:placeholder-tables'], { stdio: 'pipe' })
         await page.reload({ waitUntil: 'networkidle' })
         await waitForApp(page)
+        await stepBar.getByRole('button', { name: /Freigeben/ }).click()
     }
 
-    await expect(page.locator('.dt-table'), 'the placeholder has no table of tyre load at speed').toBeVisible()
-    await expect(page.locator('#gs-derating-h + .adm-tag')).toHaveText('Demodaten')
     await shot(page, '04b-tragfaehigkeitstabelle')
 
-    // ── 5 · Vorschau ──────────────────────────────────────────────────────────────────────
+    // ── 5 · Vorschau ────────────────────────────────────────────
     await page.getByRole('button', { name: 'Vorschau zeigen' }).click()
     await expect(page.locator('.gs-verdict').first()).toBeVisible({ timeout: 20_000 })
     await shot(page, '05-vorschau')
 
     // ── 6 · Freigeben ─────────────────────────────────────────────────────────────────────
-    const release = page.getByRole('button', { name: 'Freigeben', exact: true })
+    const release = page.locator('.ef-actions').getByRole('button', { name: 'Freigeben', exact: true })
 
     if (await release.isVisible()) {
+        await expect(release).toBeEnabled({ timeout: 20_000 })
         await release.click()
-        await confirm(page, 'Freigeben')
-        await expect(page.locator('#gs-state-h')).toContainText('Freigegeben', { timeout: 20_000 })
+        const dialog = page.getByRole('dialog')
+        await dialog.locator('#rd-c-complete').check()
+        await dialog.locator('#rd-codes').fill('1')
+        await dialog.locator('#rd-codes-page').fill('2')
+        await dialog.locator('#rd-sizes').fill('1')
+        await dialog.locator('#rd-sizes-page').fill('2')
+        await dialog.locator('input[name="rd-a"][value="none"]').check()
+        await dialog.locator('button[type="submit"]').click()
+        await expect(page.locator('.adm-page__context')).toContainText('Freigegeben', { timeout: 20_000 })
     }
 
     await page.goto(documentUrl, { waitUntil: 'networkidle' })

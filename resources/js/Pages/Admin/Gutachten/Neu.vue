@@ -1,25 +1,27 @@
 <script setup lang="ts">
 /**
- * Gutachten › Neues Gutachten — the first step of the chain: the PDF and the facts printed on its
- * first page (the review release §4.3). The PDF goes from the browser straight into the bucket
- * (usePresignedUpload); the server confirms it — a PDF, not too large, scanned — before the document's
- * row exists. The document starts as a draft; the Verwendungsbereich follows on its own page.
+ * Gutachten › Neues Gutachten: step 1 of the five, before the paper exists (the Gutachten rework §7). Asked first: the PDF, the
+ * kind and its number; date and issuer are optional; everything else is folded under „Weitere Angaben“. The PDF goes from the
+ * browser straight into the bucket (usePresignedUpload); the server confirms it — a PDF, not too large, scanned — before the
+ * document's row exists. The paper starts as a draft, and the four other steps follow on its own page.
  *
  * Each kind is named by its own number, so the form asks for the one the chosen kind carries.
  */
 
 import { useForm } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import DateField from '../../../Components/Admin/DateField.vue'
 import DocumentSelect from '../../../Components/Admin/DocumentSelect.vue'
 import FilePick from '../../../Components/Admin/FilePick.vue'
+import StepBar from '../../../Components/Ui/StepBar.vue'
 import { focusRefused } from '../../../composables/admin/focusRefused'
 import { usePresignedUpload } from '../../../composables/admin/usePresignedUpload'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import { FILE_CHANGED } from '../../../lib/file'
 import type { RecordShape } from '../../../types/admin/gutachten'
+import { STEPS } from './Erfassung/entryStore'
 import RecordFields from './RecordFields.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -94,11 +96,33 @@ const progressText = computed(() => {
 
 const errors = computed(() => form.errors as Record<string, string | undefined>)
 
+/* Folded until it is wanted; a refusal inside it opens it, or staff would not see what was refused. */
+const moreOpen = ref(false)
+
+watch(errors, (now) => {
+    if (Object.keys(now).some((field) => !['upload_key', 'kind', 'kba_number', 'report_number', 'approval_mark', 'issuer', 'issued_on'].includes(field))) {
+        moreOpen.value = true
+    }
+})
+
+/* Set before anything waits: a second click of a double click comes before the upload has said it started. */
+let submitting = false
+
 async function submit(): Promise<void> {
-    if (busy.value) {
+    if (busy.value || submitting) {
         return
     }
 
+    submitting = true
+
+    try {
+        await send()
+    } finally {
+        submitting = false
+    }
+}
+
+async function send(): Promise<void> {
     form.clearErrors()
 
     if (pdf.value === null) {
@@ -149,6 +173,8 @@ function chose(file: File | null): void {
 
 <template>
     <AdminPage title="Neues Gutachten" context="Entwurf, noch nicht freigegeben">
+        <StepBar :steps="STEPS" :current="0" :reached="0" label="Schritte zum Gutachten" />
+
         <form class="adm-form gn-form" novalidate @submit.prevent="submit">
             <section class="adm-form__group" aria-labelledby="gn-h-pdf">
                 <h2 id="gn-h-pdf" class="adm-form__heading">Das Dokument</h2>
@@ -197,35 +223,39 @@ function chose(file: File | null): void {
                     <p id="gn-issuer-err" class="form-field__error">{{ errors.issuer }}</p>
                 </div>
 
-                <RecordFields v-model:shape="shape" :kind="form.kind" :errors="errors" :supplementable="supplementable" id-prefix="gn" />
-
-                <div class="gn-pair">
-                    <div class="form-field">
-                        <label class="form-field__label" for="gn-date">Ausgestellt am <span class="gn-optional">(optional)</span></label>
-                        <DateField id="gn-date" v-model="form.issued_on" :invalid="Boolean(errors.issued_on)" describedby="gn-date-err" />
-                        <p id="gn-date-err" class="form-field__error">{{ errors.issued_on }}</p>
-                    </div>
-                    <div class="form-field">
-                        <label class="form-field__label" for="gn-pages">Seiten <span class="gn-optional">(optional)</span></label>
-                        <input id="gn-pages" v-model="form.page_count" class="input" type="number" min="1" max="2000" inputmode="numeric" :aria-invalid="errors.page_count ? 'true' : undefined" aria-describedby="gn-pages-help gn-pages-err">
-                        <p id="gn-pages-help" class="form-field__help">Damit jede Zeile auf eine echte Seite zeigt.</p>
-                        <p id="gn-pages-err" class="form-field__error">{{ errors.page_count }}</p>
-                    </div>
+                <div class="form-field">
+                    <label class="form-field__label" for="gn-date">Ausgestellt am <span class="gn-optional">(optional)</span></label>
+                    <DateField id="gn-date" v-model="form.issued_on" :invalid="Boolean(errors.issued_on)" describedby="gn-date-err" />
+                    <p id="gn-date-err" class="form-field__error">{{ errors.issued_on }}</p>
                 </div>
 
-                <div v-if="replaceable.length" class="form-field">
-                    <label class="form-field__label" for="gn-supersedes">Ersetzt eine frühere Fassung <span class="gn-optional">(optional)</span></label>
-                    <DocumentSelect
-                        id="gn-supersedes"
-                        v-model="form.supersedes_id"
-                        :options="replaceable"
-                        none-label="Nein, ein neues Dokument"
-                        :invalid="Boolean(errors.supersedes_id)"
-                        describedby="gn-supersedes-help gn-supersedes-err"
-                    />
-                    <p id="gn-supersedes-help" class="form-field__help">Die frühere Fassung gilt bis zur Freigabe dieser weiter; Bestellungen darauf bleiben erklärbar.</p>
-                    <p id="gn-supersedes-err" class="form-field__error">{{ errors.supersedes_id }}</p>
-                </div>
+                <details class="gn-more" :open="moreOpen" @toggle="moreOpen = ($event.target as HTMLDetailsElement).open">
+                    <summary class="gn-more__summary">Weitere Angaben <span class="gn-optional">(optional)</span></summary>
+                    <div class="gn-more__body">
+                        <RecordFields v-model:shape="shape" :kind="form.kind" :errors="errors" :supplementable="supplementable" id-prefix="gn" />
+
+                        <div class="form-field">
+                            <label class="form-field__label" for="gn-pages">Seiten <span class="gn-optional">(optional)</span></label>
+                            <input id="gn-pages" v-model="form.page_count" class="input" type="number" min="1" max="2000" inputmode="numeric" :aria-invalid="errors.page_count ? 'true' : undefined" aria-describedby="gn-pages-help gn-pages-err">
+                            <p id="gn-pages-help" class="form-field__help">Damit jede Zeile auf eine echte Seite zeigt.</p>
+                            <p id="gn-pages-err" class="form-field__error">{{ errors.page_count }}</p>
+                        </div>
+
+                        <div v-if="replaceable.length" class="form-field">
+                            <label class="form-field__label" for="gn-supersedes">Ersetzt eine frühere Fassung <span class="gn-optional">(optional)</span></label>
+                            <DocumentSelect
+                                id="gn-supersedes"
+                                v-model="form.supersedes_id"
+                                :options="replaceable"
+                                none-label="Nein, ein neues Dokument"
+                                :invalid="Boolean(errors.supersedes_id)"
+                                describedby="gn-supersedes-help gn-supersedes-err"
+                            />
+                            <p id="gn-supersedes-help" class="form-field__help">Die frühere Fassung gilt bis zur Freigabe dieser weiter; Bestellungen darauf bleiben erklärbar.</p>
+                            <p id="gn-supersedes-err" class="form-field__error">{{ errors.supersedes_id }}</p>
+                        </div>
+                    </div>
+                </details>
             </section>
 
             <div class="gn-actions">
@@ -249,10 +279,20 @@ function chose(file: File | null): void {
     color: var(--c-ink-3);
 }
 
-.gn-pair {
+.gn-more {
+    border-top: 1px solid var(--c-line);
+    padding-top: var(--sp-12);
+}
+
+.gn-more__summary {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.gn-more__body {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--sp-16);
+    padding-top: var(--sp-16);
 }
 
 .gn-actions {
@@ -264,10 +304,6 @@ function chose(file: File | null): void {
     /* One column, one edge: every field as wide as the form. */
     .gn-short {
         max-width: none;
-    }
-
-    .gn-pair {
-        grid-template-columns: minmax(0, 1fr);
     }
 
     .gn-actions .btn {

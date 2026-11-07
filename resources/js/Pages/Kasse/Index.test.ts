@@ -179,6 +179,51 @@ afterEach(() => {
 })
 
 describe('Kasse', () => {
+    describe('the sensors, already answered on the way here', () => {
+        const tpms = (choice: 'ja' | 'nein' | null, available = true) => ({ applicable: true, quantity: 4, available, makeLabel: 'BMW', unitPriceCents: 4_900, unitPrice: '49,00 €', line: '4 × 49,00 €', choice, totalCents: choice === 'ja' ? 19_600 : 0, total: choice === 'ja' ? '196,00 €' : '0,00 €', yesTotal: '196,00 €', yesTotalCents: 19_600, notice: available ? null : 'Kein Preis.' })
+        const toOptions = async (wrapper: VueWrapper): Promise<void> => {
+            await wrapper.find('#ko-mail').setValue('kunde@beispiel.de')
+            await wrapper.find('#ko-name').setValue('Erika Mustermann')
+            await wrapper.find('#ko-street').setValue('Hauptstraße')
+            await wrapper.find('#ko-nr').setValue('12')
+            await wrapper.find('#ko-zip').setValue('50667')
+            await wrapper.find('#ko-city').setValue('Köln')
+            await wrapper.find('form').trigger('submit')
+            await flushPromises()
+        }
+
+        it('asks no second time: it says what was answered, and offers to change it', async () => {
+            const wrapper = mountKasse({ totals: totals({ tpms: tpms('nein') } as never) })
+
+            await toOptions(wrapper)
+
+            expect(wrapper.find('input[name="rdks"]').exists()).toBe(false)
+            expect(wrapper.find('[data-rdks-answered]').text()).toContain('Ohne RDKS-Sensoren')
+
+            await wrapper.find('[data-rdks-answered] button').trigger('click')
+
+            expect(wrapper.findAll('input[name="rdks"]')).toHaveLength(2)
+        })
+
+        it('asks where no answer applies, such as a car changed after the add', async () => {
+            const wrapper = mountKasse({ totals: totals({ tpms: tpms(null) } as never) })
+
+            await toOptions(wrapper)
+
+            expect(wrapper.findAll('input[name="rdks"]')).toHaveLength(2)
+            expect(wrapper.find('[data-rdks-answered]').exists()).toBe(false)
+        })
+
+        it('asks where a „Ja“ has lost its price: the order would be refused on it', async () => {
+            const wrapper = mountKasse({ totals: totals({ tpms: tpms('ja', false) } as never) })
+
+            await toOptions(wrapper)
+
+            expect(wrapper.find('[data-rdks-answered]').exists()).toBe(false)
+            expect(wrapper.find('input[name="rdks"]').exists()).toBe(true)
+        })
+    })
+
     it('names no carrier, no delivery time and no payment provider on any step', async () => {
         const wrapper = mountKasse()
 

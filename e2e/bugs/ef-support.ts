@@ -14,8 +14,8 @@ import { DEV as BASE_DEV, consentGiven, open } from '../support';
  *
  * The BMW › 1er-Reihe cars typed from the Borbet documents (docs/gutachten/fahrzeuge.json: 187 at
  * `0287*00-09` / `*10-..`, 1K2 at `0273*00-03` / `*04-..`, 1K4 at `0283*00-03` / `*04-..`) exist on the
- * development shop (:8000, database `rimify`), not on the e2e shop — the specs that need them say
- * `test.use({ baseURL: DEV })`.
+ * development shop, whose database e2e/global-setup.ts gives the released documents before every run (tests/E2eData,
+ * D-427), not on the e2e shop — the specs that need them say `test.use({ baseURL: DEV })`.
  */
 
 /** Where the Block E/F bug tests leave their evidence. Relative to the project root, where Playwright runs. */

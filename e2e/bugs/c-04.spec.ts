@@ -22,12 +22,12 @@ test('C-04 „Zahl bestätigen" pressed twice sends one confirmation', async ({ 
 
     const { posts } = await openWithLimitWarning(page);
 
-    await page.locator(`#av-limit-${T88.id}`).fill(REASON);
+    await page.locator('textarea[id^=av-limit-]').fill(REASON);
     await page.locator('.av-limit__form').getByRole('button', { name: 'Zahl bestätigen' }).dblclick();
 
     await expect(page.locator('.av-limit__done'), 'T88 was not shown as confirmed after the answer').toBeVisible({ timeout: 15_000 });
     await page.waitForTimeout(500);
     await page.locator('.av').screenshot({ path: `${SHOTS}/c-04-limit-double-click-${info.project.name}.png` });
 
-    expect(posts.length, `„Zahl bestätigen" double-clicked sent ${posts.length} POSTs to …/auflagen/${T88.id}/grenze`).toBe(1);
+    expect(posts.length, `„Zahl bestätigen" double-clicked sent ${posts.length} POSTs to …/auflagen/${T88.code}/grenze`).toBe(1);
 });

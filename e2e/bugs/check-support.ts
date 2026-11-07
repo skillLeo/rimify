@@ -81,11 +81,8 @@ export async function openAnswer(page: Page): Promise<SizeOption> {
     return first!;
 }
 
-/**
- * The BMW 330i and the KR-9 in the first size the page sells for it: „Jetzt kaufen“ live. With `set`, a size whose
- * Komplettrad offers a choice — two tyres, or two Wuchtgewichte colours — and „Komplettrad“ chosen.
- */
-export async function openSellableAnswer(page: Page, set = false): Promise<SizeOption> {
+/** The BMW 330i and the KR-9 in the first size the page sells for it: „Jetzt kaufen“ live. */
+export async function openSellableAnswer(page: Page): Promise<SizeOption> {
     await openWithCar(page);
 
     const offered = await sizes(page);
@@ -95,25 +92,12 @@ export async function openSellableAnswer(page: Page, set = false): Promise<SizeO
     for (const size of offered) {
         await open(page, checkPath({ felge: WHEEL, groesse: size.id, fahrzeug: CAR }));
 
-        if ((await page.locator('button.chk__go:enabled').count()) === 0) {
-            continue;
-        }
-
-        if (!set) {
-            return size;
-        }
-
-        await page.locator('label.bmc-tile', { hasText: 'Kompletträder' }).click();
-
-        const tyres = await page.locator('label.kc-row').count();
-        const colours = await page.locator('label.kc-swatch').count();
-
-        if (tyres > 0 && tyres + colours > 2 && (await page.locator('button.chk__go:enabled').count()) > 0) {
+        if ((await page.locator('button.chk__go:enabled').count()) > 0) {
             return size;
         }
     }
 
     throw new Error(
-        `precondition: no size of ${WHEEL} is sold to car ${CAR} on ${CHECK_BASE}${set ? ' as a Komplettrad with a choice of tyre or colour' : ''}`,
+        `precondition: no size of ${WHEEL} is sold to car ${CAR} on ${CHECK_BASE}`,
     );
 }

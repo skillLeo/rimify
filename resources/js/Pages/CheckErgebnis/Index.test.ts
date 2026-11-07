@@ -111,6 +111,19 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
         expect(wrapper.find('.res__body').text()).not.toContain('kein Gutachten')
     })
 
+    // A paper on record names the car and something is open: the reason below says what, and the body denies no paper (D-405, R-17).
+    it('never says „kein Gutachten“ where a paper on record leaves something open', () => {
+        const wrapper = mountResult('UNKNOWN', { wheelLabel: null, stillOpen: true, reason: 'Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst.' })
+
+        expect(wrapper.find('.res__body').text()).not.toContain('kein Gutachten')
+        expect(wrapper.find('.res__body').text()).toContain('Das heißt nicht, dass die Felge unzulässig ist')
+        expect(wrapper.find('.res__reason').text()).toContain('noch nicht erfasst')
+    })
+
+    it('says no paper is on record where none is', () => {
+        expect(mountResult('UNKNOWN', { wheelLabel: null, stillOpen: false }).find('.res__body').text()).toContain('Für diese Kombination liegt uns kein Gutachten vor.')
+    })
+
     // ABE 53841, points 10 and 11: the printed check says both answers about the papers, each on its own line.
     it('prints the Abnahme and „keine Berichtigung der Fahrzeugpapiere“ as two lines where the document frees the papers', () => {
         const exempt = mountResult('CONDITIONAL', { requiresEntry: true, papersExempt: true })

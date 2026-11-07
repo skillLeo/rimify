@@ -39,12 +39,14 @@ const props = defineProps<{
     editable: boolean
     /** The model's full name, for the suggested alt text. */
     title: string
+    /** Another thing with photographs than a colour of a rim — a tyre model: its address and how it is named. */
+    subject?: { base: string; idBase: string; list: string; suggestion: string; example: string; only: string; removeTitle: string }
 }>()
 
 const page = usePage()
 const focus = useFocusAfter()
-const base = computed(() => `/admin/felgen/${props.modelId}/ausfuehrungen/${props.finishId}`)
-const idBase = computed(() => `fe-photo-${props.finishId}`)
+const base = computed(() => props.subject?.base ?? `/admin/felgen/${props.modelId}/ausfuehrungen/${props.finishId}`)
+const idBase = computed(() => props.subject?.idBase ?? `fe-photo-${props.finishId}`)
 const busy = ref(false)
 const fresh = ref<number | null>(null)
 const announce = ref('')
@@ -118,7 +120,7 @@ function startAdd(): void {
     adding.value = true
     mine.value = null
     // The first photo is the front view as a rule; any later one is the admin's own sentence.
-    alt.value = props.photos.length === 0 ? `${props.title} in ${props.finishName}, Ansicht von vorn` : ''
+    alt.value = props.photos.length === 0 ? (props.subject?.suggestion ?? `${props.title} in ${props.finishName}, Ansicht von vorn`) : ''
     // The button that opened the form is gone: focus goes to the first thing to do in it.
     focus.request(() => document.querySelector<HTMLElement>(`label[for="${idBase.value}-file"]`))
 }
@@ -369,7 +371,7 @@ const removeBody = computed(() => {
     }
 
     if (props.photos.length === 1) {
-        return 'Es ist das einzige Foto dieser Farbe. Der Shop zeigt danach wieder die Umrisszeichnung.'
+        return props.subject?.only ?? 'Es ist das einzige Foto dieser Farbe. Der Shop zeigt danach wieder die Umrisszeichnung.'
     }
 
     return props.photos[0]?.id === photo.id ? 'Es ist das Titelbild. Das nächste Foto rückt an seine Stelle.' : 'Die übrigen Fotos rücken nach.'
@@ -413,7 +415,7 @@ function remove(): void {
             <span class="fe-photos__how fe-photos__how--narrow">Die Reihenfolge änderst du im Menü eines Fotos.</span>
         </p>
 
-        <ol v-if="photos.length" class="fe-photos__list" :aria-label="`Fotos in ${finishName}`">
+        <ol v-if="photos.length" class="fe-photos__list" :aria-label="subject?.list ?? `Fotos in ${finishName}`">
             <li
                 v-for="(photo, index) in photos"
                 :key="photo.id"
@@ -561,7 +563,7 @@ function remove(): void {
                     @keydown.enter.prevent="upload"
                 >
                 <p :id="`${idBase}-alt-help`" class="form-field__help">
-                    Diesen Satz hört, wer das Foto nicht sehen kann – zum Beispiel „{{ title }} in {{ finishName }}, schräg von der Seite“.
+                    Diesen Satz hört, wer das Foto nicht sehen kann – zum Beispiel „{{ subject?.example ?? `${title} in ${finishName}, schräg von der Seite` }}“.
                 </p>
                 <p :id="`${idBase}-alt-err`" class="form-field__error">{{ errors.alt }}</p>
             </div>
@@ -576,7 +578,7 @@ function remove(): void {
 
         <AdminConfirm
             v-model:open="confirmOpen"
-            :title="`Foto aus „${finishName}“ entfernen?`"
+            :title="subject?.removeTitle ?? `Foto aus „${finishName}“ entfernen?`"
             :body="removeBody"
             confirm-label="Entfernen"
             :busy="busy"

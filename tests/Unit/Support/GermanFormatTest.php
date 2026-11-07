@@ -58,6 +58,13 @@ it('formats the wheel size and the full wheel label', function (): void {
         ->toBe("8,5J \u{00D7} 18 \u{00B7} ET 35 \u{00B7} 5\u{00A0}\u{00D7}\u{00A0}112 \u{00B7} 66,6\u{00A0}mm");
 });
 
+it('names one version of a rim whole, and never breaks inside a figure', function (): void {
+    expect(GermanFormat::wheelVersion(8.5, 30, 5, 120.0))
+        ->toBe("Breite\u{00A0}8,5J \u{00B7} ET\u{00A0}30 \u{00B7} Lochkreis\u{00A0}5\u{00A0}\u{00D7}\u{00A0}120")
+        ->and(GermanFormat::wheelVersion(9.0, -12, 5, 114.3))
+        ->toBe("Breite\u{00A0}9J \u{00B7} ET\u{00A0}-12 \u{00B7} Lochkreis\u{00A0}5\u{00A0}\u{00D7}\u{00A0}114,3");
+});
+
 it('uses the multiplication sign, not the letter x', function (): void {
     expect(GermanFormat::wheelSize(8.5, 18.0, 35))->toContain("\u{00D7}")->not->toContain(' x ');
 });

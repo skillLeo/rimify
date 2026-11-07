@@ -189,7 +189,8 @@ const context = computed(() => {
                             <span>
                                 <span v-if="statusOf(doc.status).tag" class="adm-tag" :class="statusOf(doc.status).tag">{{ statusOf(doc.status).label }}</span>
                                 <template v-else>{{ statusOf(doc.status).label }}</template>
-                                <span class="adm-table__sub">Fassung {{ doc.revision }}</span>
+                                <span v-if="doc.newVersion" class="adm-tag adm-tag--neutral gd-newversion">Neue Fassung in Arbeit</span>
+                                <span class="adm-table__sub">Fassung {{ doc.revision }}<template v-if="doc.progress"> · {{ decimal(doc.progress.done, 0) }} von {{ decimal(doc.progress.cars, 0) }} Fahrzeugen</template></span>
                             </span>
                         </td>
                         <td data-label="Zeilen im Shop" class="num">{{ decimal(doc.publishedCount, 0) }} von {{ decimal(doc.fitmentCount, 0) }}</td>

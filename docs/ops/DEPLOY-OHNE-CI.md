@@ -34,6 +34,9 @@ powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> -Release <n>  
 powershell -File scripts/deploy/release-ohne-ci.ps1 -Commit <sha> -Release <n> -Push    # and pushes the release to `deploy`
 ```
 
+On a Mac or Linux box the same with `scripts/deploy/release-ohne-ci.sh --commit <sha> --release <n> [--push]`, run from the
+checkout the gates ran in.
+
 `-Release` is the release's number (21 for the human-QA release of 28.10.2026). It goes into `public/build/release.json`
 and is printed with the build's date at the foot of the preview's shop and admin („Testumgebung · Release 21 vom …“,
 `App\Support\ReleaseStamp`); the live shop never prints it.

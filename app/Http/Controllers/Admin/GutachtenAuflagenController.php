@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ConditionColourRequest;
 use App\Http\Requests\Admin\ConditionLevelRequest;
 use App\Http\Requests\Admin\DocumentConditionBatchRequest;
 use App\Http\Requests\Admin\DocumentConditionRequest;
@@ -73,6 +74,15 @@ class GutachtenAuflagenController extends Controller
         $this->conditions->setLevel($condition, $level, $request->admin());
 
         return back()->with('toast', 'Gespeichert: '.$condition->code.' ist jetzt „'.$level->labelDe().'“. '.$level->shopEffectDe());
+    }
+
+    /** The colour the code gives the shop's hint (#23) — on a released document too — and that it changes nothing else. */
+    public function colour(ConditionColourRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
+    {
+        $colour = $request->colour();
+        $this->conditions->setColour($condition, $colour, $request->admin());
+
+        return back()->with('toast', 'Gespeichert: '.$condition->code.' erscheint im Shop jetzt '.mb_strtolower($colour->labelDe()).'. Die Antwort und ihre Worte bleiben, wie sie sind.');
     }
 
     public function destroy(DocumentConditionRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse

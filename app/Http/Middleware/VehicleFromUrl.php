@@ -34,7 +34,7 @@ final class VehicleFromUrl
      * The pages whose content is the answer for one car: there the address carries the car (and nowhere else — a
      * basket or a legal page has nothing to share about it).
      */
-    public const ROUTES = ['startseite', 'felgen.index', 'felgen.show', 'vergleich.index', 'check.index'];
+    public const ROUTES = ['startseite', 'felgen.index', 'felgen.show', 'komplettrad.show', 'vergleich.index', 'check.index'];
 
     public function __construct(
         private readonly VehicleResolver $vehicles,

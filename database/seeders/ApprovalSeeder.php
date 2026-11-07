@@ -870,6 +870,8 @@ class ApprovalSeeder extends Seeder
                 'code' => $code,
                 'kind' => $kind,
                 'text_de' => $text,
+                // The client's item 23: the Bördeln is the one yellow code.
+                'shop_colour' => str_contains($text, 'Bördeln') ? 'yellow' : 'green',
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);

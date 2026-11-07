@@ -669,11 +669,14 @@
         }
     }
 
+    /* A long answer wraps inside the tile: „Noch nicht bestätigt“ ran past it up to 390 px. */
     .tile__badge {
         position: absolute;
         top: var(--sp-12);
         left: var(--sp-12);
         z-index: var(--z-base);
+        max-width: calc(100% - 2 * var(--sp-12));
+        white-space: normal;
     }
 
     /* Compare sits above the stretched link and appears when the tile is hovered or focused. It
@@ -725,6 +728,14 @@
         background: var(--c-band);
         color: var(--c-ink-3);
         cursor: not-allowed;
+    }
+
+    /* Only as a set of two versions: said on the card, under its sizes. */
+    .tile__set {
+        margin: 0;
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        color: var(--c-ink-2);
     }
 
     .tile__brand {
@@ -839,6 +850,19 @@
         .tile__finish,
         .tile__sizes {
             display: inline;
+        }
+
+        /* The versions' count on a line of its own, and the room for it on every tile of a row: prices stay on one line. */
+        .tile__versions {
+            display: block;
+        }
+
+        .tile__versions-sep {
+            display: none;
+        }
+
+        .tile__meta {
+            min-height: calc(3 * var(--lh-small));
         }
 
         .tile__cta {
@@ -1323,7 +1347,9 @@
         margin-bottom: var(--sp-16);
     }
 
+    /* A long title never takes the close button's width: it stays a thumb wide. */
     .dialog__close {
+        flex: none;
         margin: calc(-1 * var(--sp-8)) calc(-1 * var(--sp-8)) 0 0;
     }
 

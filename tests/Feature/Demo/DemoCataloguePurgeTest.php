@@ -5,12 +5,17 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
+use App\Models\Brand;
 use App\Models\Fitment;
 use App\Models\OrderLine;
+use App\Models\TyreModel;
+use App\Models\TyreModelImage;
+use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Admin\Catalogue\TyreModels;
 use App\Services\Demo\DemoCatalogue;
 use App\Services\Demo\DemoDashboard;
 use App\Services\Demo\DemoPlaceholders;
@@ -102,6 +107,44 @@ it('keeps every real row beside it — and an invented brand a real wheel carrie
         ->and(DB::table('wheel_configs')->where('id', $real->wheel_config_id)->exists())->toBeTrue()
         ->and(DB::table('wheel_models')->where('is_demo', true)->count())->toBe(0)
         ->and(DB::table('brands')->whereIn('name', CatalogueSeeder::BRANDS)->pluck('name')->all())->toBe(['Nordfelge']);
+});
+
+// D-407: a tyre model is a row of its own with a key on its brand, and the migration gave every demo tyre one. Without it
+// going first, „Demodaten entfernen“ stopped on that key at the invented brand.
+it('takes a demo tyre’s model with it, photographs and all, and leaves a model that still has a real size', function (): void {
+    exampleCatalogue();
+
+    $demoBrand = Brand::factory()->create(['is_demo' => true, 'demo_ref' => 'test:marke']);
+    $demoTyre = TyreVariant::factory()->for($demoBrand)->create(['name' => 'Nur Demo', 'season' => 'sommer', 'is_demo' => true]);
+    $sharedBrand = Brand::factory()->create();
+    TyreVariant::factory()->for($sharedBrand)->create(['name' => 'Beides', 'season' => 'sommer', 'is_demo' => true]);
+    $real = TyreVariant::factory()->for($sharedBrand)->create(['name' => 'Beides', 'season' => 'sommer', 'is_demo' => false, 'width_mm' => 305]);
+    app(TyreModels::class)->sync();
+
+    $demoModel = TyreModel::query()->where('name', 'Nur Demo')->sole();
+    TyreModelImage::query()->create(['tyre_model_id' => $demoModel->id, 'position' => 0, 'alt_de' => 'Nur Demo', 'manifest' => ['name' => 'x']]);
+
+    DemoCatalogue::purge();
+
+    expect(TyreModel::query()->where('name', 'Nur Demo')->exists())->toBeFalse()
+        ->and(TyreModelImage::query()->count())->toBe(0)
+        ->and(TyreVariant::query()->whereKey($demoTyre->id)->exists())->toBeFalse()
+        ->and(Brand::query()->whereKey($demoBrand->id)->exists())->toBeFalse()
+        ->and(TyreModel::query()->where('name', 'Beides')->exists())->toBeTrue()
+        ->and(TyreVariant::query()->whereKey($real->id)->exists())->toBeTrue();
+});
+
+it('keeps a brand a real tyre model still names, though it has no size left', function (): void {
+    exampleCatalogue();
+
+    $brand = Brand::factory()->create(['is_demo' => true, 'demo_ref' => 'test:marke']);
+    $bare = TyreModel::query()->create(['brand_id' => $brand->id, 'name' => 'Ohne Größen', 'season' => 'sommer']);
+    TyreModelImage::query()->create(['tyre_model_id' => $bare->id, 'position' => 0, 'alt_de' => 'Ohne Größen', 'manifest' => ['name' => 'x']]);
+
+    DemoCatalogue::purge();
+
+    expect(Brand::query()->whereKey($brand->id)->exists())->toBeTrue()
+        ->and(TyreModel::query()->whereKey($bare->id)->exists())->toBeTrue();
 });
 
 it('removes nothing at all while an order line not born demo names an example wheel', function (): void {

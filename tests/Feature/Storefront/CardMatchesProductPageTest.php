@@ -61,6 +61,23 @@ function openingSize(TestResponse $page, ?int $linked, int $finishId): ?array
         ->first();
 }
 
+/** Whether the page offers this version as a choice: the rule of its chips (useConfigurator), the rest struck through. */
+function pageOffers(array $size): bool
+{
+    $verdict = $size['verdict'];
+
+    if ($verdict === null || $verdict['sellable'] === true || ($verdict['rimSellable'] ?? false) === true) {
+        return true;
+    }
+
+    if ($verdict['status'] !== 'UNKNOWN') {
+        return false;
+    }
+
+    return ($verdict['missing'] ?? []) !== []
+        || (in_array($verdict['wheelStatus'] ?? null, ['PERMITTED', 'CONDITIONAL'], true) && ($verdict['tyre']['status'] ?? null) === 'UNKNOWN');
+}
+
 /** @return list<string> every disagreement, „S1“ where the card is the more positive */
 function disagreements(mixed $test): array
 {
@@ -83,10 +100,17 @@ function disagreements(mixed $test): array
             $page = $test->get('/felgen/'.$card['slug'].'?ausfuehrung='.$card['finishId'].'&fahrzeug='.$key.($linked !== null ? '&groesse='.$linked : ''))->assertOk();
             $size = openingSize($page, $linked, (int) $card['finishId']);
             $compared++;
+            // The versions behind the card's „ab …“ are those the page offers the car (the Gutachten rework §8).
+            $ofColour = collect($page->viewData('page')['props']['configs'])->where('finishId', (int) $card['finishId']);
+            $offered = $ofColour->filter(pageOffers(...))->count();
 
             $onCard = (string) $claim['status'];
             $onPage = (string) ($size['verdict']['status'] ?? 'NONE');
             $label = "{$vehicle->make} {$vehicle->variant} ({$key}) · {$card['brandName']} {$card['modelName']} {$card['finishName']}";
+
+            if ($card['versionCount'] !== $offered) {
+                $found[] = $label.": card counts {$card['versionCount']} versions, the page offers {$offered}";
+            }
 
             if ($onCard !== $onPage) {
                 $s1 = (CARD_RANK[$onCard] ?? -1) > (CARD_RANK[$onPage] ?? -1);

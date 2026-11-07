@@ -10,6 +10,9 @@ use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\ListingQuery;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSet;
+use App\Domain\Fitment\Resolver\WheelSetOffer;
+use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Tyres\MixedOffer;
 use App\Domain\Fitment\Tyres\MixedPair;
@@ -88,6 +91,7 @@ class FelgenController extends Controller
         private readonly KomplettradPricer $pricer,
         private readonly SpeedSymbolDeriver $speedSymbol,
         private readonly FitmentDetail $detail,
+        private readonly WheelSets $wheelSets,
     ) {}
 
     /**
@@ -260,6 +264,9 @@ class FelgenController extends Controller
             ? []
             : $this->resolver->resolveMany($vehicleId, $wheel->configs->pluck('id')->map(static fn (mixed $id): int => (int) $id)->values()->all());
 
+        // The sets of two versions the car's papers name, and the versions it may only have within one: read over those verdicts.
+        $offer = $vehicleId === null ? new WheelSetOffer : $this->wheelSets->of($vehicleId, $verdicts);
+
         // Every size checked against the chosen car is one Prüfung on the Übersicht's chart:
         // counted by state, nothing else kept.
         VerdictTally::record('pdp', array_map(static fn (FitmentVerdict $verdict): VerdictStatus => $verdict->status, array_values($verdicts)));
@@ -276,7 +283,7 @@ class FelgenController extends Controller
 
         foreach ($wheel->configs as $config) {
             $verdict = $verdicts[$config->id] ?? null;
-            $row = $this->configRow($config, $verdict, $colour, $colours, trim($rimName.' '.($colourNames[$config->wheel_finish_id] ?? '')));
+            $row = $this->configRow($config, $verdict, $colour, $colours, trim($rimName.' '.($colourNames[$config->wheel_finish_id] ?? '')), $offer->onlyInSet((int) $config->id));
 
             // Not a wheel approved with its tyres unconfirmed (finding 103, D-286), nor a row whose tyre sizes we have not
             // entered (M-6): its Gutachten is held, and counting it would rank a document we have on the Übersicht's list of
@@ -308,10 +315,11 @@ class FelgenController extends Controller
                 'verdict' => $verdicts[$config->id] ?? null,
                 'inStock' => (bool) $config->available,
                 'priceCents' => (int) $config->price_cents,
+                'onlyInSet' => $offer->onlyInSet((int) $config->id),
             ])->values()->all());
         }
 
-        return $this->renderProduct($request, $wheel, $configs, $vehicleId, $colours, $openOn);
+        return $this->renderProduct($request, $wheel, $configs, $vehicleId, $colours, $openOn, $this->setRows($offer, $wheel, $rimName, $colourNames->all(), $colour, $colours));
     }
 
     /**
@@ -323,7 +331,7 @@ class FelgenController extends Controller
      * @param  Collection<int, BalanceWeightColour>  $colours
      * @return array<string, mixed>
      */
-    private function configRow(WheelConfig $config, ?FitmentVerdict $live, ?BalanceWeightColour $colour, Collection $colours, ?string $rim = null): array
+    private function configRow(WheelConfig $config, ?FitmentVerdict $live, ?BalanceWeightColour $colour, Collection $colours, ?string $rim = null, bool $onlyInSet = false, ?string $setKey = null): array
     {
         $verdict = $live === null ? null : $this->verdictFor($live);
 
@@ -347,6 +355,13 @@ class FelgenController extends Controller
                 (float) $config->width_in,
                 (float) $config->diameter_in,
                 (int) $config->et_mm,
+            ),
+            // One version of the rim, as its chip names it (the Gutachten rework §8).
+            'versionLabel' => GermanFormat::wheelVersion(
+                (float) $config->width_in,
+                (int) $config->et_mm,
+                (int) $config->bolt_holes,
+                (float) $config->bolt_circle_mm,
             ),
             'fullLabel' => GermanFormat::wheelLabel(
                 (float) $config->width_in,
@@ -373,7 +388,7 @@ class FelgenController extends Controller
             // Not available: the subject of the „Anfrage“ that takes the button's place (his admin item 7, D-350).
             'enquiry' => $config->available || $rim === null
                 ? null
-                : AvailabilityEnquiry::subject($rim, (float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm),
+                : AvailabilityEnquiry::subject($rim, (float) $config->width_in, (float) $config->diameter_in, (int) $config->et_mm, (int) $config->bolt_holes, (float) $config->bolt_circle_mm, (float) $config->centre_bore_mm),
             'kbaNumber' => $config->kba_number,
             'weightG' => $config->weight_g === null ? null : (int) $config->weight_g,
             // The load rating per wheel, from the approval document; null when nobody has
@@ -381,9 +396,94 @@ class FelgenController extends Controller
             'maxLoadKg' => $this->maxLoadKg($config->getAttribute('max_load_kg')),
             // The Komplettrad offer travels with the verdict it depends on, for the same
             // reason: a size change swaps the tyres and the legal answer in one commit.
-            'komplettrad' => $this->komplettradFor($config, $live, $colour, $colours),
+            'komplettrad' => $onlyInSet ? $this->komplettradRefused('ONLY_IN_SET', Basket::ONLY_IN_SET, null) : $this->komplettradFor($config, $live, $colour, $colours),
             // Mischbereifung (#20, D-105): only where the released Gutachten prints its pairing table.
-            'mischbereifung' => $this->mischbereifungFor($config, $live, $colour, $colours),
+            'mischbereifung' => $onlyInSet ? null : $this->mischbereifungFor($config, $live, $colour, $colours),
+            // The car may have this version on one axle, or only beside another (the client's fourth change): no chip of its own,
+            // never four of it. The set it stands in is among `wheelSets`.
+            'onlyInSet' => $onlyInSet,
+            // The set it stands in, for a page that answers for this one version: the way on.
+            'setKey' => $onlyInSet ? $setKey : null,
+        ];
+    }
+
+    /**
+     * The sets of two versions as the product page offers them (the client's fourth change): in one colour, two wheels on each axle,
+     * each version at its own price, with the answer for the set: the weaker of the engine's two (WheelSet).
+     *
+     * @param  array<int|string, string>  $colourNames
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return list<array<string, mixed>>
+     */
+    private function setRows(WheelSetOffer $offer, WheelModel $wheel, string $rimName, array $colourNames, ?BalanceWeightColour $colour, Collection $colours): array
+    {
+        $configs = $wheel->configs->keyBy('id');
+        $rows = [];
+
+        foreach ($offer->sets as $set) {
+            $front = $configs->get($set->frontConfigId);
+            $rear = $configs->get($set->rearConfigId);
+
+            if (! $front instanceof WheelConfig || ! $rear instanceof WheelConfig || (int) $front->wheel_finish_id !== (int) $rear->wheel_finish_id) {
+                continue;
+            }
+
+            $perAxle = TyreEligibility::MIXED_PER_AXLE;
+            $total = LinePrice::total($this->rimPrice($front), $perAxle)->plus(LinePrice::total($this->rimPrice($rear), $perAxle));
+            $bolt = static fn (WheelConfig $c): string => GermanFormat::boltPattern((int) $c->bolt_holes, (float) $c->bolt_circle_mm);
+            $available = $front->available && $rear->available;
+            $missing = $front->available ? $rear : $front;
+            $rim = trim($rimName.' '.($colourNames[$front->wheel_finish_id] ?? ''));
+
+            $rows[] = [
+                'key' => $set->key(),
+                'frontId' => (int) $front->id,
+                'rearId' => (int) $rear->id,
+                'finishId' => (int) $front->wheel_finish_id,
+                'diameters' => [(float) $front->diameter_in, (float) $rear->diameter_in],
+                'label' => GermanFormat::wheelSet((float) $front->width_in, (float) $front->diameter_in, (int) $front->et_mm, (float) $rear->width_in, (float) $rear->diameter_in, (int) $rear->et_mm),
+                // One row per axle: on a phone the one line would end in a dangling „·“.
+                'axles' => [
+                    GermanFormat::wheelSetAxle('Vorne', (float) $front->width_in, (float) $front->diameter_in, (int) $front->et_mm),
+                    GermanFormat::wheelSetAxle('Hinten', (float) $rear->width_in, (float) $rear->diameter_in, (int) $rear->et_mm),
+                ],
+                'bolt' => $bolt($front) === $bolt($rear) ? 'Lochkreis'.GermanFormat::NBSP.$bolt($front) : 'Lochkreis vorne'.GermanFormat::NBSP.$bolt($front).' '.GermanFormat::MIDDOT.' hinten'.GermanFormat::NBSP.$bolt($rear),
+                'frontFull' => GermanFormat::wheelLabel((float) $front->width_in, (float) $front->diameter_in, (int) $front->et_mm, (int) $front->bolt_holes, (float) $front->bolt_circle_mm, (float) $front->centre_bore_mm),
+                'rearFull' => GermanFormat::wheelLabel((float) $rear->width_in, (float) $rear->diameter_in, (int) $rear->et_mm, (int) $rear->bolt_holes, (float) $rear->bolt_circle_mm, (float) $rear->centre_bore_mm),
+                'priceCents' => $total->toMinor(),
+                'price' => $total->format(),
+                // `2 × 229,00 € + 2 × 269,00 €`: both figures the server's, the page adds up nothing (D-102).
+                'priceNote' => $perAxle.GermanFormat::NBSP.GermanFormat::TIMES.GermanFormat::NBSP.$this->rimPrice($front)->format().' + '.$perAxle.GermanFormat::NBSP.GermanFormat::TIMES.GermanFormat::NBSP.$this->rimPrice($rear)->format(),
+                'inStock' => $available,
+                'enquiry' => $available ? null : AvailabilityEnquiry::subject($rim, (float) $missing->width_in, (float) $missing->diameter_in, (int) $missing->et_mm, (int) $missing->bolt_holes, (float) $missing->bolt_circle_mm, (float) $missing->centre_bore_mm),
+                // Sizes differ by axle in a set, always: the panel lists them per axle.
+                'verdict' => [...$this->verdictFor($set->combined()), 'sizesPerAxle' => true],
+                'komplettrad' => $this->komplettradForSet($set, $front, $rear, $colour, $colours),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * What the Komplettrad's first step says of a set: each axle, the bolt pattern, each version's bore and what the rims cost.
+     *
+     * @return array{setAxles: list<string>, setBolt: string, setBore: string, setPriceNote: string}
+     */
+    private function setFacts(WheelConfig $front, WheelConfig $rear): array
+    {
+        $perAxle = TyreEligibility::MIXED_PER_AXLE;
+        $bolt = static fn (WheelConfig $c): string => GermanFormat::boltPattern((int) $c->bolt_holes, (float) $c->bolt_circle_mm);
+        $bore = static fn (WheelConfig $c): string => GermanFormat::millimetres((float) $c->centre_bore_mm);
+
+        return [
+            'setAxles' => [
+                GermanFormat::wheelSetAxle('Vorne', (float) $front->width_in, (float) $front->diameter_in, (int) $front->et_mm),
+                GermanFormat::wheelSetAxle('Hinten', (float) $rear->width_in, (float) $rear->diameter_in, (int) $rear->et_mm),
+            ],
+            'setBolt' => $bolt($front) === $bolt($rear) ? 'Lochkreis'.GermanFormat::NBSP.$bolt($front) : 'Lochkreis vorne'.GermanFormat::NBSP.$bolt($front).' '.GermanFormat::MIDDOT.' hinten'.GermanFormat::NBSP.$bolt($rear),
+            'setBore' => 'Mittenlochbohrung vorne'.GermanFormat::NBSP.$bore($front).' '.GermanFormat::MIDDOT.' hinten'.GermanFormat::NBSP.$bore($rear),
+            'setPriceNote' => $perAxle.GermanFormat::NBSP.GermanFormat::TIMES.GermanFormat::NBSP.$this->rimPrice($front)->format().' + '.$perAxle.GermanFormat::NBSP.GermanFormat::TIMES.GermanFormat::NBSP.$this->rimPrice($rear)->format(),
         ];
     }
 
@@ -391,12 +491,19 @@ class FelgenController extends Controller
      * @param  list<array<string, mixed>>  $configs
      * @param  Collection<int, BalanceWeightColour>  $colours
      * @param  array<int, int|null>  $openOn  finish id → the size the page opens on (OpeningSize)
+     * @param  list<array<string, mixed>>  $wheelSets  the sets of two versions the car's papers name (setRows)
      */
-    private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours, array $openOn = []): Response
+    private function renderProduct(Request $request, WheelModel $wheel, array $configs, ?int $vehicleId, Collection $colours, array $openOn = [], array $wheelSets = []): Response
     {
         $finishes = [];
+        $withVersions = array_flip(array_map(static fn (array $config): int => (int) $config['finishId'], $configs));
 
         foreach ($wheel->finishes as $finish) {
+            // A colour with no version is nothing to choose, and no way on. A wheel with none at all keeps its colours on its page.
+            if ($configs !== [] && ! isset($withVersions[$finish->id])) {
+                continue;
+            }
+
             $finishes[] = [
                 'id' => $finish->id,
                 'name' => $finish->name_de,
@@ -408,7 +515,7 @@ class FelgenController extends Controller
             ];
         }
 
-        $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'));
+        $finishes = $this->openingFinishFirst($finishes, $configs, $request->integer('ausfuehrung'), $request->integer('groesse'));
         $jsonLd = ProductJsonLd::for($wheel, url('/felgen/'.$wheel->slug));
 
         return Inertia::render('Produkt/Index', [
@@ -445,6 +552,7 @@ class FelgenController extends Controller
                 ])->all(),
             'finishes' => $finishes,
             'configs' => $configs,
+            'wheelSets' => $wheelSets,
             // The size each finish opens on, chosen on the server by the rule the cards follow (OpeningSize, M-6).
             'openOn' => (object) $openOn,
             'hasVehicle' => $vehicleId !== null,
@@ -469,20 +577,22 @@ class FelgenController extends Controller
      *
      * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}
      */
-    public function answerFor(Request $request, WheelConfig $config): array
+    public function answerFor(Request $request, WheelConfig $config, bool $countsAsCheck = true): array
     {
         $vehicleId = $this->vehicleId($request);
         $live = $vehicleId === null ? null : ($this->resolver->resolveMany($vehicleId, [(int) $config->id])[(int) $config->id] ?? null);
 
-        if ($live !== null) {
+        if ($live !== null && $countsAsCheck) {
             VerdictTally::record('check', [$live->status]);
         }
+
+        $offer = $vehicleId === null || $live === null ? new WheelSetOffer : $this->wheelSets->of($vehicleId, [(int) $config->id => $live]);
 
         $colour = $vehicleId === null ? null : BalanceWeightColour::default();
         $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
 
         return [
-            'config' => $this->configRow($config, $live, $colour, $colours),
+            'config' => $this->configRow($config, $live, $colour, $colours, null, $offer->onlyInSet((int) $config->id), $offer->setOf((int) $config->id)?->key()),
             'komplettradOptions' => $this->komplettradOptions($request, $colours),
         ];
     }
@@ -503,6 +613,8 @@ class FelgenController extends Controller
                 'swatchHex' => $c->swatch_hex,
                 'surchargeCents' => (int) $c->surcharge_cents,
                 'surcharge' => GermanFormat::money((int) $c->surcharge_cents, $c->currency),
+                // For the four wheels, as the last step's line says it.
+                'surchargeForFour' => LinePrice::total(Money::fromMinor((int) $c->surcharge_cents, $c->currency), self::SET_OF)->format(),
                 'isDefault' => (bool) $c->is_default,
             ])->values()->all(),
             'tpms' => app(Basket::class)->tpmsOffer($request, self::SET_OF),
@@ -604,6 +716,10 @@ class FelgenController extends Controller
                 'sizeLabel' => $variant->label(),
                 'tyrePriceCents' => (int) $variant->price_cents,
                 'tyrePrice' => Money::fromMinor((int) $variant->price_cents, $price->currency)->format(),
+                // The four tyres alone, as their card says it; computed here, as every figure (R-10).
+                'tyreSetCents' => LinePrice::total(Money::fromMinor((int) $variant->price_cents, $price->currency), self::SET_OF)->toMinor(),
+                'tyreSet' => LinePrice::total(Money::fromMinor((int) $variant->price_cents, $price->currency), self::SET_OF)->format(),
+                'facts' => $variant->factsDe(),
                 // The known components per wheel; an unconfigured mounting fee is left out and
                 // `priceOpen` says so — never a guessed number, never a silent 0,00 € (D-032).
                 'perWheelCents' => $perWheel->toMinor(),
@@ -740,6 +856,89 @@ class FelgenController extends Controller
     }
 
     /**
+     * The tyres for a set of two versions: the pairs the car's rows carry, the front size off the front version's row and the rear size off
+     * the rear version's, each tyre on its own axle, answered across the two wheels by the engine's own code. A rim's diameter
+     * cannot mismatch here: a line whose tyre does not fit its wheel never reaches the rows (EntryModel::stands).
+     *
+     * @param  Collection<int, BalanceWeightColour>  $colours
+     * @return array<string, mixed>
+     */
+    private function komplettradForSet(WheelSet $set, WheelConfig $front, WheelConfig $rear, ?BalanceWeightColour $colour, Collection $colours): array
+    {
+        $verdict = $set->combined();
+        $offer = $this->eligibility->mixedOfferFor($verdict);
+
+        if ($offer->refusal !== null) {
+            return $this->komplettradRefused($offer->refusal->value, $offer->refusal->sentenceDe(), null);
+        }
+
+        if ($colour === null) {
+            return $this->komplettradRefused(Basket::NO_WEIGHT_COLOUR_CODE, Basket::NO_WEIGHT_COLOUR_REFUSAL, null);
+        }
+
+        [$combinations, $priceOpen] = $this->pricedPairs($front, $verdict, $offer, $colour, $colours, $rear);
+
+        // Two rims are what stays where a pair has no tyre.
+        foreach ($combinations as $i => $pair) {
+            if (is_string($pair['noSet'] ?? null)) {
+                $combinations[$i]['noSet'] = str_replace('Die Felge allein kannst du bestellen.', 'Die beiden Felgen allein kannst du als Satz bestellen.', $pair['noSet']);
+            }
+        }
+
+        return [
+            'refusal' => null,
+            'refusalCode' => null,
+            'minSentence' => null,
+            'priceOpen' => $priceOpen,
+            'quantity' => self::SET_OF,
+            'tyres' => [],
+            'perAxle' => TyreEligibility::MIXED_PER_AXLE,
+            'sourcePage' => $offer->sourcePage,
+            'combinations' => $combinations,
+        ];
+    }
+
+    /**
+     * A set of two versions as the Komplettrad's steps ask for it, shaped as a row of one version so its steps need nothing else: the
+     * set's name, its price for four, the answer for the set and the tyres across both wheels. Null where the car's papers do not name
+     * the two together, or no car is chosen.
+     *
+     * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}|null
+     */
+    public function setAnswerFor(Request $request, WheelConfig $front, WheelConfig $rear): ?array
+    {
+        $vehicleId = $this->vehicleId($request);
+        $set = $vehicleId === null ? null : $this->wheelSets->find($vehicleId, (int) $front->id, (int) $rear->id);
+
+        if ($set === null) {
+            return null;
+        }
+
+        $colour = BalanceWeightColour::default();
+        $colours = $colour === null ? collect() : BalanceWeightColour::query()->active()->orderBy('sort_order')->orderBy('id')->get();
+        $perAxle = TyreEligibility::MIXED_PER_AXLE;
+        $label = GermanFormat::wheelSet((float) $front->width_in, (float) $front->diameter_in, (int) $front->et_mm, (float) $rear->width_in, (float) $rear->diameter_in, (int) $rear->et_mm);
+
+        return [
+            'config' => [
+                ...$this->configRow($front, $set->front, $colour, $colours),
+                ...$this->setFacts($front, $rear),
+                'rearId' => (int) $rear->id,
+                'setKey' => $set->key(),
+                'onlyInSet' => false,
+                'sizeLabel' => $label,
+                'fullLabel' => $label,
+                'priceForFour' => LinePrice::total($this->rimPrice($front), $perAxle)->plus(LinePrice::total($this->rimPrice($rear), $perAxle))->format(),
+                'inStock' => $front->available && $rear->available,
+                'verdict' => [...$this->verdictFor($set->combined()), 'sizesPerAxle' => true],
+                'komplettrad' => $this->komplettradForSet($set, $front, $rear, $colour, $colours),
+                'mischbereifung' => null,
+            ],
+            'komplettradOptions' => $this->komplettradOptions($request, $colours),
+        ];
+    }
+
+    /**
      * The pairs of an offer as the page shows them (#20, D-105; D-335): each with its sets priced two per axle by the one
      * pricer, in every active Wuchtgewichte colour, with each tyre's EU label; why a pair has no set — the axle we have
      * no tyre for, by name —; and its Auflagen for each axle under the axle's name (ConditionGroups, as each size's are
@@ -748,8 +947,11 @@ class FelgenController extends Controller
      * @param  Collection<int, BalanceWeightColour>  $colours
      * @return array{0: list<array<string, mixed>>, 1: bool}
      */
-    private function pricedPairs(WheelConfig $config, FitmentVerdict $verdict, MixedOffer $offer, BalanceWeightColour $colour, Collection $colours): array
+    private function pricedPairs(WheelConfig $config, FitmentVerdict $verdict, MixedOffer $offer, BalanceWeightColour $colour, Collection $colours, ?WheelConfig $rearConfig = null): array
     {
+        // Two versions of the rim: the rear axle's tyre on the rear version, at its own price.
+        $rearRim = $rearConfig ?? $config;
+
         $ids = [];
 
         foreach ($offer->pairs as $pair) {
@@ -776,11 +978,14 @@ class FelgenController extends Controller
                 }
 
                 $frontPrice = $this->pricer->perWheel($config, $front, $colour);
-                $rearPrice = $this->pricer->perWheel($config, $rear, $colour);
+                $rearPrice = $this->pricer->perWheel($rearRim, $rear, $colour);
                 $priceOpen = $priceOpen || ! $frontPrice->complete() || ! $rearPrice->complete();
                 $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
                 $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
                 $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
+                $frontTyre = Money::fromMinor((int) $front->price_cents, $frontPrice->currency);
+                $rearTyre = Money::fromMinor((int) $rear->price_cents, $rearPrice->currency);
+                $tyreSet = LinePrice::total($frontTyre, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearTyre, TyreEligibility::MIXED_PER_AXLE));
 
                 $sets[] = [
                     'key' => $front->id.'-'.$rear->id,
@@ -791,16 +996,24 @@ class FelgenController extends Controller
                     // Two profile types, or two makers, where the document allows it (D-336): the page names each axle's tyre.
                     'rearBrandName' => (string) $rear->brand?->name,
                     'rearName' => (string) $rear->name,
+                    'season' => (string) $front->season,
                     'seasonLabel' => TyreSeason::from((string) $front->season)->longLabelDe(),
+                    // The four tyres alone, as their card says it: each axle's own price, the set added up on the server.
+                    'frontTyrePrice' => $frontTyre->format(),
+                    'rearTyrePrice' => $rearTyre->format(),
+                    'tyreSetCents' => $tyreSet->toMinor(),
+                    'tyreSet' => $tyreSet->format(),
+                    'frontFacts' => $front->factsDe(),
+                    'rearFacts' => $rear->factsDe(),
                     'frontLabel' => $front->label(),
                     'rearLabel' => $rear->label(),
                     'perWheelFront' => $frontWheel->format(),
                     'perWheelRear' => $rearWheel->format(),
                     'forFourCents' => $forFour->toMinor(),
                     'forFour' => $forFour->format(),
-                    'prices' => $colours->map(function (BalanceWeightColour $c) use ($config, $front, $rear): array {
+                    'prices' => $colours->map(function (BalanceWeightColour $c) use ($config, $rearRim, $front, $rear): array {
                         $frontPrice = $this->pricer->perWheel($config, $front, $c);
-                        $rearPrice = $this->pricer->perWheel($config, $rear, $c);
+                        $rearPrice = $this->pricer->perWheel($rearRim, $rear, $c);
                         $frontWheel = Money::fromMinor($frontPrice->knownPerWheelCents(), $frontPrice->currency);
                         $rearWheel = Money::fromMinor($rearPrice->knownPerWheelCents(), $rearPrice->currency);
                         $forFour = LinePrice::total($frontWheel, TyreEligibility::MIXED_PER_AXLE)->plus(LinePrice::total($rearWheel, TyreEligibility::MIXED_PER_AXLE));
@@ -900,11 +1113,16 @@ class FelgenController extends Controller
      * @param  list<array<string, mixed>>  $configs
      * @return list<array{id: int, name: string, hex: string|null, artFinish: string, image: array<string, mixed>|null}>
      */
-    private function openingFinishFirst(array $finishes, array $configs, int $requested): array
+    private function openingFinishFirst(array $finishes, array $configs, int $requested, int $size = 0): array
     {
         $permitted = [];
 
         foreach ($configs as $config) {
+            // A link to a size names its colour, whatever else it says: the offers in the structured data carry nothing else (the rework §8).
+            if ($config['id'] === $size) {
+                $requested = (int) $config['finishId'];
+            }
+
             $verdict = $config['verdict'] ?? null;
 
             if (is_array($verdict) && ($verdict['sellable'] ?? false) === true) {
@@ -949,6 +1167,8 @@ class FelgenController extends Controller
             'label' => $verdict->displayLabelDe(),
             // Every Auflage a Hinweis (#23, D-104): the page says „Freigegeben“, quietly „mit Hinweisen“.
             'notesOnly' => $verdict->notesOnly(),
+            // The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says.
+            'hint' => $verdict->hintColour()->value,
             'sellable' => $verdict->isSellable(),
             // The rim alone sells while the tyres wait for the papers, where the wheel's approval does not (D-289).
             'rimSellable' => $verdict->forRimAlone() !== null,

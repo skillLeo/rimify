@@ -47,7 +47,7 @@ function sortProps(TestResponse $response): array
     return $props;
 }
 
-it('sorts Katalog › Reifen by name, size and price, both ways, and keeps the order in its page links', function (): void {
+it('sorts Katalog › Reifen by name, lowest price and last change, both ways, and keeps the order in its page links', function (): void {
     $brand = Brand::factory()->create(['name' => 'Prüfreifen', 'is_wheel_brand' => false]);
     $tyre = fn (string $name, int $diameter, int $cents) => TyreVariant::factory()->create([
         'brand_id' => $brand->id, 'name' => $name, 'diameter_in' => $diameter, 'width_mm' => 225, 'aspect' => 45, 'price_cents' => $cents, 'is_demo' => false,
@@ -56,12 +56,14 @@ it('sorts Katalog › Reifen by name, size and price, both ways, and keeps the o
     $tyre('Beta', 17, 9_000);
     $tyre('Gamma', 18, 21_000);
 
-    $names = fn (string $query): array => array_column(sortProps($this->actingAs(sortAdmin(), 'admin')->get('/admin/reifen'.$query))['tyres'], 'name');
+    $names = fn (string $query): array => array_column(sortProps($this->actingAs(sortAdmin(), 'admin')->get('/admin/reifen'.$query))['models'], 'name');
+
+    TyreVariant::query()->where('name', 'Beta')->update(['updated_at' => now()->addDay()]);
 
     expect($names(''))->toBe(['Alpha', 'Beta', 'Gamma'])
         ->and($names('?sort=reifen&richtung=ab'))->toBe(['Gamma', 'Beta', 'Alpha'])
-        ->and($names('?sort=groesse&richtung=auf'))->toBe(['Beta', 'Gamma', 'Alpha'])
-        ->and($names('?sort=preis&richtung=ab'))->toBe(['Gamma', 'Alpha', 'Beta']);
+        ->and($names('?sort=preis&richtung=ab'))->toBe(['Gamma', 'Alpha', 'Beta'])
+        ->and($names('?sort=geaendert&richtung=ab')[0])->toBe('Beta');
 
     $props = sortProps($this->actingAs(sortAdmin(), 'admin')->get('/admin/reifen?sort=preis&richtung=ab'));
     // An order alone filters nothing: no „gefiltert“, no reset.

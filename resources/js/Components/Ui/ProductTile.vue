@@ -99,7 +99,7 @@ function onPointerEnter(event: PointerEvent): void {
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null; hint: 'green' | 'yellow' } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
@@ -115,6 +115,7 @@ const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: bo
         conditions: effective === 'CONDITIONAL' && !notes ? conditions : [],
         vary: effective === 'CONDITIONAL' && !notes && conditionsVary,
         notesOnly: notes,
+        hint: props.card.fitment.hint ?? 'yellow',
         // The wheel approved, its tyres not yet confirmed (finding 103, D-286): the badge stays the plain state — a corner
         // has no room for both halves, and a longer one ran off a phone's tile —, the line under the price says which is
         // which, in the panel's words, and its sizes are never „keine Freigabe“.
@@ -141,6 +142,8 @@ const sizeList = computed(() => {
     return props.card.diameters.map((label) => ({ label, none: sizedByVehicle.value && !fitting.has(label) }))
 })
 const sizesPlain = computed(() => (props.card.diameters.length ? zoll(props.card.diameters) : ''))
+/* The versions behind „ab …“ (the rework §8), said where there is more than one: for one, the price says it all. */
+const versionsText = computed(() => ((props.card.versionCount ?? 0) > 1 ? `${props.card.versionCount}\u00A0Ausführungen` : ''))
 
 /* A per-wheel price: the catalogue prices a set of four, the tile says what one costs. */
 const perWheel = computed(() => formatMoney(props.card.fromPriceCents))
@@ -213,7 +216,7 @@ function onCompareLabelClick(event: MouseEvent): void {
             <!-- After the v-if/v-else pair, never between: there it would take the v-else. -->
             <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" soon class="tile__picture tile__media--alt" aria-hidden="true" />
 
-            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" class="tile__badge" />
+            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" :hint="verdict.hint" class="tile__badge" />
         </div>
 
         <!-- Names and sizes are never translated: a page translator turns a brand into a word and
@@ -230,11 +233,14 @@ function onCompareLabelClick(event: MouseEvent): void {
         <span class="tile__meta">
             <span class="tile__finish" translate="no">{{ card.finishName }}</span>
             <span v-if="card.diameters.length" class="tile__sep" aria-hidden="true"> · </span>
-            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (keine Freigabe für dein Fahrzeug)</span></span></template>{{ NNBSP }}Zoll</span>
-            <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}</span>
+            <span v-if="sizedByVehicle && card.diameters.length" class="tile__sizes num" translate="no"><template v-for="(size, i) in sizeList" :key="size.label">{{ i > 0 ? ' · ' : '' }}<span :class="{ 'tile__size--none': size.none }">{{ size.label }}<span v-if="size.none" class="visually-hidden" translate="yes"> (für dein Fahrzeug nicht bestätigt)</span></span></template>{{ NNBSP }}Zoll<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
+            <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
         </span>
 
-        <p class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
+        <p v-if="card.fitment?.onlyAsSet" class="tile__set" data-only-set>Nur als Satz: vorne und hinten verschieden</p>
+        <!-- The set is the only thing on sale here: its price, never one rim's. -->
+        <p v-if="card.fitment?.setPrice" class="tile__price"><template v-if="card.fitment.setPriceFrom">ab </template><ValueText :text="card.fitment.setPrice" whole /> <small>für 4 Felgen</small></p>
+        <p v-else class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
         <span class="tile__legal">{{ terms.note }}</span>
 
         <template v-if="verdict && verdict.conditions.length">
@@ -264,7 +270,7 @@ function onCompareLabelClick(event: MouseEvent): void {
                     :disabled="capped"
                     :aria-label="`${fullName} vergleichen`"
                     @change="onCompareChange"
-                />
+                >
                 Vergleichen
             </label>
         </div>

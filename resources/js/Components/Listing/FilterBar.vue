@@ -93,7 +93,7 @@ function optionLabel(facet: string, value: string): string {
         </label>
 
         <fieldset v-for="facet in FACETS" :key="facet.key" class="fpanel__group">
-            <legend class="micro fpanel__legend">{{ facet.label }}</legend>
+            <legend class="label fpanel__legend">{{ facet.label }}</legend>
 
             <label
                 v-for="option in optionsFor(facet.key)"
@@ -123,8 +123,8 @@ function optionLabel(facet: string, value: string): string {
 }
 
 .fpanel__group {
-    margin: var(--space-4) 0 0;
-    padding: var(--space-4) 0 0;
+    margin: var(--sp-24) 0 0;
+    padding: 0;
     border: 0;
     border-top: 1px solid var(--line);
 }
@@ -154,8 +154,7 @@ function optionLabel(facet: string, value: string): string {
 
 .fpanel__opt--entry {
     padding: var(--space-2) var(--space-3);
-    background: var(--surface);
-    border: 1px solid var(--line);
+    background: var(--c-band);
     border-radius: var(--radius-sm);
     font-weight: 700;
 }

@@ -2,8 +2,6 @@
 
 import type { ConditionGroupsView } from '../rimify'
 
-export type AxleValue = 'ALL' | 'FRONT' | 'REAR'
-
 export interface DocumentFacts {
     id: number
     label: string
@@ -36,6 +34,8 @@ export interface DocumentFacts {
     missingAnnexes?: string
     pdfUrl: string | null
     hasPdf: boolean
+    /** The start of the file's hash: part of the address the page shows it on, so a replaced file is never the old one from the browser's cache. */
+    pdfVersion?: string | null
     /** A key is stored, the file is not in the storage. */
     pdfMissing?: boolean
     /** The other documents carrying the very same file, outside its own revision line (ADMIN-GEFUNDEN 503). */
@@ -68,17 +68,6 @@ export interface DocumentCount {
     at: string
     /** Taken while the document had no row: nobody could have counted the entry. */
     beforeEntry: boolean
-}
-
-/** A code on a row or a tyre size, as printed, with what its own document says it means. */
-export interface RowCode {
-    code: string
-    note: string
-    /** The document's sentence; null while the document does not define the code. */
-    text: string | null
-    kind: string | null
-    page: number | null
-    defined: boolean
 }
 
 /** A bolt or nut the document names: `S01 · M14x1,25 · Kegelbund 60° · 140 Nm`. */
@@ -134,62 +123,12 @@ export interface RecordShape {
     tyre_index_source: '' | 'document' | 'papers' | 'table'
 }
 
-export interface TyreSizeRow {
-    width_mm: number
-    aspect: number
-    diameter: number
-    min_load_index: number | null
-    min_speed_symbol: string
-    axle: AxleValue
-    /** The kW band the document prints beside the size (Block D); null on both when it prints none. */
-    kw_min: number | null
-    kw_max: number | null
-    label: string
-    codes: RowCode[]
-    /** Derived from an Abnahme among its codes and the row's — or the override. */
-    requiresEntry: boolean
-}
-
-export interface FitmentRowView {
-    id: number
-    vehicleId: number
-    vehicle: string
-    configId: number
-    wheel: string
-    size: string
-    finish: string | null
-    axle: AxleValue
-    axleLabel: string
-    requiresEntry: boolean
-    /** Whether an Abnahme among the codes derives the Eintragung. */
-    entryDerived: boolean
-    /** The Abnahme codes it comes from, with their page: `A01, Seite 6`. */
-    entrySource: string[]
-    entryOverride: 'required' | 'not_required' | null
-    entryOverrideReason: string
-    entryOverrideBy: string | null
-    entryOverrideAt: string | null
-    entryNote: string
-    sourcePage: number | null
-    buildFrom: string
-    buildTo: string
-    widthMin: string
-    widthMax: string
-    etMin: string
-    etMax: string
-    centreBore: string
-    status: 'draft' | 'published' | 'retired'
-    tyreSizes: TyreSizeRow[]
-    conditions: RowCode[]
-    draft: boolean
-    /** The row as the page was loaded (EditStamp): „Zeile ändern“ sends it, a save against an older state is refused. */
-    stamp?: string
-}
-
 /** One entry of this document's own Auflagenverzeichnis (document_conditions). */
 export interface DocumentConditionView {
     id: number
     code: string
+    /** The colour it gives the shop's hint (#23): presentation only. */
+    shopColour: 'green' | 'yellow'
     kind: string
     kindLabel: string
     /** Where the customer reads it: Abnahme, Arbeiten am Fahrzeug, Befestigung, Reifen, Hinweise, Fahrzeug. */
@@ -257,31 +196,10 @@ export interface DeratingView {
     rows: { speed: number; cells: Record<string, string> }[]
 }
 
-/** The document's own „Bereifungskombinationen“ (D-256), in its numbering: once there are any, the only tyres the shop offers on it. */
-/** One combination as the card shows it: `225/40 R18` front and rear, in the document's numbering. */
-export interface CombinationRow {
-    id: number
-    number: number
-    front: string
-    rear: string
-}
-
-/**
- * The document's lists of tyre combinations, one per entry of its Verwendungsbereich (his admin item 19, D-358): each
- * EG type-approval number with the cars under it; `unassigned` the rows no entry was given yet — they match no car.
- */
-export interface CombinationsView {
-    sourcePage: number | null
-    entries: { eg: string; cars: string[]; carriedOver: boolean; combinations: CombinationRow[] }[]
-    unassigned: CombinationRow[]
-}
-
 export interface AdminGutachtenShowProps {
     /** What each card was opened on (EditStamp): a save against an older state is refused. */
-    stamps: { document: string; derating: string; combinations: string }
+    stamps: { document: string; derating: string }
     document: DocumentFacts
-    /** The first rows of the document, by vehicle — at most GutachtenController::ROWS_SHOWN. */
-    rows: FitmentRowView[]
     /** Every row of the document, counted: what the release brings into the shop (F-37). */
     rowsTotal?: number
     vehicles: { id: number; label: string }[]
@@ -302,7 +220,6 @@ export interface AdminGutachtenShowProps {
     reworks: ReworkView[]
     /** The document's own table of tyre load at speed; `rows` empty when it has none. */
     derating: DeratingView
-    combinations: CombinationsView
     openConflicts: number
     /** `levels`: may set how loud each Auflage is in the shop (#23, D-104) — on a released document too. */
     /** `revise`: may start a new revision of this released document (ADMIN-GEFUNDEN 510). */
@@ -314,42 +231,6 @@ export interface AdminGutachtenShowProps {
     levelFloorSentence?: string
 }
 
-/**
- * One tyre size as typed: `225/40 R18`, the axle, the document's minimum in two fields of its own — load index and speed
- * symbol (his admin item 9) — and its own codes (`A01 T88`).
- */
-export interface TyreSizeForm {
-    text: string
-    axle: AxleValue
-    /** The load index as typed — a number once read back from a saved row, the field's text while typed. */
-    min_load_index: number | string | null
-    min_speed_symbol: string
-    /** The kW band as typed: `85-195`, `85–195 kW`; empty when the document prints none. */
-    kw: string
-    codes: string
-}
-
-export interface RowForm {
-    axle: AxleValue
-    /** The row's codes as typed, as the document prints them: `A01 A12 K1c`. */
-    codes: string
-    /** '' = the Eintragung follows the codes. */
-    entry_override: '' | 'required' | 'not_required'
-    entry_override_reason: string
-    entry_note: string
-    source_page: number | null
-    build_from: string
-    build_to: string
-    width_min: string
-    width_max: string
-    et_min: string
-    et_max: string
-    centre_bore: string
-    tyre_sizes: TyreSizeForm[]
-    /** A note per code of the row, kept by code while the codes are retyped. */
-    notes: Record<string, string>
-}
-
 export interface VehicleHit {
     id: number
     label: string
@@ -357,10 +238,3 @@ export interface VehicleHit {
     needsReview: boolean
 }
 
-export interface WheelGroup {
-    model: string
-    demo: boolean
-    sizes: { id: number; label: string; finish: string | null; sku: string }[]
-    /** The model goes on past the list's cut: not every size of it is shown. */
-    partial?: boolean
-}

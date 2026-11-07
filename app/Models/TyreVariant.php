@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Fitment\Derivation\ReferenceTables;
 use App\Services\Demo\AcceptanceSet;
 use App\Support\GermanFormat;
 use Database\Factories\TyreVariantFactory;
@@ -36,6 +37,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $eprel_id
  * @property bool $available verfügbar / nicht verfügbar (D-301)
  * @property int $stock_qty kept from before D-301 and no longer read
+ * @property string|null $supplier who delivers this size (the Gutachten rework §9); internal, never shown in the shop
  * @property bool $is_demo
  * @property string|null $demo_ref `abnahme:…` for the acceptance set's rows (AcceptanceSet), else null
  */
@@ -64,7 +66,7 @@ class TyreVariant extends Model
         'brand_id', 'name', 'season', 'width_mm', 'aspect', 'diameter_in',
         'load_index', 'speed_symbol', 'speed_rank',
         'eu_fuel_class', 'eu_wet_grip_class', 'eu_noise_db', 'eu_noise_class', 'eu_snow_grip', 'eu_ice_grip', 'eprel_id',
-        'price_cents', 'currency', 'stock_qty', 'available', 'is_demo', 'demo_ref',
+        'price_cents', 'currency', 'stock_qty', 'available', 'supplier', 'is_demo', 'demo_ref',
     ];
 
     /** A tyre made in the admin can be bought until someone says otherwise, as a rim's size (D-301). */
@@ -162,6 +164,29 @@ class TyreVariant extends Model
             $this->load_index,
             $this->speed_symbol,
         );
+    }
+
+    /**
+     * What the two figures on the wall mean, from the shop's own tables: `Tragfähigkeitsindex 95: bis 690 kg je Reifen · Y: bis 300 km/h`. A
+     * figure a table does not hold is left out, never guessed.
+     */
+    public function factsDe(): string
+    {
+        $parts = [];
+        $kg = ReferenceTables::LOAD_INDEX_CAPACITY_KG[$this->load_index] ?? null;
+
+        if ($kg !== null) {
+            $parts[] = 'Tragfähigkeitsindex '.$this->load_index.': bis '.GermanFormat::kilograms($kg).' je Reifen';
+        }
+
+        foreach (ReferenceTables::SPEED_SYMBOLS as $row) {
+            if ($row['symbol'] === $this->speed_symbol) {
+                // No upper figure in the table: `(Y)` is for above 300 km/h, and it says so (SpeedSymbolEntry).
+                $parts[] = $this->speed_symbol.': '.($row['max_kmh'] === null ? 'über 300' : 'bis '.GermanFormat::integer($row['max_kmh'])).GermanFormat::NBSP.'km/h';
+            }
+        }
+
+        return implode(' '.GermanFormat::MIDDOT.' ', $parts);
     }
 
     /** @return BelongsTo<Brand, $this> */

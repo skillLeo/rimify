@@ -6,6 +6,8 @@ namespace App\Services\Commerce;
 
 use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSet;
+use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Fitment\Tyres\CombinationVerdict;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
@@ -52,6 +54,7 @@ final class OrderWriter
         private readonly FitmentResolver $resolver,
         private readonly OrderPayments $payments,
         private readonly TyreEligibility $eligibility,
+        private readonly WheelSets $wheelSets,
     ) {}
 
     /**
@@ -71,6 +74,7 @@ final class OrderWriter
         // moment of purchase, and a line that stopped being sellable stops the order.
         $verdicts = [];
         $combinations = [];
+        $sets = [];
 
         foreach ($summary['lines'] as $i => $line) {
             $verdict = $this->resolver->resolve((int) $vehicle->id, (int) $line['wheelConfigId']);
@@ -90,14 +94,32 @@ final class OrderWriter
             // sold beside a front that passes.
             $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
 
-            if ($mixed !== null) {
-                $answer = $this->combination($verdict, $mixed);
+            // Two versions of the rim: the set must still stand on the car's papers, whichever line is read first. Each line
+            // freezes its own version's verdict, so the order holds both; a Komplettrad's pair is answered across the two.
+            $wheelSet = null;
+
+            if (($mixed['wheelSet'] ?? false) === true) {
+                $wheelSet = $this->wheelSets->find((int) $vehicle->id, (int) $mixed['frontWheelConfigId'], (int) $mixed['rearWheelConfigId']);
+
+                if ($wheelSet === null) {
+                    throw new OrderRefused(Basket::BLOCKED_REFUSAL);
+                }
+            }
+
+            if ($mixed !== null && ($mixed['frontTyreId'] ?? null) !== null) {
+                $answer = $this->combination($wheelSet?->combined() ?? $verdict, $mixed);
 
                 if ($answer === null || ! $answer->isSellable()) {
                     throw new OrderRefused(Basket::BLOCKED_REFUSAL);
                 }
 
                 $combinations[$i] = $answer;
+
+                // A Komplettrad on a set: what the customer was told is the set's answer, frozen with each version's own beside it.
+                if ($wheelSet !== null) {
+                    $sets[$i] = $wheelSet;
+                    $verdicts[$i] = $wheelSet->combined();
+                }
             }
         }
 
@@ -115,7 +137,7 @@ final class OrderWriter
             ? self::DEMO_PREFIX.Str::lower(Str::random(20))
             : null;
 
-        return DB::transaction(function () use ($customer, $summary, $vehicle, $verdicts, $combinations, $paymentMethod, $note, $request, $born): Order {
+        return DB::transaction(function () use ($customer, $summary, $vehicle, $verdicts, $combinations, $sets, $paymentMethod, $note, $request, $born): Order {
             [$first, $last] = self::split($customer['name']);
             $person = self::row(Customer::class, ['email' => $customer['email'], 'firstname' => $first, 'lastname' => $last, 'phone' => $customer['phone']], $born, 'kunde');
             $delivery = self::row(Address::class, [
@@ -175,7 +197,7 @@ final class OrderWriter
                     'currency' => 'EUR',
                 ], $born, 'position:'.($i + 1));
 
-                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed, $born === null ? null : $born.':nachweis:'.($i + 1), $combinations[$i] ?? null);
+                self::freeze($orderLine, $vehicle, (int) $line['wheelConfigId'], $verdicts[$i], $mixed, $born === null ? null : $born.':nachweis:'.($i + 1), $combinations[$i] ?? null, $sets[$i] ?? null);
             }
 
             $tpms = $totals['tpms'] ?? [];
@@ -213,9 +235,13 @@ final class OrderWriter
      * @param  array<string, mixed>|null  $mixed
      * @param  string|null  $demoRef  the snapshot's own ref where the order is born demo (R-12: fixed at insert)
      */
-    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null, ?string $demoRef = null, ?CombinationVerdict $combination = null): void
+    private static function freeze(OrderLine $line, Vehicle $vehicle, int $configId, FitmentVerdict $verdict, ?array $mixed = null, ?string $demoRef = null, ?CombinationVerdict $combination = null, ?WheelSet $set = null): void
     {
         $record = $verdict->toArray();
+
+        if ($set !== null) {
+            $record['versions'] = ['FRONT' => $set->front->toArray(), 'REAR' => $set->rear->toArray()];
+        }
 
         if ($mixed !== null) {
             unset($mixed['setKey']);
@@ -231,7 +257,7 @@ final class OrderWriter
             'order_line_id' => $line->id,
             'vehicle_id' => $vehicle->id,
             'wheel_config_id' => $configId,
-            'fitment_id' => $verdict->snapshot->fitmentId,
+            'fitment_id' => ($set === null ? $verdict : ($mixed['axle'] === 'REAR' ? $set->rear : $set->front))->snapshot->fitmentId,
             'approval_document_id' => $verdict->document?->id,
             'document_revision' => $verdict->snapshot->documentRevision ?? $verdict->document?->revision,
             'verdict' => $record,
@@ -334,7 +360,8 @@ final class OrderWriter
         $wheel = trim($line['brandName'].' '.$line['title']).' · '.$line['subtitle'].' · '.$line['sizeLabel'];
 
         if (($line['isSet'] ?? false) !== true) {
-            return $wheel;
+            // `Felge Vorderachse: …`: two versions, one line per axle.
+            return is_array($line['mixed'] ?? null) ? 'Felge '.$line['mixed']['axleLabel'].': '.$wheel : $wheel;
         }
 
         // The tyre as the workshop fits it: brand, profile and size. Its `label` is the EU label, an array — read as text

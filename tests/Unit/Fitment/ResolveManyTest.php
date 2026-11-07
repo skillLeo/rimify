@@ -132,6 +132,11 @@ it('reads the rows and the configurations once for the whole batch', function ()
             return $this->inner->publishedRowsFor($vehicleId, $wheelConfigIds);
         }
 
+        public function wheelSetsFor(int $vehicleId, array $wheelConfigIds): array
+        {
+            return $this->inner->wheelSetsFor($vehicleId, $wheelConfigIds);
+        }
+
         public function configsWithPublishedDocument(array $wheelConfigIds): array
         {
             $this->calls['documented'] = ($this->calls['documented'] ?? 0) + 1;
