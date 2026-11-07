@@ -1192,6 +1192,8 @@ final readonly class FitmentResolver
      * @param  list<FitmentRow>  $covering
      * @param  array{loadIndex: int, speedSymbol: string, field: string}|null  $papers
      * @param  array{axleLoadFrom: string|null, topSpeedFrom: string|null}|null  $provenance  where the figures came from, where the customer's own took part
+     * @param  TyreSize|null  $only  this size's own minimum (D-431): what the documents print beside it, its own Auflagen and
+     *                               its rows', and the axle's figures — never what they print beside another size
      * @return array{0: AxleRequirement, 1: array<string, mixed>}
      */
     private function axleRequirement(
@@ -1203,6 +1205,7 @@ final readonly class FitmentResolver
         ?array $papers = null,
         ?array $provenance = null,
         bool $speedFromDocument = false,
+        ?TyreSize $only = null,
     ): array {
         $sizes = null;
         $sizeLoadIndex = null;
@@ -1227,6 +1230,10 @@ final readonly class FitmentResolver
             // A size the document prints more than once for the car — at two kW bands, with two load
             // indexes — is one size to the customer, carrying what every entry asks (mergeSameSizes()).
             $rowSizes = $this->mergeSameSizes(array_values(array_filter($row->tyreSizesForAxle($axle), static fn (TyreSize $size): bool => $size->allowsPower($powerKw))));
+
+            if ($only !== null) {
+                $rowSizes = array_values(array_filter($rowSizes, static fn (TyreSize $size): bool => $size->matches($only)));
+            }
 
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);
@@ -1375,6 +1382,23 @@ final readonly class FitmentResolver
             }
         }
 
+        // Each size's own minimum beside the axle's strictest (D-431): the same rules, read from that size alone. Never
+        // where the axle has one size — its own is the axle's.
+        $bySize = [];
+
+        if ($only === null && $sizes !== null && count($sizes) > 1) {
+            foreach ($sizes as $size) {
+                [$own] = $this->axleRequirement($covering, $axleLoadKg, $maxSpeedKmh, $axle, $powerKw, $papers, $provenance, $speedFromDocument, $size);
+                $bySize[] = [
+                    'key' => $size->key(),
+                    'minLoadIndex' => $own->minLoadIndex,
+                    'minSpeedSymbol' => $own->minSpeedSymbol,
+                    'minLoadSource' => $own->minLoadSource->value,
+                    'minSpeedSource' => $own->minSpeedSource->value,
+                ];
+            }
+        }
+
         return [
             new AxleRequirement(
                 sizes: $sizes ?? [],
@@ -1394,6 +1418,7 @@ final readonly class FitmentResolver
                     ...$provenance,
                     ...($papers === null ? [] : ['papersLoadIndex' => $papers['loadIndex'], 'papersSpeedSymbol' => $papers['speedSymbol']]),
                 ],
+                bySize: $bySize,
             ),
             [
                 'axle' => $axle,
