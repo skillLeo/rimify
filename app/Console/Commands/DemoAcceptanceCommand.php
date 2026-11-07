@@ -8,6 +8,7 @@ use App\Domain\Storefront\VehicleKey;
 use App\Models\Vehicle;
 use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Demo\AcceptanceShelf;
+use App\Services\Demo\AcceptanceTrialPaper;
 use App\Services\Demo\AcceptanceWheelSet;
 use Illuminate\Console\Command;
 use RuntimeException;
@@ -25,7 +26,8 @@ final class DemoAcceptanceCommand extends Command
         {--neben-gleicher-pdf : Write the set beside a real Gutachten that is the very same PDF file (the operator\'s decision for the client\'s preview, 14.10.2026)}
         {--beispiel-pdfs : Give a set already written its marked example copies of the Gutachten PDFs, in place (decision 6, 17.10.2026)}
         {--regal : Also three demonstration rims for the homepage shelf, stars and „Anfrage“ (AcceptanceShelf, 29.10.2026)}
-        {--satz : Also a fourth demo car on a paper naming 18 inch in front and 19 behind (AcceptanceWheelSet, 07.11.2026)}';
+        {--satz : Also a fourth demo car on a paper naming 18 inch in front and 19 behind (AcceptanceWheelSet, 07.11.2026)}
+        {--ausprobieren : Also a draft paper „Demo – zum Ausprobieren“ to click through the five steps on (AcceptanceTrialPaper, 07.11.2026)}';
 
     protected $description = 'Write the acceptance set the client reviews his list in (local, staging and testing only)';
 
@@ -36,9 +38,9 @@ final class DemoAcceptanceCommand extends Command
             return $this->shelf();
         }
 
-        // The set of two versions alone, beside a set already written (the operator's brief of 07.11.2026).
-        if ($this->option('satz') && ! $this->option('abnahme')) {
-            return $this->wheelSet();
+        // The set of two versions and the draft to try the five steps on, alone, beside a set already written (07.11.2026).
+        if (($this->option('satz') || $this->option('ausprobieren')) && ! $this->option('abnahme')) {
+            return $this->extras();
         }
 
         if (! $this->option('abnahme')) {
@@ -91,7 +93,34 @@ final class DemoAcceptanceCommand extends Command
             return self::FAILURE;
         }
 
-        return $this->option('satz') ? $this->wheelSet() : self::SUCCESS;
+        return $this->extras();
+    }
+
+    /** What --satz and --ausprobieren add beside the set; each writes nothing twice. */
+    private function extras(): int
+    {
+        if ($this->option('satz') && $this->wheelSet() !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        return $this->option('ausprobieren') ? $this->trialPaper() : self::SUCCESS;
+    }
+
+    private function trialPaper(): int
+    {
+        try {
+            $written = (new AcceptanceTrialPaper)->seed();
+        } catch (RuntimeException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info($written === []
+            ? 'Der Entwurf „'.AcceptanceTrialPaper::NUMBER.'“ ist schon da.'
+            : 'Entwurf „'.AcceptanceTrialPaper::NUMBER.'“ angelegt, als Demodaten: Admin › Gutachten öffnet ihn bei Schritt 2.');
+
+        return self::SUCCESS;
     }
 
     private function wheelSet(): int
