@@ -50,20 +50,20 @@ final class EntryLineRules
     private static function why(array $tyre): ?string
     {
         if ($tyre['width'] < 125 || $tyre['width'] > 355) {
-            return 'Die Reifenbreite bitte in Millimetern, zwischen 125 und 355.';
+            return 'Gib die Reifenbreite in Millimetern an, zwischen 125 und 355.';
         }
 
         if ($tyre['aspect'] < 25 || $tyre['aspect'] > 85) {
-            return 'Den Querschnitt bitte als Zahl zwischen 25 und 85.';
+            return 'Gib den Querschnitt als Zahl zwischen 25 und 85 an.';
         }
 
         if ($tyre['diameter'] < 12 || $tyre['diameter'] > 26) {
-            return 'Den Felgendurchmesser des Reifens bitte in Zoll, zwischen 12 und 26.';
+            return 'Gib den Durchmesser hinter dem R in Zoll an, zwischen 12 und 26.';
         }
 
         // „gibt es nicht“ would say more than we know: an index above 120 exists, only its capacity is not on record (D-310).
         if ($tyre['li'] !== null && ! DB::table('load_index_table')->where('load_index', $tyre['li'])->exists()) {
-            return 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.';
+            return 'Diesen Lastindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.';
         }
 
         return null;

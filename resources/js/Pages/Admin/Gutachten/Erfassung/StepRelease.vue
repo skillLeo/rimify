@@ -8,6 +8,7 @@
 
 import { router } from '@inertiajs/vue3'
 import { computed, nextTick, onMounted, ref } from 'vue'
+import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
 import ReleaseDialog from '../ReleaseDialog.vue'
@@ -27,11 +28,24 @@ const legendOpen = ref(false)
 const releaseOpen = ref(false)
 const busy = ref<number | null>(null)
 const failure = ref('')
+/* A cell with something typed in it, or a car's last: asked before it goes. */
+const dropping = ref<CarView | null>(null)
+const dropOpen = computed({
+    get: () => dropping.value !== null,
+    set: (open: boolean) => {
+        if (!open) {
+            dropping.value = null
+        }
+    },
+})
+const cellBusy = ref(false)
 
 const cars = computed(() => state.entry.cars)
 const combinations = computed(() => state.entry.combinations)
 const vehicles = computed(() => distinctCars(cars.value))
 const empty = computed(() => cars.value.filter((car) => !car.done))
+/* A list needs a car's tyres to speak of: until it has any, its empty cell says all there is. */
+const unreachable = computed(() => state.entry.unreachable.filter((item) => cars.value.some((car) => car.vehicleId === item.vehicleId && car.lines > 0)))
 const unproven = computed(() => vehicles.value.filter((car) => car.unsourced))
 const codes = computed(() => state.entry.undescribed)
 const rows = computed(() => page.props.rowsTotal ?? 0)
@@ -57,8 +71,37 @@ function cell(vehicleId: number, combinationId: number): CarView | undefined {
     return cars.value.find((car) => car.vehicleId === vehicleId && car.combinationId === combinationId)
 }
 
+const isLastCell = (car: CarView): boolean => cars.value.filter((other) => other.vehicleId === car.vehicleId).length === 1
+
+function askDrop(car: CarView): void {
+    if (car.lines + car.unread + car.codes > 0 || isLastCell(car)) {
+        dropping.value = car
+    } else {
+        void dropCell(car)
+    }
+}
+
+const dropBody = computed(() => {
+    const car = dropping.value
+
+    if (car === null) {
+        return ''
+    }
+
+    const typed = car.lines + car.unread + car.codes > 0 ? 'Was in diesem Feld eingetragen ist, wird gelöscht. ' : ''
+    const leaves = isLastCell(car) ? 'Es ist das letzte Feld dieses Fahrzeugs: Das Fahrzeug fällt damit aus dieser Erfassung.' : 'Das Fahrzeug bleibt mit seinen anderen Feldern in der Erfassung.'
+
+    return `${typed}${leaves}`
+})
+
 /* „Gilt nicht für dieses Fahrzeug“: a car stays on the paper by its other combinations. The door stops asking for this one. */
 async function dropCell(car: CarView): Promise<void> {
+    // One request, however often it is pressed: the second would only fail, and say so over one that worked.
+    if (cellBusy.value) {
+        return
+    }
+
+    cellBusy.value = true
     failure.value = ''
 
     try {
@@ -66,10 +109,18 @@ async function dropCell(car: CarView): Promise<void> {
         refresh()
     } catch (error) {
         failure.value = error instanceof Error ? error.message : 'Das hat nicht geklappt.'
+    } finally {
+        dropping.value = null
+        cellBusy.value = false
     }
 }
 
 async function addCell(vehicleId: number, combinationId: number): Promise<void> {
+    if (cellBusy.value) {
+        return
+    }
+
+    cellBusy.value = true
     failure.value = ''
 
     try {
@@ -77,6 +128,8 @@ async function addCell(vehicleId: number, combinationId: number): Promise<void> 
         refresh()
     } catch (error) {
         failure.value = error instanceof Error ? error.message : 'Das hat nicht geklappt.'
+    } finally {
+        cellBusy.value = false
     }
 }
 
@@ -156,7 +209,9 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                     <tr>
                         <th scope="col">Fahrzeug</th>
                         <th scope="col">Feld K</th>
-                        <th v-for="combination in combinations" :key="combination.id" scope="col">{{ combination.label }}</th>
+                        <th v-for="combination in combinations" :key="combination.id" scope="col">
+                            <span v-for="part in combination.label.split(' · ')" :key="part" class="ef-matrix__head">{{ part }}</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -164,18 +219,18 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                         <td data-label="Fahrzeug"><span class="adm-table__key">{{ car.label }}</span><span v-if="car.finish || car.axle !== 'ALL'" class="adm-tag adm-tag--neutral ef-matrix__scope">{{ [car.finish ? `nur ${car.finish}` : '', car.axle === 'FRONT' ? 'nur Vorderachse' : car.axle === 'REAR' ? 'nur Hinterachse' : ''].filter(Boolean).join(' · ') }}</span></td>
                         <td data-label="Feld K">{{ car.k ?? '–' }}</td>
                         <td v-for="combination in combinations" :key="combination.id" :data-label="combination.label">
-                            <template v-if="cell(car.vehicleId, combination.id)">
-                                <button class="ef-cellbtn" :class="{ 'ef-cellbtn--empty': !cell(car.vehicleId, combination.id)!.done || cell(car.vehicleId, combination.id)!.conflict }" type="button" @click="jump(cell(car.vehicleId, combination.id)!)">
+                            <div v-if="cell(car.vehicleId, combination.id)" class="ef-matrix__cell">
+                                <button class="ef-cellbtn" :class="{ 'ef-cellbtn--empty': !cell(car.vehicleId, combination.id)!.done || cell(car.vehicleId, combination.id)!.unread > 0 || cell(car.vehicleId, combination.id)!.conflict }" type="button" @click="jump(cell(car.vehicleId, combination.id)!)">
                                     {{ carSummary(cell(car.vehicleId, combination.id)!) }}
                                     <span v-if="cell(car.vehicleId, combination.id)!.conflict" class="adm-tag adm-tag--warn">Prüfen</span>
                                     <span v-if="cell(car.vehicleId, combination.id)!.copiedFrom" class="adm-tag adm-tag--neutral">kopiert von {{ cell(car.vehicleId, combination.id)!.copiedFrom }}</span>
                                 </button>
-                                <button v-if="state.editable && combinations.length > 1 && !cell(car.vehicleId, combination.id)!.done" class="ef-link ef-matrix__drop" type="button" @click="dropCell(cell(car.vehicleId, combination.id)!)">Gilt nicht für dieses Fahrzeug</button>
-                            </template>
-                            <template v-else>
+                                <button v-if="state.editable && combinations.length > 1 && !cell(car.vehicleId, combination.id)!.done" class="ef-link ef-matrix__drop" type="button" :aria-label="`Gilt nicht für dieses Fahrzeug: ${combination.label}`" @click="askDrop(cell(car.vehicleId, combination.id)!)">Gilt nicht</button>
+                            </div>
+                            <div v-else class="ef-matrix__cell">
                                 <span class="quiet">gilt nicht</span>
                                 <button v-if="state.editable" class="ef-link ef-matrix__drop" type="button" @click="addCell(car.vehicleId, combination.id)">Wieder aufnehmen</button>
-                            </template>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
@@ -184,10 +239,28 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
         <p v-if="failure" class="adm-alert" role="alert">{{ failure }}</p>
 
+        <!-- Why the button below is off, next to what it speaks of. -->
+        <div v-if="blockers.length" id="ef-open-points" class="ef-blockers" role="status" tabindex="-1" data-dialog-fallback>
+            <p class="ef-blockers__title">Noch offen vor der Freigabe</p>
+            <ul class="ef-blockers__list">
+                <li v-for="line in blockers" :key="line">{{ line }}</li>
+            </ul>
+            <button v-if="state.editable && blockers.some((line) => line.includes('Auflagenverzeichnis'))" class="ef-link" type="button" @click="legendOpen = true">Auflagenverzeichnis öffnen</button>
+        </div>
+
+        <AdminConfirm
+            v-model:open="dropOpen"
+            title="Gilt nicht für dieses Fahrzeug?"
+            :body="dropBody"
+            confirm-label="Feld entfernen"
+            :busy="cellBusy"
+            @confirm="dropping && dropCell(dropping)"
+        />
+
         <div class="ef-checks">
             <section v-if="state.entry.conflicts.length" class="ef-check" aria-labelledby="ef-conflict-h">
-                <h3 id="ef-conflict-h" class="ef-check__title">Gleiche Betriebserlaubnis, andere Kombinationen</h3>
-                <p class="adm-note">Der Shop speichert Kombinationen je Betriebserlaubnis (Feld K). Ein Fahrzeug bekäme hier eine Kombination, die bei ihm nicht eingetragen ist. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem: „Kopieren nach …“ gleicht sie an.</p>
+                <h3 id="ef-conflict-h" class="ef-check__title">Gleiche Betriebserlaubnis, andere Reifenkombinationen</h3>
+                <p class="adm-note">Der Shop speichert Reifenkombinationen je Betriebserlaubnis (Feld K). Ein Fahrzeug bekäme hier eine Reifenkombination, die bei ihm nicht eingetragen ist. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem: „Kopieren nach …“ gleicht sie an.</p>
                 <ul class="ef-check__list">
                     <li v-for="conflict in state.entry.conflicts" :key="`${conflict.entryId}-${conflict.pair}`" class="ef-check__item">
                         <span><strong>{{ conflict.car }}</strong><template v-if="conflict.several"> · {{ conflict.combination }}</template> · Feld K {{ conflict.k }} · {{ conflict.pair }}<template v-if="conflict.others.length">, eingetragen bei {{ conflict.others.join(', ') }}</template></span>
@@ -196,11 +269,11 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                 </ul>
             </section>
 
-            <section v-if="state.entry.unreachable.length" class="ef-check" aria-labelledby="ef-reach-h">
-                <h3 id="ef-reach-h" class="ef-check__title">Fahrzeuge, denen der Shop keine Kombination zuordnen kann</h3>
-                <p class="adm-note">Der Shop ordnet Kombinationen über die EG-Nummer in Feld K zu. Bei diesen Fahrzeugen ist keine hinterlegt, oder sie passt zu keinem Eintrag. Ihre Felge lässt sich freigeben, ihre Reifen bleiben im Shop „Noch nicht bestätigt“.</p>
+            <section v-if="unreachable.length" class="ef-check" aria-labelledby="ef-reach-h">
+                <h3 id="ef-reach-h" class="ef-check__title">Fahrzeuge, denen der Shop keine Reifenkombination zuordnen kann</h3>
+                <p class="adm-note">Der Shop ordnet Reifenkombinationen über die EG-Nummer in Feld K zu. Bei diesen Fahrzeugen ist keine hinterlegt, oder sie passt zu keinem Eintrag. Ihre Felge lässt sich freigeben, ihre Reifen bleiben im Shop „Noch nicht bestätigt“.</p>
                 <ul class="ef-check__list">
-                    <li v-for="car in state.entry.unreachable" :key="car.vehicleId" class="ef-check__item">
+                    <li v-for="car in unreachable" :key="car.vehicleId" class="ef-check__item">
                         <span><strong>{{ car.car }}</strong> · Feld K {{ car.k ?? 'nicht hinterlegt' }}</span>
                     </li>
                 </ul>
@@ -256,17 +329,11 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
         <PreviewSection />
 
-        <div v-if="blockers.length" class="ef-blockers" role="status" tabindex="-1" data-dialog-fallback>
-            <p class="ef-blockers__title">Noch offen vor der Freigabe</p>
-            <ul class="ef-blockers__list">
-                <li v-for="line in blockers" :key="line">{{ line }}</li>
-            </ul>
-            <button v-if="state.editable && blockers.some((line) => line.includes('Auflagenverzeichnis'))" class="ef-link" type="button" @click="legendOpen = true">Auflagenverzeichnis öffnen</button>
-        </div>
         <p v-if="releaseError" class="adm-alert" role="alert">{{ releaseError }}</p>
 
         <div class="ef-actions">
             <button class="btn btn--secondary ef-actions__left" type="button" @click="store.go(3)">Zurück</button>
+            <a v-if="blockers.length" class="ef-link ef-actions__why" href="#ef-open-points">{{ blockers.length === 1 ? '1 Punkt offen' : `${decimal(blockers.length, 0)} Punkte offen` }}</a>
             <button v-if="page.props.can.release" class="btn btn--primary" type="button" :disabled="blockers.length > 0" @click="releaseOpen = true">
                 <Icon name="publish" :size="20" />
                 Freigeben
@@ -293,6 +360,37 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
 .ef-matrix {
     margin-top: var(--sp-16);
+}
+
+/* Each axle on its own line: four combinations stay readable side by side. */
+.ef-matrix__head {
+    display: block;
+    white-space: nowrap;
+}
+
+.ef-matrix__cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-4) var(--sp-8);
+    min-height: 24px;
+}
+
+/* The exception is quieter than the gap it answers. */
+.ef-matrix__drop {
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+}
+
+/* Scrolling sideways never loses the cars. */
+@media (min-width: 768px) {
+    .ef-matrix :is(th, td):first-child {
+        position: sticky;
+        left: 0;
+        z-index: var(--z-raised);
+        min-width: calc(24 * var(--ch-text));
+        background: var(--c-surface);
+    }
 }
 
 .ef-cellbtn {

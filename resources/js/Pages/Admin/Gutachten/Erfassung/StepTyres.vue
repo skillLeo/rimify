@@ -213,19 +213,25 @@ const percent = computed(() => (cars.value.length === 0 ? 0 : Math.round((done.v
 }
 
 .ef-todo__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: var(--fs-small);
     line-height: var(--lh-small);
     font-weight: 600;
 }
 
+.ef-todo__name,
 .ef-todo__size {
-    grid-row: 2;
+    grid-column: 1;
+}
+
+.ef-todo__size {
     color: var(--c-ink-2);
     font-size: var(--fs-micro);
 }
 
 .ef-todo__state {
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
     grid-column: 2;
     align-self: center;
 }

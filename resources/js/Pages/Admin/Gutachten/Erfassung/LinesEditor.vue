@@ -31,7 +31,7 @@ const store = useEntry()
 const { state } = store
 
 const KW_UNREAD = 'Noch nicht gespeichert: Den kW-Bereich können wir nicht lesen. So geht es: 85-142, der kleinere Wert zuerst.'
-const PAGE_UNREAD = 'Die Seite bitte als ganze Zahl ab 1.'
+const PAGE_UNREAD = 'Gib die Seite als ganze Zahl ab 1 an.'
 
 const loading = ref(true)
 const loadFailed = ref(false)
@@ -337,7 +337,7 @@ async function copy(): Promise<void> {
         </header>
 
         <p v-if="car.conflict" class="ef-warn" role="status">
-            Dieses Fahrzeug teilt seine Betriebserlaubnis mit mindestens einem anderen, und die Kombinationen unterscheiden sich. Welche Kombination es ist, steht in Schritt 5. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.
+            Dieses Fahrzeug teilt seine Betriebserlaubnis mit mindestens einem anderen, und die Reifenkombinationen unterscheiden sich. Welche es ist, steht in Schritt 5. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.
         </p>
 
         <p v-if="loading" class="adm-note">Wird geladen …</p>
@@ -354,7 +354,7 @@ async function copy(): Promise<void> {
                     <li v-for="(line, i) in lines" :key="line.key" class="ef-line">
                         <div class="ef-pairfields">
                             <label class="ef-pairfields__field">
-                                <span class="form-field__label" :class="{ 'visually-hidden': i > 0 }">Vorne</span>
+                                <span class="form-field__label" :class="{ 'ef-pairfields__label--rest': i > 0 }">Vorne</span>
                                 <input
                                     :id="`ef-front-${line.key}`"
                                     class="input"
@@ -372,7 +372,7 @@ async function copy(): Promise<void> {
                                 <span :class="sideHint(line, 'front').ok ? 'ef-line__hint' : 'ef-line__error'">{{ sideHint(line, 'front').text }}</span>
                             </label>
                             <label class="ef-pairfields__field">
-                                <span class="form-field__label" :class="{ 'visually-hidden': i > 0 }">Hinten</span>
+                                <span class="form-field__label" :class="{ 'ef-pairfields__label--rest': i > 0 }">Hinten</span>
                                 <input
                                     :id="`ef-rear-${line.key}`"
                                     class="input"
@@ -561,6 +561,10 @@ async function copy(): Promise<void> {
 
 /* A line is a row, not a box: one hairline above it, the fields inside it the only frames (admin-shell §2.5). The sizes take the
    width, the codes the line beneath: „HL 255/35 R20 100“ must fit without a scroll. */
+[data-editor-wheel] {
+    overflow-wrap: anywhere;
+}
+
 .ef-line {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -660,8 +664,19 @@ async function copy(): Promise<void> {
 /* Beside each other where „HL 255/35 R20 100“ fits in a field, one above the other where it would be cut. */
 .ef-pairfields {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(24 * var(--ch-text))), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(18 * var(--ch-text))), 1fr));
     gap: var(--sp-8);
+}
+
+/* Under the first line the columns name the fields; one above the other on a phone, every line names its own. */
+@media (min-width: 768px) {
+    .ef-pairfields__label--rest {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
 }
 
 /* A hint that wraps in one of them never moves the field in the other. */

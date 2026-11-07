@@ -87,7 +87,7 @@ class GutachtenSucheController extends Controller
                 'configId' => (int) $config->id,
                 'diameter' => (float) $config->diameter_in,
                 'short' => GermanFormat::trimmedDecimal($config->width_in).' × '.GermanFormat::trimmedDecimal($config->diameter_in, 1).' '.GermanFormat::offset($config->et_mm),
-                'detail' => GermanFormat::boltPattern($config->bolt_holes, $config->bolt_circle_mm).' · Mittenloch '.GermanFormat::trimmedDecimal($config->centre_bore_mm, 2).' mm',
+                'detail' => GermanFormat::boltPattern($config->bolt_holes, $config->bolt_circle_mm).' · Mittenlochbohrung '.GermanFormat::trimmedDecimal($config->centre_bore_mm, 2).' mm',
                 'label' => GermanFormat::wheelLabel($config->width_in, $config->diameter_in, $config->et_mm, $config->bolt_holes, $config->bolt_circle_mm, $config->centre_bore_mm),
                 'colours' => [],
             ];

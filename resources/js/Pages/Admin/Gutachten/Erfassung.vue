@@ -260,6 +260,33 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
     min-height: var(--adm-control-h-lg);
 }
 
+.ef-actions__note {
+    margin: 0;
+}
+
+.ef-actions__why {
+    font-size: var(--fs-small);
+}
+
+/* On a phone the bar stands above the admin's bottom navigation, and what is pressed is a thumb wide (DIRECTION §6). */
+@media (max-width: 767px) {
+    .ef-actions {
+        bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+    }
+
+    .ef-link,
+    .ef-iconbtn,
+    .ef-more__summary,
+    .ef-side__tab {
+        min-height: var(--adm-control-h-lg);
+    }
+
+    .ef-link {
+        display: inline-flex;
+        align-items: center;
+    }
+}
+
 .ef-actions__left {
     margin-right: auto;
 }

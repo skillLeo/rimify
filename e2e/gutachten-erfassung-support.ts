@@ -141,6 +141,15 @@ export async function goToStep(page: Page, name: string): Promise<void> {
     await page.getByRole('navigation', { name: 'Schritte zum Gutachten' }).getByRole('button', { name: new RegExp(name) }).click()
 }
 
+/** The fold for the wheel as the paper prints it: optional, under the choice, and open once something stands in it. */
+export async function openPrinted(page: Page): Promise<void> {
+    const fold = page.locator('details.ef-more', { has: page.locator('#ef-printed-type-0') })
+
+    if ((await fold.getAttribute('open')) === null) {
+        await fold.locator('summary').click()
+    }
+}
+
 /** A car's lines stored: set this up before what changes them. */
 export function lineSaved(page: Page): Promise<unknown> {
     return page.waitForResponse((r) => /\/erfassung\/fahrzeuge\/\d+$/.test(new URL(r.url()).pathname) && r.request().method() === 'PUT' && r.ok(), { timeout: 15_000 })

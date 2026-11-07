@@ -13,6 +13,7 @@ use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentTyreCombination;
+use App\Models\DocumentTyreLine;
 use App\Models\DocumentWheelCombination;
 use App\Models\Fitment;
 use App\Models\Vehicle;
@@ -170,7 +171,7 @@ describe('step 2: a paper\'s wheel combinations', function (): void {
 
         // The same combination again, in any colour of those versions: refused with a sentence.
         $this->actingAs(comboAdmin(), 'admin')->postJson(comboUrl($document, '/kombinationen'), ['front_config_id' => $wheel['aBronze']->id, 'rear_config_id' => $wheel['bBronze']->id])
-            ->assertUnprocessable()->assertJsonValidationErrors(['front_config_id' => 'Diese Kombination steht schon im Gutachten.']);
+            ->assertUnprocessable()->assertJsonValidationErrors(['front_config_id' => 'Diese Kombination ist schon eingetragen.']);
 
         // „One Gutachten is always for one specific wheel“: another model, on this paper or within one combination, is refused.
         $other = WheelConfig::factory()->create(['wheel_model_id' => WheelModel::factory()->draft()->create(['is_demo' => false])->id]);
@@ -226,11 +227,59 @@ describe('step 2: a paper\'s wheel combinations', function (): void {
         expect($plain($state['warnings']))->toBe('Vorne und hinten haben verschiedene Lochkreise: 5 × 120 und 5 × 112.');
     });
 
-    it('takes the paper\'s printed rows only where they read, and never refuses the wheel for them', function (): void {
+    it('never holds the step back for what it cannot read of the paper\'s printed row: it keeps what was typed and says it cannot compare it', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
+        $wheel = comboWheel();
+        comboAdd($document, $wheel['a']);
 
-        $this->actingAs(comboAdmin(), 'admin')->putJson(comboUrl($document, '/felge'), ['printed' => [['type' => '', 'size' => 'irgendwas', 'et' => null, 'bolts' => '']]])
-            ->assertUnprocessable()->assertJsonValidationErrors('printed.0.size');
+        $answer = $this->actingAs(comboAdmin(), 'admin')->putJson(comboUrl($document, '/felge'), ['printed' => [['type' => '', 'size' => '8 J 18', 'et' => '35 mm', 'bolts' => 'fünf']]])
+            ->assertOk()->json('entry');
+
+        expect($answer['printed'][0]['size'])->toBe('8 J 18')
+            ->and($answer['printed'][0]['et'])->toBe('35 mm')
+            ->and($answer['printed'][0]['bolts'])->toBe('fünf')
+            ->and($answer['combinations'][0]['warnings'])->toContain('Eingetragen, aber nicht lesbar: 8 J 18, 35 mm, fünf. Das können wir nicht vergleichen.');
+    });
+
+    it('swaps the tyres with the wheels: axles exchanged on a combination with lines, every line still fits and nothing is lost', function (): void {
+        $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Papers)->create();
+        $wheel = comboWheel();
+        comboAdd($document, $wheel['a'], $wheel['b']);
+        $car = comboCar($document);
+        $cell = comboCell($document, $car, $wheel['a'], $wheel['b']);
+        comboLines($cell, [['225/40R18 92Y', '255/35R19 96Y']]);
+        $combination = DocumentWheelCombination::query()->where('approval_document_id', $document->id)->firstOrFail();
+
+        $this->actingAs(comboAdmin(), 'admin')->putJson(comboUrl($document, "/kombinationen/{$combination->id}"), ['front_config_id' => $wheel['b']->id, 'rear_config_id' => $wheel['a']->id])->assertOk();
+
+        $line = DocumentTyreLine::query()->where('document_car_entry_id', $cell->id)->sole();
+
+        expect((float) $line->front_diameter_in)->toBe(19.0)
+            ->and((int) $line->front_width_mm)->toBe(255)
+            ->and((int) $line->front_load_index)->toBe(96)
+            ->and((float) $line->rear_diameter_in)->toBe(18.0)
+            ->and((int) $line->rear_width_mm)->toBe(225)
+            ->and((int) $line->rear_load_index)->toBe(92);
+
+        // The rows say what the lines say: the 19-inch rim in front with the 255, the 18-inch behind with the 225.
+        expect(comboRows($document, $car)[$wheel['b']->id]['sizes'])->toBe(['255/35/19:FRONT'])
+            ->and(comboRows($document, $car)[$wheel['a']->id]['sizes'])->toBe(['225/40/18:REAR']);
+    });
+
+    it('leaves the lines as they are where the combination gets other versions, not the same two swapped', function (): void {
+        $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Papers)->create();
+        $wheel = comboWheel();
+        comboAdd($document, $wheel['a'], $wheel['b']);
+        $car = comboCar($document);
+        $cell = comboCell($document, $car, $wheel['a'], $wheel['b']);
+        comboLines($cell, [['225/40R18 92Y', '255/35R19 96Y']]);
+        $combination = DocumentWheelCombination::query()->where('approval_document_id', $document->id)->firstOrFail();
+
+        $this->actingAs(comboAdmin(), 'admin')->putJson(comboUrl($document, "/kombinationen/{$combination->id}"), ['front_config_id' => $wheel['c']->id, 'rear_config_id' => $wheel['b']->id])->assertOk();
+
+        $line = DocumentTyreLine::query()->where('document_car_entry_id', $cell->id)->sole();
+
+        expect((int) $line->front_width_mm)->toBe(225)->and((int) $line->rear_width_mm)->toBe(255);
     });
 });
 

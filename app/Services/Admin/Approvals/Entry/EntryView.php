@@ -41,9 +41,9 @@ final readonly class EntryView
                 ->map(fn (DocumentWheelCombination $combination): array => $this->combination($combination, $document))->values()->all(),
             'printed' => array_map(static fn (array $row): array => [
                 'type' => $row['type'] ?? null,
-                'size' => isset($row['width'], $row['diameter']) ? GermanFormat::trimmedDecimal($row['width']).' × '.GermanFormat::trimmedDecimal($row['diameter'], 1) : '',
-                'et' => $row['et'] ?? null,
-                'bolts' => isset($row['holes'], $row['circle']) ? $row['holes'].' × '.GermanFormat::trimmedDecimal($row['circle'], 1) : '',
+                'size' => $row['unread']['size'] ?? (isset($row['width'], $row['diameter']) ? GermanFormat::trimmedDecimal($row['width']).' × '.GermanFormat::trimmedDecimal($row['diameter'], 1) : ''),
+                'et' => $row['unread']['et'] ?? $row['et'] ?? null,
+                'bolts' => $row['unread']['bolts'] ?? (isset($row['holes'], $row['circle']) ? $row['holes'].' × '.GermanFormat::trimmedDecimal($row['circle'], 1) : ''),
             ], $document->printed_wheels ?? []),
             'cars' => $model->entries->map(fn (DocumentCarEntry $entry): array => $this->car($entry, $check['conflicts']))->values()->all(),
             'conflicts' => $check['conflicts'],
@@ -261,7 +261,11 @@ final readonly class EntryView
             }
         }
 
-        return $nearest === null || $nearest === [] ? [] : [$who.' passt nicht zu dem, was du aus dem Gutachten eingetragen hast. '.implode('; ', $nearest).'.'];
+        // What was typed and does not read cannot be compared: said, once per combination, and it blocks nothing.
+        $unread = array_merge(...array_map(static fn (array $row): array => array_values((array) ($row['unread'] ?? [])), [[], ...$printed]));
+        $said = $unread === [] ? [] : ['Eingetragen, aber nicht lesbar: '.implode(', ', $unread).'. Das können wir nicht vergleichen.'];
+
+        return $nearest === null || $nearest === [] ? $said : [$who.' passt nicht zu dem, was du aus dem Gutachten eingetragen hast. '.implode('; ', $nearest).'.', ...$said];
     }
 
     /**

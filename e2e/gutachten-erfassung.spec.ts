@@ -1,6 +1,6 @@
 import { signIn, waitForApp } from './bugs/faq-support'
 import { expect, test, type Page } from './fixtures'
-import { chooseFirstWheel, freshNumber, goToStep, lineSaved, newPaper, noSidewaysScroll, saved, searchCars } from './gutachten-erfassung-support'
+import { chooseFirstWheel, freshNumber, goToStep, lineSaved, newPaper, noSidewaysScroll, openPrinted, saved, searchCars } from './gutachten-erfassung-support'
 
 /*
  * The five steps of a Gutachten (the Gutachten rework, Phase 2, §10.3, with the client's changes of 05.11.2026): the happy path, from a
@@ -22,6 +22,7 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
     // Step 2: a wheel combination; what the paper prints is compared, and a difference warns and never blocks.
     await expect(page.getByRole('navigation', { name: 'Schritte zum Gutachten' })).toBeVisible()
     await chooseFirstWheel(page)
+    await openPrinted(page)
     await page.locator('#ef-printed-et-0').fill('77')
     await page.locator('#ef-printed-et-0').blur()
     await expect(page.locator('.ef-combo .ef-warn')).toContainText('Einpresstiefe: im Gutachten', { timeout: 15_000 })
@@ -327,7 +328,7 @@ test('step 3: a double click takes a car off with one request, and a car with ty
 
     await page.locator('.ef-chosen__car button').click()
     const confirm = page.getByRole('alertdialog').or(page.getByRole('dialog'))
-    await expect(confirm).toContainText('mit den Reifen')
+    await expect(confirm).toContainText('mit seinen eingetragenen Reifen')
     await confirm.getByRole('button', { name: 'Entfernen' }).click()
     await expect(confirm).toHaveCount(0)
     await expect(page.locator('.ef-chosen__car')).toHaveCount(0, { timeout: 15_000 })

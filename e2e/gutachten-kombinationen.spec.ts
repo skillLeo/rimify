@@ -1,6 +1,6 @@
 import { signIn } from './bugs/faq-support'
 import { expect, test, type Page } from './fixtures'
-import { chooseWheelWith, freshNumber, goToStep, lineSaved, newPaper, noSidewaysScroll, searchCars } from './gutachten-erfassung-support'
+import { chooseWheelWith, freshNumber, goToStep, lineSaved, newPaper, noSidewaysScroll, openPrinted, searchCars } from './gutachten-erfassung-support'
 
 /*
  * The client's fourth change (the operator's brief of 07.11.2026, §1–§4): a paper may allow different versions of its wheel front and
@@ -50,7 +50,7 @@ test('18 inch in front and 19 behind: a combination, its tyres per car, a matrix
 
     // The same again is refused before it is sent; a rear of another size is the second combination.
     await version(page, 0, 18).check()
-    await expect(page.locator('.ef-pick')).toContainText('Diese Kombination steht schon im Gutachten.')
+    await expect(page.locator('.ef-pick')).toContainText('Diese Kombination ist schon eingetragen.')
     await expect(page.getByRole('button', { name: 'Kombination hinzufügen' })).toBeDisabled()
     await version(page, 1, 19).check()
     await expect(page.locator('[data-pick-badge]')).toHaveText('vorne und hinten verschieden')
@@ -151,6 +151,7 @@ test('warned, never held back: a version the paper does not print, and two bolt 
     await twoDiameters(page)
 
     const saved = page.waitForResponse((r) => r.url().endsWith('/erfassung/felge') && r.request().method() === 'PUT')
+    await openPrinted(page)
     await page.locator('#ef-printed-size-0').fill('8 1/2 J X 21 H2')
     await saved
 
@@ -159,4 +160,113 @@ test('warned, never held back: a version the paper does not print, and two bolt 
     await expect(page.locator('.ef-combo .ef-warn')).toContainText('Durchmesser: im Gutachten 21 Zoll')
     await expect(page.getByRole('button', { name: 'Weiter: Fahrzeuge' })).toBeEnabled()
     await page.screenshot({ path: '/Users/apple/rimify/resume/shots-p2/step2-warn-1440.png', fullPage: true })
+})
+
+test('what was picked and not added is asked about before leaving the step; a double press removes once', async ({ page }) => {
+    await signIn(page)
+    await newPaper(page, freshNumber('E2E-ACHSEN-ASK'))
+    await twoDiameters(page)
+    await version(page, 0, 18).check()
+    await add(page)
+
+    const weiter = page.getByRole('button', { name: 'Weiter: Fahrzeuge' })
+
+    // A rear of another size, not added: the step does not move on in silence.
+    await version(page, 0, 18).check()
+    await version(page, 1, 19).check()
+    await weiter.click()
+    const question = page.getByRole('alertdialog').or(page.getByRole('dialog')).filter({ hasText: 'noch nicht eingetragen' })
+    await expect(question).toBeVisible()
+    await expect(page.locator('.ef-combo')).toHaveCount(1)
+
+    // Added and on: both are there, and the step is the next.
+    const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/kombinationen') && r.request().method() === 'POST')
+    await question.getByRole('button', { name: 'Hinzufügen und weiter' }).click()
+    await stored
+    await expect(page.locator('#ef-cars-q')).toBeVisible()
+
+    // Back on step 2: two presses on „Entfernen“ send one request, and no false alarm.
+    await goToStep(page, 'Felge')
+    await expect(page.locator('.ef-combo')).toHaveCount(2)
+    const deletes: string[] = []
+    page.on('request', (r) => {
+        if (r.method() === 'DELETE') {
+            deletes.push(r.url())
+        }
+    })
+    await page.locator('.ef-combo').nth(1).getByRole('button', { name: 'Entfernen' }).dblclick()
+    await expect(page.locator('.ef-combo')).toHaveCount(1)
+    await expect(page.locator('.ef-pick .adm-alert, .ef-step .adm-alert')).toHaveCount(0)
+    expect(deletes).toHaveLength(1)
+})
+
+test('a combination with tyres is not changed without a question: exchanged axles take the tyres with them', async ({ page }) => {
+    await signIn(page)
+    await newPaper(page, freshNumber('E2E-ACHSEN-TAUSCH'))
+    await twoDiameters(page)
+    await version(page, 0, 18).check()
+    await version(page, 1, 19).check()
+    await add(page)
+    await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click()
+    await searchCars(page, 'BMW')
+    await page.locator('.ef-hit', { hasNotText: 'Angaben für die Prüfung fehlen' }).first().locator('input').check()
+    await expect(page.locator('.ef-chosen__car')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+    await page.getByRole('button', { name: 'Kombination', exact: true }).click()
+    await page.locator('[id^=ef-front-]').first().fill('225/40 R18')
+    const saved = lineSaved(page)
+    await page.locator('[id^=ef-rear-]').first().fill('255/35 R19')
+    await page.locator('[id^=ef-rear-]').first().blur()
+    await saved
+
+    await goToStep(page, 'Felge')
+    await page.locator('.ef-combo').first().getByRole('button', { name: 'Bearbeiten' }).click()
+    await page.getByRole('button', { name: 'Achsen tauschen' }).click()
+    await page.getByRole('button', { name: 'Änderung speichern' }).click()
+    const question = page.getByRole('alertdialog').or(page.getByRole('dialog')).filter({ hasText: 'Reifen tauschen mit' })
+    await expect(question).toBeVisible()
+    await question.getByRole('button', { name: 'Achsen tauschen' }).click()
+    await expect(page.locator('.ef-combo').first()).toContainText(/Vorne 8,5 × 19/)
+
+    await goToStep(page, 'Reifen')
+    await expect(page.locator('[id^=ef-front-]').first()).toHaveValue(/255\/35 ?R ?19/)
+    await expect(page.locator('[id^=ef-rear-]').first()).toHaveValue(/225\/40 ?R ?18/)
+    await expect(page.locator('.ef-line [role="alert"], .form-field__error:not(:empty)')).toHaveCount(0)
+})
+
+test('step 5 asks before „Gilt nicht“ deletes what was typed, and says when the car leaves', async ({ page }) => {
+    await signIn(page)
+    await newPaper(page, freshNumber('E2E-ACHSEN-ZELLE'))
+    await twoDiameters(page)
+    await version(page, 0, 18).check()
+    await add(page)
+    await version(page, 0, 19).check()
+    await add(page)
+    await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click()
+    await searchCars(page, 'BMW')
+    await page.locator('.ef-hit', { hasNotText: 'Angaben für die Prüfung fehlen' }).first().locator('input').check()
+    await expect(page.locator('.ef-chosen__car')).toHaveCount(1)
+    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+
+    // A tyre that does not fit: the cell is not done, and has something typed in it.
+    await page.getByRole('button', { name: 'Kombination', exact: true }).click()
+    const saved = lineSaved(page)
+    await page.locator('[id^=ef-front-]').first().fill('225/40 R17')
+    await page.locator('[id^=ef-front-]').first().blur()
+    await saved
+
+    await goToStep(page, 'Freigeben')
+    const drop = page.getByRole('button', { name: /Gilt nicht/ }).first()
+    await expect(page.locator('.ef-cellbtn--empty').first()).toBeVisible()
+    let deleted = 0
+    page.on('request', (r) => {
+        deleted += r.method() === 'DELETE' ? 1 : 0
+    })
+    await drop.click()
+    const question = page.getByRole('alertdialog').or(page.getByRole('dialog')).filter({ hasText: 'gelöscht' })
+    await expect(question).toBeVisible()
+    expect(deleted).toBe(0)
+    await question.getByRole('button', { name: 'Abbrechen' }).click()
+    await expect(question).toBeHidden()
+    expect(deleted).toBe(0)
 })

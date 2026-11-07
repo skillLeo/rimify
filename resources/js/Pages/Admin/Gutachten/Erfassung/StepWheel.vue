@@ -77,6 +77,10 @@ const removeOpen = computed({
     },
 })
 const busy = ref(false)
+/* A combination with tyres entered: asked before its versions change. */
+const changeOpen = ref(false)
+/* Picked and not added: asked before the step is left. */
+const leaveOpen = ref(false)
 
 const versions = computed(() => model.value?.sizes ?? [])
 const front = computed(() => versions.value.find((version) => version.key === frontKey.value) ?? null)
@@ -85,6 +89,36 @@ const same = computed(() => front.value !== null && front.value.key === rear.val
 const duplicate = computed(() => combinations.value.some((c) => c.id !== editing.value && c.frontKey === frontKey.value && c.rearKey === rearKey.value))
 const boltsDiffer = computed(() => front.value !== null && rear.value !== null && boltsOf(front.value) !== boltsOf(rear.value))
 const diametersDiffer = computed(() => front.value !== null && rear.value !== null && front.value.diameter !== rear.value.diameter)
+const editingNow = computed(() => combinations.value.find((c) => c.id === editing.value) ?? null)
+/* The same two versions with the axles exchanged: the tyres go with them. */
+const swapping = computed(() => {
+    const was = editingNow.value
+
+    return was !== null && !was.same && was.frontKey === rearKey.value && was.rearKey === frontKey.value
+})
+/* Picked and not on the list yet: a change of one, or a new one that is not there. */
+const pending = computed(() => {
+    if (front.value === null || rear.value === null || duplicate.value) {
+        return false
+    }
+
+    const was = editingNow.value
+
+    return was === null ? combinations.value.every((c) => c.frontKey !== frontKey.value || c.rearKey !== rearKey.value) : was.frontKey !== frontKey.value || was.rearKey !== rearKey.value
+})
+const pendingLabel = computed(() => (same.value ? `Vorne und hinten ${front.value?.short ?? ''}` : `Vorne ${front.value?.short ?? ''} · Hinten ${rear.value?.short ?? ''}`))
+
+function filled(id: number): boolean {
+    return state.entry.cars.some((car) => car.combinationId === id && car.lines + car.unread + car.codes > 0)
+}
+
+const changeBody = computed(() => {
+    const label = editingNow.value?.label ?? ''
+
+    return swapping.value
+        ? `Bei ${label} sind schon Reifen eingetragen. Die Reifen tauschen mit: Was vorne steht, steht danach hinten.`
+        : `Bei ${label} sind schon Reifen eingetragen. Sie bleiben stehen. Was nicht mehr zur neuen Felge passt, ist in Schritt 4 markiert, und die Freigabe wartet darauf.`
+})
 
 /* The bolt pattern as the version's detail line starts: „5 × 120 · Mittenloch 72,5 mm“. */
 function boltsOf(version: Version): string {
@@ -135,8 +169,15 @@ async function save(): Promise<void> {
         return
     }
 
+    if (editing.value !== null && !changeOpen.value && pending.value && filled(editing.value)) {
+        changeOpen.value = true
+
+        return
+    }
+
     busy.value = true
     failure.value = ''
+    changeOpen.value = false
 
     try {
         const body = { front_config_id: front.value.configId, rear_config_id: rear.value.configId }
@@ -157,9 +198,7 @@ async function save(): Promise<void> {
 
 /* A combination with tyres entered asks first; an empty one goes at once. */
 function askRemove(combination: CombinationView): void {
-    const filled = state.entry.cars.some((car) => car.combinationId === combination.id && car.lines + car.unread + car.codes > 0)
-
-    if (filled) {
+    if (filled(combination.id)) {
         removing.value = combination
     } else {
         void remove(combination)
@@ -167,6 +206,12 @@ function askRemove(combination: CombinationView): void {
 }
 
 async function remove(combination: CombinationView): Promise<void> {
+    // One request, however often it is pressed: the second would only fail, and say so over one that worked.
+    if (busy.value) {
+        return
+    }
+
+    busy.value = true
     failure.value = ''
 
     try {
@@ -179,12 +224,38 @@ async function remove(combination: CombinationView): Promise<void> {
         failure.value = error instanceof Refused ? Object.values(error.errors)[0]?.[0] ?? error.message : error instanceof Error ? error.message : 'Das wurde nicht gespeichert.'
     } finally {
         removing.value = null
+        busy.value = false
+    }
+}
+
+/* Picked and not added never goes in silence: asked, or the step goes on. */
+function leave(): void {
+    if (pending.value) {
+        leaveOpen.value = true
+
+        return
+    }
+
+    resetChoice()
+    void go(2)
+}
+
+async function addAndLeave(): Promise<void> {
+    leaveOpen.value = false
+    // Asked once here: a change of a filled combination is what this question already said.
+    changeOpen.value = editing.value !== null
+    await save()
+
+    if (failure.value === '') {
+        void go(2)
     }
 }
 
 /* ── What the paper prints ───────────────────────────────────────────────────────────────────── */
 
 const blankRow = (): PrintedForm => ({ type: '', size: '', et: '', bolts: '' })
+/* Open once anything of the paper's own is entered: read as it was typed, never tucked away. */
+const printedFilled = computed(() => state.entry.printed.length > 0)
 const printed = reactive<PrintedForm[]>(
     state.entry.printed.length > 0
         ? state.entry.printed.map((row) => ({ type: row.type ?? '', size: row.size, et: row.et === null ? '' : String(row.et), bolts: row.bolts }))
@@ -262,11 +333,26 @@ watch(query, () => {
     }
 })
 
-/* A model's every version, whatever the search above left out. */
-async function loadModel(id: number): Promise<void> {
-    const answer = await send<{ groups: ModelHit[] }>('GET', `/admin/gutachten/suche/felgen?q=&modell=${id}`)
+/* A model's every version, whatever the search above left out. A late answer never reopens one someone has left. */
+const modelFailed = ref<number | null>(null)
+let modelAsked = 0
 
-    model.value = answer.groups[0] ?? null
+async function loadModel(id: number): Promise<void> {
+    const mine = ++modelAsked
+
+    modelFailed.value = null
+
+    try {
+        const answer = await send<{ groups: ModelHit[] }>('GET', `/admin/gutachten/suche/felgen?q=&modell=${id}`)
+
+        if (mine === modelAsked) {
+            model.value = answer.groups[0] ?? null
+        }
+    } catch {
+        if (mine === modelAsked) {
+            modelFailed.value = id
+        }
+    }
 }
 
 async function chooseModel(hit: ModelHit): Promise<void> {
@@ -277,6 +363,8 @@ async function chooseModel(hit: ModelHit): Promise<void> {
 }
 
 function otherModel(): void {
+    modelAsked++
+    modelFailed.value = null
     model.value = null
     resetChoice()
     void search()
@@ -343,36 +431,11 @@ onBeforeUnmount(() => {
                     </p>
                 </div>
 
-                <fieldset class="ef-fieldset ef-printed">
-                    <legend class="form-field__label">Trag die Felge so ein, wie sie im Gutachten steht <span class="ef-optional">(optional)</span></legend>
-                    <p class="form-field__help">Zum Vergleich mit den gewählten Ausführungen. Weicht etwas ab, sagen wir es dir; freigeben kannst du trotzdem. Nennt das Gutachten mehrere Größen, trag sie einzeln ein.</p>
-                    <div v-for="(row, i) in printed" :key="i" class="ef-printed__grid">
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`ef-printed-type-${i}`">Radtyp</label>
-                            <input :id="`ef-printed-type-${i}`" v-model="row.type" class="input" type="text" maxlength="64" spellcheck="false" placeholder="z. B. RC200 8,5x20" :disabled="!state.editable">
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`ef-printed-size-${i}`">Radgröße</label>
-                            <input :id="`ef-printed-size-${i}`" v-model="row.size" class="input" type="text" maxlength="32" spellcheck="false" placeholder="z. B. 8 1/2 J X 18 H2" :aria-invalid="errors[`printed.${i}.size`] ? 'true' : undefined" :disabled="!state.editable">
-                            <p class="form-field__error">{{ errors[`printed.${i}.size`] }}</p>
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`ef-printed-et-${i}`">Einpresstiefe</label>
-                            <input :id="`ef-printed-et-${i}`" v-model="row.et" class="input" type="text" inputmode="numeric" maxlength="4" placeholder="z. B. 35" :aria-invalid="errors[`printed.${i}.et`] ? 'true' : undefined" :disabled="!state.editable">
-                            <p class="form-field__error">{{ errors[`printed.${i}.et`] }}</p>
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`ef-printed-bolts-${i}`">Lochkreis</label>
-                            <input :id="`ef-printed-bolts-${i}`" v-model="row.bolts" class="input" type="text" maxlength="16" spellcheck="false" placeholder="z. B. 120/5" :aria-invalid="errors[`printed.${i}.bolts`] ? 'true' : undefined" :disabled="!state.editable">
-                            <p class="form-field__error">{{ errors[`printed.${i}.bolts`] }}</p>
-                        </div>
-                        <button v-if="printed.length > 1 && state.editable" class="ef-link ef-printed__remove" type="button" @click="printed.splice(i, 1)">Zeile entfernen</button>
-                    </div>
-                    <button v-if="state.editable && printed.length < 8" class="btn btn--ghost ef-printed__add" type="button" @click="printed.push(blankRow())">
-                        <Icon name="plus" :size="20" />
-                        Weitere Größe aus dem Gutachten
-                    </button>
-                </fieldset>
+                <p v-if="modelFailed !== null" class="adm-alert" role="alert">
+                    Die Ausführungen dieser Felge haben nicht geladen.
+                    <button class="ef-link" type="button" @click="loadModel(modelFailed!)">Noch einmal laden</button>
+                </p>
+
 
                 <div v-if="model" id="ef-axles" class="ef-axles">
                     <fieldset v-for="side in (['front', 'rear'] as const)" :key="side" class="ef-fieldset ef-axle">
@@ -393,33 +456,72 @@ onBeforeUnmount(() => {
                         </label>
                     </fieldset>
                 </div>
+
+                <!-- Optional, for comparing: under the choice it is compared with, open once something is typed. -->
+                <details class="ef-more" :open="printedFilled">
+                    <summary class="ef-more__summary">
+                        <Icon name="chevron-down" :size="16" class="ef-more__marker" />
+                        Felge so eintragen, wie sie im Gutachten steht (optional)
+                    </summary>
+                    <div class="ef-more__body">
+                        <fieldset class="ef-fieldset ef-printed">
+                                                <p class="form-field__help">Zum Vergleich mit den gewählten Ausführungen. Weicht etwas ab, sagen wir es dir; freigeben kannst du trotzdem. Nennt das Gutachten mehrere Größen, trag sie einzeln ein.</p>
+                            <div v-for="(row, i) in printed" :key="i" class="ef-printed__grid">
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`ef-printed-type-${i}`">Radtyp</label>
+                                    <input :id="`ef-printed-type-${i}`" v-model="row.type" class="input" type="text" maxlength="64" spellcheck="false" placeholder="z. B. RC200 8,5x20" :disabled="!state.editable">
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`ef-printed-size-${i}`">Radgröße</label>
+                                    <input :id="`ef-printed-size-${i}`" v-model="row.size" class="input" type="text" maxlength="32" spellcheck="false" placeholder="z. B. 8 1/2 J X 18 H2" :aria-invalid="errors[`printed.${i}.size`] ? 'true' : undefined" :disabled="!state.editable">
+                                    <p class="form-field__error">{{ errors[`printed.${i}.size`] }}</p>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`ef-printed-et-${i}`">Einpresstiefe</label>
+                                    <input :id="`ef-printed-et-${i}`" v-model="row.et" class="input" type="text" inputmode="numeric" maxlength="16" placeholder="z. B. 35" :aria-invalid="errors[`printed.${i}.et`] ? 'true' : undefined" :disabled="!state.editable">
+                                    <p class="form-field__error">{{ errors[`printed.${i}.et`] }}</p>
+                                </div>
+                                <div class="form-field">
+                                    <label class="form-field__label" :for="`ef-printed-bolts-${i}`">Lochkreis</label>
+                                    <input :id="`ef-printed-bolts-${i}`" v-model="row.bolts" class="input" type="text" maxlength="16" spellcheck="false" placeholder="z. B. 120/5" :aria-invalid="errors[`printed.${i}.bolts`] ? 'true' : undefined" :disabled="!state.editable">
+                                    <p class="form-field__error">{{ errors[`printed.${i}.bolts`] }}</p>
+                                </div>
+                                <button v-if="printed.length > 1 && state.editable" class="ef-link ef-printed__remove" type="button" @click="printed.splice(i, 1)">Zeile entfernen</button>
+                            </div>
+                            <button v-if="state.editable && printed.length < 8" class="btn btn--ghost ef-printed__add" type="button" @click="printed.push(blankRow())">
+                                <Icon name="plus" :size="20" />
+                                Weitere Größe aus dem Gutachten
+                            </button>
+                        </fieldset>
+                    </div>
+                </details>
             </div>
 
             <aside class="ef-wheel__side" aria-label="Felgenkombinationen">
                 <section v-if="model" class="ef-pick" aria-labelledby="ef-pick-h">
-                    <h3 id="ef-pick-h" class="ef-side__title">{{ editing === null ? 'Neue Kombination' : 'Kombination ändern' }}</h3>
+                    <h3 id="ef-pick-h" class="ef-side__title">{{ editing === null ? 'Neue Felgenkombination' : 'Felgenkombination ändern' }}</h3>
                     <p v-if="front === null" class="adm-note">Wähl zuerst die Ausführung für vorne. Hinten nehmen wir dieselbe, bis du eine andere wählst.</p>
                     <template v-else>
                         <p class="ef-pick__line"><span class="ef-pick__axle">Vorne</span> {{ front.short }}</p>
                         <p class="ef-pick__line"><span class="ef-pick__axle">Hinten</span> {{ rear?.short ?? '–' }}</p>
                         <span class="adm-tag adm-tag--neutral" data-pick-badge>{{ same ? 'gleich vorne und hinten' : 'vorne und hinten verschieden' }}</span>
-                        <button v-if="state.editable" class="ef-link" type="button" @click="swap">Achsen tauschen</button>
+                        <button v-if="state.editable && !same" class="ef-link" type="button" @click="swap">Achsen tauschen</button>
                         <p v-if="boltsDiffer" class="ef-warn" role="status">Vorne und hinten haben verschiedene Lochkreise: {{ boltsOf(front) }} und {{ rear ? boltsOf(rear) : '' }}.</p>
                         <p v-if="diametersDiffer" class="adm-note">Die Felgen haben vorne und hinten verschiedene Durchmesser: In Schritt 4 trägst du je Zeile beide Reifengrößen ein.</p>
-                        <p v-if="duplicate" class="ef-warn" role="status">Diese Kombination steht schon im Gutachten.</p>
+                        <p v-if="duplicate" class="ef-warn" role="status">Diese Kombination ist schon eingetragen.</p>
                     </template>
                     <p v-if="failure" class="adm-alert" role="alert">{{ failure }}</p>
                     <div v-if="state.editable" class="ef-pick__actions">
                         <button class="btn btn--primary" type="button" :disabled="front === null || rear === null || duplicate || busy" :aria-busy="busy ? 'true' : undefined" @click="save">
                             <Icon :name="editing === null ? 'plus' : 'check'" :size="20" />
-                            {{ editing === null ? 'Kombination hinzufügen' : 'Änderung speichern' }}
+                            {{ editing === null ? 'Felgenkombination hinzufügen' : 'Änderung speichern' }}
                         </button>
-                        <button v-if="editing !== null" class="btn btn--ghost" type="button" @click="resetChoice">Abbrechen</button>
+                        <button v-if="editing !== null || front !== null" class="btn btn--ghost" type="button" @click="resetChoice">{{ editing === null ? 'Auswahl verwerfen' : 'Abbrechen' }}</button>
                     </div>
                 </section>
 
                 <section class="ef-combos" aria-labelledby="ef-combos-h">
-                    <h3 id="ef-combos-h" class="ef-side__title">{{ combinations.length === 1 ? '1 Kombination im Gutachten' : `${combinations.length} Kombinationen im Gutachten` }}</h3>
+                    <h3 id="ef-combos-h" class="ef-side__title">{{ combinations.length === 1 ? '1 Felgenkombination eingetragen' : `${combinations.length} Felgenkombinationen eingetragen` }}</h3>
                     <p v-if="combinations.length === 0" class="adm-note">Noch keine. Wähl die Felge, dann vorne und hinten eine Ausführung.</p>
                     <ul v-else class="ef-combos__list">
                         <li v-for="combination in combinations" :key="combination.id" class="ef-combo" :class="{ 'ef-combo--on': editing === combination.id }" :data-combination="combination.id">
@@ -439,14 +541,34 @@ onBeforeUnmount(() => {
         <AdminConfirm
             v-model:open="removeOpen"
             title="Kombination entfernen?"
-            :body="removing ? `${removing.label} wird aus diesem Gutachten entfernt, mit den Reifen, die Fahrzeuge dort eingetragen haben.` : ''"
+            :body="removing ? `${removing.label} wird aus dieser Erfassung entfernt, mit den Reifen, die dafür bei den Fahrzeugen eingetragen sind.` : ''"
             confirm-label="Entfernen"
+            :busy="busy"
             @confirm="removing && remove(removing)"
+        />
+
+        <AdminConfirm
+            v-model:open="changeOpen"
+            title="Kombination ändern?"
+            :body="changeBody"
+            :confirm-label="swapping ? 'Achsen tauschen' : 'Ändern'"
+            :busy="busy"
+            @confirm="save"
+        />
+
+        <AdminConfirm
+            v-model:open="leaveOpen"
+            title="Auswahl noch nicht eingetragen"
+            :body="`${pendingLabel} ist noch nicht eingetragen.`"
+            :confirm-label="editing === null ? 'Hinzufügen und weiter' : 'Speichern und weiter'"
+            :busy="busy"
+            @confirm="addAndLeave"
         />
 
         <div class="ef-actions">
             <button class="btn btn--secondary ef-actions__left" type="button" @click="go(0)">Zurück</button>
-            <button class="btn btn--primary" type="button" :disabled="combinations.length === 0" @click="go(2)">
+            <p v-if="pending" class="adm-note ef-actions__note" role="status">Deine Auswahl ist noch nicht eingetragen.</p>
+            <button class="btn" :class="pending ? 'btn--secondary' : 'btn--primary'" type="button" :disabled="combinations.length === 0" @click="leave">
                 Weiter: Fahrzeuge
                 <Icon name="arrow-right" :size="20" />
             </button>
@@ -506,6 +628,8 @@ onBeforeUnmount(() => {
 }
 
 .ef-model__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-weight: 600;
 }
 
@@ -677,8 +801,18 @@ onBeforeUnmount(() => {
 }
 
 .ef-combo--on {
+    position: relative;
+    padding-inline: var(--sp-12);
     background: var(--c-blue-tint);
-    box-shadow: var(--adm-row-focus);
+}
+
+.ef-combo--on::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 2px;
+    background: var(--c-blue);
 }
 
 .ef-combo__label {

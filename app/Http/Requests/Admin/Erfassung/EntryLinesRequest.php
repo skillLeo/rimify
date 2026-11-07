@@ -77,7 +77,7 @@ class EntryLinesRequest extends EntryRequest
             'codes.*.code.distinct' => 'Dieser Code steht zweimal bei den allgemeinen Codes.',
             'codes.*.code.*' => DocumentConditions::CODE_MESSAGE,
             'codes.*.note.max' => 'Der Zusatz zur Auflage darf höchstens 300 Zeichen lang sein.',
-            'source_page.*' => 'Die Seite bitte als ganze Zahl ab 1.',
+            'source_page.*' => 'Gib die Seite als ganze Zahl ab 1 an.',
             'entry_override.*' => 'Bitte wähl, ob die Eintragung laut Prüfer erforderlich ist oder nicht.',
             'entry_override_reason.required_with' => 'Schreib dazu, warum du die abgeleitete Eintragung änderst – etwa die Aussage des Prüfers.',
             'entry_override_reason.min' => 'Der Grund ist zu kurz. Schreib ihn so, dass ihn jemand ohne dich versteht.',

@@ -41,6 +41,25 @@ it('masks key shapes, environment secrets and password columns, and leaves the r
         ->and($out['line'])->toBe('DB [verborgen] · Konto [verborgen] · sk_live_[verborgen] · [verborgen] · PASSWORD=[verborgen] · RIMIFY');
 });
 
+it('masks the main checkout\'s accounts file from a linked worktree, which has none of its own', function (): void {
+    $base = sys_get_temp_dir().'/rimify-redact-'.bin2hex(random_bytes(4));
+    mkdir($base.'/main/docs/review', 0777, true);
+    mkdir($base.'/main/.git/worktrees/wt', 0777, true);
+    mkdir($base.'/wt', 0777, true);
+    file_put_contents($base.'/main/docs/review/ACCOUNTS.md', "| Rolle | E-Mail | Passwort |\n|---|---|---|\n| Admin | a@b.test | Winter-2026-y |\n");
+    file_put_contents($base.'/wt/.git', 'gitdir: '.$base."/main/.git/worktrees/wt\n");
+
+    $script = "import { knownSecrets, mainCheckout } from './scripts/dev/redact.mjs';"
+        .'console.log(JSON.stringify({ main: mainCheckout('.json_encode($base.'/wt').'), none: mainCheckout('.json_encode($base.'/main').'), secrets: knownSecrets('.json_encode($base.'/wt').') }));';
+    $process = runNode(['--input-type=module', '-e', $script]);
+    $out = json_decode(trim($process->getOutput()), true);
+
+    expect($process->isSuccessful())->toBeTrue($process->getErrorOutput())
+        ->and($out['main'])->toBe($base.'/main')
+        ->and($out['none'])->toBeNull()
+        ->and($out['secrets'])->toContain('Winter-2026-y');
+});
+
 it('leaves a value alone that also stands openly under a name that does not say secret', function (): void {
     $root = sys_get_temp_dir().'/rimify-redact-'.bin2hex(random_bytes(4));
     mkdir($root);

@@ -51,8 +51,15 @@ function filterColour(value: string): void {
     router.get('/admin/auflagen', value === '' ? {} : { farbe: value }, { preserveState: true, preserveScroll: true })
 }
 
-function setColour(doc: DocumentList, c: DocumentConditionView, value: string): void {
-    router.put(`/admin/gutachten/${doc.id}/auflagen/${c.id}/farbe`, { shop_colour: value }, { preserveScroll: true, preserveState: true })
+function setColour(doc: DocumentList, c: DocumentConditionView, target: HTMLSelectElement): void {
+    router.put(`/admin/gutachten/${doc.id}/auflagen/${c.id}/farbe`, { shop_colour: target.value }, {
+        preserveScroll: true,
+        preserveState: true,
+        // Not saved: the field says what stands, never what was only tried.
+        onError: () => {
+            target.value = c.shopColour
+        },
+    })
 }
 
 /** The parameter a filter or tyre kind carries, as the admin entered it. */
@@ -109,14 +116,22 @@ function parameter(c: DocumentConditionView): string {
             </p>
 
             <div v-if="doc.conditions.length" class="adm-panel">
-                <table class="adm-table">
+                <table class="adm-table al-table">
                     <caption class="visually-hidden">Auflagenverzeichnis von {{ doc.label }}</caption>
+                    <colgroup>
+                        <col class="al-col-code">
+                        <col class="al-col-kind">
+                        <col>
+                        <col class="al-col-colour">
+                        <col class="al-col-num">
+                        <col class="al-col-num">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th scope="col">Code</th>
                             <th scope="col">Art</th>
                             <th scope="col">Satz aus dem Gutachten</th>
-                            <th scope="col">Farbe</th>
+                            <th scope="col">Farbe im Shop</th>
                             <th scope="col" class="num">Seite</th>
                             <th scope="col" class="num">Verwendet</th>
                         </tr>
@@ -129,15 +144,20 @@ function parameter(c: DocumentConditionView): string {
                                 <span v-if="parameter(c)" class="adm-table__sub">{{ parameter(c) }}</span>
                             </td>
                             <td data-label="Satz" class="al-text">{{ c.text }}</td>
-                            <td data-label="Farbe">
+                            <td data-label="Farbe im Shop">
                                 <template v-if="canColour">
-                                    <label class="visually-hidden" :for="`al-colour-${c.id}`">Farbe von Code {{ c.code }} im Shop</label>
-                                    <select :id="`al-colour-${c.id}`" class="input al-colour" :value="c.shopColour" @change="setColour(doc, c, ($event.target as HTMLSelectElement).value)">
-                                        <option value="green">Grün</option>
-                                        <option value="yellow">Gelb</option>
-                                    </select>
+                                    <span class="al-colourline">
+                                        <span class="al-dot" :class="c.shopColour === 'yellow' ? 'al-dot--yellow' : 'al-dot--green'" aria-hidden="true" />
+                                        <select :id="`al-colour-${c.id}`" class="input al-colour" :value="c.shopColour" :aria-label="`Farbe von Code ${c.code} im Shop`" @change="setColour(doc, c, $event.target as HTMLSelectElement)">
+                                            <option value="green">Grün</option>
+                                            <option value="yellow">Gelb</option>
+                                        </select>
+                                    </span>
                                 </template>
-                                <template v-else>{{ c.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</template>
+                                <span v-else class="al-colourline">
+                                    <span class="al-dot" :class="c.shopColour === 'yellow' ? 'al-dot--yellow' : 'al-dot--green'" aria-hidden="true" />
+                                    {{ c.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}
+                                </span>
                             </td>
                             <td data-label="Seite" class="num">{{ c.page ?? '–' }}</td>
                             <td data-label="Verwendet" class="num" data-phone="hide">{{ c.uses === 0 ? '–' : decimal(c.uses, 0) }}</td>
@@ -159,6 +179,51 @@ function parameter(c: DocumentConditionView): string {
 .al-filter {
     max-width: calc(24 * var(--ch-text));
     margin-bottom: var(--sp-24);
+}
+
+/* One table's columns stand where the next one's do: the same grid under every paper. */
+@media (min-width: 768px) {
+    .al-table {
+        table-layout: fixed;
+    }
+
+    .al-col-code {
+        width: calc(10 * var(--ch-text));
+    }
+
+    .al-col-kind {
+        width: calc(24 * var(--ch-text));
+    }
+
+    .al-col-colour {
+        width: calc(18 * var(--ch-text));
+    }
+
+    .al-col-num {
+        width: calc(10 * var(--ch-text));
+    }
+}
+
+.al-colourline {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+/* A yellow code looks like a yellow code at a glance, as it will in the shop. */
+.al-dot {
+    flex: none;
+    width: var(--sp-12);
+    height: var(--sp-12);
+    border-radius: var(--r-round);
+}
+
+.al-dot--green {
+    background: var(--c-ok);
+}
+
+.al-dot--yellow {
+    background: var(--c-warn);
 }
 
 .al-colour {

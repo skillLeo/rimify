@@ -191,11 +191,11 @@ it('reads load index and speed symbol apart, and keeps a line neither stands in 
     ])->assertOk();
 
     // A tyre that does not stand in the tables is kept as typed, said, and writes nothing; the release waits for it.
-    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
+    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Lastindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
     expect(DB::table('fitment_tyre_sizes')->count())->toBe(0)
         ->and(implode(' ', app(DocumentRelease::class)->check($document)))->toContain('nicht lesbar');
     // D-310: past 120 Regulation No 30 prints no capacity — the row waits rather than taking an estimate.
-    $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Tragfähigkeitsindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
+    $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Lastindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
     $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X');
     $line('245/35 R19 93Y')->assertJsonPath('car.lines.0.frontWhy', null);
 

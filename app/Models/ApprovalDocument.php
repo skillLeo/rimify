@@ -26,7 +26,7 @@ use LogicException;
  * and the older row stays readable so an order placed against it can still be explained.
  *
  * @property int $id
- * @property list<array{type: string|null, width: float|null, diameter: float|null, et: int|null, holes: int|null, circle: float|null}>|null $printed_wheels the paper's own wheel data, typed by staff: only ever compared, for a warning
+ * @property list<array{type: string|null, width: float|null, diameter: float|null, et: int|null, holes: int|null, circle: float|null, unread?: array<string, string>}>|null $printed_wheels the paper's own wheel data, typed by staff: only ever compared, for a warning
  * @property ApprovalKind $kind
  * @property DocumentStatus $status
  * @property int $revision

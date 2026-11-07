@@ -205,7 +205,7 @@ test('the colour of an Auflage: a column and a filter under Auflagen, and the sh
     await page.goto(`${ABNAHME}/admin/auflagen`, { waitUntil: 'networkidle' })
 
     const section = page.locator('.al-doc').filter({ hasText: '55255' }).filter({ has: page.locator('.al-status', { hasText: 'Freigegeben' }) }).first()
-    await expect(section.locator('thead')).toContainText('Farbe')
+    await expect(section.locator('thead')).toContainText('Farbe im Shop')
     const select = section.locator('tbody tr', { has: page.locator('.adm-table__key', { hasText: /^A01$/ }) }).locator('select.al-colour')
 
     // Precondition: nothing yellow on this car's answers yet, and the filter finds nothing of this paper's under yellow.

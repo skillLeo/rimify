@@ -38,7 +38,7 @@ final readonly class EntryEditor
      * What the paper itself prints for its wheel: only ever compared with the versions chosen, for a warning. Said once per person and
      * quarter of an hour in the Protokoll, as a car's lines are.
      *
-     * @param  list<array{type: string|null, width: float|null, diameter: float|null, et: int|null, holes: int|null, circle: float|null}>  $printed
+     * @param  list<array{type: string|null, width: float|null, diameter: float|null, et: int|null, holes: int|null, circle: float|null, unread: array<string, string>}>  $printed
      */
     public function savePrinted(ApprovalDocument $document, array $printed, AdminUser $admin): void
     {
@@ -82,12 +82,24 @@ final readonly class EntryEditor
         });
     }
 
-    /** Other versions in a combination: its cars' lines go with it. */
+    /**
+     * Other versions in a combination: its cars' lines go with it. The same two versions with the axles exchanged take the tyres with
+     * them, or every line would stand on the wrong wheel. Other versions leave the lines as they are: a tyre that no longer fits is said
+     * at its line, and the release waits for it.
+     */
     public function changeCombination(ApprovalDocument $document, DocumentWheelCombination $combination, WheelConfig $front, WheelConfig $rear, AdminUser $admin): void
     {
         DB::transaction(function () use ($document, $combination, $front, $rear, $admin): void {
             $before = EntryView::combinationLabel($combination);
-            $combination->forceFill(['front_wheel_size_id' => self::versionOf($document, $front)->id, 'rear_wheel_size_id' => self::versionOf($document, $rear)->id])->save();
+            $newFront = (int) self::versionOf($document, $front)->id;
+            $newRear = (int) self::versionOf($document, $rear)->id;
+            $swapped = $newFront !== $newRear && $newFront === (int) $combination->rear_wheel_size_id && $newRear === (int) $combination->front_wheel_size_id;
+
+            $combination->forceFill(['front_wheel_size_id' => $newFront, 'rear_wheel_size_id' => $newRear])->save();
+
+            if ($swapped) {
+                self::swapSides($combination);
+            }
             $combination->unsetRelations();
             self::dropUnused($document);
             $this->writer->write($document, $admin);
@@ -177,6 +189,23 @@ final readonly class EntryEditor
             'axle' => Axle::All->value,
             'position' => $position,
         ]);
+    }
+
+    /** Every line of a combination, front and rear exchanged, whatever is typed on each side. */
+    private static function swapSides(DocumentWheelCombination $combination): void
+    {
+        $lines = DocumentTyreLine::query()->whereIn('document_car_entry_id', DocumentCarEntry::query()->where('document_wheel_combination_id', $combination->id)->select('id'))->get();
+
+        foreach ($lines as $line) {
+            $attributes = [];
+
+            foreach (['width_mm', 'aspect', 'diameter_in', 'load_index', 'speed_symbol', 'marker', 'unread'] as $column) {
+                $attributes["front_{$column}"] = $line->getRawOriginal("rear_{$column}");
+                $attributes["rear_{$column}"] = $line->getRawOriginal("front_{$column}");
+            }
+
+            $line->forceFill($attributes)->save();
+        }
     }
 
     /** The paper's version of this dimension, made the first time a combination names it. */

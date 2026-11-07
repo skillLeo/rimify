@@ -33,6 +33,8 @@ const hits = ref<CarHit[]>([])
 const total = ref(0)
 const searching = ref(false)
 const searched = ref(false)
+/* The term the list on screen answers: the shortcut acts on the list shown, never on a term still being typed. */
+const answered = ref('')
 const failure = ref('')
 const busy = ref(false)
 const removing = ref<CarView | null>(null)
@@ -61,6 +63,7 @@ async function search(): Promise<void> {
     if (term.length < 2) {
         hits.value = []
         total.value = 0
+        answered.value = ''
         searched.value = false
         searching.value = false
 
@@ -75,10 +78,15 @@ async function search(): Promise<void> {
         if (mine === asked) {
             hits.value = answer.items
             total.value = answer.total
+            answered.value = term
             searched.value = true
         }
     } catch {
         if (mine === asked) {
+            // Not the old list under the new term.
+            hits.value = []
+            total.value = 0
+            answered.value = ''
             failure.value = 'Die Suche hat nicht geantwortet. Versuch es noch einmal.'
         }
     } finally {
@@ -108,7 +116,7 @@ async function add(body: { vehicle_ids: number[] } | { treffer: string }): Promi
 
 async function addAll(): Promise<void> {
     busy.value = true
-    await add({ treffer: query.value.trim() })
+    await add({ treffer: answered.value })
     busy.value = false
 }
 
@@ -183,7 +191,7 @@ function created(vehicle: VehicleHit): void {
 
                 <div v-if="hits.length" class="ef-cars__head">
                     <span class="ef-count" role="status">{{ total === 1 ? '1 Treffer' : `${decimal(total, 0)} Treffer` }}<template v-if="total > hits.length">, die ersten {{ decimal(hits.length, 0) }} stehen hier</template></span>
-                    <button v-if="state.editable" class="btn btn--secondary" type="button" :disabled="busy || (unticked === 0 && total === hits.length)" :aria-busy="busy ? 'true' : undefined" @click="addAll">Alle Treffer auswählen</button>
+                    <button v-if="state.editable" class="btn btn--secondary" type="button" :disabled="busy || searching || query.trim() !== answered || (unticked === 0 && total === hits.length)" :aria-busy="busy ? 'true' : undefined" @click="addAll">Alle Treffer auswählen</button>
                 </div>
 
                 <ul v-if="hits.length" class="ef-hits">
@@ -237,7 +245,7 @@ function created(vehicle: VehicleHit): void {
         <AdminConfirm
             v-model:open="removeOpen"
             title="Fahrzeug entfernen?"
-            :body="removing ? `${removing.label} wird aus diesem Gutachten entfernt, mit den Reifen, die dort eingetragen sind.` : ''"
+            :body="removing ? `${removing.label} wird aus dieser Erfassung entfernt, mit seinen eingetragenen Reifen.` : ''"
             confirm-label="Entfernen"
             @confirm="removing && remove(removing)"
         />

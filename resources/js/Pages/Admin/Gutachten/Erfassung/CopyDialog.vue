@@ -62,6 +62,9 @@ watch([targets, mode, open], async () => {
     }
 }, { deep: true })
 
+/* Ticked and filtered out of view: they are copied to as well, and that is said. */
+const hiddenTicks = computed(() => targets.value.filter((id) => !shown.value.some((car) => car.id === id)).length)
+
 const previewText = computed(() => {
     if (targets.value.length === 0) {
         return 'Wähl mindestens ein Fahrzeug.'
@@ -78,7 +81,7 @@ const previewText = computed(() => {
         return `Danach ${lines === 1 ? 'steht' : 'stehen'} ${onCars} insgesamt ${lines} ${lines === 1 ? 'Zeile' : 'Zeilen'}.`
     }
 
-    return lines === 0 ? 'Nichts kommt hinzu: Alles steht dort schon.' : `Hinzu kommen insgesamt ${lines} ${lines === 1 ? 'Zeile' : 'Zeilen'} ${onCars}.`
+    return lines === 0 ? 'Nichts kommt hinzu: Alles steht dort schon.' : `Hinzu ${lines === 1 ? 'kommt' : 'kommen'} insgesamt ${lines} ${lines === 1 ? 'Zeile' : 'Zeilen'} ${onCars}.`
 })
 
 async function copy(): Promise<void> {
@@ -97,7 +100,7 @@ async function copy(): Promise<void> {
 </script>
 
 <template>
-    <Dialog v-model:open="open" :title="`Reifen von ${from.label} kopieren`" description="Kopiert Zeilen und allgemeine Codes auf andere Fahrzeuge dieses Gutachtens. Die Angabe „Seite im Gutachten“ bleibt dort, wie sie ist." content-class="adm-dialog" wide>
+    <Dialog v-model:open="open" :title="`Reifen von ${from.label} kopieren`" description="Kopiert Zeilen und allgemeine Codes auf andere Fahrzeuge derselben Felgenkombination. Die Angabe „Seite im Gutachten“ bleibt dort, wie sie ist." content-class="adm-dialog" wide>
         <div class="adm-fields">
             <fieldset class="ef-fieldset">
                 <legend class="form-field__label">Nach</legend>
@@ -114,14 +117,14 @@ async function copy(): Promise<void> {
                         </label>
                     </div>
                 </template>
-                <p v-else class="adm-note">Es gibt kein anderes Fahrzeug. Hak in Schritt 3 weitere an.</p>
+                <p v-else class="adm-note">Bei dieser Felgenkombination steht kein anderes Fahrzeug. Hak in Schritt 3 weitere an.</p>
             </fieldset>
             <fieldset class="ef-fieldset">
                 <legend class="form-field__label">Was dort schon steht</legend>
                 <label class="check"><input v-model="mode" type="radio" name="ef-copy-mode" value="ersetzen"> Ersetzen</label>
                 <label class="check"><input v-model="mode" type="radio" name="ef-copy-mode" value="hinzufuegen"> Behalten und Fehlendes hinzufügen</label>
             </fieldset>
-            <p class="ef-count" role="status">{{ previewText }}</p>
+            <p class="ef-count" role="status">{{ previewText }}<template v-if="hiddenTicks > 0"> Davon {{ hiddenTicks === 1 ? 'ist 1 Fahrzeug' : `sind ${hiddenTicks} Fahrzeuge` }} gerade ausgeblendet.</template></p>
             <p v-if="failure" class="adm-alert" role="alert">{{ failure }}</p>
         </div>
         <template #actions>

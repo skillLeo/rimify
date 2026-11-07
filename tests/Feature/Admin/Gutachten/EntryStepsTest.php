@@ -134,12 +134,12 @@ describe('step 2: the wheel, and what the paper prints', function (): void {
         stepsCombination($document2, stepsWheel())->assertOk()->assertJsonCount(0, 'entry.combinations.0.warnings');
     });
 
-    it('says what it cannot read of what the paper prints, in words', function (): void {
+    it('refuses only what could never be a row of a paper: too long, too many', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
 
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['printed' => [['size' => 'groß', 'bolts' => 'viele', 'et' => 'x']]])
+        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['printed' => [['size' => str_repeat('8', 33), 'bolts' => '', 'et' => null]]])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['printed.0.size', 'printed.0.bolts', 'printed.0.et']);
+            ->assertJsonValidationErrors(['printed.0.size']);
     });
 
     it('is asked of the Gutachten rights, and a released paper is closed (R-11)', function (): void {

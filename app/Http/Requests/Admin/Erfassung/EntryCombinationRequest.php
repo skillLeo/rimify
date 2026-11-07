@@ -63,7 +63,7 @@ class EntryCombinationRequest extends EntryRequest
                 $paper = DocumentWheelSize::query()->where('approval_document_id', $document->id)->distinct()->pluck('wheel_model_id')->map(static fn (mixed $id): int => (int) $id)->all();
 
                 if ($paper !== [] && ! in_array((int) $front->wheel_model_id, $paper, true)) {
-                    $validator->errors()->add('front_config_id', 'Ein Gutachten gilt für genau eine Felge. Diese ist eine andere als die der Kombinationen, die schon eingetragen sind.');
+                    $validator->errors()->add('front_config_id', 'In dieser Erfassung steht schon eine andere Felge. Wähl eine Ausführung der eingetragenen Felge.');
 
                     return;
                 }
@@ -75,7 +75,7 @@ class EntryCombinationRequest extends EntryRequest
                     });
 
                 if ($same !== null) {
-                    $validator->errors()->add('front_config_id', 'Diese Kombination steht schon im Gutachten.');
+                    $validator->errors()->add('front_config_id', 'Diese Kombination ist schon eingetragen.');
                 }
             },
         ];

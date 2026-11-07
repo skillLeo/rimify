@@ -123,6 +123,8 @@ describe('the to-do list', () => {
         expect(carSummary({ lines: 0, unread: 1 })).toBe('nicht vollständig')
         expect(carSummary({ lines: 3, unread: 0 })).toBe('3 Kombinationen')
         expect(carSummary({ lines: 1, unread: 0 })).toBe('1 Kombination')
+        // A good line beside one that does not stand is no finished cell.
+        expect(carSummary({ lines: 1, unread: 1 })).toBe('1 Kombination, 1 nicht vollständig')
     })
 
     it('counts a car once in step 3, whatever combinations it stands in, with all it holds', () => {

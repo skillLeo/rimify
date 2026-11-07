@@ -54,7 +54,8 @@ export interface CombinationView {
 export interface PrintedRow {
     type: string | null
     size: string
-    et: number | null
+    /** What was typed, where it does not read as a number: kept, never a block. */
+    et: number | string | null
     bolts: string
 }
 
@@ -286,7 +287,9 @@ export function carSummary(car: Pick<CarView, 'lines' | 'unread'>): string {
         return car.unread > 0 ? 'nicht vollständig' : 'noch leer'
     }
 
-    return `${car.lines} ${car.lines === 1 ? 'Kombination' : 'Kombinationen'}`
+    const lines = `${car.lines} ${car.lines === 1 ? 'Kombination' : 'Kombinationen'}`
+
+    return car.unread > 0 ? `${lines}, ${car.unread} nicht vollständig` : lines
 }
 
 /** Every car once, however many wheel combinations it stands in: what step 3 lists and what its question counts. */

@@ -10,6 +10,7 @@ use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentCarEntry;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
@@ -140,15 +141,26 @@ final class DocumentRelease
         $blockers = [];
         $several = $model->entries->pluck('document_wheel_combination_id')->unique()->count() > 1;
 
+        // One gap, one sentence: per combination with its count, the car's name only where it is one car.
+        if ($several) {
+            foreach ($model->entries->filter(static fn (DocumentCarEntry $entry): bool => $entry->lines->isEmpty())->groupBy('document_wheel_combination_id') as $empty) {
+                /** @var DocumentCarEntry $first */
+                $first = $empty->first();
+                $label = $first->combination === null ? '' : EntryView::combinationLabel($first->combination);
+                /** @var Vehicle|null $only */
+                $only = $first->vehicle;
+
+                $blockers[] = $empty->count() === 1
+                    ? sprintf('Bei %s fehlen für die Felgenkombination „%s“ noch die Reifen. Trag sie ein oder nimm die Kombination bei diesem Fahrzeug heraus.', $only === null ? 'einem Fahrzeug' : VehicleName::from($only), $label)
+                    : sprintf('Für die Felgenkombination „%s“ fehlen bei %d Fahrzeugen noch die Reifen. Trag sie ein oder nimm die Kombination bei diesen Fahrzeugen heraus.', $label, $empty->count());
+            }
+        }
+
         foreach ($model->entries as $entry) {
             /** @var Vehicle|null $car */
             $car = $entry->vehicle;
             $name = $car === null ? 'einem Fahrzeug' : VehicleName::from($car);
             $combination = $entry->combination === null ? '' : EntryView::combinationLabel($entry->combination);
-
-            if ($several && $entry->lines->isEmpty()) {
-                $blockers[] = sprintf('Bei %s fehlen für die Felgenkombination „%s“ noch die Reifen. Trag sie ein oder nimm die Kombination bei diesem Fahrzeug heraus.', $name, $combination);
-            }
 
             foreach ($entry->lines as $line) {
                 foreach (['front', 'rear'] as $side) {

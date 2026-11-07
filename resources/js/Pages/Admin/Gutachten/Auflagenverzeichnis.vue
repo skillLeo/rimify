@@ -380,8 +380,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <th scope="col">Code</th>
                         <th scope="col">Art</th>
                         <th scope="col">Satz aus dem Gutachten</th>
-                        <th v-if="levels" scope="col">Im Shop</th>
-                        <th scope="col">Farbe</th>
+                        <th scope="col">Im Shop</th>
                         <th scope="col" class="num">Seite</th>
                         <th scope="col" class="num">Verwendet</th>
                         <th v-if="editable" scope="col"><span class="visually-hidden">Aktionen</span></th>
@@ -395,8 +394,8 @@ function confirmLimit(condition: DocumentConditionView): void {
                             <span v-if="parameter(condition)" class="adm-table__sub">{{ parameter(condition) }}</span>
                         </td>
                         <td data-label="Satz" class="av__text">{{ condition.text }}</td>
-                        <td v-if="levels" data-label="Im Shop" class="av__level">
-                            <template v-if="levelsEditable">
+                        <td data-label="Im Shop" class="av__level">
+                            <template v-if="levels && levelsEditable">
                                 <label class="visually-hidden" :for="`av-level-${condition.id}`">Stufe von Code {{ condition.code }} im Shop</label>
                                 <select
                                     :id="`av-level-${condition.id}`"
@@ -415,17 +414,16 @@ function confirmLimit(condition: DocumentConditionView): void {
                                     </option>
                                 </select>
                             </template>
-                            <template v-else>{{ levelLabel(condition.level) }}</template>
-                        </td>
-                        <td data-label="Farbe" class="av__level">
+                            <template v-else-if="levels">{{ levelLabel(condition.level) }}</template>
+                            <!-- How „Mit Auflagen“ looks in the shop (#23): beside the level it answers with, never a word of the answer. -->
                             <template v-if="levelsEditable">
                                 <label class="visually-hidden" :for="`av-colour-${condition.id}`">Farbe von Code {{ condition.code }} im Shop</label>
-                                <select :id="`av-colour-${condition.id}`" class="input av__level-select" :value="condition.shopColour" :disabled="busy" @change="setColour(condition, ($event.target as HTMLSelectElement).value)">
-                                    <option value="green">Grün</option>
-                                    <option value="yellow">Gelb</option>
+                                <select :id="`av-colour-${condition.id}`" class="input av__colour-select" :value="condition.shopColour" :disabled="busy" @change="setColour(condition, ($event.target as HTMLSelectElement).value)">
+                                    <option value="green">Farbe: Grün</option>
+                                    <option value="yellow">Farbe: Gelb</option>
                                 </select>
                             </template>
-                            <template v-else>{{ condition.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</template>
+                            <span v-else class="av__colour-word">Farbe: {{ condition.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</span>
                         </td>
                         <td data-label="Seite" class="num">{{ condition.page ?? '–' }}</td>
                         <td data-label="Verwendet" data-phone="hide" class="num">{{ uses(condition) }}</td>
@@ -730,9 +728,20 @@ function confirmLimit(condition: DocumentConditionView): void {
 }
 
 /* The level reads whole (Human QA 28.10.2026): „Auflage – etwas ist zu tun oder eingeschränkt“ was cut to „… oder ei“. */
-.av__level-select {
+.av__level-select,
+.av__colour-select {
     width: auto;
     max-width: none;
+}
+
+.av__colour-select {
+    margin-top: var(--sp-4);
+}
+
+.av__colour-word {
+    display: block;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
 }
 
 /* On a phone the card gives the level its whole width, under its label. */
@@ -741,7 +750,8 @@ function confirmLimit(condition: DocumentConditionView): void {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .av__level-select {
+    .av__level-select,
+    .av__colour-select {
         width: 100%;
     }
 }

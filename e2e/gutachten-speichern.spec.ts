@@ -1,7 +1,7 @@
 import { signIn, waitForApp } from './bugs/faq-support'
 import { expect, test, type Page } from './fixtures'
 import type { Route } from '@playwright/test'
-import { chooseFirstWheel, freshNumber, goToStep, newPaper, saved, searchCars } from './gutachten-erfassung-support'
+import { chooseFirstWheel, freshNumber, goToStep, newPaper, openPrinted, saved, searchCars } from './gutachten-erfassung-support'
 
 /*
  * What the interaction review of 06.11.2026 found in the five steps, in a real browser: slow answers, a lost connection, a reload, and
@@ -262,6 +262,7 @@ test('Back brings what was saved, not the page as it opened, so the next change 
 
     const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/felge') && r.request().method() === 'PUT')
 
+    await openPrinted(page)
     await page.locator('#ef-printed-type-0').fill('RC200 neu')
     await stored
     await saved(page)
