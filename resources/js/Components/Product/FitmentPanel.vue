@@ -37,12 +37,17 @@ const props = withDefaults(
          */
         chosen?: ConditionGroupsView | null
         /**
+         * The minimum for the tyres chosen, as the step that chose them said it. The verdict's own sentence is the version's, over all its
+         * sizes, and can ask less than the size or pair chosen (D-426). Null: the verdict's.
+         */
+        tyreSummary?: string | null
+        /**
          * Where a customer names the tyres they want checked by hand (finding 103): the contact form, with the wheel as
          * the subject and this page as where they wrote from — the car is ticked there by itself. Null: no such offer.
          */
         askHref?: string | null
     }>(),
-    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null, askHref: null }
+    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null, tyreSummary: null, askHref: null }
 )
 
 /* `255/40 R19` — the size of the tyre chosen, where the server answered for it. */
@@ -357,7 +362,7 @@ const openLead = computed(() => {
             <!-- With the car's figures: the answer and its document always, the sum one click away, inline —
                  open at once where we say no or the customer's own figures made it stricter (29.09.2026). -->
             <template v-if="verdict.tyre?.summary">
-                <p class="fit__tyre-summary"><ValueText :text="verdict.tyre.summary" /></p>
+                <p class="fit__tyre-summary"><ValueText :text="tyreSummary ?? verdict.tyre.summary" /></p>
                 <p v-if="verdict.tyre.basis" class="fit__tyre-basis">{{ verdict.tyre.basis }}</p>
                 <details v-if="verdict.tyre.lines.length" class="fit__sum" :open="verdict.tyre.open || undefined">
                     <summary class="fit__sum-toggle">So haben wir gerechnet</summary>

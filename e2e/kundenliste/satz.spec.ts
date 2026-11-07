@@ -152,6 +152,7 @@ test('a Komplettrad on the set: both tyres named per axle, RDKS asked, nothing p
     await expect(page.locator('[data-sizes-axle="rear"]').first()).toContainText('R19')
 
     await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+    const tyreStep = (await page.locator('.kf-step .kf-measure').first().innerText()).trim()
     const card = page.locator('[data-tyre-card]').first()
     await expect(card.locator('.tc__size')).toHaveCount(2)
     await expect(card.locator('.tc__sizes')).toContainText('R18')
@@ -165,6 +166,8 @@ test('a Komplettrad on the set: both tyres named per axle, RDKS asked, nothing p
     await page.locator('.kf-opt', { hasText: 'Ohne RDKS-Sensoren' }).click()
     await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
 
+    // The last step says what the tyre step said, for this pair on these two wheels.
+    await expect(page.locator('.kf-panel .fit__tyre-summary')).toHaveText(tyreStep)
     await expect(page.locator('.kf-basket__label').first()).toHaveText('4 Felgen')
     await page.locator('.kf-add').click()
     await expect(page.locator('.addp')).toBeVisible()

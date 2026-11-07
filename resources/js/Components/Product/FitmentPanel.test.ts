@@ -253,6 +253,15 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__tyre-lines').text()).toBe(line)
     })
 
+    it('says the minimum of what was chosen where it is given, never the version’s general one beside it (D-426)', () => {
+        const tyre = { status: 'CONDITIONAL' as const, label: 'Freigegeben mit Auflagen', lines: [], thresholds: [], fromVehicleData: true, summary: 'Vorderachse mit 935 kg: mindestens Tragfähigkeitsindex 84.' }
+        const chosen = 'Bei Mischbereifung prüfen wir jede Achse mit ihrer eigenen Achslast: vorne (935 kg) mindestens Tragfähigkeitsindex 87.'
+        const props = { vehicle, verdict: verdict({ status: 'CONDITIONAL', wheelStatus: 'PERMITTED', wheelLabel: 'Freigegeben', tyre }) }
+
+        expect(mount(FitmentPanel, { props: { ...props, tyreSummary: chosen } }).find('.fit__tyre-summary').text()).toBe(chosen)
+        expect(mount(FitmentPanel, { props }).find('.fit__tyre-summary').text()).toBe(tyre.summary)
+    })
+
     it('offers no papers form without a tyre half', () => {
         const wrapper = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'UNKNOWN', sellable: false }) } })
 

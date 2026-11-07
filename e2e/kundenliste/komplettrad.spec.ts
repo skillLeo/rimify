@@ -200,6 +200,25 @@ test('the order: by price either way and by brand, and the count says how many f
     expect(await brands()).toEqual([...(await brands())].sort((a, b) => a.localeCompare(b, 'de')))
 })
 
+test('the last step says the minimum of the pair chosen, as the tyre step does: never the version’s general one, which asks less', { tag: '@kunde-20' }, async ({ page }) => {
+    await withCar(page, 'e90', PRODUCT)
+    await onSize(page, 19, 'Schwarz matt')
+    await komplettrad(page)
+    await toTyres(page)
+
+    const chips = page.locator('.kf-pairs .kf-pair')
+    const pairs = await chips.count()
+    expect(pairs, 'precondition: this car has more than one pair to choose from').toBeGreaterThan(1)
+
+    await chips.nth(pairs - 1).click()
+    const tyreStep = (await page.locator('.kf-step .kf-measure').first().innerText()).trim()
+    expect(tyreStep, 'precondition: the tyre step names both axles').toMatch(/vorne .* hinten /)
+
+    await throughExtras(page, page.locator('[data-tyre-card]').first())
+
+    await expect(page.locator('.kf-panel .fit__tyre-summary')).toHaveText(tyreStep)
+})
+
 test('„Details“ shows all about a tyre without choosing it, and fits a phone: no line cut off, no sideways scroll', { tag: '@kunde-15' }, async ({ page }) => {
     await withCar(page, 'x3', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')

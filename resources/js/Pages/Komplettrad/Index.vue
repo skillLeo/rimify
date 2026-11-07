@@ -79,6 +79,8 @@ const mode = ref<TyreMode>(offer.value.same.length > 0 ? 'same' : 'mixed')
 const pairKey = ref<string | null>(offer.value.pairs.find((pair) => pair.cards.length > 0)?.key ?? offer.value.pairs[0]?.key ?? null)
 
 const pair = computed(() => offer.value.pairs.find((item) => item.key === pairKey.value) ?? null)
+/* The minimum as the tyre step named it for this choice: the last step says the same, never the version's general one, which asks less (D-426). */
+const chosenMinimum = computed(() => (mode.value === 'same' ? offer.value.minSentence : pair.value?.minSentence) ?? null)
 /* A real Gutachten's sentences run to paragraphs (D-197): printed whole they stood 4.000 px between a phone's customer and the tyres. */
 const pairConditions = computed(() => {
     const answer = pair.value?.answer
@@ -654,7 +656,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                 </template>
                 <template v-else-if="chosen && sum">
                     <!-- With the tyre chosen, the answer for that tyre's size: its Eintragung, its Auflagen — as the basket line says them. -->
-                    <FitmentPanel class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.rearId ? null : config.id" :chosen="chosen.answer" :ask-href="askHref" />
+                    <FitmentPanel class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.rearId ? null : config.id" :chosen="chosen.answer" :tyre-summary="chosenMinimum" :ask-href="askHref" />
 
                     <div class="kf-sum">
                         <table class="kf-basket">
