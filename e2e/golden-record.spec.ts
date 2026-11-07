@@ -89,6 +89,17 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await page.waitForURL(/\/admin\/felgen\/\d+$/)
     await waitForApp(page)
 
+    // A shop seeded before the rule has the stand-in without its Radtypenbezeichnung, and no Felge is published without it (D-298).
+    const designation = page.locator('#fe-type')
+
+    if ((await designation.count()) > 0 && (await designation.inputValue()) === '') {
+        await designation.fill('PR 18')
+        await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+        await expect(page.getByRole('button', { name: 'Speichern', exact: true })).toBeDisabled({ timeout: 20_000 })
+        await page.reload({ waitUntil: 'networkidle' })
+        await waitForApp(page)
+    }
+
     // The stand-in's size must be available to be bought — available or not, never counted (D-299).
     const available = page.getByLabel('Verfügbarkeit, Zeile 1')
 
