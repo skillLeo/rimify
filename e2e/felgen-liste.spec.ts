@@ -268,7 +268,7 @@ test('#32: the listing\'s head stands on the pale blue band, the results on whit
     // Edge to edge, as the home page's bands: a band that stops at the text column is a box. The page's width, not the
     // window's: a classic scrollbar takes its 15 px from the window and no band can stand under it (D-428).
     // At most a scrollbar narrower than the window, at every width the suite runs.
-    const width = await page.evaluate(() => document.documentElement.clientWidth);
+    const width = await page.evaluate(() => document.body.clientWidth);
     expect(width).toBeGreaterThan((page.viewportSize()?.width ?? 0) - 20);
     for (const band of [head, closing]) {
         const box = await band.boundingBox();
