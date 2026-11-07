@@ -465,7 +465,7 @@ onBeforeUnmount(() => {
                     </summary>
                     <div class="ef-more__body">
                         <fieldset class="ef-fieldset ef-printed">
-                                                <p class="form-field__help">Zum Vergleich mit den gewählten Ausführungen. Weicht etwas ab, sagen wir es dir; freigeben kannst du trotzdem. Nennt das Gutachten mehrere Größen, trag sie einzeln ein.</p>
+                            <p class="form-field__help">Zum Vergleich mit den gewählten Ausführungen. Weicht etwas ab, sagen wir es dir; freigeben kannst du trotzdem. Nennt das Gutachten mehrere Größen, trag sie einzeln ein.</p>
                             <div v-for="(row, i) in printed" :key="i" class="ef-printed__grid">
                                 <div class="form-field">
                                     <label class="form-field__label" :for="`ef-printed-type-${i}`">Radtyp</label>
