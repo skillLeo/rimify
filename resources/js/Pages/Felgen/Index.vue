@@ -13,7 +13,7 @@
  */
 
 import { Head, Link } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FilterBar from '../../Components/Listing/FilterBar.vue'
 import BuildForm from '../../Components/Product/BuildForm.vue'
@@ -23,7 +23,7 @@ import ProductTile from '../../Components/Ui/ProductTile.vue'
 import VehicleNotify from '../../Components/Vehicle/VehicleNotify.vue'
 import { useListingFilters } from '../../composables/useListingFilters'
 import { useShared } from '../../composables/useShared'
-import { zoll } from '../../format'
+import { decimal } from '../../format'
 import { contactHref } from '../../lib/contact'
 import { formatNumber } from '../../lib/num'
 import type { FelgenProps } from '../../types/pages'
@@ -45,6 +45,29 @@ const FIRST_SCREEN = shared.value.isMobile ? 4 : 8
 const vehicle = computed(() => shared.value.vehicle)
 const filters = useListingFilters(() => props.filters)
 const sheetOpen = ref(false)
+const results = ref<HTMLElement | null>(null)
+
+/*
+ * A filter keeps the page where it is, because the customer is looking at what they changed. A list that came back shorter than the
+ * way down to it would leave the page at its foot, with nothing of the list on screen: then the list comes up to the header.
+ */
+const RESULTS_IN_SIGHT = 160
+
+watch(() => props.cards, async () => {
+    await nextTick()
+
+    const box = results.value?.getBoundingClientRect()
+
+    if (box !== undefined && box.bottom < RESULTS_IN_SIGHT) {
+        results.value?.scrollIntoView({ block: 'start' })
+    }
+})
+
+function closeSheetOnEsc(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+        sheetOpen.value = false
+    }
+}
 
 const heading = computed(() =>
     vehicle.value === null ? 'Alle Felgen' : `Felgen für ${vehicle.value.short}`
@@ -123,10 +146,23 @@ const quick = computed<QuickOption[]>(() => {
 
         return Array.isArray(raw) && raw.map(String).includes(value)
     }
-    const sizes = (props.facets?.zoll ?? []).map((o) => ({ facet: 'zoll' as const, value: o.value, label: zoll(Number(o.value)), count: o.count, on: chosen('zoll', o.value) }))
     const brands = (props.facets?.marke ?? []).map((o) => ({ facet: 'marke' as const, value: o.value, label: o.value, count: o.count, on: chosen('marke', o.value) }))
 
-    return [...sizes, ...brands]
+    return brands
+})
+
+/* The sizes as the home page's tiles, on the band: the number is the tile, a press filters as the column's own box does (#32). */
+const sizeTiles = computed(() => {
+    const raw = props.filters.zoll
+    const on = Array.isArray(raw) ? raw.map(String) : []
+
+    return (props.facets?.zoll ?? []).map((option) => ({
+        value: option.value,
+        inch: decimal(Number(option.value), Number.isInteger(Number(option.value)) ? 0 : 1),
+        line: `${formatNumber(option.count)} ${option.count === 1 ? 'Felge' : 'Felgen'}`,
+        count: option.count,
+        on: on.includes(String(option.value)),
+    }))
 })
 
 const lastPage = computed(() =>
@@ -145,12 +181,19 @@ const pages = computed(() => {
 watch(sheetOpen, (open) => {
     if (typeof document !== 'undefined') {
         document.body.style.overflow = open ? 'hidden' : ''
+
+        if (open) {
+            document.addEventListener('keydown', closeSheetOnEsc)
+        } else {
+            document.removeEventListener('keydown', closeSheetOnEsc)
+        }
     }
 })
 
 onBeforeUnmount(() => {
     if (typeof document !== 'undefined') {
         document.body.style.removeProperty('overflow')
+        document.removeEventListener('keydown', closeSheetOnEsc)
     }
 })
 </script>
@@ -158,8 +201,9 @@ onBeforeUnmount(() => {
 <template>
     <Head title="Felgen" />
 
-    <section class="section-dense">
-        <div class="wrap">
+    <!-- The home page's alternation (#32, D-115): the pale blue band under the header, the results on white, a band to close. -->
+    <section class="plp__top">
+        <div class="container">
             <nav class="plp__crumbs t-small" aria-label="Brotkrumen">
                 <Link href="/">Startseite</Link>
                 <span aria-hidden="true">/</span>
@@ -170,8 +214,6 @@ onBeforeUnmount(() => {
                 <!-- Where the keyboard goes when the papers' block it was in goes with the figures (PapersForm). -->
                 <h1 class="t-h1" tabindex="-1" data-focus-after-papers>
                     {{ heading }}
-                    <!-- Seeded demonstration rows are on this page: it says so, once (OVERHAUL.md §2). -->
-                    <span v-if="demo" class="badge demo-note plp__demo">Demodaten</span>
                 </h1>
                 <!-- With a filter set, what it narrowed from stands beside what it left: „0 von 44 Felgen“ (EIGENE-FUNDE 128). -->
                 <p class="plp__count">
@@ -187,8 +229,9 @@ onBeforeUnmount(() => {
                     <template v-else>{{ formatNumber(cards.length) }} {{ cards.length === 1 ? 'Felge' : 'Felgen' }} im Sortiment</template>
                 </p>
                 <!-- The acceptance set is sold with the test payment (rimify:demo --abnahme): the product page's own words. -->
-                <p v-if="demo && acceptance" class="micro quiet">Demodaten zum Ausprobieren – Preise und Bestände sind Beispielwerte; bestellen geht hier nur mit der Testzahlung, verschickt wird nichts.</p>
-                <p v-else-if="demo" class="micro quiet">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
+                <!-- Seeded demonstration rows are on this page: it says so, once (OVERHAUL.md §2), beside the header's badge. -->
+                <p v-if="demo && acceptance" class="micro quiet plp__demoline">Demodaten zum Ausprobieren – Preise und Bestände sind Beispielwerte; bestellen geht hier nur mit der Testzahlung, verschickt wird nichts.</p>
+                <p v-else-if="demo" class="micro quiet plp__demoline">Beispielsortiment – Preise und Bestände sind Beispielwerte, bestellen kannst du noch nicht.</p>
             </div>
 
             <!-- The chosen car lacks what the answers wait for: asked by name the moment it is chosen, answered
@@ -218,6 +261,21 @@ onBeforeUnmount(() => {
                 <Link href="/felgen-suchen" class="btn btn--primary">Fahrzeug wählen</Link>
             </div>
 
+            <ul v-if="showFilters && sizeTiles.length > 1" class="plp__sizes" aria-label="Felgen nach Zollgröße">
+                <li v-for="size in sizeTiles" :key="size.value" class="plp__sizes-item">
+                    <button class="plp__size" type="button" :aria-pressed="size.on" :disabled="size.count === 0 && !size.on" @click="filters.toggle('zoll', size.value)">
+                        <span class="display num plp__size-number">{{ size.inch }}</span>
+                        <span class="small muted">Zoll</span>
+                        <span class="small num muted">{{ size.line }}</span>
+                        <Icon v-if="size.on" name="check" :size="20" class="plp__size-check" />
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="plp__body">
+        <div class="container">
             <!-- Below 1200px: one sticky bar that opens the filters. -->
             <div v-if="showFilters" class="plp__bar" :class="{ 'plp__bar--vbar': vehicleBar }">
                 <button class="btn btn--secondary plp__bar-btn" type="button" @click="sheetOpen = true">
@@ -225,7 +283,7 @@ onBeforeUnmount(() => {
                     Filter
                     <span v-if="appliedCount > 0" class="plp__bar-n tabular">{{ appliedCount }}</span>
                 </button>
-                <div v-if="quick.length > 0" class="plp__quick" role="group" aria-label="Schnellauswahl: Größe und Marke">
+                <div v-if="quick.length > 0" class="plp__quick" role="group" aria-label="Schnellauswahl: Marke">
                     <button
                         v-for="option in quick"
                         :key="`${option.facet}-${option.value}`"
@@ -252,7 +310,7 @@ onBeforeUnmount(() => {
                     />
                 </aside>
 
-                <div class="plp__results">
+                <div ref="results" class="plp__results">
                     <!-- The tiles' names are third-level headings; this is the second level they stand under, on every
                          width — on a phone „Filter“ is a button, not a heading (finding 112). -->
                     <h2 class="visually-hidden">Ergebnisse</h2>
@@ -323,6 +381,20 @@ onBeforeUnmount(() => {
         </div>
     </section>
 
+    <!-- The way on from the end of the list, and the band that closes the page above the footer. Nothing to close without a list. -->
+    <section v-if="cards.length > 0" class="plp__closing section--tight">
+        <div class="container plp__closing-in">
+            <div class="plp__closing-text">
+                <h2 class="h2">{{ hasVehicle ? 'Frage zu einer dieser Felgen?' : 'Nicht sicher, ob eine Felge passt?' }}</h2>
+                <p class="plp__closing-lead">{{ hasVehicle ? 'Schreib uns, wir sehen für dein Fahrzeug nach.' : 'Im RIMIFY-Check siehst du, ob sie für dein Auto freigegeben ist und unter welchen Auflagen.' }}</p>
+            </div>
+            <div class="cluster">
+                <Link v-if="!hasVehicle" href="/rimify-check" class="btn btn--primary">Zum RIMIFY-Check</Link>
+                <Link :href="contactHref({ subject: 'Frage zu einer Felge', from: '/felgen' })" class="btn" :class="hasVehicle ? 'btn--primary' : 'btn--secondary'">Schreib uns</Link>
+            </div>
+        </div>
+    </section>
+
     <!-- The filter sheet: the same panel as the sidebar, with the live count on its button. -->
     <template v-if="sheetOpen">
         <div class="scrim" @click="sheetOpen = false" />
@@ -346,6 +418,150 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.plp__top {
+    padding-block: var(--sp-16) var(--sp-32);
+    background: var(--c-band-blue);
+}
+
+.plp__top > .wrap > :last-child {
+    margin-bottom: 0;
+}
+
+/* The bar below 1200 px starts just under the band; beside the column the white has room. */
+.plp__body {
+    padding-block: var(--sp-8) var(--sp-48);
+}
+
+.plp__closing {
+    background: var(--c-band-blue);
+}
+
+/* Brought back into view by a filter: under the header, and on a phone under the sticky bar too. */
+.plp__results {
+    scroll-margin-top: calc(var(--plp-top, var(--header-h)) + var(--sp-16));
+}
+
+@media (max-width: 1199px) {
+    .plp__results {
+        scroll-margin-top: calc(var(--header-h) + 124px);
+    }
+}
+
+.plp__demoline {
+    display: block;
+    margin-top: var(--sp-4);
+}
+
+/* As the home page's size tiles: white on the band, the number the tile. One row that scrolls sideways on a phone. */
+.plp__sizes {
+    display: flex;
+    gap: var(--sp-8);
+    margin: var(--sp-16) calc(-1 * var(--page-margin)) 0;
+    padding: 0 var(--page-margin) var(--sp-4);
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+}
+
+.plp__sizes::-webkit-scrollbar {
+    display: none;
+}
+
+.plp__sizes-item {
+    flex: none;
+    min-width: 0;
+}
+
+.plp__size {
+    position: relative;
+    display: grid;
+    align-content: end;
+    width: calc(11 * var(--ch-text));
+    min-height: 96px;
+    padding: var(--sp-12);
+    border: 0;
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
+    color: var(--c-ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.plp__size-number {
+    margin-bottom: var(--sp-4);
+    white-space: nowrap;
+    transition: color var(--d-1) var(--ease-std);
+}
+
+.plp__size[aria-pressed='true'] {
+    outline: 2px solid var(--c-blue);
+    outline-offset: -2px;
+}
+
+.plp__size-check {
+    position: absolute;
+    top: var(--sp-8);
+    right: var(--sp-8);
+    color: var(--c-blue);
+}
+
+.plp__size:disabled {
+    cursor: not-allowed;
+}
+
+.plp__size:disabled .plp__size-number {
+    color: var(--c-ink-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .plp__size:not(:disabled):hover .plp__size-number {
+        color: var(--c-blue);
+    }
+
+    .plp__crumbs a:hover {
+        text-decoration: underline;
+    }
+}
+
+@media (min-width: 768px) {
+    .plp__sizes {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: var(--gutter);
+        margin-inline: 0;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .plp__size {
+        width: 100%;
+    }
+}
+
+@media (max-width: 639px) {
+    .plp__notice .btn {
+        flex: 1 0 100%;
+    }
+}
+
+.plp__closing-in {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-24);
+}
+
+.plp__closing-text {
+    flex: 1 1 calc(40 * var(--ch-text));
+}
+
+.plp__closing-lead {
+    max-width: calc(60 * var(--ch-text));
+    margin-top: var(--sp-8);
+    color: var(--c-ink-2);
+}
+
 .plp__crumbs {
     display: flex;
     align-items: center;
@@ -368,27 +584,26 @@ onBeforeUnmount(() => {
 .plp__count {
     margin-top: var(--space-2);
     color: var(--ink2);
+    font-size: var(--fs-body-l);
+    line-height: var(--lh-body-l);
 }
 
-/* The question about the car, above the grid it decides: set on the band as the notice without a car is, the
+/* The question about the car, above the grid it decides: on the page's band now (#32), the band its panel, the
    full width of the page, so its white options read as the buttons they are (DIRECTION §4: no bordered card). */
 .plp__ask {
     margin-bottom: var(--space-5);
-    padding: var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--band);
 }
 
 .plp__ask :deep(.bf) {
     margin-block: 0;
 }
 
-/* Nothing asked, only said: a line under the count, not a panel. „Ändern“ opens the choice on the band. */
-.plp__ask--said:not(:has(.bf__group)) {
-    padding: 0;
-    background: none;
+/* The band its panel: a pressed option's own tint would look like a hole among the white ones. */
+.plp__ask :deep(.bf__option[aria-pressed='true']) {
+    background: var(--c-surface);
 }
 
+/* Nothing asked, only said: a line under the count, not a panel. „Ändern“ opens the choice on the band. */
 /* What the tyres wait for (D-286): the sentence in ink, the form's button under it. */
 /* As the no-car notice says its one thing: the icon, body size, a line one can read (DIRECTION §3). */
 .plp__papers-lead {
@@ -413,11 +628,6 @@ onBeforeUnmount(() => {
 }
 
 /* Given, not asked: the figures in one line, as the body style's. „Ändern“ opens the form on the band. */
-.plp__papers--said:not(:has(.pp__form)) {
-    padding: 0;
-    background: none;
-}
-
 .plp__papers--said:not(:has(.pp__form)) :deep(.pp) {
     margin-block: 0;
 }
@@ -429,7 +639,7 @@ onBeforeUnmount(() => {
     gap: var(--space-3);
     margin-bottom: var(--space-5);
     padding: var(--space-4);
-    background: var(--band);
+    background: var(--c-surface);
     border-radius: var(--radius-md);
     color: var(--ink2);
 }
@@ -445,8 +655,8 @@ onBeforeUnmount(() => {
     position: sticky;
     top: var(--header-h);
     z-index: var(--z-sticky);
-    margin: 0 calc(var(--gutter) * -1) var(--space-4);
-    padding: var(--space-2) var(--gutter);
+    margin: 0 calc(var(--page-margin) * -1) var(--space-4);
+    padding: var(--space-2) var(--page-margin);
     background: var(--ground);
     border-bottom: 1px solid var(--line);
 }
@@ -459,8 +669,8 @@ onBeforeUnmount(() => {
 .plp__quick {
     display: flex;
     gap: var(--sp-8);
-    margin: var(--sp-8) calc(var(--gutter) * -1) 0;
-    padding: 0 var(--gutter) var(--sp-4);
+    margin: var(--sp-8) calc(var(--page-margin) * -1) 0;
+    padding: 0 var(--page-margin) var(--sp-4);
     overflow-x: auto;
     scrollbar-width: none;
     overscroll-behavior-x: contain;
@@ -512,8 +722,8 @@ onBeforeUnmount(() => {
 .plp__apply {
     position: sticky;
     bottom: 0;
-    margin: var(--space-5) calc(var(--gutter) * -1) 0;
-    padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom));
+    margin: var(--space-5) calc(var(--page-margin) * -1) 0;
+    padding: var(--space-3) var(--page-margin) calc(var(--space-3) + env(safe-area-inset-bottom));
     background: var(--surface);
     border-top: 1px solid var(--line);
 }
@@ -545,7 +755,8 @@ onBeforeUnmount(() => {
     /*
      * The client's #24 (D-120): the column starts under everything sticky above it — the header and, where it shows,
      * the vehicle bar — and is never taller than what is left of the window, so its last option and the end of its
-     * scrollbar are on screen; reaching that end does not carry the scroll on into the page.
+     * scrollbar are on screen. Its ends hand the wheel to the page (D-412): held back, a column pushed up by the page's end
+     * sat with its first filters out of view and nothing the wheel could do about it (the client's #24 again, 07.11.2026).
      */
     .plp__layout {
         --plp-top: calc(var(--header-h) + var(--space-4));
@@ -563,11 +774,12 @@ onBeforeUnmount(() => {
         overflow-y: auto;
         /* The scrollbar's room is kept whether or not it shows, so nothing moves as the column fills (#24). */
         scrollbar-gutter: stable;
-        overscroll-behavior: contain;
-        padding: var(--space-4);
+        padding: 0 var(--space-3) var(--space-4) 0;
         background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: var(--radius-md);
+    }
+
+    .plp__body {
+        padding-top: var(--sp-32);
     }
 
     /* Beside the filters there is room for three columns, not four. */

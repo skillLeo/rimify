@@ -185,7 +185,7 @@ export const ITEMS = [
     {
         nr: 24,
         wish: 'Scrollbalken der Filter am Ende manchmal fehlerhaft',
-        now: 'Die Filterspalte lässt sich am Computer bis zum letzten Eintrag scrollen, ohne dass etwas springt. Das Bild zeigt unseren Testshop: So lang wird die Spalte erst mit vielen Felgen.',
+        now: 'Am Computer scrollt das Mausrad die Filterspalte bis zum letzten Eintrag und wieder ganz nach oben, auch vom Ende der Seite aus: Dort zieht es über der Spalte die Seite mit, bis der erste Filter wieder zu sehen ist. Das Bild zeigt unseren Testshop.',
         state: 'erledigt',
         commits: ['548cf489', '3951e65e'],
     },
@@ -234,14 +234,14 @@ export const ITEMS = [
     {
         nr: 31,
         wish: 'Filter-Auswahl in der Liste auch auf dem Handy',
-        now: 'Am Handy öffnet „Filter“ von unten eine Auswahl mit denselben Filtern und Trefferzahlen wie am Computer. Das Bild zeigt unseren Testshop mit Beispielfelgen.',
+        now: 'Am Handy klappt „Felgen“ im Menü dieselbe Auswahl auf wie am Computer: nach Marke, nach Größe, nach Fahrzeug und die günstigsten Modelle. In der Liste öffnet „Filter“ außerdem von unten dieselben Filter mit ihren Trefferzahlen. Das Bild zeigt unseren Testshop mit Beispielfelgen.',
         state: 'erledigt',
         commits: ['43a54a2a'],
     },
     {
         nr: 32,
         wish: 'Seite etwas farbiger, z. B. hellblaue Abschnitte',
-        now: 'Eine helle blaugraue Flächenfarbe wechselt sich mit Weiß ab, nicht jeder Abschnitt ist getönt. Vorher und nachher nebeneinander: 32-vorher-1440.png und 32-1440.png, ebenso für 390.',
+        now: 'Helles Blaugrau wechselt sich mit Weiß ab, jetzt auch in der Felgenliste: Kopf und Abschluss auf dem blaugrauen Band, die Felgen auf Weiß. Nicht jeder Abschnitt ist getönt. Vorher und nachher: 32-vorher-1440.png und 32-1440.png, am Handy 32-vorher-390.png und 32-390.png.',
         state: 'Urteil offen',
         tick: true,
         commits: ['0087968c', 'a7f10e91', 'ce0cde0c'],

@@ -669,11 +669,14 @@
         }
     }
 
+    /* A long answer wraps inside the tile: „Noch nicht bestätigt“ ran past it up to 390 px. */
     .tile__badge {
         position: absolute;
         top: var(--sp-12);
         left: var(--sp-12);
         z-index: var(--z-base);
+        max-width: calc(100% - 2 * var(--sp-12));
+        white-space: normal;
     }
 
     /* Compare sits above the stretched link and appears when the tile is hovered or focused. It

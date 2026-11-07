@@ -135,6 +135,13 @@ a.size-tile:active .size-tile__number {
     color: var(--c-blue-press);
 }
 
+/* A window this narrow has no room for four: their counts ran a pixel past the page. */
+@media (max-width: 399px) {
+    .sizes {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 @media (min-width: 768px) {
     .sizes {
         grid-template-columns: repeat(7, minmax(0, 1fr));

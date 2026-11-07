@@ -105,12 +105,15 @@ describe('Felgen — the choices in the list on a phone (the client\'s #31)', ()
         })
         mounted.push(wrapper)
         const chips = wrapper.findAll('.plp__quick .chip')
+        const tiles = wrapper.findAll('.plp__size')
 
-        expect(chips.map((c) => c.text())).toEqual(['18\u202fZoll 3', '19\u202fZoll 0', 'BORBET 2'])
-        expect(chips[0]?.attributes('aria-pressed')).toBe('true')
-        expect(chips[1]?.attributes('disabled')).toBeDefined()
+        // The sizes as tiles on the band (#32), the brands as chips under it; a size chosen is said, one nothing is left in is off.
+        expect(chips.map((c) => c.text())).toEqual(['BORBET 2'])
+        expect(tiles.map((c) => c.text().replace(/\s+/g, ' '))).toEqual(['18Zoll3 Felgen', '19Zoll0 Felgen'])
+        expect(tiles[0]?.attributes('aria-pressed')).toBe('true')
+        expect(tiles[1]?.attributes('disabled')).toBeDefined()
 
-        await chips[2]?.trigger('click')
+        await chips[0]?.trigger('click')
 
         expect(router.get).toHaveBeenCalledWith('/felgen', { zoll: ['18.0'], marke: ['BORBET'] }, expect.objectContaining({ replace: true }))
     })
