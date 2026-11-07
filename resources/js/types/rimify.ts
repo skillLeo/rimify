@@ -292,6 +292,8 @@ export interface CardFitment {
     conditions?: string[]
     /** Further Auflagen depend on the rim or tyre size: said on the product page, per size. */
     conditionsVary?: boolean
+    /** The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says. */
+    hint?: 'green' | 'yellow'
     /** Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. */
     notesOnly?: boolean
     /** No size sells, and the wheel is approved with its tyres not yet confirmed (finding 103, D-286). Additive. */

@@ -431,19 +431,6 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
     grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(30 * var(--ch-text))), 1fr));
 }
 
-.ef-mismatch {
-    display: grid;
-    gap: var(--sp-4);
-}
-
-.ef-mismatch__list {
-    margin: 0;
-    padding-left: var(--sp-24);
-    list-style: disc;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-}
-
 .ef-wheel__list {
     margin: 0;
     padding-left: var(--sp-24);
@@ -481,11 +468,6 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
 .ef-columns__wide {
     grid-column: 1 / -1;
-}
-
-.ef-line__rims {
-    display: grid;
-    gap: var(--sp-4);
 }
 
 .ef-blockers {

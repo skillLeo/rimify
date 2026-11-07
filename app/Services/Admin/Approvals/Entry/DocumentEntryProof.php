@@ -40,6 +40,10 @@ final readonly class DocumentEntryProof
             }
         }
 
+        if ($desired['sets'] !== $actual['sets']) {
+            $out[] = 'Die Felgensätze wären '.json_encode($desired['sets'], JSON_UNESCAPED_UNICODE).' statt '.json_encode($actual['sets'], JSON_UNESCAPED_UNICODE);
+        }
+
         if ($desired['list'] !== $actual['list']) {
             $out[] = 'Die Kombinationen wären '.json_encode($desired['list'], JSON_UNESCAPED_UNICODE).' statt '.json_encode($actual['list'], JSON_UNESCAPED_UNICODE);
         }

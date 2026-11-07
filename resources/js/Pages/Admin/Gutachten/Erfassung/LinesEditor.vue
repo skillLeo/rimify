@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * The tyres of one car (the client's change of 05.11.2026: „There should only be fields for tire size combinations“): every line
- * is vorne + hinten + codes, with a power band behind the line's „…“. Typing the front fills the rear with the same size, and the
- * rear can be changed. What is typed is saved as it is typed; what does not read yet is kept, said, and the release waits for it.
+ * The tyres of one car on one wheel combination (the client's change of 05.11.2026: „There should only be fields for tire size
+ * combinations“): every line is vorne + hinten + codes, with a power band behind the line's „…“. Typing the front fills the rear
+ * with the same size, where both wheels share a diameter, and the rear can be changed. A tyre whose rim is not its axle's wheel is
+ * said at once. What is typed is saved as it is typed; what does not read yet is kept, said, and the release waits for it.
  * Warnings say, they never block.
  *
  * Nothing leaves this car unsaved (autosave.ts, entryStore): moving on sends what is owed and waits; a refusal or a lost connection
@@ -17,11 +18,14 @@ import { stampHeaders } from '../../../../composables/admin/useDirtyForm'
 import { createAutosave } from './autosave'
 import CodeTags from './CodeTags.vue'
 import CopyDialog from './CopyDialog.vue'
-import { Refused, blankLine, duplicateKeys, isPair, pairWarnings, refusedOf, send, toEditLine, typedFront, typedRear, useEntry, type CarDetail, type CarView, type EditLine } from './entryStore'
+import { Refused, blankLine, duplicateKeys, misfit, refusedOf, send, toEditLine, typedFront, typedRear, useEntry, type CarDetail, type CarView, type CombinationView, type EditLine } from './entryStore'
 import PasteDialog from './PasteDialog.vue'
 import { parseKwBand, readTyre, tyreLabel, whyUnread } from './tyreInput'
 
-const props = defineProps<{ car: CarView; wheelName: string; sizeName: string }>()
+const props = defineProps<{ car: CarView; wheelName: string; combination: CombinationView }>()
+
+/* Both wheels one diameter: the same tyre fits behind, and the rear takes it as it is typed. */
+const mirrors = computed(() => Math.abs(props.combination.frontDiameter - props.combination.rearDiameter) < 0.001)
 
 const store = useEntry()
 const { state } = store
@@ -80,7 +84,7 @@ function filled(line: EditLine): boolean {
 }
 
 function fields(line: EditLine) {
-    return { front: line.front, rear: line.rear, kw: line.kw, codes: line.codes, front_on_rim: line.frontOnRim, rear_on_rim: line.rearOnRim }
+    return { front: line.front, rear: line.rear, kw: line.kw, codes: line.codes }
 }
 
 const generalCodes = computed(() => general.value.map((code) => ({ code, note: notes.value[code] ?? null })))
@@ -235,13 +239,13 @@ function tidy(line: EditLine, side: 'front' | 'rear', event?: FocusEvent): void 
             if (movingIntoRear) {
                 line.front = label
             } else {
-                typedFront(line, label)
+                typedFront(line, label, mirrors.value)
             }
         } else {
             line.rear = label
             line.follows = line.rear === line.front
         }
-    } else if (line[side].trim() === '' && !line.oneSided && !movingIntoRear) {
+    } else if (mirrors.value && line[side].trim() === '' && !line.oneSided && !movingIntoRear) {
         line[side] = side === 'front' ? line.rear : line.front
         line.follows = true
     }
@@ -264,6 +268,12 @@ function sideHint(line: EditLine, side: 'front' | 'rear'): { ok: boolean; text: 
 
     if (refused !== null && refused.text === text) {
         return { ok: false, text: refused.why }
+    }
+
+    const wrong = misfit(text, side === 'front' ? props.combination.frontDiameter : props.combination.rearDiameter, side)
+
+    if (wrong !== null) {
+        return { ok: false, text: wrong }
     }
 
     return { ok: true, text: `${tyre.li === null ? 'ohne Lastindex' : `Lastindex ${tyre.li}`} · ${tyre.si === null ? 'ohne Symbol' : `Symbol ${tyre.si}`}` }
@@ -318,7 +328,7 @@ async function copy(): Promise<void> {
         <header class="ef-editor__head">
             <h3 id="ef-editor-h" class="ef-editor__title" tabindex="-1">{{ car.label }}</h3>
             <p class="ef-editor__sub">
-                Felge {{ wheelName }} · {{ sizeName }}
+                <span data-editor-wheel>Felge {{ wheelName }} · {{ combination.label }}</span>
                 <span v-if="car.finish" class="adm-tag adm-tag--neutral">nur {{ car.finish }}</span>
                 <span v-if="car.axle !== 'ALL'" class="adm-tag adm-tag--neutral">{{ car.axle === 'FRONT' ? 'nur Vorderachse' : 'nur Hinterachse' }}</span>
                 <span v-if="car.copiedFrom" class="adm-tag adm-tag--neutral">kopiert von {{ car.copiedFrom }}</span>
@@ -355,7 +365,7 @@ async function copy(): Promise<void> {
                                     :disabled="!state.editable"
                                     :placeholder="line.oneSided ? 'keine' : 'z. B. 225/40R18 88W'"
                                     :aria-invalid="sideHint(line, 'front').ok ? undefined : 'true'"
-                                    @input="typedFront(line, ($event.target as HTMLInputElement).value)"
+                                    @input="typedFront(line, ($event.target as HTMLInputElement).value, mirrors)"
                                     @blur="tidy(line, 'front', $event)"
                                     @keydown.enter.prevent="addLine(line)"
                                 >
@@ -371,7 +381,7 @@ async function copy(): Promise<void> {
                                     autocomplete="off"
                                     :value="line.rear"
                                     :disabled="!state.editable"
-                                    :placeholder="line.oneSided ? 'keine' : 'wie vorne'"
+                                    :placeholder="line.oneSided ? 'keine' : mirrors ? 'wie vorne' : `z. B. 255/35R${combination.rearDiameter} 96Y`"
                                     :aria-invalid="sideHint(line, 'rear').ok ? undefined : 'true'"
                                     @focus="line.follows && ($event.target as HTMLInputElement).select()"
                                     @input="typedRear(line, ($event.target as HTMLInputElement).value)"
@@ -394,17 +404,11 @@ async function copy(): Promise<void> {
                             <span v-if="line.outsideList" class="adm-tag adm-tag--neutral">nicht in der Kombinationsliste, aus der bisherigen Eingabe</span>
                             <span v-if="duplicates.includes(line.key)" class="ef-warn">Diese Zeile steht schon einmal da.</span>
                         </div>
-                        <p v-for="warning in pairWarnings(line, lines)" :key="warning" class="ef-warn ef-line__wide">{{ warning }}</p>
                         <div v-if="openLine === line.key" class="ef-line__extra">
                             <div class="form-field">
                                 <label class="form-field__label" :for="`ef-kw-${line.key}`">kW-Bereich</label>
                                 <input :id="`ef-kw-${line.key}`" v-model="line.kw" class="input ef-line__kw" type="text" placeholder="z. B. 85-142" :disabled="!state.editable" :aria-invalid="kwOk(line) ? undefined : 'true'">
                             </div>
-                            <fieldset v-if="isPair(line)" class="ef-fieldset ef-line__rims">
-                                <legend class="form-field__label">Steht nur in dieser Kombination im Gutachten</legend>
-                                <label class="check"><input v-model="line.frontOnRim" type="checkbox" :disabled="!state.editable"> die vordere Größe</label>
-                                <label class="check"><input v-model="line.rearOnRim" type="checkbox" :disabled="!state.editable"> die hintere Größe</label>
-                            </fieldset>
                             <button v-if="state.editable" class="btn btn--ghost ef-line__remove" type="button" @click="removeLine(line)">
                                 <Icon name="delete" :size="20" />
                                 Zeile entfernen
@@ -412,7 +416,7 @@ async function copy(): Promise<void> {
                         </div>
                     </li>
                 </ul>
-                <p v-if="lines.length === 0" class="ef-empty">Noch keine Reifen. Trag die Größen ein, die das Gutachten für dieses Fahrzeug nennt. Ist vorne und hinten dieselbe Größe erlaubt, genügt vorne.</p>
+                <p v-if="lines.length === 0" class="ef-empty">Noch keine Reifen. Trag die Kombinationen ein, die das Gutachten für dieses Fahrzeug nennt.{{ mirrors ? ' Die hintere Größe übernimmt die vordere, bis du sie änderst.' : ' Vorne und hinten haben verschiedene Durchmesser: Trag beide Größen ein.' }}</p>
                 <div v-if="state.editable" class="ef-editor__adds">
                     <button class="btn btn--secondary" type="button" @click="addLine()"><Icon name="plus" :size="20" /> Kombination</button>
                     <button class="btn btn--ghost" type="button" @click="pasteOpen = true">Mehrere einfügen</button>
@@ -500,7 +504,7 @@ async function copy(): Promise<void> {
             </div>
 
             <CopyDialog v-model:open="copyOpen" :from="car" />
-            <PasteDialog v-model:open="pasteOpen" :car="car" @take="(sides) => { lines = [...lines, ...sides.map((side) => blankLine(side.front, side.rear))] }" />
+            <PasteDialog v-model:open="pasteOpen" :car="car" :combination="combination" @take="(sides) => { lines = [...lines, ...sides.map((side) => blankLine(side.front, side.rear))] }" />
         </template>
     </section>
 </template>

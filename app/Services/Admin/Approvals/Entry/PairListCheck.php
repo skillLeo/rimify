@@ -7,14 +7,16 @@ namespace App\Services\Admin\Approvals\Entry;
 use App\Domain\Fitment\Tyres\CombinationEntry;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentTyreLine;
+use App\Models\DocumentWheelCombination;
 use App\Models\Vehicle;
 use App\Support\TyreText;
 use App\Support\VehicleName;
 
 /**
- * Front/rear pairs are entered per car, but the shop holds them per field K (D-358): `document_tyre_combinations` has no
- * column for a car, and the engine gives a car every pair of its K's list whose two sizes its row carries on their axles.
- * So two cars of one K can be entered differently, and the engine answer one list for both.
+ * Front/rear pairs are entered per car and wheel combination, but the shop holds them per field K (D-358):
+ * `document_tyre_combinations` has no column for a car or a wheel, and the engine gives a car every pair of its K's list whose two
+ * sizes its rows carry on their axles. So two cars of one K, or two wheel combinations of one car, can be entered differently, and
+ * the engine answer one list for both.
  *
  * This asks what the engine would answer, car by car, and compares it with what was entered for that car:
  *
@@ -24,7 +26,7 @@ use App\Support\VehicleName;
  * - **a car the list cannot reach** — a field K that is no EG number, or none, on a paper with a list — fails closed by
  *   itself (`TyrePairingTable::unmatched`: its tyres are „Noch nicht bestätigt“, no Komplettrad). Said, never a block.
  *
- * @phpstan-type Conflict array{vehicleId: int, car: string, k: string, pair: string, others: list<string>}
+ * @phpstan-type Conflict array{entryId: int, vehicleId: int, car: string, k: string, pair: string, others: list<string>, combination: string, several: bool}
  * @phpstan-type Unreachable array{vehicleId: int, car: string, k: string|null}
  */
 final readonly class PairListCheck
@@ -52,18 +54,20 @@ final readonly class PairListCheck
             }
         }
 
+        /** @var array<int, array<int, array<string, true>>> $own car => wheel combination => the pairs entered */
         $own = [];
         $names = [];
+        $several = $model->entries->pluck('document_wheel_combination_id')->unique()->count() > 1;
 
         foreach ($model->entries as $entry) {
             /** @var Vehicle|null $car */
             $car = $entry->vehicle;
             $names[$entry->vehicle_id] = self::carName($car);
-            $own[$entry->vehicle_id] ??= [];
+            $own[$entry->vehicle_id][$entry->document_wheel_combination_id] ??= [];
 
             foreach ($entry->lines as $line) {
-                if (EntryModel::twoSided($line) && ($line->in_list ?? true) && ($line->in_list !== null || DocumentEntryWriter::appliesTo($line, $car))) {
-                    $own[$entry->vehicle_id][self::lineKey($line)] = true;
+                if (EntryModel::twoSided($line) && EntryModel::stands($entry, $line) && ($line->in_list ?? true) && ($line->in_list !== null || DocumentEntryWriter::appliesTo($line, $car))) {
+                    $own[$entry->vehicle_id][$entry->document_wheel_combination_id][self::lineKey($line)] = true;
                 }
             }
         }
@@ -97,19 +101,38 @@ final readonly class PairListCheck
 
             [$front, $rear] = $this->axleSizes($entries->all(), $car, $caps);
 
-            foreach (array_unique($keys[$entry]) as $pair) {
-                [$f, $r] = explode('|', $pair);
+            // Cell by cell: what the engine would answer for this front version with this rear one.
+            foreach ($entries as $cell) {
+                /** @var DocumentWheelCombination $combination */
+                $combination = $cell->combination;
 
-                if (isset($front[$f], $rear[$r]) && ! isset($own[$vehicleId][$pair])) {
+                foreach (array_unique($keys[$entry]) as $pair) {
+                    [$f, $r] = explode('|', $pair);
+
+                    if (! isset($front[$combination->front_wheel_size_id][$f], $rear[$combination->rear_wheel_size_id][$r]) || isset($own[$vehicleId][$combination->id][$pair])) {
+                        continue;
+                    }
+
                     $others = [];
 
-                    foreach ($own as $otherId => $pairs) {
-                        if ($otherId !== (int) $vehicleId && isset($pairs[$pair]) && $entryOf[$otherId] === $entry) {
-                            $others[] = $names[$otherId];
+                    foreach ($own as $otherId => $byCombination) {
+                        foreach ($byCombination as $otherCombination => $pairs) {
+                            if (isset($pairs[$pair]) && $entryOf[$otherId] === $entry && ($otherId !== (int) $vehicleId || $otherCombination !== $combination->id)) {
+                                $others[] = $names[$otherId];
+                            }
                         }
                     }
 
-                    $conflicts[] = ['vehicleId' => (int) $vehicleId, 'car' => $names[$vehicleId], 'k' => (string) $k, 'pair' => self::pairLabel($f, $r), 'others' => array_values(array_unique($others))];
+                    $conflicts[] = [
+                        'entryId' => (int) $cell->id,
+                        'vehicleId' => (int) $vehicleId,
+                        'car' => $names[$vehicleId],
+                        'k' => (string) $k,
+                        'pair' => self::pairLabel($f, $r),
+                        'others' => array_values(array_unique($others)),
+                        'combination' => EntryView::combinationLabel($combination),
+                        'several' => $several,
+                    ];
                 }
             }
         }
@@ -125,21 +148,35 @@ final readonly class PairListCheck
      */
     public static function sentences(array $conflicts): array
     {
-        return array_map(static fn (array $c): string => sprintf(
-            '%s hat dieselbe Betriebserlaubnis (%s) wie %s, aber nicht die Kombination %s. Der Shop speichert Kombinationen je Betriebserlaubnis: Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.',
-            $c['car'],
-            $c['k'],
-            $c['others'] === [] ? 'ein anderes Fahrzeug' : implode(', ', $c['others']),
-            $c['pair'],
-        ), $conflicts);
+        return array_map(static function (array $c): string {
+            // Only on this car itself, under another wheel combination: there is no other car to name.
+            if ($c['several'] && $c['others'] === [$c['car']]) {
+                return sprintf(
+                    'Bei %s steht die Reifenkombination %s nicht bei der Felgenkombination „%s“, nur bei einer anderen. Der Shop speichert Reifenkombinationen je Betriebserlaubnis und würde sie auch dort anbieten: Trag sie auch dort ein oder bei keiner.',
+                    $c['car'],
+                    $c['pair'],
+                    $c['combination'],
+                );
+            }
+
+            return sprintf(
+                '%s hat dieselbe Betriebserlaubnis (%s) wie %s, aber nicht die Kombination %s%s. Der Shop speichert Kombinationen je Betriebserlaubnis: Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.',
+                $c['car'],
+                $c['k'],
+                $c['others'] === [] ? 'ein anderes Fahrzeug' : implode(', ', $c['others']),
+                $c['pair'],
+                $c['several'] ? ' bei der Felgenkombination „'.$c['combination'].'“' : '',
+            );
+        }, $conflicts);
     }
 
     /**
-     * The sizes a car's rows carry on each axle, at its power, as the engine filters them (FitmentResolver::axleRequirement).
+     * The sizes a car's rows carry on each axle of each version, at its power, as the engine filters them
+     * (FitmentResolver::axleRequirement).
      *
      * @param  array<int, DocumentCarEntry>  $entries
      * @param  array<string, int>  $caps
-     * @return array{0: array<string, true>, 1: array<string, true>}
+     * @return array{0: array<int, array<string, true>>, 1: array<int, array<string, true>>}
      */
     private function axleSizes(array $entries, ?Vehicle $car, array $caps): array
     {
@@ -155,12 +192,15 @@ final readonly class PairListCheck
 
                 $key = self::sizeKey($size['width_mm'], $size['aspect'], $size['diameter_in']);
 
+                /** @var DocumentWheelCombination $combination */
+                $combination = $entry->combination;
+
                 if ($entry->axle !== 'REAR' && $size['axle'] !== 'REAR') {
-                    $front[$key] = true;
+                    $front[$combination->front_wheel_size_id][$key] = true;
                 }
 
                 if ($entry->axle !== 'FRONT' && $size['axle'] !== 'FRONT') {
-                    $rear[$key] = true;
+                    $rear[$combination->rear_wheel_size_id][$key] = true;
                 }
             }
         }

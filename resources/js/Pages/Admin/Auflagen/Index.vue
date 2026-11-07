@@ -3,11 +3,12 @@
  * Gutachten › Auflagen — every document's own Auflagenverzeichnis, one after the other, to read (the
  * corrections memo §1). There is no catalogue shared between documents any more: `A01` of one Gutachten and
  * `A01` of another are two entries, each with its own sentence. A list is written on its Gutachten, while it
- * is a draft; this page only shows them — and the codes a document's rows carry that it does not define,
- * which keep those rows „Noch nicht bestätigt“ and the document unreleased.
+ * is a draft; this page shows them — and the codes a document's rows carry that it does not define, which keep
+ * those rows „Noch nicht bestätigt“ and the document unreleased. Here each code's shop colour is seen, filtered and
+ * changed, so it can be found (the client's item 23).
  */
 
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
@@ -31,6 +32,9 @@ const props = defineProps<{
     documents: DocumentList[]
     /** Every document with a code, over all pages (the admin audit's F-33). */
     found: number
+    /** The filter on the shop colour; null: every code. */
+    farbe: 'green' | 'yellow' | null
+    canColour: boolean
     pagination: ListPagination
 }>()
 
@@ -41,6 +45,14 @@ const STATUS: Record<DocumentList['status'], string> = {
     published: 'Freigegeben',
     superseded: 'Ersetzt',
     withdrawn: 'Zurückgezogen',
+}
+
+function filterColour(value: string): void {
+    router.get('/admin/auflagen', value === '' ? {} : { farbe: value }, { preserveState: true, preserveScroll: true })
+}
+
+function setColour(doc: DocumentList, c: DocumentConditionView, value: string): void {
+    router.put(`/admin/gutachten/${doc.id}/auflagen/${c.id}/farbe`, { shop_colour: value }, { preserveScroll: true, preserveState: true })
 }
 
 /** The parameter a filter or tyre kind carries, as the admin entered it. */
@@ -71,7 +83,18 @@ function parameter(c: DocumentConditionView): string {
             Jedes Gutachten hat sein eigenes Auflagenverzeichnis; derselbe Code kann in zwei Gutachten Verschiedenes bedeuten. Geschrieben wird es beim Gutachten selbst, solange es ein Entwurf ist.
         </p>
 
-        <AdminState v-if="documents.length === 0" kind="empty" text="Hier steht das Auflagenverzeichnis jedes Gutachtens, sobald das erste einen Code hat." />
+        <div class="form-field al-filter">
+            <label class="form-field__label" for="al-farbe">Farbe im Shop</label>
+            <select id="al-farbe" class="input" :value="farbe ?? ''" @change="filterColour(($event.target as HTMLSelectElement).value)">
+                <option value="">Alle Farben</option>
+                <option value="green">Grün</option>
+                <option value="yellow">Gelb</option>
+            </select>
+        </div>
+
+        <AdminState v-if="documents.length === 0 && farbe" kind="empty" text="Kein Code in dieser Farbe." />
+
+        <AdminState v-else-if="documents.length === 0" kind="empty" text="Hier steht das Auflagenverzeichnis jedes Gutachtens, sobald das erste einen Code hat." />
 
         <section v-for="doc in documents" :key="doc.id" class="adm-section al-doc" :aria-labelledby="`al-doc-${doc.id}`">
             <div class="adm-section__head">
@@ -93,6 +116,7 @@ function parameter(c: DocumentConditionView): string {
                             <th scope="col">Code</th>
                             <th scope="col">Art</th>
                             <th scope="col">Satz aus dem Gutachten</th>
+                            <th scope="col">Farbe</th>
                             <th scope="col" class="num">Seite</th>
                             <th scope="col" class="num">Verwendet</th>
                         </tr>
@@ -105,6 +129,16 @@ function parameter(c: DocumentConditionView): string {
                                 <span v-if="parameter(c)" class="adm-table__sub">{{ parameter(c) }}</span>
                             </td>
                             <td data-label="Satz" class="al-text">{{ c.text }}</td>
+                            <td data-label="Farbe">
+                                <template v-if="canColour">
+                                    <label class="visually-hidden" :for="`al-colour-${c.id}`">Farbe von Code {{ c.code }} im Shop</label>
+                                    <select :id="`al-colour-${c.id}`" class="input al-colour" :value="c.shopColour" @change="setColour(doc, c, ($event.target as HTMLSelectElement).value)">
+                                        <option value="green">Grün</option>
+                                        <option value="yellow">Gelb</option>
+                                    </select>
+                                </template>
+                                <template v-else>{{ c.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</template>
+                            </td>
                             <td data-label="Seite" class="num">{{ c.page ?? '–' }}</td>
                             <td data-label="Verwendet" class="num" data-phone="hide">{{ c.uses === 0 ? '–' : decimal(c.uses, 0) }}</td>
                         </tr>
@@ -120,6 +154,15 @@ function parameter(c: DocumentConditionView): string {
 <style scoped>
 .al-intro {
     margin-bottom: var(--sp-24);
+}
+
+.al-filter {
+    max-width: calc(24 * var(--ch-text));
+    margin-bottom: var(--sp-24);
+}
+
+.al-colour {
+    min-width: calc(9 * var(--ch-text));
 }
 
 /* A document named is ink, like every document link of the panel; the underline comes on hover. */

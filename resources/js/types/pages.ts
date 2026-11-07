@@ -473,6 +473,8 @@ export interface FitmentDetailView {
 export interface ConfigVerdict {
     status: VerdictStatus
     label: string
+    /** The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says. */
+    hint?: 'green' | 'yellow'
     /** Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. Additive. */
     notesOnly?: boolean
     sellable: boolean

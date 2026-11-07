@@ -42,6 +42,11 @@ function levelLabel(value: string | undefined): string {
     return props.levels?.find((l) => l.value === value)?.label ?? '–'
 }
 
+function setColour(condition: DocumentConditionView, value: string): void {
+    sent.value = true
+    router.put(`${base.value}/${condition.id}/farbe`, { shop_colour: value }, { preserveScroll: true, preserveState: true })
+}
+
 function setLevel(condition: DocumentConditionView, value: string): void {
     sent.value = true
     router.put(`${base.value}/${condition.id}/stufe`, { level: value }, { preserveScroll: true, preserveState: true })
@@ -376,6 +381,7 @@ function confirmLimit(condition: DocumentConditionView): void {
                         <th scope="col">Art</th>
                         <th scope="col">Satz aus dem Gutachten</th>
                         <th v-if="levels" scope="col">Im Shop</th>
+                        <th scope="col">Farbe</th>
                         <th scope="col" class="num">Seite</th>
                         <th scope="col" class="num">Verwendet</th>
                         <th v-if="editable" scope="col"><span class="visually-hidden">Aktionen</span></th>
@@ -410,6 +416,16 @@ function confirmLimit(condition: DocumentConditionView): void {
                                 </select>
                             </template>
                             <template v-else>{{ levelLabel(condition.level) }}</template>
+                        </td>
+                        <td data-label="Farbe" class="av__level">
+                            <template v-if="levelsEditable">
+                                <label class="visually-hidden" :for="`av-colour-${condition.id}`">Farbe von Code {{ condition.code }} im Shop</label>
+                                <select :id="`av-colour-${condition.id}`" class="input av__level-select" :value="condition.shopColour" :disabled="busy" @change="setColour(condition, ($event.target as HTMLSelectElement).value)">
+                                    <option value="green">Grün</option>
+                                    <option value="yellow">Gelb</option>
+                                </select>
+                            </template>
+                            <template v-else>{{ condition.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</template>
                         </td>
                         <td data-label="Seite" class="num">{{ condition.page ?? '–' }}</td>
                         <td data-label="Verwendet" data-phone="hide" class="num">{{ uses(condition) }}</td>

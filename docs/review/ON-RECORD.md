@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**78 sentences: 1 open, 23 backed by a recorded field, 50 about the shop itself, 4 not sentences.**
+**75 sentences: 1 open, 23 backed by a recorded field, 47 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -98,10 +98,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN, mit den Gutachten, die sie nennen.“ | admin | `Services/Admin/Review/ReviewBoard.php` | describes an admin screen and the rows we hold per vehicle |
 | „Vollständigkeit jedes freigegebenen Gutachtens beantwortet“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | names our own recorded answer (D-227), not the document |
 | „Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.“ | customer / operator | `Services/Reset/ResetLevel.php` | what a reset level removes |
-| „Steht sie nicht in diesem Gutachten, braucht sie eine andere Felgengröße, und der Shop bietet diese Kombination auf dieser Felge nicht an.“ | admin | `Pages/Admin/Gutachten/Erfassung/entryStore.ts` | an instruction to the person reading the paper: the rule its code 68B prints, for a size typed (document_tyre_lines) |
-| „Steht sie im Gutachten nur in dieser Kombination, setz unter „…“ den Haken.“ | admin | `Pages/Admin/Gutachten/Erfassung/entryStore.ts` | an instruction to the person reading the paper: the answer is stored (document_tyre_lines.front_on_rim, rear_on_rim) |
-| „Steht nur in dieser Kombination im Gutachten“ | admin | `Pages/Admin/Gutachten/Erfassung/LinesEditor.vue` | the field being filled in: document_tyre_lines.front_on_rim, rear_on_rim |
-| „Die gewählte Größe passt nicht zu dem, was du aus dem Gutachten eingetragen hast.“ | admin | `Pages/Admin/Gutachten/Erfassung/StepWheel.vue` | compares two recorded values: what staff typed from the paper (document_wheel_sizes.printed_*) and the size chosen |
+| „passt nicht zu dem, was du aus dem Gutachten eingetragen hast.“ | admin | `Services/Admin/Approvals/Entry/EntryView.php` | compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen |
 
 ## Not a sentence
 

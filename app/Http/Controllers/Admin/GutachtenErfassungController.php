@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Requests\Admin\ApprovalStepRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCarsRequest;
+use App\Http\Requests\Admin\Erfassung\EntryCellRequest;
+use App\Http\Requests\Admin\Erfassung\EntryCombinationRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCopyRequest;
 use App\Http\Requests\Admin\Erfassung\EntryIndexSourceRequest;
 use App\Http\Requests\Admin\Erfassung\EntryLinesRequest;
@@ -15,7 +17,7 @@ use App\Http\Requests\Admin\Erfassung\EntryRequest;
 use App\Http\Requests\Admin\Erfassung\EntryWheelRequest;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCarEntry;
-use App\Models\DocumentWheelSize;
+use App\Models\DocumentWheelCombination;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\Entry\EntryEditor;
 use App\Services\Admin\Approvals\Entry\EntryView;
@@ -40,17 +42,42 @@ class GutachtenErfassungController extends Controller
 
     public function wheel(EntryWheelRequest $request, ApprovalDocument $document): JsonResponse
     {
-        $this->editor->chooseWheel($document, $request->config(), $request->printed(), $request->admin());
+        $this->editor->savePrinted($document, $request->printed(), $request->admin());
+
+        return $this->state($document);
+    }
+
+    public function addCombination(EntryCombinationRequest $request, ApprovalDocument $document): JsonResponse
+    {
+        $this->editor->addCombination($document, $request->front(), $request->rear(), $request->admin());
+
+        return $this->state($document);
+    }
+
+    public function changeCombination(EntryCombinationRequest $request, ApprovalDocument $document, DocumentWheelCombination $combination): JsonResponse
+    {
+        $this->editor->changeCombination($document, $combination, $request->front(), $request->rear(), $request->admin());
+
+        return $this->state($document);
+    }
+
+    public function removeCombination(EntryRequest $request, ApprovalDocument $document, DocumentWheelCombination $combination): JsonResponse
+    {
+        $left = DocumentWheelCombination::query()->where('approval_document_id', $document->id)->whereKeyNot($combination->id)->exists();
+
+        if (! $left && DocumentCarEntry::query()->where('approval_document_id', $document->id)->exists()) {
+            throw ValidationException::withMessages(['combination' => 'Solange Fahrzeuge im Gutachten stehen, braucht es mindestens eine Felgenkombination. Ändere sie, oder nimm zuerst die Fahrzeuge heraus.']);
+        }
+
+        $this->editor->removeCombination($document, $combination, $request->admin());
 
         return $this->state($document);
     }
 
     public function addCars(EntryCarsRequest $request, ApprovalDocument $document, VehicleSearch $search): JsonResponse
     {
-        $size = DocumentWheelSize::query()->where('approval_document_id', $document->id)->orderBy('id')->first();
-
-        if ($size === null) {
-            throw ValidationException::withMessages(['vehicle_ids' => 'Wähl zuerst in Schritt 2 die Felgengröße dieses Gutachtens.']);
+        if (DocumentWheelCombination::query()->where('approval_document_id', $document->id)->doesntExist()) {
+            throw ValidationException::withMessages(['vehicle_ids' => 'Wähl zuerst in Schritt 2 die Felgenkombination dieses Gutachtens.']);
         }
 
         $term = $request->validated('treffer');
@@ -62,7 +89,7 @@ class GutachtenErfassungController extends Controller
             throw ValidationException::withMessages(['treffer' => 'Das sind mehr als 500 Treffer. Grenz die Suche ein, etwa mit der Betriebserlaubnis.']);
         }
 
-        $added = $this->editor->addCars($document, $size, $ids, $request->admin());
+        $added = $this->editor->addCars($document, $ids, $request->admin());
 
         return $this->state($document, ['added' => $added]);
     }
@@ -70,6 +97,20 @@ class GutachtenErfassungController extends Controller
     public function removeCar(EntryRequest $request, ApprovalDocument $document, DocumentCarEntry $entry): JsonResponse
     {
         $this->editor->removeCar($document, $entry, $request->admin());
+
+        return $this->state($document);
+    }
+
+    public function removeCell(EntryRequest $request, ApprovalDocument $document, DocumentCarEntry $entry): JsonResponse
+    {
+        $this->editor->removeCell($document, $entry, $request->admin());
+
+        return $this->state($document);
+    }
+
+    public function addCell(EntryCellRequest $request, ApprovalDocument $document): JsonResponse
+    {
+        $this->editor->addCell($document, $request->combination(), $request->vehicle(), $request->admin());
 
         return $this->state($document);
     }

@@ -12,7 +12,7 @@ import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
 import type { VehicleHit } from '../../../../types/admin/gutachten'
 import VehicleFromDocument from '../VehicleFromDocument.vue'
-import { Refused, send, useEntry, type CarView, useGutachtenPage, carLine } from './entryStore'
+import { Refused, send, useEntry, type CarView, useGutachtenPage, carLine, distinctCars } from './entryStore'
 
 interface CarHit {
     id: number
@@ -45,7 +45,8 @@ const removeOpen = computed({
     },
 })
 
-const selected = computed(() => new Map(state.entry.cars.map((car) => [car.vehicleId, car])))
+const chosen = computed(() => distinctCars(state.entry.cars))
+const selected = computed(() => new Map(chosen.value.map((car) => [car.vehicleId, car])))
 const unticked = computed(() => hits.value.filter((hit) => !selected.value.has(hit.id)).length)
 const pageCount = computed(() => page.props.document.pageCount)
 
@@ -209,9 +210,9 @@ function created(vehicle: VehicleHit): void {
             </div>
 
             <aside class="ef-cars__side" aria-labelledby="ef-chosen-h">
-                <h3 id="ef-chosen-h" class="ef-side__title">{{ state.entry.cars.length === 1 ? '1 Fahrzeug gewählt' : `${decimal(state.entry.cars.length, 0)} Fahrzeuge gewählt` }}</h3>
-                <ul v-if="state.entry.cars.length" class="ef-chosen">
-                    <li v-for="car in state.entry.cars" :key="car.id" class="ef-chosen__car">
+                <h3 id="ef-chosen-h" class="ef-side__title">{{ chosen.length === 1 ? '1 Fahrzeug gewählt' : `${decimal(chosen.length, 0)} Fahrzeuge gewählt` }}</h3>
+                <ul v-if="chosen.length" class="ef-chosen">
+                    <li v-for="car in chosen" :key="car.vehicleId" class="ef-chosen__car">
                         <span class="ef-chosen__text">
                             {{ carLine(car.label) }}
                             <span v-if="car.finish || car.axle !== 'ALL'" class="ef-chosen__scope">{{ [car.finish ? `nur ${car.finish}` : '', car.axle === 'FRONT' ? 'nur Vorderachse' : car.axle === 'REAR' ? 'nur Hinterachse' : ''].filter(Boolean).join(' · ') }}</span>
@@ -227,7 +228,7 @@ function created(vehicle: VehicleHit): void {
 
         <div class="ef-actions">
             <button class="btn btn--secondary ef-actions__left" type="button" @click="go(1)">Zurück</button>
-            <button class="btn btn--primary" type="button" :disabled="state.entry.cars.length === 0" @click="go(3)">
+            <button class="btn btn--primary" type="button" :disabled="chosen.length === 0" @click="go(3)">
                 Weiter: Reifen
                 <Icon name="arrow-right" :size="20" />
             </button>

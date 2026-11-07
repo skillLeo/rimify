@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentTyreLine;
+use App\Models\DocumentWheelCombination;
 use App\Models\DocumentWheelSize;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -36,6 +37,14 @@ final readonly class EntryView
         return [
             'wheelSizes' => DocumentWheelSize::query()->with('wheelModel.brand')->where('approval_document_id', $document->id)->orderBy('id')->get()
                 ->map(fn (DocumentWheelSize $size): array => $this->size($size))->values()->all(),
+            'combinations' => DocumentWheelCombination::query()->with(['front', 'rear'])->where('approval_document_id', $document->id)->orderBy('position')->orderBy('id')->get()
+                ->map(fn (DocumentWheelCombination $combination): array => $this->combination($combination, $document))->values()->all(),
+            'printed' => array_map(static fn (array $row): array => [
+                'type' => $row['type'] ?? null,
+                'size' => isset($row['width'], $row['diameter']) ? GermanFormat::trimmedDecimal($row['width']).' × '.GermanFormat::trimmedDecimal($row['diameter'], 1) : '',
+                'et' => $row['et'] ?? null,
+                'bolts' => isset($row['holes'], $row['circle']) ? $row['holes'].' × '.GermanFormat::trimmedDecimal($row['circle'], 1) : '',
+            ], $document->printed_wheels ?? []),
             'cars' => $model->entries->map(fn (DocumentCarEntry $entry): array => $this->car($entry, $check['conflicts']))->values()->all(),
             'conflicts' => $check['conflicts'],
             'unreachable' => $check['unreachable'],
@@ -54,12 +63,12 @@ final readonly class EntryView
      */
     public function lines(DocumentCarEntry $entry): array
     {
-        $entry->loadMissing(['lines.codes', 'codes', 'wheelConfig.wheelFinish']);
+        $entry->loadMissing(['lines.codes', 'codes', 'wheelConfig.wheelFinish', 'combination.front', 'combination.rear']);
 
         return [
             'id' => (int) $entry->id,
             'page' => $entry->source_page,
-            'lines' => $entry->lines->map(static fn (DocumentTyreLine $line): array => self::line($line))->values()->all(),
+            'lines' => $entry->lines->map(static fn (DocumentTyreLine $line): array => self::line($line, $entry))->values()->all(),
             'codes' => $entry->codes->map(static fn ($code): array => ['code' => $code->code, 'note' => $code->note_de])->values()->all(),
             'columns' => [
                 'entry_note' => $entry->entry_note_de,
@@ -89,12 +98,13 @@ final readonly class EntryView
         foreach (EntryModel::of($document)->entries as $entry) {
             /** @var Vehicle|null $car */
             $car = $entry->vehicle;
-            $size = $entry->wheelSize;
+            $combination = $entry->combination;
             $out[] = [
                 'id' => (int) $entry->id,
                 'car' => $car === null ? 'Fahrzeug #'.$entry->vehicle_id : GutachtenController::vehicleLabel($car),
                 'k' => $car?->getAttribute('eg_nummer_raw'),
-                'wheel' => $size === null ? null : self::dimensionLabel($size),
+                'wheel' => $combination === null ? null : self::combinationLabel($combination),
+                'crossed' => EntryModel::crossed($entry),
                 'finish' => $entry->wheelConfig?->wheelFinish?->name_de,
                 'axle' => $entry->axle,
                 'page' => $entry->source_page,
@@ -137,7 +147,7 @@ final readonly class EntryView
     }
 
     /** @return array<string, mixed> */
-    public static function line(DocumentTyreLine $line): array
+    public static function line(DocumentTyreLine $line, DocumentCarEntry $entry): array
     {
         return [
             'id' => (int) $line->id,
@@ -146,11 +156,9 @@ final readonly class EntryView
             'oneSided' => ($line->front() === null && $line->front_unread === null) || ($line->rear() === null && $line->rear_unread === null),
             'kw' => $line->kw_min === null || $line->kw_max === null ? '' : $line->kw_min.'-'.$line->kw_max,
             'codes' => $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->values()->all(),
-            'frontOnRim' => $line->front_on_rim,
-            'rearOnRim' => $line->rear_on_rim,
             'outsideList' => $line->in_list === false && EntryModel::twoSided($line),
-            'frontWhy' => $line->front_unread === null ? null : EntryLineRules::whyNot($line->front_unread),
-            'rearWhy' => $line->rear_unread === null ? null : EntryLineRules::whyNot($line->rear_unread),
+            'frontWhy' => $line->front_unread === null ? EntryModel::misfit($entry, $line, 'front') : EntryLineRules::whyNot($line->front_unread),
+            'rearWhy' => $line->rear_unread === null ? EntryModel::misfit($entry, $line, 'rear') : EntryLineRules::whyNot($line->rear_unread),
         ];
     }
 
@@ -184,16 +192,88 @@ final readonly class EntryView
             'wheelType' => $model?->getAttribute('type_designation'),
             'label' => self::dimensionLabel($size),
             'colours' => $configs->map(static fn (WheelConfig $config): array => ['name' => $config->wheelFinish?->name_de, 'hex' => $config->wheelFinish?->hex])->unique('name')->values()->all(),
-            'printed' => [
-                'type' => $size->printed_type,
-                'width' => $size->printed_width_in,
-                'diameter' => $size->printed_diameter_in,
-                'et' => $size->printed_et_mm,
-                'holes' => $size->printed_bolt_holes,
-                'circle' => $size->printed_bolt_circle_mm,
-            ],
-            'mismatch' => self::mismatch($size),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function combination(DocumentWheelCombination $combination, ApprovalDocument $document): array
+    {
+        /** @var DocumentWheelSize $front */
+        $front = $combination->front;
+        /** @var DocumentWheelSize $rear */
+        $rear = $combination->rear;
+        $printed = $document->printed_wheels ?? [];
+
+        return [
+            'id' => (int) $combination->id,
+            'frontId' => (int) $front->id,
+            'rearId' => (int) $rear->id,
+            'frontKey' => DocumentWheelSize::keyOf($front->getAttributes()),
+            'rearKey' => DocumentWheelSize::keyOf($rear->getAttributes()),
+            'frontConfigId' => (int) ($front->configs()->orderBy('id')->value('id') ?? 0),
+            'rearConfigId' => (int) ($rear->configs()->orderBy('id')->value('id') ?? 0),
+            'same' => $combination->same(),
+            'badge' => $combination->same() ? 'gleich vorne und hinten' : 'vorne und hinten verschieden',
+            'label' => self::combinationLabel($combination),
+            'frontLabel' => self::dimensionLabel($front),
+            'rearLabel' => self::dimensionLabel($rear),
+            'frontDiameter' => $front->diameter_in,
+            'rearDiameter' => $rear->diameter_in,
+            'warnings' => [...self::versionWarnings($combination->same() ? 'Die gewählte Felge' : 'Vorne', $front, $printed), ...($combination->same() ? [] : self::versionWarnings('Hinten', $rear, $printed)), ...self::boltWarning($front, $rear)],
+        ];
+    }
+
+    /** `Vorne 8,5 × 18 ET 35 · Hinten 8,5 × 19 ET 35`; one version: `Vorne und hinten 8,5 × 18 ET 35`. */
+    public static function combinationLabel(DocumentWheelCombination $combination): string
+    {
+        /** @var DocumentWheelSize $front */
+        $front = $combination->front;
+        /** @var DocumentWheelSize $rear */
+        $rear = $combination->rear;
+
+        return $combination->same()
+            ? 'Vorne und hinten '.self::versionShort($front)
+            : 'Vorne '.self::versionShort($front).' · Hinten '.self::versionShort($rear);
+    }
+
+    /** `8,5 × 18 ET 35` */
+    public static function versionShort(DocumentWheelSize $size): string
+    {
+        return GermanFormat::trimmedDecimal($size->width_in).' × '.GermanFormat::trimmedDecimal($size->diameter_in, 1).' '.GermanFormat::offset($size->et_mm);
+    }
+
+    /**
+     * A version none of the paper's printed rows names: what differs from the nearest of them. A warning, never a block (the operator's
+     * note of 06.11.2026). Nothing typed, nothing to compare.
+     *
+     * @param  list<array<string, mixed>>  $printed
+     * @return list<string>
+     */
+    private static function versionWarnings(string $who, DocumentWheelSize $size, array $printed): array
+    {
+        $nearest = null;
+
+        foreach ($printed as $row) {
+            $differs = self::mismatch($size, $row);
+
+            if ($nearest === null || count($differs) < count($nearest)) {
+                $nearest = $differs;
+            }
+        }
+
+        return $nearest === null || $nearest === [] ? [] : [$who.' passt nicht zu dem, was du aus dem Gutachten eingetragen hast. '.implode('; ', $nearest).'.'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function boltWarning(DocumentWheelSize $front, DocumentWheelSize $rear): array
+    {
+        if ($front->bolt_holes === $rear->bolt_holes && abs($front->bolt_circle_mm - $rear->bolt_circle_mm) < 0.001) {
+            return [];
+        }
+
+        return ['Vorne und hinten haben verschiedene Lochkreise: '.GermanFormat::boltPattern($front->bolt_holes, $front->bolt_circle_mm).' und '.GermanFormat::boltPattern($rear->bolt_holes, $rear->bolt_circle_mm).'.'];
     }
 
     /** `8,5J × 18 · ET 35 · 5 × 120 · 72,6 mm`, as the shop writes it (R-10). */
@@ -203,51 +283,55 @@ final readonly class EntryView
     }
 
     /**
-     * Where the chosen size and what the paper prints differ, value by value: a warning, never a block (the operator's note of
-     * 06.11.2026: 8 × 18 ET 40 5 × 112 picked while the paper says 8½ × 18 ET 35 120/5). Nothing typed, nothing to compare.
+     * Where a version and one row the paper prints differ, value by value.
      *
+     * @param  array<string, mixed>  $printed
      * @return list<string>
      */
-    public static function mismatch(DocumentWheelSize $size): array
+    public static function mismatch(DocumentWheelSize $size, array $printed): array
     {
         $out = [];
+        $width = isset($printed['width']) ? (float) $printed['width'] : null;
+        $diameter = isset($printed['diameter']) ? (float) $printed['diameter'] : null;
+        $et = isset($printed['et']) ? (int) $printed['et'] : null;
+        $holes = isset($printed['holes']) ? (int) $printed['holes'] : null;
+        $circle = isset($printed['circle']) ? (float) $printed['circle'] : null;
 
-        if ($size->printed_width_in !== null && abs($size->printed_width_in - $size->width_in) > 0.001) {
-            $out[] = 'Breite: im Gutachten '.GermanFormat::rimWidth($size->printed_width_in).', gewählt '.GermanFormat::rimWidth($size->width_in);
+        if ($width !== null && abs($width - $size->width_in) > 0.001) {
+            $out[] = 'Breite: im Gutachten '.GermanFormat::rimWidth($width).', gewählt '.GermanFormat::rimWidth($size->width_in);
         }
 
-        if ($size->printed_diameter_in !== null && abs($size->printed_diameter_in - $size->diameter_in) > 0.001) {
-            $out[] = 'Durchmesser: im Gutachten '.GermanFormat::trimmedDecimal($size->printed_diameter_in, 1).' Zoll, gewählt '.GermanFormat::trimmedDecimal($size->diameter_in, 1).' Zoll';
+        if ($diameter !== null && abs($diameter - $size->diameter_in) > 0.001) {
+            $out[] = 'Durchmesser: im Gutachten '.GermanFormat::trimmedDecimal($diameter, 1).' Zoll, gewählt '.GermanFormat::trimmedDecimal($size->diameter_in, 1).' Zoll';
         }
 
-        if ($size->printed_et_mm !== null && $size->printed_et_mm !== $size->et_mm) {
-            $out[] = 'Einpresstiefe: im Gutachten '.GermanFormat::offset($size->printed_et_mm).', gewählt '.GermanFormat::offset($size->et_mm);
+        if ($et !== null && $et !== $size->et_mm) {
+            $out[] = 'Einpresstiefe: im Gutachten '.GermanFormat::offset($et).', gewählt '.GermanFormat::offset($size->et_mm);
         }
 
-        if (($size->printed_bolt_holes !== null && $size->printed_bolt_holes !== $size->bolt_holes)
-            || ($size->printed_bolt_circle_mm !== null && abs($size->printed_bolt_circle_mm - $size->bolt_circle_mm) > 0.001)) {
-            $out[] = 'Lochkreis: im Gutachten '.GermanFormat::boltPattern($size->printed_bolt_holes ?? $size->bolt_holes, $size->printed_bolt_circle_mm ?? $size->bolt_circle_mm).', gewählt '.GermanFormat::boltPattern($size->bolt_holes, $size->bolt_circle_mm);
+        if (($holes !== null && $holes !== $size->bolt_holes) || ($circle !== null && abs($circle - $size->bolt_circle_mm) > 0.001)) {
+            $out[] = 'Lochkreis: im Gutachten '.GermanFormat::boltPattern($holes ?? $size->bolt_holes, $circle ?? $size->bolt_circle_mm).', gewählt '.GermanFormat::boltPattern($size->bolt_holes, $size->bolt_circle_mm);
         }
 
         return $out;
     }
 
     /**
-     * @param  list<array{vehicleId: int, car: string, k: string, pair: string, others: list<string>}>  $conflicts
+     * @param  list<array{entryId: int, vehicleId: int, car: string, k: string, pair: string, others: list<string>, combination: string, several: bool}>  $conflicts
      * @return array<string, mixed>
      */
     private function car(DocumentCarEntry $entry, array $conflicts): array
     {
         /** @var Vehicle|null $car */
         $car = $entry->vehicle;
-        $readable = $entry->lines->reject(static fn (DocumentTyreLine $line): bool => $line->unread());
+        $readable = $entry->lines->filter(static fn (DocumentTyreLine $line): bool => EntryModel::stands($entry, $line));
         $pairs = $readable->filter(static fn (DocumentTyreLine $line): bool => EntryModel::paired($line))->count();
         $source = $car?->getAttribute('source');
         $finish = $entry->wheelConfig?->wheelFinish?->name_de;
 
         return [
             'id' => (int) $entry->id,
-            'sizeId' => (int) $entry->document_wheel_size_id,
+            'combinationId' => (int) $entry->document_wheel_combination_id,
             'vehicleId' => (int) $entry->vehicle_id,
             'label' => $car === null ? 'Fahrzeug #'.$entry->vehicle_id : GutachtenController::vehicleLabel($car),
             'hsnTsn' => $car?->hsn === null ? null : $car->hsn.'/'.$car->tsn,
@@ -256,7 +340,7 @@ final readonly class EntryView
             'gone' => $car === null || $car->trashed(),
             'lines' => $readable->count(),
             'pairs' => $pairs,
-            'unread' => $entry->lines->filter(static fn (DocumentTyreLine $line): bool => $line->unread())->count(),
+            'unread' => $entry->lines->count() - $readable->count(),
             'codes' => $entry->codes->count(),
             'done' => $readable->isNotEmpty(),
             'page' => $entry->source_page,
@@ -265,7 +349,7 @@ final readonly class EntryView
             'sourceLabel' => $source === VehicleSource::Entwicklung->value ? 'aus den Entwicklungsdaten' : null,
             'axle' => $entry->axle,
             'finish' => $finish,
-            'conflict' => in_array((int) $entry->vehicle_id, array_column($conflicts, 'vehicleId'), true),
+            'conflict' => in_array((int) $entry->id, array_column($conflicts, 'entryId'), true),
         ];
     }
 

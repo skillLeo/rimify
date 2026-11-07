@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
- * One car on a Gutachten's wheel size, as staff ticked it: its lines of tyres, the general codes of its row, its page.
+ * One car on one of a Gutachten's wheel combinations, as staff ticked it: its lines of tyres, the general codes of its row, its page.
  * Nothing stands for a group of cars — the client's change of 05.11.2026: „All groupings should be removed“ — and nothing
  * joins by itself later.
  *
@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $approval_document_id
- * @property int $document_wheel_size_id
+ * @property int $document_wheel_combination_id
  * @property int $vehicle_id
  * @property int|null $wheel_config_id
  * @property string $axle
@@ -42,7 +42,7 @@ use Illuminate\Support\Carbon;
 class DocumentCarEntry extends Model
 {
     protected $fillable = [
-        'approval_document_id', 'document_wheel_size_id', 'vehicle_id', 'wheel_config_id', 'axle', 'source_page',
+        'approval_document_id', 'document_wheel_combination_id', 'vehicle_id', 'wheel_config_id', 'axle', 'source_page',
         'build_from', 'build_to', 'permitted_width_min', 'permitted_width_max', 'permitted_et_min', 'permitted_et_max',
         'centre_bore_mm', 'entry_note_de', 'entry_override', 'entry_override_reason', 'entry_override_by', 'entry_override_at',
         'copied_from_id', 'position',
@@ -71,10 +71,10 @@ class DocumentCarEntry extends Model
         return $this->belongsTo(ApprovalDocument::class, 'approval_document_id');
     }
 
-    /** @return BelongsTo<DocumentWheelSize, $this> */
-    public function wheelSize(): BelongsTo
+    /** @return BelongsTo<DocumentWheelCombination, $this> */
+    public function combination(): BelongsTo
     {
-        return $this->belongsTo(DocumentWheelSize::class, 'document_wheel_size_id');
+        return $this->belongsTo(DocumentWheelCombination::class, 'document_wheel_combination_id');
     }
 
     /** @return BelongsTo<Vehicle, $this> */

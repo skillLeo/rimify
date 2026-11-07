@@ -95,12 +95,12 @@ function kombinationenOf(ApprovalDocument $document, string $entry): array
 it('puts a different pair in the list of the car\'s field K, numbered as typed, with the same size beside it, and leaves another K\'s alone @admin-219', function (): void {
     ['document' => $document, 'a' => $a, 'b' => $b] = kombinationenDraft();
 
-    kombinationenLines($b, [['front' => '235/35 R19', 'rear' => '235/35 R19']], 5);
+    kombinationenLines($b, [['front' => '235/35 R18', 'rear' => '235/35 R18']], 5);
     kombinationenLines($a, [
         ['front' => '225/40 R18', 'rear' => '225/40 R18'],
-        ['front' => '225/40R18', 'rear' => '245/35 ZR18', 'rear_on_rim' => true],
-        ['front' => "225/40\u{00A0}R18", 'rear' => '255/35 R18', 'rear_on_rim' => true],
-        ['front' => '235/40 r18', 'rear' => '255/35 R18', 'front_on_rim' => true],
+        ['front' => '225/40R18', 'rear' => '245/35 ZR18'],
+        ['front' => "225/40\u{00A0}R18", 'rear' => '255/35 R18'],
+        ['front' => '235/40 r18', 'rear' => '255/35 R18'],
     ]);
 
     // A paper with a list has only that list: the same size on both axles stands in it too, under each K.
@@ -110,7 +110,7 @@ it('puts a different pair in the list of the car\'s field K, numbered as typed, 
         '3: 225/40 R18 – 255/35 R18 S.4',
         '4: 235/40 R18 – 255/35 R18 S.4',
     ])
-        ->and(kombinationenOf($document, KOMBI_B))->toBe(['1: 235/35 R19 – 235/35 R19 S.5'])
+        ->and(kombinationenOf($document, KOMBI_B))->toBe(['1: 235/35 R18 – 235/35 R18 S.5'])
         // Typed by a person: nothing of it „übernommen, bitte prüfen“.
         ->and(DocumentTyreCombination::query()->where('carried_over', true)->count())->toBe(0)
         ->and(AuditLog::query()->where('description', 'approval.car_entered')->count())->toBe(2);
@@ -119,7 +119,7 @@ it('puts a different pair in the list of the car\'s field K, numbered as typed, 
 it('has no list at all where every line names one size for both axles, so four of a kind stays open', function (): void {
     ['document' => $document, 'a' => $a] = kombinationenDraft();
 
-    kombinationenLines($a, [['front' => '225/40 R18', 'rear' => '225/40 R18'], ['front' => '235/35 R19', 'rear' => '']]);
+    kombinationenLines($a, [['front' => '225/40 R18', 'rear' => '225/40 R18'], ['front' => '235/35 R18', 'rear' => '']]);
 
     expect(DocumentTyreCombination::query()->where('approval_document_id', $document->id)->count())->toBe(0)
         ->and(DocumentTyreLine::query()->where('document_car_entry_id', $a->id)->orderBy('position')->get()->map(fn (DocumentTyreLine $line): int => (int) $line->rear_width_mm)->all())->toBe([225, 235]);
@@ -129,23 +129,22 @@ it('takes one front size with several rear sizes, as a table prints them, and on
     ['document' => $document, 'a' => $a] = kombinationenDraft();
 
     kombinationenLines($a, [
-        ['front' => '235/45 R19', 'rear' => '255/40 R19', 'front_on_rim' => true, 'rear_on_rim' => true],
-        ['front' => '235/45 R19', 'rear' => '265/40 R19', 'front_on_rim' => true, 'rear_on_rim' => true],
-        ['front' => '235/45 R19', 'rear' => '265/40 R19', 'front_on_rim' => true, 'rear_on_rim' => true],
+        ['front' => '235/45 R18', 'rear' => '255/40 R18'],
+        ['front' => '235/45 R18', 'rear' => '265/40 R18'],
+        ['front' => '235/45 R18', 'rear' => '265/40 R18'],
     ], 7);
 
-    expect(kombinationenOf($document, KOMBI_A))->toBe(['1: 235/45 R19 – 255/40 R19 S.7', '2: 235/45 R19 – 265/40 R19 S.7']);
+    expect(kombinationenOf($document, KOMBI_A))->toBe(['1: 235/45 R18 – 255/40 R18 S.7', '2: 235/45 R18 – 265/40 R18 S.7']);
 });
 
-it('does not put a size on an axle where the paper does not list it on this wheel: the pair stands, and the shop does not offer it', function (): void {
+it('puts each side of a pair typed for this wheel on its axle, and the pair in the list', function (): void {
     ['document' => $document, 'a' => $a] = kombinationenDraft();
 
-    // 68B's rule: a size the paper does not list here is only permitted on another wheel size.
     kombinationenLines($a, [['front' => '225/40 R18', 'rear' => '255/35 R18']]);
 
     $row = DB::table('fitments')->where('approval_document_id', $document->id)->where('vehicle_id', $a->vehicle_id)->first();
 
-    expect(DB::table('fitment_tyre_sizes')->where('fitment_id', $row?->id)->count())->toBe(0)
+    expect(DB::table('fitment_tyre_sizes')->where('fitment_id', $row?->id)->orderBy('id')->get()->map(static fn (object $size): array => [(int) $size->width_mm, (string) $size->axle])->all())->toBe([[225, 'FRONT'], [255, 'REAR']])
         ->and(kombinationenOf($document, KOMBI_A))->toBe(['1: 225/40 R18 – 255/35 R18 S.4']);
 });
 
@@ -169,8 +168,8 @@ it('hands the shop\'s engine, for a car, the list of the entry its field K falls
 
     kombinationenLines($a, [
         ['front' => '225/40 R18', 'rear' => '225/40 R18'],
-        ['front' => '225/40 R18', 'rear' => '245/35 R18', 'rear_on_rim' => true],
-        ['front' => '235/40 R18', 'rear' => '255/35 R18', 'front_on_rim' => true, 'rear_on_rim' => true],
+        ['front' => '225/40 R18', 'rear' => '245/35 R18'],
+        ['front' => '235/40 R18', 'rear' => '255/35 R18'],
     ]);
     kombinationenLines($b, [['front' => '225/40 R18', 'rear' => '225/40 R18']], 6);
 

@@ -148,13 +148,17 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     const stepBar = page.getByRole('navigation', { name: 'Schritte zum Gutachten' })
 
     if (await stepBar.isVisible()) {
-        // Step 2: the Felge's one size; colour plays no part.
+        // Step 2: the Felge's wheel combination, its one version front and rear; colour plays no part.
         await stepBar.getByRole('button', { name: /Felge/ }).click()
         const searched = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/suche/felgen') && new URL(r.url()).searchParams.get('q') === MODEL)
         await page.locator('#ef-wheel-q').fill(MODEL)
         await searched
-        const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/felge') && r.request().method() === 'PUT')
-        await page.locator('.ef-size input').first().check()
+        const loaded = page.waitForResponse((r) => new URL(r.url()).searchParams.has('modell'))
+        await page.locator('.ef-model').first().click()
+        await loaded
+        await page.locator('.ef-axle').first().locator('.ef-size input').first().check()
+        const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/kombinationen') && r.request().method() === 'POST')
+        await page.getByRole('button', { name: 'Kombination hinzufügen' }).click()
         await stored
         await shot(page, '04-felge')
         await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click()

@@ -77,65 +77,80 @@ function stepsLine(string $front, ?string $rear = null, array $more = []): array
     return ['id' => null, 'front' => $front, 'rear' => $rear ?? $front, 'kw' => '', 'codes' => [], ...$more];
 }
 
+/** Step 2: the same version front and rear. */
+function stepsCombination(ApprovalDocument $document, WheelConfig $config): mixed
+{
+    return test()->actingAs(stepsAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/kombinationen", ['front_config_id' => $config->id, 'rear_config_id' => $config->id])->assertOk();
+}
+
 function stepsSave(DocumentCarEntry $entry, array $lines, array $codes = [], ?int $page = 2): void
 {
     test()->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$entry->approval_document_id}/erfassung/fahrzeuge/{$entry->id}", ['lines' => $lines, 'codes' => $codes, 'source_page' => $page])->assertOk();
 }
 
-describe('step 2: one wheel size, and what the paper prints', function (): void {
-    it('takes the size, not a colour: every colour of it gets the row, and a second choice moves the car', function (): void {
+describe('step 2: the wheel, and what the paper prints', function (): void {
+    it('takes a version, not a colour: every colour of it gets the row, and a change of version moves the car', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
         $wheel = stepsWheel();
         $vehicle = Vehicle::factory()->create();
 
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['wheel_config_id' => $wheel->id])->assertOk();
+        $id = stepsCombination($document, $wheel)->json('entry.combinations.0.id');
         $this->actingAs(stepsAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['vehicle_ids' => [$vehicle->id]])->assertOk();
 
         expect(Fitment::query()->where('approval_document_id', $document->id)->count())->toBe(2)
             ->and(DocumentWheelSize::query()->where('approval_document_id', $document->id)->count())->toBe(1)
-            ->and(AuditLog::query()->where('description', 'approval.wheel_chosen')->count())->toBe(1);
+            ->and(AuditLog::query()->where('description', 'approval.combination_added')->count())->toBe(1);
 
-        $other = stepsWheel(['width_in' => 9.0, 'et_mm' => 30]);
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['wheel_config_id' => $other->id])->assertOk();
+        $other = WheelConfig::factory()->create(['wheel_model_id' => $wheel->wheel_model_id, 'wheel_finish_id' => $wheel->wheel_finish_id, 'diameter_in' => 20.0, 'width_in' => 9.0, 'et_mm' => 30, 'bolt_holes' => 5, 'bolt_circle_mm' => 120.0, 'centre_bore_mm' => 65.1]);
+        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/kombinationen/{$id}", ['front_config_id' => $other->id, 'rear_config_id' => $other->id])->assertOk();
 
         expect(DocumentWheelSize::query()->where('approval_document_id', $document->id)->count())->toBe(1)
             ->and(Fitment::query()->where('approval_document_id', $document->id)->pluck('wheel_config_id')->unique()->all())->not->toContain($wheel->id);
     });
 
-    it('warns, value by value, where the chosen size differs from what the paper prints, and never refuses it', function (): void {
+    it('warns, value by value, where a version differs from what the paper prints, and never refuses it', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
         $wrong = stepsWheel(['width_in' => 8.0, 'diameter_in' => 18.0, 'et_mm' => 40, 'bolt_circle_mm' => 112.0]);
 
         // The RC200 paper's own „Radgröße 8 1/2 J X 20 H2“, and the operator's note of 06.11.2026.
         $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", [
-            'wheel_config_id' => $wrong->id, 'printed_type' => 'RC200 8,5x20', 'printed_size' => '8 1/2 J X 20 H2', 'printed_et' => '35', 'printed_bolts' => '120/5',
-        ])->assertOk()
-            ->assertJsonPath('entry.wheelSizes.0.printed.type', 'RC200 8,5x20')
-            ->assertJsonPath('entry.wheelSizes.0.wheelType', 'RC200 8,5x20')
-            ->assertJsonCount(4, 'entry.wheelSizes.0.mismatch');
+            'printed' => [['type' => 'RC200 8,5x20', 'size' => '8 1/2 J X 20 H2', 'et' => '35', 'bolts' => '120/5']],
+        ])->assertOk()->assertJsonPath('entry.printed.0.type', 'RC200 8,5x20');
 
-        $right = stepsWheel();
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", [
-            'wheel_config_id' => $right->id, 'printed_type' => 'RC200 8,5x20', 'printed_size' => '8 1/2 J X 20 H2', 'printed_et' => '35', 'printed_bolts' => '120/5',
-        ])->assertOk()->assertJsonCount(0, 'entry.wheelSizes.0.mismatch');
+        $answer = stepsCombination($document, $wrong)->assertJsonPath('entry.wheelSizes.0.wheelType', 'RC200 8,5x20')->json('entry.combinations.0');
+
+        $said = str_replace("\u{00A0}", ' ', implode(' ', $answer['warnings']));
+        expect($answer['warnings'])->toHaveCount(1)
+            ->and($said)->toContain('Breite: im Gutachten 8,5J, gewählt 8J')
+            ->toContain('Durchmesser: im Gutachten 20 Zoll, gewählt 18 Zoll')
+            ->toContain('Einpresstiefe: im Gutachten ET 35, gewählt ET 40')
+            ->toContain('Lochkreis: im Gutachten 5 × 120, gewählt 5 × 112');
+
+        $document2 = ApprovalDocument::factory()->draft()->create();
+        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document2->id}/erfassung/felge", [
+            'printed' => [['type' => 'RC200 8,5x20', 'size' => '8 1/2 J X 20 H2', 'et' => '35', 'bolts' => '120/5']],
+        ])->assertOk();
+
+        stepsCombination($document2, stepsWheel())->assertOk()->assertJsonCount(0, 'entry.combinations.0.warnings');
     });
 
     it('says what it cannot read of what the paper prints, in words', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
 
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['wheel_config_id' => stepsWheel()->id, 'printed_size' => 'groß', 'printed_bolts' => 'viele', 'printed_et' => 'x'])
+        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['printed' => [['size' => 'groß', 'bolts' => 'viele', 'et' => 'x']]])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['printed_size', 'printed_bolts', 'printed_et']);
+            ->assertJsonValidationErrors(['printed.0.size', 'printed.0.bolts', 'printed.0.et']);
     });
 
     it('is asked of the Gutachten rights, and a released paper is closed (R-11)', function (): void {
         $draft = ApprovalDocument::factory()->draft()->create();
         $wheel = stepsWheel();
 
-        $this->actingAs(stepsAdmin('support-agent'), 'admin')->putJson("/admin/gutachten/{$draft->id}/erfassung/felge", ['wheel_config_id' => $wheel->id])->assertForbidden();
+        $this->actingAs(stepsAdmin('support-agent'), 'admin')->putJson("/admin/gutachten/{$draft->id}/erfassung/felge", ['printed' => []])->assertForbidden();
+        $this->actingAs(stepsAdmin('support-agent'), 'admin')->postJson("/admin/gutachten/{$draft->id}/erfassung/kombinationen", ['front_config_id' => $wheel->id, 'rear_config_id' => $wheel->id])->assertForbidden();
 
         $released = ApprovalDocument::factory()->create();
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$released->id}/erfassung/felge", ['wheel_config_id' => $wheel->id])->assertForbidden();
+        $this->actingAs(stepsAdmin(), 'admin')->postJson("/admin/gutachten/{$released->id}/erfassung/kombinationen", ['front_config_id' => $wheel->id, 'rear_config_id' => $wheel->id])->assertForbidden();
 
         expect(DocumentWheelSize::query()->count())->toBe(0);
     });
@@ -195,7 +210,7 @@ describe('step 3: single cars, found by their details', function (): void {
         $wheel = stepsWheel();
         $k = 'e1*2007/46*0130*16';
         $three = Vehicle::factory()->count(3)->create(['eg_nummer_raw' => $k, 'eg_nummer_norm' => $k]);
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['wheel_config_id' => $wheel->id])->assertOk();
+        stepsCombination($document, $wheel);
 
         $this->actingAs(stepsAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['treffer' => 'e1*2007/46*0130*..'])
             ->assertOk()->assertJsonPath('added', 3);
@@ -214,7 +229,7 @@ describe('step 3: single cars, found by their details', function (): void {
         $this->actingAs(stepsAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['vehicle_ids' => [Vehicle::factory()->create()->id]])
             ->assertUnprocessable();
 
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/felge", ['wheel_config_id' => stepsWheel()->id])->assertOk();
+        stepsCombination($document, stepsWheel());
         Vehicle::factory()->count(501)->create(['make' => 'Viele']);
 
         $this->actingAs(stepsAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge", ['treffer' => 'Viele'])
@@ -316,7 +331,7 @@ describe('step 4: a line of vorne + hinten', function (): void {
 
     it('keeps what does not read, as typed, writes nothing from it, and the release waits for it', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
-        $entry = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create()->id, stepsWheel()->id);
+        $entry = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create()->id, stepsWheel(['diameter_in' => 18.0])->id);
 
         stepsSave($entry, [stepsLine('225/40 R18'), stepsLine('Größe unleserlich', '255/35 R18')]);
 
@@ -328,7 +343,7 @@ describe('step 4: a line of vorne + hinten', function (): void {
 
     it('splits a power band by what the paper prints (§4, the Z3): each car gets the sizes of its power', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
-        $wheel = stepsWheel();
+        $wheel = stepsWheel(['diameter_in' => 18.0]);
         $small = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create(['power_kw' => 100])->id, $wheel->id);
 
         stepsSave($small, [
@@ -445,7 +460,7 @@ describe('the door: pairs stand per field K, lines per car', function (): void {
     function stepsSameK(): array
     {
         $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Papers)->create(['page_count' => 8]);
-        $wheel = stepsWheel();
+        $wheel = stepsWheel(['diameter_in' => 18.0]);
         $car = static fn (string $variant): DocumentCarEntry => EntryDriver::car(test(), stepsAdmin(), $document->id, Vehicle::factory()->create(['variant' => $variant, 'eg_nummer_raw' => STEPS_K, 'eg_nummer_norm' => STEPS_K])->id, $wheel->id);
 
         return ['document' => $document, 'a' => $car('Eins'), 'b' => $car('Zwei')];
@@ -503,7 +518,7 @@ describe('the door: pairs stand per field K, lines per car', function (): void {
 
     it('leaves a car whose field K is no EG number out of the list, says so, and the engine fails closed', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
-        $wheel = stepsWheel();
+        $wheel = stepsWheel(['diameter_in' => 18.0]);
         $national = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create(['eg_nummer_raw' => 'G191', 'eg_nummer_norm' => 'g191'])->id, $wheel->id);
 
         stepsSave($national, [stepsLine('225/40 R18'), stepsLine('255/35 R18'), stepsLine('225/40 R18', '255/35 R18')]);

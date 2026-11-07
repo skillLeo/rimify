@@ -13,6 +13,7 @@ use App\Models\DocumentCarEntry;
 use App\Models\DocumentCarEntryCode;
 use App\Models\DocumentTyreLine;
 use App\Models\DocumentTyreLineCode;
+use App\Models\DocumentWheelCombination;
 use App\Models\DocumentWheelSize;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -23,10 +24,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * What staff do in the five steps, each step saved as it happens (the Gutachten rework §7: „draft autosave on every
- * change“), in a transaction with the rows it changes: choose the paper's wheel size, tick cars, enter a car's lines, copy
- * them to other cars. Each leaves its entry in the Protokoll, as the row form did.
+ * change“), in a transaction with the rows it changes: build the paper's wheel combinations, tick cars, enter a car's lines per
+ * combination, copy them to other cars of the same combination. Each leaves its entry in the Protokoll, as the row form did.
  *
- * @phpstan-type LineInput array{id: int|null, front: string, rear: string, kw_min: int|null, kw_max: int|null, front_on_rim: bool, rear_on_rim: bool, codes: list<string>}
+ * @phpstan-type LineInput array{id: int|null, front: string, rear: string, kw_min: int|null, kw_max: int|null, codes: list<string>}
  * @phpstan-type CodeInput array{code: string, note: string|null}
  */
 final readonly class EntryEditor
@@ -34,58 +35,99 @@ final readonly class EntryEditor
     public function __construct(private DocumentEntryWriter $writer) {}
 
     /**
-     * The paper's wheel size: the dimension of the chosen row of the catalogue, with what the paper prints for it. The cars
-     * already ticked stay, and move with it.
+     * What the paper itself prints for its wheel: only ever compared with the versions chosen, for a warning. Said once per person and
+     * quarter of an hour in the Protokoll, as a car's lines are.
      *
-     * @param  array{printed_type: string|null, printed_width_in: float|null, printed_diameter_in: float|null, printed_et_mm: int|null, printed_bolt_holes: int|null, printed_bolt_circle_mm: float|null}  $printed
+     * @param  list<array{type: string|null, width: float|null, diameter: float|null, et: int|null, holes: int|null, circle: float|null}>  $printed
      */
-    public function chooseWheel(ApprovalDocument $document, WheelConfig $config, array $printed, AdminUser $admin): DocumentWheelSize
+    public function savePrinted(ApprovalDocument $document, array $printed, AdminUser $admin): void
     {
-        return DB::transaction(function () use ($document, $config, $printed, $admin): DocumentWheelSize {
-            $dimension = array_intersect_key($config->getAttributes(), array_flip(DocumentWheelSize::DIMENSION));
-            /** @var DocumentWheelSize|null $size */
-            $size = DocumentWheelSize::query()->where('approval_document_id', $document->id)->first();
+        DB::transaction(function () use ($document, $printed, $admin): void {
+            $document->forceFill(['printed_wheels' => $printed === [] ? null : $printed])->save();
 
-            if ($size === null) {
-                $size = DocumentWheelSize::query()->create(['approval_document_id' => $document->id, ...$dimension, ...$printed]);
-            } else {
-                $size->forceFill([...$dimension, ...$printed])->save();
+            $said = AuditLog::query()->where('description', 'approval.printed_wheels')->where('causer_id', $admin->id)->where('subject_id', $document->id)
+                ->where('created_at', '>=', now()->subMinutes(15))->exists();
+
+            if (! $said) {
+                AuditTrail::record($admin, 'approval.printed_wheels', ['document' => FitmentRows::label($document), 'rows' => count($printed)], $document);
             }
-
-            $this->writer->write($document, $admin);
-
-            AuditTrail::record($admin, 'approval.wheel_chosen', [
-                'document' => FitmentRows::label($document),
-                'size' => $config->label(),
-                'printed_type' => $printed['printed_type'],
-            ], $document);
-
-            return $size;
         });
     }
 
     /**
-     * Ticks cars onto the paper's wheel size. A car already there stays as it is: nothing it has is lost. Nothing stands for
-     * a group, and nothing joins by itself later: every car here was chosen.
+     * A wheel combination: a front and a rear version, each found by its dimension, colour playing no part. Every car on the paper gets
+     * its cell in it, empty.
+     */
+    public function addCombination(ApprovalDocument $document, WheelConfig $front, WheelConfig $rear, AdminUser $admin): DocumentWheelCombination
+    {
+        return DB::transaction(function () use ($document, $front, $rear, $admin): DocumentWheelCombination {
+            $combination = DocumentWheelCombination::query()->create([
+                'approval_document_id' => $document->id,
+                'front_wheel_size_id' => self::versionOf($document, $front)->id,
+                'rear_wheel_size_id' => self::versionOf($document, $rear)->id,
+                'position' => (int) DocumentWheelCombination::query()->where('approval_document_id', $document->id)->max('position') + 1,
+            ]);
+            $cars = DocumentCarEntry::query()->where('approval_document_id', $document->id)->distinct()->pluck('vehicle_id')->map(static fn (mixed $id): int => (int) $id)->all();
+            $position = (int) DocumentCarEntry::query()->where('approval_document_id', $document->id)->max('position');
+
+            foreach ($cars as $vehicleId) {
+                self::cell($document, $combination, $vehicleId, ++$position);
+            }
+
+            $this->writer->write($document, $admin);
+
+            AuditTrail::record($admin, 'approval.combination_added', ['document' => FitmentRows::label($document), 'combination' => EntryView::combinationLabel($combination)], $document);
+
+            return $combination;
+        });
+    }
+
+    /** Other versions in a combination: its cars' lines go with it. */
+    public function changeCombination(ApprovalDocument $document, DocumentWheelCombination $combination, WheelConfig $front, WheelConfig $rear, AdminUser $admin): void
+    {
+        DB::transaction(function () use ($document, $combination, $front, $rear, $admin): void {
+            $before = EntryView::combinationLabel($combination);
+            $combination->forceFill(['front_wheel_size_id' => self::versionOf($document, $front)->id, 'rear_wheel_size_id' => self::versionOf($document, $rear)->id])->save();
+            $combination->unsetRelations();
+            self::dropUnused($document);
+            $this->writer->write($document, $admin);
+
+            AuditTrail::record($admin, 'approval.combination_changed', ['document' => FitmentRows::label($document), 'from' => $before, 'combination' => EntryView::combinationLabel($combination)], $document);
+        });
+    }
+
+    /** A combination taken off the paper, its cells with it. A car left with no cell is off the paper. */
+    public function removeCombination(ApprovalDocument $document, DocumentWheelCombination $combination, AdminUser $admin): void
+    {
+        DB::transaction(function () use ($document, $combination, $admin): void {
+            $label = EntryView::combinationLabel($combination);
+            $combination->delete();
+            self::dropUnused($document);
+            $this->writer->write($document, $admin);
+
+            AuditTrail::record($admin, 'approval.combination_removed', ['document' => FitmentRows::label($document), 'combination' => $label], $document);
+        });
+    }
+
+    /**
+     * Ticks cars onto the paper: each gets a cell in every wheel combination. A car already there stays as it is: nothing it has is
+     * lost. Nothing stands for a group, and nothing joins by itself later: every car here was chosen.
      *
      * @param  list<int>  $vehicleIds
      * @return int the cars added
      */
-    public function addCars(ApprovalDocument $document, DocumentWheelSize $size, array $vehicleIds, AdminUser $admin): int
+    public function addCars(ApprovalDocument $document, array $vehicleIds, AdminUser $admin): int
     {
-        return DB::transaction(function () use ($document, $size, $vehicleIds, $admin): int {
+        return DB::transaction(function () use ($document, $vehicleIds, $admin): int {
             $there = DocumentCarEntry::query()->where('approval_document_id', $document->id)->whereIn('vehicle_id', $vehicleIds)->pluck('vehicle_id')->map(static fn (mixed $id): int => (int) $id)->all();
             $new = array_values(array_diff($vehicleIds, $there));
             $position = (int) DocumentCarEntry::query()->where('approval_document_id', $document->id)->max('position');
+            $combinations = DocumentWheelCombination::query()->where('approval_document_id', $document->id)->orderBy('position')->orderBy('id')->get();
 
             foreach ($new as $vehicleId) {
-                DocumentCarEntry::query()->create([
-                    'approval_document_id' => $document->id,
-                    'document_wheel_size_id' => $size->id,
-                    'vehicle_id' => $vehicleId,
-                    'axle' => Axle::All->value,
-                    'position' => ++$position,
-                ]);
+                foreach ($combinations as $combination) {
+                    self::cell($document, $combination, $vehicleId, ++$position);
+                }
             }
 
             if ($new !== []) {
@@ -98,13 +140,73 @@ final readonly class EntryEditor
         });
     }
 
-    /** Takes a car off the paper, its lines and rows with it. */
+    /** A car's cell in a combination, back or for the first time. */
+    public function addCell(ApprovalDocument $document, DocumentWheelCombination $combination, int $vehicleId, AdminUser $admin): void
+    {
+        DB::transaction(function () use ($document, $combination, $vehicleId, $admin): void {
+            $position = (int) DocumentCarEntry::query()->where('approval_document_id', $document->id)->max('position') + 1;
+            $entry = self::cell($document, $combination, $vehicleId, $position);
+            $this->writer->write($document, $admin, [$vehicleId]);
+
+            AuditTrail::record($admin, 'approval.cell_added', ['document' => FitmentRows::label($document), 'car' => self::carName($entry), 'combination' => EntryView::combinationLabel($combination)], $document);
+        });
+    }
+
+    /** „Gilt nicht für dieses Fahrzeug“: one car out of one combination; its other cells stay. */
+    public function removeCell(ApprovalDocument $document, DocumentCarEntry $entry, AdminUser $admin): void
+    {
+        DB::transaction(function () use ($document, $entry, $admin): void {
+            /** @var DocumentWheelCombination $combination */
+            $combination = $entry->combination;
+            $vehicleId = $entry->vehicle_id;
+            $name = self::carName($entry);
+            $label = EntryView::combinationLabel($combination);
+            $entry->delete();
+            $this->writer->write($document, $admin, [$vehicleId]);
+
+            AuditTrail::record($admin, 'approval.cell_removed', ['document' => FitmentRows::label($document), 'car' => $name, 'combination' => $label], $document);
+        });
+    }
+
+    private static function cell(ApprovalDocument $document, DocumentWheelCombination $combination, int $vehicleId, int $position): DocumentCarEntry
+    {
+        return DocumentCarEntry::query()->create([
+            'approval_document_id' => $document->id,
+            'document_wheel_combination_id' => $combination->id,
+            'vehicle_id' => $vehicleId,
+            'axle' => Axle::All->value,
+            'position' => $position,
+        ]);
+    }
+
+    /** The paper's version of this dimension, made the first time a combination names it. */
+    private static function versionOf(ApprovalDocument $document, WheelConfig $config): DocumentWheelSize
+    {
+        $dimension = array_intersect_key($config->getAttributes(), array_flip(DocumentWheelSize::DIMENSION));
+        $query = DocumentWheelSize::query()->where('approval_document_id', $document->id);
+
+        foreach ($dimension as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        return $query->first() ?? DocumentWheelSize::query()->create(['approval_document_id' => $document->id, ...$dimension]);
+    }
+
+    private static function dropUnused(ApprovalDocument $document): void
+    {
+        $used = DB::table('document_wheel_combinations')->where('approval_document_id', $document->id)->get(['front_wheel_size_id', 'rear_wheel_size_id'])
+            ->flatMap(static fn (object $row): array => [(int) $row->front_wheel_size_id, (int) $row->rear_wheel_size_id])->unique()->all();
+
+        DocumentWheelSize::query()->where('approval_document_id', $document->id)->whereNotIn('id', $used)->delete();
+    }
+
+    /** Takes a car off the paper, every cell of it, its lines and rows with it. */
     public function removeCar(ApprovalDocument $document, DocumentCarEntry $entry, AdminUser $admin): void
     {
         DB::transaction(function () use ($document, $entry, $admin): void {
             $vehicleId = $entry->vehicle_id;
             $name = self::carName($entry);
-            $entry->delete();
+            DocumentCarEntry::query()->where('approval_document_id', $document->id)->where('vehicle_id', $vehicleId)->delete();
             $this->writer->write($document, $admin, [$vehicleId]);
 
             AuditTrail::record($admin, 'approval.car_removed', ['document' => FitmentRows::label($document), 'car' => $name], $document);
@@ -164,7 +266,9 @@ final readonly class EntryEditor
             $source->loadMissing(['lines.codes', 'codes']);
             /** @var ApprovalDocument $document */
             $document = $source->document;
-            $targets = DocumentCarEntry::query()->with(['lines', 'codes'])->where('approval_document_id', $document->id)->whereIn('id', $targetIds)->whereKeyNot($source->id)->get();
+            // Only the same wheel combination: another's tyres may not fit its wheels.
+            $targets = DocumentCarEntry::query()->with(['lines', 'codes'])->where('approval_document_id', $document->id)->where('document_wheel_combination_id', $source->document_wheel_combination_id)
+                ->whereIn('id', $targetIds)->whereKeyNot($source->id)->get();
 
             foreach ($targets as $target) {
                 $there = $replace ? [] : $target->lines->mapWithKeys(static fn (DocumentTyreLine $line): array => [self::lineIdentity($line) => true])->all();
@@ -321,7 +425,7 @@ final readonly class EntryEditor
 
         foreach ($lines as $position => $input) {
             $line = $input['id'] !== null ? $existing->get($input['id']) : null;
-            $values = ['position' => $position, 'kw_min' => $input['kw_min'], 'kw_max' => $input['kw_max'], 'front_on_rim' => $input['front_on_rim'], 'rear_on_rim' => $input['rear_on_rim']];
+            $values = ['position' => $position, 'kw_min' => $input['kw_min'], 'kw_max' => $input['kw_max']];
 
             foreach (['front', 'rear'] as $side) {
                 $values = [...$values, ...self::side($side, $input[$side])];

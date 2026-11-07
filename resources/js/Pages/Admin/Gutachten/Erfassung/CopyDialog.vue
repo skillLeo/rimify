@@ -21,7 +21,8 @@ const preview = ref<{ cars: number; lines: number } | null>(null)
 const failure = ref('')
 const busy = ref(false)
 
-const others = computed(() => state.entry.cars.filter((car) => car.id !== props.from.id))
+/* Only the same wheel combination: another's tyres may not fit its wheels (the operator's brief of 07.11.2026, §3). */
+const others = computed(() => state.entry.cars.filter((car) => car.id !== props.from.id && car.combinationId === props.from.combinationId))
 const shown = computed(() => {
     const q = query.value.trim().toLowerCase()
 

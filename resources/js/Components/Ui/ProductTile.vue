@@ -99,7 +99,7 @@ function onPointerEnter(event: PointerEvent): void {
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null; hint: 'green' | 'yellow' } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }
@@ -115,6 +115,7 @@ const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: bo
         conditions: effective === 'CONDITIONAL' && !notes ? conditions : [],
         vary: effective === 'CONDITIONAL' && !notes && conditionsVary,
         notesOnly: notes,
+        hint: props.card.fitment.hint ?? 'yellow',
         // The wheel approved, its tyres not yet confirmed (finding 103, D-286): the badge stays the plain state — a corner
         // has no room for both halves, and a longer one ran off a phone's tile —, the line under the price says which is
         // which, in the panel's words, and its sizes are never „keine Freigabe“.
@@ -215,7 +216,7 @@ function onCompareLabelClick(event: MouseEvent): void {
             <!-- After the v-if/v-else pair, never between: there it would take the v-else. -->
             <Picture v-if="hoverView" :image="hoverView" alt="" :sizes="sizes" soon class="tile__picture tile__media--alt" aria-hidden="true" />
 
-            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" class="tile__badge" />
+            <VerdictBadge v-if="verdict" :status="verdict.status" :notes-only="verdict.notesOnly" :hint="verdict.hint" class="tile__badge" />
         </div>
 
         <!-- Names and sizes are never translated: a page translator turns a brand into a word and

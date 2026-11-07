@@ -262,7 +262,7 @@ test('Back brings what was saved, not the page as it opened, so the next change 
 
     const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/felge') && r.request().method() === 'PUT')
 
-    await page.locator('#ef-printed-type').fill('RC200 neu')
+    await page.locator('#ef-printed-type-0').fill('RC200 neu')
     await stored
     await saved(page)
 
@@ -271,7 +271,7 @@ test('Back brings what was saved, not the page as it opened, so the next change 
     await waitForApp(page)
     await page.goBack()
 
-    await expect(page.locator('#ef-printed-type')).toHaveValue('RC200 neu', { timeout: 15_000 })
+    await expect(page.locator('#ef-printed-type-0')).toHaveValue('RC200 neu', { timeout: 15_000 })
 })
 
 test('a reload with something typed and not yet stored asks first; a link away waits for it', async ({ page }) => {

@@ -104,8 +104,5 @@ return [
     'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what a reset level removes'],
 
     // ── The five steps: staff read the paper, and these ask them to say what it prints ──────────────────────
-    'Steht sie nicht in diesem Gutachten, braucht sie eine andere Felgengröße' => ['ours', 'an instruction to the person reading the paper: the rule its code 68B prints, for a size typed (document_tyre_lines)'],
-    'Steht sie im Gutachten nur in dieser Kombination' => ['ours', 'an instruction to the person reading the paper: the answer is stored (document_tyre_lines.front_on_rim, rear_on_rim)'],
-    'Steht nur in dieser Kombination im Gutachten' => ['ours', 'the field being filled in: document_tyre_lines.front_on_rim, rear_on_rim'],
-    'was du aus dem Gutachten eingetragen hast' => ['ours', 'compares two recorded values: what staff typed from the paper (document_wheel_sizes.printed_*) and the size chosen'],
+    'was du aus dem Gutachten eingetragen hast' => ['ours', 'compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen'],
 ];

@@ -91,6 +91,8 @@ final class ResetTables
         'document_speed_deratings',
         'document_tyre_combinations',
         'document_wheel_sizes',
+        'document_wheel_combinations',
+        'fitment_wheel_sets',
         'document_car_entries',
         'document_car_entry_codes',
         'document_tyre_lines',

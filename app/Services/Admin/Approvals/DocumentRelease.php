@@ -14,6 +14,7 @@ use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
 use App\Services\Admin\Approvals\Entry\EntryModel;
+use App\Services\Admin\Approvals\Entry\EntryView;
 use App\Services\Admin\Approvals\Entry\PairListCheck;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Dashboard\Coverage;
@@ -122,8 +123,9 @@ final class DocumentRelease
     }
 
     /**
-     * What the five steps add to the door: a line that does not read, and a pair the engine would give a car nobody entered it for
-     * — pairs are held per field K, and two cars of one K answer as one (PairListCheck).
+     * What the five steps add to the door: a line that does not read, a side still empty, a tyre that does not fit its wheel, a car with
+     * no tyres on one of several wheel combinations, and a pair the engine would give a car nobody entered it for — pairs are held per
+     * field K, and two cars of one K answer as one (PairListCheck).
      *
      * @return list<string>
      */
@@ -136,12 +138,32 @@ final class DocumentRelease
         }
 
         $blockers = [];
+        $several = $model->entries->pluck('document_wheel_combination_id')->unique()->count() > 1;
 
         foreach ($model->entries as $entry) {
+            /** @var Vehicle|null $car */
+            $car = $entry->vehicle;
+            $name = $car === null ? 'einem Fahrzeug' : VehicleName::from($car);
+            $combination = $entry->combination === null ? '' : EntryView::combinationLabel($entry->combination);
+
+            if ($several && $entry->lines->isEmpty()) {
+                $blockers[] = sprintf('Bei %s fehlen für die Felgenkombination „%s“ noch die Reifen. Trag sie ein oder nimm die Kombination bei diesem Fahrzeug heraus.', $name, $combination);
+            }
+
             foreach ($entry->lines as $line) {
+                foreach (['front', 'rear'] as $side) {
+                    $misfit = EntryModel::misfit($entry, $line, $side);
+
+                    if ($misfit !== null) {
+                        $blockers[] = sprintf('Bei %s (%s): %s', $name, $combination, $misfit);
+                    }
+                }
+
+                if (EntryModel::twoSidedOpen($line) && ! $line->unread()) {
+                    $blockers[] = sprintf('Bei %s (%s) steht eine Reifenzeile nur mit einer Seite; %s fehlt noch die Größe.', $name, $combination, $line->front() === null ? 'vorne' : 'hinten');
+                }
+
                 if ($line->unread()) {
-                    /** @var Vehicle|null $car */
-                    $car = $entry->vehicle;
                     $blockers[] = sprintf('Bei %s ist eine Reifenzeile nicht lesbar: „%s“. Korrigier sie oder nimm sie heraus.', $car === null ? 'einem Fahrzeug' : VehicleName::from($car), (string) ($line->front_unread ?? $line->rear_unread));
                 }
             }

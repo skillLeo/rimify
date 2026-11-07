@@ -12,6 +12,7 @@ use App\Models\DocumentKeptCombination;
 use App\Models\DocumentTyreCombination;
 use App\Models\DocumentTyreLine;
 use App\Models\DocumentTyreLineCode;
+use App\Models\DocumentWheelCombination;
 use App\Models\DocumentWheelSize;
 use App\Models\Fitment;
 use App\Models\FitmentCondition;
@@ -79,18 +80,20 @@ class DocumentEntryReader
             $first = $configs[$dimensionRows->first()?->wheel_config_id];
             $size = DocumentWheelSize::query()->create(['approval_document_id' => $document->id, ...array_intersect_key($first->getAttributes(), array_flip(DocumentWheelSize::DIMENSION))]);
             $live = $size->configs()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->sort()->values()->all();
+            // A paper from before this flow: each dimension for itself, front and rear the same.
+            $combination = DocumentWheelCombination::query()->create(['approval_document_id' => $document->id, 'front_wheel_size_id' => $size->id, 'rear_wheel_size_id' => $size->id, 'position' => $position]);
 
             foreach ($dimensionRows->groupBy(static fn (Fitment $row): string => self::signature($row)) as $alike) {
                 $ids = $alike->map(static fn (Fitment $row): int => (int) $row->wheel_config_id)->sort()->values()->all();
 
                 if ($ids === $live) {
-                    $entries->push($this->entry($document, $size, $alike->first(), null, $position++));
+                    $entries->push($this->entry($document, $combination, $alike->first(), null, $position++));
 
                     continue;
                 }
 
                 foreach ($alike as $row) {
-                    $entries->push($this->entry($document, $size, $row, (int) $row->wheel_config_id, $position++));
+                    $entries->push($this->entry($document, $combination, $row, (int) $row->wheel_config_id, $position++));
                 }
             }
         }
@@ -119,11 +122,11 @@ class DocumentEntryReader
         ]);
     }
 
-    private function entry(ApprovalDocument $document, DocumentWheelSize $size, Fitment $row, ?int $configId, int $position): DocumentCarEntry
+    private function entry(ApprovalDocument $document, DocumentWheelCombination $combination, Fitment $row, ?int $configId, int $position): DocumentCarEntry
     {
         $entry = DocumentCarEntry::query()->create([
             'approval_document_id' => $document->id,
-            'document_wheel_size_id' => $size->id,
+            'document_wheel_combination_id' => $combination->id,
             'vehicle_id' => $row->vehicle_id,
             'wheel_config_id' => $configId,
             'axle' => $row->axle->value,

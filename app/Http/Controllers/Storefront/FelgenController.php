@@ -984,6 +984,8 @@ class FelgenController extends Controller
             'label' => $verdict->displayLabelDe(),
             // Every Auflage a Hinweis (#23, D-104): the page says „Freigegeben“, quietly „mit Hinweisen“.
             'notesOnly' => $verdict->notesOnly(),
+            // The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says.
+            'hint' => $verdict->hintColour()->value,
             'sellable' => $verdict->isSellable(),
             // The rim alone sells while the tyres wait for the papers, where the wheel's approval does not (D-289).
             'rimSellable' => $verdict->forRimAlone() !== null,

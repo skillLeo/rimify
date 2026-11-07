@@ -629,6 +629,7 @@ it('keeps the kW band the document prints beside a size, and refuses one typed t
     $document = ApprovalDocument::factory()->draft()->create(['page_count' => 13]);
     $vehicle = Vehicle::factory()->create();
     $size = wheelSize(8.5, 35);
+    $size->forceFill(['diameter_in' => 19.0])->save();
     $sizes = [
         ['width_mm' => 215, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 125, 'codes' => []],
         ['width_mm' => 225, 'aspect' => 35, 'diameter' => 19, 'min_load_index' => null, 'min_speed_symbol' => '', 'axle' => 'ALL', 'kw_min' => 85, 'kw_max' => 195, 'codes' => []],

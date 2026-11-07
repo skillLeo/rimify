@@ -89,7 +89,8 @@ const tone = computed<{ cls: string; icon: IconName }>(() => {
         case 'PERMITTED':
             return { cls: '', icon: 'check-circle' }
         case 'CONDITIONAL':
-            return { cls: 'rcheck-panel--warn', icon: 'warning' }
+            // The colour of the codes behind it (#23): how it looks, never what it says.
+            return props.verdict.hint === 'green' ? { cls: '', icon: 'info' } : { cls: 'rcheck-panel--warn', icon: 'warning' }
         case 'NOT_PERMITTED':
             return { cls: 'rcheck-panel--danger', icon: 'close' }
         default:

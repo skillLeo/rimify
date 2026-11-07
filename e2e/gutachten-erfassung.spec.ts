@@ -19,12 +19,12 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
     const number = freshNumber('E2E-WEG')
     const url = await newPaper(page, number)
 
-    // Step 2: one size; what the paper prints is compared, and a difference warns and never blocks.
+    // Step 2: a wheel combination; what the paper prints is compared, and a difference warns and never blocks.
     await expect(page.getByRole('navigation', { name: 'Schritte zum Gutachten' })).toBeVisible()
     await chooseFirstWheel(page)
-    await page.locator('#ef-printed-et').fill('77')
-    await page.locator('#ef-printed-et').blur()
-    await expect(page.locator('.ef-mismatch')).toContainText('Einpresstiefe: im Gutachten', { timeout: 15_000 })
+    await page.locator('#ef-printed-et-0').fill('77')
+    await page.locator('#ef-printed-et-0').blur()
+    await expect(page.locator('.ef-combo .ef-warn')).toContainText('Einpresstiefe: im Gutachten', { timeout: 15_000 })
     await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click()
 
     // Step 3: single cars from one search field; the selection lists cars.
@@ -63,12 +63,6 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
     await expect(rear.nth(1)).toHaveValue('255/35R18')
     await page.keyboard.press('Tab')
     await expect(rear.nth(1)).toHaveValue('255/35 R18')
-
-    // A size that has no line of its own is said, and the pair stands.
-    await expect(page.locator('.ef-line .ef-warn').first()).toContainText('Die hintere Größe hat hier keine eigene Zeile')
-    await page.locator('.ef-line').nth(1).getByRole('button', { name: /Weitere Angaben/ }).click()
-    await page.getByLabel('die hintere Größe').check()
-    await expect(page.locator('.ef-line .ef-warn')).toHaveCount(0)
 
     // A code not described yet: typed, tagged, described on the spot.
     const codes = page.locator('input[id^=ef-codes-]')

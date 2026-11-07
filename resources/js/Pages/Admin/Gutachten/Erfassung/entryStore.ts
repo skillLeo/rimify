@@ -13,6 +13,7 @@ import { usePage } from '@inertiajs/vue3'
 import { inject, nextTick, reactive, type InjectionKey } from 'vue'
 import { xsrfToken } from '../../../../composables/admin/preferences'
 import type { AdminGutachtenShowProps } from '../../../../types/admin/gutachten'
+import { decimal } from '../../../../format'
 import { readTyre, sizeKey } from './tyreInput'
 
 /** The page's props, as the parts of the five steps read them. */
@@ -30,13 +31,36 @@ export interface WheelSizeView {
     wheelType: string | null
     label: string
     colours: { name: string | null; hex: string | null }[]
-    printed: { type: string | null; width: number | null; diameter: number | null; et: number | null; holes: number | null; circle: number | null }
-    mismatch: string[]
+}
+
+export interface CombinationView {
+    id: number
+    frontId: number
+    rearId: number
+    frontKey: string
+    rearKey: string
+    frontConfigId: number
+    rearConfigId: number
+    same: boolean
+    badge: string
+    label: string
+    frontLabel: string
+    rearLabel: string
+    frontDiameter: number
+    rearDiameter: number
+    warnings: string[]
+}
+
+export interface PrintedRow {
+    type: string | null
+    size: string
+    et: number | null
+    bolts: string
 }
 
 export interface CarView {
     id: number
-    sizeId: number
+    combinationId: number
     vehicleId: number
     label: string
     hsnTsn: string | null
@@ -58,15 +82,20 @@ export interface CarView {
 }
 
 export interface PairConflict {
+    entryId: number
     vehicleId: number
     car: string
     k: string
     pair: string
     others: string[]
+    combination: string
+    several: boolean
 }
 
 export interface EntryView {
     wheelSizes: WheelSizeView[]
+    combinations: CombinationView[]
+    printed: PrintedRow[]
     cars: CarView[]
     conflicts: PairConflict[]
     unreachable: { vehicleId: number; car: string; k: string | null }[]
@@ -84,10 +113,8 @@ export interface ServerLine {
     oneSided: boolean
     kw: string
     codes: string[]
-    frontOnRim: boolean
-    rearOnRim: boolean
     outsideList: boolean
-    /** Why the server kept a side as typed: it reads as a size, and cannot stand as one (a load index it does not know). */
+    /** Why the server said no to a side: it reads as a size, and cannot stand as one (a load index it does not know, a tyre that does not fit its wheel). */
     frontWhy: string | null
     rearWhy: string | null
 }
@@ -108,8 +135,6 @@ export interface EditLine {
     rear: string
     kw: string
     codes: string[]
-    frontOnRim: boolean
-    rearOnRim: boolean
     oneSided: boolean
     outsideList: boolean
     follows: boolean
@@ -190,8 +215,6 @@ export function toEditLine(line: ServerLine): EditLine {
         rear: line.rear,
         kw: line.kw,
         codes: [...line.codes],
-        frontOnRim: line.frontOnRim,
-        rearOnRim: line.rearOnRim,
         oneSided: line.oneSided,
         outsideList: line.outsideList,
         // The same size on both sides: correcting the front corrects both. A rear someone made different stays as it is.
@@ -201,14 +224,17 @@ export function toEditLine(line: ServerLine): EditLine {
 }
 
 export function blankLine(front = '', rear = front): EditLine {
-    return { key: nextKey++, id: null, front, rear, kw: '', codes: [], frontOnRim: false, rearOnRim: false, oneSided: false, outsideList: false, follows: front === rear, refused: { front: null, rear: null } }
+    return { key: nextKey++, id: null, front, rear, kw: '', codes: [], oneSided: false, outsideList: false, follows: front === rear, refused: { front: null, rear: null } }
 }
 
-/** Typed in front: the rear takes the same, until someone changes it (the client's change of 05.11.2026). */
-export function typedFront(line: EditLine, text: string): void {
+/**
+ * Typed in front: the rear takes the same, until someone changes it (the client's change of 05.11.2026) — where both wheels have
+ * one diameter. Where they differ the same tyre would not fit, and the rear stays empty (the operator's brief of 07.11.2026, §3).
+ */
+export function typedFront(line: EditLine, text: string, mirrors = true): void {
     line.front = text
 
-    if (line.follows && !line.oneSided) {
+    if (mirrors && line.follows && !line.oneSided) {
         line.rear = text
     }
 }
@@ -218,54 +244,15 @@ export function typedRear(line: EditLine, text: string): void {
     line.follows = text.trim() === '' || text === line.front
 }
 
-/** Whether both sides read and name two different sizes. */
-export function isPair(line: Pick<EditLine, 'front' | 'rear'>): boolean {
-    const front = readTyre(line.front)
-    const rear = readTyre(line.rear)
+/** Whether this side's typed tyre cannot go on this side's wheel, in the server's words (EntryLineRules::misfit); null where it can. */
+export function misfit(text: string, wheelDiameter: number, side: 'front' | 'rear'): string | null {
+    const tyre = readTyre(text)
 
-    return front !== null && rear !== null && sizeKey(front) !== sizeKey(rear)
-}
-
-/** The sizes this car has on a line of their own: those reach the axle by themselves. */
-export function ownSizes(lines: Pick<EditLine, 'front' | 'rear'>[]): Set<string> {
-    const own = new Set<string>()
-
-    for (const line of lines) {
-        const front = readTyre(line.front)
-        const rear = readTyre(line.rear)
-
-        if (front !== null && rear !== null && sizeKey(front) === sizeKey(rear)) {
-            own.add(sizeKey(front))
-        }
+    if (tyre === null || Math.abs(tyre.diameter - wheelDiameter) < 0.001) {
+        return null
     }
 
-    return own
-}
-
-/**
- * What the paper's own rule says of a pair: a size it does not list for this wheel is only permitted on another wheel size. A
- * side with no line of its own, and nobody saying the paper lists it in this combination, makes the pair not offered here. Said,
- * never blocked.
- */
-export function pairWarnings(line: EditLine, lines: EditLine[]): string[] {
-    if (!isPair(line)) {
-        return []
-    }
-
-    const own = ownSizes(lines)
-    const out: string[] = []
-    const front = readTyre(line.front)
-    const rear = readTyre(line.rear)
-
-    if (front !== null && !own.has(sizeKey(front)) && !line.frontOnRim) {
-        out.push(`Die vordere Größe hat hier keine eigene Zeile. Steht sie nicht in diesem Gutachten, braucht sie eine andere Felgengröße, und der Shop bietet diese Kombination auf dieser Felge nicht an. Steht sie im Gutachten nur in dieser Kombination, setz unter „…“ den Haken.`)
-    }
-
-    if (rear !== null && !own.has(sizeKey(rear)) && !line.rearOnRim) {
-        out.push(`Die hintere Größe hat hier keine eigene Zeile. Steht sie nicht in diesem Gutachten, braucht sie eine andere Felgengröße, und der Shop bietet diese Kombination auf dieser Felge nicht an. Steht sie im Gutachten nur in dieser Kombination, setz unter „…“ den Haken.`)
-    }
-
-    return out
+    return `Dieser Reifen passt nicht: Die Felge ${side === 'front' ? 'vorne' : 'hinten'} hat ${decimal(wheelDiameter, Number.isInteger(wheelDiameter) ? 0 : 1)} Zoll, der Reifen R${decimal(tyre.diameter, Number.isInteger(tyre.diameter) ? 0 : 1)}.`
 }
 
 /** The keys of lines that say the same as an earlier one: their sizes, figures and band. */
@@ -293,19 +280,26 @@ export function duplicateKeys(lines: EditLine[]): number[] {
     return twice
 }
 
-/** `2 Zeilen · 1 Kombination`, or „noch leer“. */
-export function carSummary(car: Pick<CarView, 'lines' | 'pairs' | 'unread'>): string {
+/** `2 Kombinationen`, or „noch leer“: every line is a combination. */
+export function carSummary(car: Pick<CarView, 'lines' | 'unread'>): string {
     if (car.lines === 0) {
-        return car.unread > 0 ? 'nicht lesbar' : 'noch leer'
+        return car.unread > 0 ? 'nicht vollständig' : 'noch leer'
     }
 
-    const same = car.lines - car.pairs
-    const parts = [
-        same > 0 ? `${same} ${same === 1 ? 'Reifengröße' : 'Reifengrößen'}` : '',
-        car.pairs > 0 ? `${car.pairs} ${car.pairs === 1 ? 'Kombination' : 'Kombinationen'}` : '',
-    ].filter(Boolean)
+    return `${car.lines} ${car.lines === 1 ? 'Kombination' : 'Kombinationen'}`
+}
 
-    return parts.join(' · ')
+/** Every car once, however many wheel combinations it stands in: what step 3 lists and what its question counts. */
+export function distinctCars(cars: CarView[]): CarView[] {
+    const out = new Map<number, CarView>()
+
+    for (const car of cars) {
+        const seen = out.get(car.vehicleId)
+
+        out.set(car.vehicleId, seen === undefined ? { ...car } : { ...seen, lines: seen.lines + car.lines, unread: seen.unread + car.unread, codes: seen.codes + car.codes, done: seen.done && car.done, finish: seen.finish ?? car.finish })
+    }
+
+    return [...out.values()]
 }
 
 /** A car's label in a narrow column: key numbers and power stay together, a separator at the end of its line, never alone on the next. */
@@ -374,7 +368,7 @@ export function createEntryStore(options: EntryStoreOptions) {
     }
 
     function furthest(): number {
-        if (state.entry.wheelSizes.length === 0) {
+        if (state.entry.combinations.length === 0) {
             return 1
         }
 

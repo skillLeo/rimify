@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Step 4, Reifen — the main screen (the Gutachten rework §7): the paper on the left, what is still open in the middle, one per car
- * (the client's change of 05.11.2026), the tyres of one car on the right. The middle column is also where the paper's codes live
+ * and wheel combination (the client's changes of 05.11.2026 and 07.11.2026), the tyres of one of them on the right. The middle column is also where the paper's codes live
  * („Auflagen dieses Gutachtens“), one tab away from the to-do list.
  */
 
@@ -20,7 +20,10 @@ const tab = ref<'todo' | 'codes'>('todo')
 const cars = computed(() => state.entry.cars)
 const done = computed(() => cars.value.filter((car) => car.done).length)
 const current = computed(() => store.car(state.carId) ?? cars.value[0])
-const size = computed(() => state.entry.wheelSizes.find((s) => s.id === current.value?.sizeId) ?? state.entry.wheelSizes[0])
+const combination = computed(() => state.entry.combinations.find((c) => c.id === current.value?.combinationId))
+const wheelName = computed(() => state.entry.wheelSizes[0]?.wheel ?? '')
+const several = computed(() => state.entry.combinations.length > 1)
+const combinationLabel = (id: number): string => state.entry.combinations.find((c) => c.id === id)?.label ?? ''
 const percent = computed(() => (cars.value.length === 0 ? 0 : Math.round((done.value / cars.value.length) * 100)))
 </script>
 
@@ -49,6 +52,7 @@ const percent = computed(() => (cars.value.length === 0 ? 0 : Math.round((done.v
                         <li v-for="car in cars" :key="car.id">
                             <button class="ef-todo__item" type="button" :aria-current="current?.id === car.id ? 'true' : undefined" @click="store.openCar(car.id)">
                                 <span class="ef-todo__name">{{ carLine(car.label) }}</span>
+                                <span v-if="several" class="ef-todo__size" data-combination>{{ combinationLabel(car.combinationId) }}</span>
                                 <span class="ef-todo__size">{{ carSummary(car) }}<template v-if="car.finish"> · nur {{ car.finish }}</template><template v-if="car.axle !== 'ALL'"> · {{ car.axle === 'FRONT' ? 'nur vorne' : 'nur hinten' }}</template></span>
                                 <span v-if="car.conflict" class="adm-tag adm-tag--warn ef-todo__state">Prüfen</span>
                                 <span v-else-if="car.done" class="ef-todo__state ef-todo__state--done"><Icon name="check" :size="20" /><span class="visually-hidden">erledigt</span></span>
@@ -62,7 +66,7 @@ const percent = computed(() => (cars.value.length === 0 ? 0 : Math.round((done.v
                 <CodesPanel v-show="tab === 'codes'" id="ef-panel-codes" role="tabpanel" aria-labelledby="ef-tab-codes" />
             </aside>
 
-            <LinesEditor v-if="current && size" :key="current.id" class="ef-tyres__editor" :car="current" :wheel-name="size.wheel" :size-name="size.label" />
+            <LinesEditor v-if="current && combination" :key="current.id" class="ef-tyres__editor" :car="current" :wheel-name="wheelName" :combination="combination" />
         </div>
     </section>
 </template>

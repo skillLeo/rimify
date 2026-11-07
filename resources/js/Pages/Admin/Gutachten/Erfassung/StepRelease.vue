@@ -14,7 +14,7 @@ import ReleaseDialog from '../ReleaseDialog.vue'
 import CodeDefine from './CodeDefine.vue'
 import CountSection from './CountSection.vue'
 import LegendDialog from './LegendDialog.vue'
-import { carSummary, useEntry, type CarView, useGutachtenPage } from './entryStore'
+import { carSummary, distinctCars, useEntry, type CarView, useGutachtenPage } from './entryStore'
 import PreviewSection from './PreviewSection.vue'
 
 const store = useEntry()
@@ -29,9 +29,10 @@ const busy = ref<number | null>(null)
 const failure = ref('')
 
 const cars = computed(() => state.entry.cars)
-const size = computed(() => state.entry.wheelSizes[0])
+const combinations = computed(() => state.entry.combinations)
+const vehicles = computed(() => distinctCars(cars.value))
 const empty = computed(() => cars.value.filter((car) => !car.done))
-const unproven = computed(() => cars.value.filter((car) => car.unsourced))
+const unproven = computed(() => vehicles.value.filter((car) => car.unsourced))
 const codes = computed(() => state.entry.undescribed)
 const rows = computed(() => page.props.rowsTotal ?? 0)
 const blockers = computed(() => page.props.blockers ?? [])
@@ -50,6 +51,34 @@ function refresh(): void {
 }
 
 onMounted(refresh)
+
+/* A car's cell in a wheel combination; undefined where it was taken out. */
+function cell(vehicleId: number, combinationId: number): CarView | undefined {
+    return cars.value.find((car) => car.vehicleId === vehicleId && car.combinationId === combinationId)
+}
+
+/* „Gilt nicht für dieses Fahrzeug“: a car stays on the paper by its other combinations. The door stops asking for this one. */
+async function dropCell(car: CarView): Promise<void> {
+    failure.value = ''
+
+    try {
+        await store.save('DELETE', `/fahrzeuge/${car.id}/zelle`)
+        refresh()
+    } catch (error) {
+        failure.value = error instanceof Error ? error.message : 'Das hat nicht geklappt.'
+    }
+}
+
+async function addCell(vehicleId: number, combinationId: number): Promise<void> {
+    failure.value = ''
+
+    try {
+        await store.save('POST', '/zellen', { vehicle_id: vehicleId, combination_id: combinationId })
+        refresh()
+    } catch (error) {
+        failure.value = error instanceof Error ? error.message : 'Das hat nicht geklappt.'
+    }
+}
 
 function jump(car: CarView): void {
     state.carId = car.id
@@ -95,6 +124,17 @@ const releaseBody = computed(() => {
     return `${what} Angaben, Codes und Zeilen lassen sich dann nicht mehr ändern – eine Korrektur geht über „Neue Fassung anlegen“, und die neue Fassung ersetzt dieses Gutachten, sobald sie freigegeben ist.`
 })
 
+/* One combination: a gap is a car. Several: a gap is one field of the overview, and a car may have the others filled. */
+const gap = computed(() => {
+    const count = empty.value.length
+
+    if (combinations.value.length > 1) {
+        return count === 1 ? '1 Feld der Übersicht ist noch leer.' : `${decimal(count, 0)} Felder der Übersicht sind noch leer.`
+    }
+
+    return count === 1 ? '1 Fahrzeug hat noch keine Reifen.' : `${decimal(count, 0)} Fahrzeuge haben noch keine Reifen.`
+})
+
 const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).release ?? '')
 </script>
 
@@ -105,7 +145,7 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
         <p v-if="empty.length" class="ef-gap">
             <Icon name="warning" :size="20" />
-            {{ empty.length === 1 ? '1 Fahrzeug hat' : `${decimal(empty.length, 0)} Fahrzeuge haben` }} noch keine Reifen.
+            {{ gap }}
             <button class="ef-link" type="button" @click="jump(empty[0]!)">Jetzt eintragen</button>
         </p>
 
@@ -116,19 +156,26 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                     <tr>
                         <th scope="col">Fahrzeug</th>
                         <th scope="col">Feld K</th>
-                        <th scope="col">{{ size ? size.label : 'Reifen' }}</th>
+                        <th v-for="combination in combinations" :key="combination.id" scope="col">{{ combination.label }}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="car in cars" :key="car.id">
-                        <td data-label="Fahrzeug"><span class="adm-table__key">{{ car.label }}</span><span v-if="car.finish || car.axle !== 'ALL'" class="adm-table__sub">{{ [car.finish ? `nur ${car.finish}` : '', car.axle === 'FRONT' ? 'nur Vorderachse' : car.axle === 'REAR' ? 'nur Hinterachse' : ''].filter(Boolean).join(' · ') }}</span></td>
+                    <tr v-for="car in vehicles" :key="car.vehicleId">
+                        <td data-label="Fahrzeug"><span class="adm-table__key">{{ car.label }}</span><span v-if="car.finish || car.axle !== 'ALL'" class="adm-tag adm-tag--neutral ef-matrix__scope">{{ [car.finish ? `nur ${car.finish}` : '', car.axle === 'FRONT' ? 'nur Vorderachse' : car.axle === 'REAR' ? 'nur Hinterachse' : ''].filter(Boolean).join(' · ') }}</span></td>
                         <td data-label="Feld K">{{ car.k ?? '–' }}</td>
-                        <td data-label="Reifen">
-                            <button class="ef-cellbtn" :class="{ 'ef-cellbtn--empty': !car.done || car.conflict }" type="button" @click="jump(car)">
-                                {{ carSummary(car) }}
-                                <span v-if="car.conflict" class="adm-tag adm-tag--warn">Prüfen</span>
-                                <span v-if="car.copiedFrom" class="adm-tag adm-tag--neutral">kopiert von {{ car.copiedFrom }}</span>
-                            </button>
+                        <td v-for="combination in combinations" :key="combination.id" :data-label="combination.label">
+                            <template v-if="cell(car.vehicleId, combination.id)">
+                                <button class="ef-cellbtn" :class="{ 'ef-cellbtn--empty': !cell(car.vehicleId, combination.id)!.done || cell(car.vehicleId, combination.id)!.conflict }" type="button" @click="jump(cell(car.vehicleId, combination.id)!)">
+                                    {{ carSummary(cell(car.vehicleId, combination.id)!) }}
+                                    <span v-if="cell(car.vehicleId, combination.id)!.conflict" class="adm-tag adm-tag--warn">Prüfen</span>
+                                    <span v-if="cell(car.vehicleId, combination.id)!.copiedFrom" class="adm-tag adm-tag--neutral">kopiert von {{ cell(car.vehicleId, combination.id)!.copiedFrom }}</span>
+                                </button>
+                                <button v-if="state.editable && combinations.length > 1 && !cell(car.vehicleId, combination.id)!.done" class="ef-link ef-matrix__drop" type="button" @click="dropCell(cell(car.vehicleId, combination.id)!)">Gilt nicht für dieses Fahrzeug</button>
+                            </template>
+                            <template v-else>
+                                <span class="quiet">gilt nicht</span>
+                                <button v-if="state.editable" class="ef-link ef-matrix__drop" type="button" @click="addCell(car.vehicleId, combination.id)">Wieder aufnehmen</button>
+                            </template>
                         </td>
                     </tr>
                 </tbody>
@@ -142,9 +189,9 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                 <h3 id="ef-conflict-h" class="ef-check__title">Gleiche Betriebserlaubnis, andere Kombinationen</h3>
                 <p class="adm-note">Der Shop speichert Kombinationen je Betriebserlaubnis (Feld K). Ein Fahrzeug bekäme hier eine Kombination, die bei ihm nicht eingetragen ist. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem: „Kopieren nach …“ gleicht sie an.</p>
                 <ul class="ef-check__list">
-                    <li v-for="conflict in state.entry.conflicts" :key="`${conflict.vehicleId}-${conflict.pair}`" class="ef-check__item">
-                        <span><strong>{{ conflict.car }}</strong> · Feld K {{ conflict.k }} · {{ conflict.pair }}<template v-if="conflict.others.length">, eingetragen bei {{ conflict.others.join(', ') }}</template></span>
-                        <button class="btn btn--secondary" type="button" @click="jump(cars.find((c) => c.vehicleId === conflict.vehicleId)!)">Zum Fahrzeug</button>
+                    <li v-for="conflict in state.entry.conflicts" :key="`${conflict.entryId}-${conflict.pair}`" class="ef-check__item">
+                        <span><strong>{{ conflict.car }}</strong><template v-if="conflict.several"> · {{ conflict.combination }}</template> · Feld K {{ conflict.k }} · {{ conflict.pair }}<template v-if="conflict.others.length">, eingetragen bei {{ conflict.others.join(', ') }}</template></span>
+                        <button class="btn btn--secondary" type="button" @click="jump(cars.find((c) => c.id === conflict.entryId)!)">Zum Fahrzeug</button>
                     </li>
                 </ul>
             </section>

@@ -175,6 +175,40 @@ function readEntry(entry: string, line: number): PasteLine {
     return { ...base, status: 'single', sizes: sizes as TyreSpec[] }
 }
 
+/**
+ * The paste against the wheels of this combination (the operator's brief of 07.11.2026, §3): a size alone stands for both axles
+ * only where both wheels share its diameter; a pair's sides each on their own wheel. What does not fit is an error line, with the
+ * reason, and left out like one that does not read.
+ */
+export function checkPaste(lines: PasteLine[], wheels: { front: number; rear: number }): PasteLine[] {
+    const inch = (value: number): string => String(value).replace('.', ',')
+    const misfit = (tyre: TyreSpec, wheel: number, side: string): string | null => (Math.abs(tyre.diameter - wheel) < 0.001 ? null : `Passt nicht: Die Felge ${side} hat ${inch(wheel)} Zoll, der Reifen R${inch(tyre.diameter)}.`)
+
+    return lines.map((line) => {
+        for (const size of line.sizes ?? []) {
+            if (Math.abs(wheels.front - wheels.rear) >= 0.001) {
+                return { ...line, status: 'unread' as const, reason: `Eine Größe allein geht hier nicht: Die Felgen haben vorne ${inch(wheels.front)} und hinten ${inch(wheels.rear)} Zoll. Schreib vorne + hinten.`, sizes: undefined }
+            }
+
+            const why = misfit(size, wheels.front, 'vorne und hinten')
+
+            if (why !== null) {
+                return { ...line, status: 'unread' as const, reason: why, sizes: undefined }
+            }
+        }
+
+        for (const pair of line.pairs ?? []) {
+            const why = misfit(pair.front, wheels.front, 'vorne') ?? misfit(pair.rear, wheels.rear, 'hinten')
+
+            if (why !== null) {
+                return { ...line, status: 'unread' as const, reason: why, pairs: undefined }
+            }
+        }
+
+        return line
+    })
+}
+
 /** What „Mehrere einfügen" adds: each read line as vorne + hinten — a size alone on both sides, a pair as a pair. */
 export function pasteToSides(lines: PasteLine[]): { front: string; rear: string }[] {
     const out: { front: string; rear: string }[] = []

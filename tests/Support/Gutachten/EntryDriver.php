@@ -10,6 +10,7 @@ use App\Models\DocumentCarEntry;
 use App\Models\DocumentTyreLine;
 use App\Models\DocumentTyreLineCode;
 use App\Models\DocumentWheelSize;
+use App\Models\WheelConfig;
 use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
 use App\Support\TyreText;
 
@@ -31,8 +32,15 @@ final class EntryDriver
         $base = "/admin/gutachten/{$documentId}/erfassung";
         $configId = $row['config_ids'][0] ?? null;
 
+        // The factory's diameter is random and the steps refuse R18 on a 19-inch rim: a wheel takes its tyres' diameter.
+        $diameters = array_values(array_unique(array_map(static fn (array $size): float => (float) ($size['diameter'] ?? $size['diameter_in']), $row['tyre_sizes'] ?? [])));
+
+        if ($configId !== null && count($diameters) === 1) {
+            WheelConfig::query()->whereKey($configId)->update(['diameter_in' => $diameters[0]]);
+        }
+
         if ($configId !== null && DocumentWheelSize::query()->where('approval_document_id', $documentId)->doesntExist()) {
-            $test->actingAs($admin, 'admin')->putJson("{$base}/felge", ['wheel_config_id' => $configId])->assertOk();
+            $test->actingAs($admin, 'admin')->postJson("{$base}/kombinationen", ['front_config_id' => $configId, 'rear_config_id' => $configId])->assertOk();
         }
 
         $test->actingAs($admin, 'admin')->postJson("{$base}/fahrzeuge", ['vehicle_ids' => $row['vehicle_ids']])->assertOk();
@@ -85,7 +93,7 @@ final class EntryDriver
         $base = "/admin/gutachten/{$documentId}/erfassung";
 
         if (DocumentWheelSize::query()->where('approval_document_id', $documentId)->doesntExist()) {
-            $test->actingAs($admin, 'admin')->putJson("{$base}/felge", ['wheel_config_id' => $configId])->assertOk();
+            $test->actingAs($admin, 'admin')->postJson("{$base}/kombinationen", ['front_config_id' => $configId, 'rear_config_id' => $configId])->assertOk();
         }
 
         $test->actingAs($admin, 'admin')->postJson("{$base}/fahrzeuge", ['vehicle_ids' => [$vehicleId]])->assertOk();

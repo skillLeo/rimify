@@ -332,6 +332,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/gutachten/{document}/pdf', [GutachtenErfassungController::class, 'pdf'])->whereNumber('document')->name('gutachten.pdf');
         // The five steps' saves (the Gutachten rework, Phase 2): each answers with the state the page redraws from.
         Route::put('/gutachten/{document}/erfassung/felge', [GutachtenErfassungController::class, 'wheel'])->whereNumber('document')->name('gutachten.erfassung.felge');
+        Route::post('/gutachten/{document}/erfassung/kombinationen', [GutachtenErfassungController::class, 'addCombination'])->whereNumber('document')->name('gutachten.erfassung.kombination.add');
+        Route::put('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'changeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.change');
+        Route::delete('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'removeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.remove');
+        Route::post('/gutachten/{document}/erfassung/zellen', [GutachtenErfassungController::class, 'addCell'])->whereNumber('document')->name('gutachten.erfassung.zelle.add');
+        Route::delete('/gutachten/{document}/erfassung/fahrzeuge/{entry}/zelle', [GutachtenErfassungController::class, 'removeCell'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.zelle.remove');
         Route::post('/gutachten/{document}/erfassung/fahrzeuge', [GutachtenErfassungController::class, 'addCars'])->whereNumber('document')->name('gutachten.erfassung.fahrzeuge');
         Route::get('/gutachten/{document}/erfassung/fahrzeuge/{entry}', [GutachtenErfassungController::class, 'car'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug');
         Route::put('/gutachten/{document}/erfassung/fahrzeuge/{entry}', [GutachtenErfassungController::class, 'saveCar'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.speichern');
@@ -354,6 +359,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/auflagen/stapel', [GutachtenAuflagenController::class, 'batch'])->whereNumber('document')->name('gutachten.auflagen.stapel');
         Route::put('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'update'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.update');
         // #23, D-104: how loud one Auflage is in the shop — on a released document too (ApprovalDocumentPolicy::setLevels).
+        Route::put('/gutachten/{document}/auflagen/{condition}/farbe', [GutachtenAuflagenController::class, 'colour'])->whereNumber(['document', 'condition'])->name('gutachten.auflagen.farbe');
         Route::put('/gutachten/{document}/auflagen/{condition}/stufe', [GutachtenAuflagenController::class, 'level'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.stufe');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
         // A load-index limit that differs from the table, confirmed as printed with a reason.

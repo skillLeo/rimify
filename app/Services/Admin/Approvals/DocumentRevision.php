@@ -30,7 +30,7 @@ final class DocumentRevision
     public const TABLES = [
         'approval_documents', 'document_conditions', 'document_condition_reworks', 'document_fasteners', 'document_notices',
         'document_speed_deratings', 'document_tyre_combinations', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes',
-        'fitment_tyre_size_conditions', 'document_wheel_sizes', 'document_car_entries', 'document_car_entry_codes',
+        'fitment_tyre_size_conditions', 'fitment_wheel_sets', 'document_wheel_sizes', 'document_wheel_combinations', 'document_car_entries', 'document_car_entry_codes',
         'document_tyre_lines', 'document_tyre_line_codes', 'document_kept_combinations',
     ];
 
@@ -88,6 +88,13 @@ final class DocumentRevision
                 }
             }
 
+            foreach (DB::table('fitment_wheel_sets')->whereIn('front_fitment_id', array_keys($rows))->orderBy('id')->get() as $set) {
+                // A row left behind (its car gone) takes its set with it.
+                if (isset($rows[(int) $set->front_fitment_id], $rows[(int) $set->rear_fitment_id])) {
+                    self::insertCopy('fitment_wheel_sets', (array) $set, ['front_fitment_id' => $rows[(int) $set->front_fitment_id], 'rear_fitment_id' => $rows[(int) $set->rear_fitment_id]]);
+                }
+            }
+
             self::copyEntry($released->id, $id);
 
             $draft = ApprovalDocument::query()->findOrFail($id);
@@ -112,8 +119,11 @@ final class DocumentRevision
         self::copyChildren('document_kept_combinations', 'approval_document_id', $from, $to);
         $entries = [];
 
-        foreach (self::copyChildren('document_wheel_sizes', 'approval_document_id', $from, $to) as $sizeFrom => $sizeTo) {
-            $entries += self::copyChildren('document_car_entries', 'document_wheel_size_id', $sizeFrom, $sizeTo, ['approval_document_id' => $to, 'copied_from_id' => null]);
+        $sizes = self::copyChildren('document_wheel_sizes', 'approval_document_id', $from, $to);
+
+        foreach (DB::table('document_wheel_combinations')->where('approval_document_id', $from)->orderBy('id')->get() as $combination) {
+            $copy = self::insertCopy('document_wheel_combinations', (array) $combination, ['approval_document_id' => $to, 'front_wheel_size_id' => $sizes[(int) $combination->front_wheel_size_id], 'rear_wheel_size_id' => $sizes[(int) $combination->rear_wheel_size_id]]);
+            $entries += self::copyChildren('document_car_entries', 'document_wheel_combination_id', (int) $combination->id, $copy, ['approval_document_id' => $to, 'copied_from_id' => null]);
         }
 
         foreach ($entries as $entryFrom => $entryTo) {

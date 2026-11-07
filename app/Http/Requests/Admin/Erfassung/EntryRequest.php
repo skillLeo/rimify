@@ -7,6 +7,7 @@ namespace App\Http\Requests\Admin\Erfassung;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCarEntry;
+use App\Models\DocumentWheelCombination;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -20,8 +21,13 @@ class EntryRequest extends FormRequest
         $user = $this->user('admin');
         $document = $this->route('document');
         $entry = $this->route('entry');
+        $combination = $this->route('combination');
 
         if (! $user instanceof AdminUser || ! $document instanceof ApprovalDocument) {
+            return false;
+        }
+
+        if ($combination !== null && (! $combination instanceof DocumentWheelCombination || $combination->approval_document_id !== $document->id)) {
             return false;
         }
 

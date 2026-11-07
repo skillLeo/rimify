@@ -42,17 +42,17 @@ function qaAdmin(): AdminUser
     return AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
 }
 
-function qaSize(): WheelConfig
+function qaSize(float $diameter = 18.0): WheelConfig
 {
     $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
 
-    return WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'width_in' => 8.0, 'et_mm' => 35]);
+    return WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => $diameter, 'width_in' => 8.0, 'et_mm' => 35]);
 }
 
-function qaEntry(ApprovalDocument $document): DocumentCarEntry
+function qaEntry(ApprovalDocument $document, float $diameter = 18.0): DocumentCarEntry
 {
-    return EntryDriver::car(test(), qaAdmin(), $document->id, Vehicle::factory()->create()->id, qaSize()->id);
+    return EntryDriver::car(test(), qaAdmin(), $document->id, Vehicle::factory()->create()->id, qaSize($diameter)->id);
 }
 
 /** Step 4's save of one car, with what the page sends beside the lines. */
@@ -92,11 +92,12 @@ it('keeps two lines of one size on one tyre entry, and caps a selection of cars 
 it('takes one size printed at two kW bands, or with two load indexes, as two entries (Block D)', function (): void {
     // ABE 55255, page 5: BMW Z3 — 225/35R19 at 85–110 kW and at 85–125 kW; the 18″ Nachtrag, page 7: 225/40R18
     // as 88Y and as 92.
-    $entry = qaEntry(ApprovalDocument::factory()->draft()->create());
-
-    qaSave($entry, ['lines' => [
+    qaSave(qaEntry(ApprovalDocument::factory()->draft()->create(), 19.0), ['lines' => [
         qaLine('225/35 R19', '85-110', ['K2b']),
         qaLine('225/35 R19', '85-125', ['R70']),
+    ]])->assertOk();
+
+    qaSave(qaEntry(ApprovalDocument::factory()->draft()->create()), ['lines' => [
         qaLine('225/40 R18 88Y'),
         qaLine('225/40 R18 92'),
     ]])->assertOk();
@@ -117,7 +118,7 @@ it('reads one figure as a band of one power, and refuses a band it cannot read (
 
 it('takes one code beside several sizes, as the documents print it, and one typed twice beside one as once (Block D)', function (): void {
     // ABE 55255, page 2: K2b, K41 and K46 beside 215/35R19, 225/35R19 and 235/35R19 alike.
-    $entry = qaEntry(ApprovalDocument::factory()->draft()->create());
+    $entry = qaEntry(ApprovalDocument::factory()->draft()->create(), 19.0);
 
     qaSave($entry, ['lines' => [
         qaLine('215/35 R19', '85-125', ['K2b', 'K41', 'K46', 'T85', 'K2b']),

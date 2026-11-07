@@ -15,6 +15,7 @@ use App\Models\ApprovalDocument;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentTyreCombination;
 use App\Models\DocumentTyreLine;
+use App\Models\DocumentWheelCombination;
 use App\Models\DocumentWheelSize;
 use App\Models\Fitment;
 use App\Models\Vehicle;
@@ -29,15 +30,16 @@ use LogicException;
  * From what staff entered to the tables the shop reads — the verdict logic never sees the difference (the Gutachten
  * rework §6: „this work changes where data is typed and how it is stored, not how a verdict is decided“).
  *
- * One car entry becomes one row of `fitments` per colour of the paper's wheel size. Its lines become:
+ * One car on one wheel combination becomes one row of `fitments` per colour of its versions: the same version front and rear, a
+ * row for both axles; two versions, a row for the front axle on the one and for the rear axle on the other, joined by a set per
+ * colour they share (`fitment_wheel_sets`). A car with a version in several combinations has one row for it per colour, saying what
+ * they say together: the engine reads several rows of one paper toward caution, and would intersect them. Its lines become:
  *
- * - the same size in front and behind: a tyre size for both axles;
- * - two different sizes: a row of `document_tyre_combinations`, under the car's field K (D-358). The engine offers a pair only
- *   where the car's row lists both sizes on their axles (TyreEligibility::listedPairs), and a size the paper does not list for
- *   this wheel is „nur auf einer anderen Felgengröße zulässig“ (68B). So a side reaches the axle through the size's own line,
- *   or where staff say the paper lists it only in this combination (`front_on_rim`, `rear_on_rim`) — never by itself: a pair
- *   with a size on another wheel is not offered on this one, which is a missed sale and no wrong answer;
- * - a line with one side (only rows entered before this flow): a tyre size for that axle.
+ * - the same size in front and behind, on the same version: a tyre size for both axles;
+ * - anything else: each size on its axle, and a row of `document_tyre_combinations` under the car's field K (D-358). The engine
+ *   offers a pair only where the car's rows list both sizes on their axles (TyreEligibility::listedPairs);
+ * - a line with one side from before this flow: a tyre size for that axle. Typed in this flow, or with a tyre that cannot go on
+ *   its axle's wheel, it writes nothing, and the release waits for it (EntryModel::stands).
  *
  * Once a paper has a list it is closed: the engine offers nothing else as a Komplettrad (D-256, D-335), so every line of
  * every car stands in it, the same size on both axles too. A paper with no different pair has no list and offers four of
@@ -59,7 +61,7 @@ final class DocumentEntryWriter
     /** @var array<string, int> the paper's axle-load caps that name no index: code => kg */
     private array $caps = [];
 
-    /** @var array<string, DocumentCarEntry> which entry each row of the last `desired()` came from: a car has one per wheel size */
+    /** @var array<string, array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}> which entry each row of the last `desired()` came from, and its children in the order they were entered */
     private array $sources = [];
 
     /**
@@ -92,31 +94,117 @@ final class DocumentEntryWriter
             ->where('kind', ConditionKind::Abnahme->value)->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
         $this->caps = self::capsOf($model->document->id);
         $this->sources = [];
-        $configs = [];
-        $rows = [];
+        $colours = [];
+        /** @var array<int, array<int, list<array{entry: DocumentCarEntry, axle: string, sizes: list<array<string, mixed>>, crossed: bool}>>> $parts */
+        $parts = [];
+        $sets = [];
+        $crossedCars = [];
 
         foreach ($model->entries as $entry) {
             if ($vehicleIds !== null && ! in_array($entry->vehicle_id, $vehicleIds, true)) {
                 continue;
             }
 
-            $row = $this->rowOf($entry, $abnahme);
-            /** @var DocumentWheelSize $size */
-            $size = $entry->wheelSize;
-            $ids = $entry->wheel_config_id !== null
-                ? [$entry->wheel_config_id]
-                : ($configs[$size->id] ??= $size->configs()->pluck('id')->map(static fn (mixed $id): int => (int) $id)->all());
+            /** @var DocumentWheelCombination $combination */
+            $combination = $entry->combination;
+            /** @var DocumentWheelSize $front */
+            $front = $combination->front;
+            /** @var DocumentWheelSize $rear */
+            $rear = $combination->rear;
+            $colours[$front->id] ??= self::coloursOf($front);
+            $colours[$rear->id] ??= self::coloursOf($rear);
+            $sizes = $this->sizesOf($entry);
 
-            foreach ($ids as $id) {
-                $key = EngineRows::key($entry->vehicle_id, $id, $entry->axle);
-                $rows[$key] = $row;
-                $this->sources[$key] = $entry;
+            if ($combination->same()) {
+                $ids = $entry->wheel_config_id !== null ? [$entry->wheel_config_id] : array_keys($colours[$front->id]);
+
+                foreach ($ids as $id) {
+                    $parts[$entry->vehicle_id][$id][] = ['entry' => $entry, 'axle' => $entry->axle, 'sizes' => $sizes, 'crossed' => false];
+                }
+
+                continue;
+            }
+
+            $crossedCars[$entry->vehicle_id] = true;
+            $onFront = array_values(array_filter($sizes, static fn (array $size): bool => $size['axle'] !== Axle::Rear->value));
+            $onRear = array_values(array_filter($sizes, static fn (array $size): bool => $size['axle'] !== Axle::Front->value));
+
+            foreach (array_keys($colours[$front->id]) as $id) {
+                $parts[$entry->vehicle_id][$id][] = ['entry' => $entry, 'axle' => Axle::Front->value, 'sizes' => $onFront, 'crossed' => true];
+            }
+
+            foreach (array_keys($colours[$rear->id]) as $id) {
+                $parts[$entry->vehicle_id][$id][] = ['entry' => $entry, 'axle' => Axle::Rear->value, 'sizes' => $onRear, 'crossed' => true];
+            }
+        }
+
+        $rows = [];
+        /** @var array<string, string> $rowOf the key of the row a car and colour stand on, where a set needs it */
+        $rowOf = [];
+
+        foreach ($parts as $vehicleId => $byColour) {
+            foreach ($byColour as $configId => $list) {
+                // Only where a version stands in two combinations does a car's row say what several say: a paper from before this
+                // flow can hold two rows of one colour, one per axle, and they stay two.
+                if (array_filter($list, static fn (array $part): bool => $part['crossed']) === []) {
+                    foreach ($list as $part) {
+                        $key = EngineRows::key($vehicleId, $configId, $part['axle']);
+                        $rows[$key] = $this->rowOf([$part], $abnahme);
+                        $this->sources[$key] = $this->sourceOf([$part]);
+                        $rowOf["{$vehicleId}:{$configId}"] = $key;
+                    }
+
+                    continue;
+                }
+
+                $axles = array_unique(array_column($list, 'axle'));
+                $key = EngineRows::key($vehicleId, $configId, count($axles) === 1 ? $axles[0] : Axle::All->value);
+                $rows[$key] = $this->rowOf($list, $abnahme);
+                $this->sources[$key] = $this->sourceOf($list);
+                $rowOf["{$vehicleId}:{$configId}"] = $key;
             }
         }
 
         ksort($rows);
 
-        return ['rows' => $rows, 'list' => $this->listOf($model)];
+        // Which versions go together, per colour they share — only on a car that has two different ones: every other paper says it
+        // by its rows alone, and its answers stay what they are.
+        foreach ($model->entries as $entry) {
+            if (! isset($crossedCars[$entry->vehicle_id]) || $entry->wheel_config_id !== null) {
+                continue;
+            }
+
+            /** @var DocumentWheelCombination $combination */
+            $combination = $entry->combination;
+
+            foreach ($colours[$combination->front_wheel_size_id] ?? [] as $frontId => $finish) {
+                foreach ($colours[$combination->rear_wheel_size_id] ?? [] as $rearId => $rearFinish) {
+                    if ($finish === $rearFinish && isset($rowOf["{$entry->vehicle_id}:{$frontId}"], $rowOf["{$entry->vehicle_id}:{$rearId}"])) {
+                        $sets[] = EngineRows::setKey($rowOf["{$entry->vehicle_id}:{$frontId}"], $rowOf["{$entry->vehicle_id}:{$rearId}"]);
+                    }
+                }
+            }
+        }
+
+        sort($sets);
+
+        return ['rows' => $rows, 'sets' => array_values(array_unique($sets)), 'list' => $this->listOf($model)];
+    }
+
+    /**
+     * Every live colour of a version: its id, and which finish it is.
+     *
+     * @return array<int, int>
+     */
+    private static function coloursOf(DocumentWheelSize $size): array
+    {
+        $out = [];
+
+        foreach ($size->configs()->orderBy('id')->get(['id', 'wheel_finish_id']) as $config) {
+            $out[(int) $config->id] = (int) $config->wheel_finish_id;
+        }
+
+        return $out;
     }
 
     /**
@@ -142,12 +230,12 @@ final class DocumentEntryWriter
 
             foreach ($desired['rows'] as $key => $row) {
                 [$vehicleId, $configId, $axle] = explode(':', $key);
-                $entry = $this->sources[$key];
+                $source = $this->sources[$key];
 
                 if (! $existing->has($key)) {
-                    $this->createRow($document, (int) $vehicleId, (int) $configId, $axle, $row, $entry, $admin);
+                    $this->createRow($document, (int) $vehicleId, (int) $configId, $axle, $row, $source, $admin);
                 } elseif (($current[$key] ?? null) !== $row) {
-                    $this->updateRow($existing->get($key), $row, $entry);
+                    $this->updateRow($existing->get($key), $row, $source);
                 }
             }
 
@@ -158,6 +246,7 @@ final class DocumentEntryWriter
             }
 
             $this->writeList($document, $desired['list']);
+            $this->writeSets($document, $desired['sets'], $vehicleIds);
         });
     }
 
@@ -186,7 +275,7 @@ final class DocumentEntryWriter
 
         $added = 0;
 
-        foreach ($query->with('document')->get() as $size) {
+        foreach ($query->with('document')->get()->unique('approval_document_id') as $size) {
             /** @var ApprovalDocument|null $document */
             $document = $size->document;
 
@@ -194,24 +283,28 @@ final class DocumentEntryWriter
                 continue;
             }
 
-            $abnahme = DB::table('document_conditions')->where('approval_document_id', $document->id)
-                ->where('kind', ConditionKind::Abnahme->value)->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
-            $this->caps = self::capsOf($document->id);
             $status = $document->status === DocumentStatus::Published ? FitmentStatus::Published : FitmentStatus::Draft;
-
+            // What the paper says as a whole, this colour now among it: the same row its sister colours have, and only that is added.
+            $desired = $this->desired(EntryModel::of($document));
             $here = 0;
 
-            foreach (DocumentCarEntry::query()->with(['lines.codes', 'codes', 'vehicle'])->where('document_wheel_size_id', $size->id)->whereNull('wheel_config_id')->get() as $entry) {
-                $exists = Fitment::query()->where('approval_document_id', $document->id)->where('vehicle_id', $entry->vehicle_id)
-                    ->where('wheel_config_id', $configId)->where('axle', $entry->axle)->exists();
+            foreach ($desired['rows'] as $key => $row) {
+                [$vehicleId, $rowConfigId, $axle] = explode(':', $key);
+
+                if ((int) $rowConfigId !== $configId) {
+                    continue;
+                }
+
+                $exists = Fitment::query()->where('approval_document_id', $document->id)->where('vehicle_id', (int) $vehicleId)->where('wheel_config_id', $configId)->where('axle', $axle)->exists();
 
                 if (! $exists) {
-                    $this->createRow($document, $entry->vehicle_id, $configId, $entry->axle, $this->rowOf($entry, $abnahme), $entry, $admin, $status);
+                    $this->createRow($document, (int) $vehicleId, $configId, $axle, $row, $this->sources[$key], $admin, $status);
                     $here++;
                 }
             }
 
             if ($here > 0) {
+                $this->writeSets($document, $desired['sets'], null);
                 $added += $here;
 
                 if ($document->status === DocumentStatus::Published) {
@@ -231,38 +324,111 @@ final class DocumentEntryWriter
     }
 
     /**
-     * One row as it should stand.
+     * One row as it should stand, from what one or more of a car's combinations say of this colour. Several are read together as
+     * the engine reads several rows of one paper, toward caution: an Abnahme in any asks for it, the build window and the width and
+     * offset are where they all agree, the sizes and codes are all of them.
      *
+     * @param  list<array{entry: DocumentCarEntry, axle: string, sizes: list<array<string, mixed>>, crossed: bool}>  $parts
      * @param  list<string>  $abnahme  the paper's codes of kind Abnahme
      * @return array<string, mixed>
      */
-    private function rowOf(DocumentCarEntry $entry, array $abnahme): array
+    private function rowOf(array $parts, array $abnahme): array
     {
-        $sizes = $this->sizesOf($entry);
-        $codes = $entry->codes->map(static fn ($code): array => ['code' => $code->code, 'note' => $code->note_de])->values()->all();
+        $source = $this->sourceOf($parts);
+        $sizes = $source['sizes'];
+        $codes = $source['codes'];
         $used = [...array_column($codes, 'code'), ...array_merge([], ...array_column($sizes, 'codes'))];
+        $entries = array_column($parts, 'entry');
+        $first = static fn (callable $read): mixed => array_values(array_filter(array_map($read, $entries), static fn (mixed $value): bool => $value !== null))[0] ?? null;
+        $highest = static function (callable $read) use ($entries): mixed {
+            $values = array_filter(array_map($read, $entries), static fn (mixed $value): bool => $value !== null);
+
+            return $values === [] ? null : max($values);
+        };
+        $lowest = static function (callable $read) use ($entries): mixed {
+            $values = array_filter(array_map($read, $entries), static fn (mixed $value): bool => $value !== null);
+
+            return $values === [] ? null : min($values);
+        };
+        $overrides = array_values(array_filter(array_map(static fn (DocumentCarEntry $entry): ?string => $entry->entry_override, $entries)));
+        $override = in_array('required', $overrides, true) ? 'required' : ($overrides[0] ?? null);
+        $reason = $first(static fn (DocumentCarEntry $entry): ?string => $entry->entry_override === $override ? $entry->entry_override_reason : null);
 
         return EngineRows::row([
-            'build_from' => $entry->build_from?->toDateString(),
-            'build_to' => $entry->build_to?->toDateString(),
-            'permitted_width_min' => $entry->permitted_width_min,
-            'permitted_width_max' => $entry->permitted_width_max,
-            'permitted_et_min' => $entry->permitted_et_min,
-            'permitted_et_max' => $entry->permitted_et_max,
-            'centre_bore_mm' => $entry->centre_bore_mm,
+            'build_from' => $highest(static fn (DocumentCarEntry $entry): ?string => $entry->build_from?->toDateString()),
+            'build_to' => $lowest(static fn (DocumentCarEntry $entry): ?string => $entry->build_to?->toDateString()),
+            'permitted_width_min' => $highest(static fn (DocumentCarEntry $entry): ?float => $entry->permitted_width_min),
+            'permitted_width_max' => $lowest(static fn (DocumentCarEntry $entry): ?float => $entry->permitted_width_max),
+            'permitted_et_min' => $highest(static fn (DocumentCarEntry $entry): ?int => $entry->permitted_et_min),
+            'permitted_et_max' => $lowest(static fn (DocumentCarEntry $entry): ?int => $entry->permitted_et_max),
+            'centre_bore_mm' => $first(static fn (DocumentCarEntry $entry): ?float => $entry->centre_bore_mm),
             // As FitmentRows::derive(): never typed — an Abnahme among the codes, or the override with its reason.
-            'requires_entry' => match ($entry->entry_override) {
+            'requires_entry' => match ($override) {
                 'required' => true,
                 'not_required' => false,
                 default => array_intersect($used, $abnahme) !== [],
             },
-            'entry_note_de' => $entry->entry_note_de,
-            'entry_override' => $entry->entry_override,
-            'entry_override_reason' => $entry->entry_override_reason,
-            'source_page' => $entry->source_page,
+            'entry_note_de' => $first(static fn (DocumentCarEntry $entry): ?string => $entry->entry_note_de),
+            'entry_override' => $override,
+            'entry_override_reason' => $reason,
+            'source_page' => $first(static fn (DocumentCarEntry $entry): ?int => $entry->source_page),
             'sizes' => $sizes,
             'codes' => $codes,
         ]);
+    }
+
+    /**
+     * What one row holds, in the order it was entered: each size once, with every code any combination gives it.
+     *
+     * @param  list<array{entry: DocumentCarEntry, axle: string, sizes: list<array<string, mixed>>, crossed: bool}>  $parts
+     * @return array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}
+     */
+    private function sourceOf(array $parts): array
+    {
+        $sizes = [];
+        $codes = [];
+
+        foreach ($parts as $part) {
+            foreach ($part['sizes'] as $size) {
+                $key = EngineRows::sizeKey($size);
+                $size['codes'] = array_values(array_unique([...($sizes[$key]['codes'] ?? []), ...$size['codes']]));
+                $sizes[$key] = $size;
+            }
+
+            foreach ($part['entry']->codes as $code) {
+                $codes[$code->code] ??= ['code' => $code->code, 'note' => $code->note_de];
+            }
+        }
+
+        return ['entry' => $parts[0]['entry'], 'sizes' => count($parts) > 1 ? self::withoutCarried(array_values($sizes)) : array_values($sizes), 'codes' => array_values($codes)];
+    }
+
+    /**
+     * A size on both axles says what the same size on one axle says, where that adds nothing of its own: two entries of one size
+     * would only be told apart by the axle.
+     *
+     * @param  list<array<string, mixed>>  $sizes
+     * @return list<array<string, mixed>>
+     */
+    private static function withoutCarried(array $sizes): array
+    {
+        $both = [];
+
+        foreach ($sizes as $size) {
+            if ($size['axle'] === Axle::All->value) {
+                $both[self::plainKey($size)] = true;
+            }
+        }
+
+        return array_values(array_filter($sizes, static fn (array $size): bool => $size['axle'] === Axle::All->value
+            || ! isset($both[self::plainKey($size)])
+            || $size['codes'] !== [] || $size['kw_min'] !== null || $size['kw_max'] !== null));
+    }
+
+    /** @param array<string, mixed> $size */
+    private static function plainKey(array $size): string
+    {
+        return implode('|', [$size['width_mm'], $size['aspect'], number_format((float) $size['diameter_in'], 1, '.', ''), $size['min_load_index'] ?? '', $size['min_speed_symbol'] ?? '']);
     }
 
     /**
@@ -306,9 +472,11 @@ final class DocumentEntryWriter
             $sizes[$key] = $row;
         };
 
+        $crossed = EntryModel::crossed($entry);
+
         foreach ($entry->lines as $line) {
-            // A side that does not read writes nothing: the release waits for it.
-            if ($line->unread()) {
+            // A side that does not read, a side missing, a tyre that does not fit its wheel: nothing written, the release waits for it.
+            if (! EntryModel::stands($entry, $line)) {
                 continue;
             }
 
@@ -316,9 +484,9 @@ final class DocumentEntryWriter
             $front = $line->front();
             $rear = $line->rear();
 
-            // Two sizes, or one size typed with nothing printed beside it: read after the sizes that say something of their own. A
-            // line read from a row stands where it stood: the order of a row's sizes is what the verdict lists them in.
-            if (EntryModel::paired($line) || (! $line->from_rows && $front !== null && $rear !== null && $codes === [] && $line->kw_min === null && $line->kw_max === null
+            // Two sizes, two versions, or one size typed with nothing printed beside it: read after the sizes that say something of their
+            // own. A line read from a row stands where it stood: the order of a row's sizes is what the verdict lists them in.
+            if (EntryModel::paired($line) || $crossed || (! $line->from_rows && $front !== null && $rear !== null && $codes === [] && $line->kw_min === null && $line->kw_max === null
                 && $line->front_load_index === null && $line->front_speed_symbol === null && $line->rear_load_index === null && $line->rear_speed_symbol === null)) {
                 $pairs[] = $line;
 
@@ -342,8 +510,8 @@ final class DocumentEntryWriter
         foreach ($pairs as $line) {
             $codes = $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
 
-            // One size with nothing beside it, not yet on both axles: a size for both.
-            if (! EntryModel::paired($line)) {
+            // One size with nothing beside it, on one version, not yet on both axles: a size for both.
+            if (! EntryModel::paired($line) && ! $crossed) {
                 /** @var TyreSize $front */
                 $front = $line->front();
 
@@ -354,15 +522,9 @@ final class DocumentEntryWriter
                 continue;
             }
 
-            foreach ([[$line->front(), $line->front_load_index, $line->front_speed_symbol, Axle::Front->value, $line->front_on_rim], [$line->rear(), $line->rear_load_index, $line->rear_speed_symbol, Axle::Rear->value, $line->rear_on_rim]] as [$size, $loadIndex, $symbol, $axle, $onRim]) {
+            foreach ([[$line->front(), $line->front_load_index, $line->front_speed_symbol, Axle::Front->value], [$line->rear(), $line->rear_load_index, $line->rear_speed_symbol, Axle::Rear->value]] as [$size, $loadIndex, $symbol, $axle]) {
                 /** @var TyreSize $size */
                 $carrier = self::carried($sizes, $size, $axle);
-
-                // Not on this car's own lines, and nobody said the paper lists it for this wheel: the paper's own rule is that
-                // such a size is only permitted on another wheel size (68B). So not on this axle, and the pair is not offered.
-                if ($carrier === null && ! $onRim) {
-                    continue;
-                }
 
                 // Already on this axle, and this side adds nothing of its own: no second entry of the same size.
                 if ($carrier !== null && $loadIndex === null && $symbol === null && $codes === [] && $line->kw_min === null && $line->kw_max === null) {
@@ -444,7 +606,7 @@ final class DocumentEntryWriter
             $car = $entry->vehicle;
 
             foreach ($entry->lines as $line) {
-                if (! EntryModel::twoSided($line) || ! ($line->in_list ?? $hasList) || ($line->in_list === null && ! self::appliesTo($line, $car))) {
+                if (! EntryModel::twoSided($line) || ! EntryModel::stands($entry, $line) || ! ($line->in_list ?? $hasList) || ($line->in_list === null && ! self::appliesTo($line, $car))) {
                     continue;
                 }
 
@@ -605,11 +767,12 @@ final class DocumentEntryWriter
 
     /**
      * @param  array<string, mixed>  $row
+     * @param  array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}  $source
      */
-    private function createRow(ApprovalDocument $document, int $vehicleId, int $configId, string $axle, array $row, ?DocumentCarEntry $entry, ?AdminUser $admin, FitmentStatus $status = FitmentStatus::Draft): void
+    private function createRow(ApprovalDocument $document, int $vehicleId, int $configId, string $axle, array $row, array $source, ?AdminUser $admin, FitmentStatus $status = FitmentStatus::Draft): void
     {
         $stored = Fitment::query()->create([
-            ...self::columns($row, $entry),
+            ...self::columns($row, $source['entry']),
             'approval_document_id' => $document->id,
             'vehicle_id' => $vehicleId,
             'wheel_config_id' => $configId,
@@ -618,25 +781,26 @@ final class DocumentEntryWriter
             'created_by' => $admin?->id,
         ]);
 
-        $this->children($stored, $row, $entry);
+        $this->children($stored, $source);
     }
 
     /**
      * @param  array<string, mixed>  $row
+     * @param  array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}  $source
      */
-    private function updateRow(Fitment $stored, array $row, ?DocumentCarEntry $entry): void
+    private function updateRow(Fitment $stored, array $row, array $source): void
     {
-        $stored->forceFill(self::columns($row, $entry))->save();
+        $stored->forceFill(self::columns($row, $source['entry']))->save();
         $stored->tyreSizes()->delete();
         $stored->conditionCodes()->delete();
-        $this->children($stored, $row, $entry);
+        $this->children($stored, $source);
     }
 
     /**
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
-    private static function columns(array $row, ?DocumentCarEntry $entry): array
+    private static function columns(array $row, DocumentCarEntry $entry): array
     {
         return [
             'build_from' => $row['build_from'],
@@ -650,8 +814,8 @@ final class DocumentEntryWriter
             'entry_note_de' => $row['entry_note_de'],
             'entry_override' => $row['entry_override'],
             'entry_override_reason' => $row['entry_override_reason'],
-            'entry_override_by' => $entry?->entry_override_by,
-            'entry_override_at' => $entry?->entry_override_at,
+            'entry_override_by' => $entry->entry_override_by,
+            'entry_override_at' => $entry->entry_override_at,
             'source_page' => $row['source_page'],
         ];
     }
@@ -660,16 +824,13 @@ final class DocumentEntryWriter
      * The row's sizes and codes in the order they were entered: the compared state holds them sorted, and the shop lists them in
      * the order they were written.
      *
-     * @param  array<string, mixed>  $row
+     * @param  array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}  $source
      */
-    private function children(Fitment $stored, array $row, ?DocumentCarEntry $entry): void
+    private function children(Fitment $stored, array $source): void
     {
         $now = now();
 
-        /** @var list<array<string, mixed>> $sizes */
-        $sizes = $entry === null ? $row['sizes'] : $this->sizesOf($entry);
-
-        foreach ($sizes as $size) {
+        foreach ($source['sizes'] as $size) {
             /** @var list<string> $codes */
             $codes = $size['codes'];
             unset($size['codes']);
@@ -683,16 +844,57 @@ final class DocumentEntryWriter
             ], $codes));
         }
 
-        /** @var list<array{code: string, note: string|null}> $codes */
-        $codes = $entry === null ? $row['codes'] : $entry->codes->map(static fn ($code): array => ['code' => $code->code, 'note' => $code->note_de])->values()->all();
-
         DB::table('fitment_conditions')->insert(array_map(static fn (array $code): array => [
             'fitment_id' => $stored->id,
             'code' => $code['code'],
             'note_de' => $code['note'],
             'created_at' => $now,
             'updated_at' => $now,
-        ], $codes));
+        ], $source['codes']));
+    }
+
+    /**
+     * The sets as they should stand, by the rows they join; those of the other cars stay as they are.
+     *
+     * @param  list<string>  $sets
+     * @param  list<int>|null  $vehicleIds
+     */
+    private function writeSets(ApprovalDocument $document, array $sets, ?array $vehicleIds): void
+    {
+        $rows = DB::table('fitments')->where('approval_document_id', $document->id)->where('status', '<>', FitmentStatus::Retired->value)
+            ->when($vehicleIds !== null, static fn ($q) => $q->whereIn('vehicle_id', (array) $vehicleIds))
+            ->get(['id', 'vehicle_id', 'wheel_config_id', 'axle']);
+        $idOf = [];
+
+        foreach ($rows as $row) {
+            $idOf[EngineRows::key((int) $row->vehicle_id, (int) $row->wheel_config_id, (string) $row->axle)] = (int) $row->id;
+        }
+
+        $there = DB::table('fitment_wheel_sets')->whereIn('front_fitment_id', array_values($idOf))->get();
+        $wanted = [];
+        $now = now();
+
+        foreach ($sets as $set) {
+            [$front, $rear] = explode('>', $set);
+
+            if (isset($idOf[$front], $idOf[$rear])) {
+                $wanted[$idOf[$front].':'.$idOf[$rear]] = [$idOf[$front], $idOf[$rear]];
+            }
+        }
+
+        foreach ($there as $set) {
+            $key = $set->front_fitment_id.':'.$set->rear_fitment_id;
+
+            if (isset($wanted[$key])) {
+                unset($wanted[$key]);
+            } else {
+                DB::table('fitment_wheel_sets')->where('id', $set->id)->delete();
+            }
+        }
+
+        foreach ($wanted as [$front, $rear]) {
+            DB::table('fitment_wheel_sets')->insert(['front_fitment_id' => $front, 'rear_fitment_id' => $rear, 'created_at' => $now, 'updated_at' => $now]);
+        }
     }
 
     /**

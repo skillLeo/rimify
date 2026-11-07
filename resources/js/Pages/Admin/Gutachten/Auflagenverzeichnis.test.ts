@@ -70,7 +70,7 @@ describe('Auflagenverzeichnis', () => {
     })
 
     it('says why a code a row uses offers no „Entfernen“ (a rule of the admin audit)', () => {
-        const code = (id: number, uses: number) => ({ id, code: `A0${id}`, kind: 'abnahme', kindLabel: 'Abnahme', section: 'Abnahme', text: 'Abnahme erforderlich.', page: 3, bodyForms: [], drive: null, maxAxleLoadKg: null, axle: null, uses })
+        const code = (id: number, uses: number) => ({ id, code: `A0${id}`, kind: 'abnahme', shopColour: 'green' as const, kindLabel: 'Abnahme', section: 'Abnahme', text: 'Abnahme erforderlich.', page: 3, bodyForms: [], drive: null, maxAxleLoadKg: null, axle: null, uses })
         const props = (uses: number, editable = true) => ({ documentId: 13, conditions: [code(1, 0), code(2, uses)], choices: { kinds: [], bodyForms: [], drives: [] }, unresolved: [], editable, pageCount: 24 })
 
         expect(mount(Auflagenverzeichnis, { props: props(4) }).find('.av__in-use').text()).toBe(

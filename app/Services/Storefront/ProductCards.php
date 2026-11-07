@@ -200,6 +200,8 @@ final readonly class ProductCards
             'requiresEntry' => $verdict->requiresEntry,
             // Every Auflage a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“.
             'notesOnly' => $verdict->status === VerdictStatus::Conditional && ! $verdict->requiresEntry && $verdict->notesOnly(),
+            // The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says.
+            'hint' => $verdict->hintColour()->value,
             'conditions' => array_map(static fn (Condition $c): string => $c->sentenceDe(), $conditions),
             'conditionsVary' => $vary,
             'diametersFitting' => $diametersFitting,

@@ -47,8 +47,6 @@ class EntryLinesRequest extends EntryRequest
             'lines.*.front' => ['nullable', 'string', 'max:64'],
             'lines.*.rear' => ['nullable', 'string', 'max:64'],
             'lines.*.kw' => ['nullable', 'string', 'max:20'],
-            'lines.*.front_on_rim' => ['sometimes', 'boolean'],
-            'lines.*.rear_on_rim' => ['sometimes', 'boolean'],
             'lines.*.codes' => ['nullable', 'array', 'max:30'],
             'lines.*.codes.*' => ['string', 'regex:'.DocumentConditions::CODE],
             'codes' => ['present', 'array', 'max:40'],
@@ -153,8 +151,9 @@ class EntryLinesRequest extends EntryRequest
     }
 
     /**
-     * The lines as sent, each side as typed. An empty side takes the other's: every line is vorne + hinten, and the same size on
-     * both axles is the common case — except on a line that came with one side, which stays as it is. An empty line goes.
+     * The lines as sent, each side as typed. An empty side takes the other's where both wheels have one diameter: every line is
+     * vorne + hinten, and the same size on both axles is the common case — except on a line that came with one side, which stays as
+     * it is. An empty line goes.
      *
      * @return list<LineInput>
      */
@@ -165,6 +164,8 @@ class EntryLinesRequest extends EntryRequest
         $oneSided = $entry->lines()->get()
             ->filter(static fn (DocumentTyreLine $line): bool => ($line->front() === null && $line->front_unread === null) || ($line->rear() === null && $line->rear_unread === null))
             ->keyBy('id');
+        $combination = $entry->combination;
+        $sameDiameter = $combination === null || abs((float) $combination->front?->diameter_in - (float) $combination->rear?->diameter_in) < 0.001;
         $out = [];
 
         foreach ((array) $this->validated('lines') as $line) {
@@ -177,7 +178,9 @@ class EntryLinesRequest extends EntryRequest
 
             $id = isset($line['id']) ? (int) $line['id'] : null;
 
-            if ($id === null || ! $oneSided->has($id)) {
+            // Same diameter on both wheels: the other side's size is the sensible one, as on the screen. Different diameters: it
+            // would not fit, and the side stays empty for someone to fill in.
+            if (($id === null || ! $oneSided->has($id)) && $sameDiameter) {
                 $front = $front === '' ? $rear : $front;
                 $rear = $rear === '' ? $front : $rear;
             }
@@ -190,8 +193,6 @@ class EntryLinesRequest extends EntryRequest
                 'rear' => $rear,
                 'kw_min' => $band[0] ?? null,
                 'kw_max' => $band[1] ?? null,
-                'front_on_rim' => (bool) ($line['front_on_rim'] ?? false),
-                'rear_on_rim' => (bool) ($line['rear_on_rim'] ?? false),
                 // As printed: `K1c` is not `K1C`.
                 'codes' => array_values(array_map(static fn (mixed $c): string => trim((string) $c), (array) ($line['codes'] ?? []))),
             ];

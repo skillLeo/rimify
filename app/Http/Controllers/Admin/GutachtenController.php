@@ -344,7 +344,7 @@ class GutachtenController extends Controller
      */
     private static function nextStep(array $entry): int
     {
-        if ($entry['wheelSizes'] === []) {
+        if ($entry['combinations'] === []) {
             return 2;
         }
 
@@ -757,6 +757,7 @@ class GutachtenController extends Controller
             // How loud it is in the shop (#23, D-104), and the lowest it may be: an Abnahme or body work is never a Hinweis.
             'level' => ($condition->level ?? ConditionLevel::defaultFor($condition->code, $condition->kind, $condition->text_de))->value,
             'levelFloor' => ConditionLevel::floorFor($condition->kind)->value,
+            'shopColour' => $condition->shop_colour->value,
             'uses' => $uses,
             // The code as this page shows it: „Bearbeiten“ sends it back, and a save against an older state is refused (F-25).
             'stamp' => EditStamp::of(DocumentConditions::state($condition)),

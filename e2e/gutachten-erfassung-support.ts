@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page, type Response } from '@playwright/test'
 import { waitForApp } from './bugs/faq-support'
 
 /*
@@ -68,12 +68,53 @@ export async function newPaper(page: Page, number: string): Promise<string> {
 
 /** Step 2: the first size the search finds. */
 export async function chooseFirstWheel(page: Page): Promise<void> {
-    const searched = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/suche/felgen') && new URL(r.url()).searchParams.get('q') === 'a')
+    await chooseWheelWith(page, async (front) => {
+        const eighteen = front.locator('input[data-version*="× 18"]').first()
+
+        if ((await eighteen.count()) === 0) {
+            return false
+        }
+
+        await eighteen.check()
+
+        return true
+    })
+    const stored = page.waitForResponse((r) => r.url().endsWith('/erfassung/kombinationen') && r.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Kombination hinzufügen' }).click()
+    await stored
+}
+
+/**
+ * Step 2: the first wheel the search offers that passes `fits`, shown on the two axles. `fits` looks at the front axle's versions
+ * and may pick one there.
+ */
+export async function chooseWheelWith(page: Page, fits: (front: Locator) => Promise<boolean>): Promise<void> {
+    const asked = (r: Response, q: string): boolean => new URL(r.url()).pathname.endsWith('/suche/felgen') && new URL(r.url()).searchParams.get('q') === q
+    const searched = page.waitForResponse((r) => asked(r, 'a'))
     await page.locator('#ef-wheel-q').fill('a')
     await searched
-    const saved = page.waitForResponse((r) => r.url().endsWith('/erfassung/felge') && r.request().method() === 'PUT')
-    await page.locator('.ef-size input').first().check()
-    await saved
+    await expect(page.locator('.ef-model').first()).toBeVisible()
+    const models = await page.locator('.ef-model').count()
+
+    for (let i = 0; i < models; i++) {
+        const loaded = page.waitForResponse((r) => new URL(r.url()).searchParams.has('modell'))
+        await page.locator('.ef-model').nth(i).click()
+        await loaded
+        const front = page.locator('.ef-axle').first()
+        await expect(front.locator('.ef-size').first()).toBeVisible()
+
+        if (await fits(front)) {
+            return
+        }
+
+        await page.getByRole('button', { name: 'Andere Felge' }).click()
+        const again = page.waitForResponse((r) => asked(r, 'a'))
+        await page.locator('#ef-wheel-q').fill('a')
+        await again
+        await expect(page.locator('.ef-model').nth(i)).toBeVisible()
+    }
+
+    throw new Error('No wheel in this shop passes the test\'s condition.')
 }
 
 /** Step 3: the search answered, for what it says it found. */

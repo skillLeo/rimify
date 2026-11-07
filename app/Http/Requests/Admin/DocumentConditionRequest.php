@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Domain\Fitment\Verdict\HintColour;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
@@ -82,6 +83,7 @@ class DocumentConditionRequest extends FormRequest
             'drive.mode' => [$kind === ConditionKind::Antrieb->value ? 'required' : 'nullable', Rule::in(['only', 'not'])],
             'drive.drive' => [$kind === ConditionKind::Antrieb->value ? 'required' : 'nullable', Rule::in(DocumentConditions::DRIVES)],
             'max_axle_load_kg' => [$kind === ConditionKind::ReifenTragfaehigkeit->value ? 'required' : 'nullable', 'integer', 'min:200', 'max:4000'],
+            'shop_colour' => ['sometimes', Rule::enum(HintColour::class)],
             'axle' => [$kind === ConditionKind::ReifenAchse->value ? 'required' : 'nullable', Rule::in(['FRONT', 'REAR'])],
         ];
     }
@@ -90,6 +92,7 @@ class DocumentConditionRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'shop_colour.*' => 'Wähl bitte Grün oder Gelb.',
             'code.required' => 'Bitte den Code so, wie das Gutachten ihn druckt, zum Beispiel A01.',
             'code.max' => DocumentConditions::CODE_MESSAGE,
             'code.regex' => DocumentConditions::CODE_MESSAGE,
@@ -141,6 +144,7 @@ class DocumentConditionRequest extends FormRequest
             'drive' => is_array($drive) && isset($drive['mode'], $drive['drive']) ? ['mode' => (string) $drive['mode'], 'drive' => (string) $drive['drive']] : null,
             'max_axle_load_kg' => $this->validated('max_axle_load_kg') === null ? null : (int) $this->validated('max_axle_load_kg'),
             'axle' => is_string($this->validated('axle')) ? (string) $this->validated('axle') : null,
+            ...(is_string($this->validated('shop_colour')) ? ['shop_colour' => (string) $this->validated('shop_colour')] : []),
         ];
     }
 

@@ -33,6 +33,7 @@ const draft = store.drafts.get(draftKey) as { fields: Record<string, unknown>; l
 const form = useForm({
     code: props.code,
     kind: existing.value?.kind ?? '',
+    shop_colour: existing.value?.shopColour ?? 'green',
     text_de: existing.value?.text ?? '',
     source_page: (existing.value?.page ?? '') as number | string,
     body_forms: [...(existing.value?.bodyForms ?? [])] as string[],
@@ -105,6 +106,7 @@ async function save(): Promise<void> {
         drive: data.kind === 'antrieb' ? data.drive : null,
         max_axle_load_kg: data.kind === 'reifen_tragfaehigkeit' && data.max_axle_load_kg !== '' ? Number(data.max_axle_load_kg) : null,
         axle: data.kind === 'reifen_achse' ? data.axle : null,
+        shop_colour: data.shop_colour,
     }))
 
     if (existing.value) {
@@ -184,6 +186,15 @@ async function save(): Promise<void> {
             <label class="form-field__label" :for="`${idPrefix}-page`">Seite im Gutachten <span class="ef-optional">(optional)</span></label>
             <input :id="`${idPrefix}-page`" v-model="form.source_page" class="input ef-define__code" type="text" inputmode="numeric" :aria-invalid="errors.source_page ? 'true' : undefined">
             <p class="form-field__error">{{ errors.source_page }}</p>
+        </div>
+
+        <div class="form-field">
+            <label class="form-field__label" :for="`${idPrefix}-colour`">Farbe im Shop</label>
+            <select :id="`${idPrefix}-colour`" v-model="form.shop_colour" class="input">
+                <option value="green">Grün</option>
+                <option value="yellow">Gelb</option>
+            </select>
+            <p class="form-field__help">Nur die Farbe des Hinweises „Mit Auflagen“. Was der Shop sagt, ändert sich dadurch nicht.</p>
         </div>
 
         <fieldset v-if="levels.length" class="ef-fieldset form-field">

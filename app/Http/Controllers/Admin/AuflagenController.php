@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Fitment\Verdict\HintColour;
+use App\Enums\PermissionAction;
+use App\Enums\PermissionModule;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
@@ -16,10 +19,11 @@ use Inertia\Response;
 
 /**
  * Gutachten › Auflagen: every document's own Auflagenverzeichnis, one after the other, to read — and the
- * codes its rows carry that it does not define yet (the corrections memo §1).
+ * codes its rows carry that it does not define yet (the corrections memo §1). With each code its shop colour, which is also changed
+ * and filtered here, so the client finds it (his item 23).
  *
  * There is no global catalogue any more: a code means what its own document says, so `A01` of one
- * Gutachten and `A01` of another are two entries here. Nothing is written on this page; a document's list
+ * Gutachten and `A01` of another are two entries here. Nothing but a colour is written from this page; a document's list
  * is written on that Gutachten (GutachtenAuflagenController) while it is a draft. The route asks for the
  * right to view Gutachten (EnsureAdminMay).
  */
@@ -30,6 +34,9 @@ class AuflagenController extends Controller
 
     public function index(Request $request): Response
     {
+        // The filter of the client's item 23: only the codes of this shop colour, and the papers that have one.
+        $farbe = HintColour::tryFrom((string) $request->query('farbe'));
+
         // Only documents with something to show — a code of their own, or a code their rows carry — chosen by the
         // database before the page is cut: the first 200 documents of 1.059 drafts without a code once left this page
         // saying „Hier ist noch nichts“ beside released documents full of codes (the admin audit's F-33).
@@ -40,10 +47,14 @@ class AuflagenController extends Controller
                 static fn ($q) => $q->join('fitment_conditions as fc', 'fc.fitment_id', '=', 'f.id'));
 
         $page = ApprovalDocument::query()
-            ->with('conditions')
-            ->where(static fn ($where) => $where->whereHas('conditions')
-                ->orWhereExists($rowCodes(false))
-                ->orWhereExists($rowCodes(true)))
+            ->with(['conditions' => static fn ($q) => $q->when($farbe !== null, static fn ($coloured) => $coloured->where('shop_colour', $farbe?->value))])
+            ->when(
+                $farbe !== null,
+                static fn ($q) => $q->whereHas('conditions', static fn ($coloured) => $coloured->where('shop_colour', $farbe?->value)),
+                static fn ($q) => $q->where(static fn ($where) => $where->whereHas('conditions')
+                    ->orWhereExists($rowCodes(false))
+                    ->orWhereExists($rowCodes(true))),
+            )
             ->orderByRaw("status = 'draft' DESC")
             ->orderByDesc('issued_on')
             ->orderByDesc('id')
@@ -72,7 +83,9 @@ class AuflagenController extends Controller
         return Inertia::render('Admin/Auflagen/Index', [
             'documents' => $documents,
             'found' => $page->total(),
-            'pagination' => ListPaging::props($page, '/admin/auflagen'),
+            'farbe' => $farbe?->value,
+            'canColour' => $request->user('admin')?->may(PermissionModule::Approvals, PermissionAction::Edit) === true,
+            'pagination' => ListPaging::props($page, '/admin/auflagen'.($farbe === null ? '' : '?farbe='.$farbe->value)),
         ]);
     }
 }

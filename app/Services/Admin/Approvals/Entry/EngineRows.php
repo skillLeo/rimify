@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  * @phpstan-type SizeState array{width_mm: int, aspect: int, diameter_in: float, min_load_index: int|null, min_speed_symbol: string|null, axle: string, kw_min: int|null, kw_max: int|null, codes: list<string>}
  * @phpstan-type RowState array{build_from: string|null, build_to: string|null, permitted_width_min: float|null, permitted_width_max: float|null, permitted_et_min: int|null, permitted_et_max: int|null, centre_bore_mm: float|null, requires_entry: bool, entry_note_de: string|null, entry_override: string|null, entry_override_reason: string|null, source_page: int|null, sizes: list<SizeState>, codes: list<array{code: string, note: string|null}>}
  * @phpstan-type ListState array{eg_number: string|null, eg_number_norm: string|null, number: int, front_width_mm: int, front_aspect: int, front_diameter_in: float, rear_width_mm: int, rear_aspect: int, rear_diameter_in: float, source_page: int|null, carried_over: bool}
- * @phpstan-type State array{rows: array<string, RowState>, list: list<ListState>}
+ * @phpstan-type State array{rows: array<string, RowState>, list: list<ListState>, sets: list<string>}
  */
 final class EngineRows
 {
@@ -25,6 +25,12 @@ final class EngineRows
     public static function key(int $vehicleId, int $configId, string $axle): string
     {
         return $vehicleId.':'.$configId.':'.$axle;
+    }
+
+    /** A set in the state: the keys of the two rows it joins, front first. */
+    public static function setKey(string $front, string $rear): string
+    {
+        return $front.'>'.$rear;
     }
 
     /** @return State */
@@ -86,9 +92,14 @@ final class EngineRows
         }
 
         ksort($state);
+        $keys = $rows->mapWithKeys(static fn (object $row): array => [(int) $row->id => self::key((int) $row->vehicle_id, (int) $row->wheel_config_id, (string) $row->axle)]);
+        $sets = DB::table('fitment_wheel_sets')->whereIn('front_fitment_id', $ids)->get()
+            ->map(static fn (object $set): string => self::setKey((string) $keys[(int) $set->front_fitment_id], (string) $keys[(int) $set->rear_fitment_id]))
+            ->sort()->values()->all();
 
         return [
             'rows' => $state,
+            'sets' => $sets,
             'list' => self::list(DB::table('document_tyre_combinations')->where('approval_document_id', $document->id)->get()
                 ->map(static fn (object $row): array => [
                     'eg_number' => $row->eg_number,

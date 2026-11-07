@@ -53,7 +53,9 @@ class GutachtenSucheController extends Controller
     public function wheels(ApprovalStepRequest $request): JsonResponse
     {
         $term = $request->term();
+        $model = $request->query('modell');
         $query = WheelConfig::query()
+            ->when(is_numeric($model), static fn ($q) => $q->where('wheel_configs.wheel_model_id', (int) $model))
             ->with(['wheelModel.brand', 'wheelFinish'])
             ->join('wheel_models', 'wheel_models.id', '=', 'wheel_configs.wheel_model_id')
             ->join('brands', 'brands.id', '=', 'wheel_models.brand_id')
@@ -78,10 +80,14 @@ class GutachtenSucheController extends Controller
         foreach ($found->take(self::SIZES_SHOWN) as $config) {
             $model = $config->wheelModel;
             $key = (int) $config->wheel_model_id;
-            $groups[$key] ??= ['model' => GutachtenController::modelName($model), 'wheelType' => $model?->getAttribute('type_designation'), 'demo' => $model !== null && $model->is_demo, 'sizes' => []];
+            $groups[$key] ??= ['modelId' => $key, 'model' => GutachtenController::modelName($model), 'wheelType' => $model?->getAttribute('type_designation'), 'demo' => $model !== null && $model->is_demo, 'sizes' => []];
             $dimension = implode('|', array_map(static fn (string $column): string => (string) $config->getAttribute($column), DocumentWheelSize::DIMENSION));
             $groups[$key]['sizes'][$dimension] ??= [
+                'key' => DocumentWheelSize::keyOf($config->getAttributes()),
                 'configId' => (int) $config->id,
+                'diameter' => (float) $config->diameter_in,
+                'short' => GermanFormat::trimmedDecimal($config->width_in).' × '.GermanFormat::trimmedDecimal($config->diameter_in, 1).' '.GermanFormat::offset($config->et_mm),
+                'detail' => GermanFormat::boltPattern($config->bolt_holes, $config->bolt_circle_mm).' · Mittenloch '.GermanFormat::trimmedDecimal($config->centre_bore_mm, 2).' mm',
                 'label' => GermanFormat::wheelLabel($config->width_in, $config->diameter_in, $config->et_mm, $config->bolt_holes, $config->bolt_circle_mm, $config->centre_bore_mm),
                 'colours' => [],
             ];

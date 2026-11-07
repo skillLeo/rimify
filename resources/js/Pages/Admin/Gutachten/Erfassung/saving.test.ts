@@ -46,15 +46,16 @@ const { default: CodeTags } = await import('./CodeTags.vue')
 const { default: CodeDefine } = await import('./CodeDefine.vue')
 const { default: CodesPanel } = await import('./CodesPanel.vue')
 
-const CAR = { id: 5, sizeId: 1, vehicleId: 50, label: 'BMW 3er', hsnTsn: null, kw: null, k: null, gone: false, lines: 0, pairs: 0, unread: 0, codes: 0, done: false, page: null, copiedFrom: null, unsourced: false, sourceLabel: null, axle: 'ALL', finish: null, conflict: false }
+const COMBINATION = { id: 1, frontId: 1, rearId: 1, frontKey: 'a', rearKey: 'a', frontConfigId: 1, rearConfigId: 1, same: true, badge: 'gleich vorne und hinten', label: 'Vorne und hinten 8 × 18 ET 35', frontLabel: '', rearLabel: '', frontDiameter: 18, rearDiameter: 18, warnings: [] }
+const CAR = { id: 5, combinationId: 1, vehicleId: 50, label: 'BMW 3er', hsnTsn: null, kw: null, k: null, gone: false, lines: 0, pairs: 0, unread: 0, codes: 0, done: false, page: null, copiedFrom: null, unsourced: false, sourceLabel: null, axle: 'ALL', finish: null, conflict: false }
 const NEXT = { ...CAR, id: 6, vehicleId: 60, label: 'BMW 4er' }
 
 function entry(cars = [CAR, NEXT]): EntryView {
-    return { wheelSizes: [], cars, conflicts: [], unreachable: [], hasList: false, keptCombinations: 0, unread: [], undescribed: [], suggestion: null }
+    return { wheelSizes: [], combinations: [COMBINATION], printed: [], cars, conflicts: [], unreachable: [], hasList: false, keptCombinations: 0, unread: [], undescribed: [], suggestion: null }
 }
 
 function serverLine(over: Partial<ServerLine>): ServerLine {
-    return { id: 1, front: '', rear: '', oneSided: false, kw: '', codes: [], frontOnRim: false, rearOnRim: false, outsideList: false, frontWhy: null, rearWhy: null, ...over }
+    return { id: 1, front: '', rear: '', oneSided: false, kw: '', codes: [], outsideList: false, frontWhy: null, rearWhy: null, ...over }
 }
 
 type Sent = { method: string; url: string; body: Record<string, unknown>; headers: Record<string, string> }
@@ -144,7 +145,7 @@ async function settle(ms = 0): Promise<void> {
 async function editor(lines: ServerLine[] = []) {
     reply = (call) => (call.method === 'GET' ? json({ id: 5, page: 2, codes: [], columns: {}, lines, stamp: 'loaded' }) : null)
 
-    const made = withStore(LinesEditor, { car: CAR, wheelName: 'Felge', sizeName: '8J × 18' })
+    const made = withStore(LinesEditor, { car: CAR, wheelName: 'Felge', combination: COMBINATION })
 
     await settle()
 
@@ -291,7 +292,7 @@ describe('the tyres of one car', () => {
     it('offers nothing to type in a car that failed to load, or an empty list would be saved over the stored one', async () => {
         reply = (call) => (call.method === 'GET' ? json({}, 500) : null)
 
-        const { wrapper } = withStore(LinesEditor, { car: CAR, wheelName: 'Felge', sizeName: '8J × 18' })
+        const { wrapper } = withStore(LinesEditor, { car: CAR, wheelName: 'Felge', combination: COMBINATION })
 
         await settle()
 
@@ -369,7 +370,7 @@ describe('the tyres of one car', () => {
     it('hands the keyboard to the next car’s heading when a person moved there', async () => {
         reply = (call) => (call.method === 'GET' ? json({ id: 5, page: null, codes: [], columns: {}, lines: [], stamp: 'x' }) : null)
 
-        const { store } = withStore(LinesEditor, { car: CAR, wheelName: 'Felge', sizeName: '8J × 18' })
+        const { store } = withStore(LinesEditor, { car: CAR, wheelName: 'Felge', combination: COMBINATION })
 
         await settle()
         expect(document.activeElement?.id).not.toBe('ef-editor-h')
@@ -378,7 +379,7 @@ describe('the tyres of one car', () => {
         wrappers = []
         store.state.focusEditor = true
 
-        const again = mount(defineComponent({ setup: () => () => h(LinesEditor, { car: NEXT, wheelName: 'Felge', sizeName: '8J × 18' }) }), { global: { provide: { [ENTRY as symbol]: store } }, attachTo: document.body })
+        const again = mount(defineComponent({ setup: () => () => h(LinesEditor, { car: NEXT, wheelName: 'Felge', combination: COMBINATION }) }), { global: { provide: { [ENTRY as symbol]: store } }, attachTo: document.body })
 
         wrappers.push(again)
         await settle()
@@ -496,7 +497,7 @@ describe('text typed into something that closes', () => {
     it('keeps what was pasted when the dialog closes by Esc or a click beside it; a yes or „Abbrechen“ lets it go', async () => {
         const open = reactive({ value: true })
         const wrapper = mount(defineComponent({
-            setup: () => () => h(PasteDialog, { car: CAR, open: open.value, 'onUpdate:open': (v: boolean) => (open.value = v) }),
+            setup: () => () => h(PasteDialog, { car: CAR, combination: COMBINATION, open: open.value, 'onUpdate:open': (v: boolean) => (open.value = v) }),
         }), { attachTo: document.body })
 
         wrappers.push(wrapper)

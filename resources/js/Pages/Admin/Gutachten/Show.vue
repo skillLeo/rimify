@@ -37,6 +37,7 @@ interface ReadCar {
     car: string
     k: string | null
     wheel: string | null
+    crossed: boolean
     finish: string | null
     axle: string
     page: number | null

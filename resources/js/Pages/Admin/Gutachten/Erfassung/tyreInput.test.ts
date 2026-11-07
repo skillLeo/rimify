@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { parseKwBand, pasteToSides, readPaste, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
+import { checkPaste, parseKwBand, pasteToSides, readPaste, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
 
 interface Notation { text: string; label: string; width: number; aspect: number; diameter: number; li: number | null; si: string | null; marker: string | null }
 
@@ -28,6 +28,37 @@ describe('readTyre: the notations a Gutachten prints', () => {
     it('gives one key per size, whatever the minimum or the marker, for duplicates and pairs', () => {
         expect(sizeKey(readTyre('225/40R18 88W')!)).toBe(sizeKey(readTyre('XL 225/40 R18')!))
         expect(sizeKey(readTyre('225/40R18')!)).not.toBe(sizeKey(readTyre('225/45R18')!))
+    })
+})
+
+describe('checkPaste: the paste against the wheels of this combination', () => {
+    const on = (text: string, front: number, rear: number) => checkPaste(readPaste(text), { front, rear })
+
+    it('takes a size alone for both axles where both wheels share its diameter', () => {
+        expect(on('225/40R18 92Y', 18, 18)[0]?.status).toBe('single')
+    })
+
+    it('makes a size alone an error line where the wheels differ, or its rim is not theirs', () => {
+        const [different] = on('225/40R18 92Y', 18, 19)
+        const [wrong] = on('225/40R19 92Y', 18, 18)
+
+        expect(different?.status).toBe('unread')
+        expect(different?.reason).toBe('Eine Größe allein geht hier nicht: Die Felgen haben vorne 18 und hinten 19 Zoll. Schreib vorne + hinten.')
+        expect(wrong?.status).toBe('unread')
+        expect(wrong?.reason).toBe('Passt nicht: Die Felge vorne und hinten hat 18 Zoll, der Reifen R19.')
+    })
+
+    it('keeps a pair whose sides fit their wheels, and says which side does not', () => {
+        expect(on('225/40R18 + 255/35R19', 18, 19)[0]?.status).toBe('pair')
+
+        const [wrong] = on('225/40R18 + 255/35R18', 18, 19)
+
+        expect(wrong?.status).toBe('unread')
+        expect(wrong?.reason).toBe('Passt nicht: Die Felge hinten hat 19 Zoll, der Reifen R18.')
+    })
+
+    it('takes nothing over from an error line', () => {
+        expect(pasteToSides(on('225/40R18 + 255/35R18\n225/40R18 + 255/35R19', 18, 19).filter((line) => line.status !== 'unread'))).toEqual([{ front: '225/40 R18', rear: '255/35 R19' }])
     })
 })
 

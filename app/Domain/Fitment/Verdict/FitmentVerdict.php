@@ -312,6 +312,29 @@ final readonly class FitmentVerdict
      * papers (R-03), no fact missing — and every Auflage, of every size, is a Hinweis (the blended list, D-094: the
      * louder reading wins). The status itself is untouched; this decides the words and the colour.
      */
+    /**
+     * The colour of the „Mit Auflagen“ hint (#23): yellow if any code that makes the answer conditional is yellow, otherwise green. An
+     * answer conditional for a reason no code of the paper speaks for (our own sentence, a figure still open) stays the caution it was.
+     */
+    public function hintColour(): HintColour
+    {
+        $coded = false;
+
+        foreach ($this->conditions as $condition) {
+            if (! $condition->downgradesVerdict()) {
+                continue;
+            }
+
+            if ($condition->hintColour === null || $condition->hintColour === HintColour::Yellow) {
+                return HintColour::Yellow;
+            }
+
+            $coded = true;
+        }
+
+        return $coded ? HintColour::Green : HintColour::Yellow;
+    }
+
     public function notesOnly(): bool
     {
         if ($this->status !== VerdictStatus::Conditional || $this->requiresEntry || $this->missingFacts !== [] || $this->conditions === []) {

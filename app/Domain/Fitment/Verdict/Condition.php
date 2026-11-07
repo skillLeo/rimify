@@ -53,6 +53,11 @@ final readonly class Condition
          * entered one — the rule is then one the engine cannot read, and no tyre is sold against it (D-105).
          */
         public ?string $axle = null,
+        /**
+         * The colour it gives the shop's hint (#23), set per code of its document. Never read by a verdict, and not frozen with one:
+         * null on our own sentences and on a snapshot.
+         */
+        public ?HintColour $hintColour = null,
     ) {
         if (trim($textDe) === '') {
             throw new InvalidArgumentException(
@@ -66,7 +71,7 @@ final readonly class Condition
      * An Auflage of its document, as the customer reads it: the kind decides severity and flags, so
      * nothing about what it asks of the customer is typed twice.
      */
-    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null, ?int $maxAxleLoadKg = null, ?ConditionLevel $level = null, ?string $axle = null): self
+    public static function ofKind(string $code, ConditionKind $kind, string $textDe, ?string $noteDe = null, ?int $sourcePage = null, ?int $maxAxleLoadKg = null, ?ConditionLevel $level = null, ?string $axle = null, ?HintColour $hintColour = null): self
     {
         return new self(
             code: $code,
@@ -81,6 +86,7 @@ final readonly class Condition
             maxAxleLoadKg: $kind === ConditionKind::ReifenTragfaehigkeit ? $maxAxleLoadKg : null,
             level: $level?->atLeastFloorOf($kind),
             axle: $kind === ConditionKind::ReifenAchse && in_array($axle, ['FRONT', 'REAR'], true) ? $axle : null,
+            hintColour: $hintColour,
         );
     }
 

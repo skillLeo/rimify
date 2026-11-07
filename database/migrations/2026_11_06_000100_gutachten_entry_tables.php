@@ -14,14 +14,20 @@ use Illuminate\Support\Facades\Schema;
  * the shop reads stay as they are: DocumentEntryWriter writes them from these on every save of a draft, and the verdict
  * logic never reads what is here.
  *
- * - `document_wheel_sizes`: one dimension per paper — colours inherit it — and what the paper prints for it, so staff
- *   are warned when the size they chose is not the one in the paper.
- * - `document_car_entries`: one car on that size, with everything a row of `fitments` holds. `wheel_config_id` and
+ * - `document_wheel_sizes`: the versions of the paper's one wheel model it covers, each a dimension — colours inherit it.
+ * - `document_wheel_combinations`: a front version and a rear version of that model, the same one by default (the client's
+ *   change of 07.11.2026: a paper may allow different rim dimensions front and rear).
+ * - `approval_documents.printed_wheels`: what the paper itself prints for its wheel, typed by staff and only ever compared,
+ *   so they are warned when a version they chose is not one in the paper.
+ * - `document_car_entries`: one car on one wheel combination, with everything a row of `fitments` holds. `wheel_config_id` and
  *   `axle` come only from rows entered before this flow: one colour alone, one axle alone.
  * - `document_tyre_lines`: vorne + hinten, each size with what the paper prints beside it. A line with one side comes
  *   only from those older rows: a size scoped to one axle.
  * - `document_kept_combinations`: a row of the old list of combinations no car on the paper carries — never entered
  *   again, never lost: dropping it could turn a closed list into no list at all, and change an answer.
+ * - `fitment_wheel_sets`: which two rows of `fitments` a set is made of, for a paper whose versions differ front and rear
+ *   — `fitments.axle` says what each version may do, not which goes with which. No row's answer reads it: it names sets, and
+ *   the shop's offer of a set asks the engine about each of its two wheels (WheelSets). A set lives and dies with its rows.
  */
 return new class extends Migration
 {
@@ -37,22 +43,30 @@ return new class extends Migration
             $t->unsignedTinyInteger('bolt_holes');
             $t->decimal('bolt_circle_mm', 5, 1);
             $t->decimal('centre_bore_mm', 5, 2);
-            // As the paper prints them, typed by staff; only ever compared, for a warning.
-            $t->string('printed_type', 64)->nullable()->comment('Radtyp as printed: RC200 8,5x20');
-            $t->decimal('printed_width_in', 4, 2)->nullable();
-            $t->decimal('printed_diameter_in', 4, 1)->nullable();
-            $t->smallInteger('printed_et_mm')->nullable();
-            $t->unsignedTinyInteger('printed_bolt_holes')->nullable();
-            $t->decimal('printed_bolt_circle_mm', 5, 1)->nullable();
             $t->timestamps();
 
             $t->unique(['approval_document_id', 'wheel_model_id', 'diameter_in', 'width_in', 'et_mm', 'bolt_holes', 'bolt_circle_mm', 'centre_bore_mm'], 'uq_document_wheel_size');
         });
 
+        Schema::create('document_wheel_combinations', function (Blueprint $t): void {
+            $t->id();
+            $t->foreignId('approval_document_id')->constrained('approval_documents')->cascadeOnDelete();
+            $t->foreignId('front_wheel_size_id')->constrained('document_wheel_sizes')->cascadeOnDelete();
+            $t->foreignId('rear_wheel_size_id')->constrained('document_wheel_sizes')->cascadeOnDelete();
+            $t->unsignedInteger('position')->default(0);
+            $t->timestamps();
+
+            $t->unique(['approval_document_id', 'front_wheel_size_id', 'rear_wheel_size_id'], 'uq_document_wheel_combination');
+        });
+
+        Schema::table('approval_documents', function (Blueprint $t): void {
+            $t->json('printed_wheels')->nullable()->comment('the paper\'s own wheel data as typed: only ever compared, for a warning');
+        });
+
         Schema::create('document_car_entries', function (Blueprint $t): void {
             $t->id();
             $t->foreignId('approval_document_id')->constrained('approval_documents')->cascadeOnDelete();
-            $t->foreignId('document_wheel_size_id')->constrained('document_wheel_sizes')->cascadeOnDelete();
+            $t->foreignId('document_wheel_combination_id')->constrained('document_wheel_combinations')->cascadeOnDelete();
             $t->foreignId('vehicle_id')->constrained('vehicles')->restrictOnDelete();
             // Only rows entered before this flow: this colour alone (null: every colour of the size) and this axle alone.
             $t->foreignId('wheel_config_id')->nullable()->constrained('wheel_configs')->restrictOnDelete();
@@ -77,7 +91,7 @@ return new class extends Migration
             $t->unsignedInteger('position')->default(0);
             $t->timestamps();
 
-            $t->unique(['document_wheel_size_id', 'vehicle_id', 'axle', 'scope_key'], 'uq_document_car_entry');
+            $t->unique(['document_wheel_combination_id', 'vehicle_id', 'axle', 'scope_key'], 'uq_document_car_entry');
             $t->index(['approval_document_id', 'position'], 'idx_document_car_entry_order');
         });
 
@@ -112,9 +126,6 @@ return new class extends Migration
                 $t->string("{$side}_marker", 4)->nullable();
                 // What was typed where it does not read (yet): kept, so nothing typed is lost; the release waits for it.
                 $t->string("{$side}_unread", 64)->nullable();
-                // A pair only: the paper lists this size for this wheel, though only in this combination. Without it, a size with
-                // no line of its own is on another wheel size, and the pair is not offered on this one.
-                $t->boolean("{$side}_on_rim")->default(false);
             }
 
             $t->unsignedSmallInteger('kw_min')->nullable();
@@ -146,6 +157,15 @@ return new class extends Migration
             $t->unique(['document_tyre_line_id', 'code'], 'uq_document_tyre_line_code');
         });
 
+        Schema::create('fitment_wheel_sets', function (Blueprint $t): void {
+            $t->id();
+            $t->foreignId('front_fitment_id')->constrained('fitments')->cascadeOnDelete();
+            $t->foreignId('rear_fitment_id')->constrained('fitments')->cascadeOnDelete();
+            $t->timestamps();
+
+            $t->unique(['front_fitment_id', 'rear_fitment_id'], 'uq_fitment_wheel_set');
+        });
+
         Schema::create('document_kept_combinations', function (Blueprint $t): void {
             $t->id();
             $t->foreignId('approval_document_id')->constrained('approval_documents')->cascadeOnDelete();
@@ -167,10 +187,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('document_kept_combinations');
+        Schema::dropIfExists('fitment_wheel_sets');
         Schema::dropIfExists('document_tyre_line_codes');
         Schema::dropIfExists('document_tyre_lines');
         Schema::dropIfExists('document_car_entry_codes');
         Schema::dropIfExists('document_car_entries');
+        Schema::dropIfExists('document_wheel_combinations');
         Schema::dropIfExists('document_wheel_sizes');
+
+        Schema::table('approval_documents', function (Blueprint $t): void {
+            $t->dropColumn('printed_wheels');
+        });
     }
 };

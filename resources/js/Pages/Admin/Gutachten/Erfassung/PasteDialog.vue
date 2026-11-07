@@ -2,23 +2,23 @@
 /**
  * „Mehrere einfügen“ (the Gutachten rework §4.4, §7 step 4, the client's change of 05.11.2026): several sizes or front/rear pairs
  * typed or pasted at once — one per line, or a paragraph of the paper split at each „Nr.“ — read into a preview first. A line with
- * one size is vorne = hinten, a pair a pair. What does not read is shown in red with the reason and left out; nothing is taken
- * over until staff confirm.
+ * one size is vorne = hinten, where both wheels share its diameter, a pair a pair. What does not read or does not fit is shown in red
+ * with the reason and left out; nothing is taken over until staff confirm.
  */
 
 import { computed, ref } from 'vue'
 import Dialog from '../../../../Components/Ui/Dialog.vue'
-import type { CarView } from './entryStore'
-import { pasteToSides, readPaste, tyreLabel } from './tyreInput'
+import type { CarView, CombinationView } from './entryStore'
+import { checkPaste, pasteToSides, readPaste, tyreLabel } from './tyreInput'
 
-defineProps<{ car: CarView }>()
+const props = defineProps<{ car: CarView; combination: CombinationView }>()
 const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ take: [sides: { front: string; rear: string }[]] }>()
 
 /* Esc or a click beside it keeps what was pasted, for the next time it opens; only a yes or „Abbrechen“ lets it go. */
 const text = ref('')
 
-const lines = computed(() => readPaste(text.value))
+const lines = computed(() => checkPaste(readPaste(text.value), { front: props.combination.frontDiameter, rear: props.combination.rearDiameter }))
 const read = computed(() => lines.value.filter((line) => line.status !== 'unread'))
 const count = computed(() => pasteToSides(read.value).length)
 const confirmLabel = computed(() => (count.value === 0 ? 'Übernehmen' : count.value === 1 ? '1 Zeile übernehmen' : `${count.value} Zeilen übernehmen`))

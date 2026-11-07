@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Approvals\Entry;
 
+use App\Support\GermanFormat;
 use App\Support\TyreText;
 use Illuminate\Support\Facades\DB;
 
@@ -32,6 +33,17 @@ final class EntryLineRules
         }
 
         return self::why($tyre);
+    }
+
+    /** A tyre whose rim is not its axle's wheel does not physically fit. The words staff read; null where it fits. */
+    public static function misfit(float $tyreDiameter, float $wheelDiameter, string $side): ?string
+    {
+        return abs($tyreDiameter - $wheelDiameter) < 0.001 ? null : sprintf(
+            'Dieser Reifen passt nicht: Die Felge %s hat %s Zoll, der Reifen R%s.',
+            $side === 'front' ? 'vorne' : 'hinten',
+            GermanFormat::trimmedDecimal($wheelDiameter, 1),
+            GermanFormat::trimmedDecimal($tyreDiameter, 1),
+        );
     }
 
     /** @param array{width: int, aspect: int, diameter: int, li: int|null, si: string|null, marker: string|null} $tyre */

@@ -26,7 +26,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $front_speed_symbol
  * @property string|null $front_marker
  * @property string|null $front_unread
- * @property bool $front_on_rim
  * @property int|null $rear_width_mm
  * @property int|null $rear_aspect
  * @property float|null $rear_diameter_in
@@ -34,7 +33,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $rear_speed_symbol
  * @property string|null $rear_marker
  * @property string|null $rear_unread
- * @property bool $rear_on_rim
  * @property int|null $kw_min
  * @property int|null $kw_max
  * @property bool $from_rows
@@ -48,8 +46,8 @@ class DocumentTyreLine extends Model
 {
     protected $fillable = [
         'document_car_entry_id', 'position',
-        'front_width_mm', 'front_aspect', 'front_diameter_in', 'front_load_index', 'front_speed_symbol', 'front_marker', 'front_unread', 'front_on_rim',
-        'rear_width_mm', 'rear_aspect', 'rear_diameter_in', 'rear_load_index', 'rear_speed_symbol', 'rear_marker', 'rear_unread', 'rear_on_rim',
+        'front_width_mm', 'front_aspect', 'front_diameter_in', 'front_load_index', 'front_speed_symbol', 'front_marker', 'front_unread',
+        'rear_width_mm', 'rear_aspect', 'rear_diameter_in', 'rear_load_index', 'rear_speed_symbol', 'rear_marker', 'rear_unread',
         'kw_min', 'kw_max', 'from_rows', 'in_list', 'list_entry', 'list_number', 'list_page', 'list_carried_over',
     ];
 
@@ -68,8 +66,6 @@ class DocumentTyreLine extends Model
             'rear_load_index' => 'integer',
             'kw_min' => 'integer',
             'kw_max' => 'integer',
-            'front_on_rim' => 'boolean',
-            'rear_on_rim' => 'boolean',
             'from_rows' => 'boolean',
             'in_list' => 'boolean',
             'list_number' => 'integer',
