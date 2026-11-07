@@ -6,9 +6,9 @@ namespace App\Services\Admin\Approvals;
 
 use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\VehicleRepository;
+use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
-use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\MixedPair;
