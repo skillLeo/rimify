@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { EMPTY_SHOP_DB, SHOP_DB } from './shop'
 
 /*
@@ -16,11 +17,16 @@ import { EMPTY_SHOP_DB, SHOP_DB } from './shop'
  * (E2E_DEMO_ANCHOR), and a spec that reads figures by the day asks the server to answer on it (e2e/bugs/ueb-support.ts
  * onDemoDay) — never on the calendar.
  *
+ * The development shop the specs call DEV holds the released Borbet papers (D-427): SWEEP-01 to SWEEP-03 and EF-01 to
+ * EF-03 read the cars, rows and Auflagen of ABE 55255 and of the Nachtrag to ABE 53841 there. borbetPapers() types them in
+ * once per database and finds them in place on every later run.
+ *
  * `E2E_KEEP_SHOP=1` skips the shop's rebuild, for a quick run of one spec that buys nothing; `E2E_KEEP_DEMO=1` the
  * reanchor, and the day the set has is handed over as it is.
  */
 export default function globalSetup(): void {
     process.env.E2E_DEMO_ANCHOR = demoDay()
+    borbetPapers()
 
     if (process.env.E2E_KEEP_SHOP === '1') {
         return
@@ -62,4 +68,43 @@ function anchor(php: string, cwd: URL): string {
     } catch {
         return ''
     }
+}
+
+/**
+ * The released Borbet papers in DEV's database: tests/E2eData types ABE 55255, ABE 53841 and the Nachtrag 366-0350-21-WIRD/N1
+ * from their transcriptions (docs/gutachten) through the admin's endpoints and releases them, about a minute, once; a run
+ * that finds them released leaves them. DEV's database is the one this checkout's server reads: the environment's DB_*
+ * over .env's. Never where DEV names another machine's shop (E2E_BASE_URL): the suite writes nothing there. The run gets
+ * no variable but its database's, so the pinned test environment meets nothing it did not pin (tests/env.php).
+ */
+function borbetPapers(): void {
+    if (process.env.E2E_BASE_URL !== undefined) {
+        return
+    }
+
+    const root = new URL('..', import.meta.url)
+    const dotenv = new Map(
+        readFileSync(new URL('.env', root), 'utf8')
+            .split(/\r?\n/)
+            .map((line) => /^(DB_[A-Z]+)=(.*)$/.exec(line))
+            .filter((match): match is RegExpExecArray => match !== null)
+            .map((match) => [match[1], (match[2] ?? '').replace(/^"(.*)"$/, '$1')] as const),
+    )
+    const value = (key: string): string => process.env[key] ?? dotenv.get(key) ?? ''
+    const own = (key: string): Record<string, string> => (process.env[key] === undefined ? {} : { [key]: process.env[key] })
+
+    execFileSync(process.env.PHP_BINARY ?? 'php', ['-d', 'memory_limit=2G', 'vendor/bin/pest', 'tests/E2eData'], {
+        cwd: root,
+        env: {
+            ...own('PATH'),
+            ...own('HOME'),
+            ...own('PHP_INI_SCAN_DIR'),
+            TEST_DB_HOST: value('DB_HOST'),
+            TEST_DB_PORT: value('DB_PORT'),
+            TEST_DB_DATABASE: value('DB_DATABASE'),
+            TEST_DB_USERNAME: value('DB_USERNAME'),
+            TEST_DB_PASSWORD: value('DB_PASSWORD'),
+        },
+        stdio: 'pipe',
+    })
 }

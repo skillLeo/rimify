@@ -13,7 +13,9 @@ Two real Gutachten, read off their PDFs and typed into the admin through the adm
 Through the five steps of „Neues Gutachten“, as any paper: the PDF, the wheel's one size, the cars, their tyres, the release
 (the Gutachten rework, D-391 to D-399). The tool that used to send a transcription to the row form's endpoints went with that
 form. `rimify:demo --abnahme` seeds the two documents as examples, and `tests/Support/Gutachten/TranscriptionEntry.php` types
-them through the five steps' endpoints for the acceptance test (`tests/Feature/Fitment/BorbetAcceptanceTest.php`).
+them through the five steps' endpoints for the acceptance test (`tests/Feature/Fitment/BorbetAcceptanceTest.php`), and
+`tests/E2eData` types them the same way into the development shop the e2e suite reads, once per database, from
+`e2e/global-setup.ts` (D-427).
 
 ## How they were read
 
