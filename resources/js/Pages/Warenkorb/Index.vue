@@ -260,6 +260,7 @@ const VERDICT_TONE: Record<string, string> = {
                                 <div v-if="reasonsOf(line).length > 0" class="bl__reasons" role="status">
                                     <p v-for="reason in reasonsOf(line)" :key="reason" class="bl__reason">{{ reason }}</p>
                                     <div class="bl__reasons-actions">
+                                        <Link v-if="line.setHref" :href="line.setHref" class="bl__blocked-link" data-go-set>Zum Satz</Link>
                                         <button class="bl__blocked-link bl__reasons-remove" type="button" @click="basket.remove(line.key)">
                                             Entfernen
                                         </button>

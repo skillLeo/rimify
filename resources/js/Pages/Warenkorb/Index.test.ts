@@ -204,4 +204,21 @@ describe('Warenkorb', () => {
         expect(four!.find('.bl__remove-tyre').text()).toBe('Reifen entfernen')
         expect(wrapper.findAll('.bl__weights')).toHaveLength(2)
     })
+
+    it('shows the way to the set beside a refusal only where the line has one (D-425)', () => {
+        const refused = 'Für dein Fahrzeug ist diese Ausführung nur zusammen mit einer anderen für die zweite Achse freigegeben.'
+        const wrapper = mountBasket({
+            lines: [
+                line({ key: 'wheel:11', demo: false, blockReasons: [refused], setHref: '/felgen/beispiel?ausfuehrung=1&satz=11-12' }),
+                line({ key: 'wheel:13', demo: false, blockReasons: [refused], setHref: null }),
+            ],
+        })
+        const [withSet, without] = wrapper.findAll('.bl__line')
+
+        expect(withSet!.find('.bl__reason').text()).toBe(refused)
+        expect(withSet!.find('[data-go-set]').attributes('href')).toBe('/felgen/beispiel?ausfuehrung=1&satz=11-12')
+        expect(withSet!.find('[data-go-set]').text()).toBe('Zum Satz')
+        expect(without!.find('.bl__reason').text()).toBe(refused)
+        expect(without!.find('[data-go-set]').exists()).toBe(false)
+    })
 })

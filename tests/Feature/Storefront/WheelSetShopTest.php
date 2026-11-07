@@ -10,6 +10,7 @@ use App\Enums\CatalogueStatus;
 use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Http\Controllers\Storefront\WarenkorbController;
+use App\Mail\OrderConfirmationMail;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\CheckResult;
@@ -52,6 +53,23 @@ beforeEach(function (): void {
 });
 
 const WS_K = 'e1*2007/46*0356*04';
+
+/** One line per axle where the customer and the staff read the order too, each naming its own version: the confirmation mail and the admin order. */
+function wsSaysBothAxles(Order $order, string $kind): void
+{
+    $plain = static fn (string $text): string => str_replace(["\u{00A0}", "\u{202F}"], ' ', $text);
+    $mail = $plain((new OrderConfirmationMail($order, null))->render());
+
+    expect($mail)->toMatch('/2 × '.$kind.' Vorderachse: [^\n]*× 18 /u')
+        ->and($mail)->toMatch('/2 × '.$kind.' Hinterachse: [^\n]*× 19 /u');
+
+    test()->actingAs(wsAdmin(), 'admin')->get('/admin/bestellungen/'.$order->id)
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('lines', 2)
+            ->where('lines.0.label', fn (string $label): bool => str_starts_with($label, $kind.' Vorderachse: ') && str_contains($plain($label), '× 18 '))
+            ->where('lines.1.label', fn (string $label): bool => str_starts_with($label, $kind.' Hinterachse: ') && str_contains($plain($label), '× 19 ')));
+}
 
 function wsAdmin(): AdminUser
 {
@@ -218,6 +236,33 @@ describe('the rule of the shop', function (): void {
             ->assertSessionHasErrors(['wheelConfigId' => Basket::ONLY_IN_SET]);
     });
 
+    it('puts no answer for one axle beside the refusal on a line that stands in the basket as four, and shows the way to the set', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+
+        // In the basket from before there was a car: the render is the last place that can say so.
+        $this->from('/felgen')->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'quantity' => 4])->assertSessionHasNoErrors();
+
+        $this->withCookies(wsCookies($car))->get('/warenkorb')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('lines', 1)
+                ->where('lines.0.blockReasons', [Basket::ONLY_IN_SET])
+                ->where('lines.0.verdict', null)
+                ->where('lines.0.setHref', fn (?string $href): bool => $href !== null && str_ends_with($href, 'satz='.$wheel['front']->id.'-'.$wheel['rear']->id)));
+    });
+
+    it('offers no way to a set where the version stands in none: a row for one axle alone', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        Fitment::query()->where('wheel_config_id', $wheel['rear']->id)->update(['status' => 'retired']);
+
+        $this->from('/felgen')->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'quantity' => 4])->assertSessionHasNoErrors();
+
+        $this->withCookies(wsCookies($car))->get('/warenkorb')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('lines.0.blockReasons', [Basket::ONLY_IN_SET])
+                ->where('lines.0.verdict', null)
+                ->where('lines.0.setHref', null));
+    });
+
     it('keeps four of a version the same paper names front and rear too, beside a set it also stands in', function (): void {
         $wheel = wsWheel();
         ['document' => $document, 'car' => $car] = wsPaper([
@@ -331,6 +376,8 @@ describe('a set in the basket', function (): void {
             ->and($frozen[0]->verdict['mixedTyres']['partnerWheel'])->toContain('19')
             ->and($frozen[1]->verdict['mixedTyres']['partnerWheel'])->toContain('18')
             ->and($order->total_cents)->toBe(99_600);
+
+        wsSaysBothAxles($order, 'Felge');
     });
 });
 
@@ -541,6 +588,8 @@ describe('a Komplettrad on a set', function (): void {
             ->and($frozen[0]->fitment_id)->not->toBe($frozen[1]->fitment_id)
             ->and($frozen[0]->verdict['combination']['front']['tyre']['id'])->toBe($front->id)
             ->and($frozen[1]->verdict['combination']['rear']['tyre']['id'])->toBe($rear->id);
+
+        wsSaysBothAxles($order, 'Komplettrad');
     });
 
     it('leaves the chosen car alone when an add is refused for having been made under another: the way back does not choose that car again', function (): void {

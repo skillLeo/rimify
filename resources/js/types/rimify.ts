@@ -439,6 +439,8 @@ export interface BasketLine {
     priceOpen?: boolean
     /** Full German sentences, never codes; empty when nothing is wrong (R-15). */
     blockReasons?: string[]
+    /** A version this car may have only in a set: that set's page (D-425). Null on every other line. */
+    setHref?: string | null
 }
 
 /** One axle of a mixed set, as the basket and the order record it (D-105). */

@@ -78,8 +78,36 @@ test('in the basket: one line per axle, two each, each version\'s own price, no 
     await expect(page.locator('.bl__stepper')).toHaveCount(0)
     await expect(page.locator('[data-fixed]')).toHaveCount(2)
 
+    // The checkout names both axles too, each at its own price.
+    await open(page, '/kasse')
+    const paying = page.locator('.ko__line')
+    await expect(paying).toHaveCount(2)
+    await expect(paying.nth(0)).toContainText('Felge Vorderachse')
+    await expect(paying.nth(0).locator('.ko__line-price')).toContainText('458,00')
+    await expect(paying.nth(1)).toContainText('Felge Hinterachse')
+    await expect(paying.nth(1).locator('.ko__line-price')).toContainText('538,00')
+
+    await open(page, '/warenkorb')
     await lines.nth(1).locator('.bl__remove').click()
     await expect(lines).toHaveCount(0)
+})
+
+test('a version chosen for another car and now only for a set: the refusal alone, no green answer beside it, and the way to the set', { tag: '@kunde-20' }, async ({ page }) => {
+    await withCar(page, 'e46', PRODUCT)
+    const added = page.waitForResponse((r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/warenkorb')
+    await page.locator('.pdp__add').click()
+    await added
+
+    await withCar(page, 'f30')
+    await open(page, '/warenkorb')
+    const line = page.locator('.bl__line').first()
+    await expect(line.locator('.bl__reason')).toContainText('nur zusammen mit einer anderen')
+    await expect(line.locator('.bl__flags .tag', { hasText: 'Freigegeben' })).toHaveCount(0)
+
+    await line.locator('[data-go-set]').click()
+    await page.waitForURL(/satz=/)
+    await page.waitForLoadState('networkidle')
+    await expect(page.locator('[data-wheel-sets] button').first()).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('the listing says the wheel comes only as a set, and its card opens on the set', { tag: '@kunde-20' }, async ({ page }) => {
@@ -148,4 +176,10 @@ test('a Komplettrad on the set: both tyres named per axle, RDKS asked, nothing p
     await expect(lines.nth(0).locator('.bl__size')).toContainText('× 18')
     await expect(lines.nth(1)).toContainText('Komplettrad Hinterachse')
     await expect(lines.nth(1).locator('.bl__size')).toContainText('× 19')
+
+    await open(page, '/kasse')
+    const paying = page.locator('.ko__line')
+    await expect(paying).toHaveCount(2)
+    await expect(paying.nth(0)).toContainText('Komplettrad Vorderachse')
+    await expect(paying.nth(1)).toContainText('Komplettrad Hinterachse')
 })

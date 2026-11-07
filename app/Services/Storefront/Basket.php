@@ -1059,9 +1059,19 @@ final readonly class Basket
         $rimRefusal = ! $isSet && $verdict !== null ? self::verdictRefusal($verdict) : null;
         $blockReasons = $isSet ? $this->blockReasons($verdict, $tyre, $colour, $quantity) : ($rimRefusal === null ? [] : [$rimRefusal]);
 
-        // A version only for a set never stands in the basket as four, whenever it got there.
-        if ($vehicleId !== null && $this->wheelSets->of($vehicleId, [(int) $config->id => $this->resolver->resolve($vehicleId, $config->id)])->onlyInSet((int) $config->id)) {
-            $blockReasons[] = self::ONLY_IN_SET;
+        // A version only for a set never stands in the basket as four, whenever it got there. Its own answer is for one axle, so a
+        // green „Freigegeben“ would contradict the refusal: the line says the refusal and the way to the set, no answer (D-425).
+        if ($vehicleId !== null) {
+            $offer = $this->wheelSets->of($vehicleId, [(int) $config->id => $this->resolver->resolve($vehicleId, $config->id)]);
+
+            if ($offer->onlyInSet((int) $config->id)) {
+                $blockReasons[] = self::ONLY_IN_SET;
+                $held = $this->line($this->key($config->id, $tyreId), $config, $isSet, $tyre, $colour, $quantity, $quantity, null, $blockReasons, $colours);
+                $set = $offer->setOf((int) $config->id);
+                $held['setHref'] = $set === null ? null : $held['productHref'].'&satz='.$set->key();
+
+                return [$held];
+            }
         }
 
         return [$this->line($this->key($config->id, $tyreId), $config, $isSet, $tyre, $colour, $quantity, $quantity, $verdict, $blockReasons, $colours)];
@@ -1331,6 +1341,7 @@ final readonly class Basket
             'components' => $this->components($price, $colour, $quantity),
             'priceOpen' => ! $price->complete(),
             'blockReasons' => $blockReasons,
+            'setHref' => null,
         ];
     }
 
