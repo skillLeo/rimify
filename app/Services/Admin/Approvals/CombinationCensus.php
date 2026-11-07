@@ -8,6 +8,7 @@ use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
+use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\MixedPair;
@@ -74,14 +75,26 @@ final class CombinationCensus
         $offer = $this->eligibility->offerFor($verdict, false);
         $mixed = $this->eligibility->mixedOfferFor($verdict, false);
 
+        $tyre = static fn (TyreRecord $t): string => '#'.$t->id.' '.$t->label();
+        $minimum = static fn (array $m): string => $m['loadIndex'].$m['speedSymbol'];
+
         return [
             'verdict' => $answer,
             'komplettrad' => $offer->refusal?->value,
+            // Which tyres, by name, and the sentence about the minimum: what a change to the tyre rules can move (D-431).
+            'tyres' => array_map($tyre, $offer->tyres),
+            'minimumSentence' => $offer->minimumSentenceDe,
             'combinations' => [
                 'refusal' => $mixed->refusal?->value,
                 'listed' => $mixed->listed,
                 'sourcePage' => $mixed->sourcePage,
                 'pairs' => array_map(static fn (MixedPair $pair): string => 'Nr. '.$pair->pairing->number.': '.$pair->front->labelDe().' | '.$pair->rear->labelDe(), $mixed->pairs),
+                'sets' => array_map(static fn (MixedPair $pair): array => [
+                    'pair' => 'Nr. '.$pair->pairing->number,
+                    'minimum' => $minimum($pair->frontMinimum).' | '.$minimum($pair->rearMinimum),
+                    'missing' => $pair->missing,
+                    'sets' => array_map(static fn (array $set): string => $tyre($set['front']).' | '.$tyre($set['rear']), $pair->sets),
+                ], $mixed->pairs),
             ],
         ];
     }
