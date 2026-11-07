@@ -670,6 +670,7 @@ return array(
     'App\\Services\\Demo\\AcceptanceSeeder' => $baseDir . '/app/Services/Demo/AcceptanceSeeder.php',
     'App\\Services\\Demo\\AcceptanceSet' => $baseDir . '/app/Services/Demo/AcceptanceSet.php',
     'App\\Services\\Demo\\AcceptanceShelf' => $baseDir . '/app/Services/Demo/AcceptanceShelf.php',
+    'App\\Services\\Demo\\AcceptanceTrialPaper' => $baseDir . '/app/Services/Demo/AcceptanceTrialPaper.php',
     'App\\Services\\Demo\\AcceptanceWheelSet' => $baseDir . '/app/Services/Demo/AcceptanceWheelSet.php',
     'App\\Services\\Demo\\DemoCatalogue' => $baseDir . '/app/Services/Demo/DemoCatalogue.php',
     'App\\Services\\Demo\\DemoClock' => $baseDir . '/app/Services/Demo/DemoClock.php',

@@ -141,3 +141,21 @@ export async function throughExtras(page: Page, card: Locator, rdks: 'Mit RDKS-S
     await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
     await expect(page.locator('.kf-basket')).toBeVisible()
 }
+
+/**
+ * ABE 55255 as released, from the admin's list. Since the five steps (D-391) a draft opens as its entry flow, and the
+ * preview holds a draft Fassung of the same number beside the released one: the row that says „Freigegeben“ is the one
+ * the shop reads (release 27, 07.11.2026).
+ */
+export async function openReleased55255(page: Page): Promise<string> {
+    await open(page, '/admin/gutachten')
+    const row = page.locator('tbody tr', { has: page.locator('a', { hasText: /^\s*55255\s*$/ }) })
+        .filter({ has: page.locator('td[data-label="Status"]', { hasText: /^\s*Freigegeben/ }) })
+        .first()
+    const href = await row.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })
+    const path = new URL(href ?? '/', page.url()).pathname
+    expect(path, 'no released ABE 55255 in the list').toMatch(/^\/admin\/gutachten\/\d+$/)
+    await open(page, path)
+
+    return path
+}

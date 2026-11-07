@@ -1449,6 +1449,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Services\\Demo\\AcceptanceSeeder' => __DIR__ . '/../..' . '/app/Services/Demo/AcceptanceSeeder.php',
         'App\\Services\\Demo\\AcceptanceSet' => __DIR__ . '/../..' . '/app/Services/Demo/AcceptanceSet.php',
         'App\\Services\\Demo\\AcceptanceShelf' => __DIR__ . '/../..' . '/app/Services/Demo/AcceptanceShelf.php',
+        'App\\Services\\Demo\\AcceptanceTrialPaper' => __DIR__ . '/../..' . '/app/Services/Demo/AcceptanceTrialPaper.php',
         'App\\Services\\Demo\\AcceptanceWheelSet' => __DIR__ . '/../..' . '/app/Services/Demo/AcceptanceWheelSet.php',
         'App\\Services\\Demo\\DemoCatalogue' => __DIR__ . '/../..' . '/app/Services/Demo/DemoCatalogue.php',
         'App\\Services\\Demo\\DemoClock' => __DIR__ . '/../..' . '/app/Services/Demo/DemoClock.php',

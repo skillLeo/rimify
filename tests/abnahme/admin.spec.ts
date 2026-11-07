@@ -1,7 +1,7 @@
 import { propsOf } from '../../e2e/teardown'
 import { BASE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, expect, open, test } from './fixtures'
-import { PRODUCT } from './shop'
+import { PRODUCT, openReleased55255 } from './shop'
 
 /*
  * His admin list (201–218) in the acceptance run: the pass that may point at the site he looks at, so the only one that
@@ -117,51 +117,43 @@ test.describe('as the Super-Admin', () => {
         await evidenceAround(page, [page.locator('.pdp__stock')], 207, info)
     })
 
-    // His item 19 (D-358): the combinations belong to a vehicle type, by its EG-Typgenehmigungsnummer. Read only: the
-    // example ABE 55255 names three types — each its own entry, with the car it is and its count; a list is edited in a
-    // draft, which this pass never makes.
-    test('the Bereifungskombinationen are kept per EG-Typgenehmigungsnummer, one entry for each type the Gutachten names', { tag: '@admin-219' }, async ({ page }, info) => {
-        await open(page, '/admin/gutachten')
-        const documentPage = new URL((await page.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })) ?? '/', BASE).pathname
-        await open(page, documentPage)
+    // His item 19 (D-358), since the five steps (D-391–D-393): the combinations belong to the car the Gutachten names, by its
+    // field K — each car its own entry with its own lines. Read only: the released example ABE 55255 names several cars.
+    test('the Bereifungskombinationen are kept per car and its EG-Typgenehmigungsnummer, one entry for each car the Gutachten names', { tag: '@admin-219' }, async ({ page }, info) => {
+        await openReleased55255(page)
 
-        const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
-        await expect(card).toContainText('trag sie je Fahrzeugtyp ein')
-        const entries = (await card.locator('#kb-entry option').allInnerTexts()).map((o) => o.trim())
+        const section = page.locator('section[aria-labelledby="gs-rows-h"]')
+        await expect(section.locator('#gs-rows-h')).toHaveText('Fahrzeuge und Reifen')
+        const cars = section.locator('.gs-car')
 
-        expect(entries.length, 'the example names three vehicle types').toBeGreaterThanOrEqual(2)
+        expect(await cars.count(), 'the example names several cars').toBeGreaterThanOrEqual(2)
 
-        for (const entry of entries) {
-            expect(entry, 'an entry is its EG number, the car and its count').toMatch(/^e\d+\*\S+ – .+ \(\d+ Kombination(en)?\)$/)
+        for (const car of await cars.all()) {
+            await expect(car.locator('.gs-car__name'), 'each entry names its car').not.toBeEmpty()
+            await expect(car.locator('.gs-sub'), 'each entry names its EG number (field K)').toContainText(/Feld K \S+/)
         }
 
-        await evidenceAround(page, [card], 219, info)
+        await evidenceAround(page, [section], 219, info)
     })
 
+    // Since the five steps (D-392): only combinations — vorne and hinten — and per car the closed list the paper prints. Read
+    // only; entering one takes a draft, which this pass never makes (the gate's e2e/kundenliste/admin.spec.ts enters them).
     test('the Bereifungskombinationen stand on the Gutachten as the closed list it prints', { tag: '@admin-208' }, async ({ page }, info) => {
-        await open(page, '/admin/gutachten')
-        const documentPage = new URL((await page.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })) ?? '/', BASE).pathname
-        expect(documentPage, 'ABE 55255 is not in the list').toMatch(/^\/admin\/gutachten\/\d+$/)
-        await open(page, documentPage)
+        await openReleased55255(page)
 
-        const card = page.locator('section[aria-labelledby="gs-combinations-h"]')
-        // Per vehicle type since his admin item 19 (D-358): the list belongs to an EG-Typgenehmigungsnummer of the document.
-        await expect(card).toContainText('Der Shop bietet für diesen Typ dann nur diese Kombinationen an')
-        await expect(card.locator('#kb-entry')).toBeVisible()
-        const rows = card.locator('table.kb-table tbody tr')
+        const section = page.locator('section[aria-labelledby="gs-rows-h"]')
+        const lines = section.locator('.gs-readline__tyres')
 
-        // The example ABE 55255 is seeded without combinations — on his preview since 14.10, before this section existed
-        // (D-256), and in the acceptance shop, which seeds none. Entering one takes a draft, a write this pass never makes;
-        // the list's own suite enters, releases and buys them (e2e/kundenliste/admin.spec.ts). Here, on either instance,
-        // an empty list must say so. (On ours it passed only after another suite had left a list behind — 30.10.2026.)
-        if ((await rows.count()) === 0) {
-            await expect(card).toContainText('Für diese EG-Nummer sind keine Bereifungskombinationen hinterlegt.')
-            test.skip(true, `not measured on ${PREVIEW ? 'the preview' : 'our acceptance shop'}: ABE 55255 has no combinations entered there, and entering them takes a draft`)
+        await expect(lines.first(), 'no tyre line on the released ABE 55255').toBeVisible()
+
+        const size = String.raw`\d{3}/\d{2} Z?R\d{2}( \d{2,3}[A-Z])?`
+        const line = new RegExp(`^(${size}|vorne ${size} · hinten ${size}|nur (vorne|hinten) ${size})( · \\d+(–\\d+)? kW)?$`)
+
+        for (const text of await lines.allInnerTexts()) {
+            expect(text.trim(), 'each line is one combination: one size for both axles, or vorne and hinten').toMatch(line)
         }
 
-        await expect(rows.first(), 'no combination is entered on this Gutachten').toBeVisible()
-        await expect(card).toContainText(/Seite \d+ im Gutachten\./)
-        await evidenceAround(page, [card], 208, info)
+        await evidenceAround(page, [section], 208, info)
     })
 
     test('a tyre with its EU label: the size as the wall prints it, the label as the shop prints it — not stored', { tag: '@admin-210' }, async ({ page }, info) => {
