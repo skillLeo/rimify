@@ -1,7 +1,7 @@
 import { propsOf, send } from '../../e2e/teardown'
 import { BASE, MAY_WRITE, PREVIEW, VISITOR, hasCredentials, statePath } from './instance'
 import { consent, evidence, evidenceAround, evidencePage, expect, open, phone, test } from './fixtures'
-import { PRODUCT, box, onSize, withCar } from './shop'
+import { PRODUCT, box, onSize, openReleased55255, withCar } from './shop'
 
 /*
  * Batch E — the items that are not ours to tick: two solved differently (#9, #23), #19 built as we promised it (stars
@@ -247,10 +247,8 @@ test.describe('as the Super-Admin', () => {
 
         // The document by its link's address: on a phone the list draws its links twice, one of them hidden, and a click
         // on the hidden one waits for the test's whole budget (the preview's iPhone pass, 16.10.2026).
-        await open(page, '/admin/gutachten')
-        const documentPage = new URL((await page.locator('a', { hasText: /^\s*55255\s*$/ }).first().getAttribute('href', { timeout: 15_000 })) ?? '/', BASE).pathname
-        expect(documentPage, 'ABE 55255 is not in the list').toMatch(/^\/admin\/gutachten\/\d+$/)
-        await open(page, documentPage)
+        // The released one: since the five steps a draft opens as its entry flow, and the preview holds a draft Fassung too.
+        const documentPage = await openReleased55255(page)
 
         // The one write this test makes on the client's preview (the operator's brief of 16.10.2026, §3): one Auflage of a
         // document born demo, set to each level and back where it was — three Protokoll lines about a demo document,
