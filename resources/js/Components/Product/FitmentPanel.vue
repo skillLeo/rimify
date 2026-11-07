@@ -402,8 +402,8 @@ const openLead = computed(() => {
             <div v-if="sizes.length" class="fit__tyres">
                 <span class="label">Zulässige Reifengrößen</span>
                 <template v-if="verdict.sizesPerAxle">
-                    <p class="data" data-sizes-axle="front">Vorne: {{ (verdict.tyreSizesFront ?? []).join(' · ') }}</p>
-                    <p class="data" data-sizes-axle="rear">Hinten: {{ (verdict.tyreSizesRear ?? []).join(' · ') }}</p>
+                    <p v-if="verdict.tyreSizesFront?.length" class="data" data-sizes-axle="front">Vorne: {{ verdict.tyreSizesFront.join(' · ') }}</p>
+                    <p v-if="verdict.tyreSizesRear?.length" class="data" data-sizes-axle="rear">Hinten: {{ verdict.tyreSizesRear.join(' · ') }}</p>
                 </template>
                 <p v-else class="data">{{ sizes.join(' · ') }}</p>
             </div>

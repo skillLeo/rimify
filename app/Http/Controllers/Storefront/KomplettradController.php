@@ -49,9 +49,27 @@ class KomplettradController extends Controller
             return $request->size() === 0 ? redirect('/felgen') : redirect('/felgen')->with('toast', 'Diese Ausführung finden wir nicht mehr im Shop.');
         }
 
-        // Its steps are the same question on the same size, no check of its own.
-        $answer = $this->felgen->answerFor($request, $config, countsAsCheck: false);
+        // No car, no set: nothing says which two versions belong together.
+        if ($request->rearSize() !== 0 && $this->basket->vehicleId($request) === null) {
+            return redirect('/felgen/'.$config->wheelModel->slug)->with('toast', Basket::SET_NEEDS_CAR);
+        }
+
+        // A set of two versions, named by both, or one of them named alone: the steps are for the set.
+        $rear = $request->rearSize() === 0 ? null : WheelConfig::query()->whereKey($request->rearSize())->where('wheel_model_id', $config->wheel_model_id)->first();
+        $answer = $rear === null ? $this->felgen->answerFor($request, $config, countsAsCheck: false) : $this->felgen->setAnswerFor($request, $config, $rear);
+
+        if ($answer === null || ($request->rearSize() !== 0 && $rear === null)) {
+            return redirect('/felgen/'.$config->wheelModel->slug)->with('toast', 'Diesen Satz gibt es für dein Fahrzeug nicht.');
+        }
+
         $row = $answer['config'];
+
+        if ($rear === null && ($row['onlyInSet'] ?? false) === true && is_string($row['setKey'] ?? null)) {
+            [$setFront, $setRear] = explode('-', $row['setKey']);
+
+            return redirect('/komplettraeder?'.http_build_query(['groesse' => $setFront, 'hinten' => $setRear]));
+        }
+
         $held = $this->basket->setsHeld($request);
         $options = $answer['komplettradOptions'];
 

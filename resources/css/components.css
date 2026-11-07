@@ -1347,7 +1347,9 @@
         margin-bottom: var(--sp-16);
     }
 
+    /* A long title never takes the close button's width: it stays a thumb wide. */
     .dialog__close {
+        flex: none;
         margin: calc(-1 * var(--sp-8)) calc(-1 * var(--sp-8)) 0 0;
     }
 

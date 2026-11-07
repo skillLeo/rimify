@@ -41,7 +41,7 @@ const failed = ref(false)
                 <span class="tc__sizes">
                     <!-- The spaces said out loud: Vue drops one that ends a template, and „vorne225/35“ is no size. -->
                     <span v-for="side in card.sides" :key="`${side.axle}-${side.size}`" class="tc__size">
-                        <span v-if="side.axle">{{ side.axle }}</span>{{ side.axle ? ' ' : '' }}<span v-if="side.line" translate="no">{{ side.line }}</span>{{ side.line ? ' ' : '' }}<span class="tc__figure" translate="no">{{ side.size }}</span>
+                        <span v-if="side.axle" class="tc__axle">{{ side.axle }}</span>{{ side.axle ? ' ' : '' }}<span v-if="side.line" translate="no">{{ side.line }}</span>{{ side.line ? ' ' : '' }}<span class="tc__figure" translate="no">{{ side.size }}</span>
                     </span>
                 </span>
 
@@ -169,6 +169,11 @@ const failed = ref(false)
     display: grid;
     gap: 0;
     margin-top: var(--sp-4);
+}
+
+/* „vorne“ and „hinten“ take one width: the two sizes start on one line. */
+.tc__axle {
+    min-width: calc(6 * var(--ch-text));
 }
 
 .tc__size {

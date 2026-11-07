@@ -115,7 +115,18 @@ final readonly class FitmentVerdict
          * are, so the frozen order line says it word for word.
          */
         public ?string $rimAloneNoteDe = null,
+        /**
+         * Only on the answer for a set of two versions (`WheelSet::combined()`): the rim on the rear axle, `$wheel` being the front's.
+         * Never stored and never frozen. A verdict for one wheel leaves it null, and that one wheel stands on both axles.
+         */
+        public ?WheelConfigRecord $rearWheel = null,
     ) {}
+
+    /** The rim on this axle: a set's own for each, otherwise the one wheel. */
+    public function wheelOn(string $axle): ?WheelConfigRecord
+    {
+        return $axle === 'REAR' ? ($this->rearWheel ?? $this->wheel) : $this->wheel;
+    }
 
     /**
      * The answer for the rim sold alone, where it may be (`sellsAlone`, D-289): the wheel's own verdict — its Eintragung

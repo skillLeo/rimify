@@ -88,7 +88,9 @@ it('gives the shop what the mockup shows: a set for the car, sold, and tyres acr
     $offer = app(TyreEligibility::class)->mixedOfferFor($set->combined());
 
     expect($offer->refusal)->toBeNull()
-        ->and($offer->pairs)->toHaveCount(2);
+        ->and($offer->pairs)->toHaveCount(2)
+        // Each combination can be bought: no dead end in the demonstration.
+        ->and(array_map(static fn ($pair): bool => $pair->sets !== [], $offer->pairs))->toBe([true, true]);
 
     // On one wheel alone nothing has changed: its axle's sizes, and no pair.
     expect($set->front->rear->hasPermittedSizes())->toBeFalse()

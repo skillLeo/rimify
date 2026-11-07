@@ -274,6 +274,7 @@ describe('the extras', () => {
             ['4 Reifen Bridgestone Potenza', '600,00 €'],
             ['Montage und Auswuchten', '100,00 €'],
             ['Wuchtgewichte Silber', 'ohne Aufpreis'],
+            ['RDKS-Sensoren', '–'],
         ])
         expect(plain.totalCents).toBe(386_000)
         expect(plain.open).toBe(false)

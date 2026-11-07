@@ -161,7 +161,7 @@ const VERDICT_TONE: Record<string, string> = {
                             <div class="bl__main">
                                 <p class="bl__brand">
                                     {{ line.brandName }}
-                                    <span v-if="line.isSet || line.mixed?.wheelSet" class="tag tag--ok bl__set-tag">{{ line.setLabel }}</span>
+                                    <span v-if="line.isSet || line.mixed?.wheelSet" class="tag tag--unknown bl__set-tag">{{ line.setLabel }}</span>
                                 </p>
                                 <p class="bl__title">
                                     <Link v-if="line.slug" :href="line.productHref ?? `/felgen/${line.slug}`" class="bl__link">
@@ -192,7 +192,7 @@ const VERDICT_TONE: Record<string, string> = {
                                 </p>
                                 <p v-else-if="line.mixed" class="bl__mixed">
                                     <template v-if="line.mixed.listed">Kombination Nr.&nbsp;{{ line.mixed.pairing }} aus dem Gutachten</template><template v-else>Mischbereifung</template>
-                                    – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span> auf der
+                                    – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span><template v-if="line.mixed.partnerWheel"> auf <span class="data">{{ line.mixed.partnerWheel }}</span></template> auf der
                                     {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}.
                                     <!-- What holds for the whole set, said once: under its second line. -->
                                     <template v-if="line.mixed.axle === 'REAR'">
@@ -879,6 +879,8 @@ details.bl__auflagen {
 
 .bl__remove,
 .bl__remove-tyre {
+    white-space: normal;
+    text-align: left;
     color: var(--ink2);
 }
 
@@ -1038,7 +1040,7 @@ details.bl__auflagen {
 @media (min-width: 900px) {
     .bl__line {
         /* One column for the amount, line after line: a set's two axles stand as one block. */
-        grid-template-columns: 96px minmax(0, 1fr) minmax(180px, auto) 160px;
+        grid-template-columns: 96px minmax(0, 1fr) 180px 160px;
         grid-template-areas: 'thumb main qty price';
         align-items: start;
         padding: var(--space-5);

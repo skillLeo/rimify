@@ -572,6 +572,16 @@ final readonly class Basket
         return isset($this->rawKeyed($request)[self::entryKey($key)]);
     }
 
+    /** Whether the same two versions lie in the basket as rims alone, beside this Komplettrad on them. */
+    public function rimSetHeldBeside(Request $request, string $key): bool
+    {
+        $entry = $this->rawKeyed($request)[self::entryKey($key)] ?? [];
+        $front = $this->id($entry['wheelConfigId'] ?? null);
+        $rear = $this->id($entry['rearWheelConfigId'] ?? null);
+
+        return $front !== null && $rear !== null && isset($this->rawKeyed($request)[$this->key($front, null, null, $rear)]);
+    }
+
     /** Whether the entry is a set per axle — two lines, two tyres, sold together (D-105, D-335). */
     public function isSetPerAxle(Request $request, string $key): bool
     {
@@ -635,6 +645,23 @@ final readonly class Basket
         }
 
         unset($cart[$key]);
+
+        // A set of two versions keeps its rims as the same set: two on each axle.
+        $rearWheelConfigId = $this->id($line['rearWheelConfigId'] ?? null);
+
+        if ($rearWheelConfigId !== null) {
+            $cart[$this->key($wheelConfigId, null, null, $rearWheelConfigId)] = [
+                'kind' => 'WHEEL',
+                'wheelConfigId' => $wheelConfigId,
+                'rearWheelConfigId' => $rearWheelConfigId,
+                'tyreVariantId' => null,
+                'weightColourId' => null,
+                'quantity' => TyreEligibility::MIXED_PER_AXLE,
+            ];
+            $request->session()->put(self::SESSION_KEY, $cart);
+
+            return true;
+        }
 
         $target = $this->key($wheelConfigId);
         $existing = $cart[$target] ?? [];
@@ -1184,7 +1211,9 @@ final readonly class Basket
 
         foreach (['FRONT' => [$front, $rear, $frontTyre, $rearTyre], 'REAR' => [$rear, $front, $rearTyre, $frontTyre]] as $axle => [$config, $partner, $tyre, $partnerTyre]) {
             $axleLabel = $axle === 'FRONT' ? 'Vorderachse' : 'Hinterachse';
-            $verdict = $verdicts[$axle];
+            // The tyres go across both wheels: a Komplettrad's line says the set's answer, or its partner size would read as unknown to it.
+            // The rims alone: each line its own version's.
+            $verdict = $isKomplettrad && $set !== null ? $set->combined() : $verdicts[$axle];
             $rendered = $this->line($key.':axle:'.$axle, $config, $isKomplettrad, $tyre, $colour, TyreEligibility::MIXED_PER_AXLE, TyreEligibility::MIXED_PER_AXLE + TyreEligibility::MIXED_PER_AXLE, $verdict, $reasons, $colours, mixed: $isKomplettrad, axle: $axleLabel, partner: $partnerTyre === null ? null : self::sizeOf($partnerTyre)->key());
             $minimum = $pair === null ? null : ($axle === 'FRONT' ? $pair->frontMinimum : $pair->rearMinimum);
 

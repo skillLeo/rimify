@@ -386,7 +386,7 @@ export function flowSum(
     /** Wheels of Kompletträder in the basket already: the one answer on the sensors goes for them too (D-411). */
     wheelsInBasket = 0,
 ): FlowSum {
-    const tyres = card.sides.map((side) => `${side.axle === null ? '4 ×' : side.axle === 'vorne und hinten' ? '2 + 2 ×' : `2 × ${side.axle}`} ${side.size}`).join(' · ')
+    const tyres = card.sides.map((side) => side.axle === null ? `4 × ${side.size}` : side.axle === 'vorne und hinten' ? `2 + 2 × ${side.size}` : `${side.axle === 'vorne' ? 'Vorne' : 'Hinten'} 2 × ${side.size}`).join(' · ')
     const lines: BasketLine[] = [
         { label: '4 Felgen', detail: config.fullLabel, price: config.priceForFour ?? '' },
         { label: `4 Reifen ${[card.brands.join(' · '), card.name].filter(Boolean).join(' ')}`, detail: tyres, price: card.set },
@@ -401,6 +401,11 @@ export function flowSum(
 
     if (sensors) {
         lines.push({ label: 'RDKS-Sensoren', detail: `${tpms.line ?? ''}, ${wheelsInBasket > 0 ? 'für alle Räder im Warenkorb' : 'gleich mit eingesetzt'}`, price: tpms.yesTotal ?? '' })
+    }
+
+    // The answer asked for is said here too: an „Ohne“ that left no line read as if nobody had asked.
+    if (rdks === 'nein') {
+        lines.push({ label: 'RDKS-Sensoren', detail: 'Ohne Sensoren', price: '–' })
     }
 
     return {

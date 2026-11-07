@@ -487,7 +487,7 @@ final readonly class TyreEligibility
     /** Rules 6–9 for a tyre on ONE axle of a mixed set: its diameter, its size on that axle, that axle's minimum, sold or not. */
     private function axleTyreRefusal(FitmentVerdict $verdict, string $name, TyreRecord $tyre, int $quantity): ?KomplettradRefusal
     {
-        $wheelDiameter = $verdict->wheel?->diameterIn;
+        $wheelDiameter = $verdict->wheelOn($name)?->diameterIn;
 
         if ($wheelDiameter === null || abs($tyre->diameterIn - $wheelDiameter) > 0.01) {
             return KomplettradRefusal::DiameterMismatch;

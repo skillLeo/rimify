@@ -66,7 +66,7 @@ const page = usePage()
 const offer = computed(() => offerOf(props.config, props.photos))
 const tpms = computed(() => props.options?.tpms ?? null)
 const colours = computed(() => props.options?.colours ?? [])
-const productHref = computed(() => `/felgen/${props.product.slug}?ausfuehrung=${props.product.finishId}&groesse=${props.config.id}`)
+const productHref = computed(() => `/felgen/${props.product.slug}?ausfuehrung=${props.product.finishId}&groesse=${props.config.id}${props.config.rearId ? `&satz=${props.config.id}-${props.config.rearId}` : ''}`)
 const canGoOn = computed(() => props.config.inStock && offer.value.refusal === null)
 
 /* ── The choices ─────────────────────────────────────────────────────────────── */
@@ -241,7 +241,7 @@ watch(() => props.schritt, (now) => {
 })
 
 /* Per version and per car: an answer given for one car is no answer for another. */
-const STORE_KEY = computed(() => `rimify-komplettrad-${props.config.id}-${shared.value.vehicle?.id ?? 'ohne'}`)
+const STORE_KEY = computed(() => `rimify-komplettrad-${props.config.id}-${props.config.rearId ?? ''}-${shared.value.vehicle?.id ?? 'ohne'}`)
 
 function go(to: number): void {
     step.value = allowed(to)
@@ -309,7 +309,7 @@ function forgetChoices(): void {
 const held = computed(() => {
     const card = chosen.value
 
-    return card !== null && props.inBasket.keys.includes(`wheel:${props.config.id}:tyre:${card.frontTyreId}${card.rearTyreId === null ? '' : `:rear:${card.rearTyreId}`}`)
+    return card !== null && props.inBasket.keys.includes(`wheel:${props.config.id}${props.config.rearId ? `:satz:${props.config.rearId}` : ''}:tyre:${card.frontTyreId}${card.rearTyreId === null ? '' : `:rear:${card.rearTyreId}`}`)
 })
 
 function otherTyre(): void {
@@ -355,6 +355,8 @@ const sum = computed(() => (chosen.value ? flowSum(props.config, chosen.value, p
 const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: props.config.id,
+    /* A set of two versions: the rear axle's rim. */
+    rearWheelConfigId: props.config.rearId ?? null,
     tyreVariantId: null as number | null,
     rearTyreVariantId: null as number | null,
     weightColourId: null as number | null,
@@ -380,6 +382,7 @@ function addToBasket(): void {
     }
 
     basket.wheelConfigId = props.config.id
+    basket.rearWheelConfigId = props.config.rearId ?? null
     basket.tyreVariantId = card.frontTyreId
     // Two wheels per axle, each with its tyre (D-335, D-105) — or four alike.
     basket.rearTyreVariantId = card.rearTyreId
@@ -427,7 +430,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
 
             <!-- 1 Felge -->
             <section v-else-if="step === 0" class="kf-step" aria-labelledby="kf-wheel-h">
-                <h2 id="kf-wheel-h" class="h3 kf-step__title" tabindex="-1">Deine Felge</h2>
+                <h2 id="kf-wheel-h" class="h3 kf-step__title" tabindex="-1">{{ config.rearId ? 'Deine Felgen' : 'Deine Felge' }}</h2>
                 <div class="kf-wheel">
                     <div class="well kf-wheel__well">
                         <Picture v-if="product.image" :image="product.image" :alt="`${product.brandName} ${product.modelName} in ${product.finishName}`" sizes="220px" />
@@ -435,13 +438,18 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                     </div>
                     <div class="kf-wheel__facts">
                         <p class="kf-wheel__name" translate="no">{{ product.brandName }} {{ product.modelName }} · {{ product.finishName }}</p>
-                        <p class="kf-wheel__spec" translate="no">{{ config.fullLabel }}</p>
-                        <p v-if="config.priceForFour" class="kf-wheel__spec"><span translate="no">{{ config.priceForFour }}</span> für 4 Felgen</p>
+                        <template v-if="config.setAxles">
+                            <p v-for="axle in config.setAxles" :key="axle" class="kf-wheel__spec kf-wheel__spec--axle" translate="no">{{ axle }}</p>
+                            <p class="kf-wheel__spec" translate="no">{{ config.setBolt }}</p>
+                            <p class="kf-wheel__spec" translate="no">{{ config.setBore }}</p>
+                        </template>
+                        <p v-else class="kf-wheel__spec" translate="no">{{ config.fullLabel }}</p>
+                        <p v-if="config.priceForFour" class="kf-wheel__spec"><span translate="no">{{ config.priceForFour }}</span> für 4 Felgen<template v-if="config.setPriceNote">: <span translate="no">{{ config.setPriceNote }}</span></template></p>
                         <Link class="link kf-link" :href="productHref">Andere Ausführung wählen</Link>
                     </div>
                 </div>
 
-                <FitmentPanel v-if="shared.vehicle" class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.id" :chosen="null" :ask-href="askHref" />
+                <FitmentPanel v-if="shared.vehicle" class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.rearId ? null : config.id" :chosen="null" :ask-href="askHref" />
 
                 <KomplettradRefusal v-if="offer.refusal" :sentence="offer.refusal" :code="offer.refusalCode" />
 
@@ -527,7 +535,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                     </div>
 
                     <div class="kf-listhead">
-                        <p ref="count" class="kf-count" role="status" tabindex="-1">{{ list.length === 1 ? '1 Reifen passt' : `${list.length} Reifen passen` }}</p>
+                        <p ref="count" class="kf-count" role="status" tabindex="-1">{{ mode === 'mixed' ? (list.length === 1 ? '1 Reifensatz passt' : `${list.length} Reifensätze passen`) : list.length === 1 ? '1 Reifen passt' : `${list.length} Reifen passen` }}</p>
                         <label class="kf-sort">
                             <span class="kf-sort__label">Sortieren</span>
                             <select v-model="sort" class="input kf-sort__select">
@@ -646,7 +654,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                 </template>
                 <template v-else-if="chosen && sum">
                     <!-- With the tyre chosen, the answer for that tyre's size: its Eintragung, its Auflagen — as the basket line says them. -->
-                    <FitmentPanel class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.id" :chosen="chosen.answer" :ask-href="askHref" />
+                    <FitmentPanel class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.rearId ? null : config.id" :chosen="chosen.answer" :ask-href="askHref" />
 
                     <div class="kf-sum">
                         <table class="kf-basket">
@@ -777,6 +785,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
 }
 
 .kf-group p {
+    max-width: calc(54 * var(--ch-text));
     margin: 0;
 }
 
@@ -987,6 +996,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
 }
 
 .kf-noset {
+    max-width: calc(54 * var(--ch-text));
     margin: 0;
 }
 
@@ -1127,6 +1137,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
 
 .kf-basket th,
 .kf-basket td {
+    font-variant-numeric: tabular-nums;
     padding: var(--sp-12) 0;
     border-bottom: 1px solid var(--c-line);
     text-align: left;

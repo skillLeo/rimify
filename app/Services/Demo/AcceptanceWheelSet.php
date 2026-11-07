@@ -49,7 +49,7 @@ final class AcceptanceWheelSet
     /** Front and rear size of each tyre line: width, aspect, diameter, load index, speed symbol. All of them the set's tyres. */
     private const LINES = [
         [[225, 40, 18.0, 92, 'Y'], [255, 30, 19.0, 91, 'Y']],
-        [[235, 40, 18.0, 95, 'Y'], [255, 30, 19.0, 91, 'Y']],
+        [[245, 35, 18.0, 92, 'Y'], [255, 30, 19.0, 91, 'Y']],
     ];
 
     public static function present(): bool

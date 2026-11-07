@@ -435,6 +435,12 @@ export interface ProduktSet {
 export interface ProduktConfig {
     /** The car may have this version on one axle, or only beside another: no chip of its own, never four of it. */
     onlyInSet?: boolean
+    /** In the Komplettrad's steps for a set of two versions: the rear axle's; `id` is then the front's. */
+    rearId?: number
+    setAxles?: string[]
+    setBolt?: string
+    setBore?: string
+    setPriceNote?: string
     /** The set it stands in, for a page that answers for this one version. */
     setKey?: string | null
     id: number

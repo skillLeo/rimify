@@ -68,11 +68,12 @@ function stored(page: Page): Promise<unknown> {
     return page.waitForResponse((r) => /\/erfassung\/fahrzeuge\/\d+$/.test(new URL(r.url()).pathname) && r.request().method() === 'PUT' && r.ok(), { timeout: 15_000 })
 }
 
-// His item 8, his own example: one front size, three rear sizes — „combination 1 … 2 … 3“.
+// His item 8, his own example in this paper's size: one front size, three rear sizes — „combination 1 … 2 … 3“. ABE 55255 is for
+// the 19-inch wheel, and a tyre that does not fit its rim is held back at its line (D-418).
 const HIS = [
-    ['225/40 R18', '225/40 R18'],
-    ['225/40 R18', '245/35 R18'],
-    ['225/40 R18', '255/35 R18'],
+    ['225/35 R19', '225/35 R19'],
+    ['225/35 R19', '245/30 R19'],
+    ['225/35 R19', '255/30 R19'],
 ] as const
 
 /** His list, pasted for one car and read: one line a pair. */

@@ -66,6 +66,7 @@ final readonly class WheelSet
                 ? null
                 : self::conditions($front->combinationConditions, $rear->combinationConditions),
             sellsAlone: ($front->isSellable() || $front->sellsAlone) && ($rear->isSellable() || $rear->sellsAlone),
+            rearWheel: $rear->wheel,
         );
     }
 

@@ -9,6 +9,7 @@ use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
+use App\Http\Controllers\Storefront\WarenkorbController;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\CheckResult;
@@ -18,6 +19,7 @@ use App\Models\Fitment;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
+use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -93,8 +95,9 @@ function wsUrl(ApprovalDocument $document, string $path = ''): string
  */
 function wsPaper(array $combinations, ?Vehicle $car = null): array
 {
-    $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Papers)->create();
-    $car ??= Vehicle::factory()->create(['eg_nummer_raw' => WS_K, 'eg_nummer_norm' => WS_K, 'source' => VehicleSource::ManuellGeprueft->value]);
+    // The paper prints index and symbol beside every size, and the car is slow enough to need no table of load at speed (D-285).
+    $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create();
+    $car ??= Vehicle::factory()->create(['eg_nummer_raw' => WS_K, 'eg_nummer_norm' => WS_K, 'source' => VehicleSource::ManuellGeprueft->value, 'axle_load_front_kg' => 1010, 'axle_load_rear_kg' => 1200, 'max_speed_kmh' => 205]);
 
     foreach ($combinations as [$front, $rear]) {
         test()->actingAs(wsAdmin(), 'admin')->postJson(wsUrl($document, '/kombinationen'), ['front_config_id' => $front->id, 'rear_config_id' => $rear->id])->assertOk();
@@ -436,5 +439,175 @@ describe('the RIMIFY-Check', function (): void {
 
         expect($page['props']['answer']['config']['onlyInSet'] ?? null)->toBeTrue()
             ->and($page['props']['answer']['config']['setKey'])->toBe($wheel['front']->id.'-'.$wheel['rear']->id);
+    });
+});
+
+describe('a Komplettrad on a set', function (): void {
+    /** @return array{0: TyreVariant, 1: TyreVariant} the tyres of the demo pair, one maker */
+    function wsTyres(): array
+    {
+        $front = TyreVariant::factory()->size(225, 40, 18.0)->withSpeedSymbol('(Y)')->create(['name' => 'Sport Contact', 'season' => 'sommer', 'load_index' => 92, 'stock_qty' => 8, 'price_cents' => 15_000, 'currency' => 'EUR', 'is_demo' => false]);
+        $rear = TyreVariant::factory()->size(255, 30, 19.0)->withSpeedSymbol('(Y)')->create(['name' => 'Sport Contact', 'season' => 'sommer', 'load_index' => 91, 'stock_qty' => 8, 'price_cents' => 18_000, 'currency' => 'EUR', 'is_demo' => false, 'brand_id' => $front->brand_id]);
+
+        return [$front, $rear];
+    }
+
+    it('offers the pair on the product page with each axle on its own rim\'s price', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        [$front, $rear] = wsTyres();
+
+        $page = $this->withCookies(wsCookies($car))->get('/felgen/'.$wheel['model']->slug)->assertOk()->viewData('page');
+        $set = collect($page['props']['wheelSets'])->firstWhere('frontId', $wheel['front']->id);
+        $offer = $set['komplettrad'];
+        $card = $offer['combinations'][0]['sets'][0];
+
+        expect($offer['refusal'])->toBeNull()
+            ->and($offer['combinations'])->toHaveCount(1)
+            ->and($card['frontTyreId'])->toBe($front->id)
+            ->and($card['rearTyreId'])->toBe($rear->id)
+            // Rim, tyre, mounting and the free colour per wheel: 2 × (229 + 150 + 25) + 2 × (269 + 180 + 25).
+            ->and($card['forFourCents'])->toBe(2 * (22_900 + 15_000 + 2_500) + 2 * (26_900 + 18_000 + 2_500));
+    });
+
+    it('goes in as one line per axle, each rim with its own tyre, and answers wrong tyres with a sentence', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        [$front, $rear] = wsTyres();
+        $post = fn (int $tyre, int $rearTyre) => $this->withCookies(wsCookies($car))->from('/felgen')->post('/warenkorb', [
+            'kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'rearWheelConfigId' => $wheel['rear']->id, 'tyreVariantId' => $tyre, 'rearTyreVariantId' => $rearTyre, 'quantity' => 2,
+        ]);
+
+        // The tyres the wrong way round: an R19 on the 18-inch rim.
+        $post($rear->id, $front->id)->assertSessionHasErrors('tyreVariantId');
+        expect(session(Basket::SESSION_KEY, []))->toBe([]);
+
+        $post($front->id, $rear->id)->assertSessionHasNoErrors();
+
+        $this->withCookies(wsCookies($car))->get('/warenkorb')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('lines', 2)
+                ->where('lines.0.wheelConfigId', $wheel['front']->id)
+                ->where('lines.0.tyre.id', $front->id)
+                ->where('lines.0.setLabel', 'Komplettrad Vorderachse')
+                ->where('lines.1.wheelConfigId', $wheel['rear']->id)
+                ->where('lines.1.tyre.id', $rear->id)
+                ->where('lines.1.setLabel', 'Komplettrad Hinterachse')
+                ->where('lines.1.blockReasons', [])
+                ->where('totals.tpms.quantity', 4));
+    });
+
+    it('says one answer on the steps and on the basket\'s lines: never an Eintragung on one of them for want of the partner size', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        [$front, $rear] = wsTyres();
+        $set = app(WheelSets::class)->find($car->id, $wheel['front']->id, $wheel['rear']->id);
+
+        $this->withCookies(wsCookies($car))->from('/felgen')->post('/warenkorb', [
+            'kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'rearWheelConfigId' => $wheel['rear']->id, 'tyreVariantId' => $front->id, 'rearTyreVariantId' => $rear->id, 'quantity' => 2,
+        ])->assertSessionHasNoErrors();
+
+        $this->withCookies(wsCookies($car))->get('/warenkorb')->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('lines.0.verdict.requiresEntry', $set->combined()->requiresEntry)
+            ->where('lines.1.verdict.requiresEntry', $set->combined()->requiresEntry)
+            ->where('lines.0.verdict.conditionGroups.entry', $set->combined()->requiresEntry)
+            ->where('lines.1.verdict.conditionGroups.entry', $set->combined()->requiresEntry));
+    });
+
+    it('freezes both versions and both tyres in the order, each axle answered across the two wheels', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        [$front, $rear] = wsTyres();
+
+        $this->withCookies(wsCookies($car))->from('/felgen')->post('/warenkorb', [
+            'kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'rearWheelConfigId' => $wheel['rear']->id, 'tyreVariantId' => $front->id, 'rearTyreVariantId' => $rear->id, 'quantity' => 2, 'rdks' => 'nein',
+        ])->assertSessionHasNoErrors();
+
+        $this->withCookies(wsCookies($car))->from('/kasse')->post('/kasse', [
+            'email' => 'satz@beispiel.de', 'phone' => '', 'name' => 'Erika Mustermann', 'street' => 'Hauptstraße',
+            'houseNumber' => '12', 'zip' => '50667', 'city' => 'Köln', 'billingSame' => true, 'shipping' => 'standard', 'rdks' => 'nein',
+        ])->assertSessionHasNoErrors();
+
+        $order = Order::query()->latest('id')->firstOrFail();
+        $lines = OrderLine::query()->where('order_id', $order->id)->orderBy('id')->get();
+        $frozen = OrderLineFitment::query()->whereIn('order_line_id', $lines->pluck('id'))->orderBy('order_line_id')->get();
+
+        expect($lines->pluck('wheel_config_id')->all())->toBe([$wheel['front']->id, $wheel['rear']->id])
+            ->and($lines->pluck('tyre_variant_id')->all())->toBe([$front->id, $rear->id])
+            ->and($lines->pluck('axle')->all())->toBe(['FRONT', 'REAR'])
+            ->and($lines[0]->package_group)->toBe($lines[1]->package_group)
+            ->and($lines[0]->label)->toStartWith('Komplettrad Vorderachse: ')
+            ->and($lines[1]->label)->toContain('255/30')
+            ->and($frozen->pluck('wheel_config_id')->all())->toBe([$wheel['front']->id, $wheel['rear']->id])
+            // Both versions' own answers beside the set's, each its own wheel.
+            ->and((float) $frozen[0]->verdict['versions']['FRONT']['wheel']['diameterIn'])->toBe(18.0)
+            ->and((float) $frozen[1]->verdict['versions']['REAR']['wheel']['diameterIn'])->toBe(19.0)
+            ->and($frozen[0]->fitment_id)->not->toBe($frozen[1]->fitment_id)
+            ->and($frozen[0]->verdict['combination']['front']['tyre']['id'])->toBe($front->id)
+            ->and($frozen[1]->verdict['combination']['rear']['tyre']['id'])->toBe($rear->id);
+    });
+
+    it('leaves the chosen car alone when an add is refused for having been made under another: the way back does not choose that car again', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        $other = Vehicle::factory()->create();
+        $page = '/komplettraeder?groesse='.$wheel['front']->id.'&hinten='.$wheel['rear']->id.'&fahrzeug=0005-Z30-00001&schritt=4';
+
+        $this->withCookies(wsCookies($other))->from($page)->post('/warenkorb', [
+            'kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'rearWheelConfigId' => $wheel['rear']->id, 'quantity' => 2, 'vehicleId' => $car->id,
+        ])->assertSessionHasErrors(['wheelConfigId' => Basket::VEHICLE_CHANGED])
+            ->assertRedirect('/komplettraeder?groesse='.$wheel['front']->id.'&hinten='.$wheel['rear']->id.'&schritt=4');
+    });
+
+    it('says so where taking the tyres out meets the same set of rims already in the basket: it stays one set', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        [$front, $rear] = wsTyres();
+        $rims = ['kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'rearWheelConfigId' => $wheel['rear']->id, 'quantity' => 2];
+
+        $this->withCookies(wsCookies($car))->from('/felgen')->post('/warenkorb', $rims)->assertSessionHasNoErrors();
+        $this->withCookies(wsCookies($car))->from('/felgen')->post('/warenkorb', [...$rims, 'tyreVariantId' => $front->id, 'rearTyreVariantId' => $rear->id])->assertSessionHasNoErrors();
+
+        $key = app(Basket::class)->key($wheel['front']->id, $front->id, $rear->id, $wheel['rear']->id);
+
+        $this->withCookies(wsCookies($car))->from('/warenkorb')->delete('/warenkorb/'.$key.'/reifen')
+            ->assertSessionHas('toast', WarenkorbController::TYRES_OFF_SET_HELD_TOAST);
+    });
+
+    it('asks for the car where the steps of a set are opened without one', function (): void {
+        ['wheel' => $wheel] = wsStaggered();
+
+        $this->get('/komplettraeder?groesse='.$wheel['front']->id.'&hinten='.$wheel['rear']->id)
+            ->assertRedirect('/felgen/'.$wheel['model']->slug)
+            ->assertSessionHas('toast', Basket::SET_NEEDS_CAR);
+    });
+
+    it('keeps the set of rims when its tyres are taken out', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        [$front, $rear] = wsTyres();
+
+        $this->withCookies(wsCookies($car))->from('/felgen')->post('/warenkorb', [
+            'kind' => 'WHEEL', 'wheelConfigId' => $wheel['front']->id, 'rearWheelConfigId' => $wheel['rear']->id, 'tyreVariantId' => $front->id, 'rearTyreVariantId' => $rear->id, 'quantity' => 2,
+        ])->assertSessionHasNoErrors();
+
+        $key = app(Basket::class)->key($wheel['front']->id, $front->id, $rear->id, $wheel['rear']->id);
+
+        $this->withCookies(wsCookies($car))->delete('/warenkorb/'.$key.'/reifen');
+
+        $this->withCookies(wsCookies($car))->get('/warenkorb')->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('lines', 2)
+            ->where('lines.0.isSet', false)
+            ->where('lines.0.wheelConfigId', $wheel['front']->id)
+            ->where('lines.1.wheelConfigId', $wheel['rear']->id)
+            ->where('lines.1.quantity', 2));
+    });
+
+    it('opens its steps on the set, from either version named alone, and never on two versions no paper names together', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        wsTyres();
+        $set = '/komplettraeder?groesse='.$wheel['front']->id.'&hinten='.$wheel['rear']->id;
+
+        $this->withCookies(wsCookies($car))->get($set)->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Komplettrad/Index')
+            ->where('config.id', $wheel['front']->id)
+            ->where('config.rearId', $wheel['rear']->id)
+            ->where('config.komplettrad.refusal', null));
+
+        $this->withCookies(wsCookies($car))->get('/komplettraeder?groesse='.$wheel['rear']->id)->assertRedirect($set);
+        $this->withCookies(wsCookies($car))->get('/komplettraeder?groesse='.$wheel['rear']->id.'&hinten='.$wheel['front']->id)->assertRedirect('/felgen/'.$wheel['model']->slug);
     });
 });

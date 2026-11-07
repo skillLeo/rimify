@@ -34,6 +34,8 @@ class WarenkorbController extends Controller
     public const SET_TYRES_REMOVED_TOAST = 'Die Reifen beider Achsen wurden entfernt – du bestellst jetzt nur die Felgen.';
 
     /** A set per axle added again: it stays the one set, 2 + 2 (D-335) — never „hinzugefügt“ over nothing added. */
+    public const TYRES_OFF_SET_HELD_TOAST = 'Die Reifen sind entfernt. Diese Felgen lagen schon im Warenkorb, es bleibt bei einem Satz aus vier Felgen.';
+
     public const RIM_SET_HELD_TOAST = 'Diese Felgen sind schon im Warenkorb – zwei je Achse, die Anzahl ist fest.';
 
     public const SET_HELD_TOAST = 'Diese Kompletträder sind schon im Warenkorb – zwei je Achse, die Anzahl ist fest.';
@@ -58,7 +60,8 @@ class WarenkorbController extends Controller
         $expected = $request->expectedVehicle();
 
         if ($expected !== null && $expected !== $this->basket->vehicleId($request)) {
-            return back()->withErrors(['wheelConfigId' => Basket::VEHICLE_CHANGED]);
+            // The page's address may name the car it answered for: going back to it would choose that car again, for every window.
+            return redirect()->to(self::withoutCarInAddress(url()->previous()))->withErrors(['wheelConfigId' => Basket::VEHICLE_CHANGED]);
         }
 
         $tyreVariantId = $request->tyreVariantId();
@@ -142,6 +145,22 @@ class WarenkorbController extends Controller
         return back();
     }
 
+    private static function withoutCarInAddress(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ! isset($parts['query'])) {
+            return $url;
+        }
+
+        parse_str($parts['query'], $query);
+        unset($query['fahrzeug']);
+
+        $rest = http_build_query($query);
+
+        return ($parts['path'] ?? '/').($rest === '' ? '' : '?'.$rest);
+    }
+
     public function destroy(Request $request, string $line): RedirectResponse
     {
         $this->basket->remove($request, $line);
@@ -165,9 +184,11 @@ class WarenkorbController extends Controller
     public function destroyTyre(Request $request, string $line): RedirectResponse
     {
         $set = $this->basket->isSetPerAxle($request, $line);
+        // A set is two and two, fixed: where the same rims lie in the basket already, it stays one set, and that is said.
+        $rimsHeld = $this->basket->rimSetHeldBeside($request, $line);
 
         return $this->basket->removeTyre($request, $line)
-            ? back()->with('toast', $set ? self::SET_TYRES_REMOVED_TOAST : self::TYRE_REMOVED_TOAST)
+            ? back()->with('toast', $rimsHeld ? self::TYRES_OFF_SET_HELD_TOAST : ($set ? self::SET_TYRES_REMOVED_TOAST : self::TYRE_REMOVED_TOAST))
             : back();
     }
 

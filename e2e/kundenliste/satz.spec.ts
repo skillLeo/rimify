@@ -49,7 +49,7 @@ test('the product page offers the set, names both axles, prices it two and two, 
     await expect(page.locator('.bmc-tile').first()).toContainText('für 4 Felgen')
     await expect(page.locator('[data-sizes-axle="front"]')).toContainText('R18')
     await expect(page.locator('[data-sizes-axle="rear"]')).toContainText('R19')
-    await expect(page.locator('.fit__pdf')).toHaveCount(0)
+    await expect(page.locator('.fit__issue')).toHaveCount(0)
 })
 
 test('a car that may have four of a version still gets it: the set is not offered beside what it does not concern', { tag: '@kunde-20' }, async ({ page }) => {
@@ -104,9 +104,48 @@ test('the RIMIFY-Check answers for one version and offers the way to the set, ne
 
     await expect(page.locator('.chk__nosale-text')).toContainText('nur zusammen mit einer anderen')
     await expect(page.locator('.chk__go')).toHaveCount(0)
-    await expect(page.locator('.fit__pdf')).toHaveCount(0)
+    await expect(page.locator('.fit__issue')).toHaveCount(0)
     await page.locator('[data-go-set]').click()
     await page.waitForURL(/satz=/)
     await page.waitForLoadState('networkidle')
     await expect(page.locator('[data-wheel-sets] button').first()).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('a Komplettrad on the set: both tyres named per axle, RDKS asked, nothing preselected, one line per axle in the basket', { tag: '@kunde-20' }, async ({ page }) => {
+    await withCar(page, 'f30', PRODUCT)
+
+    await page.locator('.pdp__mode .bmc-tile', { hasText: 'Kompletträder' }).click()
+    await expect(page.locator('.pdp__next')).toHaveText(/Weiter zum Komplettrad/)
+    await page.locator('.pdp__next').click()
+    await page.waitForURL(/hinten=\d+/)
+    await expect(page.locator('#kf-wheel-h')).toHaveText('Deine Felgen')
+    await expect(page.locator('.kf-wheel__spec').first()).toContainText(FRONT)
+    await expect(page.locator('.kf-wheel__spec').nth(1)).toContainText(REAR)
+    await expect(page.locator('[data-sizes-axle="rear"]').first()).toContainText('R19')
+
+    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+    const card = page.locator('[data-tyre-card]').first()
+    await expect(card.locator('.tc__size')).toHaveCount(2)
+    await expect(card.locator('.tc__sizes')).toContainText('R18')
+    await expect(card.locator('.tc__sizes')).toContainText('R19')
+    await card.locator('.tc__pick').click()
+
+    await page.getByRole('button', { name: 'Weiter: Extras' }).click()
+    await expect(page.locator('input[name="kf-rdks"]:checked')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Weiter: Warenkorb' })).toBeDisabled()
+    await page.locator('.kf-swatch').first().click()
+    await page.locator('.kf-opt', { hasText: 'Ohne RDKS-Sensoren' }).click()
+    await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
+
+    await expect(page.locator('.kf-basket__label').first()).toHaveText('4 Felgen')
+    await page.locator('.kf-add').click()
+    await expect(page.locator('.addp')).toBeVisible()
+
+    await open(page, '/warenkorb')
+    const lines = page.locator('.bl__line')
+    await expect(lines).toHaveCount(2)
+    await expect(lines.nth(0)).toContainText('Komplettrad Vorderachse')
+    await expect(lines.nth(0).locator('.bl__size')).toContainText('× 18')
+    await expect(lines.nth(1)).toContainText('Komplettrad Hinterachse')
+    await expect(lines.nth(1).locator('.bl__size')).toContainText('× 19')
 })

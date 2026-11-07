@@ -31,6 +31,14 @@ class KomplettradRequest extends FormRequest
         return is_string($size) && ctype_digit($size) ? (int) $size : 0;
     }
 
+    /** The rear axle's version of a set of two (the client's fourth change); `groesse` is then the front's. 0 for none. */
+    public function rearSize(): int
+    {
+        $size = $this->query('hinten');
+
+        return is_string($size) && ctype_digit($size) ? (int) $size : 0;
+    }
+
     /** The step from 1 to 4, or null. */
     public function step(): ?int
     {
