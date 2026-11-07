@@ -178,6 +178,24 @@ test('the phone\'s filter is a sheet from below with the desktop\'s options and 
     await shot(sheet, 31, info)
 })
 
+test('the phone\'s menu opens „Felgen“ on the desktop\'s groups (his „still not done“, D-413)', { tag: '@kunde-31' }, async ({ page }, info) => {
+    if (!isPhone(info)) {
+        await open(page, `${SHOP}/`)
+        await page.locator('.nav__trigger').click()
+        await expect(page.locator('.mega')).toBeVisible()
+        return
+    }
+
+    await open(page, `${SHOP}/`)
+    await page.getByRole('button', { name: /^Menü/ }).click()
+    const menu = page.locator('.mainmenu')
+    await menu.getByRole('menuitem', { name: 'Felgen', exact: true }).click()
+    await expect(menu.getByText('Nach Marke', { exact: true })).toBeVisible()
+    await expect(menu.getByText('Nach Größe', { exact: true })).toBeVisible()
+    await expect(menu.getByRole('menuitem', { name: /Alle Felgen ansehen/ })).toHaveAttribute('href', '/felgen')
+    await shot(menu, 31, info)
+})
+
 test('on a phone the compare control never covers the badge, and neither is cut, at 320, 360, 390 and 414', { tag: '@kunde-22' }, async ({ page }, info) => {
     const widths = isPhone(info) ? [320, 360, 390, 414] : [1440]
 
@@ -209,7 +227,7 @@ test('on a phone the compare control never covers the badge, and neither is cut,
     await shot(page.locator('main .tile').first(), 22, info)
 })
 
-test('the filter column scrolls to its very end at 1440 and 1920, with a steady gutter, under the header token', { tag: '@kunde-24' }, async ({ page }, info) => {
+test('the wheel over the filter column reaches its end and, from the page\'s end, its start, at 1440 and 1920, with a steady gutter, under the header token', { tag: '@kunde-24' }, async ({ page }, info) => {
     if (isPhone(info)) {
         // Below 1200 px the filters live in the sheet (#31); the bar under the header follows the same token.
         await open(page, `${SHOP}/felgen`)
@@ -222,6 +240,7 @@ test('the filter column scrolls to its very end at 1440 and 1920, with a steady 
         return
     }
 
+    // By hand, as a person does: scripted `scrollTop` could never see what he reported, the wheel over a column at its own 0 (D-412).
     for (const width of [1440, 1920]) {
         await page.setViewportSize({ width, height: 900 })
         await open(page, `${SHOP}/felgen`)
@@ -230,19 +249,35 @@ test('the filter column scrolls to its very end at 1440 and 1920, with a steady 
         expect(await column.evaluate((el) => getComputedStyle(el).scrollbarGutter)).toBe('stable')
         expect(await column.evaluate((el) => getComputedStyle(el).top)).toBe(`${72 + 16}px`)
 
-        await page.evaluate(() => window.scrollTo(0, 300))
-        const pageScroll = await page.evaluate(() => window.scrollY)
-        await column.evaluate((el) => {
-            el.scrollTop = el.scrollHeight
-        })
-        await page.waitForTimeout(300)
+        await page.mouse.move(width - 300, 450)
+        await expect.poll(async () => {
+            for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 400)
+            await page.waitForTimeout(300)
+            return page.evaluate(() => window.scrollY >= document.documentElement.scrollHeight - window.innerHeight - 1)
+        }, { timeout: 30_000 }).toBe(true)
 
+        // The state he describes, or this proves nothing: the column's start above the window, at its own 0.
+        const atEnd = await page.evaluate(() => window.scrollY)
+        const pushed = await box(column)
+        expect(pushed.y, `the column is not pushed up at the page's end at ${width}`).toBeLessThan(72)
+
+        await page.mouse.move(pushed.x + pushed.width / 2, Math.max(pushed.y, 120) + 60)
+        for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -100)
+        await page.waitForTimeout(400)
+
+        expect(await page.evaluate(() => window.scrollY), `the wheel over the column moved nothing at ${width}`).toBeLessThan(atEnd)
         const c = await box(column)
+        expect(c.y, `the column's start is out of reach at ${width}`).toBeGreaterThanOrEqual(72)
         expect(c.y + c.height, `the column runs past the window at ${width}`).toBeLessThanOrEqual(900)
-        const last = column.locator('label, button').last()
-        const l = await box(last)
-        expect(l.y + l.height, `the last option is not reachable at ${width}`).toBeLessThanOrEqual(c.y + c.height + 1)
-        expect(await page.evaluate(() => window.scrollY), 'the page scrolled with the column').toBe(pageScroll)
+
+        // Down inside it again, to its last filter, where it is longer than the window.
+        const over = await column.evaluate((el) => el.scrollHeight - el.clientHeight)
+        await page.mouse.move(c.x + c.width / 2, c.y + 60)
+        for (let i = 0; i < Math.ceil(over / 100) + 2; i++) await page.mouse.wheel(0, 100)
+        await page.waitForTimeout(400)
+        const end = await box(column)
+        const l = await box(column.locator('label, button').last())
+        expect(l.y + l.height, `the last option is not reachable at ${width}`).toBeLessThanOrEqual(end.y + end.height + 1)
     }
 
     await page.setViewportSize({ width: 1440, height: 900 })

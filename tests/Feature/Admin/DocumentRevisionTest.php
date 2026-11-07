@@ -158,9 +158,10 @@ it('replaces the released revision once the new one is released', function (): v
 it('knows every column the database computes in the tables it copies — a new one fails here, not in the admin', function (): void {
     $generated = collect(DB::select(
         "SELECT TABLE_NAME AS t, COLUMN_NAME AS c FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND EXTRA LIKE '%GENERATED%' AND TABLE_NAME IN ('".implode("','", DocumentRevision::TABLES)."')"
-    ))->groupBy('t')->map(static fn ($columns): array => $columns->pluck('c')->sort()->values()->all())->all();
+    ))->groupBy('t')->map(static fn ($columns): array => $columns->pluck('c')->sort()->values()->all())->sortKeys()->all();
 
-    expect($generated)->toBe(DocumentRevision::GENERATED);
+    // By table name: the engines list the tables in orders of their own.
+    expect($generated)->toBe(collect(DocumentRevision::GENERATED)->sortKeys()->all());
 });
 
 it('keeps a demo document\'s revision born demo, with a reference of its own', function (): void {

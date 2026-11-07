@@ -38,7 +38,7 @@ const shown = computed(() => vehicle.value !== null && (mode.value === 'WHITE_BO
 <style scoped>
 .vbar {
     height: var(--vbar-h);
-    background: var(--c-band);
+    background: var(--c-surface);
     border-bottom: 1px solid var(--c-line);
     font-size: var(--fs-small);
     line-height: var(--lh-small);

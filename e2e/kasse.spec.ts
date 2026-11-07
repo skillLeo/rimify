@@ -65,7 +65,7 @@ test.describe('Kasse', () => {
         await expect(page.locator('#ko-mail-err')).toHaveText('Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.');
 
         await page.locator('#ko-mail').focus();
-        await page.keyboard.press('Control+A');
+        await page.keyboard.press('ControlOrMeta+A');
         await page.keyboard.type('probe@example.com');
         await tabTo(page, '#ko-name');
         await page.keyboard.type('Erika Mustermann');

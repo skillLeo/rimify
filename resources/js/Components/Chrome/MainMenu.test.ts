@@ -31,7 +31,17 @@ vi.mock('reka-ui', () => ({
     DropdownMenuContent: defineComponent({
         setup: (_, { slots, attrs }) => () => h('div', attrs, slots.default?.()),
     }),
-    DropdownMenuItem: defineComponent({ setup: (_, { slots }) => () => slots.default?.() }),
+    // As-child hands its slot on; otherwise an item of its own, pressed as reka-ui presses it: `select`, with a closing the handler can prevent.
+    DropdownMenuItem: defineComponent({
+        props: { asChild: Boolean },
+        emits: ['select'],
+        setup: (props, { slots, attrs, emit }) => () =>
+            props.asChild
+                ? slots.default?.()
+                : h('div', { role: 'menuitem', ...attrs, onClick: () => emit('select', new Event('select', { cancelable: true })) }, slots.default?.()),
+    }),
+    DropdownMenuGroup: defineComponent({ setup: (_, { slots }) => () => h('div', { role: 'group' }, slots.default?.()) }),
+    DropdownMenuLabel: defineComponent({ setup: (_, { slots, attrs }) => () => h('p', attrs, slots.default?.()) }),
 }))
 
 const { default: MainMenu } = await import('./MainMenu.vue')
@@ -53,8 +63,16 @@ const HEADER: NavItem[] = [
     item('FAQ', '/faq', 'faq', 'info'),
 ]
 
-function mountMenu(options: { cartCount?: number; routeName?: string; phone?: NavItem[]; header?: NavItem[] } = {}): VueWrapper {
+const MEGA = {
+    brands: [{ label: 'Borbet', href: '/felgen?marke=Borbet' }],
+    sizes: [{ label: '18 Zoll', href: '/felgen?zoll=18', count: 6 }, { label: '19 Zoll', href: '/felgen?zoll=19', count: 1 }],
+    makes: [{ label: 'BMW', href: '/felgen-suchen?marke=BMW' }],
+    popular: [{ label: 'DB8GT2', sub: 'Borbet', href: '/felgen/borbet-db8gt2' }],
+}
+
+function mountMenu(options: { cartCount?: number; routeName?: string; phone?: NavItem[]; header?: NavItem[]; mega?: unknown } = {}): VueWrapper {
     current.props = {
+        mega: options.mega,
         cartCount: options.cartCount ?? 0,
         routeName: options.routeName ?? 'startseite',
         menus: {
@@ -78,6 +96,59 @@ afterEach(() => {
 })
 
 describe('MainMenu', () => {
+    it('opens „Felgen“ in place on the desktop\u2019s groups, and leaves the page where it is', async () => {
+        const wrapper = mountMenu({ mega: MEGA })
+        const felgen = wrapper.get('[role="menuitem"][aria-expanded]')
+
+        expect(felgen.text()).toBe('Felgen')
+        expect(felgen.attributes('aria-expanded')).toBe('false')
+        // No link any more: a press on it never goes to the listing.
+        expect(wrapper.findAll('a').map((a) => a.attributes('href'))).not.toContain('/felgen')
+        expect(wrapper.text()).not.toContain('Nach Marke')
+
+        await felgen.trigger('click')
+
+        expect(felgen.attributes('aria-expanded')).toBe('true')
+        expect(wrapper.findAll('.mainmenu__group').map((g) => g.text())).toEqual(['Nach Marke', 'Nach Größe', 'Nach Fahrzeug', 'Günstigste Modelle'])
+        expect(wrapper.findAll('.mainmenu__row').map((a) => a.attributes('href'))).toEqual([
+            '/felgen',
+            '/felgen?marke=Borbet',
+            '/felgen?zoll=18',
+            '/felgen?zoll=19',
+            '/felgen-suchen?marke=BMW',
+            '/felgen/borbet-db8gt2',
+        ])
+        // As the desktop writes them: one model, several models, and the maker beside a model.
+        expect(wrapper.findAll('.mainmenu__row .small').map((note) => note.text())).toEqual(['6 Modelle', '1 Modell', 'Borbet'])
+        expect(wrapper.findAll('.mainmenu__row').at(0)?.text()).toBe('Alle Felgen ansehen')
+
+        await felgen.trigger('click')
+
+        expect(felgen.attributes('aria-expanded')).toBe('false')
+        expect(wrapper.text()).not.toContain('Nach Marke')
+    })
+
+    it('leaves out a group with nothing in it', async () => {
+        const wrapper = mountMenu({ mega: { ...MEGA, makes: [] } })
+
+        await wrapper.get('[role="menuitem"][aria-expanded]').trigger('click')
+
+        expect(wrapper.findAll('.mainmenu__group').map((g) => g.text())).toEqual(['Nach Marke', 'Nach Größe', 'Günstigste Modelle'])
+    })
+
+    it('keeps „Felgen“ the plain link where the catalogue has nothing to group', () => {
+        const wrapper = mountMenu({ mega: { brands: [], sizes: [], makes: [], popular: [] } })
+
+        expect(wrapper.find('[role="menuitem"][aria-expanded]').exists()).toBe(false)
+        expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toContain('/felgen')
+    })
+
+    it('marks „Felgen“ as the page you are on, closed or open', () => {
+        const wrapper = mountMenu({ mega: MEGA, routeName: 'felgen.index' })
+
+        expect(wrapper.get('[role="menuitem"][aria-expanded]').attributes('aria-current')).toBe('page')
+    })
+
     it('lists the phone destinations in the admin’s order, then what only the header menu has', () => {
         const wrapper = mountMenu()
 
