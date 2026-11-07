@@ -265,8 +265,10 @@ test('#32: the listing\'s head stands on the pale blue band, the results on whit
     expect(await background(results)).not.toBe(BAND);
     expect(await background(closing)).toBe(BAND);
 
-    // Edge to edge, as the home page's bands: a band that stops at the text column is a box.
-    const width = page.viewportSize()?.width ?? 0;
+    // Edge to edge, as the home page's bands: a band that stops at the text column is a box. The page's width, not the
+    // window's: a classic scrollbar takes its 15 px from the window and no band can stand under it (D-428).
+    const width = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(width).toBeGreaterThan(1000);
     for (const band of [head, closing]) {
         const box = await band.boundingBox();
         expect(Math.round(box?.x ?? -1)).toBe(0);

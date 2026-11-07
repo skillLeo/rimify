@@ -9,9 +9,11 @@ use App\Enums\OrderStatus;
 use App\Models\AdminUser;
 use App\Models\Order;
 use App\Models\OrderLine;
+use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Admin\Dashboard\ChartData;
+use App\Services\Admin\Dashboard\Coverage;
 use App\Services\Admin\Dashboard\Period;
 use App\Support\GermanFormat;
 use Carbon\CarbonImmutable;
@@ -203,6 +205,23 @@ describe('on the page', function (): void {
 
         $this->actingAs(chartsAdmin('content-editor'), 'admin')->get('/admin')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('chartKeys', []));
+    });
+
+    it('sizes the matrix skeleton by the matrix it stands in for, also while a cached matrix has not met a new make (D-428)', function (): void {
+        $matrix = app(Coverage::class)->matrix();
+        Vehicle::factory()->create(['make' => 'Neumarke']);
+
+        // The matrix is cached for an hour and does not have the new make yet: the skeleton must not either, or the
+        // widget is one row taller than what replaces it and everything under it moves when it lands (UEB-02).
+        $this->actingAs(chartsAdmin(), 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('coverageRows', count($matrix['rows']))
+                ->loadDeferredProps(fn (AssertableInertia $reload) => $reload->has('charts.coverage.rows', count($matrix['rows']))));
+
+        // Once the matrix is drawn again it has the make, and the skeleton counts it too.
+        Coverage::forget();
+        $this->actingAs(chartsAdmin(), 'admin')->get('/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('coverageRows', count($matrix['rows']) + 1));
     });
 
     it('computes the charts alone when they arrive — not every figure of the page again (D-280)', function (): void {
