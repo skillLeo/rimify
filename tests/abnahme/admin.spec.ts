@@ -147,7 +147,7 @@ test.describe('as the Super-Admin', () => {
         await expect(lines.first(), 'no tyre line on the released ABE 55255').toBeVisible()
 
         const size = String.raw`\d{3}/\d{2} Z?R\d{2}( \d{2,3}[A-Z])?`
-        const line = new RegExp(`^(${size}|vorne ${size} · hinten ${size}|nur (vorne|hinten) ${size})( · \\d+ kW)?$`)
+        const line = new RegExp(`^(${size}|vorne ${size} · hinten ${size}|nur (vorne|hinten) ${size})( · \\d+(–\\d+)? kW)?$`)
 
         for (const text of await lines.allInnerTexts()) {
             expect(text.trim(), 'each line is one combination: one size for both axles, or vorne and hinten').toMatch(line)
