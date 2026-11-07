@@ -71,19 +71,31 @@ const page = usePage()
 const linked = new URL(page.url ?? '/', 'http://localhost').searchParams
 const linkedSize = Number(linked.get('groesse')) || null
 const linkedFinish = props.finishes.find((item) => item.id === Number(linked.get('ausfuehrung')))?.id ?? null
-const openingFinish = props.configs.find((item) => item.id === linkedSize)?.finishId ?? linkedFinish ?? props.finishes[0]?.id ?? 0
-const config = useConfigurator(() => props.configs, openingFinish, linkedSize, () => props.openOn ?? {})
+/* A set named in the link names its colour too. */
+const linkedSetFinish = (props.wheelSets ?? []).find((item) => item.key === linked.get('satz'))?.finishId ?? null
+const openingFinish = props.configs.find((item) => item.id === linkedSize)?.finishId ?? linkedSetFinish ?? linkedFinish ?? props.finishes[0]?.id ?? 0
+const config = useConfigurator(() => props.configs, openingFinish, linkedSize, () => props.openOn ?? {}, () => props.wheelSets ?? [], linked.get('satz'))
 
 const finish = computed(() => props.finishes.find((f) => f.id === config.finishId.value) ?? null)
 const selected = computed(() => config.selected.value)
+/* Two versions, front and rear, bought as one (the client's fourth change): what the price, the answer and the button then speak for. */
+const chosenSet = computed(() => config.selectedSet.value)
+/* What the panel answers for: the set, or the version on screen. */
+const offerNow = computed(() => chosenSet.value ?? selected.value)
 
 /*
  * The version a person chose stays in the address, beside the car (the Gutachten rework §8): a link opens on it and Back
  * finds it. Only then, so the address names a choice and never the page's own opening size. Through Inertia, or Back would
  * restore the address the page opened with (useEtRechner).
  */
-watch([config.finishId, config.configId], ([finishId, configId]) => {
+watch([config.finishId, config.configId, config.setKey], ([finishId, configId, setKey]) => {
     const url = new URL(window.location.href)
+
+    if (setKey === null) {
+        url.searchParams.delete('satz')
+    } else {
+        url.searchParams.set('satz', setKey)
+    }
 
     url.searchParams.set('ausfuehrung', String(finishId))
 
@@ -106,7 +118,7 @@ watch([config.finishId, () => selected.value?.diameterIn], () => {
 })
 
 /* In words true for each: ruled out by a paper, no approval on record, or a paper that names the car with something still open (D-383, D-405, R-17). */
-const STANDING_WORD = { refused: 'nicht freigegeben', none: 'keine Freigabe vorliegend', open: 'noch nicht bestätigt' } as const
+const STANDING_WORD = { refused: 'nicht freigegeben', none: 'keine Freigabe vorliegend', open: 'noch nicht bestätigt', axle: 'nur für eine Achse freigegeben' } as const
 
 const othersLine = computed(() => {
     const count = (standing: string): number => config.others.value.filter((other) => other.standing === standing).length
@@ -118,6 +130,7 @@ const othersLine = computed(() => {
         count('refused') > 0 ? stated(count('refused'), 'nicht freigegeben') : '',
         none > 0 ? `für ${none} ${more}${none === 1 ? 'Ausführung' : 'Ausführungen'} liegt uns für dein Fahrzeug keine Freigabe vor` : '',
         count('open') > 0 ? stated(count('open'), 'noch nicht bestätigt') : '',
+        count('axle') > 0 ? stated(count('axle'), 'nur für eine Achse freigegeben') : '',
     ].filter(Boolean)
     const line = parts.join('; ')
 
@@ -189,6 +202,11 @@ const photoNote = computed(() => {
  */
 const blockedNote = computed(() => {
     const standings = new Set(config.sizes.value.flatMap((s) => s.standings))
+
+    if (standings.has('axle') && standings.size === 1) {
+        return 'Durchgestrichene Größen sind für dein Fahrzeug nur für eine Achse freigegeben.'
+    }
+
     const refused = standings.has('refused')
     const none = standings.has('none')
     const open = standings.has('open')
@@ -263,6 +281,8 @@ const zoomOpen = ref(false)
 const basket = useForm({
     kind: 'WHEEL' as const,
     wheelConfigId: 0,
+    /* A set: the rear axle's version, and `wheelConfigId` the front's. */
+    rearWheelConfigId: null as number | null,
     tyreVariantId: null as number | null,
     quantity: 4,
     /* The car this page answers for: an add under another, chosen meanwhile in another window, is refused rather than made for it. */
@@ -281,15 +301,21 @@ type Mode = 'felgen' | 'komplettrad'
 const kept = useRemember(reactive({ mode: 'felgen' as Mode, amount: 4 }), `produkt-${props.product.modelId}`) as { mode: Mode; amount: number }
 const mode = toRef(kept, 'mode')
 const isSet = computed(() => mode.value === 'komplettrad')
-const setOffer = computed(() => setSummary(selected.value))
+const setOffer = computed(() => setSummary(offerNow.value as ProduktConfig | null))
 const setFrom = computed(() => setOffer.value.from)
 const setFromUnit = computed(() => setOffer.value.fromUnit)
 /* No „mit Montage“ above „Ohne Montage und Auswuchten“: where nobody has named the fee, the figure holds none. */
 const setWords = computed(() => (setOffer.value.priceOpen ? 'Komplettrad' : 'Komplettrad mit Montage'))
-const komplettradHref = computed(() => (selected.value ? `/komplettraeder?groesse=${selected.value.id}` : '/felgen'))
+const komplettradHref = computed(() => {
+    if (chosenSet.value !== null) {
+        return `/komplettraeder?groesse=${chosenSet.value.frontId}&hinten=${chosenSet.value.rearId}`
+    }
+
+    return selected.value ? `/komplettraeder?groesse=${selected.value.id}` : '/felgen'
+})
 
 /* A refusal of the last add belongs to the choice it was made under: another mode or size starts clean (PDP-09). */
-watch([mode, () => selected.value?.id], () => {
+watch([mode, () => selected.value?.id, config.setKey], () => {
     basket.clearErrors()
     offline.value = false
 })
@@ -347,7 +373,7 @@ const amountNote = computed(() => {
  * subject the rim, the size and the ET from the server, the car ticked there by itself.
  */
 const enquiryHref = computed(() => {
-    const current = selected.value
+    const current = offerNow.value
 
     // A version the car may not have is nothing to enquire about.
     return current === null || current.inStock || !current.enquiry || selectedIsOther.value ? null : contactFormHref({ subject: current.enquiry, from: page.url })
@@ -358,7 +384,7 @@ const enquiryHref = computed(() => {
  * never reads as „Verfügbar“ — and never in the colour that means a positive answer.
  */
 const stockLabel = computed(() => {
-    const inStock = selected.value?.inStock === true
+    const inStock = offerNow.value?.inStock === true
 
     if (props.demo === true) {
         return inStock ? 'Beispielsortiment' : 'Beispielsortiment · nicht verfügbar'
@@ -372,13 +398,13 @@ const stockLabel = computed(() => {
  * (D-304). With a car chosen, only one the shop sells for that car counts: a struck size is no way on.
  */
 const unavailableHint = computed(() => {
-    const current = selected.value
+    const current = offerNow.value
 
     if (current === null || current.inStock) {
         return ''
     }
 
-    if (props.configs.some((c) => c.id !== current.id && c.inStock && sellable(c))) {
+    if (props.configs.some((c) => c.id !== selected.value?.id && c.inStock && sellable(c)) || (props.wheelSets ?? []).some((set) => set.key !== chosenSet.value?.key && set.inStock)) {
         return 'Wähl eine andere Größe oder Farbe.'
     }
 
@@ -392,10 +418,12 @@ const stockTone = computed(() => {
         return 'tag--unknown'
     }
 
-    return selected.value?.inStock === true ? 'tag--ok' : 'tag--danger'
+    return offerNow.value?.inStock === true ? 'tag--ok' : 'tag--danger'
 })
 
 /*
+ * The figures under „Felgendetails“: the version on screen, or both of a set, each under its axle's name.
+ *
  * The Mittenlochbohrung is not a property of the rim alone (client, 2026-09-23): the approval
  * states its own bore for the vehicle it covers, and that is the number a customer with a chosen
  * car must read. So the details carry up to two rows, each named after what it is — the document's
@@ -403,30 +431,49 @@ const stockTone = computed(() => {
  *
  * `centreBore` on the verdict is null when the covering documents state no bore (`UNSTATED`) or
  * state different ones (`CONFLICTING`). Neither case borrows the rim's figure: the page says what
- * it knows and leaves the gap open (CLAUDE.md §2).
+ * it knows and leaves the gap open (CLAUDE.md §2). With a car chosen, the rim's own figure is named
+ * as the rim's, so it cannot read as the car's. A load rating shows only where somebody verified one.
  */
-const documentBore = computed(() => selected.value?.verdict?.centreBore ?? null)
-const boreConflict = computed(() => selected.value?.verdict?.centreBoreSource === 'CONFLICTING')
+function specView(config: ProduktConfig, title: string | null) {
+    const kg = (config as RatedConfig).maxLoadKg
+    const grams = config.weightG
 
-/* With a car chosen, the rim's own figure is named as the rim's, so it cannot read as the car's. */
-const rimBoreLabel = computed(() =>
-    selected.value?.verdict ? 'Mittenlochbohrung der Felge' : 'Mittenlochbohrung'
-)
+    return {
+        title,
+        config,
+        documentBore: config.verdict?.centreBore ?? null,
+        boreConflict: config.verdict?.centreBoreSource === 'CONFLICTING',
+        rimBoreLabel: config.verdict ? 'Mittenlochbohrung der Felge' : 'Mittenlochbohrung',
+        maxLoad: typeof kg === 'number' && kg > 0 ? withUnit(decimal(kg, 0), 'kg') : null,
+        weight: grams === null || grams === undefined ? null : withUnit(decimal(grams / 1000, 1), 'kg'),
+    }
+}
 
-/* `H2` — the hump designation the wheel's approval prints, where the record holds one. */
-const hump = computed(() => selected.value?.hump ?? null)
+const specViews = computed(() => {
+    const set = chosenSet.value
+    const versionOf = (id: number): ProduktConfig | undefined => props.configs.find((config) => config.id === id)
 
-/* `620 kg` — shown only for a load rating somebody has verified. */
-const maxLoad = computed(() => {
-    const kg = (selected.value as RatedConfig | null)?.maxLoadKg
+    if (set !== null) {
+        const front = versionOf(set.frontId)
+        const rear = versionOf(set.rearId)
 
-    return typeof kg === 'number' && kg > 0 ? withUnit(decimal(kg, 0), 'kg') : null
+        if (front !== undefined && rear !== undefined) {
+            return [specView(front, 'Vorne'), specView(rear, 'Hinten')]
+        }
+    }
+
+    return selected.value === null ? [] : [specView(selected.value, null)]
 })
 
 const canBuy = computed(() => {
-    const current = selected.value
+    const current = offerNow.value
 
     if (current === null || !current.inStock) {
+        return false
+    }
+
+    // A version sold only within a set, with no set on offer: nothing to add.
+    if (chosenSet.value === null && selected.value?.onlyInSet === true) {
         return false
     }
 
@@ -447,7 +494,7 @@ const canBuy = computed(() => {
  * the rim alone, where it sells (D-289): then only the Komplettrad waits for them.
  */
 const papersFirst = computed(
-    () => selected.value !== null && selected.value.inStock && waitsForPapers(selected.value.verdict) && (isSet.value || selected.value.verdict?.rimSellable !== true)
+    () => offerNow.value !== null && offerNow.value.inStock && waitsForPapers(offerNow.value.verdict) && (isSet.value || offerNow.value.verdict?.rimSellable !== true)
 )
 
 const buyLabel = computed(() => {
@@ -457,7 +504,7 @@ const buyLabel = computed(() => {
 
     // Not available: the tag above says so and the sentence under it the way on, so the button keeps its own words
     // and is only switched off — never „Nicht verfügbar“ said twice.
-    if (selected.value !== null && !selected.value.inStock) {
+    if (offerNow.value !== null && !offerNow.value.inStock) {
         return 'In den Warenkorb'
     }
 
@@ -478,12 +525,16 @@ const shownPrice = computed(() => {
         return setFrom.value === null ? null : `ab ${setFrom.value}`
     }
 
+    if (chosenSet.value !== null) {
+        return chosenSet.value.price
+    }
+
     return amountPrice.value?.text ?? selected.value?.price ?? config.fromPrice.value
 })
 
 const shownNote = computed(() => {
     if (!isSet.value) {
-        return amountNote.value
+        return chosenSet.value !== null ? `${chosenSet.value.priceNote}, ${terms.value.note}` : amountNote.value
     }
 
     return setFrom.value === null ? '' : `${setFromUnit.value}, ${setWords.value}, ${terms.value.note}`
@@ -503,9 +554,10 @@ function addToBasket(): void {
         return
     }
 
-    basket.wheelConfigId = selected.value.id
+    basket.wheelConfigId = chosenSet.value?.frontId ?? selected.value.id
+    basket.rearWheelConfigId = chosenSet.value?.rearId ?? null
     basket.tyreVariantId = null
-    basket.quantity = amount.value
+    basket.quantity = chosenSet.value !== null ? 2 : amount.value
     basket.vehicleId = shared.value.vehicle?.id ?? null
     offline.value = false
     // The address the page has by the time the answer comes: a version picked meanwhile stays in it.
@@ -519,14 +571,6 @@ function addToBasket(): void {
         },
     })
 }
-
-const weight = computed(() => {
-    const grams = selected.value?.weightG
-
-    return grams === null || grams === undefined
-        ? null
-        : withUnit(decimal(grams / 1000, 1), 'kg')
-})
 
 /* The sticky bar appears only once the main button has left the screen. */
 const buyButton = ref<HTMLElement | null>(null)
@@ -696,13 +740,13 @@ claimBottomEdge(() => stickyShown.value)
                                 :key="size.diameter"
                                 class="chip"
                                 :class="{
-                                    'chip--on': selected?.id === size.config.id,
+                                    'chip--on': chosenSet ? chosenSet.diameters.includes(size.diameter) : selected?.id === size.config.id,
                                     'chip--blocked': size.blocked,
                                     'chip--unconfirmed': size.unconfirmed,
                                 }"
                                 type="button"
                                 :disabled="size.blocked"
-                                :aria-pressed="selected?.id === size.config.id"
+                                :aria-pressed="chosenSet ? chosenSet.diameters.includes(size.diameter) : selected?.id === size.config.id"
                                 :title="size.reason ?? undefined"
                                 @click="config.selectSize(size)"
                             >
@@ -715,6 +759,28 @@ claimBottomEdge(() => stickyShown.value)
                         <!-- Shown, not hidden: it tells the customer something true about their car. -->
                         <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
                         <p v-if="unconfirmedNote" class="t-small quiet pdp__note" data-note="unconfirmed">{{ unconfirmedNote }}</p>
+                    </div>
+
+                    <!-- Two versions a paper names for the car, front and rear (the client's fourth change): one thing to buy, two and two, each at its own price. -->
+                    <div v-if="config.setsHere.value.length" class="pdp__block pdp__sets" data-wheel-sets>
+                        <span id="pdp-sets-label" class="label">Satz, vorne und hinten verschieden</span>
+                        <div class="pdp__versions" role="group" aria-labelledby="pdp-sets-label">
+                            <button
+                                v-for="item in config.setsHere.value"
+                                :key="item.key"
+                                class="pdp__version pdp__version--set"
+                                :class="{ 'pdp__version--on': chosenSet?.key === item.key }"
+                                type="button"
+                                :aria-pressed="chosenSet?.key === item.key"
+                                @click="config.selectSet(item)"
+                            >
+                                <span class="pdp__version-spec" translate="no"><span v-for="axle in item.axles" :key="axle" class="pdp__version-axle">{{ axle }}</span><span class="pdp__version-bolt">{{ item.bolt }}</span></span>
+                                <span class="pdp__version-price" translate="no">{{ item.price }}</span>
+                                <span v-if="!item.inStock" class="tag tag--unknown pdp__version-tag">Auf Anfrage</span>
+                                <span class="pdp__version-check" aria-hidden="true"><Icon name="check" :size="20" /></span>
+                            </button>
+                        </div>
+                        <p class="price-note pdp__version-terms">Preis für 4 Felgen, {{ terms.note }}</p>
                     </div>
 
                     <!-- One chip per version of the rim (the Gutachten rework §8, finding 138): width, ET, bolt pattern and
@@ -769,14 +835,19 @@ claimBottomEdge(() => stickyShown.value)
                             </span>
                         </div>
 
-                        <p v-if="selected" class="t-small quiet pdp__chosen">Gewählt: <ValueText :text="selected.fullLabel" /></p>
+                        <p v-if="selected && !chosenSet" class="t-small quiet pdp__chosen">Gewählt: <ValueText :text="selected.fullLabel" /></p>
+                    </div>
+
+                    <div v-if="chosenSet" class="t-small quiet pdp__chosen pdp__chosen--set" data-set-chosen>
+                        <p>Vorne: <ValueText :text="chosenSet.frontFull" /></p>
+                        <p>Hinten: <ValueText :text="chosenSet.rearFull" /></p>
                     </div>
 
                     <FitmentPanel
                         class="pdp__fit"
-                        :verdict="selected?.verdict ?? null"
+                        :verdict="offerNow?.verdict ?? null"
                         :vehicle="shared.vehicle"
-                        :config-id="selected?.id ?? null"
+                        :config-id="chosenSet ? null : (selected?.id ?? null)"
                         :ask-href="askAboutTyres"
                     >
                         <Link v-if="!hasVehicle" :href="carHref" class="btn btn--secondary btn--sm pdp__fit-cta">
@@ -785,7 +856,7 @@ claimBottomEdge(() => stickyShown.value)
                     </FitmentPanel>
 
                     <!-- Nur Felgen or Komplettrad (#18): switching keeps the finish, the size, the amount and the tyre. -->
-                    <BuyModeChoice v-model="mode" class="pdp__block pdp__mode" :rim-price="selected?.price ?? null" :set-from="setFrom" :set-from-unit="setFromUnit" />
+                    <BuyModeChoice v-model="mode" class="pdp__block pdp__mode" :rim-price="offerNow?.price ?? null" :rim-price-unit="chosenSet ? 'für 4 Felgen' : 'pro Felge'" :set-from="setFrom" :set-from-unit="setFromUnit" />
 
                     <!-- Why this size has no Komplettrad, with the way forward; where it has one, its steps are the button below. -->
                     <KomplettradRefusal v-if="isSet && setOffer.refusal" class="pdp__block" :sentence="setOffer.refusal" :code="setOffer.refusalCode" />
@@ -800,7 +871,7 @@ claimBottomEdge(() => stickyShown.value)
                                 <p v-if="isSet && selected?.komplettrad?.priceOpen" class="price-note">Ohne Montage und Auswuchten – der Preis dafür steht noch nicht fest.</p>
                             </div>
                             <AmountStepper
-                                v-if="!isSet && selected && amountPrice"
+                                v-if="!isSet && selected && amountPrice && !chosenSet"
                                 v-model="amount"
                                 class="pdp__amount"
                                 label="Anzahl"
@@ -862,8 +933,8 @@ claimBottomEdge(() => stickyShown.value)
             <!-- What the Gutachten asks of the car, in full: the panel above gives the overview and links here. -->
             <!-- The papers' sentence is the verdict's (#21): not listed here a second time. -->
             <FitmentDetail
-                v-if="selected?.verdict?.detail && shared.vehicle"
-                :detail="selected.verdict.detail"
+                v-if="offerNow?.verdict?.detail && shared.vehicle"
+                :detail="offerNow.verdict.detail"
                 :vehicle-label="shared.vehicle.label"
                 :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]"
             />
@@ -871,75 +942,78 @@ claimBottomEdge(() => stickyShown.value)
             <!-- Felgendetails: the measured values, mono and right-aligned, for the size chosen above. -->
             <section v-if="selected" class="pdp__specs" aria-labelledby="pdp-specs">
                 <h2 id="pdp-specs" class="t-h2">Felgendetails</h2>
-                <!-- Four figures joined by separators: each is marked and unbreakable on its own,
-                     so the line still wraps between them on a phone. -->
-                <p class="t-small quiet pdp__specs-for">Für <ValueText :text="selected.fullLabel" /></p>
+                <template v-for="view in specViews" :key="view.config.id">
+                    <h3 v-if="view.title" class="t-h3 pdp__specs-axle" :data-spec-axle="view.title">{{ view.title }}</h3>
+                    <!-- Four figures joined by separators: each is marked and unbreakable on its own,
+                         so the line still wraps between them on a phone. -->
+                    <p class="t-small quiet pdp__specs-for">Für <ValueText :text="view.config.fullLabel" /></p>
 
-                <!-- Every `dd` is a measured value with its unit, a token or a number. The `dt`
-                     beside it is the German term and stays translatable. -->
-                <dl class="spec">
-                    <div class="spec__row">
-                        <dt>Größe</dt>
-                        <dd class="t-mono" translate="no">{{ selected.sizeLabel }}</dd>
-                    </div>
-                    <div class="spec__row">
-                        <dt>Lochkreis</dt>
-                        <dd class="t-mono" translate="no">{{ selected.boltPattern }}</dd>
-                    </div>
-                    <!-- The bore the document states for the chosen car comes first: it is the
-                         one that decides whether the wheel centres on this hub. -->
-                    <div v-if="documentBore" class="spec__row spec__row--doc">
-                        <dt>
-                            Mittenlochbohrung für dein Fahrzeug
-                            <span class="spec__hint">laut Gutachten</span>
-                        </dt>
-                        <dd class="t-mono" translate="no">{{ documentBore }}</dd>
-                    </div>
-                    <div class="spec__row">
-                        <dt>{{ rimBoreLabel }}</dt>
-                        <dd class="t-mono" translate="no">{{ selected.centreBore }}</dd>
-                    </div>
-                    <div class="spec__row">
-                        <dt>Einpresstiefe (ET)</dt>
-                        <dd class="t-mono" translate="no">{{ withUnit(selected.etMm, 'mm') }}</dd>
-                    </div>
-                    <div v-if="hump" class="spec__row">
-                        <dt>Hump</dt>
-                        <dd class="t-mono" translate="no">{{ hump }}</dd>
-                    </div>
-                    <div v-if="finish" class="spec__row">
-                        <dt>Farbe</dt>
-                        <dd class="t-mono" translate="no">{{ finish.name }}</dd>
-                    </div>
-                    <div v-if="product.spokes > 0" class="spec__row">
-                        <dt>Speichen</dt>
-                        <dd class="t-mono" translate="no">{{ product.spokes }}</dd>
-                    </div>
-                    <div v-if="weight" class="spec__row">
-                        <dt>Gewicht pro Felge</dt>
-                        <dd class="t-mono" translate="no">{{ weight }}</dd>
-                    </div>
-                    <div v-if="maxLoad" class="spec__row">
-                        <dt>Traglast</dt>
-                        <dd class="t-mono" translate="no">{{ maxLoad }}</dd>
-                    </div>
-                    <div v-if="selected.kbaNumber" class="spec__row">
-                        <dt>KBA-Nummer</dt>
-                        <dd class="t-mono" translate="no">{{ selected.kbaNumber }}</dd>
-                    </div>
-                    <div class="spec__row">
-                        <dt>Artikelnummer</dt>
-                        <dd class="t-mono" translate="no">{{ selected.sku }}</dd>
-                    </div>
-                </dl>
+                    <!-- Every `dd` is a measured value with its unit, a token or a number. The `dt`
+                         beside it is the German term and stays translatable. -->
+                    <dl class="spec">
+                        <div class="spec__row">
+                            <dt>Größe</dt>
+                            <dd class="t-mono" translate="no">{{ view.config.sizeLabel }}</dd>
+                        </div>
+                        <div class="spec__row">
+                            <dt>Lochkreis</dt>
+                            <dd class="t-mono" translate="no">{{ view.config.boltPattern }}</dd>
+                        </div>
+                        <!-- The bore the document states for the chosen car comes first: it is the
+                             one that decides whether the wheel centres on this hub. -->
+                        <div v-if="view.documentBore" class="spec__row spec__row--doc">
+                            <dt>
+                                Mittenlochbohrung für dein Fahrzeug
+                                <span class="spec__hint">laut Gutachten</span>
+                            </dt>
+                            <dd class="t-mono" translate="no">{{ view.documentBore }}</dd>
+                        </div>
+                        <div class="spec__row">
+                            <dt>{{ view.rimBoreLabel }}</dt>
+                            <dd class="t-mono" translate="no">{{ view.config.centreBore }}</dd>
+                        </div>
+                        <div class="spec__row">
+                            <dt>Einpresstiefe (ET)</dt>
+                            <dd class="t-mono" translate="no">{{ withUnit(view.config.etMm, 'mm') }}</dd>
+                        </div>
+                        <div v-if="view.config.hump" class="spec__row">
+                            <dt>Hump</dt>
+                            <dd class="t-mono" translate="no">{{ view.config.hump }}</dd>
+                        </div>
+                        <div v-if="finish" class="spec__row">
+                            <dt>Farbe</dt>
+                            <dd class="t-mono" translate="no">{{ finish.name }}</dd>
+                        </div>
+                        <div v-if="product.spokes > 0" class="spec__row">
+                            <dt>Speichen</dt>
+                            <dd class="t-mono" translate="no">{{ product.spokes }}</dd>
+                        </div>
+                        <div v-if="view.weight" class="spec__row">
+                            <dt>Gewicht pro Felge</dt>
+                            <dd class="t-mono" translate="no">{{ view.weight }}</dd>
+                        </div>
+                        <div v-if="view.maxLoad" class="spec__row">
+                            <dt>Traglast</dt>
+                            <dd class="t-mono" translate="no">{{ view.maxLoad }}</dd>
+                        </div>
+                        <div v-if="view.config.kbaNumber" class="spec__row">
+                            <dt>KBA-Nummer</dt>
+                            <dd class="t-mono" translate="no">{{ view.config.kbaNumber }}</dd>
+                        </div>
+                        <div class="spec__row">
+                            <dt>Artikelnummer</dt>
+                            <dd class="t-mono" translate="no">{{ view.config.sku }}</dd>
+                        </div>
+                    </dl>
 
-                <!-- Two covering documents that state different bores for this car: the page names
-                     neither of them, because picking one would be a guess about the figure that
-                     decides whether the wheel centres on the hub (CLAUDE.md §2). -->
-                <p v-if="boreConflict" class="t-small quiet pdp__specs-note">
-                    Für dein Fahrzeug nennen die Gutachten unterschiedliche Mittenlochbohrungen.
-                    Wir zeigen dir deshalb nur das Maß der Felge.
-                </p>
+                    <!-- Two covering documents that state different bores for this car: the page names
+                         neither of them, because picking one would be a guess about the figure that
+                         decides whether the wheel centres on the hub (CLAUDE.md §2). -->
+                    <p v-if="view.boreConflict" class="t-small quiet pdp__specs-note">
+                        Für dein Fahrzeug nennen die Gutachten unterschiedliche Mittenlochbohrungen.
+                        Wir zeigen dir deshalb nur das Maß der Felge.
+                    </p>
+                </template>
 
                 <p v-if="product.descriptionDe" class="t-body pdp__desc">{{ product.descriptionDe }}</p>
             </section>
@@ -1015,7 +1089,7 @@ claimBottomEdge(() => stickyShown.value)
         <div v-if="shownPrice" class="pdp__sticky-price">
             <p class="price" translate="no">{{ shownPrice }}</p>
             <p v-if="isSet" class="price-note">{{ setFromUnit }}, {{ setWords }}</p>
-            <p v-else class="price-note">{{ amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
+            <p v-else class="price-note">{{ chosenSet ? 'für 4 Felgen' : amountPrice ? (amount === 1 ? 'für 1 Felge' : `für ${amount} Felgen`) : 'pro Felge' }}</p>
             <!-- The PAngV line beside every price, the bar's too (the operator's brief of 14.10.2026 §8). -->
             <p class="price-legal pdp__sticky-legal">{{ terms.note }}</p>
         </div>
@@ -1282,13 +1356,6 @@ claimBottomEdge(() => stickyShown.value)
     container-type: inline-size;
 }
 
-/* A narrow chip keeps its spec on one line and the price under it, so a group of chips is one height. */
-@container (width < 480px) {
-    .pdp__version {
-        grid-template-columns: minmax(0, 1fr);
-    }
-}
-
 .pdp__version {
     position: relative;
     display: grid;
@@ -1307,6 +1374,13 @@ claimBottomEdge(() => stickyShown.value)
     text-align: left;
     cursor: pointer;
     transition: border-color var(--d-1) var(--ease-std), background-color var(--d-1) var(--ease-std);
+}
+
+/* A narrow chip keeps its spec on one line and the price under it, so a group of chips is one height. */
+@container (width < 480px) {
+    .pdp__version {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 /* One selected state for every tile on the page: 2 px blue and the check, no tint (D-132). */
@@ -1354,6 +1428,22 @@ button.pdp__version:focus-visible {
 .pdp__version-spec {
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+}
+
+/* A set's chip: its two axles one under the other, whatever the width, and the bolt pattern under them. */
+.pdp__version-axle {
+    display: block;
+}
+
+.pdp__version-bolt {
+    display: block;
+    color: var(--c-ink-2);
+    font-weight: 400;
+}
+
+.pdp__chosen--set {
+    display: grid;
+    gap: var(--sp-4);
 }
 
 .pdp__version-price {

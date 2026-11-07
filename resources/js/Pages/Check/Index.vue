@@ -190,7 +190,7 @@ function revealAnswer(): void {
 
 const config = computed(() => props.answer?.config ?? null)
 /* The rim alone sells while the tyres wait for the car's papers, where the wheel's approval does not (D-289). */
-const sellable = computed(() => config.value?.verdict?.sellable === true || config.value?.verdict?.rimSellable === true)
+const sellable = computed(() => config.value?.onlyInSet !== true && (config.value?.verdict?.sellable === true || config.value?.verdict?.rimSellable === true))
 
 /* Back finds it as it was left: kept in the history entry (useRemember). */
 const kept = useRemember(reactive({ mode: 'felgen' as 'felgen' | 'komplettrad' }), 'check-kauf') as { mode: 'felgen' | 'komplettrad' }
@@ -344,6 +344,13 @@ const productHref = computed(() => {
 /* Why there is nothing to buy, in the verdict's own terms; the panel beside it says the rest. */
 const noSale = computed(() => {
     const verdict = config.value?.verdict ?? null
+
+    // A version for one axle, or only beside another: the answer stands, and four of it are not for sale.
+    if (config.value?.onlyInSet === true) {
+        return config.value.setKey
+            ? 'Für dein Fahrzeug ist diese Ausführung nur zusammen mit einer anderen für die zweite Achse freigegeben, nicht als vier gleiche Felgen. Den Satz findest du auf der Produktseite.'
+            : 'Für dein Fahrzeug ist diese Ausführung nur für eine Achse freigegeben, nicht als vier gleiche Felgen.'
+    }
 
     // The wheel approved and only its tyres open (finding 103, D-286): never „no approval we can show“ about a wheel the
     // document approves, said as the panel says it — and where the tyres wait for the car's papers, the way on is the
@@ -538,7 +545,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                     <FitmentPanel
                         :verdict="config.verdict ?? null"
                         :vehicle="vehicle"
-                        :config-id="config.id"
+                        :config-id="config.onlyInSet ? null : config.id"
                         issue-label="RIMIFY-Check drucken"
                     />
 
@@ -581,6 +588,7 @@ const STATES: { status: VerdictStatus; text: string }[] = [
                                     <button class="btn btn--secondary btn--sm" type="button" @click="focusPapersForm">Werte eintragen</button>
                                 </p>
                                 <p v-else class="chk__nosale-go">
+                                    <Link v-if="config.setKey" :href="`${productHref}&satz=${config.setKey}`" class="btn btn--primary btn--sm" data-go-set>Zum Satz</Link>
                                     <Link href="/felgen" class="btn btn--secondary btn--sm">Passende Felgen für {{ vehicle.short }}</Link>
                                     <Link :href="askHref" class="link">Bei uns nachfragen</Link>
                                 </p>
@@ -783,6 +791,15 @@ const STATES: { status: VerdictStatus; text: string }[] = [
 
 .chk__nosale-text {
     margin: 0;
+}
+
+.chk__nosale > div {
+    min-width: 0;
+}
+
+.chk__nosale-go .btn {
+    max-width: 100%;
+    white-space: normal;
 }
 
 .chk__nosale-go {

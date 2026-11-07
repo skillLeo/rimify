@@ -156,7 +156,7 @@ export const ITEMS = [
     {
         nr: 20,
         wish: 'Unterschiedliche Größen vorne und hinten wählbar',
-        now: 'Erlaubt ein Gutachten vorne und hinten verschiedene Reifengrößen, stehen seine Paare direkt in der Kaufspalte, sobald du „Kompletträder“ wählst. Sie sind mit „Vorderachse“ und „Hinterachse“ beschriftet, und jede Achse wird mit ihrer eigenen Achslast gerechnet. Zum Ausprobieren auf der Vorschau: BMW 3er E90 (HSN 0005, TSN Z90) mit der BORBET DB8GT2 in 19 Zoll. Ein Gutachten, das zur DB8GT2 vorne und hinten verschiedene Felgenbreiten freigibt, liegt uns nicht vor.',
+        now: 'Erlaubt ein Gutachten vorne und hinten verschiedene Ausführungen einer Felge, bietet die Produktseite sie als Satz an: vorne zwei, hinten zwei, jede zu ihrem Preis, und im Warenkorb eine Zeile je Achse. Erlaubt ein Gutachten vorne und hinten verschiedene Reifengrößen, stehen seine Paare direkt in der Kaufspalte, sobald du „Kompletträder“ wählst. Sie sind mit „Vorderachse“ und „Hinterachse“ beschriftet, und jede Achse wird mit ihrer eigenen Achslast gerechnet. Zum Ausprobieren auf der Vorschau: BMW 3er E90 (HSN 0005, TSN Z90) mit der BORBET DB8GT2 in 19 Zoll. Ein Gutachten, das zur DB8GT2 vorne und hinten verschiedene Felgenbreiten freigibt, liegt uns nicht vor.',
         state: 'erledigt',
         commits: ['e204702b'],
     },

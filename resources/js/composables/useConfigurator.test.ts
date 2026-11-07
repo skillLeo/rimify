@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { useConfigurator } from './useConfigurator'
-import type { ConfigVerdict, ProduktConfig } from '../types/pages'
+import { sellable, useConfigurator } from './useConfigurator'
+import type { ConfigVerdict, ProduktConfig, ProduktSet } from '../types/pages'
 
 function verdict(overrides: Partial<ConfigVerdict>): ConfigVerdict {
     return {
@@ -532,5 +532,84 @@ describe('the versions of the chosen diameter', () => {
 
         expect(c.configId.value).toBe(2)
         expect(c.selected.value?.id).toBe(2)
+    })
+})
+
+describe('a set of two versions, front and rear (the client\'s fourth change)', () => {
+    const approved = verdict({})
+    const version = (id: number, diameterIn: number, extra: Partial<ProduktConfig> = {}): ProduktConfig =>
+        ({ id, finishId: 1, diameterIn, widthIn: 8.5, etMm: 35, boltPattern: '5 × 120', centreBore: '72,5 mm', versionLabel: `Breite 8,5J · ET 35 · ${id}`, price: '229,00 €', priceCents: 22_900, inStock: true, verdict: approved, ...extra }) as ProduktConfig
+    const set = (key: string, frontId: number, rearId: number, diameters: number[], finishId = 1): ProduktSet =>
+        ({ key, frontId, rearId, finishId, diameters, label: `Satz ${key}`, bolt: '', frontFull: '', rearFull: '', priceCents: 99_600, price: '996,00 €', priceNote: '', inStock: true, enquiry: null, verdict: approved }) as ProduktSet
+
+    it('opens on the set where the car has only sets, and gives its versions no chip of their own', () => {
+        const front = version(1, 18, { onlyInSet: true })
+        const rear = version(2, 19, { onlyInSet: true })
+        const config = useConfigurator(() => [front, rear], 1, null, () => ({ 1: 1 }), () => [set('1-2', 1, 2, [18, 19])])
+
+        expect(config.selectedSet.value?.key).toBe('1-2')
+        expect(config.versions.value).toEqual([])
+        expect(config.others.value).toEqual([])
+        expect(config.setsHere.value.map((s) => s.key)).toEqual(['1-2'])
+        expect(config.sizes.value.every((size) => !size.blocked)).toBe(true)
+    })
+
+    it('never counts such a version as sellable on its own, whatever its verdict says', () => {
+        expect(sellable(version(1, 18, { onlyInSet: true }))).toBe(false)
+        expect(sellable(version(1, 18))).toBe(true)
+    })
+
+    it('keeps the set when the other diameter of it is pressed: the same thing to buy, the other version in view', () => {
+        const front = version(1, 18, { onlyInSet: true })
+        const rear = version(2, 19, { onlyInSet: true })
+        const config = useConfigurator(() => [front, rear], 1, null, () => ({ 1: 1 }), () => [set('1-2', 1, 2, [18, 19])])
+
+        config.selectSize(config.sizes.value.find((size) => size.diameter === 19)!)
+
+        expect(config.selected.value?.id).toBe(2)
+        expect(config.selectedSet.value?.key).toBe('1-2')
+    })
+
+    it('offers a plain version beside a set, and choosing it leaves the set', () => {
+        const plain = version(1, 18)
+        const rear = version(2, 19, { onlyInSet: true })
+        const config = useConfigurator(() => [plain, rear], 1, null, () => ({ 1: 1 }), () => [set('1-2', 1, 2, [18, 19])])
+
+        expect(config.selectedSet.value).toBeNull()
+        expect(config.versions.value.map((v) => v.id)).toEqual([1])
+
+        config.selectSet(config.setsHere.value[0]!)
+        expect(config.selectedSet.value?.key).toBe('1-2')
+
+        config.selectVariant(config.versions.value[0]!)
+        expect(config.selectedSet.value).toBeNull()
+        expect(config.selected.value?.id).toBe(1)
+    })
+
+    it('finds the same set in another colour, by its versions, and says nothing of a set a colour does not have', () => {
+        const configs = [
+            version(1, 18, { onlyInSet: true }),
+            version(2, 19, { onlyInSet: true }),
+            version(3, 18, { onlyInSet: true, finishId: 2 }),
+            version(4, 19, { onlyInSet: true, finishId: 2 }),
+            version(5, 18, { finishId: 3 }),
+        ]
+        const config = useConfigurator(() => configs, 1, null, () => ({ 1: 1, 2: 3, 3: 5 }), () => [set('1-2', 1, 2, [18, 19]), set('3-4', 3, 4, [18, 19], 2)])
+
+        config.selectSet(config.setsHere.value[0]!)
+        config.selectFinish(2)
+        expect(config.selectedSet.value?.key).toBe('3-4')
+
+        config.selectFinish(3)
+        expect(config.selectedSet.value).toBeNull()
+        expect(config.selected.value?.id).toBe(5)
+    })
+
+    it('strikes a version for one axle that stands in no set, in its own words', () => {
+        const axle = version(1, 18, { onlyInSet: true })
+        const config = useConfigurator(() => [axle], 1)
+
+        expect(config.others.value.map((v) => v.standing)).toEqual(['axle'])
+        expect(config.sizes.value[0]?.blocked).toBe(true)
     })
 })

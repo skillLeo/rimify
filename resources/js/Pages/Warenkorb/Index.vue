@@ -161,7 +161,7 @@ const VERDICT_TONE: Record<string, string> = {
                             <div class="bl__main">
                                 <p class="bl__brand">
                                     {{ line.brandName }}
-                                    <span v-if="line.isSet" class="tag tag--ok bl__set-tag">{{ line.setLabel }}</span>
+                                    <span v-if="line.isSet || line.mixed?.wheelSet" class="tag tag--ok bl__set-tag">{{ line.setLabel }}</span>
                                 </p>
                                 <p class="bl__title">
                                     <Link v-if="line.slug" :href="line.productHref ?? `/felgen/${line.slug}`" class="bl__link">
@@ -182,7 +182,15 @@ const VERDICT_TONE: Record<string, string> = {
 
                                 <!-- Mischbereifung (#20), or one of the Gutachten's combinations (D-335): one axle of a set the
                                      document pairs — two per axle, fixed; removing it removes both axles. -->
-                                <p v-if="line.mixed" class="bl__mixed">
+                                <!-- Two versions of the rim alone: which axle, and the other one, said on both lines. -->
+                                <p v-if="line.mixed?.wheelSet && !line.isSet" class="bl__mixed" data-wheel-set>
+                                    Zusammen mit <span class="data">{{ line.mixed.partnerWheel }}</span> auf der
+                                    {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}.
+                                    <template v-if="line.mixed.axle === 'REAR'">
+                                        Zwei Felgen je Achse, die Anzahl ist fest. Mit „Entfernen“ nimmst du alle vier Felgen aus dem Warenkorb.
+                                    </template>
+                                </p>
+                                <p v-else-if="line.mixed" class="bl__mixed">
                                     <template v-if="line.mixed.listed">Kombination Nr.&nbsp;{{ line.mixed.pairing }} aus dem Gutachten</template><template v-else>Mischbereifung</template>
                                     – zusammen mit <span class="data">{{ line.mixed.partnerSize }}</span> auf der
                                     {{ line.mixed.axle === 'FRONT' ? 'Hinterachse' : 'Vorderachse' }}.
@@ -1029,7 +1037,8 @@ details.bl__auflagen {
 /* From 900px the quantity and price take their own columns beside the article. */
 @media (min-width: 900px) {
     .bl__line {
-        grid-template-columns: 96px minmax(0, 1fr) auto 160px;
+        /* One column for the amount, line after line: a set's two axles stand as one block. */
+        grid-template-columns: 96px minmax(0, 1fr) minmax(180px, auto) 160px;
         grid-template-areas: 'thumb main qty price';
         align-items: start;
         padding: var(--space-5);

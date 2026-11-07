@@ -425,7 +425,9 @@ final readonly class Chrome
                 continue;
             }
 
-            $count += isset($line['quantity']) ? (int) $line['quantity'] : 0;
+            // A set per axle holds its amount per axle: 2 + 2 is four, as the basket counts it.
+            $perAxle = isset($line['rearTyreVariantId']) || isset($line['rearWheelConfigId']);
+            $count += (isset($line['quantity']) ? (int) $line['quantity'] : 0) * ($perAxle ? 2 : 1);
         }
 
         return $count;

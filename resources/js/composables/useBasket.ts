@@ -35,7 +35,17 @@ export function useBasket(): BasketActions {
         )
     }
 
+    /* The next line moves under the pointer as this one goes: a double press removes one line, never two. */
+    let removedAt = Number.NEGATIVE_INFINITY
+
     function remove(key: string): void {
+        const now = Date.now()
+
+        if (now - removedAt < 700) {
+            return
+        }
+
+        removedAt = now
         router.delete(`/warenkorb/${encodeURIComponent(key)}`, { preserveScroll: true })
     }
 

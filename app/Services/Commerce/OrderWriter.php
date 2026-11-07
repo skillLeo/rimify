@@ -6,6 +6,7 @@ namespace App\Services\Commerce;
 
 use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Fitment\Tyres\CombinationVerdict;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
@@ -52,6 +53,7 @@ final class OrderWriter
         private readonly FitmentResolver $resolver,
         private readonly OrderPayments $payments,
         private readonly TyreEligibility $eligibility,
+        private readonly WheelSets $wheelSets,
     ) {}
 
     /**
@@ -90,8 +92,20 @@ final class OrderWriter
             // sold beside a front that passes.
             $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
 
-            if ($mixed !== null) {
-                $answer = $this->combination($verdict, $mixed);
+            // Two versions of the rim: the set must still stand on the car's papers, whichever line is read first. Each line
+            // freezes its own version's verdict, so the order holds both; a Komplettrad's pair is answered across the two.
+            $wheelSet = null;
+
+            if (($mixed['wheelSet'] ?? false) === true) {
+                $wheelSet = $this->wheelSets->find((int) $vehicle->id, (int) $mixed['frontWheelConfigId'], (int) $mixed['rearWheelConfigId']);
+
+                if ($wheelSet === null) {
+                    throw new OrderRefused(Basket::BLOCKED_REFUSAL);
+                }
+            }
+
+            if ($mixed !== null && ($mixed['frontTyreId'] ?? null) !== null) {
+                $answer = $this->combination($wheelSet?->combined() ?? $verdict, $mixed);
 
                 if ($answer === null || ! $answer->isSellable()) {
                     throw new OrderRefused(Basket::BLOCKED_REFUSAL);
@@ -334,7 +348,8 @@ final class OrderWriter
         $wheel = trim($line['brandName'].' '.$line['title']).' · '.$line['subtitle'].' · '.$line['sizeLabel'];
 
         if (($line['isSet'] ?? false) !== true) {
-            return $wheel;
+            // `Felge Vorderachse: …`: two versions, one line per axle.
+            return is_array($line['mixed'] ?? null) ? 'Felge '.$line['mixed']['axleLabel'].': '.$wheel : $wheel;
         }
 
         // The tyre as the workshop fits it: brand, profile and size. Its `label` is the EU label, an array — read as text

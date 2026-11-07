@@ -18,10 +18,14 @@
  * chosen diameter are offered separately (`variants`), so every permitted configuration is
  * reachable: each is one version of the rim, chosen on its own (the Gutachten rework §8), `versions`
  * those the car may have and `others` the rest — never a swap, and never hidden for good.
+ *
+ * Where a paper names two versions for the car, one on each axle (the client's fourth change), they are one thing to buy: a set,
+ * `setsHere` under each diameter it holds. Such a version has no chip of its own and is never four. `selected` stays the version in
+ * view, as the diameter chips show it; `selectedSet` is what is bought.
  */
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue'
-import type { ProduktConfig } from '../types/pages'
+import type { ProduktConfig, ProduktSet } from '../types/pages'
 
 export interface SizeOption {
     readonly diameter: number
@@ -61,7 +65,7 @@ export function tyreUnconfirmed(verdict: ProduktConfig['verdict']): boolean {
  * nothing on record approves it; or a paper names the car and something it needs is still open — then „keine Freigabe“ would say
  * what no record says (D-214). The server's words for the same line: FitmentVerdict::stillOpen().
  */
-export type VersionStanding = 'refused' | 'none' | 'open'
+export type VersionStanding = 'refused' | 'none' | 'open' | 'axle'
 
 const NOTHING_ON_RECORD = ['NO_DOCUMENT', 'ANNEX_MISSING', 'COVERAGE_UNCONFIRMED']
 
@@ -98,12 +102,18 @@ export interface Configurator {
     readonly versions: ComputedRef<VariantOption[]>
     /** The versions the car may not have, or that nothing on record approves. Struck through and never a choice. */
     readonly others: ComputedRef<VariantOption[]>
+    /** The chosen set, or the one the version in view stands in where it is sold only so. */
+    readonly selectedSet: ComputedRef<ProduktSet | null>
+    /** The sets of this colour that hold the diameter in view. */
+    readonly setsHere: ComputedRef<ProduktSet[]>
+    readonly setKey: Ref<string | null>
     readonly fromPrice: ComputedRef<string | null>
     /** The person's version, where the colour on screen does not have it: said on the page, never a swap in silence. */
     readonly colourLacks: Ref<ProduktConfig | null>
     selectFinish(id: number): void
     selectSize(option: SizeOption): void
     selectVariant(option: VariantOption): void
+    selectSet(option: ProduktSet): void
 }
 
 const FALLBACK_REASON = 'Für dein Fahrzeug nicht freigegeben.'
@@ -113,6 +123,10 @@ const FALLBACK_REASON = 'Für dein Fahrzeug nicht freigegeben.'
  * its tyres wait for the car's papers (D-289) is a size to buy, not a struck one.
  */
 export function sellable(config: ProduktConfig): boolean {
+    if (config.onlyInSet === true) {
+        return false
+    }
+
     return config.verdict === null || config.verdict.sellable || config.verdict.rimSellable === true
 }
 
@@ -122,7 +136,7 @@ export function sellable(config: ProduktConfig): boolean {
  * reads `sellable`). Struck through, the size would hide the one question that could free it.
  */
 function answerable(config: ProduktConfig): boolean {
-    return config.verdict !== null && !config.verdict.sellable && config.verdict.status === 'UNKNOWN' && (config.verdict.missing ?? []).length > 0
+    return config.onlyInSet !== true && config.verdict !== null && !config.verdict.sellable && config.verdict.status === 'UNKNOWN' && (config.verdict.missing ?? []).length > 0
 }
 
 function choosable(config: ProduktConfig): boolean {
@@ -135,6 +149,10 @@ function choosable(config: ProduktConfig): boolean {
  * to a refused version beside one that can still be answered.
  */
 function rank(config: ProduktConfig): number {
+    if (config.onlyInSet === true) {
+        return 6
+    }
+
     if (sellable(config)) {
         return config.inStock ? 0 : 1
     }
@@ -169,10 +187,15 @@ export function useConfigurator(
     /** A size named in the link (`groesse`, the RIMIFY-Check's „Alles zur Felge“): opened on where it is of this finish. */
     initialConfigId: number | null = null,
     /** Finish id → the size the page opens on, picked on the server by the rule the cards follow (OpeningSize, M-6). */
-    openOn: () => Record<string, number | null> = () => ({})
+    openOn: () => Record<string, number | null> = () => ({}),
+    /** The sets of two versions the car's papers name. */
+    wheelSets: () => ProduktSet[] = () => [],
+    /** A set named in the link (`satz`). */
+    initialSetKey: string | null = null
 ): Configurator {
     const finishId = ref(firstFinishId)
     const configId = ref<number | null>(initialConfigId)
+    const setKey = ref<string | null>(initialSetKey)
     /* The version the person is after: what they last chose, or what was on screen when they first looked at another colour. */
     let wanted: ProduktConfig | null = null
     const colourLacks = ref<ProduktConfig | null>(null)
@@ -192,6 +215,27 @@ export function useConfigurator(
         return explicit ?? forFinish.value.find((c) => c.id === opening) ?? best(forFinish.value)
     })
 
+    const setsOfFinish = computed(() => wheelSets().filter((set) => set.finishId === finishId.value))
+    const standsInSet = (config: ProduktConfig): boolean => setsOfFinish.value.some((set) => set.frontId === config.id || set.rearId === config.id)
+
+    const selectedSet = computed<ProduktSet | null>(() => {
+        const chosen = setsOfFinish.value.find((set) => set.key === setKey.value)
+
+        if (chosen !== undefined) {
+            return chosen
+        }
+
+        const current = selected.value
+
+        return current?.onlyInSet === true ? (setsOfFinish.value.find((set) => set.frontId === current.id || set.rearId === current.id) ?? null) : null
+    })
+
+    const setsHere = computed(() => {
+        const diameter = selected.value?.diameterIn
+
+        return setsOfFinish.value.filter((set) => diameter !== undefined && set.diameters.includes(diameter))
+    })
+
     const sizes = computed<SizeOption[]>(() => {
         const groups = new Map<number, ProduktConfig[]>()
 
@@ -203,8 +247,9 @@ export function useConfigurator(
 
         return [...groups.entries()]
             .map(([diameter, group]): SizeOption => {
-                const unconfirmed = !group.some(choosable) && group.some((c) => tyreUnconfirmed(c.verdict))
-                const blocked = !group.some(choosable) && !unconfirmed
+                const inSet = setsOfFinish.value.some((set) => set.diameters.includes(diameter))
+                const unconfirmed = !inSet && !group.some(choosable) && group.some((c) => c.onlyInSet !== true && tyreUnconfirmed(c.verdict))
+                const blocked = !inSet && !group.some(choosable) && !unconfirmed
                 const representative = current !== null && group.includes(current) ? current : best(group)!
 
                 return {
@@ -216,7 +261,7 @@ export function useConfigurator(
                     blocked,
                     unconfirmed,
                     reason: blocked || unconfirmed ? reasonFor(group) : null,
-                    standings: blocked ? [...new Set(group.map((c) => standingOf(c.verdict)))] : [],
+                    standings: blocked ? [...new Set(group.map((c) => (c.onlyInSet === true ? 'axle' : standingOf(c.verdict))))] : [],
                 }
             })
             .sort((a, b) => a.diameter - b.diameter)
@@ -229,12 +274,13 @@ export function useConfigurator(
             return []
         }
 
-        const row = forFinish.value.filter((c) => c.diameterIn === current.diameterIn)
+        // A version sold only within a set has no chip of its own: the set's chip stands for it.
+        const row = forFinish.value.filter((c) => c.diameterIn === current.diameterIn && !(c.onlyInSet === true && standsInSet(c)))
 
         return [...row]
             .sort((a, b) => a.widthIn - b.widthIn || a.etMm - b.etMm || a.versionLabel.localeCompare(b.versionLabel, 'de', { numeric: true }))
             .map((config) => {
-                const unconfirmed = !choosable(config) && tyreUnconfirmed(config.verdict)
+                const unconfirmed = config.onlyInSet !== true && !choosable(config) && tyreUnconfirmed(config.verdict)
                 const blocked = !choosable(config) && !unconfirmed
                 // Width, ET and bolt pattern tell versions apart; where they do not, the bore has to.
                 const twin = row.some((other) => other.id !== config.id && other.versionLabel === config.versionLabel)
@@ -244,7 +290,7 @@ export function useConfigurator(
                     label: twin ? `${config.versionLabel} · Mittenloch\u00A0${config.centreBore}` : config.versionLabel,
                     config,
                     blocked,
-                    standing: blocked ? standingOf(config.verdict) : null,
+                    standing: blocked ? (config.onlyInSet === true ? 'axle' : standingOf(config.verdict)) : null,
                     unconfirmed,
                     reason: blocked || unconfirmed ? reasonFor([config]) : null,
                 }
@@ -272,9 +318,28 @@ export function useConfigurator(
         }
 
         wanted ??= selected.value
+
+        const setBefore = selectedSet.value
+        const versionOf = (id: number): ProduktConfig | undefined => configs().find((c) => c.id === id)
+
         finishId.value = id
         configId.value = null
         colourLacks.value = null
+        setKey.value = null
+
+        // A set is two versions: in the other colour, the same two where it has them as a set.
+        if (setBefore !== null) {
+            const front = versionOf(setBefore.frontId)
+            const rear = versionOf(setBefore.rearId)
+            const same = setsOfFinish.value.find((set) => {
+                const f = versionOf(set.frontId)
+                const r = versionOf(set.rearId)
+
+                return f !== undefined && r !== undefined && front !== undefined && rear !== undefined && sameVersion(f, front) && sameVersion(r, rear)
+            })
+
+            setKey.value = same?.key ?? null
+        }
 
         const version = wanted
 
@@ -301,12 +366,38 @@ export function useConfigurator(
         wanted = chosen
         colourLacks.value = null
         configId.value = chosen.id
+        setKey.value = null
     }
 
     function selectSize(option: SizeOption): void {
-        if (!option.blocked) {
-            choose(option.config)
+        if (option.blocked) {
+            return
         }
+
+        if (option.config.onlyInSet !== true) {
+            choose(option.config)
+
+            return
+        }
+
+        // A diameter sold only within a set: the set in view stays where it holds this diameter, or the first that does.
+        const current = selectedSet.value
+        const set = current !== null && current.diameters.includes(option.diameter) ? current : setsOfFinish.value.find((item) => item.diameters.includes(option.diameter))
+
+        wanted = option.config
+        colourLacks.value = null
+        configId.value = option.config.id
+        setKey.value = set?.key ?? null
+    }
+
+    function selectSet(option: ProduktSet): void {
+        const current = selected.value
+        const inView = current !== null && (current.id === option.frontId || current.id === option.rearId) ? current : configs().find((c) => c.id === (current?.diameterIn === option.diameters[1] ? option.rearId : option.frontId))
+
+        colourLacks.value = null
+        wanted = inView ?? wanted
+        configId.value = inView?.id ?? option.frontId
+        setKey.value = option.key
     }
 
     function selectVariant(option: VariantOption): void {
@@ -323,10 +414,14 @@ export function useConfigurator(
         variants,
         versions,
         others,
+        selectedSet,
+        setsHere,
+        setKey,
         fromPrice,
         colourLacks,
         selectFinish,
         selectSize,
         selectVariant,
+        selectSet,
     }
 }

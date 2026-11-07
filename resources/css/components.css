@@ -730,6 +730,14 @@
         cursor: not-allowed;
     }
 
+    /* Only as a set of two versions: said on the card, under its sizes. */
+    .tile__set {
+        margin: 0;
+        font-size: var(--fs-small);
+        line-height: var(--lh-small);
+        color: var(--c-ink-2);
+    }
+
     .tile__brand {
         font-size: var(--fs-small);
         line-height: var(--lh-small);

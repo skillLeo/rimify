@@ -14,7 +14,7 @@ export const ABNAHME = process.env.E2E_ABNAHME_URL ?? 'http://127.0.0.1:8014'
 
 export const ABNAHME_DB = {
     DB_PORT: process.env.E2E_SHOP_DB_PORT ?? '3308',
-    DB_DATABASE: 'rimify_wf_abnahme_e2e',
+    DB_DATABASE: process.env.E2E_ABNAHME_DB_NAME ?? 'rimify_wf_abnahme_e2e',
 }
 
 /** The acceptance set's three demo cars, as an address names them (VehicleKey; the client's #8). */
@@ -22,6 +22,8 @@ export const CARS = {
     e90: { key: '0005-Z90-00001', label: '320i Limousine (Demo)', model: '3er (E90)', tsn: 'Z90' },
     e46: { key: '0005-Z46-00001', label: '320i Limousine (Demo)', model: '3er (E46)', tsn: 'Z46' },
     x3: { key: '0005-Z83-00001', label: '2.0d (Demo)', model: 'X3 (E83)', tsn: 'Z83' },
+    /** 18 inch in front, 19 behind: only as a set (`rimify:demo --satz`, the client's fourth change). */
+    f30: { key: '0005-Z30-00001', label: '316d Limousine (Demo)', model: '3er (F30)', tsn: 'Z30' },
 } as const
 
 export const PRODUCT = '/felgen/borbet-db8gt2'

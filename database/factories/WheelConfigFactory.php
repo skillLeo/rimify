@@ -26,7 +26,9 @@ class WheelConfigFactory extends Factory
         return [
             'wheel_model_id' => WheelModelFactory::new(),
             'wheel_finish_id' => WheelFinishFactory::new(),
-            'diameter_in' => $this->faker->randomElement([17.0, 18.0, 19.0, 20.0]),
+            // One diameter, not a random one: a tyre that does not fit its rim writes no row (D-418), and a test whose rim was drawn
+            // at random passed one run in four. A test that needs another names it.
+            'diameter_in' => 18.0,
             'width_in' => $this->faker->randomElement([7.5, 8.0, 8.5, 9.0, 9.5]),
             'et_mm' => 25 + (self::$etTurn++ % 21),
             'bolt_holes' => 5,

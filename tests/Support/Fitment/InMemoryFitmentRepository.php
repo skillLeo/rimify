@@ -32,6 +32,8 @@ final class InMemoryFitmentRepository implements FitmentRepository
         private array $configsWithAnyDocument = [],
         /** @var array<int, ConflictDecision> keyed by configuration id */
         private array $decisions = [],
+        /** @var list<array{front: int, rear: int}> the sets the papers name */
+        private array $wheelSets = [],
     ) {}
 
     /**
@@ -46,7 +48,7 @@ final class InMemoryFitmentRepository implements FitmentRepository
     /** A person decided how the documents' disagreement about this configuration is read. */
     public function withDecision(int $wheelConfigId, ConflictDecision $decision): self
     {
-        return new self($this->rows, $this->configs, $this->configsWithAnyDocument, [$wheelConfigId => $decision] + $this->decisions);
+        return new self($this->rows, $this->configs, $this->configsWithAnyDocument, [$wheelConfigId => $decision] + $this->decisions, $this->wheelSets);
     }
 
     /**
@@ -64,6 +66,17 @@ final class InMemoryFitmentRepository implements FitmentRepository
         }
 
         return $byConfig;
+    }
+
+    /**
+     * The sets the fixtures name, by configuration id, where either version was asked about.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return list<array{front: int, rear: int}>
+     */
+    public function wheelSetsFor(int $vehicleId, array $wheelConfigIds): array
+    {
+        return array_values(array_filter($this->wheelSets, static fn (array $set): bool => in_array($set['front'], $wheelConfigIds, true) || in_array($set['rear'], $wheelConfigIds, true)));
     }
 
     /**

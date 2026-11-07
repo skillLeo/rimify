@@ -775,7 +775,7 @@ function verdictSentence(line: BasketLine): string {
                                     <div class="ko__line-top">
                                         <span class="ko__line-name">
                                             <span class="tabular">{{ line.quantity }} ×</span>
-                                            {{ line.brandName }} {{ line.title }}
+                                            <template v-if="line.mixed">{{ line.setLabel }} </template>{{ line.brandName }} {{ line.title }}
                                         </span>
                                         <span class="ko__line-price tabular">{{ line.lineTotal }}</span>
                                     </div>

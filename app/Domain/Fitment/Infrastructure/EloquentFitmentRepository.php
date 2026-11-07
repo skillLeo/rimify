@@ -127,6 +127,43 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
     /**
      * @param  list<int>  $wheelConfigIds
+     * @return list<array{front: int, rear: int}>
+     */
+    public function wheelSetsFor(int $vehicleId, array $wheelConfigIds): array
+    {
+        if ($wheelConfigIds === []) {
+            return [];
+        }
+
+        // Every row of the car a customer may be shown: a set stands only on two of them, whichever version was asked about.
+        $configOf = Fitment::query()
+            ->where('fitments.vehicle_id', $vehicleId)
+            ->tap($this->visible(...))
+            ->pluck('fitments.wheel_config_id', 'fitments.id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        if ($configOf === []) {
+            return [];
+        }
+
+        $asked = array_flip($wheelConfigIds);
+        $sets = [];
+
+        foreach (DB::table('fitment_wheel_sets')->whereIn('front_fitment_id', array_keys($configOf))->whereIn('rear_fitment_id', array_keys($configOf))->orderBy('id')->get(['front_fitment_id', 'rear_fitment_id']) as $row) {
+            $front = $configOf[(int) $row->front_fitment_id];
+            $rear = $configOf[(int) $row->rear_fitment_id];
+
+            if (isset($asked[$front]) || isset($asked[$rear])) {
+                $sets[$front.'-'.$rear] = ['front' => $front, 'rear' => $rear];
+            }
+        }
+
+        return array_values($sets);
+    }
+
+    /**
+     * @param  list<int>  $wheelConfigIds
      * @return list<int>
      */
     public function configsWithPublishedDocument(array $wheelConfigIds): array

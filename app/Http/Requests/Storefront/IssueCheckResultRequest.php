@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Storefront;
 
+use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Models\CheckResult;
@@ -56,7 +58,20 @@ class IssueCheckResultRequest extends FormRequest
             if ($validator->errors()->isEmpty() && ! $this->published()) {
                 $validator->errors()->add('wheelConfigId', 'Diese Felge ist gerade nicht im Shop. Wähle bitte eine andere.');
             }
+
+            // Frozen, the answer for one version would say „freigegeben“ for one axle of what only goes on as a set.
+            if ($validator->errors()->isEmpty() && $this->onlyInSet()) {
+                $validator->errors()->add('wheelConfigId', 'Diese Ausführung gibt es für dein Fahrzeug nur zusammen mit einer anderen. Dafür können wir noch keinen RIMIFY-Check ausstellen. Die Antwort steht auf der Produktseite.');
+            }
         });
+    }
+
+    private function onlyInSet(): bool
+    {
+        $vehicleId = (int) $this->vehicleId();
+        $configId = $this->wheelConfigId();
+
+        return app(WheelSets::class)->of($vehicleId, [$configId => app(FitmentResolver::class)->resolve($vehicleId, $configId)])->onlyInSet($configId);
     }
 
     public function vehicleId(): ?int

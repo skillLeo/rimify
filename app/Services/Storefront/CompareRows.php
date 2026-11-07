@@ -6,6 +6,9 @@ namespace App\Services\Storefront;
 
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSet;
+use App\Domain\Fitment\Resolver\WheelSets;
+use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -34,6 +37,7 @@ final readonly class CompareRows
     public function __construct(
         private ProductCards $cards,
         private FitmentResolver $resolver,
+        private WheelSets $wheelSets,
     ) {}
 
     /**
@@ -102,6 +106,27 @@ final readonly class CompareRows
             $fitment = $merged['fitment'];
             $diametersFitting = $merged['diameters'];
             $buy = $this->buyFor($merged['status'], $merged['inStock'], $chooseHref);
+
+            // Versions sold only as a set: the column names the set and its price, and four of one are not on offer here.
+            $offer = $this->wheelSets->of($vehicleId, $this->resolver->resolveMany($vehicleId, array_map(static fn (WheelConfig $config): int => (int) $config->id, $configs)));
+
+            if ($offer->onlyInSets !== []) {
+                $buy = ['kind' => 'choose', 'href' => $chooseHref];
+            }
+
+            $sellsAsFour = array_filter($configs, fn (WheelConfig $config): bool => ! $offer->onlyInSet((int) $config->id) && $this->resolver->resolve($vehicleId, (int) $config->id)->isSellable());
+
+            if ($offer->sets !== [] && $sellsAsFour === []) {
+                $prices = [];
+
+                foreach ($configs as $config) {
+                    $prices[(int) $config->id] = (int) $config->price_cents;
+                }
+
+                $totals = array_map(static fn (WheelSet $set): int => TyreEligibility::MIXED_PER_AXLE * (($prices[$set->frontConfigId] ?? 0) + ($prices[$set->rearConfigId] ?? 0)), $offer->sets);
+                $fitment = [...(array) $fitment, 'onlyAsSet' => true, 'setPrice' => GermanFormat::money(min($totals))];
+                $buy = ['kind' => 'choose', 'href' => '/felgen/'.$slug.'?ausfuehrung='.$finishId.'&satz='.$offer->sets[0]->key().'#groessen', 'set' => true];
+            }
         }
 
         return [

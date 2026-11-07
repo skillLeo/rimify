@@ -343,6 +343,8 @@ export interface FelgenProps {
 }
 
 export interface ProduktProps {
+    /** The sets of two versions the car's papers name. */
+    wheelSets?: ProduktSet[]
     product: {
         modelId: number
         slug: string
@@ -406,7 +408,35 @@ export interface AmountPrice {
     text: string
 }
 
+/** Two versions of the rim a paper names for the car, two wheels on each axle (the client's fourth change). The answer is the weaker of the engine's two. */
+export interface ProduktSet {
+    key: string
+    frontId: number
+    rearId: number
+    finishId: number
+    diameters: number[]
+    /** `Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35`, formatted on the server (R-10). */
+    label: string
+    /** The same, one row per axle. */
+    axles: string[]
+    bolt: string
+    frontFull: string
+    rearFull: string
+    priceCents: number
+    price: string
+    /** `2 × 229,00 € + 2 × 269,00 €`. */
+    priceNote: string
+    inStock: boolean
+    enquiry: string | null
+    verdict: ProduktConfig['verdict']
+    komplettrad?: ProduktConfig['komplettrad']
+}
+
 export interface ProduktConfig {
+    /** The car may have this version on one axle, or only beside another: no chip of its own, never four of it. */
+    onlyInSet?: boolean
+    /** The set it stands in, for a page that answers for this one version. */
+    setKey?: string | null
     id: number
     finishId: number
     sku: string
@@ -471,6 +501,8 @@ export interface FitmentDetailView {
 }
 
 export interface ConfigVerdict {
+    /** A set of two versions: the panel lists the tyre sizes per axle. */
+    sizesPerAxle?: boolean
     status: VerdictStatus
     label: string
     /** The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says. */
@@ -759,7 +791,7 @@ export interface CompareItem extends ProductCardProp {
     /** Merged toward caution across the model's configurations; null without a vehicle. */
     verdict: ConfigVerdict | null
     /** Decided on the server: the page never picks a size. */
-    buy: { kind: 'basket'; configId: number; sizeLabel: string } | { kind: 'choose'; href: string } | { kind: 'none' }
+    buy: { kind: 'basket'; configId: number; sizeLabel: string } | { kind: 'choose'; href: string; set?: boolean } | { kind: 'none' }
 }
 
 export interface VergleichProps {

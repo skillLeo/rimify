@@ -237,7 +237,10 @@ function onCompareLabelClick(event: MouseEvent): void {
             <span v-else-if="sizesPlain" class="tile__sizes num" translate="no">{{ sizesPlain }}<span v-if="versionsText" class="tile__versions" translate="yes"><span class="tile__versions-sep"> · </span>{{ versionsText }}</span></span>
         </span>
 
-        <p class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
+        <p v-if="card.fitment?.onlyAsSet" class="tile__set" data-only-set>Nur als Satz: vorne und hinten verschieden</p>
+        <!-- The set is the only thing on sale here: its price, never one rim's. -->
+        <p v-if="card.fitment?.setPrice" class="tile__price"><template v-if="card.fitment.setPriceFrom">ab </template><ValueText :text="card.fitment.setPrice" whole /> <small>für 4 Felgen</small></p>
+        <p v-else class="tile__price">ab <ValueText :text="perWheel" whole /> <small>pro Felge</small></p>
         <span class="tile__legal">{{ terms.note }}</span>
 
         <template v-if="verdict && verdict.conditions.length">

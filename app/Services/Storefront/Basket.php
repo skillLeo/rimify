@@ -7,6 +7,7 @@ namespace App\Services\Storefront;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\Condition;
@@ -114,6 +115,15 @@ final readonly class Basket
 
     public const TYRES_NOT_PERMITTED = 'Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht. Deshalb verkaufen wir dir die Felge nicht.';
 
+    /** A version a car may have on one axle, or only beside another: never four of it (the client's fourth change). */
+    public const ONLY_IN_SET = 'Für dein Fahrzeug ist diese Ausführung nur zusammen mit einer anderen für die zweite Achse freigegeben, nicht als vier gleiche Felgen.';
+
+    /** Two versions no released paper names together for this car. */
+    public const NOT_A_SET = 'Für dein Fahrzeug liegt uns für diese zwei Ausführungen zusammen keine Freigabe vor.';
+
+    /** A set exists only for a car: without one nothing says which two versions belong together. */
+    public const SET_NEEDS_CAR = 'Für einen Satz aus zwei Ausführungen brauchen wir dein Fahrzeug. Wähle es bitte aus, dann prüfen wir ihn.';
+
     public const WHEEL_SOLD_OUT = 'Diese Größe ist zurzeit nicht verfügbar.';
 
     public const TYRE_GONE = 'Diesen Reifen gibt es nicht mehr.';
@@ -143,6 +153,7 @@ final readonly class Basket
         private TyreEligibility $eligibility,
         private KomplettradPricer $pricer,
         private KomplettradSettings $settings,
+        private WheelSets $wheelSets,
     ) {}
 
     /**
@@ -303,10 +314,11 @@ final readonly class Basket
         ?int $tyreVariantId = null,
         ?int $weightColourId = null,
         ?int $rearTyreVariantId = null,
+        ?int $rearWheelConfigId = null,
     ): void {
         // A rear tyre only beside a front one: Mischbereifung is a Komplettrad (#20).
         $rearTyreVariantId = $tyreVariantId === null ? null : $rearTyreVariantId;
-        $key = $this->key($wheelConfigId, $tyreVariantId, $rearTyreVariantId);
+        $key = $this->key($wheelConfigId, $tyreVariantId, $rearTyreVariantId, $rearWheelConfigId);
         $cart = $this->rawKeyed($request);
         $existing = $cart[$key] ?? [];
 
@@ -324,8 +336,13 @@ final readonly class Basket
             'tyreVariantId' => $tyreVariantId,
             'weightColourId' => $tyreVariantId === null ? null : $colourId,
             // A set per axle is 2 + 2, fixed (D-335): added again, it stays the one set — never 4 + 4.
-            'quantity' => $rearTyreVariantId !== null ? TyreEligibility::MIXED_PER_AXLE : min(99, (int) ($existing['quantity'] ?? 0) + $quantity),
+            'quantity' => $rearTyreVariantId !== null || $rearWheelConfigId !== null ? TyreEligibility::MIXED_PER_AXLE : min(99, (int) ($existing['quantity'] ?? 0) + $quantity),
         ];
+
+        // Two versions of the rim (the client's fourth change): the rear axle's. `wheelConfigId` is then the front axle's.
+        if ($rearWheelConfigId !== null) {
+            $cart[$key]['rearWheelConfigId'] = $rearWheelConfigId;
+        }
 
         // Mischbereifung (D-105): the rear axle's tyre; `quantity` is then the wheels on EACH axle. Every other entry
         // keeps the shape it always had.
@@ -359,9 +376,14 @@ final readonly class Basket
         ?int $weightColourId = null,
         int $quantity = 1,
         ?int $rearTyreVariantId = null,
+        ?int $rearWheelConfigId = null,
     ): ?string {
         if ($rearTyreVariantId !== null && $tyreVariantId === null) {
             return self::TYRE_GONE;
+        }
+
+        if ($rearWheelConfigId !== null) {
+            return $this->setRefusal($request, $wheelConfigId, $rearWheelConfigId, $tyreVariantId, $weightColourId, $rearTyreVariantId);
         }
 
         $config = WheelConfig::query()->with('wheelModel')->find($wheelConfigId);
@@ -374,6 +396,7 @@ final readonly class Basket
 
         $vehicleId = $this->vehicleId($request);
         $verdict = $vehicleId === null ? null : $this->resolver->resolve($vehicleId, $config->id);
+        $live = $verdict;
 
         // The rim alone, where it sells while the tyres wait for the papers (D-289): its own answer.
         if ($verdict !== null && $tyreVariantId === null) {
@@ -384,6 +407,11 @@ final readonly class Basket
 
         if ($refusal !== null) {
             return $refusal;
+        }
+
+        // A version the car may have on one axle, or only beside another, is never four of it.
+        if ($vehicleId !== null && $live !== null && $this->wheelSets->of($vehicleId, [(int) $config->id => $live])->onlyInSet((int) $config->id)) {
+            return self::ONLY_IN_SET;
         }
 
         // Available or not, never a count (his admin items 7 and 10, D-299, D-301): a size marked „nicht verfügbar“ is
@@ -419,6 +447,77 @@ final readonly class Basket
             return $this->eligibility->sentenceFor($verdict, $refusal);
         }
 
+        return self::colourRefusal($weightColourId);
+    }
+
+    /**
+     * Why two versions of a rim may not be added as a set right now: the car's papers name them together, each version's own
+     * answer holds on its axle, both are available, and for a Komplettrad this pair of tyres goes across the two wheels. The
+     * set's gate on the server (R-11), as refusalFor() is the single wheel's.
+     */
+    private function setRefusal(Request $request, int $frontId, int $rearId, ?int $tyreVariantId, ?int $weightColourId, ?int $rearTyreVariantId): ?string
+    {
+        $configs = WheelConfig::query()->with('wheelModel')->whereIn('id', [$frontId, $rearId])->get()->keyBy('id');
+        $front = $configs->get($frontId);
+        $rear = $configs->get($rearId);
+
+        foreach ([$front, $rear] as $config) {
+            $model = $config?->wheelModel;
+
+            if ($model === null || $model->refusedAsDemo() || $model->status !== CatalogueStatus::Published) {
+                return self::WHEEL_GONE;
+            }
+        }
+
+        /** @var WheelConfig $front */
+        /** @var WheelConfig $rear */
+        $vehicleId = $this->vehicleId($request);
+
+        if ($vehicleId === null) {
+            return self::SET_NEEDS_CAR;
+        }
+
+        $set = $this->wheelSets->find($vehicleId, $frontId, $rearId);
+
+        if ($set === null) {
+            return self::NOT_A_SET;
+        }
+
+        foreach ([$set->front, $set->rear] as $verdict) {
+            $refusal = self::verdictRefusal($tyreVariantId === null ? ($verdict->forRimAlone() ?? $verdict) : $verdict);
+
+            if ($refusal !== null) {
+                return $refusal;
+            }
+        }
+
+        if (! $front->available || ! $rear->available) {
+            return self::WHEEL_SOLD_OUT;
+        }
+
+        if ($tyreVariantId === null) {
+            return null;
+        }
+
+        $tyre = TyreVariant::query()->with('brand')->find($tyreVariantId);
+        $rearTyre = $rearTyreVariantId === null ? null : TyreVariant::query()->with('brand')->find($rearTyreVariantId);
+
+        if ($tyre === null || $rearTyre === null) {
+            return self::TYRE_GONE;
+        }
+
+        $combined = $set->combined();
+        $refusal = $this->eligibility->permitsMixed($combined, EloquentTyreCatalogue::toRecord($tyre), EloquentTyreCatalogue::toRecord($rearTyre), TyreEligibility::MIXED_PER_AXLE);
+
+        if ($refusal !== null) {
+            return $this->eligibility->sentenceFor($combined, $refusal);
+        }
+
+        return self::colourRefusal($weightColourId);
+    }
+
+    private static function colourRefusal(?int $weightColourId): ?string
+    {
         if ($weightColourId === null) {
             if (BalanceWeightColour::default() === null) {
                 return self::NO_WEIGHT_COLOUR_REFUSAL;
@@ -448,7 +547,7 @@ final readonly class Basket
 
         if ($quantity < 1) {
             unset($cart[$key]);
-        } elseif ($this->id($cart[$key]['rearTyreVariantId'] ?? null) !== null) {
+        } elseif ($this->id($cart[$key]['rearTyreVariantId'] ?? null) !== null || $this->id($cart[$key]['rearWheelConfigId'] ?? null) !== null) {
             return;
         } else {
             $line = $cart[$key];
@@ -476,7 +575,9 @@ final readonly class Basket
     /** Whether the entry is a set per axle — two lines, two tyres, sold together (D-105, D-335). */
     public function isSetPerAxle(Request $request, string $key): bool
     {
-        return $this->id($this->rawKeyed($request)[self::entryKey($key)]['rearTyreVariantId'] ?? null) !== null;
+        $entry = $this->rawKeyed($request)[self::entryKey($key)] ?? [];
+
+        return $this->id($entry['rearTyreVariantId'] ?? null) !== null || $this->id($entry['rearWheelConfigId'] ?? null) !== null;
     }
 
     public function clear(Request $request): void
@@ -670,7 +771,7 @@ final readonly class Basket
             $mixed = is_array($line['mixed'] ?? null) ? $line['mixed'] : null;
             $listed = $listed || ($mixed['listed'] ?? false) === true;
             $detail = array_values(array_filter([
-                $mixed !== null ? 'Komplettrad, '.$mixed['axleLabel'] : $line['setLabel'],
+                $mixed !== null ? (($line['isSet'] ?? false) === true ? 'Komplettrad, ' : 'Felge, ').$mixed['axleLabel'] : $line['setLabel'],
                 $line['sizeLabel'],
                 $line['subtitle'],
                 // The size in one piece, on a phone too.
@@ -706,9 +807,10 @@ final readonly class Basket
         ];
     }
 
-    public function key(int $wheelConfigId, ?int $tyreVariantId = null, ?int $rearTyreVariantId = null): string
+    public function key(int $wheelConfigId, ?int $tyreVariantId = null, ?int $rearTyreVariantId = null, ?int $rearWheelConfigId = null): string
     {
         return 'wheel:'.$wheelConfigId
+            .($rearWheelConfigId === null ? '' : ':satz:'.$rearWheelConfigId)
             .($tyreVariantId === null ? '' : ':tyre:'.$tyreVariantId)
             .($tyreVariantId === null || $rearTyreVariantId === null ? '' : ':rear:'.$rearTyreVariantId);
     }
@@ -913,6 +1015,13 @@ final readonly class Basket
             $verdict = $verdict->forRimAlone() ?? $verdict;
         }
 
+        // Two versions of the rim, front and rear (the client's fourth change).
+        $rearConfigId = $this->id($line['rearWheelConfigId'] ?? null);
+
+        if ($rearConfigId !== null) {
+            return $this->renderWheelSet($config, $rearConfigId, $tyreId, $rearId, $tyre, $colour, $vehicleId, $colours);
+        }
+
         // A set per axle is 2 + 2 whatever an older session holds (D-335).
         if ($rearId !== null) {
             return $this->renderMixed($config, $tyreId, $rearId, $tyre, $colour, TyreEligibility::MIXED_PER_AXLE, $verdict, $colours);
@@ -922,6 +1031,11 @@ final readonly class Basket
         // basket's „kein Gutachten“ over a wheel its Gutachten approves (R-17).
         $rimRefusal = ! $isSet && $verdict !== null ? self::verdictRefusal($verdict) : null;
         $blockReasons = $isSet ? $this->blockReasons($verdict, $tyre, $colour, $quantity) : ($rimRefusal === null ? [] : [$rimRefusal]);
+
+        // A version only for a set never stands in the basket as four, whenever it got there.
+        if ($vehicleId !== null && $this->wheelSets->of($vehicleId, [(int) $config->id => $this->resolver->resolve($vehicleId, $config->id)])->onlyInSet((int) $config->id)) {
+            $blockReasons[] = self::ONLY_IN_SET;
+        }
 
         return [$this->line($this->key($config->id, $tyreId), $config, $isSet, $tyre, $colour, $quantity, $quantity, $verdict, $blockReasons, $colours)];
     }
@@ -985,6 +1099,113 @@ final readonly class Basket
                 'fixed' => true,
                 'frontTyreId' => $frontId,
                 'rearTyreId' => $rearId,
+                'code' => $offer?->code,
+                'sourcePage' => $offer?->sourcePage,
+                'rulesDe' => $offer?->rulesDe,
+                'minLoadIndex' => $minimum['loadIndex'] ?? null,
+                'minSpeedSymbol' => $minimum['speedSymbol'] ?? null,
+                'axleLoadKg' => $minimum['axleLoadKg'] ?? null,
+                'bindingAxle' => $pair?->bindingAxle(),
+                'minimumSentence' => $pair?->minimumSentenceDe(),
+            ];
+            $lines[] = $rendered;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * A set of two versions: one line per axle, two wheels on each, each line with its own version, its own price and its own
+     * version's answer. Sold together: one reason list for both lines, and checked again on every render.
+     *
+     * @param  Collection<array-key, BalanceWeightColour>  $colours
+     * @return list<array<string, mixed>>
+     */
+    private function renderWheelSet(WheelConfig $front, int $rearConfigId, ?int $frontTyreId, ?int $rearTyreId, ?TyreVariant $frontTyre, ?BalanceWeightColour $colour, ?int $vehicleId, Collection $colours): array
+    {
+        $rear = WheelConfig::query()->with(['wheelModel.brand', 'wheelFinish'])->find($rearConfigId);
+
+        if ($rear === null) {
+            return [];
+        }
+
+        $isKomplettrad = $frontTyreId !== null;
+        $rearTyre = ! $isKomplettrad || $rearTyreId === null ? null : ($rearTyreId === $frontTyreId ? $frontTyre : TyreVariant::query()->with('brand')->find($rearTyreId));
+        $set = $vehicleId === null ? null : $this->wheelSets->find($vehicleId, (int) $front->id, (int) $rear->id);
+        $reasons = [];
+
+        if ($vehicleId === null) {
+            $reasons[] = $isKomplettrad ? self::LINE_VEHICLE_MISSING : self::SET_NEEDS_CAR;
+        } elseif ($set === null) {
+            $reasons[] = self::NOT_A_SET;
+        }
+
+        $verdicts = ['FRONT' => $set?->front, 'REAR' => $set?->rear];
+
+        if (! $isKomplettrad) {
+            foreach ($verdicts as $axle => $verdict) {
+                $verdicts[$axle] = $verdict === null ? null : ($verdict->forRimAlone() ?? $verdict);
+            }
+        }
+
+        foreach ($verdicts as $verdict) {
+            $refusal = $verdict === null ? null : self::verdictRefusal($verdict);
+
+            if ($refusal !== null && ! in_array($refusal, $reasons, true)) {
+                $reasons[] = $refusal;
+            }
+        }
+
+        $offer = null;
+        $pair = null;
+
+        if ($isKomplettrad) {
+            if ($frontTyre === null || $rearTyre === null) {
+                $reasons[] = self::LINE_TYRE_GONE;
+            } elseif ($set !== null) {
+                $combined = $set->combined();
+                $refusal = $this->eligibility->permitsMixed($combined, EloquentTyreCatalogue::toRecord($frontTyre), EloquentTyreCatalogue::toRecord($rearTyre), TyreEligibility::MIXED_PER_AXLE);
+
+                if ($refusal !== null) {
+                    $reasons[] = $this->eligibility->sentenceFor($combined, $refusal);
+                }
+
+                $offer = $this->eligibility->mixedOfferFor($combined, false);
+                $pair = $offer->pairFor(self::sizeOf($frontTyre), self::sizeOf($rearTyre));
+            }
+
+            if ($colour === null) {
+                $reasons[] = self::LINE_COLOUR_GONE;
+            }
+        }
+
+        $key = $this->key((int) $front->id, $frontTyreId, $rearTyreId, (int) $rear->id);
+        $lines = [];
+
+        foreach (['FRONT' => [$front, $rear, $frontTyre, $rearTyre], 'REAR' => [$rear, $front, $rearTyre, $frontTyre]] as $axle => [$config, $partner, $tyre, $partnerTyre]) {
+            $axleLabel = $axle === 'FRONT' ? 'Vorderachse' : 'Hinterachse';
+            $verdict = $verdicts[$axle];
+            $rendered = $this->line($key.':axle:'.$axle, $config, $isKomplettrad, $tyre, $colour, TyreEligibility::MIXED_PER_AXLE, TyreEligibility::MIXED_PER_AXLE + TyreEligibility::MIXED_PER_AXLE, $verdict, $reasons, $colours, mixed: $isKomplettrad, axle: $axleLabel, partner: $partnerTyre === null ? null : self::sizeOf($partnerTyre)->key());
+            $minimum = $pair === null ? null : ($axle === 'FRONT' ? $pair->frontMinimum : $pair->rearMinimum);
+
+            $rendered['setLabel'] = ($isKomplettrad ? 'Komplettrad ' : 'Felge ').$axleLabel;
+            $rendered['mixed'] = [
+                'setKey' => $key,
+                'axle' => $axle,
+                'axleLabel' => $axleLabel,
+                // Two versions: the partner is the other axle's rim; on a Komplettrad its tyre too.
+                'frontWheelConfigId' => (int) $front->id,
+                'rearWheelConfigId' => (int) $rear->id,
+                'wheelSet' => true,
+                'partnerWheel' => GermanFormat::wheelSize((float) $partner->width_in, (float) $partner->diameter_in, (int) $partner->et_mm),
+                'size' => $tyre === null ? null : self::sizeOf($tyre)->labelDe(),
+                'partnerSize' => $partnerTyre === null ? null : self::sizeOf($partnerTyre)->labelDe(),
+                'pairing' => $pair?->pairing->number,
+                'listed' => $offer?->listed === true,
+                'combinationId' => $pair?->pairing->id,
+                'fixed' => true,
+                'frontTyreId' => $frontTyreId,
+                'rearTyreId' => $rearTyreId,
                 'code' => $offer?->code,
                 'sourcePage' => $offer?->sourcePage,
                 'rulesDe' => $offer?->rulesDe,

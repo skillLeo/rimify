@@ -31,6 +31,16 @@ interface FitmentRepository
     public function publishedRowsFor(int $vehicleId, array $wheelConfigIds): array;
 
     /**
+     * The sets a car's rows form where either version is one of these: which configuration a paper names on the front axle and
+     * which on the rear, with the same version front and rear where a paper names that too. Only rows a customer may be
+     * shown, on both sides.
+     *
+     * @param  list<int>  $wheelConfigIds
+     * @return list<array{front: int, rear: int}>
+     */
+    public function wheelSetsFor(int $vehicleId, array $wheelConfigIds): array;
+
+    /**
      * Which of these wheel configurations does ANY published, valid document hold a row for — for
      * any vehicle at all?
      *
