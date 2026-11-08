@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Derivation\ReferenceTables;
 use App\Support\TyreText;
 
 /*
@@ -56,6 +57,6 @@ it('reads every load index with every speed symbol, and every symbol in the orde
         }
     }
 
-    expect(TyreText::SYMBOLS)->toBe(array_column(\App\Domain\Fitment\Derivation\ReferenceTables::SPEED_SYMBOLS, 'symbol'))
+    expect(TyreText::SYMBOLS)->toBe(array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol'))
         ->and(TyreText::read('225/40 R18 280W'))->toBeNull();
 });

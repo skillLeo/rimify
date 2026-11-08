@@ -60,7 +60,7 @@ it('puts no valve on a Komplettrad with RDKS: the sensor carries it', function (
 });
 
 it('puts no valve on a rim sold alone', function (): void {
-    expect(valveRows($this, null, tyre: false))->toBe(["Felge · 4 × ".collect($this->withCookies($this->set->cookies())->get('/warenkorb')->viewData('page')['props']['lines'][0]['components'])->first()['unitPrice']]);
+    expect(valveRows($this, null, tyre: false))->toBe(['Felge · 4 × '.collect($this->withCookies($this->set->cookies())->get('/warenkorb')->viewData('page')['props']['lines'][0]['components'])->first()['unitPrice']]);
 });
 
 it('says nothing of valves while RDKS is unanswered: the order waits for the answer anyway', function (): void {

@@ -8,7 +8,6 @@ use App\Enums\TyreIndexSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
-use App\Models\DocumentCarEntry;
 use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
