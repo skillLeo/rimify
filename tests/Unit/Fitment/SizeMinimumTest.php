@@ -95,6 +95,23 @@ it('freezes each size\'s minimum with the answer, and an answer frozen without t
         ->and(AxleRequirement::fromArray($old)->minimumFor(new TyreSize(245, 45, 18.0)))->toBe(['loadIndex' => 98, 'speedSymbol' => 'Y']);
 });
 
+it('refuses a size whose own minimum cannot be stated, though the axle has one — it fails closed (R-03)', function (): void {
+    $sizes = [new TyreSize(245, 45, 18.0), new TyreSize(255, 40, 18.0)];
+    $axle = new AxleRequirement($sizes, 98, 'Y', MinSource::Document, MinSource::Document, MinSource::Derived, bySize: [
+        ['key' => '245/45/18', 'minLoadIndex' => null, 'minSpeedSymbol' => 'Y', 'minLoadSource' => 'DOCUMENT', 'minSpeedSource' => 'DERIVED'],
+        ['key' => '255/40/18', 'minLoadIndex' => 98, 'minSpeedSymbol' => 'Y', 'minLoadSource' => 'DOCUMENT', 'minSpeedSource' => 'DERIVED'],
+    ]);
+    $live = smVerdict();
+    $verdict = new FitmentVerdict(
+        status: $live->status, vehicle: $live->vehicle, wheel: $live->wheel, document: $live->document,
+        requiresEntry: $live->requiresEntry, entryNoteDe: $live->entryNoteDe, conditions: $live->conditions,
+        front: $axle, rear: $axle, reason: $live->reason, snapshot: $live->snapshot,
+    );
+
+    expect(smEligibility()->permits($verdict, smTyre(loadIndex: 120)))->toBe(KomplettradRefusal::NoUsableMinimum)
+        ->and(smEligibility()->permits($verdict, smTyre(widthMm: 255, aspect: 40, loadIndex: 98)))->toBeNull();
+});
+
 it('names the papers among the sources where they set one size\'s figure and the Gutachten another\'s', function (): void {
     $sizes = [new TyreSize(245, 45, 18.0), new TyreSize(255, 40, 18.0)];
     $axle = new AxleRequirement($sizes, 98, 'Y', MinSource::Document, MinSource::Document, MinSource::Derived, bySize: [
