@@ -79,7 +79,8 @@ it('freezes it with the order, and says it on the order page, in the mail, in th
     $set = $order->lines->firstWhere('kind.value', 'PACKAGE');
     $valves = collect($set->components)->firstWhere('key', 'valves');
 
-    expect($valves)->toBe(['key' => 'valves', 'label' => 'Ventile (inklusive)', 'quantity' => 4, 'unitPriceCents' => 0, 'lineTotalCents' => 0])
+    // By key and value: MySQL's JSON column orders an object's keys its own way.
+    expect($valves)->toEqual(['key' => 'valves', 'label' => 'Ventile (inklusive)', 'quantity' => 4, 'unitPriceCents' => 0, 'lineTotalCents' => 0])
         ->and(collect($set->components)->sum('lineTotalCents'))->toBe($set->line_total_cents);
 
     $page = collect($this->get(OrderLinks::link($order))->assertOk()->viewData('page')['props']['lines']);

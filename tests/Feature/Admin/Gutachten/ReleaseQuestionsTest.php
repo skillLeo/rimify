@@ -75,7 +75,8 @@ describe('§3.1: the count of codes and sizes (D-440)', function (): void {
 
         expect($paper->refresh()->status->value)->toBe('published')
             ->and(AuditLog::query()->where('description', 'approval.released')->sole()->properties['declared'])
-            ->toBe(['completeness' => 'complete', 'missing' => null, 'abnahme' => 'none']);
+            // By key and value: MySQL's JSON column orders an object's keys its own way.
+            ->toEqual(['completeness' => 'complete', 'missing' => null, 'abnahme' => 'none']);
     });
 
     it('no longer compares a count taken earlier with the entry, on the page or at the door', function (): void {
