@@ -21,6 +21,13 @@ use App\Domain\Fitment\Data\TyreSize;
  *
  * A null minimum is not "no minimum": it is the engine saying it could not derive one, and the
  * verdict that carries it is UNKNOWN.
+ *
+ * The axle's minimum is the strictest of its sizes'; `bySize` holds each size's own, worked out from what the documents
+ * print beside THAT size and the axle's own figures, never a neighbour's (D-431). A tyre is checked against its size's
+ * own; the axle's strictest stays the verdict's. Where it is absent — an axle of one size, or an answer frozen before
+ * D-431 — every size reads the axle's strictest, which is never the weaker.
+ *
+ * @phpstan-type SizeMinimum array{key: string, minLoadIndex: int|null, minSpeedSymbol: string|null, minLoadSource: string, minSpeedSource: string}
  */
 final readonly class AxleRequirement
 {
@@ -34,6 +41,7 @@ final readonly class AxleRequirement
      *
      * @param  list<TyreSize>  $sizes
      * @param  array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string}|null  $provenance
+     * @param  list<SizeMinimum>  $bySize
      */
     public function __construct(
         public array $sizes,
@@ -43,6 +51,7 @@ final readonly class AxleRequirement
         ?MinSource $minLoadSource = null,
         ?MinSource $minSpeedSource = null,
         public ?array $provenance = null,
+        public array $bySize = [],
     ) {
         // Defaulted to the combined flag so every existing construction site, and every snapshot
         // written before the halves were recorded, keeps its meaning.
@@ -61,6 +70,47 @@ final readonly class AxleRequirement
     }
 
     /**
+     * The minimum a tyre of this size must carry on this axle (D-431): the size's own where the axle holds one, else the
+     * axle's strictest.
+     *
+     * @return array{loadIndex: int|null, speedSymbol: string|null}
+     */
+    public function minimumFor(TyreSize $size): array
+    {
+        $own = $this->ownMinimum($size);
+
+        return $own === null
+            ? ['loadIndex' => $this->minLoadIndex, 'speedSymbol' => $this->minSpeedSymbol]
+            : ['loadIndex' => $own['minLoadIndex'], 'speedSymbol' => $own['minSpeedSymbol']];
+    }
+
+    /**
+     * Which side of R-06 governed each half of this size's minimum.
+     *
+     * @return array{load: MinSource, speed: MinSource}
+     */
+    public function sourcesFor(TyreSize $size): array
+    {
+        $own = $this->ownMinimum($size);
+
+        return $own === null
+            ? ['load' => $this->minLoadSource, 'speed' => $this->minSpeedSource]
+            : ['load' => MinSource::from($own['minLoadSource']), 'speed' => MinSource::from($own['minSpeedSource'])];
+    }
+
+    /** @return SizeMinimum|null */
+    private function ownMinimum(TyreSize $size): ?array
+    {
+        foreach ($this->bySize as $entry) {
+            if ($entry['key'] === $size->key()) {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @return array{
      *     sizes: list<array{
      *         width: int, aspect: int, diameter: float,
@@ -71,7 +121,8 @@ final readonly class AxleRequirement
      *     minSource: string,
      *     minLoadSource: string,
      *     minSpeedSource: string,
-     *     provenance?: array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string}
+     *     provenance?: array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string},
+     *     bySize?: list<SizeMinimum>
      * }
      */
     public function toArray(): array
@@ -85,6 +136,8 @@ final readonly class AxleRequirement
             'minSpeedSource' => $this->minSpeedSource->value,
             // Frozen with the answer where the customer's figures took part; absent, every figure was ours (D-242).
             ...($this->provenance === null ? [] : ['provenance' => $this->provenance]),
+            // Each size's own minimum, frozen with the answer where the axle holds more than one (D-431).
+            ...($this->bySize === [] ? [] : ['bySize' => $this->bySize]),
         ];
     }
 
@@ -99,7 +152,8 @@ final readonly class AxleRequirement
      *     minSource: string,
      *     minLoadSource?: string,
      *     minSpeedSource?: string,
-     *     provenance?: array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string}
+     *     provenance?: array{axleLoadFrom: string|null, topSpeedFrom: string|null, papersLoadIndex?: int, papersSpeedSymbol?: string},
+     *     bySize?: list<SizeMinimum>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -113,6 +167,8 @@ final readonly class AxleRequirement
             minLoadSource: MinSource::from($data['minLoadSource'] ?? $data['minSource']),
             minSpeedSource: MinSource::from($data['minSpeedSource'] ?? $data['minSource']),
             provenance: $data['provenance'] ?? null,
+            // Frozen before D-431: none — every size reads the axle's strictest.
+            bySize: $data['bySize'] ?? [],
         );
     }
 

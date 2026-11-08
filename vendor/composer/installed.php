@@ -3,7 +3,7 @@
         'name' => 'skillleo/rimify',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '9339556a56a46bb0fe98c59c9da96a7f9deb5e6f',
+        'reference' => 'e0f3a4d668d8ac190694788706c193997f2485fa',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -882,7 +882,7 @@
         'skillleo/rimify' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '9339556a56a46bb0fe98c59c9da96a7f9deb5e6f',
+            'reference' => 'e0f3a4d668d8ac190694788706c193997f2485fa',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

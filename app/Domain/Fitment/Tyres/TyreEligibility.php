@@ -49,6 +49,16 @@ final readonly class TyreEligibility
 
     private const MINIMUM_LEAD = 'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex %d und Geschwindigkeitsindex %s.';
 
+    /* Sizes whose papers print different figures, each with its own (D-431). */
+    private const MINIMUM_LEAD_BY_SIZE = 'Für dein Fahrzeug brauchen die Reifen je nach Größe mindestens: %s.';
+
+    private const MINIMUM_ONE_SIZE = '%s Tragfähigkeitsindex %d und Geschwindigkeitsindex %s';
+
+    private const MINIMUM_SOURCES_BY_SIZE = 'Die Mindestwerte stehen für jede Größe so im Gutachten oder ergeben sich aus den Daten deines Fahrzeugs.';
+
+    /* The same, where for one of the sizes the papers' own index governed (15.1, 15.2 — D-242). */
+    private const MINIMUM_SOURCES_BY_SIZE_PAPERS = 'Die Mindestwerte stehen für jede Größe so im Gutachten, nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2) oder ergeben sich aus den Daten deines Fahrzeugs.';
+
     private const MINIMUM_BOTH_DERIVED = 'Diese Mindestwerte ergeben sich aus Achslast und Höchstgeschwindigkeit deines Fahrzeugs.';
 
     private const MINIMUM_BOTH_DOCUMENT = 'Diese Mindestwerte stehen so im Gutachten.';
@@ -335,6 +345,42 @@ final readonly class TyreEligibility
             return null;
         }
 
+        // Each size its own minimum (D-431): where the sizes four identical tyres may have differ in it, each is named.
+        $bySize = [];
+
+        foreach ($this->sameSizes($verdict) as $size) {
+            $own = $this->governingMinimum($verdict, $size);
+
+            if ($own !== null) {
+                $bySize[] = ['size' => $size, 'minimum' => $own];
+            }
+        }
+
+        $figures = array_unique(array_map(static fn (array $e): string => $e['minimum']['loadIndex'].'|'.$e['minimum']['speedSymbol'], $bySize));
+
+        if (count($figures) > 1) {
+            $tails = array_unique(array_map(fn (array $e): string => $this->minimumTail($e['minimum']), $bySize));
+
+            return sprintf(self::MINIMUM_LEAD_BY_SIZE, implode('; ', array_map(
+                static fn (array $e): string => sprintf(self::MINIMUM_ONE_SIZE, $e['size']->labelDe(), $e['minimum']['loadIndex'], $e['minimum']['speedSymbol']),
+                $bySize,
+            ))).' '.match (true) {
+                count($tails) === 1 => $tails[0],
+                // The papers are named wherever they set a figure: „Gutachten oder Daten“ alone would leave them out.
+                array_filter($bySize, static fn (array $e): bool => $e['minimum']['loadSource'] === MinSource::Papers || $e['minimum']['speedSource'] === MinSource::Papers) !== [] => self::MINIMUM_SOURCES_BY_SIZE_PAPERS,
+                default => self::MINIMUM_SOURCES_BY_SIZE,
+            };
+        }
+
+        // One figure for every size: that one — a size's own, never above what the paper prints beside it.
+        $minimum = $bySize[0]['minimum'] ?? $minimum;
+
+        return sprintf(self::MINIMUM_LEAD, $minimum['loadIndex'], $minimum['speedSymbol']).' '.$this->minimumTail($minimum);
+    }
+
+    /** @param  array{loadIndex: int, loadSource: MinSource, speedSymbol: string, speedSource: MinSource}  $minimum */
+    private function minimumTail(array $minimum): string
+    {
         $load = $minimum['loadSource'];
         $speed = $minimum['speedSource'];
 
@@ -349,7 +395,7 @@ final readonly class TyreEligibility
             default => self::MINIMUM_BOTH_DERIVED,
         };
 
-        return sprintf(self::MINIMUM_LEAD, $minimum['loadIndex'], $minimum['speedSymbol']).' '.$tail;
+        return $tail;
     }
 
     /** Rules 1–5 — about the verdict as a whole, before any tyre is looked at. */
@@ -567,8 +613,9 @@ final readonly class TyreEligibility
     }
 
     /**
-     * What a tyre of this listed size must carry on this axle — R-06, refined per size. Every figure is a max() against
-     * the axle's already-governed value, so this can only ever RAISE the minimum, never relax it:
+     * What a tyre of this listed size must carry on this axle — R-06, per size. The base is the size's own minimum
+     * (D-431: what the documents print beside this size and the axle's own figures, never a neighbour's); every further
+     * figure is a max() against it, so it can only RAISE it:
      *
      * - the size's own printed index and symbol (the axle's speed merge keeps the strictest printed symbol, but the
      *   listed size's own is compared here too, from the safe side);
@@ -593,16 +640,24 @@ final readonly class TyreEligibility
             return $limit;
         }
 
-        $loadIndex = max($axle->minLoadIndex, $listed->documentMinLoadIndex ?? 0, $limit ?? 0);
+        // The size's own minimum, never a neighbour's (D-431); a size whose own cannot be stated is not sold (R-03).
+        $own = $axle->minimumFor($listed);
+        $ownRank = $this->speedSymbol->rankOf($own['speedSymbol']);
+
+        if ($own['loadIndex'] === null || $own['speedSymbol'] === null || $ownRank === null) {
+            return KomplettradRefusal::NoUsableMinimum;
+        }
+
+        $loadIndex = max($own['loadIndex'], $listed->documentMinLoadIndex ?? 0, $limit ?? 0);
 
         // An unrecognised document symbol is ignored rather than trusted (D-027): it would rank
-        // as nothing, and the axle's own minimum still stands beneath it.
+        // as nothing, and the size's own minimum still stands beneath it.
         $printed = $listed->documentMinSpeedSymbol;
         $documentRank = $printed === null ? null : $this->speedSymbol->rankOf($printed);
 
-        return $printed !== null && $documentRank !== null && $documentRank > $axleRank
+        return $printed !== null && $documentRank !== null && $documentRank > $ownRank
             ? ['loadIndex' => $loadIndex, 'speedSymbol' => $printed, 'speedRank' => $documentRank]
-            : ['loadIndex' => $loadIndex, 'speedSymbol' => $axle->minSpeedSymbol, 'speedRank' => $axleRank];
+            : ['loadIndex' => $loadIndex, 'speedSymbol' => $own['speedSymbol'], 'speedRank' => $ownRank];
     }
 
     /**
@@ -886,27 +941,34 @@ final readonly class TyreEligibility
      *
      * @return array{loadIndex: int, loadSource: MinSource, speedSymbol: string, speedSource: MinSource}|null
      */
-    private function governingMinimum(FitmentVerdict $verdict): ?array
+    private function governingMinimum(FitmentVerdict $verdict, ?TyreSize $size = null): ?array
     {
-        $front = $verdict->front;
-        $rear = $verdict->rear;
-        $frontRank = $this->speedSymbol->rankOf($front->minSpeedSymbol);
-        $rearRank = $this->speedSymbol->rankOf($rear->minSpeedSymbol);
+        // The axles' strictest, or — for one size — that size's own on each axle (D-431).
+        $front = $size === null
+            ? ['loadIndex' => $verdict->front->minLoadIndex, 'speedSymbol' => $verdict->front->minSpeedSymbol]
+            : $verdict->front->minimumFor($size);
+        $rear = $size === null
+            ? ['loadIndex' => $verdict->rear->minLoadIndex, 'speedSymbol' => $verdict->rear->minSpeedSymbol]
+            : $verdict->rear->minimumFor($size);
+        $frontSources = $size === null ? ['load' => $verdict->front->minLoadSource, 'speed' => $verdict->front->minSpeedSource] : $verdict->front->sourcesFor($size);
+        $rearSources = $size === null ? ['load' => $verdict->rear->minLoadSource, 'speed' => $verdict->rear->minSpeedSource] : $verdict->rear->sourcesFor($size);
+        $frontRank = $this->speedSymbol->rankOf($front['speedSymbol']);
+        $rearRank = $this->speedSymbol->rankOf($rear['speedSymbol']);
 
-        if ($front->minLoadIndex === null || $rear->minLoadIndex === null
-            || $front->minSpeedSymbol === null || $rear->minSpeedSymbol === null
+        if ($front['loadIndex'] === null || $rear['loadIndex'] === null
+            || $front['speedSymbol'] === null || $rear['speedSymbol'] === null
             || $frontRank === null || $rearRank === null) {
             return null;
         }
 
         [$loadIndex, $loadSource] = $this->stricterHalf(
-            $front->minLoadIndex, $front->minLoadIndex, $front->minLoadSource,
-            $rear->minLoadIndex, $rear->minLoadIndex, $rear->minLoadSource,
+            $front['loadIndex'], $front['loadIndex'], $frontSources['load'],
+            $rear['loadIndex'], $rear['loadIndex'], $rearSources['load'],
         );
 
         [$speedSymbol, $speedSource] = $this->stricterHalf(
-            $front->minSpeedSymbol, $frontRank, $front->minSpeedSource,
-            $rear->minSpeedSymbol, $rearRank, $rear->minSpeedSource,
+            $front['speedSymbol'], $frontRank, $frontSources['speed'],
+            $rear['speedSymbol'], $rearRank, $rearSources['speed'],
         );
 
         return [

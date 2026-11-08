@@ -51,8 +51,9 @@ export const test = base.extend<{ problems: Problems }>({
             page.on('pageerror', (e) => seen.push(`JS crash: ${e.message}`))
             page.on('requestfailed', (r) => {
                 // A request the browser itself gave up because the page moved on is not a failure of the site: Chromium
-                // names it net::ERR_ABORTED, WebKit „Load request cancelled“.
-                if (!/^net::ERR_ABORTED$|^Load request cancelled$/.test(r.failure()?.errorText ?? '')) {
+                // names it net::ERR_ABORTED, WebKit „Load request cancelled“ for a page and „cancelled“ for a fetch the
+                // page dropped — the recheck of a page restored by Back, overtaken by a second Back (D-430).
+                if (!/^net::ERR_ABORTED$|^Load request cancelled$|^cancelled$/.test(r.failure()?.errorText ?? '')) {
                     seen.push(`failed: ${r.url()} (${r.failure()?.errorText ?? '?'})`)
                 }
             })
