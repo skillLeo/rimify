@@ -117,7 +117,7 @@
         ],
         "verify:fitment": [
             "Composer\\Config::disableProcessTimeout",
-            "@php vendor/bin/pest tests/Unit/Fitment tests/Feature/Fitment --coverage --min=100 --coverage-filter=app/Domain/Fitment"
+            "@php -d memory_limit=4G vendor/bin/pest -c phpunit.fitment.xml --coverage --min=100"
         ],
         "fix": [
             "@php vendor/bin/pint",

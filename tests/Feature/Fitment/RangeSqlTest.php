@@ -195,3 +195,10 @@ it('works through the query builder as well as as a bare expression', function (
     expect(RangeSql::windowsOverlap($builder, 'a', 'b')->toSql())
         ->toContain(RangeSql::windowsOverlapExpression('a', 'b'));
 });
+
+it('applies the same containment to a query builder, as one bound-free clause', function (): void {
+    $query = RangeSql::within(DB::query()->from('fitments'), 'wheel_configs.width_in', 'fitments.permitted_width');
+
+    expect($query->toSql())->toContain(RangeSql::withinExpression('wheel_configs.width_in', 'fitments.permitted_width'))
+        ->and($query->getBindings())->toBe([]);
+});
