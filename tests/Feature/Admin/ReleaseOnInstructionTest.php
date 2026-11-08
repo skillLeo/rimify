@@ -12,7 +12,6 @@ use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\AuditDescriber;
-use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\Artisan;
@@ -58,7 +57,7 @@ function releasableDraft(): ApprovalDocument
 }
 
 /**
- * The declaration matches releasableDraft(): one size, no code, no limit, no Abnahme (D-227, D-228).
+ * The declaration matches releasableDraft(): complete, no Abnahme (D-227; the count and the limit are no longer asked, D-440, D-441).
  *
  * @param  array<string, string>  $options
  */
@@ -69,8 +68,6 @@ function releaseOnInstruction(ApprovalDocument $document, array $options = []): 
         '--anweisung' => RELEASE_INSTRUCTION,
         '--konto' => 'super-admin@rimify.test',
         '--erfasst' => 'alle',
-        '--codes' => '0',
-        '--groessen' => '1',
         '--abnahme' => 'keine',
         ...$options,
     ]);
@@ -121,21 +118,18 @@ it('releases nothing without the instruction in words, or for an account without
         ->and(AuditLog::query()->where('description', 'approval.released')->count())->toBe(0);
 });
 
-it('releases nothing without the completeness answer, or on counts the entry does not match (D-227, D-228)', function (): void {
+it('releases nothing without the completeness answer, or on an Abnahme the entry does not match (D-227; D-440, D-441)', function (): void {
     $draft = releasableDraft();
 
     expect(releaseOnInstruction($draft, ['--erfasst' => '']))->toBe(1)
         ->and(Artisan::output())->toContain('--erfasst=alle, teilweise oder unbekannt');
 
-    // The client's Teilegutachten as it was entered against what its Verwendungsbereich prints (brief of 14.10.2026, §4).
-    expect(releaseOnInstruction($draft, ['--groessen' => '3', '--codes' => '6', '--abnahme' => 'alle', '--achslast' => '1160']))->toBe(1);
+    // The count and the axle limit are no longer options; the Abnahme is still compared with the entry.
+    expect(releaseOnInstruction($draft, ['--abnahme' => 'alle']))->toBe(1);
     $said = Artisan::output();
 
-    expect($said)->toContain('Auflagen-Codes für die erfassten Fahrzeuge laut Verwendungsbereich: 6, erfasst: 0.')
-        ->and($said)->toContain('Reifengrößen für die erfassten Fahrzeuge laut Verwendungsbereich: 3, erfasst: 1.')
-        ->and($said)->toContain('Der Verwendungsbereich begrenzt die Achslast auf '.GermanFormat::kilograms(1160).'.')
-        ->and($said)->toContain('trag höchstens '.GermanFormat::kilograms(580).' je Rad ein')
-        ->and($said)->toContain('Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei einer Zeile fehlt sie.')
+    expect($said)->toContain('Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei einer Zeile fehlt sie.')
+        ->and($said)->not->toContain('laut Verwendungsbereich')
         ->and($draft->refresh()->status)->toBe(DocumentStatus::Draft);
 });
 

@@ -1,0 +1,1 @@
+var e=[{value:`green`,label:`Grün`},{value:`yellow`,label:`Gelb`},{value:`red`,label:`Rot`}];function t(t){return e.find(e=>e.value===t)?.label??`Grün`}export{t as n,e as t};

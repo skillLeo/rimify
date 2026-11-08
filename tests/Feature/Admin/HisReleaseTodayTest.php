@@ -57,7 +57,7 @@ function hisEntry(): ApprovalDocument
     return $document->refresh();
 }
 
-it('refuses his release when he declares what the PDF prints for his car — and says each gap in a sentence', function (): void {
+it('refuses his release on the Abnahme his entry misses — the count and the axle limit no longer asked (D-440, D-441)', function (): void {
     $document = hisEntry();
     $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
 
@@ -66,26 +66,22 @@ it('refuses his release when he declares what the PDF prints for his car — and
     $message = '';
 
     try {
-        app(DocumentRelease::class)->release($document, $admin, declaration: new ReleaseDeclaration('partial', 'Anlagen außer BMW15', codes: 6, sizes: 3, axleLimitKg: 1160, abnahme: ReleaseDeclaration::ABNAHME_ALL));
+        app(DocumentRelease::class)->release($document, $admin, declaration: new ReleaseDeclaration('partial', 'Anlagen außer BMW15', abnahme: ReleaseDeclaration::ABNAHME_ALL));
     } catch (ValidationException $e) {
         $message = (string) ($e->errors()['release'][0] ?? '');
     }
 
-    expect($message)->toBe(
-        'Noch nicht freigebbar: '
-        .'Auflagen-Codes für die erfassten Fahrzeuge laut Verwendungsbereich: 6, erfasst: 1. Trag die fehlenden nach oder zähl noch einmal. '
-        .'Reifengrößen für die erfassten Fahrzeuge laut Verwendungsbereich: 3, erfasst: 1. Trag die fehlenden nach oder zähl noch einmal. '
-        // Figure and unit held together by the format helper's no-break space (R-10).
-        ."Der Verwendungsbereich begrenzt die Achslast auf 1.160\u{00A0}kg. Bei einer Ausführung der Felge fehlt die geprüfte Radlast – trag höchstens 580\u{00A0}kg je Rad ein, sonst prüft der Shop die Grenze nicht. "
-        .'Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei 2 Zeilen fehlt sie. Erfass den Code, der sie verlangt.'
-    )->and($document->refresh()->status->value)->toBe('draft');
+    // The client's round of 08.11.2026, §3: what the codes and sizes were counted against, and the declared limit, are his to leave
+    // out; the Abnahme stays asked and compared.
+    expect($message)->toBe('Noch nicht freigebbar: Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei 2 Zeilen fehlt sie. Erfass den Code, der sie verlangt.')
+        ->and($document->refresh()->status->value)->toBe('draft');
 });
 
 it('lets it through when he declares what he entered rather than what the PDF prints', function (): void {
     $document = hisEntry();
     $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
 
-    app(DocumentRelease::class)->release($document, $admin, declaration: new ReleaseDeclaration('complete', null, codes: 1, sizes: 1, axleLimitKg: null, abnahme: ReleaseDeclaration::ABNAHME_NONE));
+    app(DocumentRelease::class)->release($document, $admin, declaration: new ReleaseDeclaration('complete', null, abnahme: ReleaseDeclaration::ABNAHME_NONE));
 
     expect($document->refresh()->status->value)->toBe('published');
 });

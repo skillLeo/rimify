@@ -199,7 +199,7 @@ final readonly class EntryEditor
         foreach ($lines as $line) {
             $attributes = [];
 
-            foreach (['width_mm', 'aspect', 'diameter_in', 'load_index', 'speed_symbol', 'marker', 'unread'] as $column) {
+            foreach (['width_mm', 'aspect', 'diameter_in', 'load_index', 'load_index_dual', 'speed_symbol', 'marker', 'unread'] as $column) {
                 $attributes["front_{$column}"] = $line->getRawOriginal("rear_{$column}");
                 $attributes["rear_{$column}"] = $line->getRawOriginal("front_{$column}");
             }
@@ -507,7 +507,7 @@ final readonly class EntryEditor
     private static function side(string $name, string $text): array
     {
         $blank = [
-            "{$name}_width_mm" => null, "{$name}_aspect" => null, "{$name}_diameter_in" => null, "{$name}_load_index" => null,
+            "{$name}_width_mm" => null, "{$name}_aspect" => null, "{$name}_diameter_in" => null, "{$name}_load_index" => null, "{$name}_load_index_dual" => null,
             "{$name}_speed_symbol" => null, "{$name}_marker" => null, "{$name}_unread" => null,
         ];
 
@@ -527,6 +527,7 @@ final readonly class EntryEditor
             "{$name}_aspect" => $tyre['aspect'],
             "{$name}_diameter_in" => (float) $tyre['diameter'],
             "{$name}_load_index" => $tyre['li'],
+            "{$name}_load_index_dual" => $tyre['li2'],
             "{$name}_speed_symbol" => $tyre['si'],
             "{$name}_marker" => $tyre['marker'],
         ];

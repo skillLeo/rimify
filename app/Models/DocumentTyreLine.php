@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|null $front_diameter_in
  * @property int|null $front_load_index
  * @property string|null $front_speed_symbol
+ * @property int|null $front_load_index_dual
  * @property string|null $front_marker
  * @property string|null $front_unread
  * @property int|null $rear_width_mm
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|null $rear_diameter_in
  * @property int|null $rear_load_index
  * @property string|null $rear_speed_symbol
+ * @property int|null $rear_load_index_dual
  * @property string|null $rear_marker
  * @property string|null $rear_unread
  * @property int|null $kw_min
@@ -46,8 +48,8 @@ class DocumentTyreLine extends Model
 {
     protected $fillable = [
         'document_car_entry_id', 'position',
-        'front_width_mm', 'front_aspect', 'front_diameter_in', 'front_load_index', 'front_speed_symbol', 'front_marker', 'front_unread',
-        'rear_width_mm', 'rear_aspect', 'rear_diameter_in', 'rear_load_index', 'rear_speed_symbol', 'rear_marker', 'rear_unread',
+        'front_width_mm', 'front_aspect', 'front_diameter_in', 'front_load_index', 'front_load_index_dual', 'front_speed_symbol', 'front_marker', 'front_unread',
+        'rear_width_mm', 'rear_aspect', 'rear_diameter_in', 'rear_load_index', 'rear_load_index_dual', 'rear_speed_symbol', 'rear_marker', 'rear_unread',
         'kw_min', 'kw_max', 'from_rows', 'in_list', 'list_entry', 'list_number', 'list_page', 'list_carried_over',
     ];
 
@@ -60,10 +62,12 @@ class DocumentTyreLine extends Model
             'front_aspect' => 'integer',
             'front_diameter_in' => 'float',
             'front_load_index' => 'integer',
+            'front_load_index_dual' => 'integer',
             'rear_width_mm' => 'integer',
             'rear_aspect' => 'integer',
             'rear_diameter_in' => 'float',
             'rear_load_index' => 'integer',
+            'rear_load_index_dual' => 'integer',
             'kw_min' => 'integer',
             'kw_max' => 'integer',
             'from_rows' => 'boolean',

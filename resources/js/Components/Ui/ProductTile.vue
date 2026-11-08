@@ -99,7 +99,7 @@ function onPointerEnter(event: PointerEvent): void {
 
 /* ── Verdict ────────────────────────────────────────────────────────────────── */
 
-const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null; hint: 'green' | 'yellow' } | null>(() => {
+const verdict = computed<{ status: VerdictStatus; conditions: string[]; vary: boolean; notesOnly: boolean; tyresOpen: string | null; hint: 'green' | 'yellow' | 'red' } | null>(() => {
     if (props.vehicle === null || props.card.fitment === null) {
         return null
     }

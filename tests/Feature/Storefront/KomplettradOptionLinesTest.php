@@ -87,7 +87,8 @@ it('prices each row to the cent: without any option, with RDKS only, and with ev
     $line = $none['lines'][0];
     $rows = collect($line['components']);
 
-    expect($rows->pluck('label')->all())->toBe(['Felge', 'Reifen', 'Montage und Auswuchten', 'Wuchtgewichte (Silber)'])
+    // Without RDKS the standard valves come with it, at no charge (D-443).
+    expect($rows->pluck('label')->all())->toBe(['Felge', 'Reifen', 'Montage und Auswuchten', 'Wuchtgewichte (Silber)', 'Ventile (inklusive)'])
         ->and($rows->every(fn (array $row): bool => $row['quantity'] === 4 && $row['lineTotalCents'] === 4 * $row['unitPriceCents']))->toBeTrue()
         ->and($rows->sum('lineTotalCents'))->toBe($line['lineTotalCents'])
         ->and($none['totals']['tpms']['choice'])->toBe('nein');

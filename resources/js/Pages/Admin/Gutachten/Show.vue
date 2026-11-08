@@ -15,7 +15,6 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
-import CountCard from './CountCard.vue'
 import DeratingTable from './DeratingTable.vue'
 import { deratingAbsent as absentLine, deratingShown as isDeratingShown } from './derating'
 import DocumentExtras from './DocumentExtras.vue'
@@ -233,14 +232,6 @@ watch(
                     </dd>
                 </div>
             </dl>
-        </section>
-
-        <!-- ── The count of its Verwendungsbereich, from the PDF, before the rows (ADMIN-GEFUNDEN 511) ── -->
-        <section v-if="draft || document.count" class="adm-section" aria-labelledby="gs-count-h">
-            <div class="adm-section__head">
-                <h2 id="gs-count-h" class="adm-section__title">Zählung</h2>
-            </div>
-            <CountCard :document-id="document.id" :stamp="stamps.document" :count="document.count ?? null" :editable="false" :page-count="document.pageCount" :rows="rowsTotal" />
         </section>
 
         <!-- ── Auflagenverzeichnis: the codes this document prints, with its own sentences ── -->

@@ -20,8 +20,6 @@ export interface DocumentFacts {
     revision: number
     supersedesId: number | null
     supersedesLabel: string | null
-    /** What its Verwendungsbereich prints, counted from the PDF before the rows (ADMIN-GEFUNDEN 511) — null until counted. */
-    count?: DocumentCount | null
     status: 'draft' | 'published' | 'superseded' | 'withdrawn'
     statusLabel: string
     validFrom: string | null
@@ -50,24 +48,6 @@ export interface DocumentFacts {
     baseMissing: string | null
     /** `Verwendungsbereich unvollständig – Anlagen 1–15 liegen nicht vor.` — null while every Anlage is held. */
     scopeIncomplete?: string | null
-}
-
-/** The count of a Verwendungsbereich, each figure with the page it was read on (ADMIN-GEFUNDEN 511). */
-export interface DocumentCount {
-    codes: number
-    codesPage: number
-    sizes: number
-    sizesPage: number
-    axleLimitKg: number | null
-    axleLimitPage: number | null
-    abnahme: 'all' | 'some' | 'none'
-    abnahmePage: number | null
-    /** `6 Auflagen-Codes (Seite 3)` … as the page shows them. */
-    lines: string[]
-    by: string | null
-    at: string
-    /** Taken while the document had no row: nobody could have counted the entry. */
-    beforeEntry: boolean
 }
 
 /** A bolt or nut the document names: `S01 · M14x1,25 · Kegelbund 60° · 140 Nm`. */
@@ -128,7 +108,7 @@ export interface DocumentConditionView {
     id: number
     code: string
     /** The colour it gives the shop's hint (#23): presentation only. */
-    shopColour: 'green' | 'yellow'
+    shopColour: 'green' | 'yellow' | 'red'
     kind: string
     kindLabel: string
     /** Where the customer reads it: Abnahme, Arbeiten am Fahrzeug, Befestigung, Reifen, Hinweise, Fahrzeug. */

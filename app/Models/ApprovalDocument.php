@@ -116,12 +116,6 @@ class ApprovalDocument extends Model
         ];
     }
 
-    /** Whether its Verwendungsbereich has been counted from the PDF (ADMIN-GEFUNDEN 511). */
-    public function isCounted(): bool
-    {
-        return $this->counted_at !== null;
-    }
-
     protected static function booted(): void
     {
         // Three layers guard the supersession chain, because none of them alone is enough:

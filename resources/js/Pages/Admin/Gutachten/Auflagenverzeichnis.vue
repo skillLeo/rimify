@@ -22,6 +22,7 @@ import { formatNumber } from '../../../lib/num'
 import type { ConditionChoices, DocumentConditionView, UnresolvedCode } from '../../../types/admin/gutachten'
 import { splitLegend } from './legend'
 import { LEGEND_DRAFT } from './legendDraft'
+import { HINT_COLOURS, hintColourLabel } from '../../../fitment/hintColour'
 
 const props = defineProps<{
     documentId: number
@@ -419,11 +420,10 @@ function confirmLimit(condition: DocumentConditionView): void {
                             <template v-if="levelsEditable">
                                 <label class="visually-hidden" :for="`av-colour-${condition.id}`">Farbe von Code {{ condition.code }} im Shop</label>
                                 <select :id="`av-colour-${condition.id}`" class="input av__colour-select" :value="condition.shopColour" :disabled="busy" @change="setColour(condition, ($event.target as HTMLSelectElement).value)">
-                                    <option value="green">Farbe: Grün</option>
-                                    <option value="yellow">Farbe: Gelb</option>
+                                    <option v-for="colour in HINT_COLOURS" :key="colour.value" :value="colour.value">Farbe: {{ colour.label }}</option>
                                 </select>
                             </template>
-                            <span v-else class="av__colour-word">Farbe: {{ condition.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}</span>
+                            <span v-else class="av__colour-word">Farbe: {{ hintColourLabel(condition.shopColour) }}</span>
                         </td>
                         <td data-label="Seite" class="num">{{ condition.page ?? '–' }}</td>
                         <td data-label="Verwendet" data-phone="hide" class="num">{{ uses(condition) }}</td>

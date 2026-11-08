@@ -24,7 +24,6 @@ use App\Services\Storefront\FitmentCount;
 use App\Services\Storefront\HomeStats;
 use App\Services\Storefront\MegaMenu;
 use App\Support\CatalogueVersion;
-use App\Support\GermanFormat;
 use App\Support\VehicleName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -223,9 +222,9 @@ final class DocumentRelease
     }
 
     /**
-     * What was entered, counted the way the person releasing counts the PDF (D-228): the Auflagen codes the rows and
-     * their sizes carry, the tyre sizes, the wheel versions without a tested load, and the rows that lead to no
-     * Abnahme.
+     * What was entered (D-228): the Auflagen codes the rows and their sizes carry, the tyre sizes, the wheel versions without a
+     * tested load, and the rows that lead to an Abnahme or none. The release compares the Abnahme with what was said (D-440, D-441)
+     * and keeps all of it in the Protokoll beside the answers.
      *
      * @return array{codes: int, sizes: int, withoutLoad: int, maxLoadKg: int|null, withoutAbnahme: int, withAbnahme: int}
      */
@@ -256,7 +255,8 @@ final class DocumentRelease
 
     /**
      * Where the declaration and the entry differ, in sentences — a refusal, never a warning (the operator's brief of
-     * 14.10.2026, §4: an entry that misses a condition, a size, the axle-load limit or the Abnahme errs the permissive way).
+     * 14.10.2026, §4: an entry that misses the Abnahme errs the permissive way). The count of codes and sizes (D-440) and the
+     * axle-load limit (D-441) are no longer compared: the client's round of 08.11.2026, §3.
      *
      * @return list<string>
      */
@@ -272,41 +272,18 @@ final class DocumentRelease
             $blockers[] = 'Nenn die Anlagen oder Bereiche, die noch fehlen.';
         }
 
-        // A base without rows of its own: its Verwendungsbereich is its Nachträge'; there is nothing to count here.
+        // A base without rows of its own: its Verwendungsbereich is its Nachträge'; there is nothing to compare here.
         if (! Fitment::query()->where('approval_document_id', $document->id)->whereNot('status', FitmentStatus::Retired->value)->exists()) {
             return $blockers;
         }
 
-        if ($declaration->codes === null || $declaration->sizes === null || ! in_array($declaration->abnahme, ReleaseDeclaration::ABNAHME, true)) {
-            $blockers[] = 'Zähl im Verwendungsbereich die Auflagen-Codes und die Reifengrößen für die erfassten Fahrzeuge, und sag, ob er eine Abnahme verlangt.';
+        if (! in_array($declaration->abnahme, ReleaseDeclaration::ABNAHME, true)) {
+            $blockers[] = 'Sag, ob der Verwendungsbereich eine Abnahme verlangt.';
 
             return $blockers;
         }
 
         $entered = $this->entered($document);
-
-        if ($declaration->codes !== $entered['codes']) {
-            $blockers[] = sprintf('Auflagen-Codes für die erfassten Fahrzeuge laut Verwendungsbereich: %d, erfasst: %d. Trag die fehlenden nach oder zähl noch einmal.', $declaration->codes, $entered['codes']);
-        }
-
-        if ($declaration->sizes !== $entered['sizes']) {
-            $blockers[] = sprintf('Reifengrößen für die erfassten Fahrzeuge laut Verwendungsbereich: %d, erfasst: %d. Trag die fehlenden nach oder zähl noch einmal.', $declaration->sizes, $entered['sizes']);
-        }
-
-        // The limit („nur für Fahrzeuge mit maximaler Achslast 1160 kg“) reaches the shop through the wheel's tested load:
-        // half the axle per wheel. Without it the shop does not check the limit at all.
-        if ($declaration->axleLimitKg !== null) {
-            $perWheel = intdiv($declaration->axleLimitKg, 2);
-
-            if ($entered['withoutLoad'] > 0) {
-                $blockers[] = sprintf('Der Verwendungsbereich begrenzt die Achslast auf %s. %s der Felge fehlt die geprüfte Radlast – trag höchstens %s je Rad ein, sonst prüft der Shop die Grenze nicht.',
-                    GermanFormat::kilograms($declaration->axleLimitKg), $entered['withoutLoad'] === 1 ? 'Bei einer Ausführung' : "Bei {$entered['withoutLoad']} Ausführungen", GermanFormat::kilograms($perWheel));
-            } elseif ($entered['maxLoadKg'] !== null && $entered['maxLoadKg'] > $perWheel) {
-                $blockers[] = sprintf('Der Verwendungsbereich begrenzt die Achslast auf %s, erfasst ist eine Radlast von %s je Rad – das erlaubt mehr. Trag höchstens %s je Rad ein.',
-                    GermanFormat::kilograms($declaration->axleLimitKg), GermanFormat::kilograms($entered['maxLoadKg']), GermanFormat::kilograms($perWheel));
-            }
-        }
-
         $rowsSaid = static fn (int $n): string => $n === 1 ? 'einer Zeile' : $n.' Zeilen';
 
         if ($declaration->abnahme === ReleaseDeclaration::ABNAHME_ALL && $entered['withoutAbnahme'] > 0) {
@@ -384,34 +361,6 @@ final class DocumentRelease
             ], $document);
 
             return ['rows' => $rows, 'conflicts' => count($conflicts)];
-        });
-    }
-
-    /**
-     * The count of the Verwendungsbereich, read off the PDF before the rows are entered, each figure with its page
-     * (ADMIN-GEFUNDEN 511). Taken while the document has no row, it is a count nobody could copy off the entry
-     * (`counted_before_entry`); taken or changed later, the page and the Protokoll say so. Every change keeps the figures
-     * before it in the Protokoll — the release compares the entry with the count that stands at release.
-     */
-    public function recordCount(ApprovalDocument $document, AdminUser $admin, CountFigures $figures): void
-    {
-        $before = CountFigures::of($document);
-        $rows = Fitment::query()->where('approval_document_id', $document->id)->whereNot('status', FitmentStatus::Retired->value)->count();
-
-        DB::transaction(static function () use ($document, $admin, $figures, $before, $rows): void {
-            $document->forceFill($figures->columns() + [
-                'counted_before_entry' => $rows === 0,
-                'counted_by' => $admin->id,
-                'counted_at' => now(),
-            ])->save();
-
-            AuditTrail::record($admin, $before === null ? 'approval.counted' : 'approval.count_changed', [
-                'document' => FitmentRows::label($document),
-                'count' => $figures->toArray(),
-                'before' => $before?->toArray(),
-                // How many rows stood when it was counted: none means nobody could have counted the entry.
-                'rows' => $rows,
-            ], $document);
         });
     }
 

@@ -311,16 +311,18 @@ describe('the tyres of one car', () => {
     it('says why the server kept a size as typed, also while an empty line stands below it', async () => {
         const { wrapper } = await editor()
 
-        await typeLine(wrapper, '225/40 R18 999')
+        // A size the browser reads and the server keeps as typed (its width is beyond what the shop takes): an index above 279 the browser
+        // already refuses itself (D-442).
+        await typeLine(wrapper, '365/40 R18 95Y')
         await wrapper.find('.ef-editor__adds .btn--secondary').trigger('click')
         await settle()
 
         reply = (call) => (call.method === 'PUT'
-            ? json({ stamp: 'x', entry: entry(), car: { id: 5, page: null, codes: [], columns: {}, lines: [serverLine({ id: 7, front: '225/40 R18 999', rear: '225/40 R18 999', frontWhy: 'Den Lastindex 999 gibt es nicht.' })] } })
+            ? json({ stamp: 'x', entry: entry(), car: { id: 5, page: null, codes: [], columns: {}, lines: [serverLine({ id: 7, front: '365/40 R18 95Y', rear: '365/40 R18 95Y', frontWhy: 'Gib die Reifenbreite in Millimetern an, zwischen 125 und 355.' })] } })
             : null)
         await settle(600)
 
-        expect(wrapper.find('.ef-line').text()).toContain('Den Lastindex 999 gibt es nicht.')
+        expect(wrapper.find('.ef-line').text()).toContain('Gib die Reifenbreite in Millimetern an, zwischen 125 und 355.')
     })
 
     it('reads a kW band once whichever way it was typed', async () => {

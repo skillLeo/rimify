@@ -24,8 +24,8 @@ const props = withDefaults(
          * „Freigegeben“ badge; the caller says „mit Hinweisen“ quietly beside it. Nothing else is ever softened.
          */
         notesOnly?: boolean
-        /** The colour of a CONDITIONAL answer (#23): how it looks, never what it says. Yellow, as it was, unless the server says green. */
-        hint?: 'green' | 'yellow'
+        /** The colour of a CONDITIONAL answer (#23, D-439): how it looks, never what it says. Yellow, as it was, unless the server says green or red. */
+        hint?: 'green' | 'yellow' | 'red'
     }>(),
     { size: 'sm', label: undefined, notesOnly: false, hint: 'yellow' }
 )
@@ -45,7 +45,12 @@ const TONES: Record<VerdictStatus, { cls: string; icon: IconName }> = {
 }
 
 const shown = computed<VerdictStatus>(() => (props.notesOnly && props.status === 'CONDITIONAL' ? 'PERMITTED' : props.status))
-const tone = computed(() => (shown.value === 'CONDITIONAL' && props.hint === 'green' ? { cls: 'verdict--ok', icon: 'info' as IconName } : TONES[shown.value]))
+// Red keeps the warning icon and the words „Mit Auflagen“: only a refusal wears the cross.
+const HINTS: Record<'green' | 'red', { cls: string; icon: IconName }> = {
+    green: { cls: 'verdict--ok', icon: 'info' },
+    red: { cls: 'verdict--bad', icon: 'warning' },
+}
+const tone = computed(() => (shown.value === 'CONDITIONAL' && (props.hint === 'green' || props.hint === 'red') ? HINTS[props.hint] : TONES[shown.value]))
 const text = computed(() => props.label ?? LABELS[shown.value])
 </script>
 

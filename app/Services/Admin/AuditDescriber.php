@@ -219,6 +219,7 @@ final class AuditDescriber
         'approval.car_entered' => 'gutachten',
         'approval.lines_copied' => 'gutachten',
         'approval.colour_added' => 'gutachten',
+        'approval.combination_codes_corrected' => 'gutachten',
         'approval.limit_confirmed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
@@ -732,6 +733,11 @@ final class AuditDescriber
             'approval.lines_copied' => [
                 'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurden die Reifen von '.self::q(self::text($p, 'from') ?? 'ohne Namen').' auf '.self::count((int) (self::text($p, 'cars') ?? 0), 'Fahrzeug', 'Fahrzeuge')
                     .' kopiert: '.self::count((int) (self::text($p, 'lines') ?? 0), 'Zeile', 'Zeilen').(($p['replace'] ?? false) === true ? ', was dort stand, wurde ersetzt.' : ', was dort stand, blieb.'),
+                [],
+            ],
+            'approval.combination_codes_corrected' => [
+                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' gilt '.implode(', ', array_map(self::q(...), self::list($p, 'codes'))).' jetzt nur noch für die Reifenkombination, bei der der Code eingetragen ist: '
+                    .self::count((int) (self::text($p, 'sizes') ?? 0), 'Reifengröße', 'Reifengrößen').' einer anderen Kombination tragen ihn nicht mehr.',
                 [],
             ],
             'approval.colour_added' => ['Für eine neue Farbe von '.self::q(self::text($p, 'size') ?? '–').' kam in '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' dazu: '.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').'.', []],

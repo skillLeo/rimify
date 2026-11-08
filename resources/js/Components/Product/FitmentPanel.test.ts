@@ -36,6 +36,22 @@ function verdict(overrides: Partial<ConfigVerdict>): ConfigVerdict {
 }
 
 describe('FitmentPanel', () => {
+    // The client's round of 08.11.2026, §6 (D-439): the panel wears the colour of the codes behind „Mit Auflagen“ — red among them.
+    it('wears the colour of the codes behind a conditional answer: green, yellow, red — the words the same', () => {
+        const panel = (hint: 'green' | 'yellow' | 'red') =>
+            mount(FitmentPanel, { props: { vehicle, verdict: verdict({ status: 'CONDITIONAL', label: 'Mit Auflagen', hint }) }, global: { stubs: { Link: { props: ['href'], template: '<a :href="href"><slot /></a>' } } } })
+
+        const red = panel('red').find('.rcheck-panel')
+        const yellow = panel('yellow').find('.rcheck-panel')
+        const green = panel('green').find('.rcheck-panel')
+
+        expect(red.classes()).toContain('rcheck-panel--danger')
+        expect(yellow.classes()).toContain('rcheck-panel--warn')
+        expect(green.classes()).not.toContain('rcheck-panel--warn')
+        expect(green.classes()).not.toContain('rcheck-panel--danger')
+        expect(red.text()).toContain('Mit Auflagen')
+    })
+
     it('reads the answer in two lines — the wheel from the Gutachten, the tyres from the papers — with the tyre sentences', () => {
         const line = 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.120 kg zulässig. Vergleiche die 1.120 kg mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.'
         const wrapper = mount(FitmentPanel, {

@@ -295,6 +295,40 @@ describe('step 4: a line of vorne + hinten', function (): void {
             ->assertJsonPath('lines.4.front', '235/50 R18');
     });
 
+    // The client's round of 08.11.2026, §4 (D-442): every pairing the ETRTO knows, as the paper prints it, and back as it was typed.
+    it('keeps every load index with every speed symbol, the bracket and C-tyre forms, and gives them back as printed', function (): void {
+        $document = ApprovalDocument::factory()->draft()->create();
+        $entry = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create()->id, stepsWheel()->id);
+
+        stepsSave($entry, [
+            stepsLine('225/40 ZR18 (92Y)'),
+            stepsLine('235/65 R16 C 115/113R'),
+            stepsLine('HL 255/35R20 100'),
+            stepsLine('155/80R13 79J', '155/80R13 79K'),
+            stepsLine('265/70R17 121S'),
+            stepsLine('225/45R17 94W Reinforced'),
+        ]);
+
+        $lines = DocumentTyreLine::query()->where('document_car_entry_id', $entry->id)->orderBy('position')->get();
+
+        expect($lines->map(fn (DocumentTyreLine $l): array => [$l->front_load_index, $l->front_load_index_dual, $l->front_speed_symbol, $l->front_marker, $l->rear_speed_symbol])->all())->toBe([
+            [92, null, '(Y)', null, '(Y)'],
+            [115, 113, 'R', 'C', 'R'],
+            [100, null, null, 'HL', null],
+            [79, null, 'J', null, 'K'],
+            [121, null, 'S', null, 'S'],
+            [94, null, 'W', 'RF', 'W'],
+        ]);
+
+        $this->actingAs(stepsAdmin(), 'admin')->getJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}")
+            ->assertJsonPath('lines.0.front', '225/40 R18 92(Y)')
+            ->assertJsonPath('lines.1.front', '235/65 R16 C 115/113R')
+            ->assertJsonPath('lines.2.front', 'HL 255/35 R20 100')
+            ->assertJsonPath('lines.3.rear', '155/80 R13 79K')
+            ->assertJsonPath('lines.4.front', '265/70 R17 121S')
+            ->assertJsonPath('lines.5.front', 'RF 225/45 R17 94W');
+    });
+
     it('says it in the Protokoll once per car and quarter of an hour, however often the page saves while someone types', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
         $wheel = stepsWheel();

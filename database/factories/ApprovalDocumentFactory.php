@@ -25,9 +25,11 @@ class ApprovalDocumentFactory extends Factory
             'kind' => ApprovalKind::Teilegutachten->value,
             'report_number' => 'TG-'.$this->faker->numerify('####-##-####'),
             'issuer' => $this->faker->randomElement(['TÜV Rheinland', 'DEKRA', 'TÜV SÜD']),
-            'issued_on' => $this->faker->dateTimeBetween('-5 years', '-1 month')->format('Y-m-d'),
+            // From the app's clock, which a test's travelTo() moves; Faker's '-5 years' reads the wall clock and drew
+            // a document not yet valid on a travelled test's day (D-436).
+            'issued_on' => $this->faker->dateTimeBetween(now()->subYears(5)->toDateTime(), now()->subMonth()->toDateTime())->format('Y-m-d'),
             'revision' => 1,
-            'valid_from' => $this->faker->dateTimeBetween('-5 years', '-1 month')->format('Y-m-d'),
+            'valid_from' => $this->faker->dateTimeBetween(now()->subYears(5)->toDateTime(), now()->subMonth()->toDateTime())->format('Y-m-d'),
             'valid_to' => null,
             'pdf_key' => 'gutachten/'.$this->faker->uuid().'.pdf',
             // A real-shaped digest: the published CHECK constraint requires 64 lower-case hex.

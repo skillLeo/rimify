@@ -13,7 +13,6 @@ import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
 import ReleaseDialog from '../ReleaseDialog.vue'
 import CodeDefine from './CodeDefine.vue'
-import CountSection from './CountSection.vue'
 import LegendDialog from './LegendDialog.vue'
 import { carSummary, distinctCars, useEntry, type CarView, useGutachtenPage } from './entryStore'
 import PreviewSection from './PreviewSection.vue'
@@ -324,7 +323,6 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                 <p v-if="state.entry.suggestion" class="form-field__help">Der Vorschlag kommt aus den eingetragenen Reifen. Entscheidend ist, was im Gutachten steht.</p>
             </fieldset>
 
-            <CountSection v-if="doc.count" />
         </div>
 
         <PreviewSection />

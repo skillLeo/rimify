@@ -19,6 +19,8 @@ use App\Models\WheelModel;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Gutachten\ReleaseAnswers;
@@ -71,6 +73,26 @@ function colourPaper(array $codes): array
     return ['document' => $document->fresh(), 'car' => $car, 'wheel' => $wheel];
 }
 
+/**
+ * An answer as compared: without the moment it was computed, at every depth — the snapshot carries one too, and two answers a second
+ * apart differ there and nowhere else (the gate on 40e0d67d, MySQL).
+ *
+ * @param  array<array-key, mixed>  $answer
+ * @return array<array-key, mixed>
+ */
+function colourPlain(array $answer): array
+{
+    unset($answer['computedAt']);
+
+    foreach ($answer as $key => $value) {
+        if (is_array($value)) {
+            $answer[$key] = colourPlain($value);
+        }
+    }
+
+    return $answer;
+}
+
 function colourOf(ApprovalDocument $document, string $code): DocumentCondition
 {
     return DocumentCondition::query()->where('approval_document_id', $document->id)->where('code', $code)->firstOrFail();
@@ -81,7 +103,7 @@ it('is green by default, and set per code in „definieren“', function (): voi
 
     $this->actingAs(colourAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'G1', 'kind' => 'hinweis', 'text_de' => 'Nur mit Serienschrauben.'])->assertSessionHasNoErrors();
     $this->actingAs(colourAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'Y1', 'kind' => 'hinweis', 'text_de' => 'Bördeln der Radläufe erforderlich.', 'shop_colour' => 'yellow'])->assertSessionHasNoErrors();
-    $this->actingAs(colourAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'X1', 'kind' => 'hinweis', 'text_de' => 'Falsch.', 'shop_colour' => 'rot'])->assertSessionHasErrors('shop_colour');
+    $this->actingAs(colourAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/auflagen", ['code' => 'X1', 'kind' => 'hinweis', 'text_de' => 'Falsch.', 'shop_colour' => 'blau'])->assertSessionHasErrors('shop_colour');
 
     expect(colourOf($document, 'G1')->shop_colour)->toBe(HintColour::Green)
         ->and(colourOf($document, 'Y1')->shop_colour)->toBe(HintColour::Yellow);
@@ -109,14 +131,8 @@ it('leaves the verdict and its words exactly as they were, whichever colour', fu
     colourOf($document, 'K1')->forceFill(['shop_colour' => HintColour::Yellow])->save();
     $yellow = $resolver->resolve($car->id, $wheel->id);
 
-    $plain = static function (array $answer): array {
-        unset($answer['computedAt']);
-
-        return $answer;
-    };
-
     expect($green->status->value)->toBe('CONDITIONAL')
-        ->and($plain($yellow->toArray()))->toEqual($plain($green->toArray()))
+        ->and(colourPlain($yellow->toArray()))->toEqual(colourPlain($green->toArray()))
         ->and($green->hintColour())->toBe(HintColour::Green)
         ->and($yellow->hintColour())->toBe(HintColour::Yellow);
 });
@@ -169,5 +185,73 @@ it('has a column and a filter on Admin › Auflagen', function (): void {
         expect($codes($page))->toBe(['H1']);
 
         return $page;
+    });
+});
+
+describe('„Rot“ (the client\'s round of 08.11.2026, §6, D-439)', function (): void {
+    it('is set in „definieren“, on a released paper and on Admin › Auflagen, column and filter', function (): void {
+        $draft = ApprovalDocument::factory()->draft()->create();
+        $this->actingAs(colourAdmin(), 'admin')->post("/admin/gutachten/{$draft->id}/auflagen", ['code' => 'R1', 'kind' => 'karosseriearbeit', 'text_de' => 'Radhausschale kürzen.', 'shop_colour' => 'red'])->assertSessionHasNoErrors();
+
+        expect(colourOf($draft, 'R1')->shop_colour)->toBe(HintColour::Red)
+            ->and(HintColour::Red->labelDe())->toBe('Rot');
+
+        ['document' => $document] = colourPaper([
+            'K1' => [ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.'],
+            'H1' => [ConditionKind::Hinweis, 'Nur mit Serienschrauben.'],
+        ]);
+        $this->actingAs(colourAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/auflagen/".colourOf($document, 'K1')->id.'/farbe', ['shop_colour' => 'red'])->assertSessionHasNoErrors();
+
+        $this->actingAs(colourAdmin(), 'admin')->get('/admin/auflagen?farbe=red')->assertOk()->assertInertia(function (AssertableInertia $page) {
+            // Every red code, on both papers, and nothing else: H1 stays green.
+            $codes = collect($page->toArray()['props']['documents'] ?? [])->flatMap(fn (array $d): array => $d['conditions'] ?? [])->map(fn (array $c): string => $c['code'].':'.$c['shopColour'])->sort()->values()->all();
+            expect($codes)->toBe(['K1:red', 'R1:red']);
+
+            return $page->where('farbe', 'red');
+        });
+    });
+
+    it('wears red if any code that makes the answer conditional is red, over yellow and green — the verdict untouched', function (): void {
+        ['document' => $document, 'car' => $car, 'wheel' => $wheel] = colourPaper([
+            'K1' => [ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.'],
+            'A1' => [ConditionKind::Abnahme, 'Abnahme durch eine Prüfstelle erforderlich.'],
+            'H1' => [ConditionKind::Hinweis, 'Nur mit Serienschrauben.'],
+        ]);
+        $resolver = app(FitmentResolver::class);
+        $green = $resolver->resolve($car->id, $wheel->id);
+
+        colourOf($document, 'A1')->forceFill(['shop_colour' => HintColour::Yellow])->save();
+        colourOf($document, 'K1')->forceFill(['shop_colour' => HintColour::Red])->save();
+        $red = $resolver->resolve($car->id, $wheel->id);
+
+        colourOf($document, 'K1')->forceFill(['shop_colour' => HintColour::Green])->save();
+        $yellow = $resolver->resolve($car->id, $wheel->id);
+
+        // A red Hinweis alone does not make the answer conditional, so it does not colour it.
+        colourOf($document, 'A1')->forceFill(['shop_colour' => HintColour::Green])->save();
+        colourOf($document, 'H1')->forceFill(['shop_colour' => HintColour::Red])->save();
+        $quiet = $resolver->resolve($car->id, $wheel->id);
+
+        expect($red->hintColour())->toBe(HintColour::Red)
+            ->and($yellow->hintColour())->toBe(HintColour::Yellow)
+            ->and($quiet->hintColour())->toBe(HintColour::Green)
+            ->and($red->status->value)->toBe('CONDITIONAL')
+            ->and(colourPlain($red->toArray()))->toEqual(colourPlain($green->toArray()));
+
+        $slug = WheelModel::query()->whereKey($wheel->wheel_model_id)->value('slug');
+        colourOf($document, 'K1')->forceFill(['shop_colour' => HintColour::Red])->save();
+
+        $this->get("/felgen/{$slug}?fahrzeug={$car->id}")->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('configs.0.verdict.hint', 'red')
+            ->where('configs.0.verdict.label', VerdictStatus::Conditional->labelDe()));
+    });
+
+    it('is a value the database accepts, and no other', function (): void {
+        $document = ApprovalDocument::factory()->draft()->create();
+        $code = DocumentCondition::query()->create(['approval_document_id' => $document->id, 'code' => 'Z1', 'kind' => 'hinweis', 'text_de' => 'Test.']);
+
+        DB::table('document_conditions')->where('id', $code->id)->update(['shop_colour' => 'red']);
+
+        expect(fn () => DB::table('document_conditions')->where('id', $code->id)->update(['shop_colour' => 'blue']))->toThrow(QueryException::class);
     });
 });

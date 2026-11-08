@@ -51,7 +51,6 @@ function revisionAdmin(string $role = 'super-admin'): AdminUser
 function releasedWithEverything(): ApprovalDocument
 {
     $document = ApprovalDocument::factory()->draft()->create(['kind' => 'TEILEGUTACHTEN', 'report_number' => '1810080716', 'page_count' => 8]);
-    test()->actingAs(revisionAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", ['codes' => 2, 'codes_page' => 3, 'sizes' => 2, 'sizes_page' => 3, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'all', 'abnahme_page' => 4])->assertSessionHasNoErrors();
 
     $note = DocumentCondition::factory()->kind(ConditionKind::Hinweis, 'Nur mit dem BBS-Zubehörsatz T.Nr. 09.31.149.')->create(['approval_document_id' => $document->id, 'code' => '0', 'level' => 'auflage']);
     $arch = DocumentCondition::factory()->kind(ConditionKind::Abnahme, 'Abnahme nach § 19 Abs. 3 StVZO.')->create(['approval_document_id' => $document->id, 'code' => 'A01']);
@@ -120,7 +119,6 @@ it('starts a new revision as a draft holding all the released one holds — the 
         ->and($draft->status->value)->toBe('draft')
         ->and($draft->revision)->toBe($released->revision + 1)
         ->and($draft->completeness)->toBeNull()
-        ->and([$draft->counted_codes, $draft->counted_abnahme_page])->toBe([2, 4])
         ->and(DB::table('fitments')->where('approval_document_id', $draft->id)->distinct()->pluck('status')->all())->toBe(['draft'])
         // The level the person chose travels with the code.
         ->and(DocumentCondition::query()->where('approval_document_id', $draft->id)->where('code', '0')->value('level')?->value)->toBe('auflage')

@@ -1021,6 +1021,15 @@ final readonly class FitmentResolver
             )]];
         }
 
+        // The documents print an index the shop holds no capacity for (D-442; the table ends at 120, D-310): which tyre carries it is
+        // not on record with us — „Noch nicht bestätigt“, never an error and never a guess.
+        if (($check['indexUnheld'] ?? null) !== null) {
+            return [VerdictStatus::Unknown, [sprintf(
+                '!Das Gutachten verlangt bei der Reifengröße Tragfähigkeitsindex %d. Für diesen Index ist bei uns keine Tragfähigkeit hinterlegt; die Reifen können wir deshalb noch nicht bestätigen.',
+                (int) $check['indexUnheld'],
+            )]];
+        }
+
         if ($check['derived'] === null || ! $axle->hasUsableMinimum()) {
             return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s nennt die Tragfähigkeitstabelle keinen Index. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
         }
@@ -1316,8 +1325,15 @@ final readonly class FitmentResolver
         $raisedFrom = null;
         $tableList = array_values($tables);
         $fromDocument = false;
+        // D-284: every size carries the documents' index, load and symbol, set for the combination.
+        $printedStands = $speedFromDocument && $documentSpeedSymbol !== null && ! $sizeWithoutIndex
+            && $this->speedSymbol->rankOf($documentSpeedSymbol) !== null;
+        // D-438 (the client's round of 08.11.2026, §3.3): so too with the top speed known, where no table was entered and the printed
+        // symbol already covers that speed — the table is never asked for in this mode. A table that was entered is still read (R-06),
+        // and a symbol below the speed still needs one: only the table says what such a tyre carries there.
+        $printedCovers = $printedStands && $maxSpeedKmh !== null && array_filter($tableList) === [] && $minSpeedSymbol === $documentSpeedSymbol;
 
-        if ($maxSpeedKmh !== null && $minSpeedSymbol !== null) {
+        if ($maxSpeedKmh !== null && $minSpeedSymbol !== null && ! $printedCovers) {
             $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
 
             if ($lookup->isNotPermitted() && $lookup->required !== null) {
@@ -1326,10 +1342,9 @@ final readonly class FitmentResolver
                 $speedSource = MinSource::Document;
                 $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
             }
-        } elseif ($maxSpeedKmh === null && $speedFromDocument && $documentSpeedSymbol !== null && ! $sizeWithoutIndex
-            && $this->speedSymbol->rankOf($documentSpeedSymbol) !== null) {
-            // D-284: every size carries the documents' index, load and symbol, set for the combination — the symbol governs
-            // alone (one the table does not know never does), and the load at full load is the floor under its load index.
+        } elseif ($printedStands && ($maxSpeedKmh === null || $printedCovers)) {
+            // The symbol governs alone (one the table does not know never does), and the load at full load is the floor under its
+            // load index.
             $minSpeedSymbol = $documentSpeedSymbol;
             $speedSource = MinSource::Document;
             $lookup = DeratingLookup::percent(100);
@@ -1477,6 +1492,8 @@ final readonly class FitmentResolver
                 'limit' => $limit,
                 'axleNote' => $axleNote,
                 'limitsUncovered' => $limitsUncovered,
+                // A load index the documents print that the table holds no capacity for (D-442): what it asks of a tyre is not on record.
+                'indexUnheld' => $sizeLoadIndex !== null && $sizeLoadIndex === $minLoadIndex && $this->loadIndex->capacityOf($sizeLoadIndex) === null ? $sizeLoadIndex : null,
                 // The sizes left off this axle for want of an index at its load (D-434), each with its limits' reach.
                 'sizesUncovered' => [],
                 'binding' => $binding,

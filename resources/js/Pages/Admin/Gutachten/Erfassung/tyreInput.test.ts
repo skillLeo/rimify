@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { checkPaste, parseKwBand, pasteToSides, readPaste, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
 
-interface Notation { text: string; label: string; width: number; aspect: number; diameter: number; li: number | null; si: string | null; marker: string | null }
+interface Notation { text: string; label: string; width: number; aspect: number; diameter: number; li: number | null; li2: number | null; si: string | null; marker: string | null }
 
 /* One list, read by this test and by the server's (tests/Unit/Support/TyreTextTest.php): the two readings cannot drift apart. */
 const notations = JSON.parse(readFileSync(resolve(process.cwd(), 'tests/Fixtures/tyre-notations.json'), 'utf8')) as { reads: Notation[]; refuses: string[] }
@@ -17,7 +17,7 @@ describe('readTyre: the notations a Gutachten prints', () => {
     it.each(notations.reads)('$text reads as $label, with the load index, the symbol and the marker apart', (notation) => {
         const tyre = readTyre(notation.text)
 
-        expect(tyre).toEqual({ width: notation.width, aspect: notation.aspect, diameter: notation.diameter, li: notation.li, si: notation.si, marker: notation.marker })
+        expect(tyre).toEqual({ width: notation.width, aspect: notation.aspect, diameter: notation.diameter, li: notation.li, li2: notation.li2, si: notation.si, marker: notation.marker })
         expect(tyreLabel(tyre!)).toBe(notation.label)
     })
 

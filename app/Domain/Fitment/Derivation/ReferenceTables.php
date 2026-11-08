@@ -57,20 +57,23 @@ final class ReferenceTables
      * @var list<array{symbol: string, rank: int, max_kmh: int|null}>
      */
     public const SPEED_SYMBOLS = [
-        ['symbol' => 'L', 'rank' => 1, 'max_kmh' => 120],
-        ['symbol' => 'M', 'rank' => 2, 'max_kmh' => 130],
-        ['symbol' => 'N', 'rank' => 3, 'max_kmh' => 140],
-        ['symbol' => 'P', 'rank' => 4, 'max_kmh' => 150],
-        ['symbol' => 'Q', 'rank' => 5, 'max_kmh' => 160],
-        ['symbol' => 'R', 'rank' => 6, 'max_kmh' => 170],
-        ['symbol' => 'S', 'rank' => 7, 'max_kmh' => 180],
-        ['symbol' => 'T', 'rank' => 8, 'max_kmh' => 190],
-        ['symbol' => 'U', 'rank' => 9, 'max_kmh' => 200],
-        ['symbol' => 'H', 'rank' => 10, 'max_kmh' => 210],
-        ['symbol' => 'V', 'rank' => 11, 'max_kmh' => 240],
-        ['symbol' => 'W', 'rank' => 12, 'max_kmh' => 270],
-        ['symbol' => 'Y', 'rank' => 13, 'max_kmh' => 300],
-        ['symbol' => '(Y)', 'rank' => 14, 'max_kmh' => null],
+        // J and K below L (the client's round of 08.11.2026, §4, D-442): every rank above moved up by two, in one migration.
+        ['symbol' => 'J', 'rank' => 1, 'max_kmh' => 100],
+        ['symbol' => 'K', 'rank' => 2, 'max_kmh' => 110],
+        ['symbol' => 'L', 'rank' => 3, 'max_kmh' => 120],
+        ['symbol' => 'M', 'rank' => 4, 'max_kmh' => 130],
+        ['symbol' => 'N', 'rank' => 5, 'max_kmh' => 140],
+        ['symbol' => 'P', 'rank' => 6, 'max_kmh' => 150],
+        ['symbol' => 'Q', 'rank' => 7, 'max_kmh' => 160],
+        ['symbol' => 'R', 'rank' => 8, 'max_kmh' => 170],
+        ['symbol' => 'S', 'rank' => 9, 'max_kmh' => 180],
+        ['symbol' => 'T', 'rank' => 10, 'max_kmh' => 190],
+        ['symbol' => 'U', 'rank' => 11, 'max_kmh' => 200],
+        ['symbol' => 'H', 'rank' => 12, 'max_kmh' => 210],
+        ['symbol' => 'V', 'rank' => 13, 'max_kmh' => 240],
+        ['symbol' => 'W', 'rank' => 14, 'max_kmh' => 270],
+        ['symbol' => 'Y', 'rank' => 15, 'max_kmh' => 300],
+        ['symbol' => '(Y)', 'rank' => 16, 'max_kmh' => null],
     ];
 
     /** @codeCoverageIgnore Constants only: the constructor exists so the class cannot be built, and never runs (D-433). */

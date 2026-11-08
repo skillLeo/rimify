@@ -6,7 +6,6 @@ namespace App\Services\Admin\Approvals\Entry;
 
 use App\Support\GermanFormat;
 use App\Support\TyreText;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Whether a typed tyre can stand in the tables the shop reads: it reads (TyreText), its size lies within what a row takes,
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class EntryLineRules
 {
-    /** @return array{width: int, aspect: int, diameter: int, li: int|null, si: string|null, marker: string|null}|null */
+    /** @return array{width: int, aspect: int, diameter: int, li: int|null, li2: int|null, si: string|null, marker: string|null}|null */
     public static function readable(string $text): ?array
     {
         $tyre = TyreText::read($text);
@@ -46,7 +45,7 @@ final class EntryLineRules
         );
     }
 
-    /** @param array{width: int, aspect: int, diameter: int, li: int|null, si: string|null, marker: string|null} $tyre */
+    /** @param array{width: int, aspect: int, diameter: int, li: int|null, li2: int|null, si: string|null, marker: string|null} $tyre */
     private static function why(array $tyre): ?string
     {
         if ($tyre['width'] < 125 || $tyre['width'] > 355) {
@@ -61,10 +60,8 @@ final class EntryLineRules
             return 'Gib den Durchmesser hinter dem R in Zoll an, zwischen 12 und 26.';
         }
 
-        // „gibt es nicht“ would say more than we know: an index above 120 exists, only its capacity is not on record (D-310).
-        if ($tyre['li'] !== null && ! DB::table('load_index_table')->where('load_index', $tyre['li'])->exists()) {
-            return 'Diesen Lastindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.';
-        }
+        // Every load index 0 to 279 is entered as the paper prints it (the client's round of 08.11.2026, §4, D-442): one the shop holds no
+        // capacity for is answered „Noch nicht bestätigt“ in the shop (FitmentResolver), never refused here.
 
         return null;
     }

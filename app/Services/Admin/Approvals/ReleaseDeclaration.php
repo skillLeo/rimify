@@ -12,11 +12,11 @@ use App\Models\ApprovalDocument;
  *
  *   - whether every Anlage and every vehicle is entered (`complete`, `partial` with what is missing, `unknown`) —
  *     only `complete` lets the shop refuse a car the rows do not name;
- *   - what the Verwendungsbereich prints for the vehicles entered: how many Auflagen codes, how many tyre sizes,
- *     the axle-load limit if it names one, and whether it asks for an Abnahme.
+ *   - whether the Verwendungsbereich asks for an Abnahme, which DocumentRelease compares with what was entered: an entry
+ *     that misses the Abnahme cannot reach the shop by being released on trust.
  *
- * DocumentRelease counts the same four things in what was entered and refuses on any difference: an entry that misses
- * a condition, a size, a limit or the Abnahme cannot reach the shop by being released on trust.
+ * The count of Auflagen codes and tyre sizes (D-440) and the axle-load limit (D-441) are no longer asked: the client's round of
+ * 08.11.2026, §3. A limit the paper prints reaches the shop through its codes of kind Tragfähigkeit.
  */
 final readonly class ReleaseDeclaration
 {
@@ -34,21 +34,15 @@ final readonly class ReleaseDeclaration
     public function __construct(
         public string $completeness,
         public ?string $missing = null,
-        public ?int $codes = null,
-        public ?int $sizes = null,
-        public ?int $axleLimitKg = null,
         public ?string $abnahme = null,
     ) {}
 
-    /** @return array{completeness: string, missing: string|null, codes: int|null, sizes: int|null, axleLimitKg: int|null, abnahme: string|null} */
+    /** @return array{completeness: string, missing: string|null, abnahme: string|null} */
     public function toArray(): array
     {
         return [
             'completeness' => $this->completeness,
             'missing' => $this->missing,
-            'codes' => $this->codes,
-            'sizes' => $this->sizes,
-            'axleLimitKg' => $this->axleLimitKg,
             'abnahme' => $this->abnahme,
         ];
     }

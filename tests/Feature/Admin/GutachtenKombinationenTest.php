@@ -164,7 +164,6 @@ it('lets no one change the lines of a released document, nor a role that may onl
 it('hands the shop\'s engine, for a car, the list of the entry its field K falls under — in its numbering and on its page @admin-219', function (): void {
     ['document' => $document, 'a' => $a, 'b' => $b] = kombinationenDraft();
     $admin = kombinationenAdmin();
-    $this->actingAs($admin, 'admin')->post("/admin/gutachten/{$document->id}/zaehlung", ['codes' => 0, 'codes_page' => 3, 'sizes' => 4, 'sizes_page' => 3, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'none', 'abnahme_page' => null])->assertSessionHasNoErrors();
 
     kombinationenLines($a, [
         ['front' => '225/40 R18', 'rear' => '225/40 R18'],

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Admin\Dashboard;
 
 use App\Enums\ApprovalKind;
+use App\Enums\TyreIndexSource;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Services\Admin\Approvals\FitmentRows;
@@ -162,8 +163,10 @@ final class Coverage
             // no tyres from it, and says so to the customer (FitmentResolver) — here the gap is named for the
             // people who run the shop, not only in the answer a fast car gets. Only a document with rows of its own: a
             // base whose Verwendungsbereich is its Nachtrag's Anlagen (ABE 53841) approves nothing a table could limit.
+            // Not one that prints load index and symbol beside every size: there the shop answers from those without a table (D-438).
             'noSpeedTable' => ApprovalDocument::query()->currentlyValid()
                 ->whereHas('fitments')
+                ->where(static fn ($q) => $q->whereNull('tyre_index_source')->orWhere('tyre_index_source', '<>', TyreIndexSource::Document->value))
                 ->whereNotExists(static fn ($q) => $q->selectRaw('1')->from('document_speed_deratings as d')->whereColumn('d.approval_document_id', 'approval_documents.id'))
                 ->orderBy('id')->get()
                 ->map(static fn (ApprovalDocument $d): array => [
