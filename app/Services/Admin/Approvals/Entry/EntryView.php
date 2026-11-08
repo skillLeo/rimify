@@ -172,6 +172,7 @@ final readonly class EntryView
             'aspect' => (int) $line->getAttribute("{$side}_aspect"),
             'diameter' => (float) $line->getAttribute("{$side}_diameter_in"),
             'li' => $line->getAttribute("{$side}_load_index"),
+            'li2' => $line->getAttribute("{$side}_load_index_dual"),
             'si' => $line->getAttribute("{$side}_speed_symbol"),
             'marker' => $line->getAttribute("{$side}_marker"),
         ]);

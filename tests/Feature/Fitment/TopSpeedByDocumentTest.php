@@ -210,3 +210,22 @@ describe('a car whose top speed is known, under „bei jeder Reifengröße“ (D
         expect(app(FitmentResolver::class)->resolve($vehicle->id, $wheel->id)->tyre?->status)->toBe(VerdictStatus::Unknown);
     });
 });
+
+describe('a load index the shop holds no capacity for (D-442)', function (): void {
+    // The client's round of 08.11.2026, §4: every pairing enterable; where the verdict maths has no figure for a value, „Noch nicht
+    // bestätigt“ — never an error. The table holds 70 to 120 (D-310).
+    it('answers „Noch nicht bestätigt“ for the tyres where the paper prints an index above the table, naming it', function (): void {
+        $verdict = underDocument(TyreIndexSource::Document, 200, 'S', loadIndex: 121);
+
+        expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+            ->and($verdict->status)->toBe(VerdictStatus::Unknown)
+            ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('Tragfähigkeitsindex 121');
+    });
+
+    it('needs no figure for an index below the table: the axle load\'s own index is the floor above it', function (): void {
+        $verdict = underDocument(TyreIndexSource::Document, 200, 'S', loadIndex: 65);
+
+        expect($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
+            ->and($verdict->front->minLoadIndex)->toBe(88);
+    });
+});

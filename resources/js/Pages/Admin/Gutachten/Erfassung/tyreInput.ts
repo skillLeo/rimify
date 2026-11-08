@@ -5,7 +5,11 @@
  * (App\Support\TyreText); both tests read one list of them (tests/Fixtures/tyre-notations.json).
  */
 
-export const SPEED_SYMBOLS = ['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'] as const
+/* Every ETRTO speed symbol, in the engine's rank order (ReferenceTables::SPEED_SYMBOLS): J and K since the client's round of 08.11.2026, §4 (D-442). */
+export const SPEED_SYMBOLS = ['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'] as const
+
+/* The highest load index the ETRTO lists. */
+export const MAX_LOAD_INDEX = 279
 
 export interface TyreSpec {
     width: number
@@ -13,9 +17,11 @@ export interface TyreSpec {
     diameter: number
     /** The minimum load index the paper prints beside the size, or null where it gives none. */
     li: number | null
+    /** A C tyre's second index, for twin wheels: `115/113R` → 113. Kept as printed; the first is the minimum. */
+    li2: number | null
     /** The minimum speed symbol the paper prints, or null where it gives none. */
     si: string | null
-    /** `HL`, `XL`: the build the paper prints with the size. */
+    /** `HL`, `XL`, `RF`, `C`: the build the paper prints with the size. */
     marker: string | null
 }
 
@@ -36,15 +42,16 @@ export interface PasteLine {
     reason?: string
 }
 
-const SIZE = '(\\d{3})\\s*\\/\\s*(\\d{2})\\s*(?:Z?\\s*R|-)\\s*(\\d{2})'
-const MINIMUM = '(?:\\s*-?\\s*(?:(\\d{2,3})\\s*(\\(Y\\))|\\(?\\s*(?:(\\d{2,3})\\s*([A-Z])?|([A-Z]))\\s*\\)?))?'
+const SIZE = '(\\d{3})\\s*\\/\\s*(\\d{2})\\s*(?:Z?\\s*R|-)\\s*(\\d{2})(\\s*C\\b)?'
+/* (92Y) · 92(Y) · 115/113R · 92 · (Y) · Y — as App\\Support\\TyreText reads them. */
+const MINIMUM = '(?:\\s*-?\\s*(?:\\(\\s*(\\d{1,3})\\s*([A-Z])\\s*\\)|(\\d{1,3})(?:\\s*\\/\\s*(\\d{1,3}))?\\s*(\\(Y\\)|[A-Z])?|(\\(Y\\)|[A-Z])))?'
 const TYRE = new RegExp(`^${SIZE}${MINIMUM}$`)
 
 /* A size somewhere in the text: what tells a line of tyres from a heading. */
 const ANY_SIZE = /\d{3}\s*\/\s*\d{2}/
 
-/* Between front and rear: `–`, `—`, `+`, `→`, `->`, or a hyphen — but only before a size, never before a load index. */
-const PAIR = /\s*(?:→|->|\+|–|—)\s*|\s*-\s*(?=(?:(?:HL|XL)\s+)?\d{3}\s*\/)/i
+/* Between front and rear: `–`, `—`, `+`, `→`, `->`, or a hyphen — but only before a size, never before a load index (`-109/107`). */
+const PAIR = /\s*(?:→|->|\+|–|—)\s*|\s*-\s*(?=(?:(?:HL|XL|RF)\s+)?\d{3}\s*\/\s*\d{2}\s*(?:Z?\s*R|-))/i
 
 /* „Nr. 7:", „7.", „7)" at the start of an entry. */
 const NUMBER = /^(?:nr\.?\s*)?(\d{1,3})\s*[:.)]\s*(?=\S)/i
@@ -54,17 +61,18 @@ export function readTyre(text: string): TyreSpec | null {
     let normal = text.replace(/\s+/g, ' ').trim().toUpperCase()
     let marker: string | null = null
 
-    const prefix = normal.match(/^(HL|XL)\s+(.*)$/)
+    const prefix = normal.match(/^(HL|XL|RF)\s+(.*)$/)
 
     if (prefix) {
         marker = prefix[1] ?? null
         normal = prefix[2] ?? ''
     }
 
-    const suffix = normal.match(/^(.*?)\s+(XL|HL|RF|REINF|EXTRA LOAD)$/)
+    const suffix = normal.match(/^(.*?)\s+(XL|HL|RF|REINF|REINFORCED|EXTRA LOAD)$/)
 
     if (suffix) {
-        marker ??= suffix[2] === 'XL' || suffix[2] === 'HL' ? suffix[2] : null
+        const word = suffix[2] ?? ''
+        marker ??= word === 'EXTRA LOAD' ? 'XL' : word === 'REINF' || word === 'REINFORCED' ? 'RF' : word
         normal = suffix[1] ?? ''
     }
 
@@ -74,15 +82,29 @@ export function readTyre(text: string): TyreSpec | null {
         return null
     }
 
-    const symbol = m[5] ?? m[7] ?? m[8] ?? null
-
-    if (symbol !== null && !(SPEED_SYMBOLS as readonly string[]).includes(symbol)) {
+    // In brackets, the whole service description says the category above 300 km/h: only a Y is ever so printed.
+    if (m[5] !== undefined && m[6] !== 'Y') {
         return null
     }
 
-    const index = m[4] ?? m[6] ?? null
+    const symbol = m[5] !== undefined ? '(Y)' : (m[9] ?? m[10] ?? null)
+    const index = m[5] ?? m[7] ?? null
+    const dual = m[8] ?? null
 
-    return { width: Number(m[1]), aspect: Number(m[2]), diameter: Number(m[3]), li: index === null ? null : Number(index), si: symbol, marker }
+    if ((symbol !== null && !(SPEED_SYMBOLS as readonly string[]).includes(symbol)) || (index !== null && Number(index) > MAX_LOAD_INDEX) || (dual !== null && Number(dual) > MAX_LOAD_INDEX)) {
+        return null
+    }
+
+    return {
+        width: Number(m[1]),
+        aspect: Number(m[2]),
+        diameter: Number(m[3]),
+        li: index === null ? null : Number(index),
+        li2: dual === null ? null : Number(dual),
+        si: symbol,
+        // A C tyre is built for its load: the C names it, whatever else the paper prints beside it.
+        marker: m[4] !== undefined ? 'C' : marker,
+    }
 }
 
 /**
@@ -90,7 +112,7 @@ export function readTyre(text: string): TyreSpec | null {
  * speed symbol is one nobody knows (`255/35R18 90X`). Null where nothing more can be said.
  */
 export function whyUnread(text: string): string | null {
-    const m = text.trim().toUpperCase().match(/^(?:(?:HL|XL)\s+)?\d{3}\s*\/\s*\d{2}\s*Z?\s*R\s*\d{2}\s*-?\s*\(?\s*\d{2,3}\s*([A-Z])\s*\)?$/)
+    const m = text.trim().toUpperCase().match(/^(?:(?:HL|XL|RF)\s+)?\d{3}\s*\/\s*\d{2}\s*Z?\s*R\s*\d{2}(?:\s*C\b)?\s*-?\s*\(?\s*\d{1,3}(?:\s*\/\s*\d{1,3})?\s*([A-Z])\s*\)?$/)
 
     if (m === null || (SPEED_SYMBOLS as readonly string[]).includes(m[1] ?? '')) {
         return null
@@ -99,11 +121,14 @@ export function whyUnread(text: string): string | null {
     return `Das Geschwindigkeitssymbol „${m[1]}“ gibt es nicht.`
 }
 
-/** As the shop and the admin write it: `225/40 R18 88W`, `HL 255/35 R20 100`, `235/50 R18`. */
-export function tyreLabel(tyre: TyreSpec): string {
-    const minimum = `${tyre.li ?? ''}${tyre.si ?? ''}`
+/** As the shop and the admin write it: `225/40 R18 88W`, `HL 255/35 R20 100`, `235/50 R18`, `235/65 R16 C 115/113R`. */
+export function tyreLabel(tyre: Omit<TyreSpec, 'li2'> & { li2?: number | null }): string {
+    const index = tyre.li === null ? '' : `${tyre.li}${tyre.li2 === null || tyre.li2 === undefined ? '' : `/${tyre.li2}`}`
+    const minimum = `${index}${tyre.si ?? ''}`
+    const lead = tyre.marker && tyre.marker !== 'C' ? `${tyre.marker} ` : ''
+    const c = tyre.marker === 'C' ? ' C' : ''
 
-    return `${tyre.marker ? `${tyre.marker} ` : ''}${tyre.width}/${tyre.aspect} R${tyre.diameter}${minimum === '' ? '' : ` ${minimum}`}`
+    return `${lead}${tyre.width}/${tyre.aspect} R${tyre.diameter}${c}${minimum === '' ? '' : ` ${minimum}`}`
 }
 
 /** The size alone, whatever the minimum: what a duplicate or a pair is compared by. */

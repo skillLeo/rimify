@@ -1021,6 +1021,15 @@ final readonly class FitmentResolver
             )]];
         }
 
+        // The documents print an index the shop holds no capacity for (D-442; the table ends at 120, D-310): which tyre carries it is
+        // not on record with us — „Noch nicht bestätigt“, never an error and never a guess.
+        if (($check['indexUnheld'] ?? null) !== null) {
+            return [VerdictStatus::Unknown, [sprintf(
+                '!Das Gutachten verlangt bei der Reifengröße Tragfähigkeitsindex %d. Für diesen Index ist bei uns keine Tragfähigkeit hinterlegt; die Reifen können wir deshalb noch nicht bestätigen.',
+                (int) $check['indexUnheld'],
+            )]];
+        }
+
         if ($check['derived'] === null || ! $axle->hasUsableMinimum()) {
             return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s nennt die Tragfähigkeitstabelle keinen Index. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
         }
@@ -1483,6 +1492,8 @@ final readonly class FitmentResolver
                 'limit' => $limit,
                 'axleNote' => $axleNote,
                 'limitsUncovered' => $limitsUncovered,
+                // A load index the documents print that the table holds no capacity for (D-442): what it asks of a tyre is not on record.
+                'indexUnheld' => $sizeLoadIndex !== null && $sizeLoadIndex === $minLoadIndex && $this->loadIndex->capacityOf($sizeLoadIndex) === null ? $sizeLoadIndex : null,
                 // The sizes left off this axle for want of an index at its load (D-434), each with its limits' reach.
                 'sizesUncovered' => [],
                 'binding' => $binding,

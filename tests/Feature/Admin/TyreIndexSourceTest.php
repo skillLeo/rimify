@@ -190,12 +190,14 @@ it('reads load index and speed symbol apart, and keeps a line neither stands in 
         'lines' => [['id' => null, 'front' => $tyre, 'rear' => $tyre, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
     ])->assertOk();
 
-    // A tyre that does not stand in the tables is kept as typed, said, and writes nothing; the release waits for it.
-    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Lastindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
+    // A tyre that does not read — no ETRTO index above 279 — is kept as typed, said, and writes nothing; the release waits for it.
+    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 245/45R18 100 oder 235/50R18.');
     expect(DB::table('fitment_tyre_sizes')->count())->toBe(0)
         ->and(implode(' ', app(DocumentRelease::class)->check($document)))->toContain('nicht lesbar');
-    // D-310: past 120 Regulation No 30 prints no capacity — the row waits rather than taking an estimate.
-    $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', 'Diesen Lastindex kennt der Shop nicht. Er rechnet mit den Indizes 70 bis 120.');
+    // Past 120 Regulation No 30 prints no capacity (D-310): entered as the paper prints it all the same, since the client's round of
+    // 08.11.2026, §4 (D-442) — the shop answers its tyres „Noch nicht bestätigt“ (TopSpeedByDocumentTest), never an estimate.
+    $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', null);
+    expect(DB::table('fitment_tyre_sizes')->orderByDesc('id')->value('min_load_index'))->toBe(121);
     $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X');
     $line('245/35 R19 93Y')->assertJsonPath('car.lines.0.frontWhy', null);
 
