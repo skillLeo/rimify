@@ -298,7 +298,7 @@ export interface CardFitment {
     setPrice?: string | null
     setPriceFrom?: boolean
     /** The colour of the „Mit Auflagen“ hint (#23): how it looks, never what it says. */
-    hint?: 'green' | 'yellow'
+    hint?: 'green' | 'yellow' | 'red'
     /** Every Auflage of every size a Hinweis (#23, D-104): „Freigegeben“, quietly „mit Hinweisen“. */
     notesOnly?: boolean
     /** No size sells, and the wheel is approved with its tyres not yet confirmed (finding 103, D-286). Additive. */

@@ -16,6 +16,7 @@ import ListPager, { type ListPagination } from '../../../Components/Admin/Lists/
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { DocumentConditionView, UnresolvedCode } from '../../../types/admin/gutachten'
+import { HINT_COLOURS, hintColourLabel } from '../../../fitment/hintColour'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
 
@@ -33,7 +34,7 @@ const props = defineProps<{
     /** Every document with a code, over all pages (the admin audit's F-33). */
     found: number
     /** The filter on the shop colour; null: every code. */
-    farbe: 'green' | 'yellow' | null
+    farbe: 'green' | 'yellow' | 'red' | null
     canColour: boolean
     pagination: ListPagination
 }>()
@@ -94,8 +95,7 @@ function parameter(c: DocumentConditionView): string {
             <label class="form-field__label" for="al-farbe">Farbe im Shop</label>
             <select id="al-farbe" class="input" :value="farbe ?? ''" @change="filterColour(($event.target as HTMLSelectElement).value)">
                 <option value="">Alle Farben</option>
-                <option value="green">Grün</option>
-                <option value="yellow">Gelb</option>
+                <option v-for="colour in HINT_COLOURS" :key="colour.value" :value="colour.value">{{ colour.label }}</option>
             </select>
         </div>
 
@@ -147,16 +147,15 @@ function parameter(c: DocumentConditionView): string {
                             <td data-label="Farbe im Shop">
                                 <template v-if="canColour">
                                     <span class="al-colourline">
-                                        <span class="al-dot" :class="c.shopColour === 'yellow' ? 'al-dot--yellow' : 'al-dot--green'" aria-hidden="true" />
+                                        <span class="al-dot" :class="`al-dot--${c.shopColour}`" aria-hidden="true" />
                                         <select :id="`al-colour-${c.id}`" class="input al-colour" :value="c.shopColour" :aria-label="`Farbe von Code ${c.code} im Shop`" @change="setColour(doc, c, $event.target as HTMLSelectElement)">
-                                            <option value="green">Grün</option>
-                                            <option value="yellow">Gelb</option>
+                                            <option v-for="colour in HINT_COLOURS" :key="colour.value" :value="colour.value">{{ colour.label }}</option>
                                         </select>
                                     </span>
                                 </template>
                                 <span v-else class="al-colourline">
-                                    <span class="al-dot" :class="c.shopColour === 'yellow' ? 'al-dot--yellow' : 'al-dot--green'" aria-hidden="true" />
-                                    {{ c.shopColour === 'yellow' ? 'Gelb' : 'Grün' }}
+                                    <span class="al-dot" :class="`al-dot--${c.shopColour}`" aria-hidden="true" />
+                                    {{ hintColourLabel(c.shopColour) }}
                                 </span>
                             </td>
                             <td data-label="Seite" class="num">{{ c.page ?? '–' }}</td>
@@ -224,6 +223,10 @@ function parameter(c: DocumentConditionView): string {
 
 .al-dot--yellow {
     background: var(--c-warn);
+}
+
+.al-dot--red {
+    background: var(--c-bad);
 }
 
 .al-colour {

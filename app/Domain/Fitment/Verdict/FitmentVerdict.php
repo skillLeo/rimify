@@ -324,26 +324,26 @@ final readonly class FitmentVerdict
      * louder reading wins). The status itself is untouched; this decides the words and the colour.
      */
     /**
-     * The colour of the „Mit Auflagen“ hint (#23): yellow if any code that makes the answer conditional is yellow, otherwise green. An
-     * answer conditional for a reason no code of the paper speaks for (our own sentence, a figure still open) stays the caution it was.
+     * The colour of the „Mit Auflagen“ hint (#23, D-439): red if any code that makes the answer conditional is red, otherwise yellow if
+     * any is yellow, otherwise green. An answer conditional for a reason no code of the paper speaks for (our own sentence, a figure
+     * still open) is at least the yellow caution it was. Presentation only: the status and the words stay what they are.
      */
     public function hintColour(): HintColour
     {
         $coded = false;
+        $colour = HintColour::Green;
 
         foreach ($this->conditions as $condition) {
             if (! $condition->downgradesVerdict()) {
                 continue;
             }
 
-            if ($condition->hintColour === null || $condition->hintColour === HintColour::Yellow) {
-                return HintColour::Yellow;
-            }
-
-            $coded = true;
+            $own = $condition->hintColour ?? HintColour::Yellow;
+            $colour = $own->rank() > $colour->rank() ? $own : $colour;
+            $coded = $coded || $condition->hintColour !== null;
         }
 
-        return $coded ? HintColour::Green : HintColour::Yellow;
+        return ! $coded && $colour === HintColour::Green ? HintColour::Yellow : $colour;
     }
 
     public function notesOnly(): bool

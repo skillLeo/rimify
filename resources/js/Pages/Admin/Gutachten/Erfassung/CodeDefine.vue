@@ -12,6 +12,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { stampHeaders } from '../../../../composables/admin/useDirtyForm'
 import type { DocumentConditionView } from '../../../../types/admin/gutachten'
 import { useEntry, useGutachtenPage } from './entryStore'
+import { HINT_COLOURS } from '../../../../fitment/hintColour'
 
 const props = defineProps<{
     /** The code to describe; empty for a new one typed into the panel. */
@@ -191,8 +192,7 @@ async function save(): Promise<void> {
         <div class="form-field">
             <label class="form-field__label" :for="`${idPrefix}-colour`">Farbe im Shop</label>
             <select :id="`${idPrefix}-colour`" v-model="form.shop_colour" class="input">
-                <option value="green">Grün</option>
-                <option value="yellow">Gelb</option>
+                <option v-for="colour in HINT_COLOURS" :key="colour.value" :value="colour.value">{{ colour.label }}</option>
             </select>
             <p class="form-field__help">Nur die Farbe des Hinweises „Mit Auflagen“. Was der Shop sagt, ändert sich dadurch nicht.</p>
         </div>

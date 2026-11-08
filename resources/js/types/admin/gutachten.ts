@@ -128,7 +128,7 @@ export interface DocumentConditionView {
     id: number
     code: string
     /** The colour it gives the shop's hint (#23): presentation only. */
-    shopColour: 'green' | 'yellow'
+    shopColour: 'green' | 'yellow' | 'red'
     kind: string
     kindLabel: string
     /** Where the customer reads it: Abnahme, Arbeiten am Fahrzeug, Befestigung, Reifen, Hinweise, Fahrzeug. */
