@@ -607,7 +607,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
 
                 <!--
                     The client's change of 05.11.2026: the customer answers here, Mit or Ohne, nothing preselected, and the way on waits for it.
-                    No valve is offered or described: the admin holds none, and which valves a wheel may take is the Gutachten's to say.
+                    The valves follow the answer (D-443): without RDKS the basket lists „Ventile (inklusive)“ at 0,00 €, with RDKS none — the sensor carries the valve.
                 -->
                 <fieldset v-if="tpms" class="kf-group" data-rdks>
                     <legend class="label">RDKS-Sensoren</legend>

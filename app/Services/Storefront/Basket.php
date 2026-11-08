@@ -79,6 +79,9 @@ final readonly class Basket
     public const MOUNTING_REFUSAL = 'Der Preis für Montage und Auswuchten steht noch nicht fest. '
         .'Solange kannst du Kompletträder noch nicht bestellen – dein Warenkorb bleibt gespeichert.';
 
+    /** A Komplettrad without RDKS: its standard valves, at no charge (D-443). */
+    public const VALVES_INCLUDED = 'Ventile (inklusive)';
+
     /** A Komplettrad in the basket and no answer to the RDKS question yet (§4.9). */
     public const TPMS_UNANSWERED_REFUSAL = 'Bitte sag uns noch, ob du RDKS-Sensoren brauchst.';
 
@@ -179,6 +182,7 @@ final readonly class Basket
         // The sensors are part of the goods, so they are in the subtotal — and only on `ja` (§4.8).
         $tpms = $this->tpms($request, $lines);
         $subtotal += (int) $tpms['totalCents'];
+        $lines = self::withValves($lines, $tpms['choice'] ?? null);
 
         $shipping = $this->shippingFor($subtotal);
 
@@ -1374,6 +1378,43 @@ final readonly class Basket
         }
 
         return $reasons;
+    }
+
+    /**
+     * The valves (the client's round of 08.11.2026, §1, D-443): „Is included for free for normal. If RDKS is selected, then there is no
+     * 'normal' valve. If no tire is selected when customer only orders rims then we dont send valves.“ A Komplettrad without RDKS gets
+     * the row „Ventile (inklusive)“ at 0,00 €, so the warehouse knows what to fit; with RDKS none — the sensor carries the valve; a rim
+     * alone none. Unanswered, none yet: the order waits for the answer (TPMS_UNANSWERED_REFUSAL). The order freezes the rows as they
+     * stand here (OrderWriter::components).
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<array<string, mixed>>
+     */
+    private static function withValves(array $lines, mixed $choice): array
+    {
+        if ($choice !== 'nein') {
+            return $lines;
+        }
+
+        foreach ($lines as $i => $line) {
+            if (($line['isSet'] ?? false) !== true || ! is_array($line['components'] ?? null)) {
+                continue;
+            }
+
+            $line['components'][] = [
+                'key' => 'valves',
+                'label' => self::VALVES_INCLUDED,
+                'quantity' => (int) $line['quantity'],
+                'unitPrice' => GermanFormat::money(0),
+                'lineTotal' => GermanFormat::money(0),
+                'unitPriceCents' => 0,
+                'lineTotalCents' => 0,
+                'open' => false,
+            ];
+            $lines[$i] = $line;
+        }
+
+        return $lines;
     }
 
     /**

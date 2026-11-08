@@ -653,7 +653,7 @@ final class AcceptanceSeeder
             $counts['tpms_sensor_prices'] = 1;
         }
 
-        $notes[] = 'Ventile bietet der Shop nicht einzeln an: Dazu steht die Frage an den Kunden noch offen (#15).';
+        $notes[] = 'Ventile: Ein Komplettrad ohne RDKS hat „Ventile (inklusive)“ zu 0,00 €, mit RDKS keine – der Sensor trägt das Ventil –, eine Felge allein keine (D-443).';
     }
 
     /** @param  array<string, mixed>  $row */
