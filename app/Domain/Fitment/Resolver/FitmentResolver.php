@@ -1038,6 +1038,17 @@ final readonly class FitmentResolver
 
         $lines = [$lead];
 
+        // A size the axle lost to its own limits (D-434): said, as what is on record (R-17).
+        foreach ($check['sizesUncovered'] ?? [] as $gone) {
+            $lines[] = sprintf(
+                'Für %s sind zu den Auflagen dieses Gutachtens Tragfähigkeitsindizes nur bis %s Achslast hinterlegt; die %s trägt %s. Diese Größe können wir deshalb nicht bestätigen.',
+                $gone['size'],
+                GermanFormat::kilograms($gone['kg']),
+                $name,
+                GermanFormat::kilograms($load),
+            );
+        }
+
         if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
             $lines[] = sprintf('Die Felge ist für %s je Rad geprüft – das reicht.', GermanFormat::kilograms($wheel->maxLoadKg));
         }
@@ -1196,6 +1207,7 @@ final readonly class FitmentResolver
      * @param  array{axleLoadFrom: string|null, topSpeedFrom: string|null}|null  $provenance  where the figures came from, where the customer's own took part
      * @param  TyreSize|null  $only  this size's own minimum (D-431): what the documents print beside it, its own Auflagen and
      *                               its rows', and the axle's figures — never what they print beside another size
+     * @param  list<string>  $without  sizes (keys) left off this axle because their own limits stop below its load (D-434)
      * @return array{0: AxleRequirement, 1: array<string, mixed>}
      */
     private function axleRequirement(
@@ -1208,6 +1220,7 @@ final readonly class FitmentResolver
         ?array $provenance = null,
         bool $speedFromDocument = false,
         ?TyreSize $only = null,
+        array $without = [],
     ): array {
         $sizes = null;
         $sizeLoadIndex = null;
@@ -1237,6 +1250,10 @@ final readonly class FitmentResolver
                 $rowSizes = array_values(array_filter($rowSizes, static fn (TyreSize $size): bool => $size->matches($only)));
             }
 
+            if ($without !== []) {
+                $rowSizes = array_values(array_filter($rowSizes, static fn (TyreSize $size): bool => ! in_array($size->key(), $without, true)));
+            }
+
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);
             $tables[$row->document->id] = $row->document->speedDerating;
@@ -1259,6 +1276,29 @@ final readonly class FitmentResolver
                         $limits[$condition->code."\u{0}".$condition->maxAxleLoadKg] = $condition;
                     }
                 }
+            }
+        }
+
+        // A load-index limit printed beside one size is that size's alone (D-434). A size whose own limits — its own and its
+        // rows' — all stop below this axle's load has no index on record for it here: it leaves the axle, and the other sizes
+        // are judged by their own rules. Where every size is so — a limit on the row reaches them all — nothing is left to
+        // judge, and the axle reads as before: „Noch nicht bestätigt“.
+        if ($only === null && $without === [] && $sizes !== null && count($sizes) > 1 && $axleLoadKg !== null && $axleLoadKg > 0 && $limits !== []) {
+            $uncovered = [];
+
+            foreach ($sizes as $size) {
+                [, $ownCheck] = $this->axleRequirement($covering, $axleLoadKg, $maxSpeedKmh, $axle, $powerKw, $papers, $provenance, $speedFromDocument, $size);
+
+                if ($ownCheck['limitsUncovered'] !== null) {
+                    $uncovered[$size->key()] = ['size' => $size->labelDe(), 'kg' => (int) $ownCheck['limitsUncovered']];
+                }
+            }
+
+            if ($uncovered !== [] && count($uncovered) < count($sizes)) {
+                [$requirement, $check] = $this->axleRequirement($covering, $axleLoadKg, $maxSpeedKmh, $axle, $powerKw, $papers, $provenance, $speedFromDocument, null, array_keys($uncovered));
+                $check['sizesUncovered'] = array_values($uncovered);
+
+                return [$requirement, $check];
             }
         }
 
@@ -1437,6 +1477,8 @@ final readonly class FitmentResolver
                 'limit' => $limit,
                 'axleNote' => $axleNote,
                 'limitsUncovered' => $limitsUncovered,
+                // The sizes left off this axle for want of an index at its load (D-434), each with its limits' reach.
+                'sizesUncovered' => [],
                 'binding' => $binding,
                 'hasTable' => array_filter($tableList) !== [],
                 // A table the demo seed wrote is never passed off as printed by this document.

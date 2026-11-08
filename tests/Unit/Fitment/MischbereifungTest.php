@@ -233,21 +233,57 @@ it('drops a listed pair whose rear size its own load-index limit rules out for t
         ->and($offer->pairs)->toBe([])
         ->and($offer->refusal)->toBe(KomplettradRefusal::NoMixedPairing)
         ->and($offer->hasTable)->toBeTrue()
-        ->and($eligibility->permitsMixed($verdict, mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99)))->toBe(KomplettradRefusal::AxleLoadAboveLimit);
+        // Since D-434 255/40 leaves both axles — its own limit reaches neither load —, and the verdict says why; at the
+        // basket the pair is then not one on record for this car.
+        ->and(array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->rear->sizes))->toBe(['235/45 R19', '245/40 R19'])
+        ->and($eligibility->permitsMixed($verdict, mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99)))->toBe(KomplettradRefusal::MixedPairNotListed);
 });
 
-it('leaves every size of an axle unconfirmed where one size’s own limits stop below the axle’s load — cautious, never wrong', function (): void {
-    // Found while covering the engine (D-433): only 255/40 carries a limit, yet 235/45 and 245/40 wait with it. This pins
-    // today's answer — a missed sale, never a tyre sold the paper does not approve; changing it is its own decision.
+it('holds a load limit printed beside one size to that size alone — the axle’s other sizes stand on their own rules (D-434)', function (): void {
+    // Only 255/40 carries a limit, T98 up to 1.100 kg; the RS 4 carries 1.210 kg front and 1.235 kg rear — above it, so the
+    // paper gives that size no index for this car and it is not offered. 235/45 and 245/40 carry no limit: their own
+    // minimum is the derived 93 Y. Before D-434 the one size's limit left every size on the axle „Noch nicht bestätigt“.
     $verdict = mixedVerdict(sizes: [
         new TyreSize(235, 45, 19.0),
         new TyreSize(245, 40, 19.0),
         new TyreSize(255, 40, 19.0, conditions: [mixedLimit('T98', 1100)]),
     ]);
+    $labels = static fn (array $sizes): array => array_map(static fn (TyreSize $s): string => $s->labelDe(), $sizes);
+    $lines = implode(' ', $verdict->tyre->lines ?? []);
+
+    expect($verdict->tyre?->status)->not->toBe(VerdictStatus::Unknown)
+        ->and($verdict->isSellable())->toBeTrue()
+        ->and($labels($verdict->front->sizes))->toBe(['235/45 R19', '245/40 R19'])
+        ->and($labels($verdict->rear->sizes))->toBe(['235/45 R19', '245/40 R19'])
+        ->and($verdict->front->minLoadIndex)->toBe(93)
+        ->and($verdict->rear->minimumFor(new TyreSize(235, 45, 19.0)))->toBe(['loadIndex' => 93, 'speedSymbol' => 'Y'])
+        // Said per axle, as what is on record (R-17): the size, the limit's reach and the axle's load.
+        ->and($lines)->toContain(sprintf(
+            'Für 255/40 R19 sind zu den Auflagen dieses Gutachtens Tragfähigkeitsindizes nur bis %s Achslast hinterlegt; die Hinterachse trägt %s. Diese Größe können wir deshalb nicht bestätigen.',
+            GermanFormat::kilograms(1100),
+            GermanFormat::kilograms(1235),
+        ))
+        ->and(mixedEligibility(mixedTyre(11, 235, 45, 93))->permits($verdict, mixedTyre(11, 235, 45, 93), 4))->toBeNull()
+        // The limited size itself is still never sold: the paper prints no index for it at this load.
+        ->and(mixedEligibility(mixedTyre(12, 255, 40, 99))->permits($verdict, mixedTyre(12, 255, 40, 99), 4))->not->toBeNull();
+});
+
+it('still confirms no tyre where every size’s own limits stop below the axle’s load — nothing is left to judge (D-434)', function (): void {
+    $verdict = mixedVerdict(sizes: [
+        new TyreSize(235, 45, 19.0, conditions: [mixedLimit('T95', 1100)]),
+        new TyreSize(255, 40, 19.0, conditions: [mixedLimit('T98', 1100)]),
+    ]);
 
     expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->isSellable())->toBeFalse()
-        ->and(mixedEligibility(mixedTyre(11, 235, 45, 95))->permits($verdict, mixedTyre(11, 235, 45, 95), 4))->toBe(KomplettradRefusal::TyresUnknown);
+        ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('Tragfähigkeitsindizes nur bis '.GermanFormat::kilograms(1100).' Achslast hinterlegt');
+});
+
+it('still holds every size to a limit printed on the row — that one is the combination’s, not a size’s (D-434)', function (): void {
+    $verdict = mixedVerdict(conditions: [mixedV19(), mixedLimit('T98', 1100)]);
+
+    expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($verdict->isSellable())->toBeFalse();
 });
 
 it('refuses a mixed set whose tyre does not fit the rim’s diameter on its own axle', function (): void {
