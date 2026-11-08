@@ -237,6 +237,16 @@ it('drops a listed pair whose rear size its own load-index limit rules out for t
         // basket the pair is then not one on record for this car.
         ->and(array_map(static fn (TyreSize $s): string => $s->labelDe(), $verdict->rear->sizes))->toBe(['235/45 R19', '245/40 R19'])
         ->and($eligibility->permitsMixed($verdict, mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99)))->toBe(KomplettradRefusal::MixedPairNotListed);
+
+    // An answer frozen before D-434 still holds 255/40 on its rear axle, its T98 beside it: the pair is dropped at the
+    // offer and refused at the basket by the size's own limit — the backstop behind the resolver.
+    $limited = new TyreSize(255, 40, 19.0, conditions: [mixedLimit('T98', 1100)]);
+    $frozen = Rebuild::of($verdict, ['rear' => Rebuild::of($verdict->rear, ['sizes' => [...$verdict->rear->sizes, $limited], 'bySize' => []])]);
+    $frozenOffer = $eligibility->mixedOfferFor($frozen);
+
+    expect($frozenOffer->pairs)->toBe([])
+        ->and($frozenOffer->refusal)->toBe(KomplettradRefusal::NoMixedPairing)
+        ->and($eligibility->permitsMixed($frozen, mixedTyre(11, 235, 45, 95), mixedTyre(12, 255, 40, 99)))->toBe(KomplettradRefusal::AxleLoadAboveLimit);
 });
 
 it('holds a load limit printed beside one size to that size alone — the axle’s other sizes stand on their own rules (D-434)', function (): void {
