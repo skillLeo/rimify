@@ -31,8 +31,9 @@ class VehicleFactory extends Factory
             'eg_nummer_raw' => 'e1*2001/116*'.$this->faker->numerify('####').'*'.$this->faker->numerify('##'),
             'body_form' => $this->faker->randomElement(['Kombi', 'Limousine', 'Coupe', 'Cabrio']),
             'drive_axle' => $this->faker->randomElement(['Vorderachse', 'Hinterachse', 'Allrad']),
-            'build_from' => $this->faker->dateTimeBetween('-20 years', '-3 years')->format('Y-m-01'),
-            'build_to' => $this->faker->dateTimeBetween('-2 years', 'now')->format('Y-m-28'),
+            // From the app's clock, which a test's travelTo() moves — not Faker's wall clock (D-436).
+            'build_from' => $this->faker->dateTimeBetween(now()->subYears(20)->toDateTime(), now()->subYears(3)->toDateTime())->format('Y-m-01'),
+            'build_to' => $this->faker->dateTimeBetween(now()->subYears(2)->toDateTime(), now()->toDateTime())->format('Y-m-28'),
             'axle_load_front_kg' => $this->faker->numberBetween(700, 1300),
             'axle_load_rear_kg' => $this->faker->numberBetween(700, 1300),
             // Up to 210 km/h no tyre loses load, so a random car never depends on its document printing a
