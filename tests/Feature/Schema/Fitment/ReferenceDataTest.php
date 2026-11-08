@@ -72,7 +72,8 @@ it('seeds the complete symbol table, not a subset', function (): void {
 it('orders every speed symbol by rank, not alphabetically', function (): void {
     $byRank = SpeedSymbolEntry::orderBy('speed_rank')->pluck('symbol')->all();
 
-    expect($byRank)->toBe(['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)']);
+    // J and K below L since the client's round of 08.11.2026, §4 (D-442).
+    expect($byRank)->toBe(['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)']);
 
     // Sorting the same symbols as strings gives a different, wrong order.
     $alphabetical = $byRank;

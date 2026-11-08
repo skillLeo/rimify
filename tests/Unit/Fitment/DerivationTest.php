@@ -88,7 +88,11 @@ it('derives the correct symbol at every boundary of the complete table', functio
     // defence is asserting every boundary.
     expect($this->speed->forTopSpeed($kmh)?->symbol)->toBe($expected);
 })->with([
-    'below the table' => [1, 'L'],
+    'below the table' => [1, 'J'],
+    'exactly J' => [100, 'J'],
+    'one above J' => [101, 'K'],
+    'exactly K' => [110, 'K'],
+    'one above K' => [111, 'L'],
     'exactly L' => [120, 'L'],
     'one above L' => [121, 'M'],
     'exactly M' => [130, 'M'],
@@ -169,7 +173,8 @@ it('ranks the whole table in speed order, which is not alphabetical order', func
         $this->tables->speedSymbols,
     );
 
-    expect($bySpeed)->toBe(['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)']);
+    // J and K below L since the client's round of 08.11.2026, §4 (D-442).
+    expect($bySpeed)->toBe(['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)']);
 
     $alphabetical = $bySpeed;
     sort($alphabetical);
