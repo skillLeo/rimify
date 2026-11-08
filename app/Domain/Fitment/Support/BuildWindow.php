@@ -63,14 +63,6 @@ final readonly class BuildWindow
         return $startsBeforeOtherEnds && $otherStartsBeforeThisEnds;
     }
 
-    public function contains(DateTimeInterface $date): bool
-    {
-        $moment = DateTimeImmutable::createFromInterface($date);
-
-        return ($this->from === null || $this->from <= $moment)
-            && ($this->to === null || $this->to >= $moment);
-    }
-
     /** Still in production: no end at all. */
     public function isOpenEnded(): bool
     {

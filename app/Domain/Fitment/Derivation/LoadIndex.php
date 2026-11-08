@@ -27,21 +27,6 @@ final readonly class LoadIndex
         }
     }
 
-    /** Comparison is by index, which is monotonic in capacity across the whole table. */
-    public function isAtLeast(self $other): bool
-    {
-        return $this->index >= $other->index;
-    }
-
-    public function stricterOf(?self $other): self
-    {
-        if ($other === null) {
-            return $this;
-        }
-
-        return $other->index > $this->index ? $other : $this;
-    }
-
     public function __toString(): string
     {
         return (string) $this->index;

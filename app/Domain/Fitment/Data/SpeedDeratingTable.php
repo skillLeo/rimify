@@ -59,23 +59,6 @@ final readonly class SpeedDeratingTable
         return DeratingLookup::absent(null);
     }
 
-    /**
-     * The symbols the row marks „–“, in the table's column order — for the sentence that says so.
-     *
-     * @return list<string>
-     */
-    public function notPermittedAt(int $topSpeedKmh): array
-    {
-        $lookup = $this->lookup($topSpeedKmh, 'Y');
-        $rowKmh = $lookup->rowKmh;
-
-        if ($rowKmh === null || ! isset($this->rows[$rowKmh])) {
-            return [];
-        }
-
-        return array_keys(array_filter($this->rows[$rowKmh], static fn (?int $percent): bool => $percent === null));
-    }
-
     /** @param array<string, int|null> $row */
     private function firstPermitted(array $row): ?string
     {

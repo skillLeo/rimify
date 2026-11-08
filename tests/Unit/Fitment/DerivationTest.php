@@ -191,16 +191,6 @@ it('ranks H between U and V, which the alphabet does not', function (): void {
     expect($letters)->toBe(['H', 'U', 'V'])->not->toBe(['U', 'H', 'V']);
 });
 
-it('never lets a lower-rated symbol satisfy a higher-rated requirement', function (): void {
-    $required = $this->speed->forTopSpeed(210);   // H
-    $u = $this->tables->speedSymbol('U');
-    $v = $this->tables->speedSymbol('V');
-
-    expect($u?->isAtLeast($required))->toBeFalse()
-        ->and($v?->isAtLeast($required))->toBeTrue()
-        ->and($required?->isAtLeast($required))->toBeTrue();
-});
-
 it('resolves a document symbol whatever case or spacing it was transcribed in', function (): void {
     expect($this->tables->speedSymbol('y')?->symbol)->toBe('Y')
         ->and($this->tables->speedSymbol(' V ')?->symbol)->toBe('V')
@@ -225,19 +215,4 @@ it('refuses to construct an index table that is empty', function (): void {
 
     expect(fn () => new IndexTables(IndexTables::fromReferenceTables()->loadIndices, []))
         ->toThrow(ReferenceDataMissing::class);
-});
-
-it('takes the stricter of a derived and a document minimum', function (): void {
-    $derived = $this->loadIndex->forAxle(1210);          // 91
-    $documentStricter = $this->tables->loadIndex(95);
-    $documentLaxer = $this->tables->loadIndex(88);
-
-    // R-06: the stricter always governs, whichever side it came from.
-    expect($derived?->stricterOf($documentStricter)->index)->toBe(95)
-        ->and($derived?->stricterOf($documentLaxer)->index)->toBe(91)
-        ->and($derived?->stricterOf(null)->index)->toBe(91);
-
-    $derivedSpeed = $this->speed->forTopSpeed(210);      // H, rank 8
-    expect($derivedSpeed?->stricterOf($this->tables->speedSymbol('W'))->symbol)->toBe('W')
-        ->and($derivedSpeed?->stricterOf($this->tables->speedSymbol('T'))->symbol)->toBe('H');
 });

@@ -73,7 +73,11 @@ test('M1-05 an open menu or dialog does not narrow the page by the scrollbar', a
     const purge = page.locator('.adm-foot__demo-purge');
 
     if ((await purge.count()) > 0) {
+        // The closed menu hands focus back to its trigger after it has gone: wait for that, or the Enter below can land
+        // on the trigger and open the chart menu again (the gate on dee21b63).
+        await expect(trigger).toBeFocused();
         await purge.focus();
+        await expect(purge).toBeFocused();
         await page.keyboard.press('Enter');
 
         // The question, or — where something real still holds the example catalogue — the reason it cannot go (D-149).

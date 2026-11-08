@@ -36,20 +36,6 @@ final readonly class SpeedSymbol
         }
     }
 
-    public function isAtLeast(self $other): bool
-    {
-        return $this->rank >= $other->rank;
-    }
-
-    public function stricterOf(?self $other): self
-    {
-        if ($other === null) {
-            return $this;
-        }
-
-        return $other->rank > $this->rank ? $other : $this;
-    }
-
     public function covers(int $kmh): bool
     {
         return $this->maxKmh === null || $this->maxKmh >= $kmh;

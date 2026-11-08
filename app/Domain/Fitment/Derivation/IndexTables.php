@@ -99,9 +99,4 @@ final readonly class IndexTables
 
         return null;
     }
-
-    public function highestSpeedSymbol(): SpeedSymbol
-    {
-        return $this->speedSymbols[count($this->speedSymbols) - 1];
-    }
 }

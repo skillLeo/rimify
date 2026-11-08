@@ -166,7 +166,7 @@ it('carries the four-state verdict and the decided action per column with a vehi
         $status = $item['verdict']['status'];
 
         // Four states, never a boolean; the action follows the verdict.
-        expect($status)->toBeIn(VerdictStatus::values());
+        expect($status)->toBeIn(array_column(VerdictStatus::cases(), 'value'));
 
         if ($status === VerdictStatus::NotPermitted->value) {
             expect($item['buy']['kind'])->toBe('none');

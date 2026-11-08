@@ -563,3 +563,35 @@ it('carries both halves through the snapshot, and reads an older snapshot withou
     expect(FitmentVerdict::fromArray($before)->tyre?->papersOwed)->toBe([])
         ->and(FitmentVerdict::fromArray($forged)->tyre?->papersOwed)->toBe(['8.1']);
 });
+
+it('calls an answer stricter by the papers where their top speed leaves the tyres unconfirmed that the data confirmed', function (): void {
+    // 250 km/h from the data reads the table; 310 km/h from the papers is past its last row — „Noch nicht bestätigt“.
+    $data = bmw4er3C(1100, 1100, 250);
+    $typed = decideFor((PapersFigures::tryFrom(1100, 1100, 310) ?? throw new LogicException)->applyTo($data));
+
+    expect(decideFor($data)->tyre?->status)->not->toBe(VerdictStatus::Unknown)
+        ->and($typed->tyre?->status)->toBe(VerdictStatus::Unknown)
+        ->and($typed->tyre?->stricterByPapers)->toBeTrue();
+});
+
+it('weighs the papers only on an axle the wheel may go on — a heavier rear says nothing about a front-only size', function (): void {
+    $sizes = [new TyreSize(225, 40, 19.0, axle: 'FRONT')];
+    $data = bmw4er3C(1100, 1100, 250);
+    $heavierRear = (PapersFigures::tryFrom(1100, 1400, 250) ?? throw new LogicException)->applyTo($data);
+    $heavierFront = (PapersFigures::tryFrom(1180, 1100, 250) ?? throw new LogicException)->applyTo($data);
+
+    expect(decideFor($heavierRear, sizes: $sizes)->tyre?->stricterByPapers)->toBeFalse()
+        ->and(decideFor($heavierFront, sizes: $sizes)->tyre?->stricterByPapers)->toBeTrue();
+});
+
+it('asks four identical tyres for the higher speed symbol where the document prints a stricter one for the rear', function (): void {
+    // One size, printed per axle: W at the front, Y at the rear. Four of a kind must meet the rear's Y.
+    $verdict = decideFor(bmw4er3C(1100, 1100, 200), sizes: [
+        new TyreSize(225, 40, 19.0, documentMinSpeedSymbol: 'W', axle: 'FRONT'),
+        new TyreSize(225, 40, 19.0, documentMinSpeedSymbol: 'Y', axle: 'REAR'),
+    ]);
+
+    expect($verdict->front->minSpeedSymbol)->toBe('W')
+        ->and($verdict->rear->minSpeedSymbol)->toBe('Y')
+        ->and($verdict->tyre?->summary)->toEndWith('Geschwindigkeitsindex Y.');
+});
