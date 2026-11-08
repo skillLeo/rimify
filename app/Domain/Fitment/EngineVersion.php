@@ -24,5 +24,6 @@ final class EngineVersion
 {
     public const CURRENT = '1.2.0';
 
+    /** @codeCoverageIgnore Constants only: the constructor exists so the class cannot be built, and never runs (D-433). */
     private function __construct() {}
 }
