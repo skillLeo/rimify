@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Fitment\Resolver\FitmentResolver;
+use App\Domain\Fitment\Resolver\WheelSets;
+use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Enums\FitmentStatus;
 use App\Models\Fitment;
 use App\Models\Order;
@@ -322,7 +324,11 @@ final class Smoke extends Command
                 continue;
             }
 
-            if ($resolver->resolve((int) $row->vehicle_id, (int) $row->wheel_config_id)->isSellable()) {
+            $verdict = $resolver->resolve((int) $row->vehicle_id, (int) $row->wheel_config_id);
+
+            // The basket takes one size four times: a version the car may have only beside another is a set's, never the smoke's
+            // (D-422 — release 31's smoke picked the client's front-only DB8GT2 and found the basket empty).
+            if ($verdict->isSellable() && self::sellsAlone((int) $row->vehicle_id, (int) $row->wheel_config_id, $verdict)) {
                 return ['config' => $row->wheelConfig, 'vehicle' => $row->vehicle];
             }
         }
@@ -349,6 +355,12 @@ final class Smoke extends Command
             $asked => 'order',
             default => 'before',
         };
+    }
+
+    /** Whether the basket takes this version alone, four of it, for this car — the basket's own rule (Basket::ONLY_IN_SET). */
+    public static function sellsAlone(int $vehicleId, int $configId, FitmentVerdict $verdict): bool
+    {
+        return ! app(WheelSets::class)->of($vehicleId, [$configId => $verdict])->onlyInSet($configId);
     }
 
     /**
