@@ -290,7 +290,9 @@ final readonly class FitmentResolver
             // ── Steps 4, 5 and 6 · per document, never blended without a person's word ────
             try {
                 $verdicts[$id] = $this->decide($vehicle, $wheel, $covering[$id], $decisions[$id] ?? null);
-            } catch (ReferenceDataMissing) {
+            } catch (ReferenceDataMissing) { // @codeCoverageIgnoreStart
+                // Unreachable, kept as a fail-closed net (D-433): the engine refuses to start with empty index
+                // tables (IndexTables' constructor — DerivationTest „refuses to construct an index table that is empty“).
                 // A configuration fault must never present itself as a permissive legal answer.
                 $verdicts[$id] = $this->negative(
                     VerdictStatus::Unknown,
@@ -298,7 +300,7 @@ final readonly class FitmentResolver
                     $wheel,
                     VerdictReason::of(VerdictReason::REFERENCE_DATA_MISSING),
                 );
-            }
+            } // @codeCoverageIgnoreEnd
         }
 
         // In the order asked, whichever pass decided each.
