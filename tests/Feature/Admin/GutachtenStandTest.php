@@ -11,7 +11,6 @@ use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
-use App\Services\Admin\Approvals\CountFigures;
 use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -47,12 +46,6 @@ function standStamp(ApprovalDocument $document, string $card): string
     return (string) $stamp;
 }
 
-/** @return array<string, int|string|null> */
-function standCount(array $overrides = []): array
-{
-    return $overrides + ['codes' => 6, 'codes_page' => 3, 'sizes' => 3, 'sizes_page' => 3, 'axle_limit_kg' => null, 'axle_limit_page' => null, 'abnahme' => 'none', 'abnahme_page' => null];
-}
-
 /** @return array<string, mixed> */
 function standTable(string $y240 = '100'): array
 {
@@ -70,19 +63,6 @@ it('refuses „Angaben“ saved from a page opened before the last save, and kee
         ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
 
     expect($document->refresh()->kba_number)->toBe('55256');
-});
-
-it('refuses a „Zählung“ saved from a page opened before the last one, and keeps that one', function (): void {
-    $document = standDraft();
-    $url = "/admin/gutachten/{$document->id}";
-    $this->actingAs(standAdmin(), 'admin')->post("{$url}/zaehlung", standCount())->assertSessionHasNoErrors();
-    $stale = standStamp($document, 'document');
-
-    $this->actingAs(standAdmin(), 'admin')->from($url)->post("{$url}/zaehlung", standCount(['codes' => 5]))->assertSessionHasNoErrors();
-    $this->actingAs(standAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)->post("{$url}/zaehlung", standCount(['codes' => 7]))
-        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
-
-    expect(CountFigures::of($document->refresh())?->codes)->toBe(5);
 });
 
 it('refuses a table saved from a page opened before the last one, and keeps that one', function (): void {

@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Approvals;
 
-use App\Models\ApprovalDocument;
 use App\Support\GermanFormat;
 
 /**
- * What a Gutachten's Verwendungsbereich prints for the vehicles to be entered, read off the PDF before the rows are
- * entered — each figure with the page it stands on (ADMIN-GEFUNDEN 511, the operator's brief of 16.10.2026, Group A):
- * how many Auflagen codes, how many tyre sizes, the axle-load limit if it names one, and whether it asks for an Abnahme.
- *
- * The release compares the entry with these, in the sentences DocumentRelease::declarationBlockers has always used.
+ * What a Gutachten's Verwendungsbereich printed for the vehicles to be entered, as it was counted off the PDF until the client's round
+ * of 08.11.2026, §3 (ADMIN-GEFUNDEN 511; D-440, D-441): how many Auflagen codes, how many tyre sizes, the axle-load limit, and whether
+ * it asks for an Abnahme. Nothing counts any more; this reads the Protokoll entries that hold such a count, so they still say what
+ * was counted.
  */
 final readonly class CountFigures
 {
@@ -26,25 +24,6 @@ final readonly class CountFigures
         public string $abnahme,
         public ?int $abnahmePage,
     ) {}
-
-    /** The count a document carries, or null where it has not been counted. */
-    public static function of(ApprovalDocument $document): ?self
-    {
-        if (! $document->isCounted()) {
-            return null;
-        }
-
-        return new self(
-            codes: (int) $document->counted_codes,
-            codesPage: (int) $document->counted_codes_page,
-            sizes: (int) $document->counted_sizes,
-            sizesPage: (int) $document->counted_sizes_page,
-            axleLimitKg: $document->counted_axle_limit_kg,
-            axleLimitPage: $document->counted_axle_limit_page,
-            abnahme: (string) $document->counted_abnahme,
-            abnahmePage: $document->counted_abnahme_page,
-        );
-    }
 
     /**
      * A count as a Protokoll entry holds it (`toArray`), or null where the entry holds none or a broken one.
@@ -63,21 +42,6 @@ final readonly class CountFigures
         return new self($int('codes'), $int('codesPage'), $int('sizes'), $int('sizesPage'), $int('axleLimitKg'), $int('axleLimitPage'), (string) $data['abnahme'], $int('abnahmePage'));
     }
 
-    /** @return array<string, int|string|null> the document's columns */
-    public function columns(): array
-    {
-        return [
-            'counted_codes' => $this->codes,
-            'counted_codes_page' => $this->codesPage,
-            'counted_sizes' => $this->sizes,
-            'counted_sizes_page' => $this->sizesPage,
-            'counted_axle_limit_kg' => $this->axleLimitKg,
-            'counted_axle_limit_page' => $this->axleLimitKg === null ? null : $this->axleLimitPage,
-            'counted_abnahme' => $this->abnahme,
-            'counted_abnahme_page' => $this->abnahme === ReleaseDeclaration::ABNAHME_NONE ? null : $this->abnahmePage,
-        ];
-    }
-
     /** @return array{codes: int, codesPage: int, sizes: int, sizesPage: int, axleLimitKg: int|null, axleLimitPage: int|null, abnahme: string, abnahmePage: int|null} */
     public function toArray(): array
     {
@@ -91,12 +55,6 @@ final readonly class CountFigures
             'abnahme' => $this->abnahme,
             'abnahmePage' => $this->abnahme === ReleaseDeclaration::ABNAHME_NONE ? null : $this->abnahmePage,
         ];
-    }
-
-    /** The declaration a release compares the entry with: this count and the completeness answer given at release. */
-    public function declaration(string $completeness, ?string $missing): ReleaseDeclaration
-    {
-        return new ReleaseDeclaration($completeness, $missing, codes: $this->codes, sizes: $this->sizes, axleLimitKg: $this->axleLimitKg, abnahme: $this->abnahme);
     }
 
     /**

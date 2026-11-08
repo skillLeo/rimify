@@ -16,7 +16,6 @@ use App\Http\Requests\Admin\ApprovalCompletenessRequest;
 use App\Http\Requests\Admin\ApprovalDocumentRequest;
 use App\Http\Requests\Admin\ApprovalReleaseRequest;
 use App\Http\Requests\Admin\ApprovalStepRequest;
-use App\Http\Requests\Admin\DocumentCountRequest;
 use App\Http\Requests\Admin\DocumentRevisionRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -28,7 +27,6 @@ use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
-use App\Services\Admin\Approvals\CountFigures;
 use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
@@ -272,9 +270,8 @@ class GutachtenController extends Controller
             'document' => self::documentFacts($document),
             'rowsTotal' => $rowsTotal,
             'vehicles' => $vehicles->map(static fn ($v): array => ['id' => (int) $v->id, 'label' => self::vehicleLabel($v)])->all(),
-            // What the release will refuse, said before „Freigeben“ is pressed: the entry's own checks and its comparison with
-            // the Zählung — the page once said „Kann freigegeben werden“ and the release then refused on the count (F-18).
-            'blockers' => $document->status === DocumentStatus::Draft ? [...$release->check($document), ...self::countBlockers($document, $release)] : [],
+            // What the release will refuse, said before „Freigeben“ is pressed (F-18). The Abnahme is asked at release, and compared there.
+            'blockers' => $document->status === DocumentStatus::Draft ? $release->check($document) : [],
             // Lazy: the preview is computed when a vehicle is chosen, and only for it.
             'preview' => Inertia::optional(static fn (): array => $chosen === null ? [] : $preview->for($document, (int) $chosen)),
             'previewVehicle' => $chosen,
@@ -359,20 +356,6 @@ class GutachtenController extends Controller
         }
 
         return 5;
-    }
-
-    /**
-     * Where the entry and its Zählung differ, in the release's own sentences (DocumentRelease::declarationBlockers) — the
-     * completeness question is the dialog's to ask, so it is taken as answered here. Nothing before a count exists: the
-     * page asks for the count first.
-     *
-     * @return list<string>
-     */
-    private static function countBlockers(ApprovalDocument $document, DocumentRelease $release): array
-    {
-        $count = CountFigures::of($document);
-
-        return $count === null ? [] : $release->declarationBlockers($document, $count->declaration(ApprovalDocument::COMPLETE, null));
     }
 
     /**
@@ -470,26 +453,8 @@ class GutachtenController extends Controller
     }
 
     /** The count of the Verwendungsbereich, before the rows are entered, each figure with its page (ADMIN-GEFUNDEN 511). */
-    public function count(DocumentCountRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
-    {
-        $counted = $document->isCounted();
-        DB::transaction(static function () use ($request, $document, $release): void {
-            EditStamp::guard($request, self::documentState($document->id, lock: true));
-            $release->recordCount($document, $request->admin(), $request->figures());
-        });
-
-        return back()->with('toast', $counted ? 'Zählung geändert. Das Protokoll hält fest, was vorher stand.' : 'Zählung gespeichert. Die Freigabe vergleicht die Zeilen mit dieser Zählung.');
-    }
-
     public function release(ApprovalReleaseRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
-        // A draft from before the count was asked first: its count comes with the release, recorded as taken after the entry.
-        $figures = $request->figures();
-
-        if ($figures !== null) {
-            $release->recordCount($document, $request->admin(), $figures);
-        }
-
         $result = $release->release($document, $request->admin(), null, $request->declaration());
         $toast = match ($result['rows']) {
             // A base without rows of its own (DocumentRelease): its facts now reach the shop through its Nachträge.
@@ -512,28 +477,6 @@ class GutachtenController extends Controller
         $release->answerCompleteness($document, $request->admin(), (string) $request->validated('completeness'), $request->validated('missing') === null ? null : (string) $request->validated('missing'));
 
         return back()->with('toast', 'Gespeichert: '.$document->refresh()->completenessDe().'.');
-    }
-
-    /**
-     * The count as the page shows it — its figures for the form, its lines, who counted and when, and whether it was
-     * taken before any row stood (ADMIN-GEFUNDEN 511) — or null where nobody has counted.
-     *
-     * @return array{codes: int, codesPage: int, sizes: int, sizesPage: int, axleLimitKg: int|null, axleLimitPage: int|null, abnahme: string, abnahmePage: int|null, lines: list<string>, by: string|null, at: string, beforeEntry: bool}|null
-     */
-    private static function countFacts(ApprovalDocument $document): ?array
-    {
-        $count = CountFigures::of($document);
-
-        if ($count === null) {
-            return null;
-        }
-
-        return $count->toArray() + [
-            'lines' => $count->linesDe(),
-            'by' => $document->counted_by === null ? null : AdminUser::query()->whereKey($document->counted_by)->value('name'),
-            'at' => GermanFormat::dateTime($document->counted_at),
-            'beforeEntry' => $document->counted_before_entry,
-        ];
     }
 
     /** @return array{path: string, sha256: string} */
@@ -636,8 +579,6 @@ class GutachtenController extends Controller
             'revision' => $document->revision,
             'supersedesId' => $document->supersedes_id,
             'supersedesLabel' => $document->supersedes_id === null ? null : ($document->supersedes === null ? null : FitmentRows::label($document->supersedes)),
-            // What its Verwendungsbereich prints, counted from the PDF before the rows (ADMIN-GEFUNDEN 511), or null.
-            'count' => self::countFacts($document),
             'status' => $document->status->value,
             'statusLabel' => self::statusLabel($document->status),
             'validFrom' => GermanFormat::date($document->valid_from),

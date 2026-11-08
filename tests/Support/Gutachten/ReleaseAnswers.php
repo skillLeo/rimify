@@ -12,9 +12,8 @@ use App\Services\Admin\Approvals\ReleaseDeclaration;
 
 /**
  * The release questions answered the way the entry stands (D-227, D-228) — for a test about the release itself. A test
- * about the questions writes its own answers; DocumentReleaseDeclarationTest is that test. A draft that was never
- * counted (ADMIN-GEFUNDEN 511) is counted here, each figure on page 1; one that was keeps its count, and the request
- * reads that instead.
+ * about the questions writes its own answers; ReleaseQuestionsTest is that test. Since the client's round of 08.11.2026, §3, they
+ * are the completeness and, where the paper has rows, the Abnahme with its page (D-440, D-441).
  */
 final class ReleaseAnswers
 {
@@ -46,12 +45,6 @@ final class ReleaseAnswers
         };
 
         return $answers + [
-            'codes' => $entered['codes'],
-            'codes_page' => 1,
-            'sizes' => $entered['sizes'],
-            'sizes_page' => 1,
-            'axle_limit_kg' => null,
-            'axle_limit_page' => null,
             'abnahme' => $abnahme,
             'abnahme_page' => $abnahme === ReleaseDeclaration::ABNAHME_NONE ? null : 1,
         ];

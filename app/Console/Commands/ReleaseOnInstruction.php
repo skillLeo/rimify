@@ -41,10 +41,7 @@ final class ReleaseOnInstruction extends Command
         {--konto= : E-Mail des Admin-Kontos, unter dem die Freigabe im Protokoll steht}
         {--erfasst= : Sind alle Anlagen und alle Fahrzeuge erfasst? alle, teilweise oder unbekannt (D-227)}
         {--fehlt= : Bei „teilweise“: welche Anlagen oder Bereiche fehlen}
-        {--codes= : Wie viele Auflagen-Codes der Verwendungsbereich für die erfassten Fahrzeuge druckt (D-228)}
-        {--groessen= : Wie viele Reifengrößen er für sie nennt}
-        {--achslast= : Die Achslastgrenze in kg, die er nennt – leer, wenn keine}
-        {--abnahme= : Ob er eine Abnahme verlangt: alle (bei jeder Kombination), einige oder keine}';
+        {--abnahme= : Ob der Verwendungsbereich eine Abnahme verlangt: alle (bei jeder Kombination), einige oder keine}';
 
     /** The command's words for the three answers. */
     private const ANSWERS = ['alle' => ApprovalDocument::COMPLETE, 'teilweise' => ApprovalDocument::PARTIAL, 'unbekannt' => ApprovalDocument::UNKNOWN];
@@ -93,13 +90,10 @@ final class ReleaseOnInstruction extends Command
             return self::FAILURE;
         }
 
-        $int = fn (string $option): ?int => is_numeric($this->option($option)) ? (int) $this->option($option) : null;
+        // The count of codes and sizes and the axle limit are no longer asked (D-440, D-441).
         $declaration = new ReleaseDeclaration(
             completeness: $answer,
             missing: $this->option('fehlt') === null ? null : trim((string) $this->option('fehlt')),
-            codes: $int('codes'),
-            sizes: $int('groessen'),
-            axleLimitKg: $int('achslast'),
             abnahme: match ((string) $this->option('abnahme')) {
                 'alle' => ReleaseDeclaration::ABNAHME_ALL,
                 'einige' => ReleaseDeclaration::ABNAHME_SOME,

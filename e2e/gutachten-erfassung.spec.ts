@@ -113,10 +113,6 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
 
     const dialog = page.getByRole('dialog')
     await dialog.locator('#rd-c-complete').check()
-    await dialog.locator('#rd-codes').fill('1')
-    await dialog.locator('#rd-codes-page').fill('2')
-    await dialog.locator('#rd-sizes').fill('2')
-    await dialog.locator('#rd-sizes-page').fill('2')
     await dialog.locator('input[name="rd-a"][value="none"]').check()
     await dialog.locator('button[type="submit"]').click()
 
@@ -448,10 +444,6 @@ test('after the release the keyboard stays on the page, and taking a code out of
     await page.keyboard.press('Enter')
     const dialog = page.getByRole('dialog')
     await dialog.locator('#rd-c-complete').check()
-    await dialog.locator('#rd-codes').fill('0')
-    await dialog.locator('#rd-codes-page').fill('1')
-    await dialog.locator('#rd-sizes').fill('1')
-    await dialog.locator('#rd-sizes-page').fill('1')
     await dialog.locator('input[name="rd-a"][value="none"]').check()
     await dialog.locator('button[type="submit"]').focus()
     await page.keyboard.press('Enter')

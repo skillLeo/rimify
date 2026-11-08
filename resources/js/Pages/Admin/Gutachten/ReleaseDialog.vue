@@ -3,11 +3,10 @@
  * „Freigeben“ and „Ist alles erfasst?“ (D-227, D-228): what the person releasing reads off the PDF, asked every time and
  * never defaulted — a question someone skips must stop the release, not pass it. Only the type speaks first: a
  * Teilegutachten is usually one Anlage of a longer report and always needs an Abnahme, so it starts at „Teilweise“ and
- * „Ja“. The server counts the same things in the rows and refuses on any difference.
+ * „Ja“. The server compares the Abnahme with the rows and refuses on any difference.
  *
- * The count itself is taken before the rows (CountCard, ADMIN-GEFUNDEN 511): here it is shown, not asked. Only a draft
- * with rows that was never counted is asked for it here — each figure with its page — and it is recorded as counted after
- * the entry.
+ * The count of Auflagen-Codes and Reifengrößen (D-440) and the Achslastgrenze (D-441) are no longer asked: the client's round of
+ * 08.11.2026, §3. A limit the paper prints reaches the shop through its codes of kind Tragfähigkeit.
  */
 import { useForm } from '@inertiajs/vue3'
 import { computed, watch, nextTick } from 'vue'
@@ -28,19 +27,12 @@ const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ done: [] }>()
 
 const partOfReport = computed(() => props.document.kind === 'TEILEGUTACHTEN')
-/* The count the release compares with: shown where it was taken, asked only where a draft with rows never was. */
-const stored = computed(() => (props.mode === 'release' && props.rows > 0 ? props.document.count ?? null : null))
-const counts = computed(() => props.mode === 'release' && props.rows > 0 && !props.document.count)
+/* The Abnahme is asked where the release has rows to compare it with; a base without rows of its own is asked the first question only. */
+const asksAbnahme = computed(() => props.mode === 'release' && props.rows > 0)
 
 const form = useForm({
     completeness: '' as '' | 'complete' | 'partial' | 'unknown',
     missing: '',
-    codes: '' as string | number,
-    codes_page: '' as string | number,
-    sizes: '' as string | number,
-    sizes_page: '' as string | number,
-    axle_limit_kg: '' as string | number,
-    axle_limit_page: '' as string | number,
     abnahme: '' as '' | 'all' | 'some' | 'none',
     abnahme_page: '' as string | number,
 })
@@ -71,14 +63,8 @@ function submit(): void {
     form.transform((data) => ({
         completeness: data.completeness === '' ? null : data.completeness,
         missing: data.completeness === 'partial' ? data.missing : null,
-        ...(counts.value
+        ...(asksAbnahme.value
             ? {
-                  codes: number(data.codes),
-                  codes_page: number(data.codes_page),
-                  sizes: number(data.sizes),
-                  sizes_page: number(data.sizes_page),
-                  axle_limit_kg: number(data.axle_limit_kg),
-                  axle_limit_page: data.axle_limit_kg === '' ? null : number(data.axle_limit_page),
                   abnahme: data.abnahme === '' ? null : data.abnahme,
                   abnahme_page: data.abnahme === 'all' || data.abnahme === 'some' ? number(data.abnahme_page) : null,
               }
@@ -138,53 +124,7 @@ const errors = computed(() => form.errors as Record<string, string | undefined>)
                 <p id="rd-missing-err" class="form-field__error">{{ errors.missing }}</p>
             </div>
 
-            <div v-if="stored" class="rd-stored">
-                <p class="form-field__label">Die Freigabe vergleicht die Zeilen mit dieser Zählung</p>
-                <ul class="rd-lines">
-                    <li v-for="line in stored.lines" :key="line">{{ line }}</li>
-                </ul>
-                <p v-if="!stored.beforeEntry" class="form-field__help">Gezählt, als schon Zeilen standen.</p>
-            </div>
-
-            <template v-if="counts">
-                <p class="adm-note">Zähl im PDF, was der Verwendungsbereich für die erfassten Fahrzeuge nennt, und schreib zu jeder Zahl die Seite. Der Shop zählt dasselbe in deinen Zeilen und gibt nur frei, wenn beides übereinstimmt. Festgehalten wird, dass nach der Erfassung gezählt wurde.</p>
-                <div class="rd-pair">
-                    <div class="form-field">
-                        <label class="form-field__label" for="rd-codes">Auflagen-Codes</label>
-                        <input id="rd-codes" v-model="form.codes" class="input" type="number" min="0" inputmode="numeric" :aria-invalid="errors.codes ? 'true' : undefined" aria-describedby="rd-codes-err">
-                        <p id="rd-codes-err" class="form-field__error">{{ errors.codes }}</p>
-                    </div>
-                    <div class="form-field">
-                        <label class="form-field__label" for="rd-codes-page">Seite</label>
-                        <input id="rd-codes-page" v-model="form.codes_page" class="input" type="number" min="1" inputmode="numeric" :aria-invalid="errors.codes_page ? 'true' : undefined" aria-describedby="rd-codes-page-err">
-                        <p id="rd-codes-page-err" class="form-field__error">{{ errors.codes_page }}</p>
-                    </div>
-                </div>
-                <div class="rd-pair">
-                    <div class="form-field">
-                        <label class="form-field__label" for="rd-sizes">Reifengrößen</label>
-                        <input id="rd-sizes" v-model="form.sizes" class="input" type="number" min="1" inputmode="numeric" :aria-invalid="errors.sizes ? 'true' : undefined" aria-describedby="rd-sizes-err">
-                        <p id="rd-sizes-err" class="form-field__error">{{ errors.sizes }}</p>
-                    </div>
-                    <div class="form-field">
-                        <label class="form-field__label" for="rd-sizes-page">Seite</label>
-                        <input id="rd-sizes-page" v-model="form.sizes_page" class="input" type="number" min="1" inputmode="numeric" :aria-invalid="errors.sizes_page ? 'true' : undefined" aria-describedby="rd-sizes-page-err">
-                        <p id="rd-sizes-page-err" class="form-field__error">{{ errors.sizes_page }}</p>
-                    </div>
-                </div>
-                <div class="rd-pair">
-                    <div class="form-field">
-                        <label class="form-field__label" for="rd-limit">Achslastgrenze in kg</label>
-                        <input id="rd-limit" v-model="form.axle_limit_kg" class="input" type="number" min="200" inputmode="numeric" :aria-invalid="errors.axle_limit_kg ? 'true' : undefined" aria-describedby="rd-limit-help rd-limit-err">
-                        <p id="rd-limit-help" class="form-field__help">Nur, wenn der Verwendungsbereich eine nennt – etwa „nur für Fahrzeuge mit maximaler Achslast 1160 kg“. Sonst leer lassen.</p>
-                        <p id="rd-limit-err" class="form-field__error">{{ errors.axle_limit_kg }}</p>
-                    </div>
-                    <div v-if="form.axle_limit_kg !== ''" class="form-field">
-                        <label class="form-field__label" for="rd-limit-page">Seite</label>
-                        <input id="rd-limit-page" v-model="form.axle_limit_page" class="input" type="number" min="1" inputmode="numeric" :aria-invalid="errors.axle_limit_page ? 'true' : undefined" aria-describedby="rd-limit-page-err">
-                        <p id="rd-limit-page-err" class="form-field__error">{{ errors.axle_limit_page }}</p>
-                    </div>
-                </div>
+            <template v-if="asksAbnahme">
                 <fieldset class="rd-group">
                     <legend class="form-field__label">Verlangt der Verwendungsbereich eine Abnahme?</legend>
                     <label class="check">
@@ -237,35 +177,7 @@ const errors = computed(() => form.errors as Record<string, string | undefined>)
     border: 0;
 }
 
-.rd-pair {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-    gap: var(--sp-16);
-}
-
 .rd-page {
     max-width: 10rem;
-}
-
-.rd-stored {
-    display: grid;
-    gap: var(--sp-8);
-}
-
-.rd-stored > * {
-    margin: 0;
-}
-
-.rd-lines {
-    display: grid;
-    gap: var(--sp-4);
-    margin: 0;
-    padding-left: var(--sp-20);
-}
-
-@media (max-width: 767px) {
-    .rd-pair {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 7rem);
-    }
 }
 </style>
