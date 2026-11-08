@@ -684,6 +684,7 @@ describe('putting every entry into words', function (): void {
             'approval.car_removed' => [['document' => 'ABE 55255', 'car' => 'BMW 3er'], 'Das Fahrzeug „BMW 3er“ wurde aus „ABE 55255“ entfernt.', []],
             'approval.car_entered' => [['document' => 'ABE 55255', 'car' => 'BMW 3er', 'entry' => 7], 'In „ABE 55255“ wurden die Reifen von „BMW 3er“ eingetragen oder geändert.', []],
             'approval.lines_copied' => [['document' => 'ABE 55255', 'from' => 'BMW M3', 'cars' => 1, 'lines' => 4, 'replace' => true], 'In „ABE 55255“ wurden die Reifen von „BMW M3“ auf 1 Fahrzeug kopiert: 4 Zeilen, was dort stand, wurde ersetzt.', []],
+            'approval.combination_codes_corrected' => [['document' => 'ABE 53841', 'codes' => ['11A'], 'sizes' => 2], 'In „ABE 53841“ gilt „11A“ jetzt nur noch für die Reifenkombination, bei der der Code eingetragen ist: 2 Reifengrößen einer anderen Kombination tragen ihn nicht mehr.', []],
             'approval.colour_added' => [['document' => 'ABE 55255', 'size' => '8,5J × 19', 'config' => 9, 'rows' => 2], 'Für eine neue Farbe von „8,5J × 19“ kam in „ABE 55255“ dazu: 2 Zeilen.', []],
             'vehicle.confirmed_by_hand' => [['vehicle' => 'BMW 3er', 'document' => 'ABE 55255', 'from' => 'entwicklung'], 'Die Daten von „BMW 3er“ wurden im Gutachten „ABE 55255“ von Hand als geprüft bestätigt.', []],
             'approval.limit_confirmed' => [
