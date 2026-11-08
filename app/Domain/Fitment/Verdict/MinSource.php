@@ -23,10 +23,4 @@ enum MinSource: string
     /** The car's own papers named it (15.1, 15.2, as the customer typed them) and it was the stricter — never in
      *  place of a derivation, only on top of one (R-03, D-242). */
     case Papers = 'PAPERS';
-
-    /** @return list<string> */
-    public static function values(): array
-    {
-        return array_column(self::cases(), 'value');
-    }
 }

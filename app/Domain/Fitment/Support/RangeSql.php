@@ -60,27 +60,6 @@ final class RangeSql
     }
 
     /**
-     * Is a value inside an open-ended min/max pair? A NULL bound is unbounded on that side.
-     *
-     * Replaces PostgreSQL's `<@`.
-     *
-     * @template TBuilder of QueryBuilder|\Illuminate\Database\Eloquent\Builder<*>
-     *
-     * @param  TBuilder  $query
-     * @param  string  $valueColumn  fully qualified, e.g. `wheel_configs.width_in`
-     * @param  string  $rangeColumn  the pair's stem, e.g. `fitments.permitted_width` for
-     *                               `permitted_width_min` / `permitted_width_max`
-     * @return TBuilder
-     */
-    public static function within(
-        QueryBuilder|Builder $query,
-        string $valueColumn,
-        string $rangeColumn,
-    ): QueryBuilder|Builder {
-        return $query->whereRaw(self::withinExpression($valueColumn, $rangeColumn));
-    }
-
-    /**
      * The overlap predicate as a bare SQL fragment, for the single-statement listing query where
      * the builder is not available. Same expression, same single source.
      */

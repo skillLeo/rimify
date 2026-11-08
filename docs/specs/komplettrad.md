@@ -466,8 +466,8 @@ controller, a service or a component (R-13).
    both of these land the first time real staggered approval data is imported.
 4. Either axle `! hasPermittedSizes()` → `NoPermittedSizes`.
 5. Either axle `! hasUsableMinimum()` → `NoUsableMinimum`. **A null minimum is not "no minimum"** —
-   it is the engine saying it could not derive one (R-03, `TyreRecord::satisfies()` already refuses
-   on null).
+   it is the engine saying it could not derive one (R-03; `TyreEligibility::sizeMinimum()` refuses a size
+   whose own minimum is null).
 6. Per tyre: `abs($tyre->diameterIn - $verdict->wheel->diameterIn) > 0.01` → `DiameterMismatch`.
 7. Per tyre, **per axle** (front and rear, both): the tyre's size must appear in
    `$axle->sizes`, matched by `TyreSize::matches()` → else `SizeNotPermitted`.

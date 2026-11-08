@@ -38,18 +38,6 @@ final readonly class TyreRecord
         return new TyreSize($this->widthMm, $this->aspect, $this->diameterIn);
     }
 
-    /** Does this tyre satisfy an axle's minimum? Both halves, by number, never by letter. */
-    public function satisfies(?int $minLoadIndex, ?int $minSpeedRank): bool
-    {
-        // A null minimum is not "no minimum" — it is the engine failing to derive one, and
-        // nothing may be offered against it (R-03).
-        if ($minLoadIndex === null || $minSpeedRank === null) {
-            return false;
-        }
-
-        return $this->loadIndex >= $minLoadIndex && $this->speedRank >= $minSpeedRank;
-    }
-
     /** `245/45 R18 92Y` */
     public function label(): string
     {

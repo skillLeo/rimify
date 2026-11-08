@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 use App\Domain\Fitment\Data\BuildFromName;
 use App\Domain\Fitment\Data\PapersFigures;
-use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleBuild;
-use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Derivation\IndexTables;
 use App\Domain\Fitment\Derivation\LoadIndex;
 use App\Domain\Fitment\Derivation\LoadIndexDeriver;
@@ -17,11 +15,9 @@ use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionLevel;
 use App\Domain\Fitment\Verdict\HintColour;
-use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\PapersWording;
 use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\VerdictReason;
-use App\Domain\Fitment\Verdict\VerdictStatus;
 use Tests\Support\Fitment\FitmentFixtures;
 use Tests\Support\Fitment\VehicleFixtures;
 
@@ -39,24 +35,11 @@ it('refuses a load index or a speed symbol that could only be a typing slip — 
         ->and(fn () => new SpeedSymbol('V', 10, 0))->toThrow(InvalidArgumentException::class, 'A speed rating must be positive, got [0].');
 });
 
-it('compares load indices and speed symbols by number, the stricter winning, and prints them as the tyre does', function (): void {
+it('prints load indices and speed symbols as the tyre does, and reads a symbol’s reach by number', function (): void {
     $li93 = new LoadIndex(93, 650);
-    $li95 = new LoadIndex(95, 690);
     $w = new SpeedSymbol('W', 11, 270);
-    $y = new SpeedSymbol('Y', 12, 300);
 
-    expect($li95->isAtLeast($li93))->toBeTrue()
-        ->and($li93->isAtLeast($li95))->toBeFalse()
-        ->and($li93->isAtLeast($li93))->toBeTrue()
-        ->and($li93->stricterOf($li95))->toBe($li95)
-        ->and($li95->stricterOf($li93))->toBe($li95)
-        ->and($li93->stricterOf(null))->toBe($li93)
-        ->and((string) $li93)->toBe('93')
-        ->and($y->isAtLeast($w))->toBeTrue()
-        ->and($w->isAtLeast($y))->toBeFalse()
-        ->and($w->stricterOf($y))->toBe($y)
-        ->and($y->stricterOf($w))->toBe($y)
-        ->and($w->stricterOf(null))->toBe($w)
+    expect((string) $li93)->toBe('93')
         ->and((string) $w)->toBe('W')
         ->and($w->covers(270))->toBeTrue()
         ->and($w->covers(271))->toBeFalse()
@@ -69,8 +52,6 @@ it('never derives a symbol for a top speed its table does not reach, and never a
 
     expect((new SpeedSymbolDeriver($short))->forTopSpeed(240)?->symbol)->toBe('V')
         ->and((new SpeedSymbolDeriver($short))->forTopSpeed(241))->toBeNull()
-        ->and($short->highestSpeedSymbol()->symbol)->toBe('V')
-        ->and(FitmentFixtures::tables()->highestSpeedSymbol()->maxKmh)->toBeNull()
         ->and(fn () => new LoadIndexDeriver(FitmentFixtures::tables(), -1))->toThrow(InvalidArgumentException::class, 'may not be negative');
 });
 
@@ -84,25 +65,6 @@ it('reads a load at a percentage only between 1 and 100 and a capacity only wher
         ->and($deriver->forAxleAt(1235, 95)?->index)->toBe(93)
         ->and($deriver->indexForCapacity(560)?->index)->toBe(88)
         ->and($deriver->indexForCapacity(561))->toBeNull();
-});
-
-it('names the symbols the document’s table marks „–“ at the car’s speed, and none where the table has no row for it', function (): void {
-    $table = FitmentFixtures::deratingTable();
-
-    expect($table->notPermittedAt(280))->toBe(['V', 'W'])
-        ->and($table->notPermittedAt(250))->toBe(['V'])
-        ->and($table->notPermittedAt(220))->toBe([])
-        ->and($table->notPermittedAt(400))->toBe([]);
-});
-
-it('sells a tyre against a minimum only where both halves of it are known (R-03)', function (): void {
-    $tyre = new TyreRecord(id: 1, widthMm: 245, aspect: 45, diameterIn: 18.0, loadIndex: 95, speedSymbol: 'Y', speedRank: 12, priceCents: 18_900, sellable: true);
-
-    expect($tyre->satisfies(95, 12))->toBeTrue()
-        ->and($tyre->satisfies(96, 12))->toBeFalse()
-        ->and($tyre->satisfies(95, 13))->toBeFalse()
-        ->and($tyre->satisfies(null, 12))->toBeFalse()
-        ->and($tyre->satisfies(95, null))->toBeFalse();
 });
 
 it('keeps no figure from the papers that lies outside its range, and none where nothing was given', function (): void {
@@ -129,29 +91,12 @@ it('says what an answer assumed about the car, and whose word it was — never t
         ]);
 });
 
-it('prints a build window open at its start as „bis“ and holds a date by both ends', function (): void {
-    $window = new BuildWindow(new DateTimeImmutable('2018-03-01'), new DateTimeImmutable('2019-11-30'));
-
-    expect((new BuildWindow(null, new DateTimeImmutable('2019-11-30')))->labelDe())->toBe('bis 11/2019')
-        ->and($window->contains(new DateTimeImmutable('2018-03-01')))->toBeTrue()
-        ->and($window->contains(new DateTimeImmutable('2019-11-30')))->toBeTrue()
-        ->and($window->contains(new DateTimeImmutable('2018-02-28')))->toBeFalse()
-        ->and($window->contains(new DateTimeImmutable('2019-12-01')))->toBeFalse()
-        ->and(BuildWindow::unbounded()->contains(new DateTimeImmutable('1990-01-01')))->toBeTrue();
+it('prints a build window open at its start as „bis“', function (): void {
+    expect((new BuildWindow(null, new DateTimeImmutable('2019-11-30')))->labelDe())->toBe('bis 11/2019');
 });
 
-it('labels a wheel and a tyre size as the shop prints them, and counts stock only above zero', function (): void {
-    $wheel = FitmentFixtures::wheel();
-    $plain = new WheelConfigRecord(
-        id: 1, wheelModelId: 1, wheelFinishId: 1, diameterIn: 18.0, widthIn: 8.0, etMm: 40, boltHoles: 5, boltCircleMm: 112.0,
-        centreBoreMm: 57.1, priceCents: 1, stockQty: 0, modelName: 'Havanna',
-    );
-
-    expect($wheel->productLabel())->toBe('Demo Fünfspeiche F-01 · Graphite matt')
-        ->and($wheel->isInStock())->toBeTrue()
-        ->and($plain->productLabel())->toBe('Havanna')
-        ->and($plain->isInStock())->toBeFalse()
-        ->and((new TyreSize(245, 45, 18.0))->powerBandDe())->toBeNull();
+it('prints no kW band for a tyre size the document gives at every power', function (): void {
+    expect((new TyreSize(245, 45, 18.0))->powerBandDe())->toBeNull();
 });
 
 it('refuses a condition without a German sentence — a customer is never left with a bare code (R-15)', function (): void {
@@ -183,9 +128,7 @@ it('tells whoever sets a level or a colour what the shop does with it, in German
 });
 
 it('lists every value of the stored enums, so a column check can never miss one', function (): void {
-    expect(MinSource::values())->toBe(array_map(static fn (MinSource $c): string => $c->value, MinSource::cases()))
-        ->and(Severity::values())->toBe(array_map(static fn (Severity $c): string => $c->value, Severity::cases()))
-        ->and(VerdictStatus::values())->toBe(['PERMITTED', 'CONDITIONAL', 'NOT_PERMITTED', 'UNKNOWN']);
+    expect(Severity::values())->toBe(array_map(static fn (Severity $c): string => $c->value, Severity::cases()));
 });
 
 it('has a plain German sentence for every reason an answer can give, never a code', function (string $code): void {

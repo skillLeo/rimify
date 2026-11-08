@@ -35,11 +35,6 @@ final readonly class WheelConfigRecord
         public ?int $maxLoadKg = null,
     ) {}
 
-    public function isInStock(): bool
-    {
-        return $this->stockQty > 0;
-    }
-
     /** `8,5J × 18 · ET 35 · 5/112 · 66,6 mm` */
     public function label(): string
     {
@@ -51,12 +46,5 @@ final readonly class WheelConfigRecord
             $this->boltCircleMm,
             $this->centreBoreMm,
         );
-    }
-
-    /** `BORBET Havanna · Graphite matt` */
-    public function productLabel(): string
-    {
-        return trim(implode(' ', array_filter([$this->brandName, $this->modelName])))
-            .($this->finishNameDe === null ? '' : ' · '.$this->finishNameDe);
     }
 }
