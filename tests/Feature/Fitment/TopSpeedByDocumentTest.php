@@ -164,3 +164,49 @@ it('is never PERMITTED without the top speed where one covering document needs i
 
     expect(underDocuments(TyreIndexSource::Document, TyreIndexSource::Document)->status)->toBe(VerdictStatus::Permitted);
 });
+
+describe('a car whose top speed is known, under „bei jeder Reifengröße“ (D-438)', function (): void {
+    // The client's round of 08.11.2026, §3.3: „Remove the requirement to provide a load capacity table, as we have selected the option to
+    // display this information for each individual tire.“ The BMW at 250 km/h under ABE 53841, 90W beside every size: no table entered.
+    it('answers from the figures beside the size, as without the top speed: no table asked for', function (): void {
+        $verdict = underDocument(TyreIndexSource::Document, 250, 'W', loadIndex: 91);
+        $lines = $verdict->tyre->lines ?? [];
+
+        expect($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
+            ->and($verdict->front->minSpeedSymbol)->toBe('W')
+            ->and($verdict->front->minLoadIndex)->toBe(91)
+            ->and($lines)->toContain('Bei der Reifengröße gibt das Gutachten Tragfähigkeitsindex 91 und Geschwindigkeitsindex W an.')
+            ->and(implode(' ', $lines))->not->toContain('Tragfähigkeitstabelle');
+    });
+
+    it('still asks for the table where the symbol beside the size is below what the top speed asks for: only the table can say what it carries', function (): void {
+        // 91V at 250 km/h: a V tyre is rated to 240.
+        $verdict = underDocument(TyreIndexSource::Document, 250, 'V', loadIndex: 91);
+
+        expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
+            ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('keine Tragfähigkeitstabelle für hohe Geschwindigkeit');
+    });
+
+    it('still reads a table that was entered: the stricter governs (R-06)', function (): void {
+        $document = ApprovalDocument::factory()->abe()->tyreIndex(TyreIndexSource::Document)->printingDeratingTable()->create();
+        $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 250]);
+        $wheel = WheelConfig::factory()->havanna85x18()->create();
+        $row = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $wheel->id]);
+        FitmentTyreSize::factory()->for($row)->size(225, 40, 18.0)->create(['min_speed_symbol' => 'W', 'min_load_index' => 91]);
+
+        $verdict = app(FitmentResolver::class)->resolve($vehicle->id, $wheel->id);
+
+        expect(implode(' ', $verdict->tyre->lines ?? []))->toContain('km/h')
+            ->and(implode(' ', $verdict->tyre->lines ?? []))->not->toContain('Bei der Reifengröße gibt das Gutachten');
+    });
+
+    it('leaves a paper „in einer Tabelle“ asking for its table, as before', function (): void {
+        $document = ApprovalDocument::factory()->abe()->tyreIndex(TyreIndexSource::Table)->create();
+        $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 250]);
+        $wheel = WheelConfig::factory()->havanna85x18()->create();
+        $row = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $wheel->id]);
+        FitmentTyreSize::factory()->for($row)->size(225, 40, 18.0)->create(['min_speed_symbol' => 'W', 'min_load_index' => 91]);
+
+        expect(app(FitmentResolver::class)->resolve($vehicle->id, $wheel->id)->tyre?->status)->toBe(VerdictStatus::Unknown);
+    });
+});

@@ -1316,8 +1316,15 @@ final readonly class FitmentResolver
         $raisedFrom = null;
         $tableList = array_values($tables);
         $fromDocument = false;
+        // D-284: every size carries the documents' index, load and symbol, set for the combination.
+        $printedStands = $speedFromDocument && $documentSpeedSymbol !== null && ! $sizeWithoutIndex
+            && $this->speedSymbol->rankOf($documentSpeedSymbol) !== null;
+        // D-438 (the client's round of 08.11.2026, §3.3): so too with the top speed known, where no table was entered and the printed
+        // symbol already covers that speed — the table is never asked for in this mode. A table that was entered is still read (R-06),
+        // and a symbol below the speed still needs one: only the table says what such a tyre carries there.
+        $printedCovers = $printedStands && $maxSpeedKmh !== null && array_filter($tableList) === [] && $minSpeedSymbol === $documentSpeedSymbol;
 
-        if ($maxSpeedKmh !== null && $minSpeedSymbol !== null) {
+        if ($maxSpeedKmh !== null && $minSpeedSymbol !== null && ! $printedCovers) {
             $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
 
             if ($lookup->isNotPermitted() && $lookup->required !== null) {
@@ -1326,10 +1333,9 @@ final readonly class FitmentResolver
                 $speedSource = MinSource::Document;
                 $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
             }
-        } elseif ($maxSpeedKmh === null && $speedFromDocument && $documentSpeedSymbol !== null && ! $sizeWithoutIndex
-            && $this->speedSymbol->rankOf($documentSpeedSymbol) !== null) {
-            // D-284: every size carries the documents' index, load and symbol, set for the combination — the symbol governs
-            // alone (one the table does not know never does), and the load at full load is the floor under its load index.
+        } elseif ($printedStands && ($maxSpeedKmh === null || $printedCovers)) {
+            // The symbol governs alone (one the table does not know never does), and the load at full load is the floor under its
+            // load index.
             $minSpeedSymbol = $documentSpeedSymbol;
             $speedSource = MinSource::Document;
             $lookup = DeratingLookup::percent(100);
