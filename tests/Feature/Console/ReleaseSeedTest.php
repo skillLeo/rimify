@@ -106,20 +106,18 @@ it('gives the hero back its real wheel where the setting still names a demo mode
 
     // Whatever the setting says, the hero stands on the brand's photograph with the values its document states (the brief
     // of 05.10.2026, §2) — data can no longer take it away, and the hero asks the catalogue nothing (the client's #4, D-187).
-    // The real wheel comes in beside it once it is published: the numbers section's `photoWheel` (D-155).
+    // The numbers section stands on the same photograph, published or not: no catalogue row is read (D-444).
     DemoWheelFixtures::heroPhotos($this->dir, GoldenRecordSeeder::SLUG, ['Schwarz matt' => 'db8gt2-schwarz']);
 
-    $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('hero.photo.finish', 'Schwarz matt')
-        ->missing('hero.product')
-        ->where('photoWheel', null));
+    foreach (['draft', 'published'] as $status) {
+        DB::table('wheel_models')->where('id', $golden)->update(['status' => $status]);
 
-    DB::table('wheel_models')->where('id', $golden)->update(['status' => 'published']);
-
-    $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('hero.photo.finish', 'Schwarz matt')
-        ->missing('hero.product')
-        ->where('photoWheel.slug', GoldenRecordSeeder::SLUG));
+        $this->get('/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('hero.photo.finish', 'Schwarz matt')
+            ->missing('hero.product')
+            ->where('photoWheel.facts.kba', '53841')
+            ->missing('photoWheel.slug'));
+    }
 
     // A real wheel a person chose stays chosen.
     $chosen = (int) DB::table('wheel_models')->where('is_demo', false)->where('id', '<>', $golden)->value('id');

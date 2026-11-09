@@ -23,7 +23,6 @@ use App\Services\Storage\S3Audit;
 use App\Services\Storage\StorageSettings;
 use App\Support\DatabaseEngine;
 use App\Support\GermanFormat;
-use App\Support\HeroPhotos;
 use App\Support\KeyNumberSearch;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Console\Command;
@@ -133,12 +132,9 @@ final class Smoke extends Command
         // The homepage's signature pieces (docs/design/PROTECTED.md P1, P3, P4), asserted where they were lost: on the host.
         // The preview showed the outline and no numbers section for days while every test on a fresh database passed
         // (D-089). The hero's photograph is the brand's and stands in every state, an empty shop included (the
-        // operator's brief of 05.10.2026, §2), with the photograph's own values (the client's #4); only the numbers
-        // section waits for the wheel in the photograph to be on sale.
-        $heroLive = WheelModel::query()->onSale()
-            ->whereIn('slug', array_column(HeroPhotos::all(), 'model'))->exists();
-
-        $this->check('Startseite: Felgenfoto und Zahlen', function () use ($heroLive): string {
+        // operator's brief of 05.10.2026, §2), with the photograph's own values (the client's #4); so does the numbers section,
+        // since the client archived the wheel in the photograph on the preview and it waited (D-444).
+        $this->check('Startseite: Felgenfoto und Zahlen', function (): string {
             $html = self::rendered($this->get('/')->body());
             $hero = preg_match('#<section[^>]*data-section="H2".*?</section>#s', $html, $section) === 1 ? $section[0] : '';
             $this->expect($hero !== '', 'kein Hero im gerenderten HTML');
@@ -153,10 +149,6 @@ final class Smoke extends Command
             $stage = (string) strstr($hero, 'hero__stage');
             $this->expect(str_contains($hero, 'data-hero="values"'), 'der Hero zeigt die Werte des Fotos nicht (Maße am Foto und Größenzeile)');
             $this->expect(preg_match('#<a\b[^>]*>(?:(?!</a>).)*?<img#s', $stage) !== 1 && ! str_contains($stage, '€'), 'das Felgenfoto im Hero ist verlinkt oder trägt einen Preis');
-
-            if (! $heroLive) {
-                return "Felgenfoto im Hero ({$name}); der Zahlen-Abschnitt wartet, bis die Felge im Foto veröffentlicht ist";
-            }
 
             $this->expect(str_contains($html, 'data-section="H8"'), 'der Abschnitt „Was die Zahlen auf einer Felge bedeuten“ fehlt');
 

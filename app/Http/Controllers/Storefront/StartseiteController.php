@@ -9,9 +9,7 @@ use App\Domain\Fitment\Resolver\VehicleResolver;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
 use App\Http\Controllers\Controller;
-use App\Models\Fitment;
 use App\Models\Page;
-use App\Models\WheelConfig;
 use App\Models\WheelModel;
 use App\Services\Content\PageContent;
 use App\Services\Storefront\CalculatorPrefill;
@@ -26,7 +24,6 @@ use App\Support\BrandLogos;
 use App\Support\DevicePage;
 use App\Support\GermanFormat;
 use App\Support\HeroPhotos;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -76,9 +73,17 @@ class StartseiteController extends Controller
 
         $vehicle = $vehicleId === null ? null : $this->resolver->find($vehicleId);
         $photo = HeroPhotos::resolve(is_string($blocks['hero']['foto'] ?? null) ? $blocks['hero']['foto'] : null);
-        // The wheel in the photograph where the shop sells it: for the numbers section (H8) and the turning band (P6) —
-        // never for the hero, which asks the catalogue nothing (the client's #4).
-        $wheel = $this->heroProduct($photo);
+        // The brand's photograph (PROTECTED.md P1) with the values its document states for the stamped size — the leaders, the
+        // caption and the spec line — in every state of the catalogue: no product query, no price, no link (the client's #4, the
+        // operator's brief „THE 34“).
+        $shown = $photo === null ? null : [
+            'brand' => $photo['brand'],
+            'name' => $photo['name'],
+            'finish' => $photo['finish'],
+            'imageManifest' => $photo['imageManifest'],
+            'companion' => $photo['companion'],
+            'facts' => $this->photoFacts($photo),
+        ];
 
         return Inertia::render(DevicePage::resolve('Startseite', $request), [
             'hero' => [
@@ -87,22 +92,14 @@ class StartseiteController extends Controller
                 // The phone document's own sentence (required in the editor). Absent or empty, the
                 // phone keeps its short default rather than the desktop's five lines (Mobile.vue).
                 'sublineMobile' => trim((string) ($blocks['hero']['sub_mobile'] ?? '')),
-                // The brand's photograph (PROTECTED.md P1) with the values its document states for the stamped size —
-                // the leaders, the caption and the spec line — in every state of the catalogue: no product query, no
-                // price, no link (the client's #4, the operator's brief „THE 34“).
-                'photo' => $photo === null ? null : [
-                    'brand' => $photo['brand'],
-                    'name' => $photo['name'],
-                    'finish' => $photo['finish'],
-                    'imageManifest' => $photo['imageManifest'],
-                    'companion' => $photo['companion'],
-                    'facts' => $this->photoFacts($photo),
-                ],
+                'photo' => $shown,
             ],
             // The counts the story (H4) shows: Gutachten, cars, wheels.
             'stats' => $this->stats->counts(),
-            // The published wheel in the photograph, for the numbers section (H8); null while the shop does not sell it.
-            'photoWheel' => $wheel,
+            // The numbers section (H8, PROTECTED.md P4) explains the photograph's own wheel with the photograph's own values — the
+            // same fixed assets the hero stands on, never a catalogue row: no product changed or archived can take it away (the
+            // operator's decision of 09.11.2026, D-444).
+            'photoWheel' => $shown,
             'selector' => ['makes' => $this->tree->makes()],
             // F1 for the chosen vehicle, in the first paint rather than one round trip later.
             'fitmentCount' => $vehicle === null ? null : $this->count->forVehicle($vehicle),
@@ -132,139 +129,6 @@ class StartseiteController extends Controller
             // Only a demo row on show counts — and none can be (the review release §2).
             'demo' => WheelModel::query()->where('is_demo', true)->where('status', CatalogueStatus::Published->value)->exists(),
         ]);
-    }
-
-    /**
-     * The wheel in the hero's photograph, where the shop has it (the operator's brief of 05.10.2026, §2): the
-     * photograph is the brand's (HeroPhotos) and stands whatever the catalogue holds; only its values are data. They
-     * come from the photographed model — the same model, never another product whose numbers would land on this
-     * wheel — once it is real and published, and never with a price or a link (D-108). A draft states nothing, as no
-     * other page of the shop shows one: its values are not released yet (D-155). Without a published model — an empty
-     * shop, or the wheel still a draft — the photograph stands without leaders, caption or spec line, never with a hole.
-     *
-     * `facts` are one configuration's values, formatted here (R-10) and nowhere else. Which one is `heroConfig()`'s
-     * choice: a photograph proves the size its stamp names, never the bolt pattern.
-     *
-     * @param  array{model: string, finish: string, stamp: string|null, imageManifest: array<string, mixed>, companion: array{finish: string, imageManifest: array<string, mixed>}|null}|null  $photo
-     * @return array<string, mixed>|null
-     */
-    private function heroProduct(?array $photo): ?array
-    {
-        if ($photo === null || $photo['model'] === '') {
-            return null;
-        }
-
-        $model = WheelModel::query()
-            ->with(['brand'])
-            ->where('slug', $photo['model'])
-            ->onSale()
-            ->first();
-
-        if ($model === null) {
-            return null;
-        }
-
-        [$config, $kba] = $this->heroConfig((int) $model->id, $photo['stamp']);
-
-        if ($config === null) {
-            return null;
-        }
-
-        return [
-            'slug' => (string) $model->slug,
-            'name' => (string) $model->name,
-            'brand' => (string) $model->brand->name,
-            // The photographed finish: the caption names what the picture shows.
-            'finish' => $photo['finish'],
-            'fromPriceCents' => (int) $config->price_cents,
-            'fromPrice' => GermanFormat::money((int) $config->price_cents),
-            // The photograph's own cut-outs, for the numbers section (P4) and the dark band (P6), which mark and turn
-            // this same wheel.
-            'imageManifest' => $photo['imageManifest'],
-            'companion' => $photo['companion'],
-            // The configuration's own numbers; the client draws the outline's bolt holes from them.
-            'config' => [
-                'widthIn' => (float) $config->width_in,
-                'diameterIn' => (float) $config->diameter_in,
-                'etMm' => (int) $config->et_mm,
-                'boltHoles' => (int) $config->bolt_holes,
-                'boltCircleMm' => (float) $config->bolt_circle_mm,
-                'centreBoreMm' => (float) $config->centre_bore_mm,
-            ],
-            'symbolic' => false,
-            // In the shop at a price; a published wheel still priced at zero is shown, never offered.
-            'published' => (int) $config->price_cents > 0,
-            'facts' => $this->heroFacts($config, $kba),
-        ];
-    }
-
-    /**
-     * The configuration whose values the hero states (ACCURACY.md §3.0).
-     *
-     * The photograph carries the approval number read off the wheel (`stamp`, e.g. KBA 53841), which proves the size
-     * that number approves — not the bolt pattern, which the same ABE covers in several executions. So among the
-     * model's configurations with exactly that KBA number: the one with the most fitments a customer can see, then the
-     * cheapest, then the lowest id; and the number is stated. Otherwise the model's cheapest configuration, and no KBA
-     * number: the photograph's stamp is never put next to a configuration it does not belong to.
-     *
-     * @return array{0: WheelConfig|null, 1: string|null}
-     */
-    private function heroConfig(int $modelId, ?string $stamp): array
-    {
-        if ($stamp !== null && $stamp !== '') {
-            $stamped = WheelConfig::query()
-                ->where('wheel_model_id', $modelId)
-                ->where('kba_number', $stamp)
-                ->withCount(['fitments as published_fitments' => self::visibleFitments(...)])
-                ->orderByDesc('published_fitments')
-                ->orderBy('price_cents')
-                ->orderBy('id')
-                ->first();
-
-            if ($stamped !== null) {
-                return [$stamped, $stamp];
-            }
-        }
-
-        $cheapest = WheelConfig::query()
-            ->where('wheel_model_id', $modelId)
-            ->orderBy('price_cents')
-            ->orderBy('id')
-            ->first();
-
-        return [$cheapest, null];
-    }
-
-    /**
-     * The rows a customer could be shown, for counting how many cars a stamped configuration fits.
-     *
-     * @param  Builder<Fitment>  $fitments
-     * @return Builder<Fitment>
-     */
-    private static function visibleFitments(Builder $fitments): Builder
-    {
-        return $fitments->visibleToCustomers();
-    }
-
-    /**
-     * The hero's facts, each one formatted once, here (ACCURACY.md §4): the explainer and both
-     * hero documents print these strings and never build a value themselves. `kba` only when the
-     * photographed stamp belongs to this configuration; `maxLoad` only when it is verified.
-     *
-     * @return array{width: string, diameter: string, et: string, boltPattern: string, centreBore: string, kba: string|null, maxLoad: string|null, specLine: string}
-     */
-    private function heroFacts(WheelConfig $config, ?string $kba): array
-    {
-        return self::facts(
-            (float) $config->width_in,
-            (float) $config->diameter_in,
-            (int) $config->et_mm,
-            (int) $config->bolt_holes,
-            (float) $config->bolt_circle_mm,
-            (float) $config->centre_bore_mm,
-            $config->max_load_kg === null ? null : (int) $config->max_load_kg,
-            $kba,
-        );
     }
 
     /**
