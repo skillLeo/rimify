@@ -60,3 +60,15 @@ it('reads every load index with every speed symbol, and every symbol in the orde
     expect(TyreText::SYMBOLS)->toBe(array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol'))
         ->and(TyreText::read('225/40 R18 280W'))->toBeNull();
 });
+
+// The operator's decision of 09.11.2026 (D-445): „ZR“ without a service description only says above 240 km/h, with no stated limit
+// (ECE-R 30). Never W, never any symbol: the size alone, „speed symbol not given“ — the same fail-closed rule as any size without one.
+it('reads a bare ZR as the size alone, with no speed symbol and no load index — never W', function (): void {
+    foreach (['225/40 ZR18', '225/40ZR18', '225/40 Z R 18'] as $text) {
+        expect(TyreText::read($text))->toBe(['width' => 225, 'aspect' => 40, 'diameter' => 18, 'li' => null, 'li2' => null, 'si' => null, 'marker' => null], $text);
+    }
+
+    // With its service description it says what it prints, the bracket form the category above 300 km/h.
+    expect(TyreText::read('225/40 ZR18 92W')['si'] ?? null)->toBe('W')
+        ->and(TyreText::read('225/40 ZR18 (92Y)')['si'] ?? null)->toBe('(Y)');
+});

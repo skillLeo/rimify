@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ImageManifest } from '../../Components/Ui/Picture.vue'
 import type { KomplettradOptionsProp, KomplettradTyreProp, MischbereifungSetProp, ProduktConfig } from '../../types/pages'
+import { formatMoney } from '../../lib/num'
 import { extrasAnswered, extrasHint, filterCards, flowSum, freeStandardColour, initialExtras, offerOf, priceBands, priceWith, setSummary, sortCards, type TyreCardView } from './komplettradFlow'
 
 /* The tyres a version offers as cards, the filters, the order and the sum (the Gutachten rework §9): only what the server sent is ever a card. */
@@ -275,12 +276,15 @@ describe('the extras', () => {
             ['Montage und Auswuchten', '100,00 €'],
             ['Wuchtgewichte Silber', 'ohne Aufpreis'],
             ['RDKS-Sensoren', '–'],
+            // Without sensors the standard valves come with the set, as the basket says (D-443).
+            ['Ventile (inklusive)', formatMoney(0)],
         ])
         expect(plain.totalCents).toBe(386_000)
         expect(plain.open).toBe(false)
 
         const extras = flowSum(config(), priced, mounting, paid, tpms, 'ja')
 
+        // With sensors no valve row: the sensor carries the valve (D-443).
         expect(extras.lines.map((l) => [l.label, l.price]).slice(3)).toEqual([['Wuchtgewichte Schwarz', '20,00 €'], ['RDKS-Sensoren', '196,00 €']])
         expect(extras.totalCents).toBe(388_000 + 19_600)
     })

@@ -403,9 +403,11 @@ export function flowSum(
         lines.push({ label: 'RDKS-Sensoren', detail: `${tpms.line ?? ''}, ${wheelsInBasket > 0 ? 'für alle Räder im Warenkorb' : 'gleich mit eingesetzt'}`, price: tpms.yesTotal ?? '' })
     }
 
-    // The answer asked for is said here too: an „Ohne“ that left no line read as if nobody had asked.
+    // The answer asked for is said here too: an „Ohne“ that left no line read as if nobody had asked. Without sensors the standard
+    // valves come with the set, at no charge, as the basket says (D-443); with sensors none — the sensor carries the valve.
     if (rdks === 'nein') {
         lines.push({ label: 'RDKS-Sensoren', detail: 'Ohne Sensoren', price: '–' })
+        lines.push({ label: 'Ventile (inklusive)', detail: 'für 4 Räder', price: formatMoney(0) })
     }
 
     return {
