@@ -32,7 +32,7 @@ afterEach(function (): void {
     DemoWheelFixtures::remove($this->dir);
 });
 
-it('ships the hero: the brand\'s photograph with its own values, and the published wheel in it for the numbers section', function (): void {
+it('ships the hero: the brand\'s photograph with its own values, and the same photograph for the numbers section', function (): void {
     $hero = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
     DemoWheelFixtures::heroPhotos($this->dir, $hero->slug, ['Schwarz matt' => 'hero-schwarz'], stamp: null);
 
@@ -46,12 +46,10 @@ it('ships the hero: the brand\'s photograph with its own values, and the publish
             ->missing('hero.product')
             ->where('hero.photo.facts.specLine', "8,5J\u{00A0}×\u{00A0}18 · ET\u{00A0}35 · LK\u{00A0}5\u{00A0}×\u{00A0}120 · MLB\u{00A0}72,5\u{00A0}mm · Traglast\u{00A0}650\u{00A0}kg")
             ->where('hero.photo.facts.kba', null)
-            // The published wheel in the photograph, for the numbers section (H8).
-            ->where('photoWheel.slug', $hero->slug)
-            ->has('photoWheel.facts.width')
-            ->has('photoWheel.config.widthIn')
+            // The numbers section (H8) explains the same photograph with the same values — never a catalogue row (D-444).
             ->where('photoWheel.imageManifest.bare.name', 'hero-schwarz-bare')
-            ->where('photoWheel.symbolic', false)
+            ->where('photoWheel.facts.specLine', "8,5J\u{00A0}×\u{00A0}18 · ET\u{00A0}35 · LK\u{00A0}5\u{00A0}×\u{00A0}120 · MLB\u{00A0}72,5\u{00A0}mm · Traglast\u{00A0}650\u{00A0}kg")
+            ->missing('photoWheel.slug')
             ->has('stats.gutachten')
             ->has('selector.makes')
             ->has('promises', 4)
@@ -75,12 +73,13 @@ it('@kunde-04 renders the whole hero with no wheel published: the photograph, it
             ->where('hero.photo.imageManifest.bare.name', 'hero-schwarz-bare')
             ->where('hero.photo.companion.finish', 'Bronze matt')
             ->where('hero.photo.brand', 'Borbet')
-            // Its leaders, caption and spec line stand too: the photograph's own values (the client's #4) — only the
-            // numbers section, which explains a wheel the shop sells, waits.
+            // Its leaders, caption and spec line stand too: the photograph's own values (the client's #4) — and the numbers
+            // section with them, on the same photograph (D-444).
             ->has('hero.photo.facts.specLine')
             ->where('hero.photo.facts.kba', '53841')
             ->missing('hero.photo.facts.fromPrice')
-            ->where('photoWheel', null)
+            ->where('photoWheel.facts.kba', '53841')
+            ->where('photoWheel.imageManifest.bare.name', 'hero-schwarz-bare')
             ->has('selector.makes')
             ->where('popular', null)
             ->where('shopEmpty', true)
@@ -126,10 +125,12 @@ it('states the values of the wheel in the photograph, never another product\'s',
     $photographed = WheelModel::query()->where('status', 'published')->orderBy('id')->firstOrFail();
     $other = WheelModel::query()->where('status', 'published')->orderByDesc('id')->firstOrFail();
     DemoWheelFixtures::heroPhotos($this->dir, $photographed->slug, ['Schwarz matt' => 'hero-schwarz']);
-    // An older choice of hero product no longer decides anything: the photograph does.
+    // An older choice of hero product no longer decides anything: the photograph does, with its own values (D-444).
     Setting::set('hero_product_id', $other->id);
 
-    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('photoWheel.slug', $photographed->slug));
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('photoWheel.imageManifest.bare.name', 'hero-schwarz-bare')
+        ->where('photoWheel.facts', fn ($facts): bool => collect($facts)->all() === collect($page->toArray()['props']['hero']['photo']['facts'])->all()));
 });
 
 it('@kunde-05 offers one shelf under one heading, at most eight wheels, and no tabs', function (): void {

@@ -219,7 +219,8 @@ export interface StartseiteProps {
     /** The counts the story (H4) shows. */
     stats: HomeStats
     /** The wheel in the hero's photograph where the shop sells it, for the numbers section (H8); null otherwise. */
-    photoWheel: HeroProduct | null
+    /** The numbers section's wheel (H8, PROTECTED.md P4): the hero's photograph with its own values, never a catalogue row (D-444). */
+    photoWheel: HeroPhoto | null
     selector: { makes: MakeOption[] }
     /** F1 for the shared vehicle, in the first paint; null without a vehicle. `shopEmpty`: no wheel published at all. */
     fitmentCount: { count: number; permitted: number; conditional: number; shopEmpty?: boolean } | null

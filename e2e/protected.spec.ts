@@ -137,8 +137,8 @@ test.describe('protected elements', () => {
  * While the catalogue is empty the baseline asserts presence, not pixels (the operator's brief of 05.10.2026, §2): the
  * hero stands on the brand's photographs in every state, and a run against an empty shop checks that they are there,
  * load, roll in and stand in their light, with the photograph's own callouts (P3; the client's #4: the hero asks the
- * catalogue nothing) — but compares no picture. The numbers section (P4) and the turning band (P6) need a wheel in the
- * catalogue, and are not asked for here.
+ * catalogue nothing) — but compares no picture. The numbers section (P4) stands on the same photograph and its values since the
+ * operator's decision of 09.11.2026 (D-444), so it is asked for here too; the turning band (P6) is not.
  */
 test.describe('protected elements while the catalogue is empty — presence, not pixels', () => {
     test.use({ baseURL: EMPTY_SHOP });
@@ -172,5 +172,18 @@ test.describe('protected elements while the catalogue is empty — presence, not
         const box = await stage.boundingBox();
         expect(box?.height ?? 0, 'P1: the hero stage has no height').toBeGreaterThan(100);
         // Presence, not pixels: no screenshot is compared while the catalogue is empty.
+    });
+
+    test('P4 · the numbers section stands on the photograph with the catalogue empty, marking the value on it (D-444)', async ({ page }) => {
+        await home(page);
+
+        const section = page.locator('.rc').first();
+        await expect(section, 'P4: the numbers section is gone with the catalogue empty').toBeVisible();
+        await expectPhotograph(section.locator('.rc-photo img'), 'P4 numbers-section photograph (empty catalogue)');
+
+        for (const key of ['width', 'diameter', 'lk', 'mlb']) {
+            await section.locator(`[data-token="${key}"]`).click();
+            await expect(section.locator(`.rc-photo [data-shape="${key}"]`), `P4: choosing ${key} marks nothing on the photograph`).toHaveCount(1);
+        }
     });
 });

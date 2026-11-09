@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Console\Commands\Smoke;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -213,6 +214,29 @@ describe('the engine read', function (): void {
         Fitment::query()->where('approval_document_id', $document->id)->update(['status' => 'retired']);
 
         expect($sets->find($car->id, $wheel['front']->id, $wheel['rear']->id))->toBeNull();
+    });
+});
+
+describe('the smoke test after a release', function (): void {
+    // Release 31's smoke picked the client's front-only DB8GT2 on his ABE 53841 and found the basket empty: it chose by the verdict
+    // alone, the basket also by the rule above. Now by both.
+    it('picks no version the car may have only beside another, and one it may have four of', function (): void {
+        ['wheel' => $wheel, 'car' => $car] = wsStaggered();
+        $resolver = app(FitmentResolver::class);
+
+        foreach (['front', 'rear'] as $side) {
+            $verdict = $resolver->resolve($car->id, $wheel[$side]->id);
+
+            expect($verdict->isSellable())->toBeTrue()
+                ->and(Smoke::sellsAlone($car->id, $wheel[$side]->id, $verdict))->toBeFalse();
+        }
+
+        $other = Vehicle::factory()->create(['axle_load_front_kg' => 1010, 'axle_load_rear_kg' => 1200, 'max_speed_kmh' => 205]);
+        ['document' => $alone] = wsPaper([[$wheel['frontBronze'], $wheel['frontBronze'], [['225/40R18 92Y', '225/40R18 92Y']]]], $other);
+        wsRelease($alone);
+        $verdict = $resolver->resolve($other->id, $wheel['frontBronze']->id);
+
+        expect(Smoke::sellsAlone($other->id, $wheel['frontBronze']->id, $verdict))->toBeTrue();
     });
 });
 
