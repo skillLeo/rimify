@@ -273,8 +273,9 @@ final class GoLiveChecks
     /** § 312f Abs. 2 BGB: the confirmation leaves the server, with the AGB and the Widerrufsbelehrung as PDFs. */
     private function confirmation(): GoLiveCheck
     {
-        // Amazon SES once Einstellungen › E-Mail clears it — the configuration only says so once mail was sent.
-        $mailer = $this->mail->sending() !== null ? 'Amazon SES' : (string) config('mail.default');
+        // Amazon SES or Brevo once Einstellungen › E-Mail clears it — the configuration only says so once mail was sent.
+        $set = $this->mail->sending();
+        $mailer = $set === null ? (string) config('mail.default') : ($set->brevo() ? 'Brevo' : 'Amazon SES');
 
         if (in_array($mailer, ['log', 'array'], true)) {
             return $this->check('bestaetigung', self::LEGAL, 'Bestellbestätigung (§ 312f BGB)', GoLiveCheck::US, GoLiveCheck::MISSING, "MAIL_MAILER={$mailer}: Die Bestätigung wird nicht verschickt.", 'MAIL_MAILER');
@@ -695,11 +696,23 @@ final class GoLiveChecks
         $place = 'Einstellungen › E-Mail · docs/ops/MAIL-SES.md';
         $sending = $this->mail->sending();
 
+        if ($sending !== null && $sending->brevo()) {
+            return $this->check('mailversand', self::OPERATIONS, 'E-Mail-Versand über Brevo', GoLiveCheck::US, GoLiveCheck::OK, 'Die Mails des Shops gehen über Brevo ('.MailSetting::BREVO_HOST."), Absender {$sending->from_address}.", 'Einstellungen › E-Mail · docs/launch/BREVO.md');
+        }
+
         if ($sending !== null) {
             return $this->check('mailversand', self::OPERATIONS, $title, GoLiveCheck::US, GoLiveCheck::OK, "Die Mails des Shops gehen über Amazon SES ({$sending->region}), Absender {$sending->from_address}.", $place);
         }
 
         $set = self::mailSet();
+
+        // Brevo saved, not in force (D-450): its sign-in is all the shop can test; the rest Brevo's own page says.
+        if ($set !== null && $set->brevo()) {
+            $open = $set->complete() ? 'ein Zugang zu Brevo, der funktioniert – der gespeicherte klappt nicht' : 'SMTP-Login und SMTP-Schlüssel von Brevo in Einstellungen › E-Mail';
+
+            return $this->check('mailversand', self::OPERATIONS, 'E-Mail-Versand über Brevo', GoLiveCheck::US, GoLiveCheck::MISSING, 'Die Mails gehen über „'.config('mail.default')."“ und erreichen bis dahin niemanden. Noch offen: {$open}.", 'Einstellungen › E-Mail · docs/launch/BREVO.md');
+        }
+
         /** @var array<string, mixed> $test */
         $test = $set->last_test ?? [];
         $open = match (true) {
@@ -730,6 +743,12 @@ final class GoLiveChecks
 
         if ($domain === null || in_array($domain, ['example.com', 'localhost'], true)) {
             return $this->check('mail_dns', self::OPERATIONS, $title, GoLiveCheck::CLIENT, GoLiveCheck::MISSING, 'Noch keine Absenderadresse: Sie wird in Einstellungen › E-Mail eingetragen, dann nennt diese Prüfung jeden DNS-Eintrag.', $place);
+        }
+
+        // Brevo names its own records and checks them itself (D-450): what RIMIFY would look for are SES's, so nothing is said
+        // about the domain here — the line says where it is said (R-17).
+        if ($set !== null && $set->brevo()) {
+            return $this->check('mail_dns', self::OPERATIONS, $title, GoLiveCheck::CLIENT, GoLiveCheck::UNCHECKABLE, "Welche Einträge {$domain} für Brevo braucht und ob sie stehen, prüft Brevo selbst: unter Senders, Domains & Dedicated IPs › Domains.", 'Brevo · DNS der Domain');
         }
 
         /** @var array<string, mixed> $test */

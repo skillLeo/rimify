@@ -799,6 +799,7 @@ describe('putting every entry into words', function (): void {
                 [],
             ],
             'reviews.invited' => [['count' => 3], '3 Einladungen zur Bewertung wurden verschickt.', []],
+            'mail.test_sent' => [['to' => 'kunde@beispiel.de', 'ok' => false, 'mailer' => 'brevo', 'error' => 'Expected response code "235" but got code "535".'], 'Eine Test-E-Mail an „kunde@beispiel.de“ wurde nicht verschickt: Expected response code "235" but got code "535".', []],
             'shipping_method.created' => [
                 ['method' => 'Express', 'values' => ['name' => 'Express', 'price_cents' => 5990, 'free_from_cents' => null, 'delivery' => '1–2 Werktage', 'countries' => ['DE'], 'product_types' => ['komplettrad'], 'description_de' => null, 'active' => true]],
                 'Die Versandart „Express“ wurde angelegt.',

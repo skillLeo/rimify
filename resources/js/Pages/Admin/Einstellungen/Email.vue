@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Einstellungen › E-Mail: the Amazon SES key the shop sends its mail with (EmailController), built as Medien und
+ * Einstellungen › E-Mail: the Amazon SES key — or Brevo's SMTP login and key (D-450) — the shop sends its mail with (EmailController), built as Medien und
  * Speicher — write-only keys, a save tested at once, „Verbindung testen“ on demand, one line per step in SES's own
  * words. Beside it what SES needs from the world, as it stands: the sender's DNS records, the address SNS reports
  * bounces and complaints to, and the addresses on the shop's block list.
@@ -21,14 +21,22 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 const props = defineProps<AdminEmailProps>()
 
 const editor = useDirtyForm(
-    { ...props.form, access_key: '', secret: '' },
+    { ...props.form, provider: props.form.provider ?? 'ses', smtp_login: props.form.smtp_login ?? '', access_key: '', secret: '' },
     { method: 'put', url: '/admin/einstellungen/e-mail', stamp: () => props.stamp }
 )
 const form = editor.form
 
+/** Brevo's SMTP relay instead of Amazon SES (D-450): its login and key, no region, no key pair, no SNS topic. */
+const brevo = computed(() => form.provider === 'brevo')
+/** The stored secret belongs to the stored provider only: switching provider asks for the other's key, never reuses one. */
+const storedProvider = props.form.provider ?? 'ses'
+const secretStored = computed(() => props.secretMasked !== null && form.provider === storedProvider)
+const providerName = computed(() => (brevo.value ? 'Brevo' : 'Amazon SES'))
+
 /** The two write-only fields: closed (the masked value), or open for a new one. */
 const newKey = ref(props.keyMasked === null)
 const newSecret = ref(props.secretMasked === null)
+const secretOpen = computed(() => newSecret.value || !secretStored.value)
 
 function replaceKey(): void {
     newKey.value = true
@@ -49,6 +57,29 @@ function testConnection(): void {
 
     testing.value = true
     router.post('/admin/einstellungen/e-mail/test', { ...form.data() }, { preserveScroll: true, onFinish: () => (testing.value = false) })
+}
+
+/* „Test-E-Mail senden“ (D-450): one real message through the mailer in force, to the address typed here. */
+const testTo = ref('')
+const testToError = ref('')
+const sendingTest = ref(false)
+
+function sendTestMail(): void {
+    if (sendingTest.value) {
+        return
+    }
+
+    sendingTest.value = true
+    testToError.value = ''
+    router.post(
+        '/admin/einstellungen/e-mail/test-mail',
+        { test_to: testTo.value },
+        {
+            preserveScroll: true,
+            onError: (bag) => (testToError.value = String(bag.test_to ?? '')),
+            onFinish: () => (sendingTest.value = false),
+        }
+    )
 }
 
 const releasing = ref<number | null>(null)
@@ -123,20 +154,38 @@ function release(): void {
 }
 
 const context = props.sending
-    ? 'In Kraft: Versand über Amazon SES'
-    : `In Kraft: Versand über „${props.mailer}“ – noch nicht über Amazon SES`
+    ? `In Kraft: Versand über ${props.sendingProvider === 'brevo' ? 'Brevo' : 'Amazon SES'}`
+    : `In Kraft: Versand über „${props.mailer}“ – noch nicht über Amazon SES oder Brevo`
 </script>
 
 <template>
     <AdminPage title="E-Mail" :context="context">
         <p v-if="pending" class="adm-alert" role="status">
-            Die zuletzt gespeicherten Werte sind noch nicht aktiv: Der Zugang zu Amazon SES klappte damit nicht. Es gelten weiter die bisherigen Einstellungen.
+            Die zuletzt gespeicherten Werte sind noch nicht aktiv: Der Zugang zu {{ providerName }} klappte damit nicht. Es gelten weiter die bisherigen Einstellungen.
+        </p>
+        <p v-else-if="!sending && brevo" class="adm-alert" role="status">
+            Die Mails des Shops gehen noch nicht über Brevo. Das geschieht, sobald der SMTP-Login und der SMTP-Schlüssel gespeichert sind und die Prüfung unten die Anmeldung bestätigt.
         </p>
         <p v-else-if="!sending" class="adm-alert" role="status">
             Die Mails des Shops gehen noch nicht über Amazon SES. Das geschieht erst, wenn die Prüfung unten keine offenen Punkte mehr nennt: Zugang, Produktionszugang, bestätigte Absenderdomain.
         </p>
 
         <form class="adm-form" novalidate @submit.prevent="editor.save">
+            <section class="adm-form__group" aria-labelledby="em-provider">
+                <h2 id="em-provider" class="adm-form__heading">Anbieter</h2>
+                <div class="em-provider" role="radiogroup" aria-labelledby="em-provider">
+                    <label class="check">
+                        <input v-model="form.provider" type="radio" name="em-provider" value="ses">
+                        Amazon SES
+                    </label>
+                    <label class="check">
+                        <input v-model="form.provider" type="radio" name="em-provider" value="brevo">
+                        Brevo
+                    </label>
+                </div>
+                <p class="form-field__error">{{ form.errors.provider }}</p>
+            </section>
+
             <section class="adm-form__group" aria-labelledby="em-sender">
                 <h2 id="em-sender" class="adm-form__heading">Absender</h2>
 
@@ -144,7 +193,7 @@ const context = props.sending
                     <div class="form-field">
                         <label class="form-field__label" for="em-from">Absenderadresse</label>
                         <input id="em-from" v-model="form.from_address" class="input" type="email" inputmode="email" autocomplete="off" spellcheck="false" aria-describedby="em-from-help em-from-error" :aria-invalid="form.errors.from_address ? 'true' : undefined">
-                        <p id="em-from-help" class="form-field__help">Eine Adresse der Domain, die in SES bestätigt ist, z. B. bestellung@rimify.de.</p>
+                        <p id="em-from-help" class="form-field__help">Eine Adresse der Domain, die in {{ brevo ? 'Brevo' : 'SES' }} bestätigt ist, z. B. bestellung@rimify.de.</p>
                         <p id="em-from-error" class="form-field__error">{{ form.errors.from_address }}</p>
                     </div>
 
@@ -155,13 +204,41 @@ const context = props.sending
                     </div>
                 </div>
 
-                <div class="form-field">
+                <div v-if="!brevo" class="form-field">
                     <span class="form-field__label">Region</span>
                     <p class="em-fixed"><code>{{ region }}</code> – dieselbe wie beim Bucket.</p>
                 </div>
             </section>
 
-            <section class="adm-form__group" aria-labelledby="em-keys">
+            <section v-if="brevo" class="adm-form__group" aria-labelledby="em-keys">
+                <h2 id="em-keys" class="adm-form__heading">Zugang</h2>
+                <p class="adm-form__note">Login und Schlüssel stehen in Brevo unter SMTP &amp; API › SMTP. Der Schlüssel wird verschlüsselt gespeichert und nie wieder angezeigt – nur seine letzten vier Zeichen.</p>
+
+                <div class="form-field">
+                    <span class="form-field__label">SMTP-Server</span>
+                    <p class="em-fixed"><code>{{ brevoHost ?? 'smtp-relay.brevo.com:587' }}</code></p>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-field__label" for="em-login">SMTP-Login</label>
+                    <input id="em-login" v-model="form.smtp_login" class="input" type="text" autocomplete="off" spellcheck="false" aria-describedby="em-login-help em-login-error" :aria-invalid="form.errors.smtp_login ? 'true' : undefined">
+                    <p id="em-login-help" class="form-field__help">In der Form 8a1b2c001@smtp-brevo.com – nicht die Adresse, mit der du dich bei Brevo anmeldest.</p>
+                    <p id="em-login-error" class="form-field__error">{{ form.errors.smtp_login }}</p>
+                </div>
+
+                <div class="form-field">
+                    <label class="form-field__label" for="em-secret">SMTP-Schlüssel</label>
+                    <div v-if="!secretOpen" class="em-masked">
+                        <output id="em-secret" class="em-masked__value" aria-label="Gespeicherter SMTP-Schlüssel, nur die letzten vier Zeichen">{{ secretMasked }}</output>
+                        <button class="btn btn--secondary btn--sm" type="button" @click="replaceSecret">Neuen Schlüssel eintragen</button>
+                    </div>
+                    <input v-else id="em-secret" v-model="form.secret" class="input em-secret" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="em-secret-help em-secret-error" :aria-invalid="form.errors.secret ? 'true' : undefined">
+                    <p v-if="secretOpen && secretStored" id="em-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
+                    <p id="em-secret-error" class="form-field__error">{{ form.errors.secret }}</p>
+                </div>
+            </section>
+
+            <section v-else class="adm-form__group" aria-labelledby="em-keys">
                 <h2 id="em-keys" class="adm-form__heading">Zugang</h2>
                 <p class="adm-form__note">Ein eigener Schlüssel nur für SES. Er wird verschlüsselt gespeichert und nie wieder angezeigt – nur seine letzten vier Zeichen.</p>
 
@@ -177,20 +254,20 @@ const context = props.sending
 
                 <div class="form-field">
                     <label class="form-field__label" for="em-secret">Geheimer Schlüssel (Secret Access Key)</label>
-                    <div v-if="!newSecret" class="em-masked">
+                    <div v-if="!secretOpen" class="em-masked">
                         <output id="em-secret" class="em-masked__value" aria-label="Gespeicherter geheimer Schlüssel, nur die letzten vier Zeichen">{{ secretMasked }}</output>
                         <button class="btn btn--secondary btn--sm" type="button" @click="replaceSecret">Neuen Schlüssel eintragen</button>
                     </div>
                     <input v-else id="em-secret" v-model="form.secret" class="input em-secret" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="em-secret-help em-secret-error" :aria-invalid="form.errors.secret ? 'true' : undefined">
                     <!-- Only where a secret is stored: with none, an empty field keeps nothing. -->
-                    <p v-if="newSecret && secretMasked !== null" id="em-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
+                    <p v-if="secretOpen && secretStored" id="em-secret-help" class="form-field__help">Leer lassen behält den gespeicherten Schlüssel.</p>
                     <p id="em-secret-error" class="form-field__error">{{ form.errors.secret }}</p>
                 </div>
             </section>
 
             <section class="adm-form__group" aria-labelledby="em-test">
                 <h2 id="em-test" class="adm-form__heading">Verbindung</h2>
-                <p class="adm-form__note">Fragt SES nach dem Konto und der Absenderdomain. Verschickt nichts. Jedes Speichern prüft genauso.</p>
+                <p class="adm-form__note">{{ brevo ? 'Meldet sich mit Login und Schlüssel bei Brevo an und wieder ab. Verschickt nichts. Jedes Speichern prüft genauso.' : 'Fragt SES nach dem Konto und der Absenderdomain. Verschickt nichts. Jedes Speichern prüft genauso.' }}</p>
 
                 <div>
                     <button class="btn btn--secondary" type="button" :aria-busy="testing ? 'true' : undefined" @click="testConnection">Verbindung testen</button>
@@ -205,7 +282,30 @@ const context = props.sending
                 </ol>
             </section>
 
-            <section class="adm-form__group" aria-labelledby="em-dns">
+            <section class="adm-form__group" aria-labelledby="em-testmail">
+                <h2 id="em-testmail" class="adm-form__heading">Test-E-Mail</h2>
+                <p class="adm-form__note">Schickt eine echte Nachricht über den Versand, der gerade in Kraft ist – erst speichern, dann senden.</p>
+                <!-- Inside the settings form: Enter sends the test, it does not save the settings. -->
+                <div class="form-field">
+                    <label class="form-field__label" for="em-test-to">An diese Adresse</label>
+                    <div class="em-blocked-search__row">
+                        <input id="em-test-to" v-model="testTo" class="input" type="email" inputmode="email" maxlength="254" autocomplete="off" spellcheck="false" aria-describedby="em-test-to-error em-test-result" :aria-invalid="testToError ? 'true' : undefined" @keydown.enter.prevent="sendTestMail">
+                        <button class="btn btn--secondary" type="button" :aria-busy="sendingTest ? 'true' : undefined" @click="sendTestMail">Test-E-Mail senden</button>
+                    </div>
+                    <p id="em-test-to-error" class="form-field__error">{{ testToError }}</p>
+                </div>
+                <p v-if="testMail" id="em-test-result" class="em-testmail" :class="testMail.ok ? 'em-testmail--ok' : 'em-testmail--bad'" role="status">
+                    <template v-if="testMail.ok">Verschickt an {{ testMail.to }}. Kommt sie nicht an, zeigt {{ sendingProvider === 'brevo' ? 'Brevo unter Transactional › Logs' : 'die SES-Konsole' }}, was mit ihr geschah.</template>
+                    <template v-else>Nicht verschickt an {{ testMail.to }}: {{ testMail.error }}</template>
+                </p>
+            </section>
+
+            <section v-if="brevo" class="adm-form__group" aria-labelledby="em-dns">
+                <h2 id="em-dns" class="adm-form__heading">DNS-Einträge der Absenderdomain</h2>
+                <p class="adm-form__note">Welche Einträge {{ domain ?? 'die Absenderdomain' }} für Brevo braucht und ob sie bestätigt ist, zeigt Brevo unter Senders, Domains &amp; Dedicated IPs › Domains. Einzutragen beim Anbieter der Domain.</p>
+            </section>
+
+            <section v-else class="adm-form__group" aria-labelledby="em-dns">
                 <h2 id="em-dns" class="adm-form__heading">DNS-Einträge der Absenderdomain</h2>
                 <p v-if="domain === null" class="adm-form__note">Erst mit einer Absenderadresse lässt sich sagen, welche Einträge die Domain braucht.</p>
                 <template v-else>
@@ -240,11 +340,14 @@ const context = props.sending
 
             <section class="adm-form__group" aria-labelledby="em-sns">
                 <h2 id="em-sns" class="adm-form__heading">Unzustellbare Adressen und Beschwerden</h2>
-                <p class="adm-form__note">
+                <p v-if="brevo" class="adm-form__note">
+                    Die Adressen hier hat Amazon SES gemeldet; der Shop schickt ihnen auch über Brevo nichts. Was Brevo selbst nicht zustellen konnte, steht in Brevo unter Transactional › Logs und auf seiner eigenen Sperrliste.
+                </p>
+                <p v-else class="adm-form__note">
                     SES meldet sie über ein SNS-Thema an <code class="em-dns__text">{{ webhookUrl }}</code>. Der Shop schickt einer gemeldeten Adresse nichts mehr; SES führt zusätzlich eine eigene Sperrliste.
                 </p>
 
-                <div class="form-field">
+                <div v-if="!brevo" class="form-field">
                     <label class="form-field__label" for="em-topic">SNS-Thema (ARN) <span class="form-field__optional">optional</span></label>
                     <input id="em-topic" v-model="form.topic_arn" class="input" type="text" autocomplete="off" spellcheck="false" aria-describedby="em-topic-help em-topic-error" :aria-invalid="form.errors.topic_arn ? 'true' : undefined">
                     <p id="em-topic-help" class="form-field__help">Nur Meldungen dieses Themas nimmt der Shop an. Leer lassen heißt: Er nimmt keine an.</p>
@@ -328,6 +431,24 @@ const context = props.sending
 .em-masked__value {
     color: var(--c-ink-2);
     letter-spacing: 0.04em;
+}
+
+.em-provider {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-8) var(--sp-24);
+}
+
+/* The last test mail: a fact, stated beside the field; red only where it did not go. */
+.em-testmail {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.em-testmail--bad {
+    color: var(--c-bad);
 }
 
 .em-fixed {

@@ -650,6 +650,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/', [EmailController::class, 'edit'])->name('e-mail.edit');
             Route::put('/', [EmailController::class, 'update'])->middleware('throttle:10,1,e-mail-update')->name('e-mail.update');
             Route::post('/test', [EmailController::class, 'test'])->middleware('throttle:10,1,e-mail-test')->name('e-mail.test');
+            // „Test-E-Mail senden“ (D-450): one real message, the transport's answer as it came.
+            Route::post('/test-mail', [EmailController::class, 'sendTest'])->middleware('throttle:10,1,e-mail-test-mail')->name('e-mail.test-mail');
             Route::delete('/sperren/{suppression}', [EmailController::class, 'release'])->whereNumber('suppression')->middleware('throttle:30,1,e-mail-release')->name('e-mail.release');
         });
 

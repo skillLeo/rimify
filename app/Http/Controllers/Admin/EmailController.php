@@ -8,23 +8,30 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MailSettingsRequest;
 use App\Http\Requests\Admin\MailSettingsViewRequest;
 use App\Http\Requests\Admin\MailSuppressionReleaseRequest;
+use App\Http\Requests\Admin\MailTestSendRequest;
 use App\Models\MailSetting;
 use App\Models\MailSuppression;
 use App\Services\Admin\AuditTrail;
+use App\Services\Mail\BrevoProbe;
 use App\Services\Mail\MailSettings;
 use App\Services\Mail\MailSettingsWriter;
 use App\Services\Mail\SenderDns;
-use App\Services\Mail\SesProbe;
 use App\Services\Storage\StorageConfig;
 use App\Support\EditStamp;
 use App\Support\GermanFormat;
+use App\Support\MailDelivery;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Mail\MailManager;
+use Illuminate\Mail\Message;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
- * Einstellungen › E-Mail: the Amazon SES key the shop sends its mail with (the brief „AFTER CI“, §3), entered by the
+ * Einstellungen › E-Mail: the Amazon SES key — or, since his round of 08.11 (§7A, D-450), Brevo's SMTP login and key — the
+ * shop sends its mail with (the brief „AFTER CI“, §3), entered by the
  * operator — never written into the code or a file (R-16). Built as Medien und Speicher: write-only keys, a save
  * tested before it replaces what works, „Verbindung testen“ on demand. Beside it what SES needs from the world: the DNS
  * records of the sender's domain as they stand (SenderDns), the address SNS reports to, and the addresses SES reported
@@ -49,6 +56,9 @@ class EmailController extends Controller
 
         return Inertia::render('Admin/Einstellungen/Email', [
             'form' => [
+                // Amazon SES or Brevo (D-450); a set saved before was SES's.
+                'provider' => $shown->provider ?? MailSetting::SES,
+                'smtp_login' => $shown->smtp_login ?? '',
                 'from_address' => $shown->from_address ?? '',
                 'from_name' => $shown->from_name ?? (string) config('mail.from.name', 'RIMIFY'),
                 'topic_arn' => $shown->topic_arn ?? '',
@@ -60,6 +70,11 @@ class EmailController extends Controller
             'pending' => $pending !== null,
             'verifiedAt' => $active?->verified_at?->toIso8601String(),
             'sending' => $settings->sending() !== null,
+            // The provider the shop sends with now, if any: the context line names it.
+            'sendingProvider' => $settings->sending()?->provider,
+            // „Test-E-Mail senden“: what the last one did, the relay's words where it failed.
+            'testMail' => $request->session()->get('test_mail'),
+            'brevoHost' => MailSetting::BREVO_HOST.':'.MailSetting::BREVO_PORT,
             'mailer' => (string) config('mail.default'),
             'test' => $test,
             'dns' => $domain === null ? [] : $dns->records(
@@ -93,11 +108,13 @@ class EmailController extends Controller
         EditStamp::guard($request, self::state());
         $result = $writer->save($request->values(), $request->admin());
 
+        $name = $request->values()['provider'] === MailSetting::BREVO ? 'Brevo' : 'Amazon SES';
+
         return back()
             ->with('mail_test', $result['test'])
             ->with('toast', match (true) {
-                ! $result['active'] => 'Gespeichert, aber der Zugang zu Amazon SES klappt nicht. Es gelten weiter die bisherigen Einstellungen.',
-                MailSettings::cleared($result['test']) => 'Gespeichert und geprüft. Der Shop verschickt seine Mails ab jetzt über Amazon SES.',
+                ! $result['active'] => "Gespeichert, aber der Zugang zu {$name} klappt nicht. Es gelten weiter die bisherigen Einstellungen.",
+                MailSettings::cleared($result['test']) => "Gespeichert und geprüft. Der Shop verschickt seine Mails ab jetzt über {$name}.",
                 default => 'Gespeichert. Der Zugang klappt; verschickt wird über SES, sobald die Prüfung unten keine offenen Punkte mehr nennt.',
             });
     }
@@ -116,16 +133,53 @@ class EmailController extends Controller
     }
 
     /** „Verbindung testen“ with the values on the form — nothing is saved, nothing is sent. */
-    public function test(MailSettingsRequest $request, MailSettingsWriter $writer, SesProbe $probe): RedirectResponse
+    public function test(MailSettingsRequest $request, MailSettingsWriter $writer): RedirectResponse
     {
         $base = MailSetting::query()->where('state', MailSetting::PENDING)->first()
             ?? MailSetting::query()->where('state', MailSetting::ACTIVE)->first();
-        $result = $probe->run($writer->candidate($request->values(), $base));
+        $result = $writer->probe($writer->candidate($request->values(), $base));
+        $name = $request->values()['provider'] === MailSetting::BREVO ? 'Brevo' : 'Amazon SES';
 
         return back()
             ->with('mail_test', $result)
-            ->with('toast', $result['ok'] ? 'Verbindung zu Amazon SES steht.' : 'Die Verbindung klappt nicht. Die Schritte darunter sagen, woran es liegt.');
+            ->with('toast', ($result['ok'] ?? false) === true ? "Verbindung zu {$name} steht." : 'Die Verbindung klappt nicht. Die Schritte darunter sagen, woran es liegt.');
     }
+
+    /**
+     * „Test-E-Mail senden“ (D-450): one real message through the mailer the shop sends with now, to the address typed —
+     * and the answer as it came: sent, or the transport's exact error. Nothing is sent while no set is in force: the page
+     * says so instead of pretending a message left.
+     */
+    public function sendTest(MailTestSendRequest $request, MailSettings $settings): RedirectResponse
+    {
+        $to = $request->to();
+        // The set in force, as a send would find it (a faked mailer in a test is no manager to reset).
+        $manager = Mail::getFacadeRoot();
+        $settings->apply($manager instanceof MailManager ? $manager : null);
+
+        if (! MailDelivery::real()) {
+            $result = ['ok' => false, 'to' => $to, 'error' => self::NOT_SENDING];
+        } else {
+            try {
+                Mail::raw(
+                    "Hallo,\n\ndiese Nachricht prüft, ob der Shop E-Mails verschicken kann. Sie wurde unter Einstellungen › E-Mail mit „Test-E-Mail senden“ ausgelöst; du musst nichts tun.\n\nRIMIFY",
+                    static fn (Message $message) => $message->to($to)->subject('RIMIFY – Test-E-Mail'),
+                );
+                $result = ['ok' => true, 'to' => $to, 'error' => null];
+            } catch (Throwable $e) {
+                $result = ['ok' => false, 'to' => $to, 'error' => BrevoProbe::reason($e)];
+            }
+        }
+
+        AuditTrail::record($request->admin(), 'mail.test_sent', ['to' => $to, 'ok' => $result['ok'], 'mailer' => (string) config('mail.default'), 'error' => $result['error']]);
+
+        return back()
+            ->with('test_mail', $result)
+            ->with('toast', $result['ok'] ? "Die Test-E-Mail an {$to} ist verschickt." : 'Die Test-E-Mail wurde nicht verschickt. Der Grund steht darunter.');
+    }
+
+    /** No set in force: the mail would go to the log, so none is sent and the page says why. */
+    public const NOT_SENDING = 'Noch ist kein Versand eingerichtet: Speichere zuerst einen Zugang, dessen Prüfung oben nichts Offenes mehr nennt. Bis dahin schreibt der Shop Mails nur ins Protokoll der Anwendung.';
 
     /** Lifting the block on one address: the shop sends to it again. SES's own list is lifted in the SES console. */
     public function release(MailSuppressionReleaseRequest $request, MailSuppression $suppression): RedirectResponse

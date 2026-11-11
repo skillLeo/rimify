@@ -36,7 +36,7 @@ const { default: Page } = await import('./Email.vue')
 function props(over: Partial<AdminEmailProps> = {}): AdminEmailProps {
     return {
         stamp: 'stand-1',
-        form: { from_address: 'bestellung@rimify.de', from_name: 'RIMIFY', topic_arn: '' },
+        form: { provider: 'ses', smtp_login: '', from_address: 'bestellung@rimify.de', from_name: 'RIMIFY', topic_arn: '' },
         region: 'eu-north-1',
         keyMasked: '••••••••••••TS12',
         secretMasked: '••••••••••••X9Y8',
@@ -63,10 +63,47 @@ describe('Einstellungen › E-Mail', () => {
     it('says the mail does not go through SES yet, and shows the keys only as their last four characters', () => {
         const wrapper = mount(Page, { props: props() })
 
-        expect(wrapper.find('.ctx').text()).toBe('In Kraft: Versand über „log“ – noch nicht über Amazon SES')
+        expect(wrapper.find('.ctx').text()).toBe('In Kraft: Versand über „log“ – noch nicht über Amazon SES oder Brevo')
         expect(wrapper.find('#em-key').text()).toBe('••••••••••••TS12')
         expect(wrapper.find('input#em-key').exists()).toBe(false)
         expect(wrapper.text()).toContain('Die Mails des Shops gehen noch nicht über Amazon SES.')
+    })
+
+    // D-450: Brevo's SMTP relay as the other provider — its login and key, never SES's secret reused as its key.
+    it('asks Brevo for its SMTP login and key, and no SES key pair, region or SNS topic', async () => {
+        const wrapper = mount(Page, { props: props() })
+
+        await wrapper.find('input[name="em-provider"][value="brevo"]').setValue(true)
+
+        expect(wrapper.find('#em-login').exists()).toBe(true)
+        expect(wrapper.find('#em-key').exists()).toBe(false)
+        expect(wrapper.find('#em-topic').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('eu-north-1')
+        expect(wrapper.text()).toContain('smtp-relay.brevo.com:587')
+        // The stored secret is SES's: Brevo's key is asked for, not kept.
+        expect(wrapper.find('input#em-secret').exists()).toBe(true)
+        expect(wrapper.find('#em-secret-help').exists()).toBe(false)
+    })
+
+    it('keeps a stored Brevo key masked, and names Brevo where it is in force', () => {
+        const wrapper = mount(Page, {
+            props: props({ form: { provider: 'brevo', smtp_login: '8a1b2c001@smtp-brevo.com', from_address: 'bestellung@rimify.de', from_name: 'RIMIFY', topic_arn: '' }, sending: true, sendingProvider: 'brevo' }),
+        })
+
+        expect(wrapper.find('.ctx').text()).toBe('In Kraft: Versand über Brevo')
+        expect(wrapper.find('output#em-secret').text()).toBe('••••••••••••X9Y8')
+        expect((wrapper.get('#em-login').element as HTMLInputElement).value).toBe('8a1b2c001@smtp-brevo.com')
+    })
+
+    it('sends a test mail to the address typed, through its own route, and says what came of the last one', async () => {
+        const wrapper = mount(Page, { props: props({ testMail: { ok: false, to: 'ich@beispiel.de', error: 'Expected response code "235" but got code "535".' } }) })
+
+        await wrapper.get('#em-test-to').setValue('ich@beispiel.de')
+        await wrapper.findAll('button').find((b) => b.text() === 'Test-E-Mail senden')!.trigger('click')
+
+        expect(router.post).toHaveBeenCalledWith('/admin/einstellungen/e-mail/test-mail', { test_to: 'ich@beispiel.de' }, expect.any(Object))
+        expect(wrapper.get('#em-test-result').text()).toBe('Nicht verschickt an ich@beispiel.de: Expected response code "235" but got code "535".')
+        expect(mount(Page, { props: props({ sendingProvider: 'brevo', testMail: { ok: true, to: 'ich@beispiel.de', error: null } }) }).get('#em-test-result').text()).toContain('Verschickt an ich@beispiel.de.')
     })
 
     it('promises to keep the stored secret only where one is stored', async () => {
