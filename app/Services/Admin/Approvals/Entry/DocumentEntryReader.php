@@ -19,6 +19,7 @@ use App\Models\FitmentCondition;
 use App\Models\FitmentTyreSize;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
+use App\Services\Admin\Approvals\CombinationCars;
 use App\Support\EgNumber;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +52,11 @@ class DocumentEntryReader
         }
 
         DB::transaction(function () use ($document): void {
+            // Its list per car first, as the shop reads it already (D-447): each row then goes back onto its car.
+            if (CombinationCars::perCar()) {
+                (new CombinationCars)->bind((int) $document->id);
+            }
+
             $this->build($document);
 
             $differences = (new DocumentEntryProof(new DocumentEntryWriter))->differences($document);
@@ -201,11 +207,18 @@ class DocumentEntryReader
             $carried = false;
 
             foreach ($entries as $entry) {
-                $car = $vehicles[$entry->vehicle_id] ?? null;
-                $k = EgNumber::parse($car === null ? null : (is_string($norm = $car->getAttribute('eg_nummer_norm')) ? $norm : null));
+                // A row entered for a car goes back onto that car alone (D-447); one that names no car, onto the cars its entry takes in.
+                if ($row->vehicle_id !== null) {
+                    if ($row->vehicle_id !== (int) $entry->vehicle_id) {
+                        continue;
+                    }
+                } else {
+                    $car = $vehicles[$entry->vehicle_id] ?? null;
+                    $k = EgNumber::parse($car === null ? null : (is_string($norm = $car->getAttribute('eg_nummer_norm')) ? $norm : null));
 
-                if ($number === null || $k === null || ! $number->covers($k)) {
-                    continue;
+                    if ($number === null || $k === null || ! $number->covers($k)) {
+                        continue;
+                    }
                 }
 
                 $carried = $this->carry($entry, $row) || $carried;
@@ -214,14 +227,17 @@ class DocumentEntryReader
             if (! $carried) {
                 DocumentKeptCombination::query()->create([
                     'approval_document_id' => $document->id,
-                    ...$row->only(['eg_number', 'eg_number_norm', 'number', 'front_width_mm', 'front_aspect', 'front_diameter_in', 'rear_width_mm', 'rear_aspect', 'rear_diameter_in', 'source_page', 'carried_over']),
+                    ...$row->only([...(CombinationCars::perCar() ? ['vehicle_id'] : []), 'eg_number', 'eg_number_norm', 'number', 'front_width_mm', 'front_aspect', 'front_diameter_in', 'rear_width_mm', 'rear_aspect', 'rear_diameter_in', 'source_page', 'carried_over']),
                 ]);
             }
         }
     }
 
-    /** Puts a row of the list on a car whose row carries both its sizes on their axles. Whether it could. */
-    private function carry(DocumentCarEntry $entry, DocumentTyreCombination $row): bool
+    /**
+     * Puts a row of the list on a car whose row carries both its sizes on their axles. Whether it could. Also for a list bound to
+     * its cars (CombinationCars, D-447): a pair the shop gave a car under its field K, though only another car was entered with it.
+     */
+    public function carry(DocumentCarEntry $entry, DocumentTyreCombination $row): bool
     {
         $lines = DocumentTyreLine::query()->where('document_car_entry_id', $entry->id)->orderBy('position')->get();
         $on = static fn (DocumentTyreLine $line, string $side, int $width, int $aspect, float $diameter): bool => $line->getAttribute("{$side}_width_mm") === $width

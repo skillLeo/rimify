@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Enums\DocumentStatus;
@@ -25,8 +26,6 @@ use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\Entry\DocumentEntryProof;
 use App\Services\Admin\Approvals\Entry\DocumentEntryReader;
 use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
-use App\Services\Admin\Approvals\Entry\EntryModel;
-use App\Services\Admin\Approvals\Entry\PairListCheck;
 use App\Services\Admin\PermissionMatrix;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
@@ -489,7 +488,7 @@ describe('„Kopieren nach …“', function (): void {
     });
 });
 
-describe('the door: pairs stand per field K, lines per car', function (): void {
+describe('the door: pairs stand per car (D-447)', function (): void {
     /** @return array{document: ApprovalDocument, a: DocumentCarEntry, b: DocumentCarEntry} */
     function stepsSameK(): array
     {
@@ -500,70 +499,52 @@ describe('the door: pairs stand per field K, lines per car', function (): void {
         return ['document' => $document, 'a' => $car('Eins'), 'b' => $car('Zwei')];
     }
 
-    it('refuses a pair the engine would give a car nobody entered it for, names both cars and the pair, and says the way out', function (): void {
+    /** @return list<string> the pairs the shop reads for this car on this paper, as it would once released */
+    function stepsShopPairs(ApprovalDocument $document, DocumentCarEntry $cell): array
+    {
+        $config = (int) Fitment::query()->where('approval_document_id', $document->id)->where('vehicle_id', $cell->vehicle_id)->value('wheel_config_id');
+        $rows = EloquentFitmentRepository::forPreviewOf($document)->publishedRowsFor((int) $cell->vehicle_id, [$config])[$config];
+        $table = $rows[0]->document->tyreCombinations;
+
+        expect($table)->not->toBeNull();
+
+        return array_map(static fn ($pair): string => $pair->front->widthMm.'|'.$pair->rear->widthMm, $table->pairs);
+    }
+
+    it('lets two cars of one field K hold different pairs: each answers from its own, and nothing stops the release', function (): void {
         ['document' => $document, 'a' => $a, 'b' => $b] = stepsSameK();
         $front = stepsLine('225/40 R18');
         $rear = stepsLine('255/35 R18');
 
         stepsSave($a, [$front, $rear, stepsLine('225/40 R18', '255/35 R18')]);
-        // The same two sizes on the other car, without the pair: the engine would give it the pair all the same.
+        // The same two sizes on the other car, without the pair: under one field K it would have had the pair all the same.
         stepsSave($b, [$front, $rear]);
 
         $blockers = implode(' ', app(DocumentRelease::class)->check($document));
 
-        expect($blockers)->toContain('dieselbe Betriebserlaubnis ('.STEPS_K.')')
-            ->and($blockers)->toContain('Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.');
+        expect($blockers)->not->toContain('Betriebserlaubnis')
+            ->and($blockers)->not->toContain('dieselben Durchmesser')
+            ->and(DocumentTyreCombination::query()->where('approval_document_id', $document->id)->where('front_width_mm', 225)->where('rear_width_mm', 255)->pluck('vehicle_id')->all())->toBe([$a->vehicle_id])
+            ->and(stepsShopPairs($document, $a))->toContain('225|255')
+            ->and(stepsShopPairs($document, $b))->toEqualCanonicalizing(['225|225', '255|255']);
 
         $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.conflicts.0.vehicleId', $b->vehicle_id)->where('entry.cars.1.conflict', true));
-
-        // Entered on both: nothing left to refuse.
-        stepsSave($b, [$front, $rear, stepsLine('225/40 R18', '255/35 R18')]);
-
-        expect(implode(' ', app(DocumentRelease::class)->check($document)))->not->toContain('Betriebserlaubnis');
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.conflicts', [])->where('entry.cars.1.conflict', false)->missing('entry.unreachable'));
     });
 
-    it('names only cars of the same field K beside the one it refuses: a third car with another K and the same pair is no part of it', function (): void {
-        ['document' => $document, 'a' => $a, 'b' => $b] = stepsSameK();
-        $other = 'e1*2007/46*0750*02';
-        $third = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create(['variant' => 'Drei', 'eg_nummer_raw' => $other, 'eg_nummer_norm' => $other])->id, stepsWheel()->id);
-        $pair = [stepsLine('225/40 R18'), stepsLine('255/35 R18'), stepsLine('225/40 R18', '255/35 R18')];
-
-        stepsSave($a, $pair);
-        stepsSave($third, $pair);
-        stepsSave($b, [stepsLine('225/40 R18'), stepsLine('255/35 R18')]);
-
-        $conflict = (new PairListCheck(new DocumentEntryWriter))->of(EntryModel::of($document))['conflicts'][0];
-
-        expect($conflict['vehicleId'])->toBe($b->vehicle_id)
-            ->and($conflict['others'])->toHaveCount(1)
-            ->and($conflict['others'][0])->toContain('Eins');
-    });
-
-    it('lets two cars of one K differ where the engine would give neither a pair it was not entered for', function (): void {
-        ['document' => $document, 'a' => $a, 'b' => $b] = stepsSameK();
-
-        stepsSave($a, [stepsLine('225/40 R18'), stepsLine('255/35 R18'), stepsLine('225/40 R18', '255/35 R18')]);
-        // This car does not carry the rear size: the engine cannot give it the pair.
-        stepsSave($b, [stepsLine('225/40 R18')]);
-
-        expect(implode(' ', app(DocumentRelease::class)->check($document)))->not->toContain('Betriebserlaubnis');
-    });
-
-    it('leaves a car whose field K is no EG number out of the list, says so, and the engine fails closed', function (): void {
+    it('gives a car whose field K is no EG number its own pairs: the shop reads them by the car, not by the K', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
         $wheel = stepsWheel(['diameter_in' => 18.0]);
         $national = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create(['eg_nummer_raw' => 'G191', 'eg_nummer_norm' => 'g191'])->id, $wheel->id);
 
         stepsSave($national, [stepsLine('225/40 R18'), stepsLine('255/35 R18'), stepsLine('225/40 R18', '255/35 R18')]);
-        // A list from another car of this paper, so the paper has one.
-        $eg = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create(['eg_nummer_raw' => STEPS_K, 'eg_nummer_norm' => STEPS_K])->id, $wheel->id);
-        stepsSave($eg, [stepsLine('225/40 R18'), stepsLine('255/35 R18'), stepsLine('225/40 R18', '255/35 R18')]);
 
-        expect(DocumentTyreCombination::query()->where('approval_document_id', $document->id)->pluck('eg_number_norm')->unique()->all())->toBe([STEPS_K]);
+        $rows = DocumentTyreCombination::query()->where('approval_document_id', $document->id)->get();
 
-        $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.unreachable.0.vehicleId', $national->vehicle_id));
+        expect($rows->pluck('vehicle_id')->unique()->all())->toBe([$national->vehicle_id])
+            ->and($rows->pluck('eg_number_norm')->unique()->all())->toBe([null])
+            ->and(stepsShopPairs($document, $national))->toContain('225|255')
+            ->and(implode(' ', app(DocumentRelease::class)->check($document)))->not->toContain('Feld K');
     });
 
     it('holds a banded pair to a car whose power is known and inside the band: unknown power, not offered', function (): void {

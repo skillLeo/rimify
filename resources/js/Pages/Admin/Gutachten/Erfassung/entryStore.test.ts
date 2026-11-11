@@ -25,7 +25,7 @@ const car = (over: Partial<CarView>): CarView => ({
     ...over,
 })
 
-const entry = (cars: CarView[], wheelSizes: EntryView['wheelSizes'] = [], combinations: EntryView['combinations'] = []): EntryView => ({ wheelSizes, combinations, printed: [], cars, conflicts: [], unreachable: [], hasList: false, keptCombinations: 0, unread: [], undescribed: [], suggestion: null })
+const entry = (cars: CarView[], wheelSizes: EntryView['wheelSizes'] = [], combinations: EntryView['combinations'] = []): EntryView => ({ wheelSizes, combinations, printed: [], cars, conflicts: [], hasList: false, keptCombinations: 0, unread: [], undescribed: [], suggestion: null })
 
 describe('a line of vorne + hinten (the client’s change of 05.11.2026)', () => {
     it('fills the rear with what is typed in front, until someone changes the rear', () => {

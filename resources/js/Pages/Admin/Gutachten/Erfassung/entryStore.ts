@@ -82,15 +82,14 @@ export interface CarView {
     conflict: boolean
 }
 
+/* A pair the shop would offer on a wheel combination nobody entered it for: same diameters, one car (D-447). */
 export interface PairConflict {
     entryId: number
     vehicleId: number
     car: string
-    k: string
     pair: string
-    others: string[]
     combination: string
-    several: boolean
+    enteredAt: string[]
 }
 
 export interface EntryView {
@@ -99,7 +98,6 @@ export interface EntryView {
     printed: PrintedRow[]
     cars: CarView[]
     conflicts: PairConflict[]
-    unreachable: { vehicleId: number; car: string; k: string | null }[]
     hasList: boolean
     keptCombinations: number
     unread: { car: string; entryId: number; text: string }[]

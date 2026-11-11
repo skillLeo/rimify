@@ -51,7 +51,7 @@ const CAR = { id: 5, combinationId: 1, vehicleId: 50, label: 'BMW 3er', hsnTsn: 
 const NEXT = { ...CAR, id: 6, vehicleId: 60, label: 'BMW 4er' }
 
 function entry(cars = [CAR, NEXT]): EntryView {
-    return { wheelSizes: [], combinations: [COMBINATION], printed: [], cars, conflicts: [], unreachable: [], hasList: false, keptCombinations: 0, unread: [], undescribed: [], suggestion: null }
+    return { wheelSizes: [], combinations: [COMBINATION], printed: [], cars, conflicts: [], hasList: false, keptCombinations: 0, unread: [], undescribed: [], suggestion: null }
 }
 
 function serverLine(over: Partial<ServerLine>): ServerLine {

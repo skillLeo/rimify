@@ -505,7 +505,26 @@ describe('the door, and what follows it', function (): void {
 
         $said = implode(' ', app(DocumentRelease::class)->check($document->fresh()));
 
-        expect(str_replace("\u{00A0}", ' ', $said))->toContain('225/40 R18 vorne mit 235/40 R18 hinten')->toContain('Vorne und hinten 8,5 × 18 ET 35');
+        expect(str_replace("\u{00A0}", ' ', $said))->toContain('225/40 R18 vorne mit 235/40 R18 hinten')->toContain('Vorne und hinten 8,5 × 18 ET 35')
+            ->toContain('dieselben Durchmesser')->toContain('je Fahrzeug speichert')->not->toContain('Betriebserlaubnis');
+    });
+
+    it('lets two combinations with the same diameters hold different pairs where their sizes keep them apart, as on ABE 53841 (D-447)', function (): void {
+        $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Papers)->create();
+        $wheel = comboWheel();
+        comboAdd($document, $wheel['a']);
+        comboAdd($document, $wheel['a'], $wheel['c']);
+        $car = comboCar($document);
+
+        // 18 inches front and rear on both; each pair's sizes stand only on its own combination's wheels.
+        comboLines(comboCell($document, $car, $wheel['a']), [['265/35R18 97Y'], ['225/35R18 87Y']]);
+        comboLines(comboCell($document, $car, $wheel['a'], $wheel['c']), [['235/35R18 91Y', '245/35R18 92Y']]);
+
+        $said = implode(' ', app(DocumentRelease::class)->check($document->fresh()));
+
+        // The precondition: the car's list holds all three pairs, the different one included.
+        expect(DocumentTyreCombination::query()->where('approval_document_id', $document->id)->where('vehicle_id', $car->id)->count())->toBe(3)
+            ->and($said)->not->toContain('dieselben Durchmesser');
     });
 
     it('releases a paper with two versions, and the rows go live with their sets', function (): void {

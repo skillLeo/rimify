@@ -192,7 +192,7 @@ test('held back: a line that does not read and a code nobody described are named
     await expect(page.locator('.ef-blockers', { hasText: 'nicht lesbar' })).toHaveCount(0)
 })
 
-test('held back: two cars of one field K, a pair on one of them — the door names the pair and both cars, and „Zum Fahrzeug“ goes there', async ({ page }) => {
+test('not held back: two cars of one field K, a pair on one of them — each keeps its own, no warning in step 4, nothing at the door (D-447)', async ({ page }) => {
     await signIn(page)
     await newPaper(page, freshNumber('E2E-FELDK'))
     await chooseFirstWheel(page)
@@ -244,17 +244,16 @@ test('held back: two cars of one field K, a pair on one of them — the door nam
     await page.getByRole('button', { name: /Speichern und weiter/ }).click()
     await expect(page.locator('.ef-editor__title')).toContainText('Zwei')
 
-    // The second: both sizes, not the pair. The engine would give it the pair all the same.
+    // The second: both sizes, not the pair. Under one field K it once got the pair all the same; now it holds its own.
     await entered([['225/40 R18'], ['255/35 R18']])
+    await expect(page.locator('.ef-warn', { hasText: 'Betriebserlaubnis' })).toHaveCount(0)
     await goToStep(page, 'Freigeben')
 
-    await expect(page.locator('.ef-check', { hasText: 'Gleiche Betriebserlaubnis' })).toContainText('225/40 R18', { timeout: 15_000 })
-    await expect(page.locator('.ef-blockers')).toContainText('Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.')
-    await expect(page.locator('.ef-actions').getByRole('button', { name: 'Freigeben', exact: true })).toBeDisabled()
-
-    await page.locator('.ef-check', { hasText: 'Gleiche Betriebserlaubnis' }).getByRole('button', { name: 'Zum Fahrzeug' }).click()
-    await expect(page.locator('.ef-editor__title')).toContainText('Zwei')
-    await expect(page.getByText('teilt seine Betriebserlaubnis')).toBeVisible()
+    // The precondition: step 5 stands, its button there — and nothing in it speaks of the pair.
+    await expect(page.locator('.ef-actions').getByRole('button', { name: 'Freigeben', exact: true })).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('.ef-check', { hasText: 'ohne eindeutige Felgenkombination' })).toHaveCount(0)
+    await expect(page.locator('.ef-check', { hasText: 'Betriebserlaubnis' })).toHaveCount(0)
+    await expect(page.locator('.ef-blockers', { hasText: 'Betriebserlaubnis' })).toHaveCount(0)
 })
 
 test('„Mehrere einfügen“: a preview first, what does not read left out, one size vorne = hinten, a pair a pair', async ({ page }) => {

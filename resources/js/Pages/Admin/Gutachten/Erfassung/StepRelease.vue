@@ -43,9 +43,14 @@ const cars = computed(() => state.entry.cars)
 const combinations = computed(() => state.entry.combinations)
 const vehicles = computed(() => distinctCars(cars.value))
 const empty = computed(() => cars.value.filter((car) => !car.done))
-/* A list needs a car's tyres to speak of: until it has any, its empty cell says all there is. */
-const unreachable = computed(() => state.entry.unreachable.filter((item) => cars.value.some((car) => car.vehicleId === item.vehicleId && car.lines > 0)))
 const unproven = computed(() => vehicles.value.filter((car) => car.unsourced))
+/* Labels carry commas of their own: each in quotes, the last joined with „und“, as the door's sentence has them. */
+const quoted = (labels: string[]): string => {
+    const all = labels.map((label) => `„${label}“`)
+    const last = all.pop() ?? ''
+
+    return all.length ? `${all.join(', ')} und ${last}` : last
+}
 const codes = computed(() => state.entry.undescribed)
 const rows = computed(() => page.props.rowsTotal ?? 0)
 const blockers = computed(() => page.props.blockers ?? [])
@@ -258,22 +263,12 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
         <div class="ef-checks">
             <section v-if="state.entry.conflicts.length" class="ef-check" aria-labelledby="ef-conflict-h">
-                <h3 id="ef-conflict-h" class="ef-check__title">Gleiche Betriebserlaubnis, andere Reifenkombinationen</h3>
-                <p class="adm-note">Der Shop speichert Reifenkombinationen je Betriebserlaubnis (Feld K). Ein Fahrzeug bekäme hier eine Reifenkombination, die bei ihm nicht eingetragen ist. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem: „Kopieren nach …“ gleicht sie an.</p>
+                <h3 id="ef-conflict-h" class="ef-check__title">Reifenkombinationen ohne eindeutige Felgenkombination</h3>
+                <p class="adm-note">Der Shop speichert Reifenkombinationen je Fahrzeug, nicht je Felgenkombination. Haben zwei Felgenkombinationen eines Fahrzeugs vorne und hinten dieselben Durchmesser, erkennt er eine Reifenkombination nur an ihren Größen. Stehen ihre Größen bei beiden, würde er sie bei beiden anbieten. Gilt sie bei beiden, trag sie bei beiden ein; sonst nimm sie dort heraus, wo sie eingetragen ist.</p>
                 <ul class="ef-check__list">
                     <li v-for="conflict in state.entry.conflicts" :key="`${conflict.entryId}-${conflict.pair}`" class="ef-check__item">
-                        <span><strong>{{ conflict.car }}</strong><template v-if="conflict.several"> · {{ conflict.combination }}</template> · Feld K {{ conflict.k }} · {{ conflict.pair }}<template v-if="conflict.others.length">, eingetragen bei {{ conflict.others.join(', ') }}</template></span>
+                        <span><strong>{{ conflict.car }}</strong> · {{ conflict.combination }} · {{ conflict.pair }}<template v-if="conflict.enteredAt.length">, eingetragen nur bei {{ quoted(conflict.enteredAt) }}</template></span>
                         <button class="btn btn--secondary" type="button" @click="jump(cars.find((c) => c.id === conflict.entryId)!)">Zum Fahrzeug</button>
-                    </li>
-                </ul>
-            </section>
-
-            <section v-if="unreachable.length" class="ef-check" aria-labelledby="ef-reach-h">
-                <h3 id="ef-reach-h" class="ef-check__title">Fahrzeuge, denen der Shop keine Reifenkombination zuordnen kann</h3>
-                <p class="adm-note">Der Shop ordnet Reifenkombinationen über die EG-Nummer in Feld K zu. Bei diesen Fahrzeugen ist keine hinterlegt, oder sie passt zu keinem Eintrag. Ihre Felge lässt sich freigeben, ihre Reifen bleiben im Shop „Noch nicht bestätigt“.</p>
-                <ul class="ef-check__list">
-                    <li v-for="car in unreachable" :key="car.vehicleId" class="ef-check__item">
-                        <span><strong>{{ car.car }}</strong> · Feld K {{ car.k ?? 'nicht hinterlegt' }}</span>
                     </li>
                 </ul>
             </section>
