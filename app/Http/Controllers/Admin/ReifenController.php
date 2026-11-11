@@ -51,7 +51,7 @@ class ReifenController extends Controller
     private const AUDITED = [
         'brand_id', 'name', 'season', 'width_mm', 'aspect', 'diameter_in', 'load_index', 'speed_symbol',
         'eu_fuel_class', 'eu_wet_grip_class', 'eu_noise_db', 'eu_noise_class', 'eu_snow_grip', 'eu_ice_grip', 'eprel_id',
-        'price_cents', 'available', 'supplier',
+        'price_cents', 'available',
     ];
 
     public function __construct(private readonly TyreList $list, private readonly TyreModels $models) {}
@@ -206,7 +206,6 @@ class ReifenController extends Controller
                 'eprelId' => $tyre->eprel_id ?? '',
                 'price' => Money::fromMinor((int) $tyre->price_cents)->toGerman(),
                 'available' => (bool) $tyre->available,
-                'supplier' => $tyre->supplier ?? '',
                 'demo' => (bool) $tyre->is_demo,
                 // Ordered once: its size stays the size sold (TyreVariantRequest::SOLD).
                 'sold' => $tyre->wasOrdered(),

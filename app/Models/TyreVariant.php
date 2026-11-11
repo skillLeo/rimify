@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $eprel_id
  * @property bool $available verfügbar / nicht verfügbar (D-301)
  * @property int $stock_qty kept from before D-301 and no longer read
- * @property string|null $supplier who delivers this size (the Gutachten rework §9); internal, never shown in the shop
+ * @property string|null $supplier who delivered this size, as typed before the client's answer „we just have 1 supplier“ (D-448): kept, shown nowhere, never written
  * @property bool $is_demo
  * @property string|null $demo_ref `abnahme:…` for the acceptance set's rows (AcceptanceSet), else null
  */

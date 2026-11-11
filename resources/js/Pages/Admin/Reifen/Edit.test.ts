@@ -41,7 +41,7 @@ function saved(over: Partial<TyreRecordProp> = {}): TyreRecordProp {
     return {
         id: 7, brandId: 3, name: 'Grip 7', season: 'sommer', width: '225', aspect: '45', diameter: '18', loadIndex: '95', speedSymbol: 'Y',
         fuel: 'B', wet: 'A', noiseDb: '71', noiseClass: 'B', snow: false, ice: false, eprelId: '381090', price: '129,00', available: true,
-        supplier: '', demo: false, sold: false, fullTitle: 'Prüfreifen Grip 7 225/45 R18 95Y', offered: true, missingLabel: [], updated: '19.10.2026, 01:10', ...over,
+        demo: false, sold: false, fullTitle: 'Prüfreifen Grip 7 225/45 R18 95Y', offered: true, missingLabel: [], updated: '19.10.2026, 01:10', ...over,
     }
 }
 

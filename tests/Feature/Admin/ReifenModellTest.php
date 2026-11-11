@@ -20,7 +20,7 @@ use Inertia\Testing\AssertableInertia;
 
 /*
  * A tyre model above its sizes (the Gutachten rework §9, D-407): brand, name and season once, with up to four photographs, by the
- * rim page's own upload; below it each size with its supplier. Every write asks TyreModelPolicy (R-11) and leaves one Protokoll
+ * rim page's own upload; below it each size with its price (one supplier, D-448). Every write asks TyreModelPolicy (R-11) and leaves one Protokoll
  * entry. The sizes keep those three for everything that reads a tyre, so the engine and the shop read what they always read.
  */
 
@@ -81,9 +81,9 @@ it('makes one model of a tyre’s sizes, whichever road they came by, and leaves
         ->and($a->fresh()->name)->toBe('Grip 7');
 });
 
-it('shows a model’s photographs, facts and sizes with their suppliers', function (): void {
+it('shows a model’s photographs, facts and sizes, and no supplier: there is one (D-448)', function (): void {
     $model = modellOf();
-    TyreVariant::query()->where('width_mm', 225)->update(['supplier' => 'Delticom']);
+    TyreVariant::query()->where('width_mm', 225)->update(['supplier' => 'Lieferant A']);
 
     $this->actingAs(modellAdmin(), 'admin')->get('/admin/reifen/modell/'.$model->id)
         ->assertOk()
@@ -94,8 +94,8 @@ it('shows a model’s photographs, facts and sizes with their suppliers', functi
             ->where('maxPhotos', 4)
             ->has('photos', 0)
             ->has('sizes', 2)
-            ->where('sizes.0.supplier', 'Delticom')
-            ->where('sizes.1.supplier', null)
+            ->missing('sizes.0.supplier')
+            ->missing('sizes.1.supplier')
             ->where('admin.breadcrumbs.2.label', 'Prüfreifen Grip 7'));
 });
 
@@ -226,34 +226,37 @@ it('gives the shop a size’s photographs by its model, first the cover, and non
         ->and($photos[(int) $own][0]['alt'])->toBe('Prüfreifen Grip 7, Seite');
 });
 
-it('keeps a supplier per size, in the Protokoll, and refuses the same tyre twice as before, whoever delivers it', function (): void {
+it('asks no supplier, keeps one already on record as it is, hidden, and holds one price per size line (D-448)', function (): void {
     $payload = [
         'brand_id' => null, 'brand_new' => 'Prüfreifen', 'name' => 'Grip 7', 'season' => 'sommer', 'width_mm' => '225', 'aspect' => '45', 'diameter_in' => '18',
-        'load_index' => '95', 'speed_symbol' => 'Y', 'price' => '129,00', 'available' => true, 'supplier' => '  Delticom ',
+        'load_index' => '95', 'speed_symbol' => 'Y', 'price' => '129,00', 'available' => true,
     ];
 
-    $this->actingAs(modellAdmin(), 'admin')->post('/admin/reifen', $payload)->assertSessionHasNoErrors();
+    // A supplier sent all the same is not taken: there is one, and the form has no field for it.
+    $this->actingAs(modellAdmin(), 'admin')->post('/admin/reifen', [...$payload, 'supplier' => str_repeat('x', 121)])->assertSessionHasNoErrors();
 
     $tyre = TyreVariant::query()->sole();
 
-    expect($tyre->supplier)->toBe('Delticom');
+    expect($tyre->supplier)->toBeNull();
 
-    // The client's open question: whether one tyre can come from two suppliers at two prices. Until it is answered: one line.
-    $this->actingAs(modellAdmin(), 'admin')->post('/admin/reifen', [...$payload, 'brand_new' => 'prüfreifen', 'supplier' => 'Reifen Stiebling'])
+    // One written before the client's answer stays on record, untouched by a save, and is shown nowhere.
+    $tyre->forceFill(['supplier' => 'Lieferant A'])->save();
+
+    // The same tyre twice is refused as before: one price per size line.
+    $this->actingAs(modellAdmin(), 'admin')->post('/admin/reifen', [...$payload, 'brand_new' => 'prüfreifen', 'price' => '119,00'])
         ->assertSessionHasErrors(['name' => TyreVariantRequest::DUPLICATE]);
 
     $stamp = $this->actingAs(modellAdmin(), 'admin')->get('/admin/reifen/'.$tyre->id)->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('tyre.supplier', 'Delticom')
+        ->missing('tyre.supplier')
         ->where('modelHref', '/admin/reifen/modell/'.TyreModel::query()->sole()->id))->viewData('page')['props']['stamp'];
 
     $this->actingAs(modellAdmin(), 'admin')
-        ->put('/admin/reifen/'.$tyre->id, [...$payload, 'brand_id' => $tyre->brand_id, 'brand_new' => '', 'supplier' => 'Reifen Stiebling'], [EditStamp::HEADER => $stamp])
+        ->put('/admin/reifen/'.$tyre->id, [...$payload, 'brand_id' => $tyre->brand_id, 'brand_new' => '', 'price' => '139,00', 'supplier' => 'Lieferant B'], [EditStamp::HEADER => $stamp])
         ->assertSessionHasNoErrors();
 
-    expect(AuditLog::query()->where('description', 'tyre.updated')->sole()->properties['changed'] ?? [])->toContain('supplier');
-
-    $this->actingAs(modellAdmin(), 'admin')->post('/admin/reifen', [...$payload, 'width_mm' => '245', 'supplier' => str_repeat('x', 121)])
-        ->assertSessionHasErrors('supplier');
+    expect($tyre->fresh()->supplier)->toBe('Lieferant A')
+        ->and($tyre->fresh()->price_cents)->toBe(13_900)
+        ->and(AuditLog::query()->where('description', 'tyre.updated')->sole()->properties['changed'] ?? [])->not->toContain('supplier');
 });
 
 it('shows a demonstration model and never changes it or its photographs', function (): void {

@@ -124,8 +124,8 @@ it('keeps a tyre saved with its label incomplete, offers it not, and says what i
 
 it('lists the tyre models with what their sizes add up to, and finds one by any of its sizes: stand, size, diameter, season @admin-210', function (): void {
     $brand = Brand::factory()->named('Prüfreifen')->create(['is_wheel_brand' => false]);
-    TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'price_cents' => 12_900, 'supplier' => 'Delticom']);
-    TyreVariant::factory()->for($brand)->size(245, 40, 19.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'available' => false, 'price_cents' => 15_900, 'supplier' => 'Reifen Stiebling']);
+    TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'price_cents' => 12_900]);
+    TyreVariant::factory()->for($brand)->size(245, 40, 19.0)->create(['name' => 'Grip 7', 'season' => 'sommer', 'available' => false, 'price_cents' => 15_900]);
     TyreVariant::factory()->for($brand)->size(225, 45, 18.0)->unlabelled()->create(['name' => 'Winter 3', 'season' => 'winter']);
     TyreVariant::factory()->for($brand)->size(205, 55, 16.0)->unlabelled()->create(['name' => 'Beispiel', 'season' => 'sommer', 'is_demo' => true]);
 
@@ -146,19 +146,19 @@ it('lists the tyre models with what their sizes add up to, and finds one by any 
 
     $row = collect($this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen')->viewData('page')['props']['models'])->firstWhere('name', 'Grip 7');
 
-    expect($row)->toMatchArray([
-        'brand' => 'Prüfreifen',
-        'season' => 'sommer',
-        'sizes' => 2,
-        'diameters' => "18–19\u{00A0}Zoll",
-        'priceFromCents' => 12_900,
-        'suppliers' => 2,
-        'missingLabels' => 0,
-        'offered' => 1,
-        'photos' => 0,
-        'thumb' => null,
-        'demo' => false,
-    ])->and($row['href'])->toStartWith('/admin/reifen/modell/');
+    expect($row)->not->toHaveKey('suppliers')
+        ->and($row)->toMatchArray([
+            'brand' => 'Prüfreifen',
+            'season' => 'sommer',
+            'sizes' => 2,
+            'diameters' => "18–19\u{00A0}Zoll",
+            'priceFromCents' => 12_900,
+            'missingLabels' => 0,
+            'offered' => 1,
+            'photos' => 0,
+            'thumb' => null,
+            'demo' => false,
+        ])->and($row['href'])->toStartWith('/admin/reifen/modell/');
 
     $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen?stand=gibt-es-nicht')
         ->assertRedirect('/admin/reifen')

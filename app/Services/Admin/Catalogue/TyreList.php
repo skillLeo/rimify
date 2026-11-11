@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Katalog › Reifen: the one query behind the list (his admin item 10, D-302; the Gutachten rework §9).
  *
- * A row is one tyre model with what its sizes add up to: how many, in which diameters, from what price, how many suppliers, how many
+ * A row is one tyre model with what its sizes add up to: how many, in which diameters, from what price, how many
  * of them the shop offers now — available (D-301) and their EU label complete on record (D-303). Search and filters find a model by
  * any of its sizes. Fifty to a page, so it stays usable with hundreds. A demonstration tyre says so and is never changed here.
  *
@@ -240,7 +240,6 @@ final class TyreList
                     : $diameters->first().'–'.$diameters->last().GermanFormat::NBSP.'Zoll',
                 // Minor units: the page writes the amount (num.ts formatMoney).
                 'priceFromCents' => (int) $model->getAttribute('price_from'),
-                'suppliers' => $own->map(static fn (TyreVariant $tyre): string => mb_strtolower(trim((string) $tyre->supplier)))->filter()->unique()->count(),
                 'missingLabels' => $real->filter(static fn (TyreVariant $tyre): bool => $tyre->missingLabel() !== [])->count(),
                 'offered' => $real->filter(static fn (TyreVariant $tyre): bool => $tyre->offered())->count(),
                 'demo' => $own->contains(static fn (TyreVariant $tyre): bool => (bool) $tyre->is_demo),

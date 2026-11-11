@@ -82,7 +82,6 @@ class ReifenModellController extends Controller
             'sizes' => $sizes->map(static fn (TyreVariant $tyre): array => [
                 'id' => (int) $tyre->id,
                 'size' => $tyre->label(),
-                'supplier' => $tyre->supplier,
                 'priceCents' => (int) $tyre->price_cents,
                 'available' => (bool) $tyre->available,
                 'label' => $tyre->missingLabel() === [] ? TyreList::labelSummary($tyre) : null,
