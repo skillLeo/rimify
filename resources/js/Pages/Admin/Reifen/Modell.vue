@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * Katalog › Reifen › one tyre model (the Gutachten rework §9): its photographs — up to four, by the rim page's own upload, sorted the
- * same way —, its facts, and its sizes with supplier, price, availability and EU label per line. A size opens on its own page. A photo
+ * same way —, its facts, and its sizes with price, availability and EU label per line. A size opens on its own page. A photo
  * applies to every size of the model; without one the shop draws a neutral outline, never another tyre's picture.
  */
 
@@ -134,7 +134,7 @@ const photoSubject = computed(() => ({
                     Größe hinzufügen
                 </Link>
             </div>
-            <p class="adm-note rm-note">Je Größe: Lastindex und Geschwindigkeitssymbol, Preis, Verfügbarkeit, Lieferant und EU-Reifenlabel. Ohne vollständiges Label bietet der Shop die Größe nicht an.</p>
+            <p class="adm-note rm-note">Je Größe: Lastindex und Geschwindigkeitssymbol, Preis, Verfügbarkeit und EU-Reifenlabel. Ohne vollständiges Label bietet der Shop die Größe nicht an.</p>
 
             <AdminState v-if="sizes.length === 0" kind="empty" text="Dieses Modell hat keine Größe mehr. Der Shop bietet es nicht an." />
             <div v-else class="adm-panel">
@@ -143,7 +143,6 @@ const photoSubject = computed(() => ({
                     <thead>
                         <tr>
                             <th scope="col">Größe</th>
-                            <th scope="col">Lieferant</th>
                             <th scope="col" class="num">Preis</th>
                             <th scope="col">EU-Reifenlabel</th>
                             <th scope="col">EPREL</th>
@@ -153,7 +152,6 @@ const photoSubject = computed(() => ({
                     <tbody>
                         <tr v-for="line in sizes" :key="line.id">
                             <td data-label="Größe"><Link :href="line.href" class="rm-size">{{ line.size }}</Link></td>
-                            <td data-label="Lieferant">{{ line.supplier ?? '–' }}</td>
                             <td data-label="Preis" class="num">{{ formatMoney(line.priceCents) }}</td>
                             <td data-label="EU-Reifenlabel">
                                 <template v-if="line.label">

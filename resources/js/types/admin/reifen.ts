@@ -15,7 +15,6 @@ export interface TyreModelRow {
     /** `18 Zoll`, `17–19 Zoll` */
     diameters: string
     priceFromCents: number
-    suppliers: number
     /** Real sizes whose EU label is not complete on record (D-303). */
     missingLabels: number
     /** Real sizes the shop offers now: available and their label complete (D-301, D-303). */
@@ -64,8 +63,6 @@ export interface TyreRecordProp {
     /** German digits, `129,00`. */
     price: string
     available: boolean
-    /** Who delivers this size; internal, never shown in the shop. */
-    supplier: string
     demo: boolean
     /** On an order: its size, load index and speed symbol stay as sold. */
     sold: boolean
@@ -102,7 +99,6 @@ export interface AdminReifenModellProps {
     sizes: {
         id: number
         size: string
-        supplier: string | null
         priceCents: number
         available: boolean
         label: { fuel: string; wet: string; noiseDb: number; noiseClass: string; snow: boolean; ice: boolean } | null
@@ -138,5 +134,4 @@ export interface TyreForm {
     eprel_id: string
     price: string
     available: boolean
-    supplier: string
 }

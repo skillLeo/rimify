@@ -50,7 +50,6 @@ function fromProps(): TyreForm {
         eprel_id: tyre?.eprelId ?? '',
         price: tyre?.price ?? '',
         available: tyre?.available ?? true,
-        supplier: tyre?.supplier ?? '',
     }
 }
 
@@ -418,12 +417,6 @@ const more = computed<AdminPageAction[]>(() => {
                                 <option :value="false">Nicht verfügbar</option>
                             </select>
                             <p id="rf-available-err" class="form-field__error">{{ err('available') }}</p>
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" for="rf-supplier">Lieferant <span class="rf-optional">(optional)</span></label>
-                            <input id="rf-supplier" v-model="form.supplier" class="input" type="text" maxlength="120" :readonly="readonly" :aria-invalid="err('supplier') ? 'true' : undefined" aria-describedby="rf-supplier-help rf-supplier-err">
-                            <p id="rf-supplier-help" class="form-field__help">Nur intern, steht nie im Shop.</p>
-                            <p id="rf-supplier-err" class="form-field__error">{{ err('supplier') }}</p>
                         </div>
                     </div>
                 </div>

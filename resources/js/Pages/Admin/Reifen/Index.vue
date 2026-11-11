@@ -166,7 +166,6 @@ function reset(): void {
                             <th scope="col">Saison</th>
                             <th scope="col">Größen</th>
                             <AdminSortHeader label="Preis ab" column="preis" :sort="filters.sort" :richtung="filters.richtung" num @sort="sortBy" />
-                            <th scope="col" class="num">Lieferanten</th>
                             <th scope="col">Stand</th>
                             <AdminSortHeader label="Geändert" column="geaendert" :sort="filters.sort" :richtung="filters.richtung" @sort="sortBy" />
                         </tr>
@@ -189,7 +188,6 @@ function reset(): void {
                             <td data-label="Saison"><SeasonMark :season="model.season" /></td>
                             <td data-label="Größen">{{ anzahl(model.sizes, 'Größe', 'Größen') }}, {{ model.diameters }}</td>
                             <td data-label="Preis ab" class="num">{{ formatMoney(model.priceFromCents) }}</td>
-                            <td data-label="Lieferanten" class="num" data-phone="hide">{{ model.suppliers === 0 ? '–' : decimal(model.suppliers, 0) }}</td>
                             <td data-label="Stand" data-phone="status">
                                 <span v-if="model.demo" class="rf-quiet">Demodaten</span>
                                 <span v-else-if="model.missingLabels > 0" class="adm-tag adm-tag--warn">{{ model.missingLabels === 1 ? '1 Größe ohne Label' : `${decimal(model.missingLabels, 0)} Größen ohne Label` }}</span>

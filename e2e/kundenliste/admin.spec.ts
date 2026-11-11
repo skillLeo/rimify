@@ -528,7 +528,8 @@ test('a tyre model above its sizes: its photographs once, a thumbnail in the lis
     await page.fill('#rf-load', '95')
     await page.selectOption('#rf-speed', 'Y')
     await page.fill('#rf-price', '129')
-    await page.fill('#rf-supplier', 'Prüflieferant')
+    // One supplier (D-448): the form asks none.
+    await expect(page.locator('#rf-supplier')).toHaveCount(0)
     await page.selectOption('#rf-fuel', 'B')
     await page.selectOption('#rf-wet', 'A')
     await page.fill('#rf-noise', '71')
