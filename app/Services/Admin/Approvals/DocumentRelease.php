@@ -124,8 +124,8 @@ final class DocumentRelease
 
     /**
      * What the five steps add to the door: a line that does not read, a side still empty, a tyre that does not fit its wheel, a car with
-     * no tyres on one of several wheel combinations, and a pair the engine would give a car nobody entered it for — pairs are held per
-     * field K, and two cars of one K answer as one (PairListCheck).
+     * no tyres on one of several wheel combinations, and a pair the engine would give a wheel combination nobody entered it for —
+     * pairs are held per car, and two of its combinations with the same diameters can answer as one (PairListCheck, D-447).
      *
      * @return list<string>
      */

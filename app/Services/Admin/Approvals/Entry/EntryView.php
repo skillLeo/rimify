@@ -47,7 +47,6 @@ final readonly class EntryView
             ], $document->printed_wheels ?? []),
             'cars' => $model->entries->map(fn (DocumentCarEntry $entry): array => $this->car($entry, $check['conflicts']))->values()->all(),
             'conflicts' => $check['conflicts'],
-            'unreachable' => $check['unreachable'],
             'hasList' => $model->hasList(),
             'keptCombinations' => $model->kept->count(),
             'unread' => $this->unread($model),
@@ -322,7 +321,7 @@ final readonly class EntryView
     }
 
     /**
-     * @param  list<array{entryId: int, vehicleId: int, car: string, k: string, pair: string, others: list<string>, combination: string, several: bool}>  $conflicts
+     * @param  list<array{entryId: int, vehicleId: int, car: string, pair: string, combination: string, enteredAt: list<string>}>  $conflicts
      * @return array<string, mixed>
      */
     private function car(DocumentCarEntry $entry, array $conflicts): array

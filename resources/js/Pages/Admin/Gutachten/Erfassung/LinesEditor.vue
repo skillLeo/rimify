@@ -337,7 +337,7 @@ async function copy(): Promise<void> {
         </header>
 
         <p v-if="car.conflict" class="ef-warn" role="status">
-            Dieses Fahrzeug teilt seine Betriebserlaubnis mit mindestens einem anderen, und die Reifenkombinationen unterscheiden sich. Welche es ist, steht in Schritt 5. Trag sie bei allen betroffenen Fahrzeugen ein oder bei keinem.
+            Hier stehen die Größen einer Reifenkombination, die bei diesem Fahrzeug nur bei einer anderen Felgenkombination mit denselben Durchmessern eingetragen ist. Der Shop würde sie deshalb auch hier anbieten. Welche es ist und was du tun kannst, steht in Schritt 5.
         </p>
 
         <p v-if="loading" class="adm-note">Wird geladen …</p>

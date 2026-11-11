@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property int $id
  * @property int $approval_document_id
+ * @property int|null $vehicle_id
  * @property string|null $eg_number
  * @property string|null $eg_number_norm
  * @property int $number
@@ -28,7 +29,7 @@ use Illuminate\Database\Eloquent\Model;
 class DocumentKeptCombination extends Model
 {
     protected $fillable = [
-        'approval_document_id', 'eg_number', 'eg_number_norm', 'number',
+        'approval_document_id', 'vehicle_id', 'eg_number', 'eg_number_norm', 'number',
         'front_width_mm', 'front_aspect', 'front_diameter_in',
         'rear_width_mm', 'rear_aspect', 'rear_diameter_in',
         'source_page', 'carried_over',
@@ -38,6 +39,7 @@ class DocumentKeptCombination extends Model
     protected function casts(): array
     {
         return [
+            'vehicle_id' => 'integer',
             'number' => 'integer',
             'front_width_mm' => 'integer',
             'front_aspect' => 'integer',

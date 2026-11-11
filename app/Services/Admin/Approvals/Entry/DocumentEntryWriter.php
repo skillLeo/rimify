@@ -36,7 +36,7 @@ use LogicException;
  * they say together: the engine reads several rows of one paper toward caution, and would intersect them. Its lines become:
  *
  * - the same size in front and behind, on the same version: a tyre size for both axles;
- * - anything else: each size on its axle, and a row of `document_tyre_combinations` under the car's field K (D-358). The engine
+ * - anything else: each size on its axle, and a row of `document_tyre_combinations` for the car (D-447; before, per field K, D-358). The engine
  *   offers a pair only where the car's rows list both sizes on their axles (TyreEligibility::listedPairs);
  * - a line with one side from before this flow: a tyre size for that axle. Typed in this flow, or with a tyre that cannot go on
  *   its axle's wheel, it writes nothing, and the release waits for it (EntryModel::stands).
@@ -714,7 +714,9 @@ final class DocumentEntryWriter
     }
 
     /**
-     * The paper's list of combinations as `document_tyre_combinations` holds it: each pair once per field K.
+     * The paper's list of combinations as `document_tyre_combinations` holds it: each pair once per car it was entered for
+     * (his round of 08.11, §2; D-447), under the entry of the Verwendungsbereich the car stands in where it has one. A car
+     * without a field K that reads as an EG number has its pairs all the same: the shop reads them by the car.
      *
      * @return list<array<string, mixed>>
      */
@@ -735,17 +737,14 @@ final class DocumentEntryWriter
 
                 [$number, $norm] = $this->entryOf($line, $car, $printed);
 
-                if ($norm === null) {
-                    continue;
-                }
-
                 /** @var TyreSize $front */
                 $front = $line->front();
                 /** @var TyreSize $rear */
                 $rear = $line->rear();
-                $key = $norm.'|'.$front->key().'|'.$rear->key();
+                $key = $entry->vehicle_id.'|'.$front->key().'|'.$rear->key();
 
                 $rows[$key] ??= [
+                    'vehicle_id' => (int) $entry->vehicle_id,
                     'eg_number' => $number,
                     'eg_number_norm' => $norm,
                     'number' => $line->list_number,
@@ -763,6 +762,7 @@ final class DocumentEntryWriter
 
         foreach ($model->kept as $kept) {
             $rows['kept|'.$kept->id] = [
+                'vehicle_id' => $kept->vehicle_id,
                 'eg_number' => $kept->eg_number,
                 'eg_number_norm' => $kept->eg_number_norm,
                 'number' => $kept->number,
@@ -854,7 +854,7 @@ final class DocumentEntryWriter
     }
 
     /**
-     * Each entry's rows numbered: a row that came with its number keeps it, a new one takes the next free one.
+     * Each car's rows numbered: a row that came with its number keeps it, a new one takes the next free one.
      *
      * @param  list<array<string, mixed>>  $rows
      * @return list<array<string, mixed>>
@@ -862,16 +862,18 @@ final class DocumentEntryWriter
     private function numbered(array $rows): array
     {
         $used = [];
+        // A car's list counts for itself; a row kept from the list that names no car, per entry as before.
+        $list = static fn (array $row): string => $row['vehicle_id'] !== null ? 'car:'.$row['vehicle_id'] : 'entry:'.$row['eg_number_norm'];
 
         foreach ($rows as $row) {
             if ($row['number'] !== null) {
-                $used[(string) $row['eg_number_norm']][(int) $row['number']] = true;
+                $used[$list($row)][(int) $row['number']] = true;
             }
         }
 
         foreach ($rows as &$row) {
             if ($row['number'] === null) {
-                $entry = (string) $row['eg_number_norm'];
+                $entry = $list($row);
                 $next = 1;
 
                 while (isset($used[$entry][$next])) {

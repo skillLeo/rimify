@@ -7,6 +7,7 @@ namespace App\Services\Admin\Approvals;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Support\EgNumber;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 /**
@@ -65,7 +66,7 @@ final class CombinationEntries
      */
     public function carryOverWithoutChange(?CombinationCensus $census = null): array
     {
-        if (DB::table('document_tyre_combinations')->whereNull('eg_number_norm')->doesntExist()) {
+        if (DB::table('document_tyre_combinations')->whereNull('eg_number_norm')->when(self::perCar(), static fn ($q) => $q->whereNull('vehicle_id'))->doesntExist()) {
             return ['documents' => 0, 'copied' => 0, 'unassigned' => 0, 'pairs' => 0];
         }
 
@@ -98,14 +99,14 @@ final class CombinationEntries
      */
     public function carryOver(): array
     {
-        $documents = DB::table('document_tyre_combinations')->whereNull('eg_number_norm')->distinct()->pluck('approval_document_id');
+        $documents = DB::table('document_tyre_combinations')->whereNull('eg_number_norm')->when(self::perCar(), static fn ($q) => $q->whereNull('vehicle_id'))->distinct()->pluck('approval_document_id');
         $copied = 0;
         $unassigned = 0;
 
         foreach ($documents as $documentId) {
             $documentId = (int) $documentId;
             $entries = self::of($documentId);
-            $rows = DB::table('document_tyre_combinations')->where('approval_document_id', $documentId)->whereNull('eg_number_norm')->orderBy('id')->get();
+            $rows = DB::table('document_tyre_combinations')->where('approval_document_id', $documentId)->whereNull('eg_number_norm')->when(self::perCar(), static fn ($q) => $q->whereNull('vehicle_id'))->orderBy('id')->get();
 
             if ($entries === []) {
                 // No car of this document carries an EG number: the rows stay without one and match no car.
@@ -121,7 +122,7 @@ final class CombinationEntries
 
                 DB::table('document_tyre_combinations')
                     ->where('approval_document_id', $documentId)
-                    ->whereNull('eg_number_norm')
+                    ->whereNull('eg_number_norm')->when(self::perCar(), static fn ($q) => $q->whereNull('vehicle_id'))
                     ->update(['eg_number' => $first, 'eg_number_norm' => $first, 'carried_over' => true]);
 
                 foreach ($entries as $entry) {
@@ -142,5 +143,11 @@ final class CombinationEntries
         }
 
         return ['documents' => $documents->count(), 'copied' => $copied, 'unassigned' => $unassigned];
+    }
+
+    /** Since D-447 a row may name its car; one that does is entered, never carried over. Before that migration, no such column. */
+    private static function perCar(): bool
+    {
+        return Schema::hasColumn('document_tyre_combinations', 'vehicle_id');
     }
 }

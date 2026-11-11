@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *
  * @phpstan-type SizeState array{width_mm: int, aspect: int, diameter_in: float, min_load_index: int|null, min_speed_symbol: string|null, axle: string, kw_min: int|null, kw_max: int|null, codes: list<string>}
  * @phpstan-type RowState array{build_from: string|null, build_to: string|null, permitted_width_min: float|null, permitted_width_max: float|null, permitted_et_min: int|null, permitted_et_max: int|null, centre_bore_mm: float|null, requires_entry: bool, entry_note_de: string|null, entry_override: string|null, entry_override_reason: string|null, source_page: int|null, sizes: list<SizeState>, codes: list<array{code: string, note: string|null}>}
- * @phpstan-type ListState array{eg_number: string|null, eg_number_norm: string|null, number: int, front_width_mm: int, front_aspect: int, front_diameter_in: float, rear_width_mm: int, rear_aspect: int, rear_diameter_in: float, source_page: int|null, carried_over: bool}
+ * @phpstan-type ListState array{vehicle_id: int|null, eg_number: string|null, eg_number_norm: string|null, number: int, front_width_mm: int, front_aspect: int, front_diameter_in: float, rear_width_mm: int, rear_aspect: int, rear_diameter_in: float, source_page: int|null, carried_over: bool}
  * @phpstan-type State array{rows: array<string, RowState>, list: list<ListState>, sets: list<string>}
  */
 final class EngineRows
@@ -102,6 +102,7 @@ final class EngineRows
             'sets' => $sets,
             'list' => self::list(DB::table('document_tyre_combinations')->where('approval_document_id', $document->id)->get()
                 ->map(static fn (object $row): array => [
+                    'vehicle_id' => ($row->vehicle_id ?? null) === null ? null : (int) $row->vehicle_id,
                     'eg_number' => $row->eg_number,
                     'eg_number_norm' => $row->eg_number_norm,
                     'number' => (int) $row->number,
@@ -179,7 +180,7 @@ final class EngineRows
     public static function list(array $rows): array
     {
         $key = static fn (array $row): string => implode('|', [
-            $row['eg_number_norm'] ?? '', str_pad((string) $row['number'], 5, '0', STR_PAD_LEFT),
+            str_pad((string) ($row['vehicle_id'] ?? ''), 10, '0', STR_PAD_LEFT), $row['eg_number_norm'] ?? '', str_pad((string) $row['number'], 5, '0', STR_PAD_LEFT),
             $row['front_width_mm'], $row['front_aspect'], $row['front_diameter_in'], $row['rear_width_mm'], $row['rear_aspect'], $row['rear_diameter_in'],
         ]);
         usort($rows, static fn (array $a, array $b): int => $key($a) <=> $key($b));

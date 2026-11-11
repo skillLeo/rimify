@@ -1350,6 +1350,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Services\\Admin\\AdminAlerts' => __DIR__ . '/../..' . '/app/Services/Admin/AdminAlerts.php',
         'App\\Services\\Admin\\AdminErrorPage' => __DIR__ . '/../..' . '/app/Services/Admin/AdminErrorPage.php',
         'App\\Services\\Admin\\AdminNavigation' => __DIR__ . '/../..' . '/app/Services/Admin/AdminNavigation.php',
+        'App\\Services\\Admin\\Approvals\\CombinationCars' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/CombinationCars.php',
         'App\\Services\\Admin\\Approvals\\CombinationCensus' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/CombinationCensus.php',
         'App\\Services\\Admin\\Approvals\\CombinationEntries' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/CombinationEntries.php',
         'App\\Services\\Admin\\Approvals\\ConflictDecisions' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/ConflictDecisions.php',

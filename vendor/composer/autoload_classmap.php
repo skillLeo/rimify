@@ -571,6 +571,7 @@ return array(
     'App\\Services\\Admin\\AdminAlerts' => $baseDir . '/app/Services/Admin/AdminAlerts.php',
     'App\\Services\\Admin\\AdminErrorPage' => $baseDir . '/app/Services/Admin/AdminErrorPage.php',
     'App\\Services\\Admin\\AdminNavigation' => $baseDir . '/app/Services/Admin/AdminNavigation.php',
+    'App\\Services\\Admin\\Approvals\\CombinationCars' => $baseDir . '/app/Services/Admin/Approvals/CombinationCars.php',
     'App\\Services\\Admin\\Approvals\\CombinationCensus' => $baseDir . '/app/Services/Admin/Approvals/CombinationCensus.php',
     'App\\Services\\Admin\\Approvals\\CombinationEntries' => $baseDir . '/app/Services/Admin/Approvals/CombinationEntries.php',
     'App\\Services\\Admin\\Approvals\\ConflictDecisions' => $baseDir . '/app/Services/Admin/Approvals/ConflictDecisions.php',
