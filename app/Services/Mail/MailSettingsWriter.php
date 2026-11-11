@@ -20,19 +20,29 @@ use SensitiveParameter;
  *
  * @phpstan-import-type Result from SesProbe
  *
- * @phpstan-type Values array{from_address: string, from_name: string|null, topic_arn: string|null, access_key: string|null, secret: string|null}
+ * @phpstan-type Values array{provider?: 'ses'|'brevo', from_address: string, from_name: string|null, topic_arn: string|null, access_key: string|null, secret: string|null, smtp_login?: string|null}
  */
 final class MailSettingsWriter
 {
-    private const FIELDS = ['from_address' => 'Absenderadresse', 'from_name' => 'Absendername', 'topic_arn' => 'SNS-Thema'];
+    private const FIELDS = ['provider' => 'Anbieter', 'from_address' => 'Absenderadresse', 'from_name' => 'Absendername', 'smtp_login' => 'SMTP-Login', 'topic_arn' => 'SNS-Thema'];
 
-    private const STORED = ['region', 'from_address', 'from_name', 'topic_arn', 'access_key', 'secret', 'key_last4', 'secret_last4', 'verified_at', 'last_test', 'updated_by'];
+    private const STORED = ['provider', 'region', 'from_address', 'from_name', 'smtp_login', 'topic_arn', 'access_key', 'secret', 'key_last4', 'secret_last4', 'verified_at', 'last_test', 'updated_by'];
 
-    public function __construct(private readonly SesProbe $probe, private readonly MailSettings $settings) {}
+    public function __construct(private readonly SesProbe $probe, private readonly MailSettings $settings, private readonly BrevoProbe $brevo) {}
+
+    /**
+     * The test the set's provider has: SES's account and domain checks, or Brevo's sign-in.
+     *
+     * @return array<string, mixed>
+     */
+    public function probe(MailSetting $row): array
+    {
+        return $row->brevo() ? $this->brevo->run($row) : $this->probe->run($row);
+    }
 
     /**
      * @param  Values  $values
-     * @return array{active: bool, test: Result}
+     * @return array{active: bool, test: array<string, mixed>}
      */
     public function save(#[SensitiveParameter] array $values, AdminUser $by): array
     {
@@ -40,7 +50,7 @@ final class MailSettingsWriter
         $pending = MailSetting::query()->where('state', MailSetting::PENDING)->first();
 
         $row = $this->candidate($values, $pending ?? $active);
-        $test = $this->probe->run($row);
+        $test = $this->probe($row);
         $changed = $this->changed($row, $active);
 
         DB::transaction(function () use ($row, $test, $active, $pending, $by): void {
@@ -73,6 +83,7 @@ final class MailSettingsWriter
         }
 
         AuditTrail::record($by, 'mail.settings_updated', [
+            'provider' => $row->provider,
             'changed' => $changed,
             'key_last4' => ['old' => $active?->key_last4, 'new' => $row->key_last4],
             // Not `secret_…`: the Protokoll drops any property named like a secret, last four or not.
@@ -91,14 +102,20 @@ final class MailSettingsWriter
      */
     public function candidate(#[SensitiveParameter] array $values, ?MailSetting $base): MailSetting
     {
-        $key = $values['access_key'] ?? $base?->access_key;
+        $provider = $values['provider'] ?? MailSetting::SES;
+        // A key kept is one of the same provider: SES's secret is never Brevo's SMTP key (D-450).
+        $base = $base !== null && $base->provider === $provider ? $base : null;
+        $brevo = $provider === MailSetting::BREVO;
+        $key = $brevo ? null : ($values['access_key'] ?? $base?->access_key);
         $secret = $values['secret'] ?? $base?->secret;
 
         return (new MailSetting)->forceFill([
+            'provider' => $provider,
             'region' => MailSetting::REGION,
             'from_address' => $values['from_address'],
             'from_name' => $values['from_name'],
-            'topic_arn' => $values['topic_arn'],
+            'smtp_login' => $brevo ? ($values['smtp_login'] ?? $base?->smtp_login) : null,
+            'topic_arn' => $brevo ? null : $values['topic_arn'],
             'access_key' => $key,
             'secret' => $secret,
             'key_last4' => StorageConfig::last4($key),
@@ -121,12 +138,12 @@ final class MailSettingsWriter
             }
         }
 
-        if ($active === null || $row->access_key !== $active->access_key) {
+        if (! $row->brevo() && ($active === null || $row->access_key !== $active->access_key)) {
             $changed[] = 'Zugriffsschlüssel';
         }
 
         if ($active === null || $row->secret !== $active->secret) {
-            $changed[] = 'Geheimer Schlüssel';
+            $changed[] = $row->brevo() ? 'SMTP-Schlüssel' : 'Geheimer Schlüssel';
         }
 
         return $changed;

@@ -32,12 +32,15 @@ final class SecretScanner
         'stripe-webhook-secret' => ['/\b(?<prefix>whsec_)(?<secret>[0-9A-Za-z]{24,})/', 'Stripe webhook signing secret'],
         'aws-access-key' => ['/\b(?<prefix>AKIA|ASIA)(?<secret>[0-9A-Z]{16})\b/', 'AWS access key id'],
         'aws-secret-key' => ['/(?i:aws|secret|s3)[A-Za-z0-9_.\-]*["\']?\s*(?:=>|[:=])\s*["\']?(?<secret>[A-Za-z0-9\/+]{40})(?![A-Za-z0-9\/+=])/', 'AWS secret access key'],
+        // Brevo (D-450): the SMTP key and the API key, as Brevo writes them — 64 hex characters, a hyphen, 16 more.
+        'brevo-smtp-key' => ['/\b(?<prefix>xsmtpsib-)(?<secret>[0-9a-f]{64}-[0-9A-Za-z]{16})/', 'Brevo SMTP key'],
+        'brevo-api-key' => ['/\b(?<prefix>xkeysib-)(?<secret>[0-9a-f]{64}-[0-9A-Za-z]{16})/', 'Brevo API key'],
         'private-key' => ['/-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/', 'private key (PEM)'],
         'database-url-password' => ['/\b(?<prefix>DATABASE_URL|DB_URL)\s*[=:]\s*["\']?[A-Za-z][A-Za-z0-9+.\-]*:\/\/[^:\/\s"\'@]+:(?<secret>[^@\s"\']+)@/', 'database URL with a password'],
     ];
 
     /** Cheap substrings, lower case, one of which every finding contains: a line with none is skipped. */
-    private const TRIGGERS = ['_live_', 'sk_test_', 'whsec_', 'akia', 'asia', 'private key', 'url', 'aws', 'secret', 's3'];
+    private const TRIGGERS = ['_live_', 'sk_test_', 'whsec_', 'akia', 'asia', 'private key', 'url', 'aws', 'secret', 's3', 'xsmtpsib-', 'xkeysib-'];
 
     /**
      * The credentials in one line.

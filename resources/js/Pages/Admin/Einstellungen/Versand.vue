@@ -221,7 +221,7 @@ function move(method: Method, by: -1 | 1): void {
                         <p id="vs-free-err" class="form-field__error">{{ errors.free_from ?? '' }}</p>
                     </div>
 
-                    <fieldset class="form-field">
+                    <fieldset class="form-field vs__group">
                         <legend class="form-field__label">Länder</legend>
                         <label v-for="(name, code) in countries" :key="code" class="check">
                             <input v-model="form.countries" type="checkbox" :value="code">
@@ -231,7 +231,7 @@ function move(method: Method, by: -1 | 1): void {
                         <p class="form-field__error">{{ errors.countries ?? '' }}</p>
                     </fieldset>
 
-                    <fieldset class="form-field">
+                    <fieldset class="form-field vs__group">
                         <legend class="form-field__label">Gilt für <span class="vs__optional">(optional)</span></legend>
                         <label v-for="(name, type) in productTypes" :key="type" class="check">
                             <input v-model="form.product_types" type="checkbox" :value="type">
@@ -362,10 +362,19 @@ function move(method: Method, by: -1 | 1): void {
     max-width: 22ch;
 }
 
-.vs__days {
+/* A group of choices reads as its label and its boxes, as every other field does: no frame of the browser's own. */
+.vs__days,
+.vs__group {
     margin: 0;
     padding: 0;
     border: 0;
+    min-width: 0;
+}
+
+.vs__group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
 }
 
 .vs__days-row {

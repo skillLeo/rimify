@@ -9,8 +9,9 @@ use Illuminate\Mail\MailManager;
 use Throwable;
 
 /**
- * Whether the shop sends through Amazon SES, and with what: the active set of Einstellungen › E-Mail, once its test
- * found the sender's domain verified in SES and the account out of the sandbox. Until then nothing changes — the
+ * Whether the shop sends through Amazon SES or Brevo (his round of 08.11, §7A; D-450), and with what: the active set of
+ * Einstellungen › E-Mail, once its test cleared it — for SES the sender's domain verified and the account out of the
+ * sandbox, for Brevo the relay accepting its SMTP login and key. Until then nothing changes — the
  * mailer `.env` names stays in force, on the host `log` (the brief „AFTER CI“, §3: keep writing to the log driver until
  * the credentials arrive), and `rimify:go-live-check` says „fehlt“.
  *
@@ -41,18 +42,43 @@ final class MailSettings
      */
     public static function cleared(?array $test): bool
     {
+        // Brevo's relay says at sign-in only whether login and key are right (BrevoProbe); its sender check is Brevo's own.
+        if (($test['provider'] ?? null) === MailSetting::BREVO) {
+            return ($test['ok'] ?? false) === true;
+        }
+
         return ($test['ok'] ?? false) === true
             && ($test['identity_verified'] ?? false) === true
             && ($test['production_access'] ?? false) === true
             && ($test['sending_enabled'] ?? false) === true;
     }
 
-    /** Point the default mailer at SES with the active set — or leave the configuration as `.env` made it. */
+    /** Point the default mailer at SES or Brevo with the active set — or leave the configuration as `.env` made it. */
     public function apply(?MailManager $manager = null): void
     {
         $set = $this->sending();
 
         if ($set === null) {
+            return;
+        }
+
+        if ($set->brevo()) {
+            config([
+                'mail.default' => 'brevo',
+                'mail.mailers.brevo' => [
+                    'transport' => 'smtp',
+                    'scheme' => 'smtp',
+                    'host' => MailSetting::BREVO_HOST,
+                    'port' => MailSetting::BREVO_PORT,
+                    'username' => $set->smtp_login,
+                    'password' => $set->secret,
+                    'timeout' => 15,
+                ],
+                'mail.from.address' => $set->from_address,
+                'mail.from.name' => $set->from_name ?: config('mail.from.name'),
+            ]);
+            $manager?->forgetMailers();
+
             return;
         }
 

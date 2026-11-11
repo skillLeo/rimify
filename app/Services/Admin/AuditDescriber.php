@@ -132,6 +132,7 @@ final class AuditDescriber
         'mail.sns_subscribed' => 'zugriff',
         'mail.suppressed' => 'verkauf',
         'mail.suppression_released' => 'verkauf',
+        'mail.test_sent' => 'zugriff',
         'demand.marked' => 'gutachten',
         'demand.unmarked' => 'gutachten',
         'page.created' => 'inhalte',
@@ -493,6 +494,9 @@ final class AuditDescriber
                 ? 'Amazon SES meldet eine Beschwerde von '.self::q(self::text($p, 'email') ?? 'unbekannt').' ('.(self::text($p, 'detail') ?? 'ohne Angabe').'): Der Shop schickt dieser Adresse nichts mehr.'
                 : 'Amazon SES meldet '.self::q(self::text($p, 'email') ?? 'unbekannt').' als dauerhaft unzustellbar ('.(self::text($p, 'detail') ?? 'ohne Angabe').'): Der Shop schickt dieser Adresse nichts mehr.'), []],
             'mail.suppression_released' => ['Die Sperre für '.self::q(self::text($p, 'email') ?? 'unbekannt').' wurde aufgehoben: Der Shop schickt dieser Adresse wieder Mails.', []],
+            'mail.test_sent' => [($p['ok'] ?? false) === true
+                ? 'Eine Test-E-Mail an '.self::q(self::text($p, 'to') ?? 'unbekannt').' wurde verschickt.'
+                : 'Eine Test-E-Mail an '.self::q(self::text($p, 'to') ?? 'unbekannt').' wurde nicht verschickt: '.(self::text($p, 'error') ?? 'ohne Angabe eines Grundes'), []],
             'orders.exported' => [self::ordersExported($p), []],
             'order.shipped' => [
                 'Die Bestellung '.self::q(self::text($p, 'order') ?? 'ohne Nummer').' wurde als versendet markiert'
@@ -1073,11 +1077,14 @@ final class AuditDescriber
     private static function mailUpdated(array $p): array
     {
         $fields = array_values(array_filter(is_array($p['changed'] ?? null) ? $p['changed'] : [], 'is_string'));
+        // Brevo since D-450; an entry from before names no provider and was SES's.
+        $brevo = ($p['provider'] ?? null) === 'brevo';
+        $name = $brevo ? 'Brevo' : 'Amazon SES';
         $sentence = 'Die E-Mail-Einstellungen wurden '.($fields === [] ? 'gespeichert' : 'geändert: '.implode(', ', $fields)).'.'
-            .(($p['active'] ?? false) === true ? ' Der Zugang zu Amazon SES funktioniert.' : ' Der Zugang zu Amazon SES klappte damit nicht; es gelten weiter die bisherigen.');
+            .(($p['active'] ?? false) === true ? " Der Zugang zu {$name} funktioniert." : " Der Zugang zu {$name} klappte damit nicht; es gelten weiter die bisherigen.");
         $changes = [];
 
-        foreach (['key_last4' => 'Zugriffsschlüssel', 'signing_key_last4' => 'Geheimer Schlüssel'] as $key => $label) {
+        foreach (['key_last4' => 'Zugriffsschlüssel', 'signing_key_last4' => $brevo ? 'SMTP-Schlüssel' : 'Geheimer Schlüssel'] as $key => $label) {
             $pair = self::map($p, $key);
             $old = is_string($pair['old'] ?? null) ? '…'.$pair['old'] : self::NOTHING;
             $new = is_string($pair['new'] ?? null) ? '…'.$pair['new'] : self::NOTHING;

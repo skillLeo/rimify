@@ -2592,16 +2592,16 @@
     "/build/assets/Index-zUfv4UbA.css"
   ],
   "resources/js/Pages/Admin/Einstellungen/Email.vue": [
-    "/build/assets/Email-CIFrMPa5.js",
-    "/build/assets/Email-5ce9bXTe.css"
+    "/build/assets/Email-DltWmi6P.js",
+    "/build/assets/Email-Ca1PlZni.css"
   ],
   "resources/js/Pages/Admin/Einstellungen/Email.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Email-CIFrMPa5.js",
-    "/build/assets/Email-5ce9bXTe.css"
+    "/build/assets/Email-DltWmi6P.js",
+    "/build/assets/Email-Ca1PlZni.css"
   ],
-  "resources/js/Pages/Admin/Einstellungen/Email.vue?vue&type=style&index=0&scoped=06b188ef&lang.css": [
-    "/build/assets/Email-CIFrMPa5.js",
-    "/build/assets/Email-5ce9bXTe.css"
+  "resources/js/Pages/Admin/Einstellungen/Email.vue?vue&type=style&index=0&scoped=a4f1e502&lang.css": [
+    "/build/assets/Email-DltWmi6P.js",
+    "/build/assets/Email-Ca1PlZni.css"
   ],
   "resources/js/Pages/Admin/Einstellungen/Speicher.vue": [
     "/build/assets/Speicher-C-NgT3x2.js",
@@ -2628,16 +2628,16 @@
     "/build/assets/VerkaeuferVersand-B5-DAxYL.css"
   ],
   "resources/js/Pages/Admin/Einstellungen/Versand.vue": [
-    "/build/assets/Versand-kXOzNe8Q.js",
-    "/build/assets/Versand-D26YjQO_.css"
+    "/build/assets/Versand-l3koife3.js",
+    "/build/assets/Versand-CAZ2_8dN.css"
   ],
   "resources/js/Pages/Admin/Einstellungen/Versand.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Versand-kXOzNe8Q.js",
-    "/build/assets/Versand-D26YjQO_.css"
+    "/build/assets/Versand-l3koife3.js",
+    "/build/assets/Versand-CAZ2_8dN.css"
   ],
-  "resources/js/Pages/Admin/Einstellungen/Versand.vue?vue&type=style&index=0&scoped=34730b82&lang.css": [
-    "/build/assets/Versand-kXOzNe8Q.js",
-    "/build/assets/Versand-D26YjQO_.css"
+  "resources/js/Pages/Admin/Einstellungen/Versand.vue?vue&type=style&index=0&scoped=2c1ac59b&lang.css": [
+    "/build/assets/Versand-l3koife3.js",
+    "/build/assets/Versand-CAZ2_8dN.css"
   ],
   "resources/js/Pages/Admin/Einstellungen/Zahlung.vue": [
     "/build/assets/Zahlung-CTapj6nb.js",

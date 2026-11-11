@@ -9,6 +9,8 @@ export interface MailTestStep {
 
 export interface MailTest {
     ok: boolean
+    /** `brevo` for Brevo's sign-in (D-450); absent on SES's. */
+    provider?: 'brevo'
     steps: MailTestStep[]
     at: string
     production_access?: boolean
@@ -37,6 +39,10 @@ export interface AdminEmailProps {
     /** What the form was opened on (EditStamp): a save against an older state is refused. */
     stamp: string
     form: {
+        /** Amazon SES or Brevo (D-450). */
+        provider: 'ses' | 'brevo'
+        /** Brevo's SMTP login, as SMTP & API › SMTP shows it. */
+        smtp_login: string
         from_address: string
         from_name: string
         topic_arn: string
@@ -48,8 +54,14 @@ export interface AdminEmailProps {
     /** A saved set whose key did not work, and which is not in force. */
     pending: boolean
     verifiedAt: string | null
-    /** Whether the shop's mail goes through SES now. */
+    /** Whether the shop's mail goes through SES or Brevo now. */
     sending: boolean
+    /** Which of the two, while one is in force. */
+    sendingProvider?: 'ses' | 'brevo' | null
+    /** What the last „Test-E-Mail senden“ did: sent, or the transport's words. */
+    testMail?: { ok: boolean; to: string; error: string | null } | null
+    /** `smtp-relay.brevo.com:587` */
+    brevoHost?: string
     /** The mailer in force otherwise (`log` until SES is cleared). */
     mailer: string
     test: MailTest | null

@@ -28,6 +28,8 @@ it('finds every credential shape it guards, and shows only the last four charact
     'Stripe webhook secret' => [fn () => 'STRIPE_WEBHOOK_SECRET='.fakeKey('wh'.'sec_', 32), 'stripe-webhook-secret', 'whsec_…c3D4'],
     'AWS access key id' => [fn () => 'AWS_ACCESS_KEY_ID='.'AK'.'IA'.'Q3EGRX7L5OZ4W2MB', 'aws-access-key', 'AKIA …W2MB'],
     'AWS secret' => [fn () => 'AWS_SECRET_ACCESS_KEY='.'wJalrXUtnFEMI/K7MDENG/bPxRfi'.'CYEXAMPLEKEY', 'aws-secret-key', '…EKEY'],
+    'Brevo SMTP key' => [fn () => 'BREVO='.'xsmtp'.'sib-'.str_repeat('0a', 32).'-Q3EGRX7L5OZ4W2MB', 'brevo-smtp-key', 'xsmtpsib- …W2MB'],
+    'Brevo API key' => [fn () => '"'.'xkey'.'sib-'.str_repeat('0a', 32).'-Q3EGRX7L5OZ4W2MB"', 'brevo-api-key', 'xkeysib- …W2MB'],
     'PEM private key' => [fn () => '-----BEGIN RSA '.'PRIVATE KEY-----', 'private-key', '-----BEGIN RSA '.'PRIVATE KEY-----'],
     'database URL with password' => [fn () => 'DB_URL=mysql://rimify:'.'s3cr3t-Pass@127.0.0.1:3306/rimify', 'database-url-password', 'DB_URL …Pass'],
 ]);
