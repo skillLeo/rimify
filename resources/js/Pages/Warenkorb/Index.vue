@@ -109,6 +109,9 @@ const hasDemo = computed(() => props.lines.some((line) => line.demo !== false))
 
 /** No shipping price has been given yet: fails closed, the figure is left out rather than guessed. */
 const shippingOpen = computed(() => props.totals.shippingConfigured !== true)
+/* The method the total holds (D-449): the cheapest until the customer chooses another at the Kasse. */
+const shippingMethod = computed(() => props.totals.shippingMethod ?? null)
+const otherMethods = computed(() => (props.totals.shippingMethods?.length ?? 0) > 1)
 
 /** The sensors, once answered with `ja` at the checkout: in the subtotal, so they are named beside it. */
 const tpmsRow = computed(() => (props.totals.tpms?.choice === 'ja' ? props.totals.tpms : null))
@@ -402,10 +405,14 @@ const VERDICT_TONE: Record<string, string> = {
                             <dd class="tabular">{{ totals.subtotal }}</dd>
                         </div>
                         <div class="sum__row">
-                            <dt>Versand</dt>
+                            <dt>Versand<template v-if="shippingMethod && !shippingOpen"> ({{ shippingMethod.name }})</template></dt>
                             <dd v-if="shippingOpen" class="sum__word sum__open">wird noch festgelegt</dd>
                             <dd v-else-if="totals.freeShipping" class="sum__word">Kostenlos</dd>
                             <dd v-else class="tabular">{{ totals.shipping }}</dd>
+                        </div>
+                        <div v-if="shippingMethod?.deliveryTime && !shippingOpen" class="sum__row">
+                            <dt>Lieferzeit</dt>
+                            <dd class="sum__word">{{ shippingMethod.deliveryTime }}</dd>
                         </div>
                         <div class="sum__row sum__row--total">
                             <dt>{{ shippingOpen ? 'Summe ohne Versand' : 'Gesamt' }}</dt>
@@ -413,6 +420,7 @@ const VERDICT_TONE: Record<string, string> = {
                         </div>
                     </dl>
                     <p class="price-legal">{{ totalNote(terms.smallBusiness, totals.tax, shippingOpen) }}</p>
+                    <p v-if="otherMethods && !shippingOpen" class="t-small quiet cart__shipping-note">Andere Versandarten wählst du an der Kasse.</p>
 
                     <!-- The demo range may be walked through to the Kasse; the order is refused there. -->
                     <p v-if="hasDemo" class="cart__demo">

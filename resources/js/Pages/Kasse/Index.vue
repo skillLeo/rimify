@@ -127,7 +127,6 @@ const form = reactive({
     billingHouseNumber: '',
     billingZip: '',
     billingCity: '',
-    shipping: 'standard',
 })
 
 const errors = reactive<Record<string, string>>({})
@@ -270,6 +269,37 @@ function chooseTpms(choice: 'ja' | 'nein'): void {
     delete errors.rdks
 
     router.patch('/kasse/rdks', { choice }, { preserveScroll: true, preserveState: true })
+}
+
+/* The shipping methods that ship this basket (D-449): chosen here, priced and shown again by the server, the delivery time with it. */
+const shippingMethods = computed(() => props.totals.shippingMethods ?? [])
+const shippingMethod = computed(() => props.totals.shippingMethod ?? null)
+const shippingName = computed(() => shippingMethod.value?.name ?? 'Standardversand')
+
+function chooseShipping(id: number | null): void {
+    delete errors.versandart
+
+    if (id === null || id === shippingMethod.value?.id) {
+        return
+    }
+
+    router.patch('/kasse/versand', { versandart: id }, {
+        preserveScroll: true,
+        preserveState: true,
+        only: ['lines', 'totals', 'orderRefusal', 'shown', 'deliveryTime', 'errors'],
+        onError: (bag) => {
+            errors.versandart = String(bag.versandart ?? '')
+        },
+    })
+}
+
+/** A method's price as its option says it: free where the subtotal reaches its threshold, else the figure. */
+function optionPrice(option: { priceCents: number | null; price: string | null; free: boolean }): string {
+    if (option.priceCents === null) {
+        return 'wird noch festgelegt'
+    }
+
+    return option.free || option.priceCents === 0 ? 'Kostenlos' : (option.price ?? '')
 }
 
 function next(): void {
@@ -1165,7 +1195,7 @@ function verdictSentence(line: BasketLine): string {
                                 <div v-if="step === 3" class="ko__recap-row">
                                     <dt class="micro">Optionen &amp; Versand</dt>
                                     <dd>
-                                        Standardversand · <span :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span>
+                                        {{ shippingName }} · <span :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span><template v-if="deliveryTime"> · {{ deliveryTime }}</template>
                                         <template v-if="tpmsApplicable && tpms">
                                             <span class="ko__recap-line">
                                                 <template v-if="tpms.choice === 'ja'">
@@ -1260,15 +1290,26 @@ function verdictSentence(line: BasketLine): string {
                                     <span id="ko-rdks-err" class="field-error" role="alert">{{ errors.rdks ?? '' }}</span>
                                 </fieldset>
 
-                                <fieldset class="ko__group">
-                                    <legend class="visually-hidden">Versandart</legend>
-                                    <label class="ko__option">
-                                        <input v-model="form.shipping" type="radio" name="shipping" value="standard">
+                                <fieldset class="ko__group" data-key="versandart" aria-describedby="ko-versand-err">
+                                    <legend class="t-h3">Versandart</legend>
+                                    <label v-for="option in shippingMethods" :key="option.id ?? option.name" class="ko__option">
+                                        <input
+                                            type="radio"
+                                            name="versandart"
+                                            :value="option.id"
+                                            :checked="option.id === shippingMethod?.id"
+                                            @change="chooseShipping(option.id)"
+                                        >
                                         <span class="ko__option-text">
-                                            <span class="ko__option-name">Standardversand</span>
+                                            <span class="ko__option-name">{{ option.name }}</span>
+                                            <span v-if="option.deliveryTime" class="ko__option-sub t-small quiet">Lieferzeit {{ option.deliveryTime }}</span>
+                                            <span v-if="option.description" class="ko__option-sub t-small quiet">{{ option.description }}</span>
+                                            <span v-if="option.freeFrom && !option.free" class="ko__option-sub t-small quiet">Versandkostenfrei ab {{ option.freeFrom }}</span>
                                         </span>
-                                        <span class="ko__option-price" :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</span>
+                                        <span class="ko__option-price tabular">{{ optionPrice(option) }}</span>
                                     </label>
+                                    <p v-if="shippingMethods.length === 0" class="t-small quiet">Für deinen Warenkorb gibt es gerade keine Versandart.</p>
+                                    <span id="ko-versand-err" class="field-error" role="alert">{{ errors.versandart ?? '' }}</span>
                                 </fieldset>
 
                                 <div class="ko__actions">
@@ -1359,7 +1400,7 @@ function verdictSentence(line: BasketLine): string {
 
                                     <dl class="ko__terms">
                                         <div class="ko__term">
-                                            <dt>Versand</dt>
+                                            <dt>Versand ({{ shippingName }})</dt>
                                             <dd :class="{ tabular: !shippingOpen }">{{ shippingLabel }}</dd>
                                         </div>
                                         <div class="ko__term">
@@ -1810,6 +1851,19 @@ function verdictSentence(line: BasketLine): string {
     margin-left: auto;
     font-family: var(--mono);
     font-weight: 500;
+}
+
+/* Several methods (D-449): one under the other, the chosen one marked by its frame as well as its dot. */
+.ko__option + .ko__option {
+    margin-top: var(--space-3);
+}
+
+.ko__option:has(input:checked) {
+    border-color: var(--blue);
+}
+
+.ko__option-sub {
+    display: block;
 }
 
 /* ── RDKS ─────────────────────────────────────────────────────────────────── */

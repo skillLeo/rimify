@@ -71,6 +71,8 @@ final class CheckoutShown
             array_map(static fn (array $line): array => [$line['key'] ?? null, $line['quantity'] ?? null, $line['unitPriceCents'] ?? null, $line['lineTotalCents'] ?? null], $summary['lines']),
             $totals['subtotalCents'] ?? null,
             $totals['shippingCents'] ?? null,
+            // The method and its delivery time are what was shown before the button, as its price is (D-449).
+            is_array($totals['shippingMethod'] ?? null) ? [$totals['shippingMethod']['id'] ?? null, $totals['shippingMethod']['deliveryTime'] ?? null] : null,
             $totals['totalCents'] ?? null,
             $tpms['choice'] ?? null,
             $tpms['totalCents'] ?? null,

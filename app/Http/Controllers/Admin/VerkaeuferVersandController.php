@@ -10,7 +10,6 @@ use App\Models\AdminUser;
 use App\Models\Setting;
 use App\Services\Admin\AuditTrail;
 use App\Support\EditStamp;
-use App\Support\GermanFormat;
 use App\Support\OwnInvoices;
 use App\Support\Seller;
 use App\Support\Shipping;
@@ -35,10 +34,6 @@ class VerkaeuferVersandController extends Controller
         $this->authorize('view', Seller::class);
 
         $seller = Seller::stored();
-        $shipping = Shipping::current();
-        $zone = $shipping->zones[Shipping::DOMESTIC] ?? ['cost_cents' => null, 'free_from_cents' => null];
-        // What the product page would say with these values, placeholders or not: the admin sees the sentence.
-        $preview = new Shipping($shipping->zones, $shipping->minDays, $shipping->maxDays, $shipping->timeText, false, $shipping->source);
 
         return Inertia::render('Admin/Einstellungen/VerkaeuferVersand', [
             'seller' => [
@@ -69,19 +64,8 @@ class VerkaeuferVersandController extends Controller
             'sellerMissing' => $seller->missing(),
             // Whether the shop issues its own invoices (D-348): off, the page speaks of none.
             'ownInvoices' => OwnInvoices::enabled(),
-            'shipping' => [
-                // Typed back as the Wuchtgewichte page types a price: `4,90 €`, which Money::fromGerman reads again.
-                'cost' => $zone['cost_cents'] === null ? '' : GermanFormat::money($zone['cost_cents']),
-                'free_from' => $zone['free_from_cents'] === null ? '' : GermanFormat::money($zone['free_from_cents']),
-                'min_days' => $shipping->minDays === null ? '' : (string) $shipping->minDays,
-                'max_days' => $shipping->maxDays === null ? '' : (string) $shipping->maxDays,
-                'placeholder' => $shipping->placeholder,
-            ],
-            'shippingSource' => $shipping->source,
-            'legacyTime' => $shipping->timeText,
-            'shippingMissing' => $shipping->missing(),
-            'shippingPreview' => $preview->summary(),
-            'countries' => Shipping::COUNTRIES,
+            // What delivery costs and takes moved to Einstellungen › Versand (D-449): the page says so and links there.
+            'shippingLine' => Shipping::current()->summary(),
             'contactEmail' => is_string($mail = config('rimify.contact.email')) && $mail !== '' ? $mail : null,
             // What this form was opened on: a save against an older state is refused (EditStamp, F-25).
             'stamp' => EditStamp::of(self::state()),
@@ -91,22 +75,20 @@ class VerkaeuferVersandController extends Controller
     public function update(SellerShippingRequest $request): RedirectResponse
     {
         $seller = $request->seller();
-        $shipping = $request->shipping();
         $admin = $request->admin();
 
-        DB::transaction(static function () use ($request, $seller, $shipping, $admin): void {
+        DB::transaction(static function () use ($request, $seller, $admin): void {
             // Read under a lock: two saves at once are taken one after the other, and the second is compared with the first's result.
-            Setting::query()->whereIn('key', [Seller::KEY, Shipping::KEY])->lockForUpdate()->get();
+            Setting::query()->where('key', Seller::KEY)->lockForUpdate()->get();
             $before = self::state();
             EditStamp::guard($request, $before);
 
             Setting::set(Seller::KEY, $seller);
-            Setting::set(Shipping::KEY, $shipping);
 
-            self::audit($admin, $before, [$seller, $shipping]);
+            self::audit($admin, $before, [$seller]);
         });
 
-        $open = [...Seller::stored()->missing(), ...Shipping::current()->missing()];
+        $open = Seller::stored()->missing();
 
         return back()->with('toast', $open === []
             ? 'Gespeichert. Impressum, Rechnungen, Shop und Bestellmail zeigen jetzt diese Angaben.'
@@ -114,26 +96,26 @@ class VerkaeuferVersandController extends Controller
     }
 
     /**
-     * The two stored values this page edits, as they are now.
+     * The stored value this page edits, as it is now.
      *
-     * @return array{0: mixed, 1: mixed}
+     * @return array{0: mixed}
      */
     private static function state(): array
     {
-        return [Setting::get(Seller::KEY), Setting::get(Shipping::KEY)];
+        return [Setting::get(Seller::KEY)];
     }
 
     /**
      * One entry: which fields changed, from what to what. Nothing here is secret — it is printed on every invoice.
      *
-     * @param  array{0: mixed, 1: mixed}  $before
-     * @param  array{0: array<string, mixed>, 1: array<string, mixed>}  $after
+     * @param  array{0: mixed}  $before
+     * @param  array{0: array<string, mixed>}  $after
      */
     private static function audit(AdminUser $admin, array $before, array $after): void
     {
         $changes = [];
 
-        foreach (['seller' => 0, 'shipping' => 1] as $section => $i) {
+        foreach (['seller' => 0] as $section => $i) {
             $old = is_array($before[$i]) ? $before[$i] : [];
 
             foreach ($after[$i] as $field => $value) {
@@ -143,6 +125,6 @@ class VerkaeuferVersandController extends Controller
             }
         }
 
-        AuditTrail::record($admin, 'settings.seller_shipping_updated', ['changes' => $changes, 'first' => $before === [null, null]]);
+        AuditTrail::record($admin, 'settings.seller_shipping_updated', ['changes' => $changes, 'first' => $before === [null]]);
     }
 }

@@ -53,6 +53,7 @@ final class DemoCatalogue
         'tyre_variants',
         'balance_weight_colours',
         'tpms_sensor_prices',
+        'shipping_methods',
         'brands',
         'vehicles',
     ];
@@ -75,6 +76,7 @@ final class DemoCatalogue
         'wheel_models' => 'Beispielfelgen',
         'tyre_variants' => 'Beispielreifen',
         'balance_weight_colours' => 'Wuchtgewicht-Farben der Demodaten',
+        'shipping_methods' => 'Versandarten der Demodaten',
         'tpms_sensor_prices' => 'RDKS-Preise der Demodaten',
         'brands' => 'Erfundene Marken und Marken der Demodaten',
         'vehicles' => 'Entwicklungsfahrzeuge (ausgeblendet, nie gelöscht)',
@@ -267,7 +269,7 @@ final class DemoCatalogue
             'document_conditions', 'document_fasteners', 'document_notices', 'document_speed_deratings' => DB::table($table)->whereIn('approval_document_id', self::documents()),
             'approval_documents' => DB::table($table)->whereIn('id', self::documents()),
             'wheel_configs', 'wheel_finishes' => DB::table($table)->whereIn('wheel_model_id', self::models()),
-            'wheel_models', 'tyre_variants', 'balance_weight_colours', 'tpms_sensor_prices' => DB::table($table)->where('is_demo', true),
+            'wheel_models', 'tyre_variants', 'balance_weight_colours', 'tpms_sensor_prices', 'shipping_methods' => DB::table($table)->where('is_demo', true),
             // An invented brand of the example catalogue, or one the acceptance set brought (born demo) — and either only
             // while no real model or tyre carries it.
             'brands' => DB::table($table)->where(static fn (Builder $q) => $q->whereIn('name', CatalogueSeeder::BRANDS)->orWhere('is_demo', true))

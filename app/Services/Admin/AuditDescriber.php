@@ -19,6 +19,7 @@ use App\Services\Reset\ResetLevel;
 use App\Services\Reset\TestEnvironment;
 use App\Support\GermanFormat;
 use App\Support\MakeName;
+use App\Support\Shipping;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -106,6 +107,9 @@ final class AuditDescriber
         'invoice.series_opened' => 'verkauf',
         'dispute.evidence_submitted' => 'verkauf',
         'settings.seller_shipping_updated' => 'verkauf',
+        'shipping_method.created' => 'verkauf',
+        'shipping_method.updated' => 'verkauf',
+        'shipping_method.sorted' => 'verkauf',
         'payments.settings_updated' => 'zugriff',
         'payments.connection_tested' => 'zugriff',
         'brand.manufacturer_updated' => 'katalog',
@@ -539,6 +543,9 @@ final class AuditDescriber
             ],
             'dispute.evidence_submitted' => [self::evidenceSubmitted($p), []],
             'settings.seller_shipping_updated' => self::sellerShippingUpdated($p),
+            'shipping_method.created' => ['Die Versandart '.self::q((string) ($p['method'] ?? '')).' wurde angelegt.', self::shippingChanges([], self::map($p, 'values'))],
+            'shipping_method.updated' => self::shippingMethodUpdated($p),
+            'shipping_method.sorted' => ['Die Reihenfolge der Versandarten wurde geändert: '.implode(', ', array_map('strval', array_values(self::map($p, 'order')))).'.', []],
             'payments.settings_updated' => self::paymentsUpdated($p),
             'payments.connection_tested' => [
                 ($p['ok'] ?? false) === true
@@ -1117,6 +1124,50 @@ final class AuditDescriber
         }
 
         return [$sentence, $changes];
+    }
+
+    /**
+     * „Die Versandart „Express“ wurde geändert: Preis, Im Shop.“ — each field before and after (D-449).
+     *
+     * @param  array<array-key, mixed>  $p
+     * @return array{0: string, 1: list<Change>}
+     */
+    private static function shippingMethodUpdated(array $p): array
+    {
+        $changes = self::shippingChanges(self::map($p, 'old'), self::map($p, 'new'));
+
+        return ['Die Versandart '.self::q((string) ($p['method'] ?? '')).' wurde geändert: '.implode(', ', array_column($changes, 'label')).'.', $changes];
+    }
+
+    /**
+     * A shipping method's fields by the words Einstellungen › Versand gives them, in the page's order (D-449).
+     *
+     * @param  array<array-key, mixed>  $old
+     * @param  array<array-key, mixed>  $new
+     * @return list<Change>
+     */
+    private static function shippingChanges(array $old, array $new): array
+    {
+        $value = static function (string $field, mixed $v): string {
+            return match ($field) {
+                'price_cents' => self::money($v),
+                'free_from_cents' => $v === null ? 'nie' : self::money($v),
+                'countries' => implode(', ', array_map(static fn (mixed $c): string => Shipping::COUNTRIES[(string) $c] ?? (string) $c, is_array($v) ? $v : [])),
+                'product_types' => $v === null || $v === [] ? 'alle Produkte' : implode(', ', array_map(static fn (mixed $t): string => Shipping::PRODUCT_TYPES[(string) $t] ?? (string) $t, is_array($v) ? $v : [])),
+                'active' => $v === true ? 'aktiv' : 'nicht aktiv',
+                default => $v === null || $v === '' ? self::NOTHING : (string) (is_scalar($v) ? $v : ''),
+            };
+        };
+        $labels = ['name' => 'Name', 'price_cents' => 'Preis', 'delivery' => 'Lieferzeit', 'free_from_cents' => 'Versandkostenfrei ab', 'countries' => 'Länder', 'product_types' => 'Gilt für', 'description_de' => 'Beschreibung', 'active' => 'Im Shop'];
+        $changes = [];
+
+        foreach ($labels as $field => $label) {
+            if (array_key_exists($field, $new)) {
+                $changes[] = self::change($label, array_key_exists($field, $old) ? $value($field, $old[$field]) : self::NOTHING, $value($field, $new[$field]));
+            }
+        }
+
+        return $changes;
     }
 
     /**

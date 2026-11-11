@@ -210,7 +210,7 @@ final class GoLiveChecks
 
         return $this->check('versand', self::LEGAL, 'Versandkosten und Lieferzeit', GoLiveCheck::CLIENT, $missing === [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, $missing === []
             ? 'Vor dem Bestellknopf stehen '.(string) $shipping->summary().'.'
-            : 'Es fehlen: '.implode(', ', $missing).'. Ohne sie nimmt der Shop keine echte Bestellung an.', '/admin/einstellungen/verkaeufer-versand');
+            : 'Es fehlen: '.implode(', ', $missing).'. Ohne sie nimmt der Shop keine echte Bestellung an.', '/admin/einstellungen/versand');
     }
 
     /** The client is not a Kleinunternehmer: every price includes 19 % USt. */

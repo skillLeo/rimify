@@ -38,7 +38,7 @@ final class InvoiceRows
         }
 
         if ($order->shipping_cents > 0) {
-            $rows[] = ['label' => 'Versand', 'quantity' => 1, 'unitCents' => (int) $order->shipping_cents, 'totalCents' => (int) $order->shipping_cents, 'shipping' => true];
+            $rows[] = ['label' => $order->shippingRowLabel(), 'quantity' => 1, 'unitCents' => (int) $order->shipping_cents, 'totalCents' => (int) $order->shipping_cents, 'shipping' => true];
         }
 
         return $rows;

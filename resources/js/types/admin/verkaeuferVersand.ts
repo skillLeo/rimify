@@ -19,15 +19,6 @@ export interface SellerForm {
     not_applicable: Record<NotApplicableField, boolean>
 }
 
-export interface ShippingForm {
-    /** Typed the German way: `4,90 €`. */
-    cost: string
-    free_from: string
-    min_days: string
-    max_days: string
-    placeholder: boolean
-}
-
 export interface AdminVerkaeuferVersandProps {
     seller: SellerForm
     /** Where the values in force come from: this page, or `.env` while it was never saved. */
@@ -40,15 +31,8 @@ export interface AdminVerkaeuferVersandProps {
     ownInvoices?: boolean
     /** The Impressum's rows still shown as a marker, by their label — each keeps the shop out of search and live payments. */
     impressumMissing: string[]
-    shipping: ShippingForm
-    shippingSource: 'Einstellungen' | '.env'
-    /** The `.env` delivery time, as a sentence, while no range is saved. */
-    legacyTime: string | null
-    /** What a real order still needs. */
-    shippingMissing: string[]
-    /** The product page's line with these values: `Lieferzeit 3–5 Werktage · Versand 4,90 €`. */
-    shippingPreview: string | null
-    countries: Record<string, string>
+    /** The product page's line, from the cheapest active method of Einstellungen › Versand (D-449). */
+    shippingLine: string | null
     /** The shop's contact address (`RIMIFY_CONTACT_EMAIL`), which answers where the seller's own is empty. */
     contactEmail: string | null
     /** What the form was opened on (EditStamp): a save against an older state is refused. */

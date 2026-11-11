@@ -799,6 +799,17 @@ describe('putting every entry into words', function (): void {
                 [],
             ],
             'reviews.invited' => [['count' => 3], '3 Einladungen zur Bewertung wurden verschickt.', []],
+            'shipping_method.created' => [
+                ['method' => 'Express', 'values' => ['name' => 'Express', 'price_cents' => 5990, 'free_from_cents' => null, 'delivery' => '1–2 Werktage', 'countries' => ['DE'], 'product_types' => ['komplettrad'], 'description_de' => null, 'active' => true]],
+                'Die Versandart „Express“ wurde angelegt.',
+                ['Name: – → Express', 'Preis: – → '.$euro(5990), 'Lieferzeit: – → 1–2 Werktage', 'Versandkostenfrei ab: – → nie', 'Länder: – → Deutschland', 'Gilt für: – → Kompletträder', 'Beschreibung: – → –', 'Im Shop: – → aktiv'],
+            ],
+            'shipping_method.updated' => [
+                ['method' => 'Standard', 'old' => ['free_from_cents' => null, 'active' => true], 'new' => ['free_from_cents' => 150000, 'active' => false]],
+                'Die Versandart „Standard“ wurde geändert: Versandkostenfrei ab, Im Shop.',
+                ['Versandkostenfrei ab: nie → '.$euro(150000), 'Im Shop: aktiv → nicht aktiv'],
+            ],
+            'shipping_method.sorted' => [['order' => ['Express', 'Standard']], 'Die Reihenfolge der Versandarten wurde geändert: Express, Standard.', []],
             'review.hidden' => [['review' => 7, 'order' => 'RMF-2026-1001', 'reason' => 'Werbung.'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde ausgeblendet: „Werbung.“.', []],
             'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
             'review.replied' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde geantwortet.', []],

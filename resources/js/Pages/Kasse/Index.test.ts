@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import type { BasketLine, BasketTotals, ContactProp } from '../../types/rimify'
+import type { BasketLine, BasketTotals, ContactProp, ShippingOption } from '../../types/rimify'
 
 /*
  * The checkout (ACCURACY.md D4, D7; findings #38, #41, #68; Block G): every step can be walked,
@@ -19,6 +19,7 @@ type Options = { onError?: (errors: Record<string, string>) => void; onFinish?: 
 
 const post = vi.fn<(url: string, data: Record<string, unknown>, options: Options) => void>()
 const reload = vi.fn()
+const patch = vi.fn<(url: string, data: Record<string, unknown>, options: Options) => void>()
 
 vi.mock('@inertiajs/vue3', () => ({
     Head: defineComponent({ setup: () => () => null }),
@@ -30,6 +31,7 @@ vi.mock('@inertiajs/vue3', () => ({
     router: {
         post: (...args: [string, Record<string, unknown>, Options]) => post(...args),
         reload: (...args: unknown[]) => reload(...args),
+        patch: (...args: [string, Record<string, unknown>, Options]) => patch(...args),
     },
 }))
 
@@ -89,6 +91,10 @@ function line(overrides: Partial<Line> = {}): Line {
     }
 }
 
+const UNPRICED: ShippingOption = { id: null, name: 'Standardversand', description: null, priceCents: null, price: null, free: false, freeFrom: null, deliveryTime: null, demo: false }
+const STANDARD: ShippingOption = { id: 1, name: 'Standard', description: null, priceCents: 3000, price: '30,00 €', free: false, freeFrom: null, deliveryTime: '3–10 Werktage', demo: false }
+const EXPRESS: ShippingOption = { id: 2, name: 'Express', description: 'Versichert, mit Sendungsverfolgung', priceCents: 4900, price: '49,00 €', free: false, freeFrom: '1.500,00 €', deliveryTime: '1–2 Werktage', demo: true }
+
 function totals(overrides: Partial<Totals> = {}): Totals {
     return {
         subtotal: '796,00 €',
@@ -100,6 +106,9 @@ function totals(overrides: Partial<Totals> = {}): Totals {
         totalCents: 79_600,
         count: 4,
         shippingConfigured: false,
+        // As the server sends it while no shipping price is given: the `.env`'s one method, unpriced (Shipping::view).
+        shippingMethod: UNPRICED,
+        shippingMethods: [UNPRICED],
         ...overrides,
     }
 }
@@ -162,6 +171,7 @@ const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
 
 beforeEach(() => {
     post.mockReset()
+    patch.mockReset()
     reload.mockReset()
     fetchMock.mockClear()
     stripe.submit.mockClear()
@@ -244,6 +254,53 @@ describe('Kasse', () => {
         for (const banned of ['DHL', 'Werktage', 'Stripe', 'Kartendaten', 'Es entstehen keine weiteren Kosten']) {
             expect(wrapper.text()).not.toContain(banned)
         }
+    })
+
+    // D-449: the customer chooses the method before „Zahlungspflichtig bestellen“, with its price and its delivery time.
+    it('offers every method that ships the basket, with price and delivery time, the chosen one checked, and sends a choice to the server', async () => {
+        const wrapper = mountKasse({
+            totals: totals({ shippingConfigured: true, shipping: '30,00 €', shippingCents: 3000, shippingMethod: STANDARD, shippingMethods: [STANDARD, EXPRESS] }),
+        })
+        await wrapper.find('#ko-mail').setValue('kunde@beispiel.de')
+        await wrapper.find('#ko-name').setValue('Erika Mustermann')
+        await wrapper.find('#ko-street').setValue('Hauptstraße')
+        await wrapper.find('#ko-nr').setValue('12')
+        await wrapper.find('#ko-zip').setValue('50667')
+        await wrapper.find('#ko-city').setValue('Köln')
+        await wrapper.find('form').trigger('submit')
+        await flushPromises()
+
+        const options = wrapper.findAll('[data-key="versandart"] .ko__option')
+
+        expect(options.map((o) => o.find('.ko__option-name').text())).toEqual(['Standard', 'Express'])
+        expect(options[0]?.text()).toContain('Lieferzeit 3–10 Werktage')
+        expect(options[0]?.find('.ko__option-price').text()).toBe('30,00 €')
+        expect(options[1]?.text()).toContain('Versichert, mit Sendungsverfolgung')
+        expect(options[1]?.text()).toContain('Versandkostenfrei ab 1.500,00 €')
+        expect((options[0]?.find('input').element as HTMLInputElement).checked).toBe(true)
+        expect(patch).not.toHaveBeenCalled()
+
+        await options[1]?.find('input').setValue(true)
+
+        expect(patch).toHaveBeenCalledTimes(1)
+        expect(patch.mock.calls[0]?.[0]).toBe('/kasse/versand')
+        expect(patch.mock.calls[0]?.[1]).toEqual({ versandart: 2 })
+    })
+
+    it('names the chosen method and its delivery time beside the price before the order button', async () => {
+        const wrapper = mountKasse({
+            totals: totals({ shippingConfigured: true, shipping: '49,00 €', shippingCents: 4900, total: '845,00 €', shippingMethod: EXPRESS, shippingMethods: [STANDARD, EXPRESS] }),
+            deliveryTime: '1–2 Werktage',
+            orderRefusal: null,
+        })
+        await toPayment(wrapper)
+
+        const final = wrapper.find('.ko__terms')
+
+        expect(final.text()).toContain('Versand (Express)')
+        expect(final.text()).toContain('49,00 €')
+        expect(final.text()).toContain('1–2 Werktage')
+        expect(wrapper.find('.ko__recap').text()).toContain('Express · 49,00 € · 1–2 Werktage')
     })
 
     it('names unconfigured shipping and keeps it out of the total', () => {

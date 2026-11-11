@@ -60,6 +60,9 @@ final readonly class Basket
      */
     public const SESSION_TPMS = 'cart_tpms';
 
+    /** The shipping method the customer chose at the checkout (D-449); until then the cheapest. */
+    public const SESSION_SHIPPING = 'cart_shipping';
+
     /** Why an order with a demo line cannot be placed. Demo rows are walkable; nothing binding happens. */
     public const DEMO_REFUSAL = 'In deinem Warenkorb liegen Felgen aus unserem Beispielsortiment. '
         .'Du kannst dir alles ansehen, bestellen kannst du sie noch nicht – es wurde nichts bestellt und nichts berechnet.';
@@ -184,7 +187,10 @@ final readonly class Basket
         $subtotal += (int) $tpms['totalCents'];
         $lines = self::withValves($lines, $tpms['choice'] ?? null);
 
-        $shipping = $this->shippingFor($subtotal);
+        // What the basket holds decides which methods ship it; the customer's choice while it still does, else the cheapest.
+        $types = self::productTypes($lines);
+        $method = Shipping::chosen($this->shippingChoice($request), $types, $subtotal);
+        $shipping = $method->forSubtotal($subtotal);
 
         // While the shipping price is unknown it stays out of the total: the page says so beside
         // the figure rather than adding a number nobody has confirmed.
@@ -200,10 +206,13 @@ final readonly class Basket
             'totals' => [
                 'subtotalCents' => $subtotal,
                 'subtotal' => GermanFormat::money($subtotal),
-                'shippingConfigured' => $this->shippingConfigured(),
+                'shippingConfigured' => $method->configured(),
                 'shippingCents' => $shipping,
                 'shipping' => $shipping === null ? self::OPEN_PRICE : GermanFormat::money($shipping),
                 'freeShipping' => $shipping === 0 && $subtotal > 0,
+                // The method the total holds and every one the customer may choose instead, priced for this subtotal.
+                'shippingMethod' => $method->view($subtotal),
+                'shippingMethods' => array_map(static fn (Shipping $option): array => $option->view($subtotal), Shipping::options($types)),
                 'vatRateBp' => $rate,
                 'taxCents' => $tax,
                 'tax' => GermanFormat::money($tax),
@@ -598,6 +607,7 @@ final readonly class Basket
     {
         $request->session()->forget(self::SESSION_KEY);
         $request->session()->forget(self::SESSION_TPMS);
+        $request->session()->forget(self::SESSION_SHIPPING);
     }
 
     /**
@@ -887,22 +897,41 @@ final readonly class Basket
         ];
     }
 
-    /** Whether the client has given a shipping price (Einstellungen › Verkäufer & Versand, else `.env`). */
-    private function shippingConfigured(): bool
-    {
-        return Shipping::current()->configured();
-    }
-
     /** Whether the admin has named the mounting fee (D-032), read exactly as the pricer reads it. */
     private function mountingConfigured(): bool
     {
         return $this->settings->mountingPerWheelCents() !== null;
     }
 
-    /** The shipping for a subtotal in cents, or null while no shipping price is given (Shipping). */
-    private function shippingFor(int $subtotal): ?int
+    /** The customer's chosen shipping method, by its id; null until they choose one. */
+    public function shippingChoice(Request $request): ?int
     {
-        return Shipping::current()->forSubtotal($subtotal);
+        $id = $request->session()->get(self::SESSION_SHIPPING);
+
+        return is_int($id) && $id > 0 ? $id : null;
+    }
+
+    /** The customer's choice, taken where it ships this basket — the request says so (ShippingChoiceRequest). */
+    public function chooseShipping(Request $request, int $id): void
+    {
+        $request->session()->put(self::SESSION_SHIPPING, $id);
+    }
+
+    /**
+     * What a basket holds, as a shipping method names it: rims alone, Kompletträder, or both.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     * @return list<string>
+     */
+    public static function productTypes(array $lines): array
+    {
+        $types = [];
+
+        foreach ($lines as $line) {
+            $types[($line['isSet'] ?? false) === true ? 'komplettrad' : 'felgen'] = true;
+        }
+
+        return array_keys($types);
     }
 
     /**

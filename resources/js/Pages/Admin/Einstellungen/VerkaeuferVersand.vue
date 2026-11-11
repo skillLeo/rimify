@@ -26,7 +26,7 @@ defineOptions({ layout: AdminLayout, inheritAttrs: false })
 const props = withDefaults(defineProps<AdminVerkaeuferVersandProps>(), { ownInvoices: true })
 
 const editor = useDirtyForm(
-    { seller: { ...props.seller, not_applicable: { ...props.seller.not_applicable } }, shipping: { ...props.shipping } },
+    { seller: { ...props.seller, not_applicable: { ...props.seller.not_applicable } } },
     { method: 'put', url: '/admin/einstellungen/verkaeufer-versand', stamp: () => props.stamp }
 )
 const form = editor.form
@@ -122,7 +122,7 @@ const emailHelp = computed(() =>
 </script>
 
 <template>
-    <AdminPage title="Verkäufer & Versand" :context="context">
+    <AdminPage title="Verkäufer" :context="context">
         <form class="adm-form" novalidate @submit.prevent="editor.save">
             <section class="adm-form__group" aria-labelledby="vv-seller">
                 <h2 id="vv-seller" class="adm-form__heading">
@@ -176,81 +176,11 @@ const emailHelp = computed(() =>
             </section>
 
             <section class="adm-form__group" aria-labelledby="vv-shipping">
-                <h2 id="vv-shipping" class="adm-form__heading">
-                    Versand
-                    <span v-if="form.shipping.placeholder" class="adm-tag adm-tag--warn vv-tag">Platzhalter</span>
-                </h2>
+                <h2 id="vv-shipping" class="adm-form__heading">Versand</h2>
                 <p class="adm-form__note">
-                    Was die Lieferung kostet und wie lange sie dauert – auf der Produktseite, im Warenkorb, in der Kasse vor dem Bestellknopf und in der Bestellbestätigung.
-                    <template v-if="shippingSource === '.env'"> In Kraft sind noch die Werte aus der .env-Datei.</template>
-                </p>
-                <p v-if="shippingMissing.length" class="adm-note vv-open" role="status">
-                    Für echte Bestellungen fehlt noch: {{ shippingMissing.join(', ') }}. Bis dahin nimmt der Shop nur Testbestellungen an.
-                </p>
-
-                <fieldset v-for="(country, code) in countries" :key="code" class="vv-group">
-                    <legend class="vv-legend">Lieferung nach {{ country }}</legend>
-                    <div class="vv-fields">
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`vv-cost-${code}`">Versandkosten</label>
-                            <input
-                                :id="`vv-cost-${code}`"
-                                v-model="form.shipping.cost"
-                                class="input vv-num"
-                                type="text"
-                                inputmode="decimal"
-                                autocomplete="off"
-                                :aria-describedby="`vv-cost-${code}-help vv-cost-${code}-error`"
-                                :aria-invalid="error('shipping.cost') ? 'true' : undefined"
-                            >
-                            <p :id="`vv-cost-${code}-help`" class="form-field__help">Endpreis je Bestellung, etwa 4,90. 0 heißt versandkostenfrei.</p>
-                            <p :id="`vv-cost-${code}-error`" class="form-field__error">{{ error('shipping.cost') }}</p>
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" :for="`vv-free-${code}`">Versandkostenfrei ab</label>
-                            <input
-                                :id="`vv-free-${code}`"
-                                v-model="form.shipping.free_from"
-                                class="input vv-num"
-                                type="text"
-                                inputmode="decimal"
-                                autocomplete="off"
-                                :aria-describedby="`vv-free-${code}-help vv-free-${code}-error`"
-                                :aria-invalid="error('shipping.free_from') ? 'true' : undefined"
-                            >
-                            <p :id="`vv-free-${code}-help`" class="form-field__help">Warenwert, ab dem die Lieferung nichts kostet. Leer lassen, wenn es keine Grenze gibt.</p>
-                            <p :id="`vv-free-${code}-error`" class="form-field__error">{{ error('shipping.free_from') }}</p>
-                        </div>
-                    </div>
-                    <p class="form-field__help">Der Shop liefert nur nach Deutschland. Für ein weiteres Lieferland braucht die Kasse eine Länderauswahl, und die Umsatzsteuer ist neu zu klären.</p>
-                </fieldset>
-
-                <fieldset class="vv-group" aria-describedby="vv-days-help vv-days-error">
-                    <legend class="vv-legend">Lieferzeit in Werktagen</legend>
-                    <div class="vv-fields vv-days">
-                        <div class="form-field">
-                            <label class="form-field__label" for="vv-min-days">Von</label>
-                            <input id="vv-min-days" v-model="form.shipping.min_days" class="input vv-num" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="error('shipping.min_days') ? 'true' : undefined">
-                        </div>
-                        <div class="form-field">
-                            <label class="form-field__label" for="vv-max-days">Bis</label>
-                            <input id="vv-max-days" v-model="form.shipping.max_days" class="input vv-num" type="text" inputmode="numeric" autocomplete="off" :aria-invalid="error('shipping.max_days') ? 'true' : undefined">
-                        </div>
-                    </div>
-                    <p id="vv-days-help" class="form-field__help">
-                        Ab Zahlungseingang, etwa 3 bis 5.<template v-if="legacyTime"> Aus der .env-Datei: „{{ legacyTime }}“.</template>
-                    </p>
-                    <p id="vv-days-error" class="form-field__error">{{ error('shipping.min_days') ?? error('shipping.max_days') }}</p>
-                </fieldset>
-
-                <p v-if="shippingPreview" class="vv-preview"><span class="vv-preview__label">Auf der Produktseite</span> {{ shippingPreview }}</p>
-
-                <label class="check">
-                    <input v-model="form.shipping.placeholder" type="checkbox" aria-describedby="vv-shipping-placeholder-help">
-                    Platzhalter – das sind noch nicht die echten Angaben
-                </label>
-                <p id="vv-shipping-placeholder-help" class="form-field__help">
-                    Platzhalter sieht kein Kunde: Der Shop sagt „Die Versandkosten werden noch festgelegt.“ und nimmt nur Testbestellungen an.
+                    Was die Lieferung kostet und wie lange sie dauert, legst du jetzt je Versandart unter
+                    <Link href="/admin/einstellungen/versand">Einstellungen › Versand</Link> fest.
+                    <template v-if="shippingLine"> Auf der Produktseite steht: {{ shippingLine }}.</template>
                 </p>
             </section>
 
@@ -300,25 +230,5 @@ const emailHelp = computed(() =>
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: var(--sp-12) var(--sp-16);
-}
-
-.vv-days {
-    grid-template-columns: repeat(2, minmax(0, 120px));
-}
-
-.vv-num {
-    font-variant-numeric: tabular-nums;
-}
-
-.vv-preview {
-    margin: 0;
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink);
-}
-
-.vv-preview__label {
-    display: block;
-    color: var(--c-ink-3);
 }
 </style>

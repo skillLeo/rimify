@@ -5,18 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Models\AdminUser;
-use App\Support\Money;
 use App\Support\Seller;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
 /**
- * Einstellungen › Verkäufer & Versand, saved: the seller as the law names it and what delivery costs and takes. The
- * Super-Admin alone (SellerSettingsPolicy). Every field is checked for its form; an empty field is a legitimate
- * answer and means „noch nicht angegeben“ — what a real order or invoice then still needs, the preflight says.
- *
- * Prices are typed the German way (Money::fromGerman, which refuses anything ambiguous); the delivery time is a range
- * of working days, both ends or neither.
+ * Einstellungen › Verkäufer, saved: the seller as the law names it. The Super-Admin alone (SellerSettingsPolicy). Every
+ * field is checked for its form; an empty field is a legitimate answer and means „noch nicht angegeben“ — what a real order
+ * or invoice then still needs, the preflight says. What delivery costs and takes moved to Einstellungen › Versand (D-449).
  */
 class SellerShippingRequest extends FormRequest
 {
@@ -41,7 +37,6 @@ class SellerShippingRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $seller = is_array($this->input('seller')) ? $this->input('seller') : [];
-        $shipping = is_array($this->input('shipping')) ? $this->input('shipping') : [];
         $clean = [];
 
         foreach (self::SELLER as $key) {
@@ -59,19 +54,7 @@ class SellerShippingRequest extends FormRequest
             static fn (string $field): bool => filter_var($declared[$field] ?? false, FILTER_VALIDATE_BOOL),
         ));
 
-        $money = static fn (mixed $typed): string => is_scalar($typed) ? trim((string) $typed) : '';
-        $days = static fn (mixed $typed): mixed => is_scalar($typed) && trim((string) $typed) !== '' ? trim((string) $typed) : null;
-
-        $this->merge([
-            'seller' => $clean,
-            'shipping' => [
-                'cost' => $money($shipping['cost'] ?? ''),
-                'free_from' => $money($shipping['free_from'] ?? ''),
-                'min_days' => $days($shipping['min_days'] ?? null),
-                'max_days' => $days($shipping['max_days'] ?? null),
-                'placeholder' => filter_var($shipping['placeholder'] ?? false, FILTER_VALIDATE_BOOL),
-            ],
-        ]);
+        $this->merge(['seller' => $clean]);
     }
 
     /** @return array<string, list<mixed>> */
@@ -94,12 +77,6 @@ class SellerShippingRequest extends FormRequest
             'seller.placeholder' => ['boolean'],
             'seller.not_applicable' => ['array'],
             'seller.not_applicable.*' => ['string', 'in:'.implode(',', Seller::MAY_NOT_APPLY)],
-            'shipping' => ['required', 'array'],
-            'shipping.cost' => ['nullable', 'string', 'max:32'],
-            'shipping.free_from' => ['nullable', 'string', 'max:32'],
-            'shipping.min_days' => ['nullable', 'integer', 'min:1', 'max:60', 'required_with:shipping.max_days'],
-            'shipping.max_days' => ['nullable', 'integer', 'min:1', 'max:60', 'required_with:shipping.min_days', 'gte:shipping.min_days'],
-            'shipping.placeholder' => ['boolean'],
         ];
     }
 
@@ -120,13 +97,6 @@ class SellerShippingRequest extends FormRequest
             'seller.email.max' => 'Die E-Mail-Adresse ist zu lang.',
             'seller.email.*' => 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.',
             'seller.phone.*' => 'Die Telefonnummer bitte nur mit Ziffern, Leerzeichen und einem + am Anfang.',
-            'shipping.cost.max' => 'Schreib den Preis mit Komma, zum Beispiel 4,90 – oder lass das Feld leer.',
-            'shipping.free_from.max' => 'Schreib den Betrag mit Komma, zum Beispiel 500,00 – oder lass das Feld leer.',
-            'shipping.min_days.required_with' => 'Die Lieferzeit braucht beide Werte: von und bis.',
-            'shipping.max_days.required_with' => 'Die Lieferzeit braucht beide Werte: von und bis.',
-            'shipping.min_days.*' => 'Die Lieferzeit bitte in ganzen Werktagen, zwischen 1 und 60.',
-            'shipping.max_days.gte' => '„Bis“ darf nicht kleiner sein als „Von“.',
-            'shipping.max_days.*' => 'Die Lieferzeit bitte in ganzen Werktagen, zwischen 1 und 60.',
         ];
     }
 
@@ -135,14 +105,6 @@ class SellerShippingRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                foreach (['cost' => 'Schreib den Preis mit Komma, zum Beispiel 4,90 – oder lass das Feld leer.', 'free_from' => 'Schreib den Betrag mit Komma, zum Beispiel 500,00 – oder lass das Feld leer.'] as $field => $sentence) {
-                    $typed = (string) $this->input("shipping.{$field}");
-
-                    if ($typed !== '' && Money::fromGerman($typed) === null && ! $validator->errors()->has("shipping.{$field}")) {
-                        $validator->errors()->add("shipping.{$field}", $sentence);
-                    }
-                }
-
                 // „Entfällt“ beside a value: the error stands at the field the admin filled in.
                 $declared = (array) $this->input('seller.not_applicable', []);
 
@@ -180,24 +142,6 @@ class SellerShippingRequest extends FormRequest
         $out['not_applicable'] = array_values(array_intersect(Seller::MAY_NOT_APPLY, is_array($declared) ? $declared : []));
 
         return $out;
-    }
-
-    /**
-     * The shipping as it is stored: the price per delivery country in cents, the range of working days, the mark.
-     *
-     * @return array{zones: array{DE: array{cost_cents: int|null, free_from_cents: int|null}}, delivery_min_days: int|null, delivery_max_days: int|null, placeholder: bool}
-     */
-    public function shipping(): array
-    {
-        $cents = static fn (mixed $typed): ?int => is_string($typed) && $typed !== '' ? Money::fromGerman($typed) : null;
-        $days = static fn (mixed $value): ?int => $value === null ? null : (int) $value;
-
-        return [
-            'zones' => ['DE' => ['cost_cents' => $cents($this->validated('shipping.cost')), 'free_from_cents' => $cents($this->validated('shipping.free_from'))]],
-            'delivery_min_days' => $days($this->validated('shipping.min_days')),
-            'delivery_max_days' => $days($this->validated('shipping.max_days')),
-            'placeholder' => $this->validated('shipping.placeholder') === true,
-        ];
     }
 
     public function admin(): AdminUser

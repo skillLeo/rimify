@@ -201,7 +201,8 @@ final class OrderList
             'payment' => $order->status->paymentState(),
             'fulfilment' => $order->status->fulfilmentState($order->shipped_at !== null, $order->delivered_at !== null),
             'paymentMethod' => self::paymentLabel($order->payment_method),
-            'shippingMethod' => self::shippingLabel($order->shipping_method),
+            // The method as the customer chose it, frozen (D-449); an order from before names its code.
+            'shippingMethod' => $order->shipping_method_name ?? self::shippingLabel($order->shipping_method),
             'conditions' => (bool) ($order->getAttribute('has_conditions') ?? false),
             // Born demo, or a demo wheel on it (Order::isDemo, one rule in one query).
             'demo' => (bool) $order->getAttribute('is_demo') || (bool) ($order->getAttribute('shows_demo') ?? false),

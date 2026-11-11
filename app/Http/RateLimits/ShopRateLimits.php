@@ -40,6 +40,7 @@ final class ShopRateLimits
         'shop-check' => [20, false],
         'shop-kasse' => [10, true],
         'shop-kasse-rdks' => [30, true],
+        'shop-kasse-versand' => [30, true],
         'shop-testzahlung' => [10, true],
         // Mein Konto (Block G §2): signing in, a new password link, „Konto anlegen“ share it — few, as a login deserves,
         // but room for a mistyped password and a forgotten one in the same minute (PAY-10).

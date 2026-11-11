@@ -41,6 +41,7 @@ final class ResetTables
         'mail_settings',
         'balance_weight_colours',
         'tpms_sensor_prices',
+        'shipping_methods',
         // The invoice numbers count on, whatever goes (no number is ever given twice).
         'invoice_sequences',
         // So do the order numbers (his admin item 18, D-354): the counter never resets.

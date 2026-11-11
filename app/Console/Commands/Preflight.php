@@ -365,7 +365,7 @@ final class Preflight extends Command
 
         return $missing === []
             ? ['Versand und Lieferzeit', 'ok', (string) $shipping->summary()]
-            : ['Versand und Lieferzeit', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (Einstellungen › Verkäufer & Versand) – ohne sie nimmt der Shop keine echte Bestellung an'];
+            : ['Versand und Lieferzeit', $production ? 'fail' : 'warn', 'fehlt: '.implode(', ', $missing).' (Einstellungen › Versand) – ohne sie nimmt der Shop keine echte Bestellung an'];
     }
 
     /**

@@ -386,8 +386,12 @@ function openAccount(): void {
                                 <dd class="tabular">{{ order.subtotal }}</dd>
                             </div>
                             <div class="sum__row">
-                                <dt>Versand</dt>
+                                <dt>{{ order.shippingLabel ?? 'Versand' }}</dt>
                                 <dd class="tabular">{{ order.shipping }}</dd>
+                            </div>
+                            <div v-if="order.deliveryTime" class="sum__row">
+                                <dt>Lieferzeit</dt>
+                                <dd>{{ order.deliveryTime }}</dd>
                             </div>
                             <div class="sum__row sum__row--total">
                                 <dt>Gesamt</dt>

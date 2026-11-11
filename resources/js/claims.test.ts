@@ -32,11 +32,12 @@ const RETIRED: Record<string, string> = {
 
 /*
  * Where a phrase may stand because it is no claim: the field in which the operator types the delivery time
- * (Einstellungen › Verkäufer & Versand, 01.10.2026). The shop's own words for it come from the server (Shipping).
+ * (Einstellungen › Versand, D-449; before, Verkäufer & Versand, 01.10.2026). The shop's own words for it come from the
+ * server (Shipping).
  */
 const ALLOWED: Record<string, string[]> = {
-    Werktage: ['./Pages/Admin/Einstellungen/VerkaeuferVersand.vue'],
-    Werktagen: ['./Pages/Admin/Einstellungen/VerkaeuferVersand.vue'],
+    Werktage: ['./Pages/Admin/Einstellungen/Versand.vue'],
+    Werktagen: ['./Pages/Admin/Einstellungen/Versand.vue'],
 }
 
 function withoutComments(source: string): string {

@@ -52,11 +52,10 @@ function stampSeller(array $seller = []): array
             'not_applicable' => ['managing_director' => false, 'register' => false, 'vat_id' => false, 'phone' => true],
             ...$seller,
         ],
-        'shipping' => ['cost' => '4,90', 'free_from' => '500,00', 'min_days' => '3', 'max_days' => '5', 'placeholder' => false],
     ];
 }
 
-it('refuses Verkäufer & Versand saved in a second tab after the first one, and keeps the first one\'s change', function (): void {
+it('refuses Verkäufer saved in a second tab after the first one, and keeps the first one\'s change', function (): void {
     $url = '/admin/einstellungen/verkaeufer-versand';
     stampVisit()->from($url)->put($url, stampSeller())->assertSessionHasNoErrors();
 

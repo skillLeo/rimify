@@ -881,6 +881,10 @@ export interface BestellungProps {
         keyNumbers: string | null
         subtotal: string
         shipping: string
+        /** `Versand (Express)`: the method as chosen, frozen (D-449). */
+        shippingLabel?: string
+        /** As shown before the order; null on an order from before D-449. */
+        deliveryTime?: string | null
         tax: string
         /** Written at a VAT rate of 0 (a Kleinunternehmer's order, § 19 UStG): no VAT line. */
         smallBusiness?: boolean

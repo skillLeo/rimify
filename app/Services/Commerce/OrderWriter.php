@@ -19,6 +19,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\OrderLineFitment;
+use App\Models\ShippingMethod;
 use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -150,6 +151,9 @@ final class OrderWriter
             ], $born, 'rechnungsadresse');
 
             $totals = $summary['totals'];
+            // The shipping method as the customer saw it before the button: its name, price and delivery time, frozen (D-449).
+            $method = is_array($totals['shippingMethod'] ?? null) ? $totals['shippingMethod'] : [];
+            $methodRow = is_int($method['id'] ?? null) ? ShippingMethod::query()->find($method['id']) : null;
             $order = self::withNumber(static fn (string $number): Order => self::row(Order::class, [
                 'order_number' => $number,
                 'customer_id' => $person->id,
@@ -168,7 +172,10 @@ final class OrderWriter
                 'total_cents' => (int) $totals['totalCents'],
                 'currency' => 'EUR',
                 'payment_method' => $paymentMethod,
-                'shipping_method' => 'standard',
+                'shipping_method' => mb_substr(is_string($method['name'] ?? null) ? $method['name'] : 'Standardversand', 0, 32),
+                'shipping_method_id' => $methodRow?->id,
+                'shipping_method_name' => is_string($method['name'] ?? null) ? $method['name'] : null,
+                'shipping_delivery_time' => is_string($method['deliveryTime'] ?? null) ? $method['deliveryTime'] : null,
                 'note' => $note,
                 'placed_at' => now(),
             ], $born, 'bestellung'));

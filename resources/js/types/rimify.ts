@@ -499,6 +499,19 @@ export interface BasketTpms {
     notice: string | null
 }
 
+/** A shipping method as the basket and the checkout offer it (Shipping::view, D-449). */
+export interface ShippingOption {
+    id: number | null
+    name: string
+    description: string | null
+    priceCents: number | null
+    price: string | null
+    free: boolean
+    freeFrom: string | null
+    deliveryTime: string | null
+    demo: boolean
+}
+
 export interface BasketTotals {
     subtotal: string
     subtotalCents?: number
@@ -508,6 +521,10 @@ export interface BasketTotals {
     /** Null while the shipping price is not configured; it is then left out of the total. */
     shippingCents: number | null
     freeShipping: boolean
+    /** The method the total holds (D-449): the customer's choice, else the cheapest one that ships this basket. */
+    shippingMethod?: ShippingOption
+    /** Every method that ships this basket, in the admin's order, priced for it. */
+    shippingMethods?: ShippingOption[]
     /** The VAT rate in basis points: 1900, or 0 for a Kleinunternehmer (§ 19 UStG). */
     vatRateBp?: number
     tax: string
