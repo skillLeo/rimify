@@ -511,7 +511,7 @@ test('in the shop the Felge is named by brand, model and Radtypenbezeichnung, an
     await expect(card.locator('.tile__name--link')).toHaveAttribute('href', new RegExp(`^/felgen/${slug}\\?ausfuehrung=\\d+$`))
 })
 
-test('a tyre model above its sizes: its photographs once, a thumbnail in the list, a supplier per size who stays internal @admin-210', async ({ page }, info) => {
+test('a tyre model above its sizes: its photographs once, a thumbnail in the list, one price per size, no supplier (D-448) @admin-210', async ({ page }, info) => {
     const { stamp } = runKeys(info)
     const profile = `Foto ${stamp.slice(-4)}`
     const eprel = String(Date.now() + 1).slice(-9)
@@ -549,8 +549,10 @@ test('a tyre model above its sizes: its photographs once, a thumbnail in the lis
     await row.locator('a.rf-name').click()
     await page.waitForURL(/\/admin\/reifen\/modell\/\d+$/)
 
-    // The model: its size with its supplier, and a photograph by the rim page's own upload.
-    await expect(page.locator('.adm-table tbody tr', { hasText: '225/45 R18 95Y' })).toContainText('Prüflieferant')
+    // The model: its size with its price and no supplier (D-448), and a photograph by the rim page's own upload.
+    const size = page.locator('.adm-table tbody tr', { hasText: '225/45 R18 95Y' })
+    await expect(size).toContainText('129,00')
+    await expect(page.locator('.adm-table th', { hasText: 'Lieferant' })).toHaveCount(0)
     await expect(page.locator('.fe-photos__count')).toContainText('0 von höchstens 4')
     await page.getByRole('button', { name: 'Foto hinzufügen' }).click()
     await page.locator('input[type="file"]').setInputFiles({ name: 'reifen.jpg', mimeType: 'image/jpeg', buffer: await card() })
