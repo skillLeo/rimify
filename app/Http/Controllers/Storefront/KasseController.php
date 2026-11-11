@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\PlaceOrderRequest;
+use App\Http\Requests\Storefront\ShippingChoiceRequest;
 use App\Http\Requests\Storefront\TpmsChoiceRequest;
 use App\Payments\Payments;
 use App\Services\Commerce\CheckoutShown;
@@ -15,7 +16,6 @@ use App\Services\Commerce\PendingOrder;
 use App\Services\GoLive\GoLiveChecks;
 use App\Services\Storefront\Basket;
 use App\Services\Storefront\Chrome;
-use App\Support\Shipping;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -72,8 +72,8 @@ class KasseController extends Controller
             // What the page shows, as a token it sends back with the order (CheckoutShown): a Gutachten, a
             // verdict or a price that changes meanwhile stops the payment instead of charging for it.
             'shown' => CheckoutShown::token($basket),
-            // „Lieferzeit: 3–5 Werktage“ as the operator wrote it; null until they do.
-            'deliveryTime' => self::deliveryTime(),
+            // „Lieferzeit: 3–5 Werktage“ of the chosen shipping method; null until one is given.
+            'deliveryTime' => self::deliveryTime($basket),
             // The shared shape, whole: a page prop named `contact` replaces the shared one for the
             // header and the footer too. The phone is null until the client gives one.
             'contact' => Chrome::contact(),
@@ -88,6 +88,18 @@ class KasseController extends Controller
     public function rdks(TpmsChoiceRequest $request): RedirectResponse
     {
         $this->basket->answerTpms($request, $request->choice());
+
+        return back();
+    }
+
+    /**
+     * The shipping method the customer chose (his round of 08.11, §7B; D-449): stored with the basket, and the SERVER prices
+     * it and re-renders the totals, the delivery time with them. Before „Zahlungspflichtig bestellen“ the page shows both
+     * (PAngV, Art. 246a § 1 EGBGB); the token of what was shown holds them too (CheckoutShown).
+     */
+    public function shipping(ShippingChoiceRequest $request): RedirectResponse
+    {
+        $this->basket->chooseShipping($request, $request->chosen());
 
         return back();
     }
@@ -215,7 +227,7 @@ class KasseController extends Controller
             return self::PREVIEW_REFUSAL;
         }
 
-        if (self::deliveryTime() === null && ! $test) {
+        if (self::deliveryTime($summary) === null && ! $test) {
             return self::DELIVERY_REFUSAL;
         }
 
@@ -233,16 +245,22 @@ class KasseController extends Controller
     {
         $open = array_filter([
             $summary['totals']['shippingConfigured'] !== true ? 'Die Versandkosten sind noch nicht festgelegt und mit 0,00 € berechnet.' : null,
-            self::deliveryTime() === null ? 'Die Lieferzeit ist noch nicht festgelegt.' : null,
+            self::deliveryTime($summary) === null ? 'Die Lieferzeit ist noch nicht festgelegt.' : null,
         ]);
 
         return $open === [] ? null : 'Testbestellung: '.implode(' ', $open);
     }
 
-    /** The delivery time as Einstellungen › Verkäufer & Versand gives it (`3–5 Werktage`), or null while none is. */
-    public static function deliveryTime(): ?string
+    /**
+     * The delivery time of the basket's shipping method (`3–5 Werktage`), or null while none is given.
+     *
+     * @param  array{lines: list<array<string, mixed>>, totals: array<string, mixed>}  $summary
+     */
+    public static function deliveryTime(array $summary): ?string
     {
-        return Shipping::current()->deliveryTime();
+        $method = $summary['totals']['shippingMethod'] ?? null;
+
+        return is_array($method) && is_string($method['deliveryTime'] ?? null) ? $method['deliveryTime'] : null;
     }
 
     /** No money moves: the review's sandbox, or Stripe in Testmodus. */

@@ -40,6 +40,9 @@ use Illuminate\Support\Str;
  * @property string|null $tracking_code
  * @property int $subtotal_cents
  * @property int $shipping_cents
+ * @property int|null $shipping_method_id
+ * @property string|null $shipping_method_name the method as the customer chose it, frozen (D-449)
+ * @property string|null $shipping_delivery_time as shown before the order: `3–5 Werktage`
  * @property int $tax_cents
  * @property int $total_cents
  * @property CarbonImmutable|null $placed_at
@@ -72,7 +75,7 @@ class Order extends Model
         'order_number', 'customer_id', 'delivery_address_id', 'billing_address_id', 'status',
         'vehicle_id', 'vehicle_label', 'vehicle_make', 'vehicle_hsn', 'vehicle_tsn', 'vehicle_vsn',
         'subtotal_cents', 'shipping_cents', 'tax_cents', 'total_cents', 'currency',
-        'payment_method', 'shipping_method',
+        'payment_method', 'shipping_method', 'shipping_method_id', 'shipping_method_name', 'shipping_delivery_time',
         'stripe_session_id', 'stripe_payment_intent_id',
         'stripe_customer_id', 'stripe_invoice_id', 'stripe_invoice_number', 'stripe_invoice_url', 'stripe_invoice_pdf', 'stripe_invoiced_at',
         'note', 'placed_at', 'paid_at', 'shipped_at', 'tracking_code',
@@ -159,6 +162,12 @@ class Order extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(OrderLine::class);
+    }
+
+    /** `Versand (Express)`: the row the invoice, Stripe and the mail name (D-449); `Versand` on an order from before. */
+    public function shippingRowLabel(): string
+    {
+        return $this->shipping_method_name === null || $this->shipping_method_name === '' ? 'Versand' : 'Versand ('.$this->shipping_method_name.')';
     }
 
     /**

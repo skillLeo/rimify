@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\Setting;
+use App\Models\ShippingMethod;
 use App\Services\Storefront\Basket;
 use App\Support\GermanFormat;
-use App\Support\Shipping;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
@@ -13,9 +12,9 @@ use Inertia\Testing\AssertableInertia;
 use Tests\Support\Storefront\KomplettradFixture;
 
 /*
- * Einstellungen › Verkäufer & Versand, as the customer meets it: the product page's line under the price, the
- * basket's shipping and its free-shipping threshold, and the delivery time before the order button (§ 312j BGB) —
- * all read from the one saved row, and none of it while the row is marked as placeholder.
+ * Einstellungen › Versand, as the customer meets it (D-449): the product page's line under the price, the basket's
+ * shipping and its free-shipping threshold, and the delivery time before the order button (§ 312j BGB) — all read from the
+ * active shipping methods, and none of it while no method is active.
  */
 
 beforeEach(function (): void {
@@ -30,13 +29,7 @@ beforeEach(function (): void {
 /** @param array<string, mixed> $over */
 function savedShipping(array $over = []): void
 {
-    Setting::set(Shipping::KEY, [
-        'zones' => ['DE' => ['cost_cents' => 490, 'free_from_cents' => 100_000]],
-        'delivery_min_days' => 3,
-        'delivery_max_days' => 5,
-        'placeholder' => false,
-        ...$over,
-    ]);
+    ShippingMethod::factory()->create(['price_cents' => 490, 'free_from_cents' => 100_000, 'delivery_min_days' => 3, 'delivery_max_days' => 5, ...$over]);
 }
 
 it('says delivery time and shipping on the product page, charges them in the basket, and names the time before the order', function (): void {
@@ -65,8 +58,8 @@ it('says delivery time and shipping on the product page, charges them in the bas
         ->assertInertia(fn (AssertableInertia $page) => $page->where('deliveryTime', '3–5 Werktage'));
 });
 
-it('treats shipping marked as placeholder as not given: no line on the product page, „noch festgelegt“ in the basket', function (): void {
-    savedShipping(['placeholder' => true]);
+it('treats a method switched off as not given: no line on the product page, „noch festgelegt“ in the basket', function (): void {
+    savedShipping(['active' => false]);
     $fx = KomplettradFixture::permitted();
     $config = $fx->config;
     $basket = [Basket::SESSION_KEY => ['wheel:'.$config->id => ['kind' => 'WHEEL', 'wheelConfigId' => $config->id, 'tyreVariantId' => null, 'quantity' => 4]]];

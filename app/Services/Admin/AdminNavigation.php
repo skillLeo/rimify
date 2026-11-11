@@ -182,8 +182,10 @@ final class AdminNavigation
                 ['label' => 'Zahlung', 'href' => '/admin/einstellungen/zahlung', 'icon' => 'payment', 'super' => true],
                 // The mail keys (Amazon SES): the Super-Admin alone, as the bucket's (MailSettingPolicy).
                 ['label' => 'E-Mail', 'href' => '/admin/einstellungen/e-mail', 'icon' => 'mail-send', 'super' => true],
-                // The seller as the law names it and the shipping terms: the Super-Admin alone (SellerSettingsPolicy).
-                ['label' => 'Verkäufer & Versand', 'href' => '/admin/einstellungen/verkaeufer-versand', 'icon' => 'shipping', 'super' => true],
+                // The seller as the law names it: the Super-Admin alone (SellerSettingsPolicy).
+                ['label' => 'Verkäufer', 'href' => '/admin/einstellungen/verkaeufer-versand', 'icon' => 'legal', 'super' => true],
+                // The shipping methods the checkout offers (D-449): the Super-Admin alone, as the shipping terms were (ShippingMethodPolicy).
+                ['label' => 'Versand', 'href' => '/admin/einstellungen/versand', 'icon' => 'shipping', 'super' => true],
             ],
         ],
         [
@@ -257,6 +259,7 @@ final class AdminNavigation
         '/admin/einstellungen/zahlung',
         '/admin/einstellungen/e-mail',
         '/admin/einstellungen/verkaeufer-versand',
+        '/admin/einstellungen/versand',
     ];
 
     /** The role `super` pages ask for (AdminUser::isSuperAdmin). */

@@ -3,12 +3,11 @@
 declare(strict_types=1);
 
 use App\Models\Brand;
-use App\Models\Setting;
+use App\Models\ShippingMethod;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Storefront\ProductJsonLd;
-use App\Support\Shipping;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Testing\TestResponse;
 
@@ -108,7 +107,7 @@ it('says only what is on record: no rating without reviews, no shipping without 
 
     // A rating as the buyers' visible reviews make it (ReviewSummary writes these columns), and a shipping price.
     $wheel->forceFill(['rating' => 4.5, 'rating_count' => 2])->save();
-    Setting::set(Shipping::KEY, ['zones' => ['DE' => ['cost_cents' => 990, 'free_from_cents' => 50_000]], 'delivery_min_days' => 3, 'delivery_max_days' => 5]);
+    ShippingMethod::factory()->create(['price_cents' => 990, 'free_from_cents' => 50_000, 'delivery_min_days' => 3, 'delivery_max_days' => 5]);
 
     $data = jsonLdOf($this->get('/felgen/'.$wheel->slug)->assertOk());
 

@@ -73,7 +73,7 @@ final class Invoices
         }
 
         if ((int) $order->shipping_cents > 0) {
-            $lines[] = ['quantity' => 1, 'label' => 'Versand', 'unitGrossCents' => (int) $order->shipping_cents, 'grossCents' => (int) $order->shipping_cents];
+            $lines[] = ['quantity' => 1, 'label' => $order->shippingRowLabel(), 'unitGrossCents' => (int) $order->shipping_cents, 'grossCents' => (int) $order->shipping_cents];
         }
 
         return $this->issue($order, Invoice::INVOICE, (int) $order->total_cents, $lines);

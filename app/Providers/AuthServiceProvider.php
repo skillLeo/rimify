@@ -18,6 +18,7 @@ use App\Models\Order;
 use App\Models\Page;
 use App\Models\ReviewFeedback;
 use App\Models\SavedView;
+use App\Models\ShippingMethod;
 use App\Models\StorageSetting;
 use App\Models\TpmsSensorPrice;
 use App\Models\TyreVariant;
@@ -41,6 +42,7 @@ use App\Policies\PagePolicy;
 use App\Policies\ReviewFeedbackPolicy;
 use App\Policies\SavedViewPolicy;
 use App\Policies\SellerSettingsPolicy;
+use App\Policies\ShippingMethodPolicy;
 use App\Policies\StorageSettingPolicy;
 use App\Policies\TestResetPolicy;
 use App\Policies\TpmsSensorPricePolicy;
@@ -86,6 +88,7 @@ final class AuthServiceProvider extends ServiceProvider
         NavItem::class => NavItemPolicy::class,
         DatabaseNotification::class => AdminNotificationPolicy::class,
         Order::class => OrderPolicy::class,
+        ShippingMethod::class => ShippingMethodPolicy::class,
         DemandMark::class => DemandMarkPolicy::class,
         SavedView::class => SavedViewPolicy::class,
         // Not a model: the demo set as a whole (DemoTables), taken away from the rail's strip.

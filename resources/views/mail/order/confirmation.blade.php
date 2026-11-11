@@ -46,7 +46,7 @@ Nur bei {{ $size['size'] }} ({{ $size['axle'] }}):
 | | |
 |:--|--:|
 | Zwischensumme | {{ $subtotal }} |
-| Versand | {{ $shipping }} |
+| {{ $shippingLabel }} | {{ $shipping }} |
 | **Gesamt** | **{{ $total }}** |
 @unless ($smallBusiness)
 | enthaltene MwSt. {{ $rate }} | {{ $tax }} |

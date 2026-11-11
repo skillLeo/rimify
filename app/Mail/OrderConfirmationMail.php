@@ -137,6 +137,7 @@ class OrderConfirmationMail extends Mailable
                 'lines' => $lines,
                 'subtotal' => GermanFormat::money((int) $order->subtotal_cents),
                 'shipping' => GermanFormat::money((int) $order->shipping_cents),
+                'shippingLabel' => $order->shippingRowLabel(),
                 'tax' => GermanFormat::money((int) $order->tax_cents),
                 // The order's own rate: a Kleinunternehmer's order (§ 19 UStG) carries the § 19 sentence, no VAT line.
                 'rate' => GermanFormat::percent($order->vatRateBp() / 100, false),
@@ -147,7 +148,8 @@ class OrderConfirmationMail extends Mailable
                     trim($address->street.' '.$address->house_number),
                     trim($address->zip_code.' '.$address->city),
                 ])),
-                'deliveryTime' => Shipping::current()->deliveryTime(),
+                // As shown before the order, frozen with it (D-449); an order from before that reads today's.
+                'deliveryTime' => $order->shipping_delivery_time ?? Shipping::current()->deliveryTime(),
                 // The seller under the signature, as on the invoice (§ 35a GmbHG): only what is given, never a placeholder.
                 'sellerLine' => Seller::current()->documentLine(),
                 'invoiceNumber' => $this->invoice?->number,

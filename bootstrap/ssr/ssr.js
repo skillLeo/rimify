@@ -40287,12 +40287,13 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Bestaetigen/Index.vue": () => import("./assets/Index-UKnH5Cdu.js"),
 		"./Pages/Admin/Bestellungen/FilterFields.vue": () => import("./assets/FilterFields-4ZSONCxP.js").then((n) => n.n),
 		"./Pages/Admin/Bestellungen/Index.vue": () => import("./assets/Index-Cw1c24ua.js"),
-		"./Pages/Admin/Bestellungen/Show.vue": () => import("./assets/Show-BRpDalMf.js"),
+		"./Pages/Admin/Bestellungen/Show.vue": () => import("./assets/Show-DZdQWgxa.js"),
 		"./Pages/Admin/Bewertungen/Index.vue": () => import("./assets/Index-CPi04m8Y.js"),
 		"./Pages/Admin/Einladung/Index.vue": () => import("./assets/Index-Biw2gtFC.js"),
 		"./Pages/Admin/Einstellungen/Email.vue": () => import("./assets/Email-CIFrMPa5.js"),
 		"./Pages/Admin/Einstellungen/Speicher.vue": () => import("./assets/Speicher-C-NgT3x2.js"),
-		"./Pages/Admin/Einstellungen/VerkaeuferVersand.vue": () => import("./assets/VerkaeuferVersand-C2rMZ0kS.js"),
+		"./Pages/Admin/Einstellungen/VerkaeuferVersand.vue": () => import("./assets/VerkaeuferVersand-TIk7uv8C.js"),
+		"./Pages/Admin/Einstellungen/Versand.vue": () => import("./assets/Versand-kXOzNe8Q.js"),
 		"./Pages/Admin/Einstellungen/Zahlung.vue": () => import("./assets/Zahlung-CTapj6nb.js"),
 		"./Pages/Admin/Fahrzeuge/IdentityForm.vue": () => import("./assets/IdentityForm-DNPePgG-.js").then((n) => n.n),
 		"./Pages/Admin/Fahrzeuge/Import.vue": () => import("./assets/Import-CO8jQLcX.js"),
@@ -40369,7 +40370,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Uebersicht/Index.vue": () => import("./assets/Index-C50F78Ps.js"),
 		"./Pages/Admin/Wuchtgewichte/Index.vue": () => import("./assets/Index-BMnz3_7e.js"),
 		"./Pages/Bestellung/Abgelaufen.vue": () => import("./assets/Abgelaufen-CIrU919v.js"),
-		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-DEC7iRUj.js"),
+		"./Pages/Bestellung/Index.vue": () => import("./assets/Index-q-1EAZgq.js"),
 		"./Pages/Bewertung/Index.vue": () => import("./assets/Index-D3Jh2bIX.js"),
 		"./Pages/Blog/Desktop.vue": () => import("./assets/Desktop-BGa4Eu4K.js"),
 		"./Pages/Check/Index.vue": () => import("./assets/Index-CGOkq_G4.js"),
@@ -40382,7 +40383,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Felgenrechner/Desktop.vue": () => import("./assets/Desktop-Dzsl7nmR.js"),
 		"./Pages/Felgenrechner/Mobile.vue": () => import("./assets/Mobile-DQxpvYbw.js"),
 		"./Pages/Gutachten/Beispiel.vue": () => import("./assets/Beispiel-Dcg-n_02.js"),
-		"./Pages/Kasse/Index.vue": () => import("./assets/Index-DuD6iGlP.js"),
+		"./Pages/Kasse/Index.vue": () => import("./assets/Index-Df6yXnvV.js"),
 		"./Pages/Kasse/Testzahlung.vue": () => import("./assets/Testzahlung-NRvlYaio.js"),
 		"./Pages/Komplettrad/Index.vue": () => import("./assets/Index-DbCbug2w.js"),
 		"./Pages/Komplettrad/parts/TyreCard.vue": () => import("./assets/TyreCard-CRC7wK12.js").then((n) => n.n),
@@ -40400,7 +40401,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Startseite/Mobile.vue": () => import("./assets/Mobile-CMY9eI4Q.js"),
 		"./Pages/Vergleich/Desktop.vue": () => import("./assets/Desktop-D5fYWgyq.js"),
 		"./Pages/Vergleich/Mobile.vue": () => import("./assets/Mobile-BHmD1EWM.js"),
-		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-CEx_yRqD.js")
+		"./Pages/Warenkorb/Index.vue": () => import("./assets/Index-BH1ROEdj.js")
 	})),
 	setup({ App, props, plugin }) {
 		return (0, vue_exports.createSSRApp)({ render: () => root(App, props) }).use(plugin).use(createPinia());

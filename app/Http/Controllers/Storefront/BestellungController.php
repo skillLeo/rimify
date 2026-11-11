@@ -124,6 +124,8 @@ class BestellungController extends Controller
                     : GermanFormat::keyNumbers($record->vehicle_hsn, $record->vehicle_tsn),
                 'subtotal' => GermanFormat::money((int) $record->subtotal_cents),
                 'shipping' => GermanFormat::money((int) $record->shipping_cents),
+                'shippingLabel' => $record->shippingRowLabel(),
+                'deliveryTime' => $record->shipping_delivery_time,
                 'tax' => GermanFormat::money((int) $record->tax_cents),
                 // The order's own rate, frozen with its lines: a Kleinunternehmer's order (§ 19 UStG) has no VAT line.
                 'smallBusiness' => $record->vatRateBp() === 0,

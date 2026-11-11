@@ -52,6 +52,7 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UebersichtController;
 use App\Http\Controllers\Admin\UploadController;
 use App\Http\Controllers\Admin\VerkaeuferVersandController;
+use App\Http\Controllers\Admin\VersandartenController;
 use App\Http\Controllers\Admin\VersandController;
 use App\Http\Controllers\Admin\WasFehltController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
@@ -100,6 +101,7 @@ use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\MailSetting;
 use App\Models\PaymentSetting;
+use App\Models\ShippingMethod;
 use App\Models\StorageSetting;
 use App\Services\Reset\TestEnvironment;
 use App\Support\Seller;
@@ -171,6 +173,8 @@ Route::delete('/warenkorb/{line}/reifen', [WarenkorbController::class, 'destroyT
 Route::get('/kasse', [KasseController::class, 'index'])->name('kasse.index');
 // The RDKS answer (§5.3): the server stores it with the quote and re-renders the totals itself.
 Route::patch('/kasse/rdks', [KasseController::class, 'rdks'])->middleware('throttle:shop-kasse-rdks')->name('kasse.rdks');
+// The shipping method the customer chooses before the order button (D-449): priced and shown again by the server.
+Route::patch('/kasse/versand', [KasseController::class, 'shipping'])->middleware('throttle:shop-kasse-versand')->name('kasse.versand');
 // Refuses every order while nothing binding can happen (ACCURACY.md D4); it never writes a row.
 Route::post('/kasse', [KasseController::class, 'store'])->middleware('throttle:shop-kasse')->name('kasse.store');
 // „Zahlungspflichtig bestellen“ with Stripe: the basket decided again, the order written, its PaymentIntent (JSON).
@@ -647,6 +651,15 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::put('/', [EmailController::class, 'update'])->middleware('throttle:10,1,e-mail-update')->name('e-mail.update');
             Route::post('/test', [EmailController::class, 'test'])->middleware('throttle:10,1,e-mail-test')->name('e-mail.test');
             Route::delete('/sperren/{suppression}', [EmailController::class, 'release'])->whereNumber('suppression')->middleware('throttle:30,1,e-mail-release')->name('e-mail.release');
+        });
+
+        // Einstellungen › Versand (D-449): the shipping methods the checkout offers — the Super-Admin alone, then sudo mode, as the
+        // shipping terms were before. A method is switched off, never deleted: an order keeps its own copy.
+        Route::prefix('/einstellungen/versand')->middleware(['can:viewAny,'.ShippingMethod::class, EnsureSudo::class])->group(function (): void {
+            Route::get('/', [VersandartenController::class, 'index'])->name('versandarten.index');
+            Route::post('/', [VersandartenController::class, 'store'])->middleware('throttle:30,1,versandarten-store')->name('versandarten.store');
+            Route::put('/reihenfolge', [VersandartenController::class, 'sort'])->middleware('throttle:30,1,versandarten-sort')->name('versandarten.sort');
+            Route::put('/{method}', [VersandartenController::class, 'update'])->whereNumber('method')->middleware('throttle:30,1,versandarten-update')->name('versandarten.update');
         });
 
         // Einstellungen › Verkäufer & Versand: the seller as the law names it and the shipping terms, read by the

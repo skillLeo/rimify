@@ -8,6 +8,7 @@ use App\Domain\Storefront\VehicleKey;
 use App\Models\Vehicle;
 use App\Services\Demo\AcceptanceSeeder;
 use App\Services\Demo\AcceptanceShelf;
+use App\Services\Demo\AcceptanceShipping;
 use App\Services\Demo\AcceptanceTrialPaper;
 use App\Services\Demo\AcceptanceWheelSet;
 use Illuminate\Console\Command;
@@ -27,7 +28,8 @@ final class DemoAcceptanceCommand extends Command
         {--beispiel-pdfs : Give a set already written its marked example copies of the Gutachten PDFs, in place (decision 6, 17.10.2026)}
         {--regal : Also three demonstration rims for the homepage shelf, stars and „Anfrage“ (AcceptanceShelf, 29.10.2026)}
         {--satz : Also a fourth demo car on a paper naming 18 inch in front and 19 behind (AcceptanceWheelSet, 07.11.2026)}
-        {--ausprobieren : Also a draft paper „Demo – zum Ausprobieren“ to click through the five steps on (AcceptanceTrialPaper, 07.11.2026)}';
+        {--ausprobieren : Also a draft paper „Demo – zum Ausprobieren“ to click through the five steps on (AcceptanceTrialPaper, 07.11.2026)}
+        {--versand : Also two demo shipping methods, Express and Versichert, to choose between at the checkout (AcceptanceShipping, 11.11.2026)}';
 
     protected $description = 'Write the acceptance set the client reviews his list in (local, staging and testing only)';
 
@@ -39,7 +41,7 @@ final class DemoAcceptanceCommand extends Command
         }
 
         // The set of two versions and the draft to try the five steps on, alone, beside a set already written (07.11.2026).
-        if (($this->option('satz') || $this->option('ausprobieren')) && ! $this->option('abnahme')) {
+        if (($this->option('satz') || $this->option('ausprobieren') || $this->option('versand')) && ! $this->option('abnahme')) {
             return $this->extras();
         }
 
@@ -96,14 +98,35 @@ final class DemoAcceptanceCommand extends Command
         return $this->extras();
     }
 
-    /** What --satz and --ausprobieren add beside the set; each writes nothing twice. */
+    /** What --satz, --ausprobieren and --versand add beside the set; each writes nothing twice. */
     private function extras(): int
     {
         if ($this->option('satz') && $this->wheelSet() !== self::SUCCESS) {
             return self::FAILURE;
         }
 
-        return $this->option('ausprobieren') ? $this->trialPaper() : self::SUCCESS;
+        if ($this->option('ausprobieren') && $this->trialPaper() !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        return $this->option('versand') ? $this->shipping() : self::SUCCESS;
+    }
+
+    private function shipping(): int
+    {
+        try {
+            $written = (new AcceptanceShipping)->seed();
+        } catch (RuntimeException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $this->info($written === []
+            ? 'Die Demo-Versandarten sind schon da.'
+            : sprintf('Demo-Versandarten geschrieben: %d, als Demodaten (abnahme:versand:). Einstellungen › Versand zeigt sie.', $written['shipping_methods']));
+
+        return self::SUCCESS;
     }
 
     private function trialPaper(): int

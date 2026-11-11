@@ -68,6 +68,8 @@ final class OrderDetail
                 'keys' => $order->vehicle_hsn !== null && $order->vehicle_tsn !== null ? GermanFormat::keyNumbers($order->vehicle_hsn, $order->vehicle_tsn) : null,
                 'subtotal' => $order->subtotal_cents,
                 'shipping' => $order->shipping_cents,
+                // The delivery time as shown before the order, frozen with its method (D-449); null on an order from before.
+                'deliveryTime' => $order->shipping_delivery_time,
                 'tax' => $order->tax_cents,
                 // Written at a VAT rate of 0: a Kleinunternehmer's order (§ 19 UStG) shows the sentence, not a VAT line.
                 'smallBusiness' => $order->vatRateBp() === 0,

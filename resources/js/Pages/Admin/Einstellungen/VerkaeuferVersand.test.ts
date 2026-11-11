@@ -47,35 +47,31 @@ function props(over: Partial<AdminVerkaeuferVersandProps> = {}): AdminVerkaeufer
         legacyRegister: null,
         sellerMissing: [],
         impressumMissing: [],
-        shipping: { cost: '4,90 €', free_from: '', min_days: '3', max_days: '5', placeholder: false },
-        shippingSource: 'Einstellungen',
-        legacyTime: null,
-        shippingMissing: [],
-        shippingPreview: 'Lieferzeit 3–5 Werktage · Versand 4,90 €',
-        countries: { DE: 'Deutschland' },
+        shippingLine: 'Lieferzeit 3–5 Werktage · Versand 4,90 €',
         contactEmail: null,
         ...over,
     }
 }
 
-describe('Einstellungen › Verkäufer & Versand', () => {
-    it('says where the values in force come from, and what a real invoice and a real order still need', () => {
+describe('Einstellungen › Verkäufer', () => {
+    it('says where the values in force come from, and what a real invoice still needs', () => {
         const wrapper = mount(Page, {
-            props: props({ sellerSource: '.env', sellerMissing: ['PLZ', 'USt-IdNr. oder Steuernummer'], shippingMissing: ['Lieferzeit'], legacyTime: '2–4 Werktage' }),
+            props: props({ sellerSource: '.env', sellerMissing: ['PLZ', 'USt-IdNr. oder Steuernummer'] }),
         })
 
         expect(wrapper.find('.ctx').text()).toBe('In Kraft: die Werte aus der .env-Datei – hier ist noch nichts gespeichert')
         expect(wrapper.findAll('.vv-open').map((p) => p.text())).toEqual([
             'Für echte Rechnungen fehlt noch: PLZ, USt-IdNr. oder Steuernummer. Bis dahin ist jede Rechnung eine Testrechnung.',
-            'Für echte Bestellungen fehlt noch: Lieferzeit. Bis dahin nimmt der Shop nur Testbestellungen an.',
         ])
-        expect(wrapper.text()).toContain('Aus der .env-Datei: „2–4 Werktage“.')
     })
 
-    it('shows the product page’s line, and marks a section as placeholder the moment it is ticked', async () => {
+    it('sends the shipping to Einstellungen › Versand with the product page’s line, and marks the seller as placeholder the moment it is ticked (D-449)', async () => {
         const wrapper = mount(Page, { props: props() })
+        const shipping = wrapper.get('[aria-labelledby="vv-shipping"]')
 
-        expect(wrapper.find('.vv-preview').text()).toBe('Auf der Produktseite Lieferzeit 3–5 Werktage · Versand 4,90 €')
+        expect(shipping.text()).toContain('Auf der Produktseite steht: Lieferzeit 3–5 Werktage · Versand 4,90 €.')
+        expect(shipping.find('a').attributes('href')).toBe('/admin/einstellungen/versand')
+        expect(shipping.find('input').exists()).toBe(false)
         expect(wrapper.find('.vv-tag').exists()).toBe(false)
 
         await wrapper.get('input[aria-describedby="vv-seller-placeholder-help"]').setValue(true)

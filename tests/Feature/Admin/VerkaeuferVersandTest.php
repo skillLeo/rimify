@@ -39,8 +39,8 @@ function vvAdmin(string $role = 'super-admin'): AdminUser
     return AdminUser::query()->where('email', $role.'@rimify.test')->firstOrFail();
 }
 
-/** @return array{seller: array<string, mixed>, shipping: array<string, mixed>} */
-function vvForm(array $seller = [], array $shipping = []): array
+/** @return array{seller: array<string, mixed>} */
+function vvForm(array $seller = []): array
 {
     return [
         'seller' => [
@@ -51,7 +51,6 @@ function vvForm(array $seller = [], array $shipping = []): array
             'not_applicable' => ['managing_director' => false, 'register' => false, 'vat_id' => false, 'phone' => true],
             ...$seller,
         ],
-        'shipping' => ['cost' => '4,90', 'free_from' => '500,00', 'min_days' => '3', 'max_days' => '5', 'placeholder' => false, ...$shipping],
     ];
 }
 
@@ -71,7 +70,7 @@ it('refuses every role but the Super-Admin, and asks the Super-Admin for the pas
     $this->flushSession();
     $this->actingAs(vvAdmin(), 'admin')->get(VV_URL)->assertRedirect('/admin/bestaetigen?weiter='.rawurlencode(VV_URL));
 
-    expect(Setting::query()->whereIn('key', [Seller::KEY, Shipping::KEY])->count())->toBe(0);
+    expect(Setting::query()->where('key', Seller::KEY)->count())->toBe(0);
 })->with(['catalogue-manager', 'accountant']);
 
 it('shows the .env values until it is saved, then puts its own in force — a cleared field included — and records the change', function (): void {
@@ -84,38 +83,32 @@ it('shows the .env values until it is saved, then puts its own in force — a cl
             ->where('seller.name', 'Env GmbH')
             ->where('sellerSource', '.env')
             ->where('legacyRegister', 'Amtsgericht Kiel, HRB 1')
-            ->where('shipping.cost', GermanFormat::money(590))
-            ->where('legacyTime', '2–4 Werktage')
-            ->where('shippingSource', '.env'));
+            // Shipping moved to Einstellungen › Versand (D-449): the page names the product page's line and asks nothing.
+            ->where('shippingLine', 'Lieferzeit 2–4 Werktage · Versand '.GermanFormat::money(590))
+            ->missing('shipping'));
 
     vvSave(vvForm(['phone' => '']))->assertSessionHasNoErrors()->assertRedirect(VV_URL);
 
     $seller = Seller::current();
-    $shipping = Shipping::current();
 
     expect($seller->name)->toBe('Beispiel Räder GmbH')
         ->and($seller->vatId)->toBe('DE204711815')
         ->and($seller->register)->toBe('Amtsgericht München, HRB 204711')
         ->and($seller->managingDirector)->toBe('Erika Beispiel')
         ->and($seller->missing())->toBe([])
-        ->and($shipping->costCents())->toBe(490)
-        ->and($shipping->forSubtotal(49_999))->toBe(490)
-        ->and($shipping->forSubtotal(50_000))->toBe(0)
-        ->and($shipping->deliveryTime())->toBe('3–5 Werktage')
-        ->and($shipping->summary())->toBe('Lieferzeit 3–5 Werktage · Versand '.GermanFormat::money(490).' · versandkostenfrei ab '.GermanFormat::money(50_000))
-        ->and($shipping->missing())->toBe([]);
+        // Saving the seller leaves the shipping as it was: it is not this page's any more.
+        ->and(Shipping::current()->costCents())->toBe(590);
 
     // A cleared field is cleared: the page's word wins over .env, even when it says nothing.
-    vvSave(vvForm(['name' => ''], ['cost' => '']))->assertSessionHasNoErrors();
+    vvSave(vvForm(['name' => '']))->assertSessionHasNoErrors();
 
     expect(Seller::current()->name)->toBeNull()
-        ->and(Seller::current()->missing())->toBe(['Name des Unternehmens'])
-        ->and(Shipping::current()->costCents())->toBeNull()
-        ->and(Shipping::current()->missing())->toBe(['Versandkosten']);
+        ->and(Seller::current()->missing())->toBe(['Name des Unternehmens']);
 
     $entry = AuditLog::query()->where('description', 'settings.seller_shipping_updated')->latest('id')->firstOrFail();
 
-    expect($entry->properties['changes'])->toHaveKeys(['seller.name', 'shipping.zones'])
+    expect($entry->properties['changes'])->toHaveKey('seller.name')
+        ->and(array_filter(array_keys($entry->properties['changes']), static fn (string $k): bool => str_starts_with($k, 'shipping.')))->toBe([])
         // Key by key: MySQL's JSON column returns an object's keys in its own order (`new` before `old`).
         ->and($entry->properties['changes']['seller.name'])->toHaveCount(2)
         ->and($entry->properties['changes']['seller.name']['old'])->toBe('Beispiel Räder GmbH')
@@ -125,7 +118,6 @@ it('shows the .env values until it is saved, then puts its own in force — a cl
 it('checks every field for its form, and names the fix', function (): void {
     vvSave(vvForm(
         ['zip' => '8033', 'vat_id' => 'DE12', 'register_number' => '??', 'email' => 'keine-adresse', 'phone' => 'ruf an', 'tax_number' => 'abc'],
-        ['cost' => 'vier Euro', 'free_from' => '1.2.3', 'min_days' => '5', 'max_days' => '3'],
     ))->assertSessionHasErrors([
         'seller.zip' => 'Die PLZ hat fünf Ziffern.',
         'seller.vat_id' => 'Eine deutsche USt-IdNr. besteht aus DE und neun Ziffern.',
@@ -133,21 +125,16 @@ it('checks every field for its form, and names the fix', function (): void {
         'seller.phone',
         'seller.register_number',
         'seller.tax_number',
-        'shipping.cost' => 'Schreib den Preis mit Komma, zum Beispiel 4,90 – oder lass das Feld leer.',
-        'shipping.free_from',
-        'shipping.max_days' => '„Bis“ darf nicht kleiner sein als „Von“.',
     ]);
-
-    vvSave(vvForm([], ['min_days' => '3', 'max_days' => '']))->assertSessionHasErrors(['shipping.max_days' => 'Die Lieferzeit braucht beide Werte: von und bis.']);
 
     // The address the Impressum prints needs a domain with a dot (the admin audit's F-30).
     vvSave(vvForm(['email' => 'info@rimify']))->assertSessionHasErrors(['seller.email' => 'Diese E-Mail-Adresse ist unvollständig – sie braucht ein @ und eine Domain.']);
 
-    expect(Setting::query()->whereIn('key', [Seller::KEY, Shipping::KEY])->count())->toBe(0);
+    expect(Setting::query()->where('key', Seller::KEY)->count())->toBe(0);
 });
 
 it('never says a placeholder to a customer as if it were real — only the Impressum shows it, marked', function (): void {
-    vvSave(vvForm(['placeholder' => true], ['placeholder' => true]))->assertSessionHasNoErrors();
+    vvSave(vvForm(['placeholder' => true]))->assertSessionHasNoErrors();
 
     // Stored as typed, marked: the admin page and the Impressum's preview.
     expect(Seller::stored()->name)->toBe('Beispiel Räder GmbH')->and(Seller::stored()->placeholder)->toBeTrue();
@@ -158,11 +145,7 @@ it('never says a placeholder to a customer as if it were real — only the Impre
     expect($seller->name)->toBeNull()
         ->and($seller->addressLines())->toBe([])
         ->and($seller->missing())->toBe(['Verkäuferangaben (noch Platzhalter)'])
-        ->and(WithdrawalForm::addressee($seller))->not->toContain('Beispiel Räder')
-        ->and(Shipping::current()->costCents())->toBeNull()
-        ->and(Shipping::current()->deliveryTime())->toBeNull()
-        ->and(Shipping::current()->summary())->toBeNull()
-        ->and(Shipping::current()->missing())->toBe(['Versandangaben (noch Platzhalter)']);
+        ->and(WithdrawalForm::addressee($seller))->not->toContain('Beispiel Räder');
 
     $this->get('/rechtliches/impressum')->assertInertia(fn (AssertableInertia $page) => $page
         ->where('provider.placeholder', true)
