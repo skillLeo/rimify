@@ -368,7 +368,9 @@ export async function topSpeed(page: Page, car: keyof typeof CARS, kmh: number):
         await admin.locator('button[type=submit]').first().click()
         await admin.waitForURL(/\/admin(\?.*)?$/, { timeout: 30_000 })
 
-        await admin.goto(`${ABNAHME}/admin/fahrzeuge?q=${encodeURIComponent(CARS[car].tsn)}`, { waitUntil: 'networkidle' })
+        // The list finds a car by HSN and TSN together, as the papers print them.
+        const [hsn, tsn] = CARS[car].key.split('-')
+        await admin.goto(`${ABNAHME}/admin/fahrzeuge?q=${encodeURIComponent(`${hsn}/${tsn}`)}`, { waitUntil: 'networkidle' })
         await admin.locator('main tbody tr', { hasText: CARS[car].tsn }).locator('a').first().click()
         await admin.waitForURL(/\/admin\/fahrzeuge\/\d+$/, { timeout: 30_000 })
         await admin.waitForLoadState('networkidle')
