@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import type { BasketLine, BasketTotals, ContactProp, ShippingOption } from '../../types/rimify'
+import type { BasketLine, BasketMixed, BasketTotals, ContactProp, ShippingOption } from '../../types/rimify'
 
 /*
  * The checkout (ACCURACY.md D4, D7; findings #38, #41, #68; Block G): every step can be walked,
@@ -317,6 +317,17 @@ describe('Kasse', () => {
 
         expect(item.text()).toContain('Beispielsortiment')
         expect(item.text()).toContain('Eintragung in die Fahrzeugpapiere erforderlich.')
+    })
+
+    it('reads each line of the summary with its spaces, as step 3 does: „4 × MOTEC …“, „2 × Felge Vorderachse Borbet …“ (D-457)', () => {
+        // Vue drops a space that ends a <template> and a line break between two tags: the summary read „4 ×MOTEC“ and
+        // „VorderachseBorbet“ on the preview (the client's review of 11.11, F).
+        const front: BasketMixed = { setKey: 'set:1', axle: 'FRONT', axleLabel: 'Vorderachse', size: '225/35 R18', partnerSize: '255/35 R18', pairing: 2, sourcePage: 3, rulesDe: null, minLoadIndex: null, minSpeedSymbol: null, axleLoadKg: null, bindingAxle: null, minimumSentence: null }
+        const wrapper = mountKasse({
+            lines: [line(), line({ key: 'wheel:12', brandName: 'Borbet', title: 'DB8GT2', quantity: 2, setLabel: 'Felge Vorderachse', mixed: front })],
+        })
+
+        expect(wrapper.findAll('.ko__line-name').map((name) => name.text())).toEqual(['4 × MOTEC MCR4 Ultimate', '2 × Felge Vorderachse Borbet DB8GT2'])
     })
 
     it('shows the refusal above a disabled final button and posts nothing', async () => {

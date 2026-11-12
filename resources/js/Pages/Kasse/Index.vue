@@ -805,7 +805,7 @@ function verdictSentence(line: BasketLine): string {
                                     <div class="ko__line-top">
                                         <span class="ko__line-name">
                                             <span class="tabular">{{ line.quantity }} ×</span>
-                                            <template v-if="line.mixed">{{ line.setLabel }} </template>{{ line.brandName }} {{ line.title }}
+                                            {{ [line.mixed ? line.setLabel : null, line.brandName, line.title].filter(Boolean).join(' ') }}
                                         </span>
                                         <span class="ko__line-price tabular">{{ line.lineTotal }}</span>
                                     </div>
