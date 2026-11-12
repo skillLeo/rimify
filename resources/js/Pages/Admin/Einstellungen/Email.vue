@@ -49,6 +49,10 @@ function replaceSecret(): void {
 }
 
 const testing = ref(false)
+/* What the server refused to try (D-456): each reason, under the button that was pressed. */
+const testRefused = ref<string[]>([])
+
+type Field = keyof ReturnType<typeof form.data>
 
 function testConnection(): void {
     if (testing.value) {
@@ -56,7 +60,21 @@ function testConnection(): void {
     }
 
     testing.value = true
-    router.post('/admin/einstellungen/e-mail/test', { ...form.data() }, { preserveScroll: true, onFinish: () => (testing.value = false) })
+    testRefused.value = []
+    form.clearErrors()
+    router.post('/admin/einstellungen/e-mail/test', { ...form.data() }, {
+        preserveScroll: true,
+        // A form the server will not try — no sender address, no SMTP login — was answered with silence (the client's review of
+        // 11.11, F; D-456): its reasons stand under the button and at their fields, as after „Speichern“.
+        onError: (bag) => {
+            testRefused.value = Object.values(bag).map(String)
+
+            for (const [field, message] of Object.entries(bag)) {
+                form.setError(field as Field, String(message))
+            }
+        },
+        onFinish: () => (testing.value = false),
+    })
 }
 
 /* „Test-E-Mail senden“ (D-450): one real message through the mailer in force, to the address typed here. */
@@ -272,6 +290,8 @@ const context = props.sending
                 <div>
                     <button class="btn btn--secondary" type="button" :aria-busy="testing ? 'true' : undefined" @click="testConnection">Verbindung testen</button>
                 </div>
+
+                <p v-if="testRefused.length" id="em-test-refused" class="form-field__error" role="alert">Nicht geprüft: {{ testRefused.join(' ') }}</p>
 
                 <ol v-if="test" class="em-steps" aria-label="Ergebnis der letzten Prüfung">
                     <li v-for="step in test.steps" :key="step.step" class="em-step" :class="step.ok ? 'em-step--ok' : 'em-step--bad'">

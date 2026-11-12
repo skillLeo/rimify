@@ -26,8 +26,10 @@ vi.mock('../../../Layouts/AdminLayout.vue', () => ({ default: defineComponent({ 
 vi.mock('../../../composables/admin/useDirtyForm', () => ({
     useDirtyForm: (initial: object) => {
         const form = reactive({ ...structuredClone(initial), errors: {} as Record<string, string> })
+        const setError = (field: string, message: string) => (form.errors = { ...form.errors, [field]: message })
+        const clearErrors = () => (form.errors = {})
 
-        return { form: Object.assign(form, { data: () => ({ ...form }) }), save: vi.fn() }
+        return { form: Object.assign(form, { data: () => ({ ...form }), setError, clearErrors }), save: vi.fn() }
     },
 }))
 
@@ -93,6 +95,27 @@ describe('Einstellungen › E-Mail', () => {
         expect(wrapper.find('.ctx').text()).toBe('In Kraft: Versand über Brevo')
         expect(wrapper.find('output#em-secret').text()).toBe('••••••••••••X9Y8')
         expect((wrapper.get('#em-login').element as HTMLInputElement).value).toBe('8a1b2c001@smtp-brevo.com')
+    })
+
+    it('says why „Verbindung testen“ did not try, where the button is and at each field — not nothing (D-456)', async () => {
+        const wrapper = mount(Page, { props: props({ form: { provider: 'brevo', smtp_login: '', from_address: '', from_name: 'RIMIFY', topic_arn: '' } }) })
+        const refusal = {
+            from_address: 'Gib bitte die Absenderadresse ein, z. B. bestellung@rimify.de.',
+            smtp_login: 'Gib bitte den SMTP-Login aus Brevo ein (SMTP & API › SMTP, z. B. 8a1b2c001@smtp-brevo.com).',
+        }
+        router.post.mockImplementationOnce((_url: string, _data: object, options: { onError?: (bag: Record<string, string>) => void; onFinish?: () => void }) => {
+            options.onError?.(refusal)
+            options.onFinish?.()
+        })
+
+        expect(wrapper.find('#em-test-refused').exists()).toBe(false)
+
+        await wrapper.findAll('button').find((b) => b.text() === 'Verbindung testen')!.trigger('click')
+
+        expect(router.post).toHaveBeenCalledWith('/admin/einstellungen/e-mail/test', expect.objectContaining({ provider: 'brevo', smtp_login: '' }), expect.any(Object))
+        expect(wrapper.get('#em-test-refused').text()).toBe(`Nicht geprüft: ${refusal.from_address} ${refusal.smtp_login}`)
+        expect(wrapper.get('#em-test-refused').attributes('role')).toBe('alert')
+        expect(wrapper.get('#em-from-error').text()).toBe(refusal.from_address)
     })
 
     it('sends a test mail to the address typed, through its own route, and says what came of the last one', async () => {
