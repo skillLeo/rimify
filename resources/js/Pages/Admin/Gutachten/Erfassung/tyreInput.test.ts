@@ -192,7 +192,7 @@ describe('the codes after the sizes of a pasted line (D-451)', () => {
             expect(line?.codes).toBeUndefined()
         }
 
-        expect(readPaste('225/35R18 92(V)')[0]?.reason).toBe('In Klammern druckt ein Gutachten nur W oder Y: „92(V)“ lesen wir nicht.')
+        expect(readPaste('225/35R18 92(V)')[0]?.reason).toBe('In Klammern kennen wir nur die Symbole (W) und (Y): „92(V)“ lesen wir nicht.')
         // W and Y in brackets are the symbols they are, never codes.
         expect(readPaste('225/35R18 92(W) 11A')[0]).toMatchObject({ status: 'single', codes: ['11A'] })
         expect(readPaste('225/35R18 92(W) 11A')[0]?.sizes?.map(tyreLabel)).toEqual(['225/35 R18 92(W)'])

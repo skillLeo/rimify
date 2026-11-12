@@ -196,10 +196,10 @@ function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyr
                 return { tyre: null, why: whyUnread(`${words.slice(0, k).join(' ')} ${rest[0]}`) }
             }
 
-            // A bracket belongs to a service description, never to a code: `92(V)` is a symbol no paper prints in brackets — only W
-            // and Y are (D-453) —, not the code „92(V“.
+            // A bracket belongs to a service description, never to a code: in brackets we know (W) and (Y) alone (D-453), so `92(V)`
+            // is a symbol we do not read, not the code „92(V“.
             if (typed.some((word) => /[()]/.test(word))) {
-                return { tyre: null, why: `In Klammern druckt ein Gutachten nur W oder Y: „${typed.join(' ')}“ lesen wir nicht.` }
+                return { tyre: null, why: `In Klammern kennen wir nur die Symbole (W) und (Y): „${typed.join(' ')}“ lesen wir nicht.` }
             }
 
             return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${typed.join(' ')}“ hinter der Größe ist kein Code.` }
