@@ -93,8 +93,8 @@ jobs:
       - name: Run a wait again, alone (D-458)
         if: ${{ !cancelled() }}
         run: |
+          # Always read the report, also after an exit of 0: a suite whose servers never started can end with 0 (D-460).
           rc='${{ steps.suite.outputs.rc }}'
-          if [ "$rc" = "0" ]; then echo "D-458: ${{ matrix.suite.name }} passed, nothing to run again." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
           set +e
           node scripts/e2e/timeout-retry.mjs --config '${{ matrix.suite.config }}' --report '${{ matrix.suite.report }}' --exit "${rc:-1}" --out retry.md ${{ matrix.suite.extra }}
           code=$?
