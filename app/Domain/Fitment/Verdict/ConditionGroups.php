@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Fitment\Verdict;
 
 use App\Domain\Fitment\Data\TyreSize;
+use App\Domain\Fitment\Tyres\TyrePairing;
 
 /**
  * The Auflagen of an answer as the document hangs them: those for the whole combination — the row's own, the second
@@ -17,21 +18,30 @@ use App\Domain\Fitment\Data\TyreSize;
  * An Auflage every permitted size carries is said once, with the combination: it applies whichever size is fitted.
  * With one permitted size there is nothing to choose, and everything is the combination's.
  *
+ * An Auflage typed beside a tyre combination of the list (the client's review of 11.11, A; D-451) is that combination's: said with
+ * it, for both its axles, and with no other combination — not even one that shares a size with it.
+ *
  * @phpstan-type SizeGroup array{size: TyreSize, axle: string, own: list<Condition>, entry: bool}
+ * @phpstan-type PairGroup array{pair: PairConditions, own: list<Condition>, entry: bool}
  */
 final readonly class ConditionGroups
 {
     /**
      * @param  list<Condition>  $combination
      * @param  list<SizeGroup>  $sizes  every permitted size once, in the order the verdict names them
+     * @param  list<PairGroup>  $pairs  every tyre combination of the list with Auflagen of its own
      */
     public function __construct(
         public array $combination,
         public array $sizes,
+        public array $pairs = [],
     ) {}
 
-    /** @param list<Condition> $combination */
-    public static function of(array $combination, AxleRequirement $front, AxleRequirement $rear): self
+    /**
+     * @param  list<Condition>  $combination
+     * @param  list<PairConditions>  $pairs
+     */
+    public static function of(array $combination, AxleRequirement $front, AxleRequirement $rear, array $pairs = []): self
     {
         /** @var array<string, array{size: TyreSize, axles: array<string, true>, own: list<Condition>, entry: bool}> $bySize */
         $bySize = [];
@@ -86,16 +96,35 @@ final readonly class ConditionGroups
             ];
         }
 
-        // Where any size needs the Eintragung, the combination does not say none is needed.
+        // A combination's own, with it: what the wheel's Auflagen say already is not said twice.
+        $groups = [];
+
+        foreach ($pairs as $pair) {
+            $entry = $pair->requiresEntry();
+            $own = array_values(array_filter($pair->conditions, static fn (Condition $c): bool => ! isset($said[$key($c)])
+                && ! ($entry && $c->code === Condition::NO_ENTRY_REQUIRED)));
+
+            if ($own !== []) {
+                $groups[] = ['pair' => $pair, 'own' => Condition::sorted($own), 'entry' => $entry];
+                $anyEntry = $anyEntry || $entry;
+            }
+        }
+
+        // Where any size or combination needs the Eintragung, the combination does not say none is needed.
         if ($anyEntry) {
             $combination = array_values(array_filter($combination, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
         }
 
-        return new self(Condition::sorted($combination), $sizes);
+        return new self(Condition::sorted($combination), $sizes, $groups);
     }
 
-    /** Some size carries an Auflage the others do not: the answer is said per size. */
+    /** Some size or tyre combination carries an Auflage the others do not: the answer is said per size, per combination. */
     public function differBySize(): bool
+    {
+        return $this->sizesDiffer() || $this->pairs !== [];
+    }
+
+    private function sizesDiffer(): bool
     {
         foreach ($this->sizes as $size) {
             if ($size['own'] !== []) {
@@ -104,6 +133,48 @@ final readonly class ConditionGroups
         }
 
         return false;
+    }
+
+    /**
+     * What this combination of the list carries itself (D-451): its own Auflagen, beyond the wheel's.
+     *
+     * @return list<Condition>
+     */
+    public function pairOwn(string $frontKey, string $rearKey): array
+    {
+        $key = TyrePairing::keyOf($frontKey, $rearKey);
+
+        foreach ($this->pairs as $pair) {
+            if ($pair['pair']->key() === $key) {
+                return $pair['own'];
+            }
+        }
+
+        return [];
+    }
+
+    private function pairEntry(string $frontKey, string $rearKey): bool
+    {
+        $key = TyrePairing::keyOf($frontKey, $rearKey);
+
+        foreach ($this->pairs as $pair) {
+            if ($pair['pair']->key() === $key) {
+                return $pair['entry'];
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Everything that applies once this combination is fitted, front and rear (D-451): the wheel's, each size's own and the
+     * combination's own.
+     *
+     * @return list<Condition>
+     */
+    public function forPair(string $frontKey, string $rearKey): array
+    {
+        return Condition::union(Condition::union($this->forSize($frontKey), $this->ownFor($rearKey)), $this->pairOwn($frontKey, $rearKey));
     }
 
     /** One size needs the Abnahme or Eintragung, another does not. */
@@ -124,7 +195,8 @@ final readonly class ConditionGroups
     {
         foreach ($this->sizes as $size) {
             if ($size['size']->key() === $key) {
-                return Condition::union($this->combination, $size['own']);
+                // Four of a kind: the combination of that size on both axles brings its own too (D-451).
+                return Condition::union(Condition::union($this->combination, $size['own']), $this->pairOwn($key, $key));
             }
         }
 
@@ -160,7 +232,7 @@ final readonly class ConditionGroups
     {
         foreach ($this->sizes as $size) {
             if ($key !== null && $size['size']->key() === $key) {
-                return $size['entry'];
+                return $size['entry'] || $this->pairEntry($key, $key);
             }
         }
 
@@ -174,20 +246,35 @@ final readonly class ConditionGroups
      */
     public function entryForSet(string $key, string $partnerKey): bool
     {
-        return $this->entryFor($key, true) || $this->entryFor($partnerKey, true);
+        return $this->entryFor($key, true) || $this->entryFor($partnerKey, true)
+            // The combination's own Abnahme (D-451), whichever axle `$key` stands on.
+            || $this->pairEntry($key, $partnerKey) || $this->pairEntry($partnerKey, $key);
     }
 
     /**
-     * What holds once this size is fitted — on a set per axle beside `$partnerKey` on the other axle (D-335), without
-     * „Keine Eintragung erforderlich.“ where the set needs the Eintragung for the other axle's size.
+     * What holds once this size is fitted — on a set per axle beside `$partnerKey` on the other axle (D-335), with the Auflagen of
+     * that combination (D-451), and without „Keine Eintragung erforderlich.“ where the set needs the Eintragung for the other axle's
+     * size. `$axle`, `Vorderachse` or `Hinterachse`, says which way round the combination is; not given, both ways (the cautious
+     * reading).
      *
      * @return list<Condition>
      */
-    public function forSet(string $key, ?string $partnerKey): array
+    public function forSet(string $key, ?string $partnerKey, ?string $axle = null): array
     {
         $conditions = $this->forSize($key);
 
-        if ($partnerKey === null || ! $this->entryForSet($key, $partnerKey)) {
+        if ($partnerKey === null) {
+            return $conditions;
+        }
+
+        $own = match ($axle) {
+            'Vorderachse' => $this->pairOwn($key, $partnerKey),
+            'Hinterachse' => $this->pairOwn($partnerKey, $key),
+            default => Condition::union($this->pairOwn($key, $partnerKey), $this->pairOwn($partnerKey, $key)),
+        };
+        $conditions = Condition::sorted(Condition::union($conditions, $own));
+
+        if (! $this->entryForSet($key, $partnerKey)) {
             return $conditions;
         }
 
@@ -201,6 +288,10 @@ final readonly class ConditionGroups
 
         foreach ($this->sizes as $size) {
             $all = Condition::union($all, $size['own']);
+        }
+
+        foreach ($this->pairs as $pair) {
+            $all = Condition::union($all, $pair['own']);
         }
 
         return $all;
@@ -219,7 +310,10 @@ final readonly class ConditionGroups
      * `$partnerKey`: the other axle's size on that set — the Abnahme or Eintragung is the set's, never one axle's
      * (entryForSet()): a front line never says „Keine Eintragung erforderlich.“ beside a rear that needs one.
      *
-     * @return array{combination: list<string>, sizes: list<array{size: string, axle: string, conditions: list<string>, entry: bool}>, chosen: string|null, entry: bool|null, axle?: string}
+     * `pairs`: with no size chosen, each tyre combination of the list that carries Auflagen of its own (D-451) — „225/35 R18 vorn,
+     * 255/35 R18 hinten“ with them, for both its axles.
+     *
+     * @return array{combination: list<string>, sizes: list<array{size: string, axle: string, conditions: list<string>, entry: bool}>, pairs: list<array{pair: string, conditions: list<string>, entry: bool}>, chosen: string|null, entry: bool|null, axle?: string}
      */
     public function toArray(?string $chosenKey = null, ?string $axle = null, ?string $partnerKey = null): array
     {
@@ -228,10 +322,11 @@ final readonly class ConditionGroups
         foreach ($this->sizes as $size) {
             if ($chosenKey !== null && $size['size']->key() === $chosenKey) {
                 return [
-                    'combination' => $sentences($this->forSet($chosenKey, $partnerKey)),
+                    'combination' => $sentences($this->forSet($chosenKey, $partnerKey, $axle)),
                     'sizes' => [],
+                    'pairs' => [],
                     'chosen' => $size['size']->labelDe(),
-                    'entry' => $partnerKey === null ? $size['entry'] : $this->entryForSet($chosenKey, $partnerKey),
+                    'entry' => $partnerKey === null ? $this->entryFor($chosenKey, $size['entry']) : $this->entryForSet($chosenKey, $partnerKey),
                     ...($axle === null ? [] : ['axle' => $axle]),
                 ];
             }
@@ -239,7 +334,7 @@ final readonly class ConditionGroups
 
         return [
             'combination' => $sentences($this->combination),
-            'sizes' => $this->differBySize() || $this->entryDiffers()
+            'sizes' => $this->sizesDiffer() || $this->entryDiffers()
                 ? array_map(static fn (array $s): array => [
                     'size' => $s['size']->labelDe(),
                     'axle' => $s['axle'],
@@ -247,6 +342,11 @@ final readonly class ConditionGroups
                     'entry' => $s['entry'],
                 ], $this->sizes)
                 : [],
+            'pairs' => array_map(static fn (array $p): array => [
+                'pair' => $p['pair']->labelDe(),
+                'conditions' => $sentences($p['own']),
+                'entry' => $p['entry'],
+            ], $this->pairs),
             'chosen' => null,
             'entry' => null,
         ];

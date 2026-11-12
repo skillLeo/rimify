@@ -126,6 +126,11 @@ class OrderConfirmationMail extends Mailable
                     'axle' => $s['axle'],
                     'conditions' => $s['conditions'],
                 ], $groups['sizes'] ?? []),
+                // Each tyre combination with its own Auflagen (D-451): with it alone, both axles.
+                'pairs' => array_map(static fn (array $p): array => [
+                    'pair' => $p['pair'],
+                    'conditions' => $p['conditions'],
+                ], $groups['pairs'] ?? []),
             ];
         }
 

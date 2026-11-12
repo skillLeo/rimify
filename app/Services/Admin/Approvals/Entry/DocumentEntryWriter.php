@@ -14,6 +14,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentTyreCombination;
+use App\Models\DocumentTyreCombinationCondition;
 use App\Models\DocumentTyreLine;
 use App\Models\DocumentWheelCombination;
 use App\Models\DocumentWheelSize;
@@ -52,11 +53,12 @@ use LogicException;
  * limits that tyre, car by car, here: a car known to be above it does not get the size on that axle. Within the cap, or with the
  * load unknown, the size is written with its code, and the engine answers as it does for such a code (R-03).
  *
- * A code typed beside a combination of two sizes belongs to that combination (D-437). The engine hangs codes on sizes and reads every
- * entry of one size together, so a code on „225/35 R18 | 255/35 R18“ would reach „225/35 R18 | 225/35 R18“ through the size the two
- * share. A code said as a sentence for the whole set (`MOVABLE`) is therefore written only on the side no other combination of the car
- * uses without it — its combination keeps it on the other side, so the set still says it. Where both sides are shared, or the code is
- * about one tyre (a load or axle code) or narrows by body or drive, it stays on both, as before: the cautious reading.
+ * A code typed beside a combination belongs to that combination, on both its axles (the client's review of 11.11, A; D-451): a code
+ * said as a sentence for the whole set (`FOR_THE_SET`) is written on the combination's row of the list
+ * (`document_tyre_combination_conditions`), never on its sizes — on a size it would reach every other combination that shares the size
+ * (E), and the shop would say it for one axle. A code about one tyre (a load or axle code) or one that narrows by body or drive stays
+ * on both sizes, as before: the engine reads those per tyre. A line that does not stand in the car's list — no list on the paper, a
+ * power band the car's power is not known for — has no row to carry them: its codes stay on its sizes, as before.
  *
  * Only a draft is ever written; a released paper stays what customers were told.
  *
@@ -65,11 +67,10 @@ use LogicException;
 final class DocumentEntryWriter
 {
     /**
-     * The kinds whose code says one thing for the whole set, whichever of its two sizes carries it (D-437): an Abnahme, work on the
-     * car, the speedometer, a fastener, a prohibition, a note. A set's Auflagen are both its axles' together (ConditionGroups::forSet,
-     * TyreEligibility::combinationVerdict).
+     * The kinds whose code says one thing for the whole set (D-437, D-451): an Abnahme, work on the car, the speedometer, a fastener,
+     * a prohibition, a note. Typed beside a combination of the list, they are that combination's.
      */
-    private const MOVABLE = [
+    public const FOR_THE_SET = [
         ConditionKind::Abnahme,
         ConditionKind::Karosseriearbeit,
         ConditionKind::Nacharbeitsprofil,
@@ -82,14 +83,26 @@ final class DocumentEntryWriter
     /** @var array<string, int> the paper's axle-load caps that name no index: code => kg */
     private array $caps = [];
 
-    /** @var array<string, true> the paper's codes of a MOVABLE kind */
-    private array $movable = [];
+    /** @var array<string, true> the paper's codes of a FOR_THE_SET kind */
+    private array $forTheSet = [];
 
-    /** @var array<int, array<string, list<list<string>>>> per car: each tyre dimension its standing lines use, with each such line's codes */
-    private array $uses = [];
+    /** Whether the paper of the last `desired()` has a list of combinations: then a line of it carries its set's codes there. */
+    private bool $hasList = false;
 
     /** @var array<string, array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}> which entry each row of the last `desired()` came from, and its children in the order they were entered */
     private array $sources = [];
+
+    /**
+     * The paper's codes of a FOR_THE_SET kind.
+     *
+     * @return array<string, true>
+     */
+    public static function forTheSetOf(int $documentId): array
+    {
+        return array_fill_keys(DB::table('document_conditions')->where('approval_document_id', $documentId)
+            ->whereIn('kind', array_map(static fn (ConditionKind $kind): string => $kind->value, self::FOR_THE_SET))
+            ->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all(), true);
+    }
 
     /**
      * @return array<string, int>
@@ -120,10 +133,8 @@ final class DocumentEntryWriter
         $abnahme = DB::table('document_conditions')->where('approval_document_id', $model->document->id)
             ->where('kind', ConditionKind::Abnahme->value)->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
         $this->caps = self::capsOf($model->document->id);
-        $this->movable = array_fill_keys(DB::table('document_conditions')->where('approval_document_id', $model->document->id)
-            ->whereIn('kind', array_map(static fn (ConditionKind $kind): string => $kind->value, self::MOVABLE))
-            ->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all(), true);
-        $this->uses = self::usesOf($model->entries);
+        $this->forTheSet = self::forTheSetOf($model->document->id);
+        $this->hasList = $model->hasList();
         $this->sources = [];
         $colours = [];
         /** @var array<int, array<int, list<array{entry: DocumentCarEntry, axle: string, sizes: list<array<string, mixed>>, crossed: bool}>>> $parts */
@@ -144,7 +155,7 @@ final class DocumentEntryWriter
             $rear = $combination->rear;
             $colours[$front->id] ??= self::coloursOf($front);
             $colours[$rear->id] ??= self::coloursOf($rear);
-            $sizes = $this->sizesOf($entry, null, $this->uses[$entry->vehicle_id] ?? []);
+            $sizes = $this->sizesOf($entry);
 
             if ($combination->same()) {
                 $ids = $entry->wheel_config_id !== null ? [$entry->wheel_config_id] : array_keys($colours[$front->id]);
@@ -336,6 +347,7 @@ final class DocumentEntryWriter
 
             if ($here > 0) {
                 $this->writeSets($document, $desired['sets'], null);
+                self::tagColour($document, $desired['list'], $configId);
                 $added += $here;
 
                 if ($document->status === DocumentStatus::Published) {
@@ -466,13 +478,15 @@ final class DocumentEntryWriter
      * A car's tyre sizes as `fitment_tyre_sizes` holds them, each once per axle, band and printed figures.
      *
      * @param  array<string, int>|null  $caps  the paper's axle-load caps (capsOf); null: those of the last `desired()`
-     * @param  array<string, list<list<string>>>  $uses  the car's tyre dimensions and the codes of each line using one (usesOf); empty: every
-     *                                                   code of a combination stays on both its sizes
      * @return list<array{width_mm: int, aspect: int, diameter_in: float, min_load_index: int|null, min_speed_symbol: string|null, axle: string, kw_min: int|null, kw_max: int|null, codes: list<string>}>
      */
-    public function sizesOf(DocumentCarEntry $entry, ?array $caps = null, array $uses = []): array
+    public function sizesOf(DocumentCarEntry $entry, ?array $caps = null): array
     {
         $caps ??= $this->caps;
+        // A line of the list carries its set's codes on its row there (D-451); on its sizes, the codes about one tyre.
+        $onSizes = fn (DocumentTyreLine $line, array $codes): array => $this->listed($entry, $line)
+            ? array_values(array_filter($codes, fn (string $code): bool => ! isset($this->forTheSet[$code])))
+            : $codes;
         /** @var Vehicle|null $car */
         $car = $entry->vehicle;
         $sizes = [];
@@ -513,13 +527,14 @@ final class DocumentEntryWriter
                 continue;
             }
 
-            $codes = $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
+            $typed = $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
+            $codes = $onSizes($line, $typed);
             $front = $line->front();
             $rear = $line->rear();
 
             // Two sizes, two versions, or one size typed with nothing printed beside it: read after the sizes that say something of their
             // own. A line read from a row stands where it stood: the order of a row's sizes is what the verdict lists them in.
-            if (EntryModel::paired($line) || $crossed || (! $line->from_rows && $front !== null && $rear !== null && $codes === [] && $line->kw_min === null && $line->kw_max === null
+            if (EntryModel::paired($line) || $crossed || (! $line->from_rows && $front !== null && $rear !== null && $typed === [] && $line->kw_min === null && $line->kw_max === null
                 && $line->front_load_index === null && $line->front_speed_symbol === null && $line->rear_load_index === null && $line->rear_speed_symbol === null)) {
                 $pairs[] = $line;
 
@@ -541,7 +556,7 @@ final class DocumentEntryWriter
         }
 
         foreach ($pairs as $line) {
-            $codes = $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
+            $codes = $onSizes($line, $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all());
 
             // One size with nothing beside it, on one version, not yet on both axles: a size for both.
             if (! EntryModel::paired($line) && ! $crossed) {
@@ -555,9 +570,7 @@ final class DocumentEntryWriter
                 continue;
             }
 
-            $sides = $this->sideCodes($line, $codes, $uses);
-
-            foreach ([[$line->front(), $line->front_load_index, $line->front_speed_symbol, Axle::Front->value, $sides[0]], [$line->rear(), $line->rear_load_index, $line->rear_speed_symbol, Axle::Rear->value, $sides[1]]] as [$size, $loadIndex, $symbol, $axle, $own]) {
+            foreach ([[$line->front(), $line->front_load_index, $line->front_speed_symbol, Axle::Front->value, $codes], [$line->rear(), $line->rear_load_index, $line->rear_speed_symbol, Axle::Rear->value, $codes]] as [$size, $loadIndex, $symbol, $axle, $own]) {
                 /** @var TyreSize $size */
                 $carrier = self::carried($sizes, $size, $axle);
 
@@ -608,91 +621,27 @@ final class DocumentEntryWriter
     }
 
     /**
-     * Per car: each tyre dimension its standing lines use, on either side, with the codes of every line that uses it (D-437). Either
-     * side, because the shop says a size's Auflagen by its dimension on both axles alike (ConditionGroups).
-     *
-     * @param  iterable<DocumentCarEntry>  $entries
-     * @return array<int, array<string, list<list<string>>>>
+     * Whether this line's pair stands in its car's list — the test listOf() makes: both sides read, it stands, the paper has a list
+     * (or the line says it stands in one), and a power band takes in the car's known power.
      */
-    private static function usesOf(iterable $entries): array
+    private function listed(DocumentCarEntry $entry, DocumentTyreLine $line): bool
     {
-        $uses = [];
-
-        foreach ($entries as $entry) {
-            foreach ($entry->lines as $line) {
-                if (! EntryModel::stands($entry, $line)) {
-                    continue;
-                }
-
-                $codes = $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all();
-                $dimensions = [];
-
-                foreach ([$line->front(), $line->rear()] as $size) {
-                    if ($size !== null) {
-                        $dimensions[self::dimension($size)] = true;
-                    }
-                }
-
-                foreach (array_keys($dimensions) as $dimension) {
-                    $uses[(int) $entry->vehicle_id][$dimension][] = $codes;
-                }
-            }
-        }
-
-        return $uses;
+        return self::carriesItsSet($entry, $line, $this->hasList);
     }
 
-    private static function dimension(TyreSize $size): string
+    private static function carriesItsSet(DocumentCarEntry $entry, DocumentTyreLine $line, bool $hasList): bool
     {
-        return $size->widthMm.'/'.$size->aspect.'/'.number_format($size->diameterIn, 1, '.', '');
-    }
-
-    /**
-     * A combination's codes, front side and rear side (D-437). A code of a MOVABLE kind that another of the car's combinations would
-     * receive through one side — it uses that size without the code — goes only on the other side, where none does. Otherwise on both:
-     * on neither is never an answer.
-     *
-     * @param  list<string>  $codes
-     * @param  array<string, list<list<string>>>  $uses
-     * @return array{0: list<string>, 1: list<string>}
-     */
-    private function sideCodes(DocumentTyreLine $line, array $codes, array $uses): array
-    {
-        $front = $line->front();
-        $rear = $line->rear();
-
-        // A line from before this flow writes back as it stood: there a code was typed beside a size, never a combination.
-        if ($uses === [] || $codes === [] || EntryModel::fromBefore($line) || ! EntryModel::paired($line) || $front === null || $rear === null) {
-            return [$codes, $codes];
-        }
-
-        $shared = static function (TyreSize $size, string $code) use ($uses): bool {
-            foreach ($uses[self::dimension($size)] ?? [] as $other) {
-                if (! in_array($code, $other, true)) {
-                    return true;
-                }
-            }
-
+        if (! $hasList && $line->in_list === null) {
             return false;
-        };
-
-        $onFront = [];
-        $onRear = [];
-
-        foreach ($codes as $code) {
-            $frontShared = isset($this->movable[$code]) && $shared($front, $code);
-            $rearShared = isset($this->movable[$code]) && $shared($rear, $code);
-
-            if (! $frontShared || $rearShared) {
-                $onFront[] = $code;
-            }
-
-            if (! $rearShared || $frontShared) {
-                $onRear[] = $code;
-            }
         }
 
-        return [$onFront, $onRear];
+        /** @var Vehicle|null $car */
+        $car = $entry->vehicle;
+
+        return EntryModel::twoSided($line) && EntryModel::stands($entry, $line) && ($line->in_list ?? $hasList)
+            && ! ($line->in_list === null && ! self::appliesTo($line, $car))
+            // A line from before this flow writes back as it stood: there a code was typed beside a size, never a combination.
+            && ! EntryModel::fromBefore($line);
     }
 
     /**
@@ -724,7 +673,10 @@ final class DocumentEntryWriter
     {
         $hasList = $model->hasList();
         $printed = $this->printedEntries($model);
+        $forTheSet = self::forTheSetOf($model->document->id);
         $rows = [];
+        /** @var array<int, array<int, int>> $colours version => its colours */
+        $colours = [];
 
         foreach ($model->entries as $entry) {
             /** @var Vehicle|null $car */
@@ -756,7 +708,22 @@ final class DocumentEntryWriter
                     'rear_diameter_in' => $rear->diameterIn,
                     'source_page' => $line->list_page ?? $entry->source_page,
                     'carried_over' => $line->list_carried_over,
+                    'codes' => [],
                 ];
+
+                // The set's codes typed beside it (D-451): the combination's, on both its axles — for the wheels of this cell, `config:code`.
+                if (self::carriesItsSet($entry, $line, $hasList)) {
+                    $codes = array_values(array_filter($line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all(), static fn (string $code): bool => isset($forTheSet[$code])));
+
+                    foreach (self::wheelsOf($entry, $colours) as $configId) {
+                        foreach ($codes as $code) {
+                            $rows[$key]['codes'][] = $configId.':'.$code;
+                        }
+                    }
+
+                    $rows[$key]['codes'] = array_values(array_unique($rows[$key]['codes']));
+                    sort($rows[$key]['codes']);
+                }
             }
         }
 
@@ -774,10 +741,37 @@ final class DocumentEntryWriter
                 'rear_diameter_in' => $kept->rear_diameter_in,
                 'source_page' => $kept->source_page,
                 'carried_over' => $kept->carried_over,
+                'codes' => [],
             ];
         }
 
         return EngineRows::list($this->numbered(array_values($rows)));
+    }
+
+    /**
+     * The wheels a cell's rows stand on: the colours of its versions — of one, on the same version front and rear, unless the cell is
+     * entered for one colour alone; of both, on two versions. As desired() writes the rows.
+     *
+     * @param  array<int, array<int, int>>  $colours  version => its colours, filled as it goes
+     * @return list<int>
+     */
+    private static function wheelsOf(DocumentCarEntry $entry, array &$colours): array
+    {
+        /** @var DocumentWheelCombination|null $combination */
+        $combination = $entry->combination;
+
+        if ($combination === null || $combination->front === null || $combination->rear === null) {
+            return [];
+        }
+
+        $colours[$combination->front->id] ??= self::coloursOf($combination->front);
+        $colours[$combination->rear->id] ??= self::coloursOf($combination->rear);
+
+        if ($combination->same()) {
+            return $entry->wheel_config_id !== null ? [(int) $entry->wheel_config_id] : array_keys($colours[$combination->front->id]);
+        }
+
+        return array_values(array_unique([...array_keys($colours[$combination->front->id]), ...array_keys($colours[$combination->rear->id])]));
     }
 
     /**
@@ -1023,6 +1017,32 @@ final class DocumentEntryWriter
     }
 
     /**
+     * A new colour's share of the combinations' codes (D-451): where its cell's lines carry codes, the combination now names it too.
+     *
+     * @param  list<array<string, mixed>>  $list
+     */
+    private static function tagColour(ApprovalDocument $document, array $list, int $configId): void
+    {
+        foreach ($list as $row) {
+            foreach ($row['codes'] ?? [] as $tagged) {
+                [$config, $code] = explode(':', (string) $tagged, 2);
+
+                if ((int) $config !== $configId || $row['vehicle_id'] === null) {
+                    continue;
+                }
+
+                $ids = DocumentTyreCombination::query()->where('approval_document_id', $document->id)->where('vehicle_id', $row['vehicle_id'])
+                    ->where('front_width_mm', $row['front_width_mm'])->where('front_aspect', $row['front_aspect'])->where('front_diameter_in', $row['front_diameter_in'])
+                    ->where('rear_width_mm', $row['rear_width_mm'])->where('rear_aspect', $row['rear_aspect'])->where('rear_diameter_in', $row['rear_diameter_in'])->pluck('id');
+
+                foreach ($ids as $id) {
+                    DocumentTyreCombinationCondition::query()->firstOrCreate(['document_tyre_combination_id' => (int) $id, 'wheel_config_id' => $configId, 'code' => $code]);
+                }
+            }
+        }
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $list
      */
     private function writeList(ApprovalDocument $document, array $list): void
@@ -1030,7 +1050,14 @@ final class DocumentEntryWriter
         DocumentTyreCombination::query()->where('approval_document_id', $document->id)->delete();
 
         foreach ($list as $row) {
-            DocumentTyreCombination::query()->create([...$row, 'approval_document_id' => $document->id]);
+            $codes = $row['codes'] ?? [];
+            unset($row['codes']);
+            $stored = DocumentTyreCombination::query()->create([...$row, 'approval_document_id' => $document->id]);
+
+            foreach ($codes as $tagged) {
+                [$configId, $code] = explode(':', (string) $tagged, 2);
+                DocumentTyreCombinationCondition::query()->create(['document_tyre_combination_id' => $stored->id, 'wheel_config_id' => (int) $configId, 'code' => $code]);
+            }
         }
     }
 }

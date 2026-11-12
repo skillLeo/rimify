@@ -274,6 +274,11 @@ export interface ConditionGroupsView {
     combination: string[]
     /** Every permitted size with its own Auflagen — only where the sizes differ. */
     sizes: { size: string; axle: string; conditions: string[]; entry: boolean }[]
+    /**
+     * Each tyre combination of the list with Auflagen of its own (the client's review of 11.11, A; D-451): „225/35 R18 vorn, 255/35 R18
+     * hinten“ — for both its axles, and no other combination. Only with no size chosen. Additive.
+     */
+    pairs?: { pair: string; conditions: string[]; entry: boolean }[]
     chosen: string | null
     /** With a size chosen: whether it needs the Abnahme or Eintragung. Null: the verdict's own flag stands. */
     entry: boolean | null

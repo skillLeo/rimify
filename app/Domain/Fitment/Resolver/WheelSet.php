@@ -7,6 +7,7 @@ namespace App\Domain\Fitment\Resolver;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\PairConditions;
 use App\Domain\Fitment\Verdict\TyreCheck;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 
@@ -67,7 +68,26 @@ final readonly class WheelSet
                 : self::conditions($front->combinationConditions, $rear->combinationConditions),
             sellsAlone: ($front->isSellable() || $front->sellsAlone) && ($rear->isSellable() || $rear->sellsAlone),
             rearWheel: $rear->wheel,
+            pairConditions: self::pairs($front->pairConditions, $rear->pairConditions),
         );
+    }
+
+    /**
+     * Each combination's own Auflagen (D-451), of either half, once per combination: read together, toward caution.
+     *
+     * @param  list<PairConditions>  $a
+     * @param  list<PairConditions>  $b
+     * @return list<PairConditions>
+     */
+    private static function pairs(array $a, array $b): array
+    {
+        $byKey = [];
+
+        foreach ([...$a, ...$b] as $pair) {
+            $byKey[$pair->key()] = isset($byKey[$pair->key()]) ? $byKey[$pair->key()]->joinedWith($pair) : $pair;
+        }
+
+        return array_values($byKey);
     }
 
     /**

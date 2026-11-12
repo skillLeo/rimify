@@ -69,7 +69,7 @@ final class FitmentDetail
      * The sizes an Auflage belongs to, where the document hangs it off some of the car's sizes and not all (D-04):
      * „Diese Reifengröße ist nur an Achse 2 zulässig.“ says which size only beside it. An Auflage any row of these
      * documents carries for this car and wheel stands for every size — the cautious reading when a code is on
-     * both — and so does one every offered size carries.
+     * both — and so does one every offered size carries. One typed beside a tyre combination names that combination (D-451).
      *
      * @param  list<int>  $documentIds
      * @return array<string, list<string>> by Condition::union's key (code and sentence)
@@ -107,6 +107,16 @@ final class FitmentDetail
         foreach ($owning as $key => $labels) {
             if (count($labels) < count($sizes)) {
                 $out[$key] = array_values($labels);
+            }
+        }
+
+        // An Auflage typed beside a tyre combination (D-451) is that combination's, front and rear: „Nur bei 225/35 R18 vorn,
+        // 255/35 R18 hinten“ — never every size's.
+        foreach ($verdict->pairConditions as $pair) {
+            foreach ($pair->conditions as $condition) {
+                if (! isset($rowCodes[$condition->code])) {
+                    $out[self::key($condition)] = array_values(array_unique([...($out[self::key($condition)] ?? []), $pair->labelDe()]));
+                }
             }
         }
 

@@ -40,6 +40,22 @@ describe('ConditionGroups', () => {
         }
     })
 
+    it('says a tyre combination’s own Auflage under that combination alone, for both its axles (D-451)', () => {
+        const BÖRDELN = 'Die Radhausausschnitte hinten sind zu bördeln.'
+        const wrapper = mount(ConditionGroups, {
+            props: { groups: { combination: [BOLTS], sizes: [], pairs: [{ pair: '225/35 R18 vorn, 255/35 R18 hinten', conditions: [BÖRDELN], entry: false }], chosen: null, entry: null } },
+        })
+        const blocks = wrapper.findAll('.cgroups__size')
+
+        expect(wrapper.find('.cgroups__head').text()).toBe('Für jede zulässige Reifengröße')
+        expect(blocks).toHaveLength(1)
+        expect(blocks[0]?.find('.cgroups__head').text()).toBe('Nur bei 225/35 R18 vorn, 255/35 R18 hinten')
+        expect(blocks[0]?.text()).toContain(BÖRDELN)
+        // Said once, never under one axle.
+        expect(wrapper.text()).not.toContain('Hinterachse')
+        expect(wrapper.findAll('li').filter((li) => li.text() === BÖRDELN)).toHaveLength(1)
+    })
+
     it('says only the chosen size’s Auflagen for a Komplettrad', () => {
         const wrapper = mount(ConditionGroups, { props: { groups: { combination: [BOLTS, NO_CHAINS], sizes: [], chosen: '255/40 R19', entry: true } } })
 

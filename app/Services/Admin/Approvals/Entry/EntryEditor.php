@@ -300,7 +300,7 @@ final readonly class EntryEditor
                 ->whereIn('id', $targetIds)->whereKeyNot($source->id)->get();
 
             foreach ($targets as $target) {
-                $there = $replace ? [] : $target->lines->mapWithKeys(static fn (DocumentTyreLine $line): array => [self::lineIdentity($line) => true])->all();
+                $there = $replace ? [] : $target->lines->mapWithKeys(static fn (DocumentTyreLine $line): array => [self::lineIdentity($line) => $line])->all();
                 $position = $replace ? 0 : ((int) $target->lines->max('position')) + 1;
                 $new = 0;
 
@@ -309,7 +309,19 @@ final readonly class EntryEditor
                 }
 
                 foreach ($source->lines as $line) {
-                    if ($line->unread() || isset($there[self::lineIdentity($line)])) {
+                    if ($line->unread()) {
+                        continue;
+                    }
+
+                    // The same combination already there: it keeps its own codes and takes the copied ones too (D-451) — a code is
+                    // the combination's, and „hinzufügen“ never drops one.
+                    if (isset($there[self::lineIdentity($line)])) {
+                        if (! $dryRun) {
+                            foreach ($line->codes as $code) {
+                                DocumentTyreLineCode::query()->firstOrCreate(['document_tyre_line_id' => $there[self::lineIdentity($line)]->id, 'code' => $code->code]);
+                            }
+                        }
+
                         continue;
                     }
 

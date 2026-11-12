@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *
  * @phpstan-type SizeState array{width_mm: int, aspect: int, diameter_in: float, min_load_index: int|null, min_speed_symbol: string|null, axle: string, kw_min: int|null, kw_max: int|null, codes: list<string>}
  * @phpstan-type RowState array{build_from: string|null, build_to: string|null, permitted_width_min: float|null, permitted_width_max: float|null, permitted_et_min: int|null, permitted_et_max: int|null, centre_bore_mm: float|null, requires_entry: bool, entry_note_de: string|null, entry_override: string|null, entry_override_reason: string|null, source_page: int|null, sizes: list<SizeState>, codes: list<array{code: string, note: string|null}>}
- * @phpstan-type ListState array{vehicle_id: int|null, eg_number: string|null, eg_number_norm: string|null, number: int, front_width_mm: int, front_aspect: int, front_diameter_in: float, rear_width_mm: int, rear_aspect: int, rear_diameter_in: float, source_page: int|null, carried_over: bool}
+ * @phpstan-type ListState array{vehicle_id: int|null, eg_number: string|null, eg_number_norm: string|null, number: int, front_width_mm: int, front_aspect: int, front_diameter_in: float, rear_width_mm: int, rear_aspect: int, rear_diameter_in: float, source_page: int|null, carried_over: bool, codes: list<string>}
  * @phpstan-type State array{rows: array<string, RowState>, list: list<ListState>, sets: list<string>}
  */
 final class EngineRows
@@ -97,6 +97,20 @@ final class EngineRows
             ->map(static fn (object $set): string => self::setKey((string) $keys[(int) $set->front_fitment_id], (string) $keys[(int) $set->rear_fitment_id]))
             ->sort()->values()->all();
 
+        $pairCodes = [];
+
+        foreach (DB::table('document_tyre_combination_conditions')->join('document_tyre_combinations', 'document_tyre_combinations.id', '=', 'document_tyre_combination_conditions.document_tyre_combination_id')
+            ->where('document_tyre_combinations.approval_document_id', $document->id)
+            ->get(['document_tyre_combination_conditions.document_tyre_combination_id', 'document_tyre_combination_conditions.wheel_config_id', 'document_tyre_combination_conditions.code']) as $code) {
+            $pairCodes[(int) $code->document_tyre_combination_id][] = $code->wheel_config_id.':'.$code->code;
+        }
+
+        foreach ($pairCodes as &$codes) {
+            sort($codes);
+        }
+
+        unset($codes);
+
         return [
             'rows' => $state,
             'sets' => $sets,
@@ -114,6 +128,8 @@ final class EngineRows
                     'rear_diameter_in' => (float) $row->rear_diameter_in,
                     'source_page' => $row->source_page === null ? null : (int) $row->source_page,
                     'carried_over' => (bool) $row->carried_over,
+                    // The set's own codes (D-451), `config:code`, in one order.
+                    'codes' => $pairCodes[(int) $row->id] ?? [],
                 ])->all()),
         ];
     }

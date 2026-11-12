@@ -28,6 +28,7 @@ use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\LoadIndexCode;
 use App\Domain\Fitment\Verdict\MinSource;
+use App\Domain\Fitment\Verdict\PairConditions;
 use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\TyreCheck;
 use App\Domain\Fitment\Verdict\VerdictReason;
@@ -430,6 +431,15 @@ final readonly class FitmentResolver
             $requiresEntry = $requiresEntry || $size->requiresEntry;
         }
 
+        // The Auflagen typed beside a combination of the car's list (D-451): each said with its own combination only, both axles. For
+        // the decision they count as they did on the combination's sizes: every one a combination with a permitted size brings.
+        $pairConditions = self::pairConditions($covering, $front, $rear);
+
+        foreach ($pairConditions as $pair) {
+            $conditions = Condition::union($conditions, $pair->conditions);
+            $requiresEntry = $requiresEntry || $pair->requiresEntry();
+        }
+
         // The entry flag and the Auflagen about entry must never disagree. A row's flag is already
         // derived from its Abnahme codes (or a Prüfer's override with its reason); an Auflage without a
         // kind — the old catalogue's entry key — still sets it. A „Keine Eintragung erforderlich.“ loses
@@ -441,6 +451,7 @@ final readonly class FitmentResolver
         if ($requiresEntry) {
             $conditions = array_values(array_filter($conditions, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
             $combination = array_values(array_filter($combination, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED));
+            $pairConditions = array_map(static fn (PairConditions $p): PairConditions => new PairConditions($p->front, $p->rear, array_values(array_filter($p->conditions, static fn (Condition $c): bool => $c->code !== Condition::NO_ENTRY_REQUIRED))), $pairConditions);
         }
 
         // Step 5's failure mode: the document covers the car but nothing is legally mountable.
@@ -550,7 +561,48 @@ final readonly class FitmentResolver
             tyre: $tyre,
             combinationConditions: $combination,
             sellsAlone: $sellsAlone,
+            pairConditions: $pairConditions,
         );
+    }
+
+    /**
+     * The combinations of the car's lists with Auflagen of their own for this wheel (D-451) whose front size the front axle permits, or
+     * whose rear size the rear: as many as when those Auflagen stood on the combination's sizes, never fewer — a set of two versions
+     * asks its front wheel and its rear wheel apart. One per combination, the documents' read together.
+     *
+     * @param  list<FitmentRow>  $covering
+     * @return list<PairConditions>
+     */
+    private static function pairConditions(array $covering, AxleRequirement $front, AxleRequirement $rear): array
+    {
+        $on = static fn (AxleRequirement $axle): array => array_fill_keys(array_map(static fn (TyreSize $s): string => $s->key(), $axle->sizes), true);
+        $onFront = $on($front);
+        $onRear = $on($rear);
+        $byKey = [];
+        $read = [];
+
+        foreach ($covering as $row) {
+            $table = $row->document->tyreCombinations;
+
+            if ($table === null || isset($read[$row->document->id])) {
+                continue;
+            }
+
+            $read[$row->document->id] = true;
+
+            foreach ($table->pairs as $pairing) {
+                if ($pairing->conditions === [] || (! isset($onFront[$pairing->front->key()]) && ! isset($onRear[$pairing->rear->key()]))) {
+                    continue;
+                }
+
+                $pair = new PairConditions($pairing->front, $pairing->rear, Condition::sorted($pairing->conditions));
+                $byKey[$pair->key()] = isset($byKey[$pair->key()]) ? $byKey[$pair->key()]->joinedWith($pair) : $pair;
+            }
+        }
+
+        ksort($byKey);
+
+        return array_values($byKey);
     }
 
     /**

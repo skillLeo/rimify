@@ -13,7 +13,7 @@ import { checkPaste, pasteToSides, readPaste, tyreLabel } from './tyreInput'
 
 const props = defineProps<{ car: CarView; combination: CombinationView }>()
 const open = defineModel<boolean>('open', { required: true })
-const emit = defineEmits<{ take: [sides: { front: string; rear: string }[]] }>()
+const emit = defineEmits<{ take: [sides: { front: string; rear: string; codes: string[] }[]] }>()
 
 /* Esc or a click beside it keeps what was pasted, for the next time it opens; only a yes or „Abbrechen“ lets it go. */
 const text = ref('')
@@ -36,7 +36,7 @@ function cancel(): void {
 </script>
 
 <template>
-    <Dialog v-model:open="open" :title="`Mehrere einfügen · ${car.label}`" description="Eine Größe oder ein Paar je Zeile. Ein Paar trennst du mit –, -, + oder →, auch in der Form „Nr. 1: 215/35R19 – 245/30R19“." content-class="adm-dialog" initial-focus="#ef-paste" wide>
+    <Dialog v-model:open="open" :title="`Mehrere einfügen · ${car.label}`" description="Eine Größe oder ein Paar je Zeile. Ein Paar trennst du mit –, -, + oder →, auch in der Form „Nr. 1: 215/35R19 – 245/30R19 11A“ – Codes hinter den Größen gelten für die Kombination." content-class="adm-dialog" initial-focus="#ef-paste" wide>
         <div class="ef-paste">
             <div class="form-field">
                 <label class="form-field__label" for="ef-paste">Text aus dem Gutachten</label>
@@ -54,6 +54,8 @@ function cancel(): void {
                             <template v-for="(pair, index) in line.pairs" :key="index">vorne {{ tyreLabel(pair.front) }} + hinten {{ tyreLabel(pair.rear) }}<template v-if="index < (line.pairs?.length ?? 0) - 1">; </template></template>
                         </span>
                         <span v-else>„{{ line.text }}“ – {{ line.reason }}</span>
+                        <!-- The codes printed after the sizes (D-451): the combination's, taken over with each line. -->
+                        <span v-if="line.status !== 'unread' && line.codes?.length" class="ef-paste__codes">Codes für die Kombination: <span translate="no">{{ line.codes.join(', ') }}</span></span>
                     </li>
                 </ol>
             </div>
@@ -111,6 +113,10 @@ function cancel(): void {
 .ef-paste__n {
     color: var(--c-ink-3);
     font-size: var(--fs-micro);
+}
+
+.ef-paste__codes {
+    color: var(--c-ink-2);
 }
 
 </style>

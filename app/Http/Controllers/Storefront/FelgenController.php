@@ -1073,10 +1073,11 @@ class FelgenController extends Controller
             : [$axle($pair->front, 'Vorderachse', $groups->ownFor($pair->front->key())), $axle($pair->rear, 'Hinterachse', $groups->ownFor($pair->rear->key()))];
 
         return [
-            'combination' => $same ? [] : $sentences($groups->combination),
+            // The combination's own Auflagen (D-451) stand with the wheel's, „Für beide Achsen“: they are the set's, never one axle's.
+            'combination' => $same ? [] : $sentences(Condition::sorted(Condition::union($groups->combination, $groups->pairOwn($pair->front->key(), $pair->rear->key())))),
             'sizes' => $axles,
             'chosen' => null,
-            'entry' => array_filter($axles, static fn (array $a): bool => $a['entry']) !== [],
+            'entry' => array_filter($axles, static fn (array $a): bool => $a['entry']) !== [] || (! $same && $groups->entryForSet($pair->front->key(), $pair->rear->key())),
             // Said per axle: „Für beide Achsen“, then „Vorderachse · 235/45 R19“ — never „Nur bei …“, both are fitted.
             'perAxle' => true,
         ];

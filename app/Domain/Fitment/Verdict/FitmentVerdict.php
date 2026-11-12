@@ -120,6 +120,14 @@ final readonly class FitmentVerdict
          * Never stored and never frozen. A verdict for one wheel leaves it null, and that one wheel stands on both axles.
          */
         public ?WheelConfigRecord $rearWheel = null,
+        /**
+         * The Auflagen typed beside a combination of the car's list (the client's review of 11.11, A; D-451): each applies to its own
+         * combination, both axles, and to no other. `$conditions` holds them too, for the decision — every one a permitted combination
+         * could bring, toward caution; what a customer reads of them comes from conditionGroups(), per combination.
+         *
+         * @var list<PairConditions>
+         */
+        public array $pairConditions = [],
     ) {}
 
     /** The rim on this axle: a set's own for each, otherwise the one wheel. */
@@ -166,6 +174,7 @@ final readonly class FitmentVerdict
             sellsAlone: true,
             rimAlone: true,
             rimAloneNoteDe: $this->rimAloneSentence(),
+            pairConditions: $this->pairConditions,
         );
     }
 
@@ -222,7 +231,7 @@ final readonly class FitmentVerdict
             $combination = array_values(array_filter($this->conditions, static fn (Condition $c): bool => ! isset($bySizes[$c->code."\u{0}".$c->sentenceDe()])));
         }
 
-        return ConditionGroups::of($combination, $this->front, $this->rear);
+        return ConditionGroups::of($combination, $this->front, $this->rear, $this->pairConditions);
     }
 
     /**
@@ -258,6 +267,7 @@ final readonly class FitmentVerdict
             sellsAlone: $this->sellsAlone,
             rimAlone: $this->rimAlone,
             rimAloneNoteDe: $this->rimAloneNoteDe,
+            pairConditions: $this->pairConditions,
         );
     }
 
@@ -456,6 +466,8 @@ final readonly class FitmentVerdict
             ...($this->sellsAlone ? ['sellsAlone' => true] : []),
             ...($this->rimAlone ? ['rimAlone' => true] : []),
             ...($this->rimAloneNoteDe === null ? [] : ['rimAloneNote' => $this->rimAloneNoteDe]),
+            // Additive (D-451): each combination's own Auflagen, as the customer read them with it.
+            ...($this->pairConditions === [] ? [] : ['pairConditions' => array_map(static fn (PairConditions $p): array => $p->toArray(), $this->pairConditions)]),
         ];
     }
 
@@ -562,6 +574,11 @@ final readonly class FitmentVerdict
             sellsAlone: ($data['sellsAlone'] ?? false) === true,
             rimAlone: ($data['rimAlone'] ?? false) === true,
             rimAloneNoteDe: is_string($data['rimAloneNote'] ?? null) ? $data['rimAloneNote'] : null,
+            // A snapshot frozen before D-451 has none: its Auflagen stand on its sizes.
+            pairConditions: array_values(array_map(
+                static fn (mixed $p): PairConditions => PairConditions::fromArray((array) $p),
+                is_array($data['pairConditions'] ?? null) ? $data['pairConditions'] : [],
+            )),
         );
     }
 

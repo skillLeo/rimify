@@ -29,7 +29,7 @@ final class DocumentRevision
     /** The tables a revision copies, child after parent. */
     public const TABLES = [
         'approval_documents', 'document_conditions', 'document_condition_reworks', 'document_fasteners', 'document_notices',
-        'document_speed_deratings', 'document_tyre_combinations', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes',
+        'document_speed_deratings', 'document_tyre_combinations', 'document_tyre_combination_conditions', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes',
         'fitment_tyre_size_conditions', 'fitment_wheel_sets', 'document_wheel_sizes', 'document_wheel_combinations', 'document_car_entries', 'document_car_entry_codes',
         'document_tyre_lines', 'document_tyre_line_codes', 'document_kept_combinations',
     ];
@@ -74,8 +74,13 @@ final class DocumentRevision
                 self::copyChildren('document_condition_reworks', 'document_condition_id', $from, $to);
             }
 
-            foreach (['document_fasteners', 'document_notices', 'document_speed_deratings', 'document_tyre_combinations'] as $table) {
+            foreach (['document_fasteners', 'document_notices', 'document_speed_deratings'] as $table) {
                 self::copyChildren($table, 'approval_document_id', $released->id, $id);
+            }
+
+            // A combination's own Auflagen go with it (D-451).
+            foreach (self::copyChildren('document_tyre_combinations', 'approval_document_id', $released->id, $id) as $from => $to) {
+                self::copyChildren('document_tyre_combination_conditions', 'document_tyre_combination_id', $from, $to);
             }
 
             $rows = self::copyChildren('fitments', 'approval_document_id', $released->id, $id, ['status' => FitmentStatus::Draft->value], static fn (array $row): bool => $row['status'] !== FitmentStatus::Retired->value);

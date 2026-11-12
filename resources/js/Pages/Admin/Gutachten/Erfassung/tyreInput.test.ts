@@ -58,7 +58,7 @@ describe('checkPaste: the paste against the wheels of this combination', () => {
     })
 
     it('takes nothing over from an error line', () => {
-        expect(pasteToSides(on('225/40R18 + 255/35R18\n225/40R18 + 255/35R19', 18, 19).filter((line) => line.status !== 'unread'))).toEqual([{ front: '225/40 R18', rear: '255/35 R19' }])
+        expect(pasteToSides(on('225/40R18 + 255/35R18\n225/40R18 + 255/35R19', 18, 19).filter((line) => line.status !== 'unread'))).toEqual([{ front: '225/40 R18', rear: '255/35 R19', codes: [] }])
     })
 })
 
@@ -133,9 +133,46 @@ describe('what „Mehrere einfügen" adds (the client\'s change of 05.11.2026)',
         const read = readPaste('235/50R18 96W\n225/40R18 – 255/35R18\nDas liest niemand')
 
         expect(pasteToSides(read)).toEqual([
-            { front: '235/50 R18 96W', rear: '235/50 R18 96W' },
-            { front: '225/40 R18', rear: '255/35 R18' },
+            { front: '235/50 R18 96W', rear: '235/50 R18 96W', codes: [] },
+            { front: '225/40 R18', rear: '255/35 R18', codes: [] },
         ])
+    })
+
+    it('carries the codes printed after a line to every combination it becomes (the client\'s review of 11.11, A; D-451)', () => {
+        const read = readPaste('Nr. 1: 215/35R19 – 245/30R19, 255/30R19 11A K2b\n235/50R18 96W A01')
+
+        expect(pasteToSides(read)).toEqual([
+            { front: '215/35 R19', rear: '245/30 R19', codes: ['11A', 'K2b'] },
+            { front: '215/35 R19', rear: '255/30 R19', codes: ['11A', 'K2b'] },
+            { front: '235/50 R18 96W', rear: '235/50 R18 96W', codes: ['A01'] },
+        ])
+    })
+})
+
+describe('the codes after the sizes of a pasted line (D-451)', () => {
+    it.each([
+        ['225/35R18 – 255/35R18 11A', ['11A']],
+        ['Nr. 2: 225/35 R18 90W – 255/35 R18 90W 11A K2b', ['11A', 'K2b']],
+        ['225/35R18 – 255/35R18 90 W 11A', ['11A']],
+        ['225/35R18 – 255/35R18, 11A; Nicht 330D', ['11A', 'Nicht 330D']],
+        ['245/40R18 97Y XL – 275/35R18 99Y XL 21', ['21']],
+    ])('reads %s with the codes %j', (input, codes) => {
+        const [line] = readPaste(input)
+
+        expect(line?.status).toBe('pair')
+        expect(line?.codes).toEqual(codes)
+    })
+
+    it('reads codes after a size alone, and none where the paper prints none', () => {
+        expect(readPaste('225/40R18 88W A01')[0]).toMatchObject({ status: 'single', codes: ['A01'] })
+        expect(readPaste('225/40R18 88W')[0]?.codes).toBeUndefined()
+    })
+
+    it('says so where the words after a size are no code, and takes nothing over', () => {
+        const [line] = readPaste('225/40R18 88W siehe Seite 4')
+
+        expect(line?.status).toBe('unread')
+        expect(line?.reason).toBe('„siehe Seite 4“ hinter der Größe ist kein Code.')
     })
 })
 

@@ -322,8 +322,8 @@ final readonly class TyreEligibility
             if ($frontSize->matches($front->size()) && $rearSize->matches($rear->size())) {
                 return new CombinationVerdict(
                     $pairing,
-                    $this->axleVerdict($verdict, 'FRONT', $frontSize, $front, $gate),
-                    $this->axleVerdict($verdict, 'REAR', $rearSize, $rear, $gate),
+                    $this->axleVerdict($verdict, 'FRONT', $frontSize, $front, $gate, $pairing),
+                    $this->axleVerdict($verdict, 'REAR', $rearSize, $rear, $gate, $pairing),
                     $table->sourcePage,
                 );
             }
@@ -555,7 +555,7 @@ final readonly class TyreEligibility
      * document writes a tyre rule the engine does not read, the car's figures did not settle every axle (R-03) — the axle
      * is not answered on its tyre: UNKNOWN at best, with the gate's reason.
      */
-    private function axleVerdict(FitmentVerdict $verdict, string $name, TyreSize $size, TyreRecord $tyre, ?KomplettradRefusal $gate): AxleVerdict
+    private function axleVerdict(FitmentVerdict $verdict, string $name, TyreSize $size, TyreRecord $tyre, ?KomplettradRefusal $gate, ?TyrePairing $pairing = null): AxleVerdict
     {
         $minimum = $this->sizeMinimum($verdict, $name, $name === 'FRONT' ? $verdict->front : $verdict->rear, $size);
         $refusal = $gate;
@@ -571,6 +571,8 @@ final readonly class TyreEligibility
         }
 
         $groups = $verdict->conditionGroups();
+        // The combination's own Auflagen (D-451) go with both its axles: the set is fitted whole.
+        $own = $pairing === null ? [] : $groups->pairOwn($pairing->front->key(), $pairing->rear->key());
 
         return new AxleVerdict(
             axle: $name === 'FRONT' ? 'FRONT' : 'REAR',
@@ -579,8 +581,10 @@ final readonly class TyreEligibility
             status: VerdictStatus::weaker($verdict->status, $tyreStatus),
             refusal: $refusal,
             minimum: is_array($minimum) ? self::minimum($minimum, $name === 'FRONT' ? $verdict->vehicle->axleLoadFrontKg : $verdict->vehicle->axleLoadRearKg) : null,
-            conditions: $groups->forSize($size->key()),
-            requiresEntry: $groups->entryFor($size->key(), $verdict->requiresEntry),
+            conditions: Condition::sorted(Condition::union($groups->forSize($size->key()), $own)),
+            requiresEntry: $pairing === null
+                ? $groups->entryFor($size->key(), $verdict->requiresEntry)
+                : $groups->entryFor($size->key(), $verdict->requiresEntry) || $groups->entryForSet($pairing->front->key(), $pairing->rear->key()),
         );
     }
 
@@ -845,7 +849,8 @@ final readonly class TyreEligibility
         $pairs = [];
 
         foreach ($table->pairs as $pairing) {
-            if ($pairing->sameSize() && ! $sameToo) {
+            // A combination a body-form or drive code keeps from this car, or cannot place it by: not offered (fails closed).
+            if (($pairing->sameSize() && ! $sameToo) || ! $pairing->admits($verdict->vehicle)) {
                 continue;
             }
 
