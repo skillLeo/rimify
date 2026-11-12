@@ -154,21 +154,26 @@ final class VehicleMerge
         }
 
         $memos = array_keys($pairs);
-        $keys = [];
-        $bindings = [];
+        $found = [];
 
-        foreach ($memos as $n => $memo) {
-            $keys[] = 'SELECT ? AS n, ? AS pattern, ? AS type';
-            array_push($bindings, $n, $pairs[$memo][0], $pairs[$memo][1]);
+        // A thousand pairs a query at most: three bound values each, far below what a statement may carry.
+        foreach (array_chunk($memos, 1000, true) as $chunk) {
+            $keys = [];
+            $bindings = [];
+
+            foreach ($chunk as $n => $memo) {
+                $keys[] = 'SELECT ? AS n, ? AS pattern, ? AS type';
+                array_push($bindings, $n, $pairs[$memo][0], $pairs[$memo][1]);
+            }
+
+            array_push($found, ...DB::select(
+                'SELECT k.n AS n, v.id AS id FROM ('.implode(' UNION ALL ', $keys).') AS k'
+                .' JOIN vehicles AS v ON v.eg_nummer_norm LIKE k.pattern COLLATE '.ColumnCollation::of('vehicles', 'eg_nummer_norm')
+                .' AND v.type_designation = k.type COLLATE '.ColumnCollation::of('vehicles', 'type_designation')
+                .' WHERE v.source IN (?, ?) AND v.deleted_at IS NULL ORDER BY k.n, v.id',
+                [...$bindings, VehicleSource::Gutachten->value, VehicleSource::ManuellGeprueft->value],
+            ));
         }
-
-        $found = DB::select(
-            'SELECT k.n AS n, v.id AS id FROM ('.implode(' UNION ALL ', $keys).') AS k'
-            .' JOIN vehicles AS v ON v.eg_nummer_norm LIKE k.pattern COLLATE '.ColumnCollation::of('vehicles', 'eg_nummer_norm')
-            .' AND v.type_designation = k.type COLLATE '.ColumnCollation::of('vehicles', 'type_designation')
-            .' WHERE v.source IN (?, ?) AND v.deleted_at IS NULL ORDER BY k.n, v.id',
-            [...$bindings, VehicleSource::Gutachten->value, VehicleSource::ManuellGeprueft->value],
-        );
 
         $vehicles = Vehicle::query()->whereIn('id', array_values(array_unique(array_map(static fn (object $hit): int => (int) $hit->id, $found))))->get()->keyBy('id');
         $candidates = array_fill_keys($memos, []);
