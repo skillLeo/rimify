@@ -612,7 +612,7 @@ describe('a code deleted from the whole paper (D-461)', () => {
         const deleted = sent.filter((c) => c.url.endsWith('/codes/loeschen'))
 
         expect(deleted.map((c) => [c.method, c.body])).toEqual([['POST', { code: '68B', seen: uses }]])
-        expect(router.reload).toHaveBeenCalledWith({ only: ['conditions'] })
+        expect(router.reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['conditions'] }))
     })
 
     it('says why where the server refuses, and leaves the code where it is', async () => {

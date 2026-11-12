@@ -5,10 +5,10 @@
  * the codes fields complete from this list.
  */
 
-import { router } from '@inertiajs/vue3'
 import { computed, nextTick, ref } from 'vue'
 import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
+import { freshReload } from '../../../../lib/freshReload'
 import CodeDefine from './CodeDefine.vue'
 import { send, useEntry, useGutachtenPage } from './entryStore'
 import LegendDialog from './LegendDialog.vue'
@@ -89,7 +89,7 @@ async function confirmDelete(): Promise<void> {
     try {
         await save('POST', '/codes/loeschen', { code: deleting.value.code, seen: deleting.value.uses })
         deleteOpen.value = false
-        router.reload({ only: ['conditions'] })
+        freshReload('erfassung-codes', { only: ['conditions'] })
     } catch (failure) {
         deleteOpen.value = false
         deleteError.value = failure instanceof Error ? failure.message : String(failure)

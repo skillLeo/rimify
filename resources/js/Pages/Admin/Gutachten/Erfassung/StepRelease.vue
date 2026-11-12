@@ -6,11 +6,11 @@
  * is still open, and an undescribed code or two cars of one field K with different pairs are among those things.
  */
 
-import { router } from '@inertiajs/vue3'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
+import { cancelReload, freshReload } from '../../../../lib/freshReload'
 import ReleaseDialog from '../ReleaseDialog.vue'
 import CodeDefine from './CodeDefine.vue'
 import LegendDialog from './LegendDialog.vue'
@@ -63,9 +63,12 @@ const LI_SOURCES = [
 
 const liSource = computed(() => doc.value.shape.tyre_index_source || null)
 
-/* What the door says, fresh: the rows may have changed in the steps before this one. */
+/* What the door says, fresh: the rows may have changed in the steps before this one. A save calls off the reload
+   still on its way, whose answer it makes old (freshReload). */
+const REFRESH = 'erfassung-freigabe'
+
 function refresh(): void {
-    router.reload({ only: ['blockers', 'document', 'rowsTotal', 'vehicles', 'entry', 'conditions', 'unresolved', 'stamps', 'flash'] })
+    freshReload(REFRESH, { only: ['blockers', 'document', 'rowsTotal', 'vehicles', 'entry', 'conditions', 'unresolved', 'stamps', 'flash'] })
 }
 
 onMounted(refresh)
@@ -100,6 +103,7 @@ const dropBody = computed(() => {
 
 /* „Gilt nicht für dieses Fahrzeug“: a car stays on the paper by its other combinations. The door stops asking for this one. */
 async function dropCell(car: CarView): Promise<void> {
+    cancelReload(REFRESH)
     // One request, however often it is pressed: the second would only fail, and say so over one that worked.
     if (cellBusy.value) {
         return
@@ -120,6 +124,7 @@ async function dropCell(car: CarView): Promise<void> {
 }
 
 async function addCell(vehicleId: number, combinationId: number): Promise<void> {
+    cancelReload(REFRESH)
     if (cellBusy.value) {
         return
     }
@@ -149,6 +154,7 @@ function describedDone(): void {
 }
 
 async function confirm(car: CarView): Promise<void> {
+    cancelReload(REFRESH)
     busy.value = car.id
     failure.value = ''
 
@@ -163,6 +169,7 @@ async function confirm(car: CarView): Promise<void> {
 }
 
 async function answerIndex(value: string): Promise<void> {
+    cancelReload(REFRESH)
     failure.value = ''
 
     try {
