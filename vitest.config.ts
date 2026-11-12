@@ -12,7 +12,8 @@ export default defineConfig({
     test: {
         environment: 'happy-dom',
         globals: true,
-        include: ['resources/js/**/*.test.ts'],
+        // scripts/: the gate's own rules, read as the suites are (D-458's timeout-retry).
+        include: ['resources/js/**/*.test.ts', 'scripts/**/*.test.mjs'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html'],

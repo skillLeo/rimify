@@ -21,7 +21,8 @@ export default defineConfig({
     globalSetup: '../../../e2e/global-setup.ts',
     fullyParallel: false,
     workers: 1,
-    retries: process.env.CI ? 1 : 0,
+    // As the main suite: no retry of Playwright's own; a wait runs once more alone, after the suite (D-458).
+    retries: 0,
     timeout: 90_000,
     expect: { timeout: 15_000 },
     reporter: [['list']],
