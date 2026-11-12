@@ -66,7 +66,9 @@ it('keeps 15.1 and 15.2 where given, reads an entry without them as before, and 
         // A symbol no papers print, or an index out of range: the whole entry goes, never the figures without it.
         ->and(PapersBook::decode('7.1100.1100.250.p91X.p94Y')->isEmpty())->toBeTrue()
         ->and(PapersBook::decode('7.1100.1100.250.p31W.p94Y')->isEmpty())->toBeTrue()
-        ->and(PapersBook::decode('7.1100.1100.250.p91Wx.p94Y')->isEmpty())->toBeTrue();
+        // No V is printed in brackets; a W is (D-453): `(91W)` travels as `91Wx` and comes back as (W).
+        ->and(PapersBook::decode('7.1100.1100.250.p91Vx.p94Y')->isEmpty())->toBeTrue()
+        ->and(PapersBook::decode('7.1100.1100.250.p91Wx.p94Y')->for(7)?->index?->forAxle('FRONT')['speedSymbol'])->toBe('(W)');
 });
 
 it('replaces a car’s figures in place rather than keeping two, and forgets one car without touching the others', function (): void {

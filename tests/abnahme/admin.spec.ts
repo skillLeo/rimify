@@ -169,7 +169,7 @@ test.describe('as the Super-Admin', () => {
         await page.fill('#rf-aspect', '45')
         await page.fill('#rf-diameter', '18')
         await page.fill('#rf-load', '95')
-        await page.selectOption('#rf-speed', 'Y')
+        await page.fill('#rf-speed', 'Y')
         await expect(page.locator('.rf-size-preview')).toHaveText('225/45 R18 95Y')
 
         await page.selectOption('#rf-fuel', 'B')

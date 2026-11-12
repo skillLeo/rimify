@@ -10,6 +10,7 @@ use App\Models\AdminUser;
 use App\Models\Brand;
 use App\Models\TyreVariant;
 use App\Support\Money;
+use App\Support\TyreText;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -59,11 +60,18 @@ class TyreVariantRequest extends FormRequest
     {
         $trim = static fn (mixed $v): mixed => is_string($v) ? trim($v) : $v;
         $upper = static fn (mixed $v): mixed => is_string($v) ? mb_strtoupper(trim($v)) : $v;
+        // As printed, read as step 4 reads a size's end (D-453): `(w)` is (W); `97(W)` or `94W XL` brings its load index where none is typed.
+        $service = is_string($this->input('speed_symbol')) ? TyreText::service($this->input('speed_symbol')) : null;
+        $loadIndex = $this->input('load_index');
+
+        if ($service !== null && $service['li'] !== null && ($loadIndex === null || trim((string) $loadIndex) === '')) {
+            $this->merge(['load_index' => (string) $service['li']]);
+        }
 
         $this->merge([
             'name' => $trim($this->input('name')),
             'brand_new' => $trim($this->input('brand_new')),
-            'speed_symbol' => $upper($this->input('speed_symbol')),
+            'speed_symbol' => $service !== null && $service['si'] !== null ? $service['si'] : $upper($this->input('speed_symbol')),
             'eu_fuel_class' => $upper($this->input('eu_fuel_class')),
             'eu_wet_grip_class' => $upper($this->input('eu_wet_grip_class')),
             'eu_noise_class' => $upper($this->input('eu_noise_class')),
@@ -122,7 +130,7 @@ class TyreVariantRequest extends FormRequest
             'diameter_in.*' => 'Den Durchmesser bitte in ganzen Zoll, zwischen 13 und 24.',
             'load_index.required' => 'Bitte gib den Lastindex an, zum Beispiel 95.',
             'load_index.*' => 'Der Shop rechnet mit den Lastindizes 70 bis 120. Prüf die Zahl auf der Reifenflanke. Für einen Lastindex über 120 hat der Shop keine Tragfähigkeit hinterlegt, deshalb lässt sich ein solcher Reifen hier nicht anlegen.',
-            'speed_symbol.*' => 'Bitte wähl das Geschwindigkeitssymbol aus der Liste.',
+            'speed_symbol.*' => 'Dieses Geschwindigkeitssymbol lesen wir nicht. Schreib es wie gedruckt: J bis Y, (W) oder (Y), auch mit Lastindex wie 97(W).',
             'eu_fuel_class.*' => 'Die Kraftstoffeffizienz hat eine Klasse von A bis E.',
             'eu_wet_grip_class.*' => 'Die Nasshaftung hat eine Klasse von A bis E.',
             'eu_noise_db.*' => 'Das externe Rollgeräusch bitte in Dezibel, als ganze Zahl zwischen 50 und 90.',

@@ -1,12 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { checkPaste, parseKwBand, pasteToSides, readPaste, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
+import { checkPaste, parseKwBand, pasteToSides, readPaste, readService, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
 
 interface Notation { text: string; label: string; width: number; aspect: number; diameter: number; li: number | null; li2: number | null; si: string | null; marker: string | null }
 
 /* One list, read by this test and by the server's (tests/Unit/Support/TyreTextTest.php): the two readings cannot drift apart. */
-const notations = JSON.parse(readFileSync(resolve(process.cwd(), 'tests/Fixtures/tyre-notations.json'), 'utf8')) as { reads: Notation[]; refuses: string[] }
+const notations = JSON.parse(readFileSync(resolve(process.cwd(), 'tests/Fixtures/tyre-notations.json'), 'utf8')) as {
+    reads: Notation[]
+    refuses: string[]
+    services: (Pick<Notation, 'text' | 'li' | 'li2' | 'si' | 'marker'>)[]
+    servicesRefused: string[]
+}
+
+/* The service description alone, as the catalogue form takes it (the client's review of 11.11, D; D-453). */
+describe('readService: the index and the symbol alone', () => {
+    it.each(notations.services)('$text reads as $li $si', (service) => {
+        expect(readService(service.text)).toEqual({ li: service.li, li2: service.li2, si: service.si, marker: service.marker })
+    })
+
+    it.each(notations.servicesRefused)('refuses %j', (input) => {
+        expect(readService(input)).toBeNull()
+    })
+})
 
 describe('readTyre: the notations a Gutachten prints', () => {
     it('has notations to read', () => {

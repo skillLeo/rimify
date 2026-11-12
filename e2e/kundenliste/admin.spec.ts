@@ -526,7 +526,7 @@ test('a tyre model above its sizes: its photographs once, a thumbnail in the lis
     await page.fill('#rf-aspect', '45')
     await page.fill('#rf-diameter', '18')
     await page.fill('#rf-load', '95')
-    await page.selectOption('#rf-speed', 'Y')
+    await page.fill('#rf-speed', 'Y')
     await page.fill('#rf-price', '129')
     // One supplier (D-448): the form asks none.
     await expect(page.locator('#rf-supplier')).toHaveCount(0)
@@ -589,7 +589,7 @@ test('a tyre made in the admin with its EU label: offered once the label is comp
     await page.fill('#rf-aspect', '45')
     await page.fill('#rf-diameter', '18')
     await page.fill('#rf-load', '95')
-    await page.selectOption('#rf-speed', 'Y')
+    await page.fill('#rf-speed', 'Y')
     await expect(page.locator('.rf-size-preview')).toHaveText('225/45 R18 95Y')
     await page.fill('#rf-price', '129')
 

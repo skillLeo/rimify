@@ -352,6 +352,18 @@ it('ranks speed symbols and never compares them as letters', function (): void {
         ->and(eligibilityOver()->permits(liveVerdict(FitmentFixtures::row()), permittedTyre(speedSymbol: '(Y)')))->toBeNull();
 });
 
+it('offers a (W) tyre where W is asked and never where Y is: above 270 km/h, to a limit only its maker states (D-453)', function (): void {
+    // The RS 4 at 280 km/h needs Y; the BMW 3er under a document asking W, W.
+    $needsY = liveVerdict(FitmentFixtures::row());
+    $needsW = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3, sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'W')])])
+        ->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
+
+    expect(eligibilityOver()->permits($needsY, permittedTyre(speedSymbol: '(W)')))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and(eligibilityOver()->permits($needsY, permittedTyre(speedSymbol: 'Y')))->toBeNull()
+        ->and(eligibilityOver()->permits($needsW, permittedTyre(speedSymbol: '(W)')))->toBeNull()
+        ->and(eligibilityOver()->permits($needsW, permittedTyre(speedSymbol: 'V')))->toBe(KomplettradRefusal::BelowMinimum);
+});
+
 it('lets a document load index above the derived one govern, and credits the document for that half only', function (): void {
     $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinLoadIndex: 95)]));
 

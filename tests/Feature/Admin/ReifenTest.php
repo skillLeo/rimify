@@ -81,8 +81,8 @@ it('makes a tyre with its EU label: a tyre brand, the symbol’s rank from the t
         // A tyre brand does not join the homepage's wall of wheel brands.
         ->and($tyre->brand->is_wheel_brand)->toBeFalse()
         ->and($tyre->label())->toBe('225/45 R18 95Y')
-        // Y is rank 15 of the table (J and K below L, D-442) — never typed, never compared as a letter.
-        ->and($tyre->speed_rank)->toBe(15)
+        // Y is rank 16 of the table (J and K below L, D-442; (W) below Y, D-453) — never typed, never compared as a letter.
+        ->and($tyre->speed_rank)->toBe(16)
         ->and($tyre->eu_fuel_class)->toBe('B')
         ->and($tyre->eu_snow_grip)->toBeFalse()
         ->and($tyre->eprel_id)->toBe('381090')
