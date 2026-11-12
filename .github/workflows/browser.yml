@@ -1,8 +1,9 @@
 name: Browser
 
 # The browser suites on GitHub's machines (the operator's brief of 12.11.2026, D-460): what resume/gate.sh runs on the Mac —
-# the end-to-end suite at 1440 and 390, the phone suite and the client's two lists — so a release no longer waits on how
-# busy that machine is. One browser worker per job and no retry of Playwright's own; a test that failed only by waiting runs
+# the end-to-end suite at 1440 and 390 and the phone suite — so a release no longer waits on how busy that machine is. The
+# client's two lists stay on the Mac: their acceptance shop is released from his own Gutachten PDFs, which never go to git
+# or to GitHub (the repository is public). One browser worker per job and no retry of Playwright's own; a test that failed only by waiting runs
 # once more, alone, and is listed in the job's summary (D-458). Each job builds its machine from nothing
 # (scripts/ci/browser-env.sh) on MariaDB 11.8.9 with the preview host's settings.
 #
@@ -34,10 +35,8 @@ jobs:
           - { name: 'E2E 3/4', key: e2e-3, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=3/4 --reporter=list,json --update-snapshots=missing' }
           - { name: 'E2E 4/4', key: e2e-4, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=4/4 --reporter=list,json --update-snapshots=missing' }
           - { name: 'Telefon', key: phone, config: tests/e2e/mobile/playwright.config.ts, report: report.json, run: 'npx playwright test -c tests/e2e/mobile/playwright.config.ts --reporter=list,json --update-snapshots=missing' }
-          - { name: 'Kundenliste', key: kunde, config: playwright.kundenliste.config.ts, report: test-results/kundenliste-run/playwright.json, run: 'npm run kundenliste', extra: '--junit test-results/kundenliste-run/pest.xml --vitest test-results/kundenliste-run/vitest.json' }
-          - { name: 'Adminliste', key: admin, config: playwright.kundenliste.config.ts, report: test-results/adminliste-run/playwright.json, run: 'npm run adminliste', extra: '--junit test-results/adminliste-run/pest.xml --vitest test-results/adminliste-run/vitest.json' }
     env:
-      # Pest's database, for the lists' tagged tests (tests/env.php pins everything else).
+      # Pest's database (tests/env.php pins everything else).
       TEST_DB_HOST: 127.0.0.1
       TEST_DB_PORT: 3308
       TEST_DB_DATABASE: rimify_test

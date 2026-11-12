@@ -69,12 +69,11 @@ TEST_DB_HOST="$DB_HOST" TEST_DB_PORT="$DB_PORT" TEST_DB_DATABASE="$DEV_DB" TEST_
 echo "::endgroup::"
 
 # Playwright starts its servers before a suite's global setup rebuilds the shops: on a fresh machine their databases must
-# already answer, as on the Mac, where the last run left them. Seeded the way the global setups seed them.
+# already answer, as on the Mac, where the last run left them. Seeded the way the global setups seed them. Not the client's
+# acceptance shop: it is released from his own Gutachten PDFs, which never leave the Mac (the repository is public).
 echo "::group::The shops' databases, seeded once before the suites rebuild them"
 DB_DATABASE=rimify_wf_e2e php -d memory_limit=2G artisan migrate:fresh --seed --seeder='Database\Seeders\E2eShopSeeder' --force --no-interaction
 DB_DATABASE=rimify_wf_e2e_leer php -d memory_limit=2G artisan migrate:fresh --seed --seeder='Database\Seeders\E2eEmptyShopSeeder' --force --no-interaction
-DB_DATABASE=rimify_wf_abnahme_e2e DEMO_DATA=1 php -d memory_limit=2G artisan migrate:fresh --seed --seeder='Database\Seeders\KundenlisteShopSeeder' --force --no-interaction
-DB_DATABASE=rimify_wf_abnahme_e2e DEMO_DATA=1 php -d memory_limit=2G artisan rimify:demo --abnahme --satz --no-interaction
 echo "::endgroup::"
 
 echo "::group::SSR"
