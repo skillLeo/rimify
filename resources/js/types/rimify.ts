@@ -426,7 +426,7 @@ export interface BasketLine {
     } | null
     /* docs/specs/komplettrad.md §4.7 — a Komplettrad is a wheel line that carries its tyre. */
     isSet?: boolean
-    setLabel?: 'Felge' | 'Komplettrad' | 'Komplettrad Vorderachse' | 'Komplettrad Hinterachse'
+    setLabel?: 'Felge' | 'Komplettrad' | 'Felge Vorderachse' | 'Felge Hinterachse' | 'Komplettrad Vorderachse' | 'Komplettrad Hinterachse'
     /**
      * Mischbereifung (#20, D-105): one axle of a mixed set — the two lines are one entry, so a change on either changes
      * both. Null on every other line. Additive.

@@ -3740,16 +3740,16 @@
     "/build/assets/Beispiel-wWgHldd7.css"
   ],
   "resources/js/Pages/Kasse/Index.vue": [
-    "/build/assets/Index-DSyup52E.js",
-    "/build/assets/Index-CI5xd3x5.css"
+    "/build/assets/Index-CratfqVg.js",
+    "/build/assets/Index-DXMH0GBD.css"
   ],
   "resources/js/Pages/Kasse/Index.vue?vue&type=script&setup=true&lang.ts": [
-    "/build/assets/Index-DSyup52E.js",
-    "/build/assets/Index-CI5xd3x5.css"
+    "/build/assets/Index-CratfqVg.js",
+    "/build/assets/Index-DXMH0GBD.css"
   ],
-  "resources/js/Pages/Kasse/Index.vue?vue&type=style&index=0&scoped=743eda9d&lang.css": [
-    "/build/assets/Index-DSyup52E.js",
-    "/build/assets/Index-CI5xd3x5.css"
+  "resources/js/Pages/Kasse/Index.vue?vue&type=style&index=0&scoped=208e6ad8&lang.css": [
+    "/build/assets/Index-CratfqVg.js",
+    "/build/assets/Index-DXMH0GBD.css"
   ],
   "resources/js/Pages/Kasse/Testzahlung.vue": [
     "/build/assets/Testzahlung-NRvlYaio.js",
@@ -4159,8 +4159,8 @@
     "/build/assets/useShopFeedback-Bw9Y158i.css"
   ],
   "resources/js/composables/useStripe.ts": [
-    "/build/assets/Index-DSyup52E.js",
-    "/build/assets/Index-CI5xd3x5.css"
+    "/build/assets/Index-CratfqVg.js",
+    "/build/assets/Index-DXMH0GBD.css"
   ],
   "resources/js/composables/useWhenIdle.ts": [
     "/build/assets/AdminPage-BA7BbMo6.js",

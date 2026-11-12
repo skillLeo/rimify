@@ -13,12 +13,18 @@ const sources = import.meta.glob<string>(['./**/*.vue'], { query: '?raw', import
 /** A branch whose first content is spaces and then `{{` or a tag. The condition may hold `=>`, so it is read to its `">`. */
 const DROPPED = /<template\s+v-(?:if|else-if|else)(?:="[^"]*")?\s*>[ \t]+(?:\{\{|<[a-zA-Z])/g
 
+/**
+ * Its mirror (the client's review of 11.11, F; D-457): a branch whose last content is `}}` or a tag and then spaces — `{{ label }}
+ * </template>{{ brand }}` — loses the space before the next word. The checkout's summary read „Felge VorderachseBorbet DB8GT2“.
+ */
+const DROPPED_AFTER = /(?:\}\}|<\/[a-zA-Z][\w-]*>|\/>)[ \t]+<\/template>/g
+
 describe('the space before a conditional word', () => {
     it('is never left for the compiler to drop', () => {
         const found: string[] = []
 
         for (const [path, source] of Object.entries(sources)) {
-            for (const match of source.matchAll(DROPPED)) {
+            for (const match of [...source.matchAll(DROPPED), ...source.matchAll(DROPPED_AFTER)]) {
                 const line = source.slice(0, match.index).split('\n').length
                 found.push(`${path}:${line}  ${match[0]}`)
             }
@@ -33,5 +39,10 @@ describe('the space before a conditional word', () => {
         // A branch that starts with a word keeps its space: „ · VSN“ is no finding.
         expect('<template v-if="x"> · {{ y }}</template>'.match(DROPPED)).toBeNull()
         expect("<template v-if=\"x\">{{ ' ' + y }}</template>".match(DROPPED)).toBeNull()
+        // And at its end: the space before `</template>` goes too; a word before it keeps it.
+        expect('<template v-if="m">{{ label }} </template>{{ brand }}'.match(DROPPED_AFTER)).not.toBeNull()
+        expect('<template v-if="m"><b>x</b> </template>'.match(DROPPED_AFTER)).not.toBeNull()
+        expect('<template v-if="x">{{ y }} · </template>'.match(DROPPED_AFTER)).toBeNull()
+        expect("<template v-if=\"x\">{{ y + ' ' }}</template>".match(DROPPED_AFTER)).toBeNull()
     })
 })

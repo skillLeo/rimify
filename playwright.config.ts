@@ -80,7 +80,9 @@ export default defineConfig({
     globalSetup: ACCEPTANCE ? undefined : './e2e/global-setup.ts',
     fullyParallel: false,
     forbidOnly: !!process.env.CI,
-    retries: process.env.CI ? 1 : 0,
+    // No retry of Playwright's own, here or on CI: a test that failed only by waiting runs once more, alone, after the
+    // suite, and nothing else runs again (D-458, scripts/e2e/timeout-retry.mjs). One browser at a time, everywhere.
+    retries: 0,
     workers: 1,
     // Budgets for a development machine serving SSR pages, not for a fast CI box (the launch release §3):
     // a test's own waits stay short, the test as a whole may take a minute.
