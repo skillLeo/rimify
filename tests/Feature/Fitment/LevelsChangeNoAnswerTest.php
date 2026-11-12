@@ -142,6 +142,9 @@ function levelsAnswers(bool $listing = true): array
 
 it('moves no verdict and no offered tyre or pair, whatever level any Auflage of an answer has, one at a time — 512b', function (): void {
     levelsAcceptanceSet();
+    // Since D-459 every answer of the set is sellable at its car's own speed. One car faster than the table goes keeps the
+    // proof running over answers that are not: its tyres are not on record above 300 km/h, whatever any level says.
+    Vehicle::query()->where('demo_ref', 'abnahme:vehicle:e90')->update(['max_speed_kmh' => 310]);
     $baseline = levelsAnswers(listing: false);
 
     // The proof means something only over answers that differ: sellable and not, offered and refused.

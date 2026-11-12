@@ -103,7 +103,7 @@ it('writes the wheel, its two Gutachten, three cars, tyres and accessories — e
     expect(VehicleKey::of(acceptanceCar('e90')))->toBe('0005-Z90-00001');
 });
 
-it('answers from the two real Gutachten: Abnahme and Radlauf for the E46 at 19 Zoll, no tyre answer above 210 km/h without a table', function (): void {
+it('answers from the two real Gutachten: Abnahme and Radlauf for the E46 at 19 Zoll, the E90 at 222 km/h from ETRTO\'s table (D-459)', function (): void {
     seedAcceptanceSet();
     $resolver = app(FitmentResolver::class);
 
@@ -115,13 +115,14 @@ it('answers from the two real Gutachten: Abnahme and Radlauf for the E46 at 19 Z
         ->and($e46->notesOnly())->toBeFalse()
         ->and($codes)->toContain('A01', 'K42');
 
-    // The Nachtrag prints no table for high speed: the E90's 222 km/h leaves the tyres unconfirmed, so the 18-inch rim
-    // is not sold to it (R-03) — the fourth state, never folded into „nicht freigegeben“ (R-07).
+    // The Nachtrag prints no table for high speed; since D-459 none is needed: the E90's 222 km/h reads ETRTO's 230 km/h row,
+    // and the 18-inch rim is sold to it with its Auflagen. Until then its tyres stayed unconfirmed and it was not sold — the
+    // census of 12.11.2026 lists this answer among the four that got less strict, from that ETRTO value.
     $e90 = $resolver->resolve((int) acceptanceCar('e90')->id, acceptanceConfig(18, 'Bronze matt'));
 
-    expect($e90->status)->toBe(VerdictStatus::Unknown)
-        ->and($e90->isSellable())->toBeFalse()
-        ->and($e90->reason?->code)->toBe('TYRE_UNKNOWN');
+    expect($e90->status)->toBe(VerdictStatus::Conditional)
+        ->and($e90->isSellable())->toBeTrue()
+        ->and($e90->reason?->code)->not->toBe('TYRE_UNKNOWN');
 });
 
 it('keeps the Gutachten\'s wording as printed beside the arranged Auflagen, every sentence with its page @kunde-21', function (): void {
