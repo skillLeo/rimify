@@ -3,7 +3,7 @@ name: Checks
 # Every push to main: Pint, Larastan, ESLint, Stylelint, vue-tsc, Vitest and the whole Pest suite on MariaDB 11.8 —
 # the preview host's engine — in one job: one set-up, one rounding to the minute. The full matrix, every engine the
 # app accepts, runs on a push to `release` (release.yml). A push that changes only documentation runs nothing.
-# No browser suite in CI: it runs locally, three clean full runs before a report (D-148).
+# The browser suites run in browser.yml, on a push to a `gate/**` branch or by hand (D-460).
 
 on:
   push:

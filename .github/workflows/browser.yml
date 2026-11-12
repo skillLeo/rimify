@@ -1,0 +1,115 @@
+name: Browser
+
+# The browser suites on GitHub's machines (the operator's brief of 12.11.2026, D-460): what resume/gate.sh runs on the Mac —
+# the end-to-end suite at 1440 and 390, the phone suite and the client's two lists — so a release no longer waits on how
+# busy that machine is. One browser worker per job and no retry of Playwright's own; a test that failed only by waiting runs
+# once more, alone, and is listed in the job's summary (D-458). Each job builds its machine from nothing
+# (scripts/ci/browser-env.sh) on MariaDB 11.8.9 with the preview host's settings.
+#
+# A push to a `gate/**` branch runs it on a candidate before it goes to main; it can also be started by hand on any branch.
+
+on:
+  push:
+    branches: ['gate/**']
+  workflow_dispatch:
+
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    name: ${{ matrix.suite.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - { name: 'E2E 1/4', key: e2e-1, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=1/4 --reporter=list,json --update-snapshots=missing' }
+          - { name: 'E2E 2/4', key: e2e-2, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=2/4 --reporter=list,json --update-snapshots=missing' }
+          - { name: 'E2E 3/4', key: e2e-3, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=3/4 --reporter=list,json --update-snapshots=missing' }
+          - { name: 'E2E 4/4', key: e2e-4, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=4/4 --reporter=list,json --update-snapshots=missing' }
+          - { name: 'Telefon', key: phone, config: tests/e2e/mobile/playwright.config.ts, report: report.json, run: 'npx playwright test -c tests/e2e/mobile/playwright.config.ts --reporter=list,json --update-snapshots=missing' }
+          - { name: 'Kundenliste', key: kunde, config: playwright.kundenliste.config.ts, report: test-results/kundenliste-run/playwright.json, run: 'npm run kundenliste', extra: '--junit test-results/kundenliste-run/pest.xml --vitest test-results/kundenliste-run/vitest.json' }
+          - { name: 'Adminliste', key: admin, config: playwright.kundenliste.config.ts, report: test-results/adminliste-run/playwright.json, run: 'npm run adminliste', extra: '--junit test-results/adminliste-run/pest.xml --vitest test-results/adminliste-run/vitest.json' }
+    env:
+      # Pest's database, for the lists' tagged tests (tests/env.php pins everything else).
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 3308
+      TEST_DB_DATABASE: rimify_test
+      TEST_DB_USERNAME: root
+      TEST_DB_PASSWORD: root
+      E2E_SHOP_DB_PORT: 3308
+      PLAYWRIGHT_JSON_OUTPUT_NAME: report.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MariaDB 11.8.9
+        run: |
+          docker run -d --name db -p 3308:3306 -e MARIADB_ROOT_PASSWORD=root mariadb:11.8.9 \
+            --sql-mode=NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci \
+            --innodb-strict-mode=OFF --max-allowed-packet=1G
+          for i in $(seq 1 60); do
+            if docker exec db healthcheck.sh --connect --innodb_initialized > /dev/null 2>&1; then echo "up after ${i} s"; break; fi
+            sleep 1
+          done
+          docker exec db healthcheck.sh --connect --innodb_initialized
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, pdo_mysql, gd, zip, bcmath, exif
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Node dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Playwright's browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: The machine
+        run: bash scripts/ci/browser-env.sh
+
+      - name: ${{ matrix.suite.name }}
+        id: suite
+        run: |
+          set +e
+          ${{ matrix.suite.run }}
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      # D-458: a test that failed only by waiting, once more and alone; any other failure is real. Listed in the summary.
+      - name: Run a wait again, alone (D-458)
+        if: ${{ !cancelled() }}
+        run: |
+          rc='${{ steps.suite.outputs.rc }}'
+          if [ "$rc" = "0" ]; then echo "D-458: ${{ matrix.suite.name }} passed, nothing to run again." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          set +e
+          node scripts/e2e/timeout-retry.mjs --config '${{ matrix.suite.config }}' --report '${{ matrix.suite.report }}' --exit "${rc:-1}" --out retry.md ${{ matrix.suite.extra }}
+          code=$?
+          { echo "### ${{ matrix.suite.name }}"; cat retry.md 2>/dev/null; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+      - name: What the run left
+        if: ${{ !cancelled() && steps.suite.outputs.rc != '0' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-${{ matrix.suite.key }}
+          path: |
+            test-results/
+            playwright-report/
+            report.json
+            retry.md
+          retention-days: 7
+          if-no-files-found: ignore
