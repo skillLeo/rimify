@@ -30,6 +30,15 @@ final class VehicleImportPolicy
     }
 
     /**
+     * The parts of a file, and the file complete (D-462): the right to check a file, on a file the person announced
+     * themselves — another person's upload is not theirs to finish.
+     */
+    public function upload(AdminUser $user, VehicleImport $import): bool
+    {
+        return $this->preview($user) && $import->admin_user_id === $user->id;
+    }
+
+    /**
      * The rights alone: whether the run is still a Probelauf is the importer's question, asked under the run's lock — a
      * second tab is told the file is imported, never that a right is missing (VehicleImporter::apply).
      */

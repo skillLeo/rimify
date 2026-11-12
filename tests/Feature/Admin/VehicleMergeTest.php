@@ -195,3 +195,28 @@ it('runs as a dry run from the command line, and applies only for an admin who m
     expect($car->fresh()?->hsn)->toBe('0005');
     @unlink($csv);
 });
+
+it('finds for a batch of dataset cars, in one query, exactly the cars it finds asking for each one alone (D-462)', function (): void {
+    // The type compared as the column compares it (no matter the case), a removed car never, a car of another approval never.
+    mergeCar(['type_designation' => '3C', 'eg_nummer_raw' => 'e1*2007/46*0563*..']);
+    mergeCar(['type_designation' => '3c', 'eg_nummer_raw' => 'e1*2007/46*0563*07', 'source' => 'manuell_geprueft', 'source_document_id' => null, 'source_page' => null, 'variant' => '420i']);
+    mergeCar(['type_designation' => 'F32', 'eg_nummer_raw' => 'e1*2007/46*0563*..'])->delete();
+    mergeCar(['type_designation' => 'F32', 'eg_nummer_raw' => 'e1*2007/46*0564*..', 'variant' => 'F32']);
+    mergeCar(['type_designation' => 'F33', 'eg_nummer_raw' => 'e1*2007/46*0563*00-09', 'variant' => 'F33']);
+    $rows = [
+        datasetRow(),
+        datasetRow(['fahrzeug_id' => '700002', 'fahrzeugtyp' => '3c', 'tsn' => 'cdb']),
+        datasetRow(['fahrzeug_id' => '700003', 'fahrzeugtyp' => 'F32', 'tsn' => 'cdc']),
+        datasetRow(['fahrzeug_id' => '700004', 'fahrzeugtyp' => 'F33', 'eg_nummer' => 'e1*2007/46*0563*05', 'tsn' => 'cdd']),
+        datasetRow(['fahrzeug_id' => '700005', 'fahrzeugtyp' => 'F33', 'eg_nummer' => 'e1*2007/46*0563*11', 'tsn' => 'cde']),
+        datasetRow(['fahrzeug_id' => '700006', 'fahrzeugtyp' => '', 'tsn' => 'cdf']),
+    ];
+    $shape = static fn (array $entries): array => array_map(static fn (array $e): array => [$e['status'], $e['vehicle']?->id, $e['reason']], $entries);
+
+    $together = app(VehicleMerge::class)->decide($rows);
+    $alone = array_map(static fn (DatasetVehicle $row): array => app(VehicleMerge::class)->decide([$row])[0], $rows);
+
+    expect($shape($together))->toBe($shape($alone))
+        // And it found something to compare: two cars for the first two (ambiguous), the F33 range taken in once.
+        ->and(array_column($together, 'status'))->toBe([VehicleMerge::AMBIGUOUS, VehicleMerge::AMBIGUOUS, VehicleMerge::NEW, VehicleMerge::MATCHED, VehicleMerge::NEW, VehicleMerge::NEW]);
+});

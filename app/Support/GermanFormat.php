@@ -408,6 +408,12 @@ final class GermanFormat
         return $sign.$figure.self::NBSP.'%';
     }
 
+    /** `12,4 MB` — a file's size in megabytes (2^20 bytes), one decimal: what a person reads off a file list. */
+    public static function megabytes(int $bytes): string
+    {
+        return self::decimal($bytes / 1048576, 1).self::NBSP.'MB';
+    }
+
     /** `1.234` — an integer quantity with a thousands point. */
     public static function integer(int $value): string
     {

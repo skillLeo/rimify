@@ -108,6 +108,7 @@ final class ResetTables
         // The cars, and the vehicle datasets that brought them (D-297).
         'vehicles',
         'vehicle_imports',
+        'vehicle_import_rows',
         // Orders, customers and everything that hangs off them.
         'customers',
         'customer_accounts',

@@ -7,6 +7,7 @@ namespace App\Http\Requests\Admin;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\VehicleImport;
+use App\Services\Admin\Vehicles\Import\ImportUpload;
 use App\Services\Admin\Vehicles\VehicleImporter;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,8 +15,10 @@ use Illuminate\Validation\Rule;
 /**
  * Every step of Fahrzeuge › Import, authorised by VehicleImportPolicy on the server (R-11); the route names the step:
  *
- *   - fahrzeugimport.index, fahrzeugimport.show, fahrzeugimport.beispiel — reading the importer (`imports` × view);
- *   - fahrzeugimport.probelauf — a file read and checked (`imports` × create), nothing written to the cars;
+ *   - fahrzeugimport.index, fahrzeugimport.show, fahrzeugimport.stand, fahrzeugimport.beispiel — reading the importer
+ *     and how far a run is (`imports` × view);
+ *   - fahrzeugimport.hochladen — a file announced (`imports` × create): its name, size and source, no size limit (D-462);
+ *   - fahrzeugimport.teil, fahrzeugimport.fertig — its parts, and the file complete: only the person who announced it;
  *   - fahrzeugimport.zuordnung — the same file under another mapping;
  *   - fahrzeugimport.importieren — the Probelauf applied (and the vehicles' create and edit rights).
  */
@@ -32,7 +35,8 @@ class VehicleImportRequest extends FormRequest
         $import = $this->route('import');
 
         return match ($this->step()) {
-            'probelauf' => $user->can('preview', VehicleImport::class),
+            'hochladen' => $user->can('preview', VehicleImport::class),
+            'teil', 'fertig' => $import instanceof VehicleImport && $user->can('upload', $import),
             // Whether the run is still a Probelauf is asked under its lock (VehicleImporter::remap), and answered in words.
             'zuordnung' => $import instanceof VehicleImport && $user->can('preview', VehicleImport::class),
             'importieren' => $import instanceof VehicleImport && $user->can('apply', $import),
@@ -44,10 +48,15 @@ class VehicleImportRequest extends FormRequest
     public function rules(): array
     {
         return match ($this->step()) {
-            'probelauf' => [
-                // The 5 MB ceiling is CatalogueFile's, said in its words; this one only keeps a huge body out.
-                'file' => ['required', 'file', 'max:'.(6 * 1024)],
+            // No ceiling on the file (D-462): only on a part, which the server sized itself (ImportUpload::partBytes).
+            'hochladen' => [
+                'name' => ['required', 'string', 'max:255'],
+                'size' => ['required', 'integer', 'min:1'],
                 'quelle' => ['required', 'string', Rule::in(array_keys(VehicleImporter::SOURCES))],
+            ],
+            'teil' => [
+                'offset' => ['required', 'integer', 'min:0'],
+                'part' => ['required', 'file', 'max:'.(intdiv(ImportUpload::partBytes(), 1024) + 64)],
             ],
             'zuordnung' => [
                 'mapping' => ['present', 'array'],
@@ -65,9 +74,11 @@ class VehicleImportRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required' => 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).',
-            'file.file' => 'Die Datei ist nicht vollständig angekommen. Lad sie bitte noch einmal hoch.',
-            'file.max' => 'Die Datei ist größer als 5 MB. Teil sie bitte auf.',
+            'name.*' => 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).',
+            'size.min' => 'Die Datei ist leer. Wähl bitte die Datei mit den Fahrzeugen aus.',
+            'size.*' => 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).',
+            'offset.*' => 'Ein Teil der Datei ist nicht vollständig angekommen. Lad die Datei bitte noch einmal hoch.',
+            'part.*' => 'Ein Teil der Datei ist nicht vollständig angekommen. Lad die Datei bitte noch einmal hoch.',
             'quelle.*' => 'Bitte wähl, woher die Fahrzeugdaten kommen.',
             'mapping.*' => 'Die Zuordnung ist unvollständig angekommen. Lad die Seite bitte neu.',
             'plan.*' => 'Die Seite ist nicht mehr aktuell. Lad sie bitte neu.',

@@ -33,6 +33,8 @@ Schedule::command('rimify:reset --prune')->hourly()->environments(TestEnvironmen
 // Finding 103, §1.5: how many pairs of a vehicle and a wheel stand on „Reifengröße noch nicht bestätigt“ — counted by the
 // engine itself, about ten milliseconds a pair, so System › Was fehlt reads the count kept here and never makes it.
 Schedule::call(static fn () => app(TyreConfirmations::class)->count(fresh: true))->hourly()->name('reifenbestaetigung-zaehlen')->withoutOverlapping();
+// D-462: a vehicle file being read, checked or imported goes on with its page closed — where this cron line runs.
+Schedule::command('fahrzeuge:import-weiter')->everyMinute()->withoutOverlapping(10);
 // The scheduler's pulse: rimify:preflight and the admin's health line read it to tell whether the cron line runs.
 Schedule::call(static fn () => ScheduleBeat::record())->everyMinute()->name('schedule-heartbeat');
 // His admin item 17, part 2 (D-361): Stripe's invoices of the day before, PDF and JSON, into the shop's own bucket — after

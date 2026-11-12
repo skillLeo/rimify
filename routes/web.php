@@ -407,8 +407,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Fahrzeuge › Import (his admin item 2, D-297): a vehicle dataset in a Probelauf, then imported (VehicleImportPolicy).
         Route::get('/fahrzeuge/import', [FahrzeugImportController::class, 'index'])->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.index');
         Route::get('/fahrzeuge/import/beispiel.csv', [FahrzeugImportController::class, 'sample'])->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.beispiel');
-        Route::post('/fahrzeuge/import/probelauf', [FahrzeugImportController::class, 'preview'])->middleware('throttle:20,1,fahrzeugimport-probelauf')->name('fahrzeugimport.probelauf');
+        // A file of any size, in parts (D-462): announced, sent part after part, complete — then the server works on it.
+        Route::post('/fahrzeuge/import/hochladen', [FahrzeugImportController::class, 'start'])->middleware('throttle:20,1,fahrzeugimport-hochladen')->name('fahrzeugimport.hochladen');
+        Route::post('/fahrzeuge/import/{import}/teil', [FahrzeugImportController::class, 'part'])->whereNumber('import')->middleware('throttle:1200,1,fahrzeugimport-teil')->name('fahrzeugimport.teil');
+        Route::post('/fahrzeuge/import/{import}/fertig', [FahrzeugImportController::class, 'finish'])->whereNumber('import')->middleware('throttle:20,1,fahrzeugimport-fertig')->name('fahrzeugimport.fertig');
         Route::get('/fahrzeuge/import/{import}', [FahrzeugImportController::class, 'show'])->whereNumber('import')->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.show');
+        Route::get('/fahrzeuge/import/{import}/stand', [FahrzeugImportController::class, 'status'])->whereNumber('import')->middleware([EnsureAdminMay::class.':imports,view', 'throttle:120,1,fahrzeugimport-stand'])->name('fahrzeugimport.stand');
         Route::post('/fahrzeuge/import/{import}/zuordnung', [FahrzeugImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1,fahrzeugimport-zuordnung')->name('fahrzeugimport.zuordnung');
         Route::post('/fahrzeuge/import/{import}/importieren', [FahrzeugImportController::class, 'apply'])->whereNumber('import')->middleware('throttle:10,1,fahrzeugimport-importieren')->name('fahrzeugimport.importieren');
         // Team: roles and their rights, the accounts that hold them, and the record of every change

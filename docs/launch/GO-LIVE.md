@@ -352,8 +352,10 @@ the renderer answers, and starts it within about half a minute when the host has
 server-rendered again from the first one after the restart (the gateway asks a renderer whose socket is newer
 than its rest at once). Measured on the preview with one look a minute (02.10.2026): renderer back after 52 s,
 the first server-rendered page after 65 s (HOST-FINDINGS 10). The second runs the scheduler — `demo:assert-clean` every day at 04:30 Berlin (R-12),
-`orders:expire` every ten minutes (an order unpaid after 24 hours expires and its stock goes back), and a pulse
-every minute that `rimify:preflight` reads („Zeitplan (Cron)“ turns GO within a minute of the line running).
+`orders:expire` every ten minutes (an order unpaid after 24 hours expires and its stock goes back), `fahrzeuge:import-weiter`
+every minute (a vehicle list being read, checked or imported goes on with its page closed, D-462 — without the line it
+goes on only while its page is open, and the page says so), and a pulse every minute that `rimify:preflight` reads
+(„Zeitplan (Cron)“ turns GO within a minute of the line running).
 
 **The second line is load-bearing:** without it no unpaid order ever expires, and the stock it holds stays reserved
 for good. The shop says so rather than rely on memory — Admin › System shows a row „Zeitplan“ that turns amber, with

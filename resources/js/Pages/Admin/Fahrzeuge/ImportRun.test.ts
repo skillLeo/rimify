@@ -174,3 +174,73 @@ describe('Fahrzeuge › Import › Probelauf', () => {
         expect(page([]).find('.fr-gaps').exists()).toBe(false)
     })
 })
+
+/*
+ * D-462 (the client's request H): while the server reads, checks or imports a file, the page says which step it is on and
+ * how far, as a bar and in words, and whether it may be closed; a file that could not be read says why.
+ */
+describe('Fahrzeuge › Import › a run the server works on', () => {
+    function working(status: 'reading' | 'checking' | 'applying' | 'failed', error: string | null = null) {
+        return mount(ImportRun, {
+            props: {
+                run: {
+                    id: 7,
+                    file: 'gross.csv',
+                    source: 'KBA-Typdaten',
+                    format: 'CSV',
+                    status,
+                    statusLabel: 'Datei wird gelesen',
+                    summary: {},
+                    by: 'Testzugang Admin',
+                    at: '13.11.2026, 09:00 Uhr',
+                    rowCount: 0,
+                    appliedAt: null,
+                    error,
+                    expired: false,
+                    size: `100,0${NBSP}MB`,
+                },
+                progress: status === 'failed' ? null : { step: 'Datei lesen', done: 13_000_000, total: 104_857_600, percent: 12, text: `12,4${NBSP}MB von 100,0${NBSP}MB gelesen` },
+                poll: '/admin/fahrzeuge/import/7/stand',
+                unattended: false,
+                fields: [{ key: 'hsn', label: 'HSN (2.1)', required: true, hint: null }],
+                headers: ['HSN'],
+                examples: {},
+                mapping: { hsn: 'HSN' },
+                missing: [],
+                gaps: [],
+                implausible: [],
+                rows: [],
+                hiddenRows: 0,
+                planHash: '',
+                can: { remap: false, apply: false },
+            },
+            global: { stubs: { AdminPage: { template: '<div><slot /><slot name="primary" /></div>' }, AdminConfirm: true } },
+        })
+    }
+
+    it('shows the step and how far it is, and asks for the page to stay open where no scheduler goes on without it', () => {
+        const wrapper = working('reading')
+
+        expect(wrapper.find('#fr-h-work').text()).toBe('Die Datei wird gelesen')
+        expect(wrapper.find('.fr-work__step').text()).toBe('Datei lesen')
+        expect(wrapper.find('[role="progressbar"]').attributes('aria-valuenow')).toBe('12')
+        expect(wrapper.find('#fr-progress-text').text()).toBe(`12,4${NBSP}MB von 100,0${NBSP}MB gelesen · 12 %`)
+        expect(wrapper.find('.fr-work').text()).toContain('Lass diese Seite offen, bis das Ergebnis hier steht')
+        // Nothing to import yet, and no counts of a Probelauf that is not done.
+        expect(wrapper.find('#fr-h-result').exists()).toBe(false)
+        expect(wrapper.find('button.btn--primary').exists()).toBe(false)
+    })
+
+    it('says while it imports that the cars change all at once or not at all', () => {
+        expect(working('applying').find('.fr-work').text()).toContain('er speichert alles auf einmal oder gar nichts')
+    })
+
+    it('says why a file stopped, and offers the way back to the upload', () => {
+        const wrapper = working('failed', 'Unter der ersten Zeile steht nichts. Die Datei enthält keine Fahrzeuge.')
+
+        expect(wrapper.find('.adm-alert').text()).toBe('Unter der ersten Zeile steht nichts. Die Datei enthält keine Fahrzeuge.')
+        expect(wrapper.find('#fr-h-failed').text()).toBe('Probelauf abgebrochen')
+        expect(wrapper.find('a[href="/admin/fahrzeuge/import"]').exists()).toBe(true)
+        expect(wrapper.find('[role="progressbar"]').exists()).toBe(false)
+    })
+})

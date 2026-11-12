@@ -5,7 +5,7 @@ import { clean, openAdmin, record, signIn, watch } from './support';
 /*
  * Aufgabe 3, zweiter Teil (the operator's brief of 23.10.2026): the demo file imported through the Probelauf — the
  * import page's own sample file, fetched from its link — then the mapping read, the gaps and the implausible counted,
- * and the file imported. A wrong file first: one that is no table, one too big.
+ * and the file imported. A wrong file first: one that is no table (there is no file too big since D-462).
  */
 
 test('Aufgabe 3b: die Beispieldatei durch den Probelauf importiert', async ({ page }, info) => {
@@ -22,13 +22,13 @@ test('Aufgabe 3b: die Beispieldatei durch den Probelauf importiert', async ({ pa
     const csv = await sample.body();
     record('t3b.jsonl', { step: 'beispiel', bytes: csv.length, head: csv.toString('utf8').split('\n').slice(0, 3) });
 
-    // A file that is no table: refused beside the field, in German.
-    watcher.expect([/^422 POST \/admin\/fahrzeuge\/import\/probelauf$/]);
+    // A file that is no table: it arrives (any size does, D-462), the server reads it and stops with the reason, in German.
     await page.locator('#fi-file').setInputFiles({ name: 'kein-csv.txt', mimeType: 'text/plain', buffer: Buffer.from('das ist keine Tabelle') });
     await page.locator('#fi-source').selectOption({ label: 'KBA-Typdaten' });
     await page.getByRole('button', { name: /^Probelauf/ }).click();
-    await expect(page.locator('#fi-file-err')).not.toBeEmpty({ timeout: 15_000 });
-    record('t3b.jsonl', { step: 'falsche datei', error: await page.locator('#fi-file-err').textContent() });
+    await page.waitForURL(/\/admin\/fahrzeuge\/import\/\d+$/, { timeout: 60_000 });
+    await expect(page.getByRole('heading', { name: 'Probelauf abgebrochen' })).toBeVisible({ timeout: 60_000 });
+    record('t3b.jsonl', { step: 'falsche datei', error: await page.locator('.adm-alert').first().textContent() });
 
     // The sample: Probelauf, its counts, then Importieren.
     await openAdmin(page, '/admin/fahrzeuge/import');
@@ -39,9 +39,10 @@ test('Aufgabe 3b: die Beispieldatei durch den Probelauf importiert', async ({ pa
     await ready(page);
     record('t3b.jsonl', { step: 'probelauf', text: (await page.locator('main').innerText()).slice(0, 3000) });
 
+    await expect(page.locator('#fr-h-result')).toHaveText('Probelauf', { timeout: 60_000 });
     await page.getByRole('button', { name: 'Importieren', exact: true }).click();
     await confirm(page, 'Importieren');
-    await expect(page.locator('#fr-h-result')).toHaveText('Ergebnis', { timeout: 60_000 });
+    await expect(page.locator('#fr-h-result')).toHaveText('Ergebnis', { timeout: 120_000 });
     record('t3b.jsonl', { step: 'importiert', text: (await page.locator('main').innerText()).slice(0, 2000) });
 
     const seen = watcher.take();

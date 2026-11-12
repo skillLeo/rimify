@@ -107,6 +107,9 @@ return [
     'RIMIFY_SELLER_ZIP' => '',
     'RIMIFY_SHIPPING_COST_CENTS' => '',
     'RIMIFY_SHIPPING_FREE_FROM_CENTS' => '',
+    // A part of a vehicle file as the host decides it; how far a run is, kept beside the test's own array cache (D-462).
+    'RIMIFY_VEHICLE_IMPORT_PART_BYTES' => '0',
+    'RIMIFY_VEHICLE_IMPORT_PROGRESS_STORE' => 'array',
     'SESSION_DOMAIN' => 'null',
     'SESSION_ENCRYPT' => 'false',
     'SESSION_LIFETIME' => '120',

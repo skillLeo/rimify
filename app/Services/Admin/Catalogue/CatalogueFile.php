@@ -172,7 +172,7 @@ final class CatalogueFile
     }
 
     /** A workbook's number as the German text a person would type: `8,5`, never `8.5`. */
-    private static function cell(mixed $value): string
+    public static function cell(mixed $value): string
     {
         return match (true) {
             is_float($value) => rtrim(rtrim(number_format($value, 4, ',', ''), '0'), ','),
