@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '../fixtures'
 import { REVIEW_PASSWORD } from '../support'
-import { ABNAHME, PRODUCT, box, consent, isPhone, open, shot, shotAround, withCar } from './support'
+import { ABNAHME, PRODUCT, box, consent, isPhone, open, shot, shotAround, topSpeed, withCar } from './support'
 
 /*
  * The client's list beyond the product page and the listing, against the acceptance shop: the Felgenrechner's drawing
@@ -204,12 +204,27 @@ test('the colour of an Auflage: a column and a filter under Auflagen, and the sh
     await admin(page)
     await page.goto(`${ABNAHME}/admin/auflagen`, { waitUntil: 'networkidle' })
 
-    const section = page.locator('.al-doc').filter({ hasText: '55255' }).filter({ has: page.locator('.al-status', { hasText: 'Freigegeben' }) }).first()
-    await expect(section.locator('thead')).toContainText('Farbe im Shop')
-    const select = section.locator('tbody tr', { has: page.locator('.adm-table__key', { hasText: /^A01$/ }) }).locator('select.al-colour')
+    /** A released paper's code, its colour in the shop. */
+    const code = (paper: string, key: string) =>
+        page
+            .locator('.al-doc')
+            .filter({ hasText: paper })
+            .filter({ has: page.locator('.al-status', { hasText: 'Freigegeben' }) })
+            .first()
+            .locator('tbody tr', { has: page.locator('.adm-table__key', { hasText: new RegExp(`^${key}$`) }) })
+            .locator('select.al-colour')
 
-    // Precondition: nothing yellow on this car's answers yet, and the filter finds nothing of this paper's under yellow.
-    await expect(select).toHaveValue('green')
+    // The E46's card speaks for the size it opens on: since ETRTO's table answers its 226 km/h (D-459) the 18-inch rim of the
+    // Nachtrag N1 sells, and is the cheaper. So one Auflage of each paper turns: A01 of ABE 55255 (19 Zoll) and 11A of N1
+    // (18 Zoll) — whichever size the card speaks for, its answer carries one of them (D-468).
+    const turned = [code('55255', 'A01'), code('WIRD/N1', '11A')]
+    await expect(page.locator('.al-doc').first().locator('thead')).toContainText('Farbe im Shop')
+
+    // Precondition: nothing yellow on this car's answers yet.
+    for (const select of turned) {
+        await expect(select).toHaveValue('green')
+    }
+
     const hint = page.locator('main .tile .verdict').first()
     await withCar(page, 'e46')
     await expect(hint).toHaveText('Mit Auflagen')
@@ -217,17 +232,21 @@ test('the colour of an Auflage: a column and a filter under Auflagen, and the sh
 
     const colour = async (value: 'green' | 'yellow'): Promise<void> => {
         await page.goto(`${ABNAHME}/admin/auflagen`, { waitUntil: 'networkidle' })
-        await Promise.all([page.waitForResponse((r) => r.request().method() === 'PUT' && new URL(r.url()).pathname.endsWith('/farbe')), select.selectOption(value)])
-        await expect(select).toHaveValue(value)
+
+        for (const select of turned) {
+            await Promise.all([page.waitForResponse((r) => r.request().method() === 'PUT' && new URL(r.url()).pathname.endsWith('/farbe')), select.selectOption(value)])
+            await expect(select).toHaveValue(value)
+        }
     }
 
     try {
         await colour('yellow')
 
-        // The filter shows what is yellow, this code among it.
+        // The filter shows what is yellow, these codes among it.
         await page.locator('#al-farbe').selectOption('yellow')
         await page.waitForURL(/farbe=yellow/)
         await expect(page.locator('.adm-table__key', { hasText: /^A01$/ }).first()).toBeVisible()
+        await expect(page.locator('.adm-table__key', { hasText: /^11A$/ }).first()).toBeVisible()
         await shot(page.locator('.al-doc').first(), 23, info)
 
         // The same answer, the same words, another colour.
@@ -277,9 +296,16 @@ test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document a
 
     await shot(answer, 28, info)
 
-    // The E46 and the 18-inch rim: no answer we can stand behind, so nothing to buy — the refusal is the product.
-    await withCar(page, 'e46', '/rimify-check')
-    await wheel(18)
-    await expect(answer.locator('.chk__go')).toHaveCount(0)
-    await expect(answer.locator('.chk__nosale')).toContainText('bis sie hinterlegt sind, bieten wir die Felge dafür nicht an')
+    // The E46 and the 18-inch rim, with papers that say 310 km/h — above the table of tyre load at speed (D-459, D-468): no
+    // answer we can stand behind, so nothing to buy — the refusal is the product. Its speed is back as it was after.
+    await topSpeed(page, 'e46', 310)
+
+    try {
+        await withCar(page, 'e46', '/rimify-check')
+        await wheel(18)
+        await expect(answer.locator('.chk__go')).toHaveCount(0)
+        await expect(answer.locator('.chk__nosale')).toContainText('bis sie hinterlegt sind, bieten wir die Felge dafür nicht an')
+    } finally {
+        await topSpeed(page, 'e46', 226)
+    }
 })

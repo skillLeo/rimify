@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '../fixtures'
-import { ABNAHME, PRODUCT, box, consent, newVisitor, onSize, open, pageProps, shot, shotAround, throughExtras, toTyres, withCar } from './support'
+import { ABNAHME, PRODUCT, box, consent, newVisitor, onSize, open, pageProps, shot, shotAround, throughExtras, topSpeed, toTyres, withCar } from './support'
 
 /*
  * The client's list on the product page, against the acceptance shop (rimify:demo --abnahme): the BORBET DB8GT2 at 18
@@ -249,14 +249,21 @@ test('Nur Felgen or Komplettrad: switching keeps the rest, the tyres are chosen 
     await expect(page.locator('.kf-step .fit__entry--verdict')).not.toHaveText(/^Keine/)
     await shot(page.locator('.kf-step'), 18, info)
 
-    // A combination the Gutachten does not answer cannot be bought: the E46 at 18 Zoll (no table above 210 km/h).
-    await withCar(page, 'e46', PRODUCT)
-    await onSize(page, 18, 'Schwarz matt')
-    expect((await onScreen(page)).verdict?.status).toBe('UNKNOWN')
-    await expect(page.locator('button.pdp__add')).toBeDisabled()
-    await mode(page, 'Komplettrad')
-    await expect(page.locator('button.pdp__add')).toBeDisabled()
-    await expect(page.locator('button.pdp__add')).toHaveText('Komplettrad gerade nicht möglich')
+    // A combination the shop cannot answer cannot be bought: the E46 at 18 Zoll, with papers that say 310 km/h — above the
+    // table of tyre load at speed, which reaches 300 km/h (D-459, D-468). Its speed is back as it was after.
+    await topSpeed(page, 'e46', 310)
+
+    try {
+        await withCar(page, 'e46', PRODUCT)
+        await onSize(page, 18, 'Schwarz matt')
+        expect((await onScreen(page)).verdict?.status).toBe('UNKNOWN')
+        await expect(page.locator('button.pdp__add')).toBeDisabled()
+        await mode(page, 'Komplettrad')
+        await expect(page.locator('button.pdp__add')).toBeDisabled()
+        await expect(page.locator('button.pdp__add')).toHaveText('Komplettrad gerade nicht möglich')
+    } finally {
+        await topSpeed(page, 'e46', 226)
+    }
 })
 
 test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with their prices, one per wheel — with Nur Felgen none of them', { tag: '@kunde-15' }, async ({ page, context }, info) => {

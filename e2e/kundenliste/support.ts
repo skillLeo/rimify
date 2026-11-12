@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test'
-import { CONSENT_COOKIE } from '../support'
+import { CONSENT_COOKIE, REVIEW_PASSWORD } from '../support'
 
 /*
  * The client's list as a suite (the operator's brief „THE 34“ §0). Every test carries its item's tag — `@kunde-01` …
@@ -343,4 +343,44 @@ export async function throughExtras(page: Page, card: Locator, rdks: 'Mit RDKS-S
     await page.locator('.kf-opt', { hasText: rdks }).click()
     await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
     await expect(page.locator('.kf-basket')).toBeVisible()
+}
+
+/**
+ * A car's top speed as its papers state it (Feld T), set in the admin of the acceptance shop — in a window of its own, so the
+ * customer's session and car in `page` stay as they were (D-468).
+ *
+ * Since D-459 the shop reads ETRTO's table at every speed it holds, 210 to 300 km/h: a car of the acceptance set no longer
+ * gets „Noch nicht bestätigt“ for want of a Gutachten's own table. A car above 300 km/h is the case the table cannot answer,
+ * and the shop says so and sells nothing; the tests that show that set the speed for the length of the test, and back.
+ */
+export async function topSpeed(page: Page, car: keyof typeof CARS, kmh: number): Promise<void> {
+    const context = await page.context().browser()?.newContext({ baseURL: ABNAHME, viewport: { width: 1440, height: 900 } })
+
+    if (context === undefined) {
+        throw new Error('rig: no browser for the admin window')
+    }
+
+    try {
+        const admin = await context.newPage()
+        await admin.goto(`${ABNAHME}/admin/anmelden`, { waitUntil: 'networkidle' })
+        await admin.fill('#lg-mail', 'admin@rimify.test')
+        await admin.fill('#lg-pass', REVIEW_PASSWORD)
+        await admin.locator('button[type=submit]').first().click()
+        await admin.waitForURL(/\/admin(\?.*)?$/, { timeout: 30_000 })
+
+        await admin.goto(`${ABNAHME}/admin/fahrzeuge?q=${encodeURIComponent(CARS[car].tsn)}`, { waitUntil: 'networkidle' })
+        await admin.locator('main tbody tr', { hasText: CARS[car].tsn }).locator('a').first().click()
+        await admin.waitForURL(/\/admin\/fahrzeuge\/\d+$/, { timeout: 30_000 })
+        await admin.waitForLoadState('networkidle')
+
+        const speed = admin.locator('#fs-speed')
+        await speed.fill(String(kmh))
+        const saved = admin.waitForResponse((r) => r.request().method() === 'PUT' && /\/admin\/fahrzeuge\/\d+$/.test(new URL(r.url()).pathname))
+        await admin.locator('.fs-form').getByRole('button', { name: 'Speichern' }).click()
+        expect((await saved).status(), `rig: the ${car}'s top speed of ${kmh} km/h is stored`).toBeLessThan(400)
+        await admin.waitForLoadState('networkidle')
+        await expect(speed).toHaveValue(String(kmh))
+    } finally {
+        await context.close()
+    }
 }
