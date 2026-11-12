@@ -9,6 +9,8 @@ use App\Http\Middleware\SecurityHeaders;
 use App\Http\Requests\Admin\ApprovalStepRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCarsRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCellRequest;
+use App\Http\Requests\Admin\Erfassung\EntryCodeDeleteRequest;
+use App\Http\Requests\Admin\Erfassung\EntryCodeUsageRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCombinationRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCopyRequest;
 use App\Http\Requests\Admin\Erfassung\EntryIndexSourceRequest;
@@ -19,6 +21,7 @@ use App\Models\ApprovalDocument;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentWheelCombination;
 use App\Models\Vehicle;
+use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\Entry\EntryEditor;
 use App\Services\Admin\Approvals\Entry\EntryView;
 use App\Services\Admin\Approvals\Entry\VehicleSearch;
@@ -199,6 +202,23 @@ class GutachtenErfassungController extends Controller
         });
 
         return $this->state($document);
+    }
+
+    /** Where a code of the paper stands, for the question before „Überall löschen“ (the client's request of 12.11.2026, G; D-461). */
+    public function codeUsage(EntryCodeUsageRequest $request, ApprovalDocument $document): JsonResponse
+    {
+        $uses = DocumentConditions::usage($document, $request->code());
+
+        return response()->json(['code' => $request->code(), 'uses' => $uses, 'sentence' => DocumentConditions::usageSentence($request->code(), $uses)]);
+    }
+
+    /** A code deleted from the whole paper, after the person saw where it stands (D-461). */
+    public function deleteCode(EntryCodeDeleteRequest $request, ApprovalDocument $document, DocumentConditions $conditions): JsonResponse
+    {
+        $code = $request->code();
+        $uses = $conditions->deleteEverywhere($document, $code, $request->seen(), $request->admin());
+
+        return $this->state($document, ['toast' => "„{$code}“ ist aus diesem Gutachten gelöscht.", 'deleted' => $code, 'uses' => $uses]);
     }
 
     /** @param array<string, mixed> $extra */

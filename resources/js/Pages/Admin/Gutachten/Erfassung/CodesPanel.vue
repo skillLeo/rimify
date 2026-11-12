@@ -5,13 +5,15 @@
  * the codes fields complete from this list.
  */
 
+import { router } from '@inertiajs/vue3'
 import { computed, nextTick, ref } from 'vue'
+import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import CodeDefine from './CodeDefine.vue'
-import { useEntry, useGutachtenPage } from './entryStore'
+import { send, useEntry, useGutachtenPage } from './entryStore'
 import LegendDialog from './LegendDialog.vue'
 
-const { state } = useEntry()
+const { state, base, save, settled } = useEntry()
 const page = useGutachtenPage()
 
 const query = ref('')
@@ -53,6 +55,48 @@ function closeEdit(code: string): void {
     editing.value = null
     closed(`[data-code="${CSS.escape(code)}"]`)
 }
+
+/* ── A code deleted from the whole paper (the client's request of 12.11.2026, G; D-461) ─────────────────────────────── */
+
+type Uses = { combinations: number; cars: number; rows: number; reworks: number }
+
+const deleting = ref<{ code: string; uses: Uses; sentence: string } | null>(null)
+const deleteOpen = ref(false)
+const deleteBusy = ref(false)
+const deleteError = ref('')
+
+/* Where it stands first — after what is still being saved, so an open car cannot write it back afterwards. */
+async function askDelete(code: string): Promise<void> {
+    deleteError.value = ''
+
+    try {
+        await settled()
+        deleting.value = await send<{ code: string; uses: Uses; sentence: string }>('GET', `${base}/codes/verwendung?code=${encodeURIComponent(code)}`)
+        deleteOpen.value = true
+    } catch (failure) {
+        deleteError.value = failure instanceof Error ? failure.message : String(failure)
+    }
+}
+
+/* With the count that was shown: a count that moved since is asked again, never deleted over. */
+async function confirmDelete(): Promise<void> {
+    if (deleting.value === null) {
+        return
+    }
+
+    deleteBusy.value = true
+
+    try {
+        await save('POST', '/codes/loeschen', { code: deleting.value.code, seen: deleting.value.uses })
+        deleteOpen.value = false
+        router.reload({ only: ['conditions'] })
+    } catch (failure) {
+        deleteOpen.value = false
+        deleteError.value = failure instanceof Error ? failure.message : String(failure)
+    } finally {
+        deleteBusy.value = false
+    }
+}
 </script>
 
 <template>
@@ -79,6 +123,7 @@ function closeEdit(code: string): void {
                     <span v-if="code.text !== null" class="ef-codeitem__kind">{{ code.kindLabel }}</span>
                     <span v-else class="adm-tag adm-tag--warn">ohne Beschreibung</span>
                     <button v-if="state.editable && editing !== code.code" class="ef-codeitem__edit" type="button" :data-code="code.code" @click="editing = code.code">{{ code.text === null ? 'Beschreiben' : 'Ändern' }}</button>
+                    <button v-if="state.editable && editing !== code.code" class="ef-codeitem__delete" type="button" :aria-label="`${code.code} aus diesem Gutachten löschen`" @click="askDelete(code.code)">Löschen</button>
                 </div>
                 <p v-if="code.text !== null && editing !== code.code" class="ef-codeitem__text" :title="code.text">{{ code.text }}</p>
                 <div v-if="editing === code.code" class="ef-codespanel__form">
@@ -87,7 +132,17 @@ function closeEdit(code: string): void {
             </li>
         </ul>
 
+        <p v-if="deleteError" class="form-field__error ef-codespanel__error" role="alert">{{ deleteError }}</p>
+
         <LegendDialog v-if="state.editable" v-model:open="legendOpen" />
+        <AdminConfirm
+            v-model:open="deleteOpen"
+            :title="deleting ? `„${deleting.code}“ überall löschen?` : ''"
+            :body="deleting ? `${deleting.sentence} Gelöscht verschwindet er überall in diesem Gutachten, im Shop mit der Freigabe. Bestellungen behalten ihren Nachweis.` : ''"
+            confirm-label="Überall löschen"
+            :busy="deleteBusy"
+            @confirm="confirmDelete"
+        />
     </section>
 </template>
 
@@ -149,12 +204,24 @@ function closeEdit(code: string): void {
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .ef-codeitem__edit:hover {
+    .ef-codeitem__edit:hover,
+    .ef-codeitem__delete:hover {
         text-decoration: underline;
     }
 }
 
-.ef-codeitem__edit {
+/* Beside „Ändern“, not pushed apart from it; in the colour every delete of the admin has. */
+.ef-codeitem__delete {
+    margin-left: var(--sp-12);
+    color: var(--danger);
+}
+
+.ef-codespanel__error {
+    margin: 0;
+}
+
+.ef-codeitem__edit,
+.ef-codeitem__delete {
     min-height: 32px;
     margin-left: auto;
     padding: 0;

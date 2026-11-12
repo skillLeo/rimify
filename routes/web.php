@@ -335,6 +335,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/gutachten/{document}/pdf', [GutachtenErfassungController::class, 'pdf'])->whereNumber('document')->name('gutachten.pdf');
         // The five steps' saves (the Gutachten rework, Phase 2): each answers with the state the page redraws from.
         Route::put('/gutachten/{document}/erfassung/felge', [GutachtenErfassungController::class, 'wheel'])->whereNumber('document')->name('gutachten.erfassung.felge');
+        // A code deleted from the whole paper: where it stands first, then everywhere at once (the client's request of 12.11.2026, G; D-461).
+        Route::get('/gutachten/{document}/erfassung/codes/verwendung', [GutachtenErfassungController::class, 'codeUsage'])->whereNumber('document')->name('gutachten.erfassung.code.verwendung');
+        Route::post('/gutachten/{document}/erfassung/codes/loeschen', [GutachtenErfassungController::class, 'deleteCode'])->whereNumber('document')->name('gutachten.erfassung.code.loeschen');
         Route::post('/gutachten/{document}/erfassung/kombinationen', [GutachtenErfassungController::class, 'addCombination'])->whereNumber('document')->name('gutachten.erfassung.kombination.add');
         Route::put('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'changeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.change');
         Route::delete('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'removeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.remove');
