@@ -20,7 +20,6 @@ use App\Services\GoLive\TyreConfirmations;
 use App\Services\GoLive\WasFehlt;
 use App\Services\Mail\DnsLookup;
 use App\Support\Seller;
-use Database\Seeders\ApprovalSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Console\Scheduling\Schedule;
 
@@ -290,14 +289,15 @@ it('holds live payments while a released Gutachten has no completeness answer (D
 it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noch nicht bestätigt“ (finding 103, §1.5)', function (): void {
     $this->seed(ReferenceDataSeeder::class);
 
-    // An RS 4 runs 280 km/h. One wheel's Gutachten carries the table of tyre load at speed; the other's does not.
+    // An RS 4 runs 280 km/h. One wheel's Gutachten gives the size a Y; the other's a (Y), which ETRTO's table of tyre load
+    // at speed holds no column for (D-459) — that one is not confirmed.
     $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
     $confirmed = WheelConfig::factory()->havanna85x18()->create();
     $open = WheelConfig::factory()->havanna85x18()->create();
 
-    foreach ([[$confirmed, ApprovalDocument::factory()->printingDeratingTable()], [$open, ApprovalDocument::factory()]] as [$config, $document]) {
-        $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document]);
-        FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->create();
+    foreach ([[$confirmed, 'Y'], [$open, '(Y)']] as [$config, $symbol]) {
+        $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()]);
+        FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->create(['min_speed_symbol' => $symbol]);
     }
 
     $resolver = app(FitmentResolver::class);
@@ -314,8 +314,8 @@ it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noc
         // The report rimify:go-live-check writes carries the same line.
         ->and(WasFehlt::markdown([$check], now()))->toContain('1 von 2 Kombinationen aus Fahrzeug und Felge steht auf');
 
-    // Once the table is on record, nothing is open — asked afresh, as the command asks.
-    ApprovalSeeder::seedDerating(ApprovalDocument::query()->findOrFail(Fitment::query()->where('wheel_config_id', $open->id)->value('approval_document_id')));
+    // Once the size reads Y, nothing is open — asked afresh, as the command asks.
+    FitmentTyreSize::query()->whereIn('fitment_id', Fitment::query()->where('wheel_config_id', $open->id)->select('id'))->update(['min_speed_symbol' => 'Y']);
     $after = app(TyreConfirmations::class)->count(fresh: true);
 
     expect($after)->toMatchArray(['pairs' => 2, 'open' => 0, 'demo' => 0])
@@ -363,11 +363,11 @@ it('says it cannot answer where the engine\'s reference tables are missing, inst
 it('says so when every open pair comes from example data, and does not call the shop unready for it', function (): void {
     $this->seed(ReferenceDataSeeder::class);
 
-    // The acceptance set's case: a born-demo Gutachten without the table, a car faster than 210 km/h.
+    // A born-demo Gutachten whose size reads (Y), on a car faster than 210 km/h: ETRTO's table holds no column for it (D-459).
     $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
     $config = WheelConfig::factory()->havanna85x18()->create();
-    $document = ApprovalDocument::factory()->create(['is_demo' => true, 'demo_ref' => 'test:doc:ohne-tabelle']);
-    FitmentTyreSize::factory()->for(Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document->id]))->size(245, 40, 18.0)->create();
+    $document = ApprovalDocument::factory()->create(['is_demo' => true, 'demo_ref' => 'test:doc:offen']);
+    FitmentTyreSize::factory()->for(Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document->id]))->size(245, 40, 18.0)->create(['min_speed_symbol' => '(Y)']);
 
     $check = goLiveById()['reifenbestaetigung'];
 

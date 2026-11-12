@@ -54,7 +54,7 @@ final class ReleaseSeed extends Command
      * an existing preview would show every fast car „we do not know“. The example documents get ABE 55255's
      * table marked as the demo seed's — all but DEMO-0007, kept without on purpose so the honest UNKNOWN
      * stays demonstrable — and so does the walkthrough's placeholder document (the operator's decision of
-     * 29.09.2026). The live shop is untouched: ApprovalSeeder and PlaceholderTables never run there.
+     * 29.09.2026). The live shop is untouched: ApprovalSeeder and PlaceholderPdf never run there.
      *
      * v7: the hero's wheel again (D-089). v5 named the DB8GT2 the hero only where no hero was chosen; on a database whose
      * setting still named a demo model, ContentSeeder then cleared it — and the preview's hero showed the outline and

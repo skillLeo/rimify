@@ -66,7 +66,7 @@ it('confirms no tyres where the document lists its combinations by vehicle type 
     $base = FitmentFixtures::document();
     $document = new DocumentRecord(
         id: $base->id, kind: $base->kind, number: $base->number, revision: $base->revision, issuedOn: $base->issuedOn,
-        pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating,
+        pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage,
         completeness: $base->completeness, tyreCombinations: TyrePairingTable::unmatched(9),
     );
 
@@ -84,5 +84,5 @@ it('confirms no tyres for an axle heavier than the load-index table reaches — 
 
     expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and(implode(' ', $verdict->tyre?->lines ?? []))->toContain("Für eine Achslast von 3.600\u{00A0}kg nennt die Tragfähigkeitstabelle keinen Index");
+        ->and(implode(' ', $verdict->tyre?->lines ?? []))->toContain("Für eine Achslast von 3.600\u{00A0}kg ist bei uns kein ausreichend hoher Tragfähigkeitsindex hinterlegt");
 });

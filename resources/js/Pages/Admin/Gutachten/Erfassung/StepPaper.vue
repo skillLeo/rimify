@@ -16,8 +16,6 @@ import { usePresignedUpload } from '../../../../composables/admin/usePresignedUp
 import { decimal } from '../../../../format'
 import { FILE_CHANGED } from '../../../../lib/file'
 import type { RecordShape } from '../../../../types/admin/gutachten'
-import DeratingTable from '../DeratingTable.vue'
-import { deratingAbsent as absentLine, deratingShown as isDeratingShown } from '../derating'
 import DocumentExtras from '../DocumentExtras.vue'
 import RecordFields from '../RecordFields.vue'
 import { createAutosave } from './autosave'
@@ -146,9 +144,6 @@ onBeforeUnmount(() => {
     }
 })
 
-const deratingRequired = computed(() => doc.value.shape.tyre_index_source === 'table')
-const deratingShown = computed(() => isDeratingShown(doc.value.shape.tyre_index_source, page.props.derating.rows.length))
-const deratingAbsent = computed(() => absentLine(doc.value.shape.tyre_index_source, state.editable))
 
 </script>
 
@@ -234,12 +229,6 @@ const deratingAbsent = computed(() => absentLine(doc.value.shape.tyre_index_sour
                             <p id="ef-supersedes-err" class="form-field__error">{{ errors.supersedes_id }}</p>
                         </div>
                     </div>
-
-                    <section class="ef-more__section" aria-labelledby="ef-derating-h">
-                        <h3 id="ef-derating-h" class="ef-more__title">Tragfähigkeit bei hoher Geschwindigkeit</h3>
-                        <DeratingTable v-if="deratingShown" :document-id="doc.id" :stamp="page.props.stamps.derating" :derating="page.props.derating" :editable="state.editable" :page-count="doc.pageCount" :required="deratingRequired" />
-                        <p v-else class="adm-note">{{ deratingAbsent }}</p>
-                    </section>
 
                     <section class="ef-more__section" aria-labelledby="ef-extras-h">
                         <h3 id="ef-extras-h" class="ef-more__title">Befestigung und Hinweise</h3>

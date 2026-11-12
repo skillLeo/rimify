@@ -379,10 +379,11 @@ const openLead = computed(() => {
             <ul v-else-if="verdict.tyre?.lines.length" class="fit__tyre-lines">
                 <li v-for="line in verdict.tyre.lines" :key="line"><ValueText :text="line" /></li>
             </ul>
-            <!-- Finding 103: an unverified size is no dead end — what settles it by itself, and what the customer can do now.
-                 Where the answer waits for the car's papers, the way on is the form right below (D-286). -->
+            <!-- Finding 103: an unverified size is no dead end — what the customer can do now. Where the answer waits for the car's
+                 papers, the way on is the form right below (D-286). No table settles it later by itself: every Gutachten reads
+                 ETRTO's (D-459), so the sentence promises nothing it cannot keep. -->
             <p v-if="tyreOpen && !owed.length" class="fit__open-next" data-open="next">
-                Sobald dazu eine Tragfähigkeitstabelle hinterlegt ist, prüfen wir das automatisch nach. Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand.
+                Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand.
                 <Link v-if="askHref" class="link fit__open-ask" :href="askHref">Wunschreifen nennen</Link>
             </p>
             <!-- 8.1, 8.2 and T from the customer's papers: optional, and what turns the tyre line into a sum. -->

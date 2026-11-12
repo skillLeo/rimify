@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-// The table of tyre load at speed as printed on page 6 of ABE 55255 (Borbet DB8GT2, 8,5J × 19), from the
-// operator's brief of 28.09.2026 — transcribed, not derived, not extended. Speed → symbol → percent of the
-// load index a tyre may carry; null is the table's „–“ (a tyre of that symbol is not permitted at that
-// speed). Data of that one document (document_speed_deratings): a document without its own table borrows
-// none of this.
+// The table of tyre load at speed as printed on page 6 of ABE 55255 (Borbet DB8GT2, 8,5J × 19), from the operator's brief of
+// 28.09.2026 — transcribed, not derived, not extended. Speed → symbol → percent of the load index a tyre may carry; null is the
+// table's „–“ (a tyre of that symbol is not permitted at that speed). ETRTO's table as a real Gutachten prints it: the oracle
+// SpeedLoadTableTest holds ReferenceTables::SPEED_LOAD_PERCENT to (D-459). Until then it was seeded into every demo document;
+// a document carries no table of its own any more.
 return [
     'source_page' => 6,
     'rows' => [

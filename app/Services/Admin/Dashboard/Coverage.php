@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Admin\Dashboard;
 
 use App\Enums\ApprovalKind;
-use App\Enums\TyreIndexSource;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Services\Admin\Approvals\FitmentRows;
@@ -25,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  *
  * @phpstan-type Cell array{size: string, count: int, level: int, sentence: string, href: string}
  * @phpstan-type Row array{make: string, variants: int, covered: int, cells: list<Cell>}
- * @phpstan-type Matrix array{sizes: list<array{key: string, label: string}>, rows: list<Row>, max: int, summary: array{fitments: string, variants: string, sentence: string}, computedAt: string, incomplete: list<array{document: string, href: string, sentence: string, base: string|null}>, missingAnnexes: list<array{document: string, href: string, annexes: string}>, noSpeedTable: list<array{document: string, href: string}>}
+ * @phpstan-type Matrix array{sizes: list<array{key: string, label: string}>, rows: list<Row>, max: int, summary: array{fitments: string, variants: string, sentence: string}, computedAt: string, incomplete: list<array{document: string, href: string, sentence: string, base: string|null}>, missingAnnexes: list<array{document: string, href: string, annexes: string}>}
  */
 final class Coverage
 {
@@ -158,20 +157,6 @@ final class Coverage
                     'document' => FitmentRows::label($d),
                     'href' => '/admin/gutachten/'.$d->id,
                     'annexes' => (string) $d->missing_annexes,
-                ])->values()->all(),
-            // A released document that prints no table of tyre load at speed: above 210 km/h the shop confirms
-            // no tyres from it, and says so to the customer (FitmentResolver) — here the gap is named for the
-            // people who run the shop, not only in the answer a fast car gets. Only a document with rows of its own: a
-            // base whose Verwendungsbereich is its Nachtrag's Anlagen (ABE 53841) approves nothing a table could limit.
-            // Not one that prints load index and symbol beside every size: there the shop answers from those without a table (D-438).
-            'noSpeedTable' => ApprovalDocument::query()->currentlyValid()
-                ->whereHas('fitments')
-                ->where(static fn ($q) => $q->whereNull('tyre_index_source')->orWhere('tyre_index_source', '<>', TyreIndexSource::Document->value))
-                ->whereNotExists(static fn ($q) => $q->selectRaw('1')->from('document_speed_deratings as d')->whereColumn('d.approval_document_id', 'approval_documents.id'))
-                ->orderBy('id')->get()
-                ->map(static fn (ApprovalDocument $d): array => [
-                    'document' => FitmentRows::label($d),
-                    'href' => '/admin/gutachten/'.$d->id,
                 ])->values()->all(),
         ];
     }

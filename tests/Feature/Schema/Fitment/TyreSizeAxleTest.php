@@ -37,7 +37,7 @@ it('carries a size\'s own axle from the table into the verdict, so a rear-only s
     $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
     $config = WheelConfig::factory()->havanna85x18()->create();
     // An RS 4 runs 280 km/h: its document prints the table of tyre load at speed, or the tyre half is UNKNOWN.
-    $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()->printingDeratingTable()]);
+    $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()]);
 
     FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->forAxle(Axle::Front)->create();
     FitmentTyreSize::factory()->for($fitment)->size(275, 35, 18.0)->forAxle(Axle::Rear)->create();

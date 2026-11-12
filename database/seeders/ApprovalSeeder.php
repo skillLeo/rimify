@@ -11,13 +11,11 @@ use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
-use App\Models\DocumentSpeedDerating;
 use App\Models\Fitment;
 use App\Models\FitmentConflict;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelModel;
-use App\Services\Demo\PlaceholderTables;
 use App\Support\MakeName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -68,17 +66,6 @@ class ApprovalSeeder extends Seeder
 {
     /** Every demo document's issuer: no real organisation. */
     public const ISSUER = 'Prüfstelle (Demodaten)';
-
-    /** Where every demo document's table of tyre load at speed comes from — said wherever the table is. */
-    public const DERATING_SEED = 'Demo-Seed: Tabelle der ABE 55255, Seite 6';
-
-    /**
-     * The one example document left deliberately WITHOUT a table (the operator's decision of 29.09.2026):
-     * DEMO-0007, Stahlwerk 19 Kontur X and Aventin Linea 10. Every car above 210 km/h gets an honest UNKNOWN
-     * on it — „Zu diesem Gutachten ist keine Tragfähigkeitstabelle … hinterlegt“ — so the demo shows that RIMIFY says it does not know
-     * when it does not, beside the documents that answer.
-     */
-    public const WITHOUT_DERATING = 'range7';
 
     /**
      * slot => [report number, the report number it had before, months since issue, page count].
@@ -460,17 +447,7 @@ class ApprovalSeeder extends Seeder
 
         foreach (self::DOCUMENTS as $slot => [$reportNumber, $formerNumber, $months, $pages]) {
             $out[$slot] = $this->document($reportNumber, $formerNumber, now()->subMonths($months)->toDateString(), $pages);
-
-            if ($slot === self::WITHOUT_DERATING) {
-                // Only what the seed wrote goes; a table a person typed from a PDF is never touched.
-                $out[$slot]->speedDeratings()->whereNotNull('seeded_from')->delete();
-            } else {
-                $this->seedDerating($out[$slot]);
-            }
         }
-
-        // The walkthrough's placeholder document gets the same example table, marked as the demo seed's.
-        PlaceholderTables::seed();
 
         /** @var array{range1: ApprovalDocument, range2: ApprovalDocument, range3: ApprovalDocument, range4: ApprovalDocument, conflicting: ApprovalDocument, range6: ApprovalDocument, range7: ApprovalDocument, range8: ApprovalDocument, range9: ApprovalDocument} $out */
         return $out;
@@ -510,41 +487,6 @@ class ApprovalSeeder extends Seeder
         ])->save();
 
         return $document;
-    }
-
-    /**
-     * An example document carries the usual table of tyre load at speed, as ABE 55255 prints it on page 6 —
-     * example data like the rest of it, and marked as such (`seeded_from`): the record and the shop name the
-     * demo seed, never this document, as its source (the second review of C9, §4). A document holds its own
-     * table (§5 of the first); one that already has rows keeps them.
-     */
-    public static function seedDerating(ApprovalDocument $document): void
-    {
-        if ($document->speedDeratings()->exists()) {
-            return;
-        }
-
-        /** @var array{source_page: int, rows: array<int, array<string, int|null>>} $printed */
-        $printed = require __DIR__.'/content/derating-abe-55255.php';
-        $now = now();
-        $cells = [];
-
-        foreach ($printed['rows'] as $speed => $row) {
-            foreach ($row as $symbol => $percent) {
-                $cells[] = [
-                    'approval_document_id' => $document->id,
-                    'speed_kmh' => $speed,
-                    'symbol' => $symbol,
-                    'percent' => $percent,
-                    'source_page' => null,
-                    'seeded_from' => self::DERATING_SEED,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-            }
-        }
-
-        DocumentSpeedDerating::query()->insert($cells);
     }
 
     /**

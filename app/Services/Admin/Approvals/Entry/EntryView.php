@@ -397,7 +397,8 @@ final readonly class EntryView
 
     /**
      * What step 5 suggests for how the paper gives its tyres' load index and speed symbol — never a silent default (D-382). Read
-     * from what was entered: both figures beside every size, the paper names the tyre itself. A table entered: the table.
+     * from what was entered: both figures beside every size, the paper names the tyre itself (a table of load at speed is never
+     * typed: the shop reads ETRTO's, D-459).
      * Otherwise the speeds come from the car's papers — also where it prints the load index alone (the second real paper:
      * „255/35R20 105“ and its 10B): the printed index then stands as the stricter floor (R-06).
      */
@@ -421,10 +422,6 @@ final readonly class EntryView
 
         if ($sides === 0) {
             return null;
-        }
-
-        if ($model->document->speedDeratings()->whereNull('seeded_from')->exists()) {
-            return TyreIndexSource::Table->value;
         }
 
         return $full === $sides ? TyreIndexSource::Document->value : TyreIndexSource::Papers->value;

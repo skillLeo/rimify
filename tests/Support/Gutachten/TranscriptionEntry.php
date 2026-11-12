@@ -102,9 +102,8 @@ final class TranscriptionEntry
             $this->test->actingAs($this->admin, 'admin')->post("/admin/gutachten/{$id}/hinweise", $notice)->assertSessionHasNoErrors();
         }
 
-        if (is_array($t['derating'])) {
-            $this->test->actingAs($this->admin, 'admin')->put("/admin/gutachten/{$id}/tragfaehigkeitstabelle", $t['derating'])->assertSessionHasNoErrors();
-        }
+        // The paper's table of tyre load at speed (`derating` in the transcription) is not typed: every document reads ETRTO's,
+        // which is the same table (D-459). The transcription keeps it as what the paper prints.
 
         $conditionIds = DocumentCondition::query()->where('approval_document_id', $id)->pluck('id', 'code');
 

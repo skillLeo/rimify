@@ -8,15 +8,15 @@ use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\FitmentRepository;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Data\ConflictDecision;
-use App\Domain\Fitment\Data\DeratingLookup;
 use App\Domain\Fitment\Data\DocumentRecord;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\RowFilter;
-use App\Domain\Fitment\Data\SpeedDeratingTable;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Derivation\LoadIndexDeriver;
+use App\Domain\Fitment\Derivation\SpeedLoadLookup;
+use App\Domain\Fitment\Derivation\SpeedLoadTable;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\EngineVersion;
 use App\Domain\Fitment\Exceptions\ReferenceDataMissing;
@@ -695,9 +695,9 @@ final readonly class FitmentResolver
      * fields of the papers it waits for, and says which threshold the document sets — its `reifen_tragfaehigkeit`
      * Auflagen, T88 → 1.120 kg — and which fields of the papers to compare it with. With them it is decided per
      * axle the wheel may go on: the document's own load-index limit and the derated requirement are stated
-     * separately and the stricter is named; a „–“ in the document's table raises the speed symbol; a speed, a
-     * symbol or a table the document does not print is UNKNOWN. A tyre rule the document writes that no figure
-     * can settle keeps it CONDITIONAL.
+     * separately and the stricter is named; the load at speed is ETRTO's, the same for every document (D-459), and a
+     * speed or a symbol that table does not hold is UNKNOWN. A tyre rule the document writes that no figure can settle
+     * keeps it CONDITIONAL.
      *
      * @param  list<Condition>  $conditions
      * @param  array<string, mixed>  $frontCheck
@@ -767,7 +767,7 @@ final readonly class FitmentResolver
             // The first line of a failing axle is the reason; keep it first.
             usort($lines, static fn (string $a, string $b): int => (int) str_starts_with($b, '!') <=> (int) str_starts_with($a, '!'));
 
-            // A sentence both axles give — „Zu diesem Gutachten ist keine Tragfähigkeitstabelle … hinterlegt.“ — is said once.
+            // A sentence both axles give — „Für 310 km/h ist bei uns keine Tragfähigkeit hinterlegt …“ — is said once.
             $lines = array_values(array_unique(array_map(static fn (string $l): string => ltrim($l, '!'), $lines)));
 
             // Always shown: why not, and the document it rests on.
@@ -988,21 +988,17 @@ final readonly class FitmentResolver
     }
 
     /**
-     * The document the tyre answer came from: its table where one was read — above 210 km/h, and never passed
-     * off as printed when the demo seed wrote it — else the document itself.
+     * What the tyre answer rests on: the document — and, where the load at speed was read above 210 km/h, ETRTO's table with
+     * it, the same for every document (D-459).
      *
      * @param  array<string, mixed>  $check
      */
     private static function basis(DocumentRecord $document, array $check): string
     {
-        $table = $check['tableSource'] ?? null;
-        $speed = $check['speed'] ?? null;
+        $lookup = $check['lookup'] ?? null;
+        $etrto = $lookup instanceof SpeedLoadLookup && $lookup->rowKmh !== null && ($check['speedFromDocument'] ?? false) !== true;
 
-        if (is_string($table) && is_int($speed) && $speed > SpeedDeratingTable::NO_DERATING_UP_TO_KMH) {
-            return 'Grundlage: '.$table.'.';
-        }
-
-        return 'Grundlage: Gutachten '.($document->number ?? '').'.';
+        return 'Grundlage: Gutachten '.($document->number ?? '').($etrto ? ' und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit' : '').'.';
     }
 
     /**
@@ -1051,17 +1047,15 @@ final readonly class FitmentResolver
         $speed = (int) $check['speed'];
         $lead = sprintf('%s: %s ÷ 2 = %s je Rad.', $name, GermanFormat::kilograms($load), self::halfKg($load));
 
-        /** @var DeratingLookup|null $lookup */
+        /** @var SpeedLoadLookup|null $lookup */
         $lookup = $check['lookup'];
 
-        if ($lookup !== null && $lookup->isNotPermitted() && $check['raisedFrom'] === null) {
-            return [VerdictStatus::NotPermitted, [sprintf('!Bei %s km/h ist laut Tabelle des Gutachtens kein Reifen mit Geschwindigkeitsindex %s zulässig.', GermanFormat::integer($speed), $check['symbol'])]];
-        }
-
-        if ($lookup === null || $lookup->isAbsent()) {
-            return [VerdictStatus::Unknown, [$check['hasTable']
-                ? sprintf('!Für %s km/h ist in der hinterlegten Tabelle für Geschwindigkeitsindex %s kein Wert eingetragen. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed), $check['symbol'])
-                : sprintf('!Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für %s km/h können wir die Reifen deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
+        // The table we compute with holds no load for this speed and symbol — above 300 km/h, or a symbol in brackets: not on record
+        // with us, so never estimated (D-459). Said as what we hold, never as what ETRTO itself does or does not say (R-17).
+        if ($lookup === null || $lookup->percent === null) {
+            return [VerdictStatus::Unknown, [$lookup !== null && $lookup->rowKmh !== null && $check['symbol'] !== null
+                ? sprintf('!Für Geschwindigkeitsindex %s ist bei uns keine Tragfähigkeit bei %s km/h hinterlegt: Die Tabelle, nach der wir rechnen, gilt für V, W und Y, nicht für (W) und (Y). Die Reifen können wir deshalb nicht bestätigen.', $check['symbol'], GermanFormat::integer($speed))
+                : sprintf('!Für eine Höchstgeschwindigkeit von %s km/h ist bei uns keine Tragfähigkeit hinterlegt: Die Tabelle, nach der wir rechnen, reicht nur bis 300 km/h. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
         }
 
         if ($check['limitsUncovered'] !== null) {
@@ -1083,7 +1077,7 @@ final readonly class FitmentResolver
         }
 
         if ($check['derived'] === null || ! $axle->hasUsableMinimum()) {
-            return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s nennt die Tragfähigkeitstabelle keinen Index. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
+            return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s ist bei uns kein ausreichend hoher Tragfähigkeitsindex hinterlegt. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
         }
 
         // An axle-load note of the document this axle is above: said, and the answer stays open.
@@ -1124,16 +1118,15 @@ final readonly class FitmentResolver
             );
         }
 
-        // The table's „–“ for the lower symbols, said as the document says it.
+        // ETRTO's „–“ for the lower symbol, and the symbol its row asks for instead.
         if ($check['raisedFrom'] !== null) {
-            $lines[] = sprintf('Bei %s km/h ist ein %s-Reifen laut Tabelle des Gutachtens nicht zulässig, erforderlich ist %s.', GermanFormat::integer($speed), $check['raisedFrom'], $check['symbol']);
+            $lines[] = sprintf('Bei %s km/h ist ein %s-Reifen nach unserer Tabelle nicht zulässig, erforderlich ist %s.', GermanFormat::integer($speed), $check['raisedFrom'], $check['symbol']);
         }
 
         // The derated requirement, on its own — or, where the document's symbol stood without the top speed (D-277), the
         // axle load's own requirement and the symbol as the document gives it.
         $derived = $check['derived'];
         $percent = (int) $lookup->percent;
-        $source = $check['tableSource'];
         $fromDocument = ($check['speedFromDocument'] ?? false) === true;
 
         if ($fromDocument) {
@@ -1143,11 +1136,10 @@ final readonly class FitmentResolver
             $lines[] = $percent === 100
                 ? sprintf('Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s seine volle Last: das verlangt Tragfähigkeitsindex %d (%s).', GermanFormat::integer($speed), $check['symbol'], $derived->index, GermanFormat::kilograms($derived->capacityKg))
                 : sprintf(
-                    'Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s nur %d %% seiner Last%s: %s ÷ %s = %s – das verlangt Tragfähigkeitsindex %d (%s).',
+                    'Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s nach unserer Tabelle nur %d %% der Last seines Tragfähigkeitsindex: %s ÷ %s = %s – das verlangt Tragfähigkeitsindex %d (%s).',
                     GermanFormat::integer($speed),
                     $check['symbol'],
                     $percent,
-                    $source === null ? '' : ' ('.$source.')',
                     self::halfKg($load),
                     GermanFormat::trimmedDecimal($percent / 100, 2),
                     // Display only: the decision was taken in whole numbers (LoadIndexDeriver::forAxleAt()).
@@ -1289,7 +1281,6 @@ final readonly class FitmentResolver
         // A size offered without both its printed figures — load index and symbol, „93Y“: then the documents' index does
         // not stand for the axle alone (D-284). A symbol without its load index says nothing of the derating at speed.
         $sizeWithoutIndex = false;
-        $tables = [];
         $limits = [];
 
         foreach ($covering as $row) {
@@ -1317,7 +1308,6 @@ final readonly class FitmentResolver
 
             // Intersection across documents: a size only one of them permits is not offered.
             $sizes = $sizes === null ? $rowSizes : TyreSize::intersect($sizes, $rowSizes);
-            $tables[$row->document->id] = $row->document->speedDerating;
 
             foreach ($rowSizes as $size) {
                 if ($size->documentMinLoadIndex !== null) {
@@ -1371,35 +1361,38 @@ final readonly class FitmentResolver
             $documentSpeedSymbol,
         );
 
-        // The document's own table, at the speed rounded up; a „–“ for the governing symbol raises it to
-        // the one the row requires, and says so. No table, no row, no column: nothing is derived.
+        // The load at speed is ETRTO's, the same for every document (D-459), read at the speed rounded up; a „–“ for the
+        // governing symbol raises it to the one the row asks for, and says so. A speed or a symbol the table does not hold:
+        // nothing is derived.
         $lookup = null;
         $raisedFrom = null;
-        $tableList = array_values($tables);
         $fromDocument = false;
         // D-284: every size carries the documents' index, load and symbol, set for the combination.
         $printedStands = $speedFromDocument && $documentSpeedSymbol !== null && ! $sizeWithoutIndex
             && $this->speedSymbol->rankOf($documentSpeedSymbol) !== null;
-        // D-438 (the client's round of 08.11.2026, §3.3): so too with the top speed known, where no table was entered and the printed
-        // symbol already covers that speed — the table is never asked for in this mode. A table that was entered is still read (R-06),
-        // and a symbol below the speed still needs one: only the table says what such a tyre carries there.
-        $printedCovers = $printedStands && $maxSpeedKmh !== null && array_filter($tableList) === [] && $minSpeedSymbol === $documentSpeedSymbol;
+        // With the top speed known, ETRTO's table is read as every document's own (D-459) — before, the table typed into it, and
+        // without one D-438 let the printed figures stand: R-06, the stricter governs. Where a printed symbol covers the speed and there
+        // is nothing at speed to read — up to 210 km/h no tyre loses load, and ETRTO holds no column for a symbol in brackets, (W) or
+        // (Y) — the printed figures stand alone, as D-438 had them (the client's round of 08.11.2026, §3.3).
+        $etrto = $maxSpeedKmh !== null && $minSpeedSymbol !== null ? SpeedLoadTable::etrto()->lookup($maxSpeedKmh, $minSpeedSymbol) : null;
+        $printedCovers = $printedStands && $etrto !== null && $minSpeedSymbol === $documentSpeedSymbol
+            && ($etrto->isAbsent() || $maxSpeedKmh <= SpeedLoadTable::FULL_LOAD_UP_TO_KMH);
 
-        if ($maxSpeedKmh !== null && $minSpeedSymbol !== null && ! $printedCovers) {
-            $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
+        if ($etrto !== null && ! $printedCovers) {
+            $lookup = $etrto;
 
             if ($lookup->isNotPermitted() && $lookup->required !== null) {
                 $raisedFrom = $minSpeedSymbol;
                 $minSpeedSymbol = $lookup->required;
-                $speedSource = MinSource::Document;
-                $lookup = SpeedDeratingTable::strictest($tableList, $maxSpeedKmh, $minSpeedSymbol);
+                $speedSource = MinSource::Derived;
+                $lookup = SpeedLoadTable::etrto()->lookup($maxSpeedKmh, $minSpeedSymbol);
             }
         } elseif ($printedStands && ($maxSpeedKmh === null || $printedCovers)) {
             // The symbol governs alone (one the table does not know never does), and the load at full load is the floor under its
             // load index.
             $minSpeedSymbol = $documentSpeedSymbol;
             $speedSource = MinSource::Document;
-            $lookup = DeratingLookup::percent(100);
+            $lookup = SpeedLoadLookup::percent(100);
             $fromDocument = true;
         }
 
@@ -1480,17 +1473,6 @@ final readonly class FitmentResolver
             default => 'size',
         };
 
-        $sourceTable = array_values(array_filter($tableList))[0] ?? null;
-        $documentNumber = null;
-
-        foreach ($covering as $row) {
-            if ($row->document->speedDerating !== null) {
-                $documentNumber = $row->document->number;
-
-                break;
-            }
-        }
-
         // Each size's own minimum beside the axle's strictest (D-431): the same rules, read from that size alone. Never
         // where the axle has one size — its own is the axle's.
         $bySize = [];
@@ -1549,17 +1531,6 @@ final readonly class FitmentResolver
                 // The sizes left off this axle for want of an index at its load (D-434), each with its limits' reach.
                 'sizesUncovered' => [],
                 'binding' => $binding,
-                'hasTable' => array_filter($tableList) !== [],
-                // A table the demo seed wrote is never passed off as printed by this document.
-                'tableSource' => match (true) {
-                    $sourceTable === null => null,
-                    $sourceTable->seededFrom !== null => 'Beispieltabelle aus den Demodaten, nicht aus dem Gutachten '.$documentNumber,
-                    default => trim(sprintf(
-                        'Tabelle%s im Gutachten %s',
-                        $sourceTable->sourcePage === null ? '' : ' auf Seite '.$sourceTable->sourcePage,
-                        (string) $documentNumber,
-                    )),
-                },
             ],
         ];
     }

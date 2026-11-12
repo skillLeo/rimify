@@ -19,7 +19,6 @@ it('reads every relation of a fitment row in one fixed order, so a verdict is th
         'the row\'s Auflagen' => (new Fitment)->conditionCodes(),
         'a size\'s Auflagen' => (new FitmentTyreSize)->conditionCodes(),
         'the document\'s Auflagen' => (new ApprovalDocument)->conditions(),
-        'the speed table' => (new ApprovalDocument)->speedDeratings(),
         'the tyre combinations' => (new ApprovalDocument)->tyreCombinations(),
     ];
 

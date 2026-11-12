@@ -595,7 +595,7 @@ export interface ConfigVerdict {
         fromVehicleData: boolean
         /** Always shown, with the car's figures: the binding axle and what it asks for — or why not. */
         summary?: string | null
-        /** The document it came from: `Grundlage: Tabelle auf Seite 6 im Gutachten 55255.` */
+        /** What it rests on: `Grundlage: Gutachten 55255 und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.` */
         basis?: string | null
         /** The sum („So haben wir gerechnet“) open at once: a no, or the customer's figures made it stricter. */
         open?: boolean

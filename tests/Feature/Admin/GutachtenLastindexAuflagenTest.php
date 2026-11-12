@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Enums\TyreIndexSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\DocumentCondition;
-use App\Models\DocumentSpeedDerating;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\LoadLimitCheck;
 use Database\Seeders\AccessSeeder;
@@ -15,9 +15,10 @@ use Database\Seeders\ReferenceDataSeeder;
 use Inertia\Testing\AssertableInertia;
 
 /**
- * The operator's review of C9: a Gutachten's table of tyre load at speed is its own data, typed from its
- * PDF; and every load-index Auflage is exactly twice the capacity of its index — refused where it is typed
- * when it is not, and checked over every document there is.
+ * The operator's review of C9: every load-index Auflage is exactly twice the capacity of its index — refused where it is
+ * typed when it is not, and checked over every document there is. And since D-459 (the client's review of 11.11.2026, C) no
+ * Gutachten keeps a table of tyre load at speed of its own: the way to type one is gone, the page sends none, and a paper that
+ * prints one is released without it — the shop reads ETRTO's.
  */
 beforeEach(function (): void {
     $this->seed(AccessSeeder::class);
@@ -37,108 +38,23 @@ function tabelleDraft(): ApprovalDocument
     ]);
 }
 
-/** ABE 55255, page 6, as the grid sends it. */
-function tabellePayload(): array
-{
-    return [
-        'source_page' => 6,
-        'symbols' => ['V', 'W', 'Y'],
-        'rows' => [
-            ['speed_kmh' => 240, 'cells' => ['V' => '91', 'W' => '100', 'Y' => '100 %']],
-            ['speed_kmh' => 250, 'cells' => ['V' => '–', 'W' => '95', 'Y' => '100']],
-            ['speed_kmh' => 280, 'cells' => ['V' => '-', 'W' => '–', 'Y' => '95']],
-            ['speed_kmh' => 300, 'cells' => ['V' => '', 'W' => '', 'Y' => '85']],
-        ],
-    ];
-}
-
-it('saves the table as typed — a share, a „–“ as not permitted, an empty cell as not said — and records it', function (): void {
+it('has no way left to type a table of tyre load at speed, and sends none to the page (D-459)', function (): void {
     $document = tabelleDraft();
 
-    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", tabellePayload())
-        ->assertSessionHasNoErrors()
-        ->assertSessionHas('toast', 'Tabelle gespeichert.');
-
-    $cells = DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->get()
-        ->mapWithKeys(static fn (DocumentSpeedDerating $c): array => [$c->speed_kmh.$c->symbol => $c->percent])->all();
-
-    expect($cells)->toBe([
-        '240V' => 91, '240W' => 100, '240Y' => 100,
-        '250V' => null, '250W' => 95, '250Y' => 100,
-        '280V' => null, '280W' => null, '280Y' => 95,
-        '300Y' => 85,
-    ])
-        ->and(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->value('source_page'))->toBe(6)
-        ->and(AuditLog::query()->where('description', 'approval.derating_saved')->exists())->toBeTrue();
-
-    // The record page shows it back as typed.
+    // Gone: no route takes it — 404, or 405 where another route claims the address for other methods. Nothing is saved.
+    $gone = $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", ['symbols' => ['V'], 'rows' => []]);
+    expect($gone->status())->toBeIn([404, 405]);
     $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('derating.sourcePage', 6)
-            ->where('derating.symbols', ['V', 'W', 'Y'])
-            ->where('derating.rows.1', ['speed' => 250, 'cells' => ['V' => '–', 'W' => '95', 'Y' => '100']])
-            ->where('derating.rows.3', ['speed' => 300, 'cells' => ['Y' => '85']])
-        );
-
-    // Saving nothing takes the table away.
-    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", ['symbols' => ['V', 'W', 'Y'], 'rows' => []])
-        ->assertSessionHas('toast', 'Tabelle entfernt.');
-
-    expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->count())->toBe(0);
-
-    // Nothing over nothing: no change, and no Protokoll line claiming one (ADMIN-GEFUNDEN 509's class, found beside D-256).
-    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", ['symbols' => ['V', 'W', 'Y'], 'rows' => []])
-        ->assertSessionHas('toast', 'Es war keine Tabelle eingetragen.');
-
-    expect(AuditLog::query()->where('description', 'approval.derating_removed')->count())->toBe(1);
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->missing('derating')->missing('stamps.derating')->has('stamps.document'));
 });
 
-it('says on the record when a table came from the demo seed, and forgets that once a person types it from the PDF', function (): void {
+it('releases a paper that prints a table of tyre load at speed without one typed: the door asks for none (D-459)', function (): void {
     $document = tabelleDraft();
-    DocumentSpeedDerating::query()->create([
-        'approval_document_id' => $document->id, 'speed_kmh' => 250, 'symbol' => 'W', 'percent' => 95,
-        'seeded_from' => 'Demo-Seed: Tabelle der ABE 55255, Seite 6',
-    ]);
+    $document->forceFill(['tyre_index_source' => TyreIndexSource::Table->value])->save();
 
-    $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('derating.seededFrom', 'Demo-Seed: Tabelle der ABE 55255, Seite 6'));
-
-    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", tabellePayload())
-        ->assertSessionHasNoErrors();
-
-    expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->whereNotNull('seeded_from')->count())->toBe(0);
-
-    $this->actingAs(tabelleAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('derating.seededFrom', null)->where('derating.sourcePage', 6));
-});
-
-it('refuses a cell that is not a share, a „–“ or empty, and a speed twice, in words', function (): void {
-    $document = tabelleDraft();
-    $payload = tabellePayload();
-    $payload['rows'][0]['cells']['V'] = '120';
-    $payload['rows'][1]['cells']['W'] = 'abc';
-    $payload['rows'][3]['speed_kmh'] = 240;
-
-    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", $payload)
-        ->assertSessionHasErrorsIn('tabelle', [
-            'rows.0.cells.V' => 'Bitte eine Zahl von 1 bis 100, „–“ oder nichts.',
-            'rows.1.cells.W' => 'Bitte eine Zahl von 1 bis 100, „–“ oder nichts.',
-            'rows.3.speed_kmh' => 'Diese Geschwindigkeit steht zweimal in der Tabelle.',
-        ]);
-
-    expect(DocumentSpeedDerating::query()->count())->toBe(0);
-});
-
-it('lets no one change the table of a released document, nor a role that may only look (R-11)', function (): void {
-    $document = tabelleDraft();
-
-    $this->actingAs(tabelleAdmin('support-agent'), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", tabellePayload())->assertForbidden();
-
-    $document->forceFill(['status' => 'published', 'pdf_key' => 'gutachten/abe-55255.pdf', 'pdf_sha256' => str_repeat('a', 64)])->save();
-
-    $this->actingAs(tabelleAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/tragfaehigkeitstabelle", tabellePayload())->assertForbidden();
-
-    expect(DocumentSpeedDerating::query()->count())->toBe(0);
+    expect(app(DocumentRelease::class)->check($document))->not->toContain('Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, erfasst ist sie nicht. Trag sie ein oder ändere die Angabe.')
+        ->and(implode(' ', app(DocumentRelease::class)->check($document)))->not->toContain('Tabelle');
 });
 
 it('keeps a load-index limit as the document prints it, warns, and blocks the release until it is confirmed with a reason', function (): void {

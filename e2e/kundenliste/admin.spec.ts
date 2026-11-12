@@ -184,28 +184,20 @@ async function openDocument(page: Page, number: string): Promise<void> {
     await expect(page.getByRole('heading', { level: 1 })).toContainText(number)
 }
 
-test('the table of tyre load at speed: whole where the document prints one, one folded line where it does not', { tag: '@admin-215' }, async ({ page }, info) => {
+test('no table of tyre load at speed on any Gutachten: none to see, none to type — the shop reads ETRTO\'s (D-459)', { tag: '@admin-215' }, async ({ page }, info) => {
     await admin(page)
+    const heading = page.getByRole('heading', { name: 'Tragfähigkeit bei hoher Geschwindigkeit' })
 
-    // The Nachtrag refers to the vehicle's papers for its tyres' index (D-277): no table asked for — one line, folded.
+    // The Nachtrag refers to the vehicle's papers for its tyres' index (D-277), ABE 55255 prints a table: neither shows one.
     await openDocument(page, '366-0350-21')
-    const fold = page.locator('details.gs-fold')
-    await expect(fold.locator('summary')).toContainText('Tragfähigkeit bei hoher Geschwindigkeit')
-    await expect(fold.locator('summary')).toContainText('Keine Tabelle hinterlegt')
-    await expect(page.locator('section[aria-labelledby="gs-derating-h"]')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Fahrzeuge und Reifen' })).toBeVisible()
+    await expect(heading).toHaveCount(0)
+    await expect(page.getByText('Keine Tabelle hinterlegt')).toHaveCount(0)
+    await shotAround(page, [page.getByRole('heading', { level: 1 })], 215, info)
 
-    await fold.locator('summary').click()
-    await expect(fold).toContainText('Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt.')
-    await expect(fold).toContainText('Laut den Angaben verweist es für Lastindex und Geschwindigkeitssymbol auf die Fahrzeugpapiere.')
-    await shotAround(page, [fold], 215, info)
-
-    // ABE 55255 prints its table: in the read view the section stands whole. That the release waits for it is said where it can
-    // still be entered, in the steps (Erfassung/StepPaper.vue). The released paper: a new Fassung of it may stand in the list too.
     await openReleased(page, '55255')
-    const section = page.locator('section[aria-labelledby="gs-derating-h"]')
-    await expect(section).toBeVisible()
-    await expect(section).toContainText('so, wie dieses Gutachten es druckt')
-    await expect(page.locator('details.gs-fold')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Fahrzeuge und Reifen' })).toBeVisible()
+    await expect(heading).toHaveCount(0)
 })
 
 type ProductProps = { product: { modelId: number }; catalogue: string }

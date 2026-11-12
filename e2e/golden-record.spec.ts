@@ -16,7 +16,7 @@ import { placeholderPdf, searchCars } from './gutachten-erfassung-support'
  *   2  Katalog › Felgen: the imported Felge → Veröffentlichen
  *   3  Gutachten › Neues Gutachten: the PDF, Art, KBA-Nummer, pages
  *   4  The five steps: the wheel's size, a car, a tyre, an Auflage described on the way, the page
- *  4b  Its table of tyre load at speed: the example one, marked as the demo seed's (demo:placeholder-tables)
+ *  4b  Released — no table of tyre load at speed to type: every document reads ETRTO's (D-459)
  *   5  Vorschau: what the shop will answer, by the shop's own check
  *   6  Freigeben
  *   7  Shop: the car by HSN/TSN
@@ -147,7 +147,7 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         // shop gave no link to the Gutachten on the worktree).
         const file = join(tmpdir(), 'rimify-platzhalter-gutachten.pdf')
         writeFileSync(file, placeholderPdf(4))
-        execFileSync('php', ['artisan', 'demo:placeholder-tables', `--pdf=${file}`], { stdio: 'pipe' })
+        execFileSync('php', ['artisan', 'demo:placeholder-pdf', `--pdf=${file}`], { stdio: 'pipe' })
         await existing.first().click()
         await page.waitForURL(/\/admin\/gutachten\/\d+/)
     }
@@ -213,20 +213,14 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     const keys = { name: match![1]!, hsn: match![2]!, tsn: match![3]! }
     await shot(page, '04-verwendungsbereich')
 
-    // ── 4b · Its table of tyre load at speed ──────────────────────────────────────────────────
-    // A document carries its own table, or the shop cannot confirm tyres above 210 km/h (the C9 reviews).
-    // A placeholder has none to type: it gets ABE 55255's example table, marked as the demo seed's so nobody
-    // reads it as this document's content (the operator's decision of 29.09.2026) — the step ApprovalSeeder
-    // runs too.
-    // Only a draft takes it; a released placeholder already has its table.
+    // ── 4b · Released ─────────────────────────────────────────────────────────────────────────
+    // No table of tyre load at speed to type first: every document reads ETRTO's, the same for all (D-459). Only a draft is
+    // released here; a released placeholder already is.
     if (await stepBar.isVisible()) {
-        execFileSync('php', ['artisan', 'demo:placeholder-tables'], { stdio: 'pipe' })
-        await page.reload({ waitUntil: 'networkidle' })
-        await waitForApp(page)
         await stepBar.getByRole('button', { name: /Freigeben/ }).click()
     }
 
-    await shot(page, '04b-tragfaehigkeitstabelle')
+    await shot(page, '04b-freigegeben')
 
     // ── 5 · Vorschau ────────────────────────────────────────────
     await page.getByRole('button', { name: 'Vorschau zeigen' }).click()

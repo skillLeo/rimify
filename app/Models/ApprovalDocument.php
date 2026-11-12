@@ -223,16 +223,6 @@ class ApprovalDocument extends Model
     }
 
     /**
-     * The document's own table of tyre load at speed (ABE 55255, p. 6), cell by cell.
-     *
-     * @return HasMany<DocumentSpeedDerating, $this>
-     */
-    public function speedDeratings(): HasMany
-    {
-        return $this->hasMany(DocumentSpeedDerating::class)->orderBy('speed_kmh')->orderBy('id');
-    }
-
-    /**
      * The document's own „Bereifungskombinationen“, in its numbering (D-256): where there are any, the only tyres the shop
      * offers on it.
      *

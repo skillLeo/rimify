@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**75 sentences: 1 open, 23 backed by a recorded field, 47 about the shop itself, 4 not sentences.**
+**72 sentences: 1 open, 19 backed by a recorded field, 48 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -25,14 +25,11 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | Sentence | Read by | Where | The field |
 |---|---|---|---|
 | „%s %s laut Gutachten nur für Fahrzeuge mit %s zugelassen.“ | customer / operator | `Domain/Fitment/Resolver/FitmentResolver.php` | the kW band recorded beside the tyre size (TyreSize::powerBandDe) |
-| „!Bei %s km/h ist laut Tabelle des Gutachtens kein Reifen mit Geschwindigkeitsindex %s zulässig.“ | customer / operator | `Domain/Fitment/Resolver/FitmentResolver.php` | a recorded „–“ in the document's speed table (DeratingLookup::isNotPermitted) |
-| „Bei %s km/h ist ein %s-Reifen laut Tabelle des Gutachtens nicht zulässig, erforderlich ist %s.“ | customer / operator | `Domain/Fitment/Resolver/FitmentResolver.php` | a recorded „–“ for the lower speed symbol in the document's speed table |
-| „Beispieltabelle aus den Demodaten, nicht aus dem Gutachten“ | customer / operator | `Domain/Fitment/Resolver/FitmentResolver.php` | the recorded origin of a demo table (seededFrom) |
-| „Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht.“ | customer / operator | `Domain/Fitment/Tyres/KomplettradRefusal.php`, `Services/Storefront/Basket.php` | the tyre half is NOT_PERMITTED on the recorded sizes and the recorded table |
+| „Die Felge ist für dein Fahrzeug freigegeben, die Reifen, die das Gutachten dazu nennt, aber nicht.“ | customer / operator | `Domain/Fitment/Tyres/KomplettradRefusal.php`, `Services/Storefront/Basket.php` | the tyre half is NOT_PERMITTED on the recorded sizes — on a frozen answer: since D-459 a live one never is, ETRTO's table naming a permitted symbol at every speed |
 | „Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | the build window recorded on a row that names the car (FitmentRow::windowCovers) |
 | „Das Gutachten gilt nicht für die Karosserieform oder den Antrieb dieses Fahrzeugs.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | the body or drive restriction recorded on every row that names the car |
 | „Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | the same recorded restriction; what is unknown is the car's own body or drive, and the sentence says so |
-| „Für die Höchstgeschwindigkeit deines Fahrzeugs lässt das Gutachten keinen passenden Reifen zu.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | a recorded „–“ in the document's speed table for the car's top speed |
+| „Für die Höchstgeschwindigkeit deines Fahrzeugs lässt das Gutachten keinen passenden Reifen zu.“ | customer / operator | `Domain/Fitment/Verdict/VerdictReason.php` | a „–“ recorded in the document's own speed table, on a frozen answer: since D-459 every document reads ETRTO's, which names a permitted symbol at every speed |
 | „Als Komplettrad gibt es diese Felge für dein Fahrzeug nur in den Reifenkombinationen, die das Gutachten nennt – je zwei Räder für die Vorder- und die Hinterachse.“ | customer / operator | `Domain/Fitment/Tyres/KomplettradRefusal.php` | the document's own list of combinations as entered (document_tyre_combinations, D-256): closed, the Komplettrad is one of them (D-335) |
 | „Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.“ | customer / operator | `Components/Product/FitmentPanel.vue` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
 | „Das Gutachten deckt die geprüfte Kombination ab und nennt dazu nur Hinweise – nichts, was du tun musst.“ | customer / operator | `Pages/CheckErgebnis/Index.vue` | every recorded condition of the answer is a note (FitmentVerdict::notesOnly) |
@@ -40,10 +37,9 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Das Gutachten lässt die Kombination nur unter Bedingungen zu.“ | customer / operator | `Pages/CheckErgebnis/Index.vue` | a CONDITIONAL answer: the recorded conditions |
 | „Das Gutachten deckt diese Größe für dein Fahrzeug nicht ab.“ | customer / operator | `Pages/Check/Index.vue` | a NOT_PERMITTED answer: a recorded row restricts the car, or the document is asserted complete (approval_documents.completeness, D-227); an unnamed car in a document nobody asserted complete is „Noch nicht bestätigt“ |
 | „Das Gutachten lässt diese Kombination für das Fahrzeug nicht zu.“ | customer / operator | `Pages/CheckErgebnis/Index.vue` | a NOT_PERMITTED answer: a recorded row restricts the car, or the document is asserted complete (approval_documents.completeness, D-227); an unnamed car in a document nobody asserted complete is „Noch nicht bestätigt“ |
-| „Das Gutachten hat nur {$document->page_count} Seiten.“ | admin | `Http/Requests/Admin/DocumentConditionRequest.php`, `Http/Requests/Admin/DocumentDeratingRequest.php`, `Http/Requests/Admin/DocumentExtraRequest.php`, `Http/Requests/Admin/Erfassung/EntryLinesRequest.php`, `Http/Requests/Admin/VehicleFromDocumentRequest.php` | approval_documents.page_count, read from the uploaded PDF |
+| „Das Gutachten hat nur {$document->page_count} Seiten.“ | admin | `Http/Requests/Admin/DocumentConditionRequest.php`, `Http/Requests/Admin/DocumentExtraRequest.php`, `Http/Requests/Admin/Erfassung/EntryLinesRequest.php`, `Http/Requests/Admin/VehicleFromDocumentRequest.php` | approval_documents.page_count, read from the uploaded PDF |
 | „Wähl eine Karosserie aus der Liste oder „Nennt das Gutachten nicht“.“ | admin | `Http/Requests/Admin/VehicleFromDocumentRequest.php`, `Pages/Admin/Gutachten/VehicleFromDocument.vue` | this choice is the recorded absence: the person entering the document says it names none |
 | „Steht nicht im Dokument“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | this choice is the recorded absence |
-| „Beispieltabelle aus den Demodaten ({{ derating.seededFrom }}) – nicht aus diesem Gutachten übertragen.“ | admin | `Pages/Admin/Gutachten/DeratingTable.vue` | the recorded origin of a demo table (seeded_from) |
 | „Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht – der Shop sagt das dazu.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | the field being filled in: valid_from_production |
 | „Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs, der Geschwindigkeitsindex steht so im Gutachten.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the speed symbol recorded as the document's own minimum (source „document“, R-06) |
 | „Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the load index recorded as the document's own minimum (source „document“, R-06) |
@@ -61,7 +57,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Ein Dokument kann sich nicht selbst ablösen.“ | customer / operator | `Models/ApprovalDocument.php` | a rule of the record |
 | „Ohne das PDF wird kein Gutachten freigegeben, und auf diesem Rechner fehlt:“ | customer / operator | `Services/Demo/AcceptanceSeeder.php` | a rule of the release |
 | „Entferne sie dort zuerst; ein echtes Gutachten verliert keine Zeile als Nebenwirkung.“ | customer / operator | `Services/Demo/DemoCatalogue.php` | R-05, said to whoever removes demo data |
-| „Platzhalter – kein echtes Gutachten“ | customer / operator | `Services/Demo/PlaceholderTables.php` | the issuer name of a demo document: says what our row is |
+| „Platzhalter – kein echtes Gutachten“ | customer / operator | `Services/Demo/PlaceholderPdf.php` | the issuer name of a demo document: says what our row is |
 | „Noch ist kein Gutachten freigegeben; bis dahin zeigt der Shop zu keinem Fahrzeug eine Felge.“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the state of the record, on the go-live check |
 | „Diese Größen kann der Shop keinem Auto zeigen: Kein freigegebenes Gutachten nennt sie.“ | customer / operator | `Services/Admin/Dashboard/RoleFigures.php`, `Services/GoLive/GoLiveChecks.php` | counts wheels and versions without a row in a released document |
 | „Kein Entwicklungsfahrzeug in einem freigegebenen Gutachten“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | the name of a go-live check on our rows |
@@ -99,6 +95,7 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Vollständigkeit jedes freigegebenen Gutachtens beantwortet“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | names our own recorded answer (D-227), not the document |
 | „Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.“ | customer / operator | `Services/Reset/ResetLevel.php` | what a reset level removes |
 | „passt nicht zu dem, was du aus dem Gutachten eingetragen hast.“ | admin | `Services/Admin/Approvals/Entry/EntryView.php` | compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen |
+| „Die Werte der Tabelle trägst du nicht ein: Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | what the shop computes the load at speed with: ETRTO's table in code, the same for every document, nothing typed (D-459) |
 
 ## Not a sentence
 
@@ -112,7 +109,8 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 ## Reworded on 14.10.2026 — the answer is the same, the sentence now says what is on record
 
 No verdict changed. Each sentence said what a document does not contain; each now says what is not on record with us.
-The last two were the same bare refusal for two different causes (the rule's last sentence).
+The last two were the same bare refusal for two different causes (the rule's last sentence). The first two were
+retired on 12.11.2026 with the documents' own speed tables (D-459): every Gutachten reads ETRTO's.
 
 | Now | Before | Where it is read |
 |---|---|---|

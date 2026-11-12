@@ -11,7 +11,6 @@ use App\Models\DocumentCondition;
 use App\Models\DocumentConditionRework;
 use App\Models\DocumentFastener;
 use App\Models\DocumentNotice;
-use App\Models\DocumentSpeedDerating;
 use App\Models\DocumentTyreCombination;
 use App\Models\Fitment;
 use App\Models\FitmentCondition;
@@ -63,7 +62,6 @@ final class CatalogueVersion
         DocumentConditionRework::class,
         DocumentFastener::class,
         DocumentNotice::class,
-        DocumentSpeedDerating::class,
         DocumentTyreCombination::class,
         Fitment::class,
         FitmentCondition::class,

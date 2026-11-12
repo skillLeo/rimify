@@ -2,19 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Fitment\Data;
+namespace App\Domain\Fitment\Derivation;
 
 /**
- * One reading of a derating table: a share to apply, a „–“ (not permitted), or nothing said (absent).
+ * One reading of the ETRTO table (SpeedLoadTable): a share to apply, a „–“ (not permitted, with the symbol the row asks for
+ * instead), or nothing said (absent).
  */
-final readonly class DeratingLookup
+final readonly class SpeedLoadLookup
 {
     private function __construct(
         public ?int $percent,
         public bool $dash,
-        /** The table row that was read, km/h; null when the speed is above the table or there is none. */
+        /** The table row that was read, km/h; null when the speed is above the table. */
         public ?int $rowKmh,
-        /** For a „–“: the first symbol the same row permits (`erforderlich ist Y`). */
+        /** For a „–“: the first symbol the same row permits (`erforderlich ist W`). */
         public ?string $required = null,
     ) {}
 
@@ -23,7 +24,7 @@ final readonly class DeratingLookup
         return new self($percent, false, $rowKmh);
     }
 
-    public static function notPermitted(int $rowKmh, ?string $required): self
+    public static function notPermitted(int $rowKmh, string $required): self
     {
         return new self(null, true, $rowKmh, $required);
     }
