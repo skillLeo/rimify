@@ -43,7 +43,8 @@ jobs:
       TEST_DB_USERNAME: root
       TEST_DB_PASSWORD: root
       E2E_SHOP_DB_PORT: 3308
-      PLAYWRIGHT_JSON_OUTPUT_NAME: report.json
+      # Absolute: a relative name is read from the config's folder, and the phone suite's lives in tests/e2e/mobile.
+      PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/report.json
     steps:
       - uses: actions/checkout@v4
 
@@ -110,5 +111,7 @@ jobs:
             playwright-report/
             report.json
             retry.md
+            e2e/**/*-snapshots/*-linux.png
+            tests/e2e/**/*-snapshots/*-linux.png
           retention-days: 7
           if-no-files-found: ignore

@@ -28,7 +28,9 @@ set_env() { # key value — replaces the key's line, or adds it
     if grep -qE "^$1=" .env; then sed -i -E "s#^$1=.*#$1=$2#" .env; else printf '%s=%s\n' "$1" "$2" >> .env; fi
 }
 set_env APP_ENV local
-set_env APP_DEBUG true
+# As the Mac's gate has it: no debug page and no debug bar — the bar lies over the page and moves it (CI, 12.11.2026).
+set_env APP_DEBUG false
+set_env DEBUGBAR_ENABLED false
 set_env APP_URL http://127.0.0.1:8000
 set_env DB_CONNECTION mysql
 set_env DB_HOST "$DB_HOST"
