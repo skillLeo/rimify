@@ -30,4 +30,10 @@ class ShippingMethodPolicy
     {
         return $this->create($user);
     }
+
+    /** Deleted (D-454): an order keeps its own copy of what it was sent by, so nothing it said goes with the method. */
+    public function delete(AdminUser $user, ShippingMethod $method): bool
+    {
+        return $this->create($user);
+    }
 }

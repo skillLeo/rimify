@@ -813,6 +813,11 @@ describe('putting every entry into words', function (): void {
                 ['Versandkostenfrei ab: nie → '.$euro(150000), 'Im Shop: aktiv → nicht aktiv'],
             ],
             'shipping_method.sorted' => [['order' => ['Express', 'Standard']], 'Die Reihenfolge der Versandarten wurde geändert: Express, Standard.', []],
+            'shipping_method.deleted' => [
+                ['method' => 'Express', 'values' => ['name' => 'Express', 'price_cents' => 5990, 'free_from_cents' => null, 'delivery' => '1–2 Werktage', 'countries' => ['DE'], 'product_types' => ['komplettrad'], 'description_de' => null, 'active' => false]],
+                'Die Versandart „Express“ wurde gelöscht ('.$euro(5990).', 1–2 Werktage). Bestellungen behalten, womit sie verschickt werden.',
+                [],
+            ],
             'review.hidden' => [['review' => 7, 'order' => 'RMF-2026-1001', 'reason' => 'Werbung.'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde ausgeblendet: „Werbung.“.', []],
             'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
             'review.replied' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde geantwortet.', []],

@@ -110,6 +110,7 @@ final class AuditDescriber
         'shipping_method.created' => 'verkauf',
         'shipping_method.updated' => 'verkauf',
         'shipping_method.sorted' => 'verkauf',
+        'shipping_method.deleted' => 'verkauf',
         'payments.settings_updated' => 'zugriff',
         'payments.connection_tested' => 'zugriff',
         'brand.manufacturer_updated' => 'katalog',
@@ -552,6 +553,12 @@ final class AuditDescriber
             'shipping_method.created' => ['Die Versandart '.self::q((string) ($p['method'] ?? '')).' wurde angelegt.', self::shippingChanges([], self::map($p, 'values'))],
             'shipping_method.updated' => self::shippingMethodUpdated($p),
             'shipping_method.sorted' => ['Die Reihenfolge der Versandarten wurde geändert: '.implode(', ', array_map('strval', array_values(self::map($p, 'order')))).'.', []],
+            'shipping_method.deleted' => [
+                'Die Versandart '.self::q((string) ($p['method'] ?? '')).' wurde gelöscht'
+                    .(isset(self::map($p, 'values')['price_cents']) ? ' ('.self::money(self::map($p, 'values')['price_cents']).', '.(string) (self::map($p, 'values')['delivery'] ?? '–').')' : '')
+                    .'. Bestellungen behalten, womit sie verschickt werden.',
+                [],
+            ],
             'payments.settings_updated' => self::paymentsUpdated($p),
             'payments.connection_tested' => [
                 ($p['ok'] ?? false) === true
