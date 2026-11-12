@@ -36,9 +36,11 @@
              starts from, so nothing opens and snaps shut (AdminLayout, railResize.ts): in a window without room for
              the rail at the width this person gave it, the rail is drawn as wide as there is room for; without room
              even for its narrowest 232 px, it is collapsed by the window, with no handle to pull at.
-             Asked from the head, in the first frame that shows the shell (a frame callback runs before that frame's
-             layout, and only once the stylesheets are in): at the end of the body it ran after the browser had
-             painted the open rail, and the page jumped by the rail's width (CLS 0,19 at 1024 px, 05.10.2026). --}}
+             Asked from the head, the moment the parser has put the shell in (before anything is painted), and once
+             more in the first frame, when the stylesheets are in: at the end of the body it ran after the browser had
+             painted the open rail (CLS 0,19 at 1024 px, 05.10.2026), and with the frame callback alone GitHub's Linux
+             machines still painted one frame of the open rail first (CLS 0,19 at 1024 px, 13.11.2026). Whether there is
+             room at 1024 px does not wait for a stylesheet: there is none. --}}
         <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
             (function () {
                 var scheduled = false;
@@ -46,22 +48,33 @@
                     if (!scheduled && document.querySelector('.adm')) {
                         scheduled = true;
                         observer.disconnect();
+                        fit();
                         requestAnimationFrame(fit);
                     }
                 });
 
+                // What the server drew, read at the first look: the second look decides from it, not from the first's answer.
+                var drawn = null;
+
                 function fit() {
                     var shell = document.querySelector('.adm');
                     if (!shell || !window.matchMedia('(min-width: 1024px)').matches) return;
+                    if (drawn === null) {
+                        drawn = { rail: shell.getAttribute('data-rail'), labels: shell.getAttribute('data-labels'), width: parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260 };
+                    }
                     var room = Math.min(400, shell.clientWidth - 960);
-                    var width = parseInt(shell.style.getPropertyValue('--rail-w'), 10) || 260;
                     if (room < 232) {
                         shell.setAttribute('data-rail', 'collapsed');
                         shell.setAttribute('data-rail-forced', '');
-                    } else if (room < width) {
-                        shell.style.setProperty('--rail-w', room + 'px');
-                        shell.setAttribute('data-labels', room < 248 ? 'short' : 'full');
+                        return;
                     }
+                    // Room after all: as the server drew it, at the widest that fits.
+                    if (drawn.rail !== null) shell.setAttribute('data-rail', drawn.rail);
+                    shell.removeAttribute('data-rail-forced');
+                    var width = Math.min(drawn.width, room);
+                    if (width < drawn.width || shell.style.getPropertyValue('--rail-w') !== '') shell.style.setProperty('--rail-w', width + 'px');
+                    if (width < drawn.width) shell.setAttribute('data-labels', width < 248 ? 'short' : 'full');
+                    else if (drawn.labels !== null) shell.setAttribute('data-labels', drawn.labels);
                 }
 
                 observer.observe(document.documentElement, { childList: true, subtree: true });
