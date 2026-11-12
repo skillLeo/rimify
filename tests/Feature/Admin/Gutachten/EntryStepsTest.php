@@ -23,6 +23,7 @@ use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
 use App\Services\Admin\Approvals\DocumentRelease;
+use App\Services\Admin\Approvals\Entry\CarCodes;
 use App\Services\Admin\Approvals\Entry\DocumentEntryProof;
 use App\Services\Admin\Approvals\Entry\DocumentEntryReader;
 use App\Services\Admin\Approvals\Entry\DocumentEntryWriter;
@@ -435,7 +436,8 @@ describe('„Kopieren nach …“', function (): void {
             ->and($widths($two))->toBe([255, 275, 265])
             ->and($two->refresh()->source_page)->toBe(7)
             ->and($one->refresh()->copied_from_id)->toBe($source->id)
-            ->and(DocumentCarEntry::query()->findOrFail($one->id)->codes()->pluck('code')->all())->toBe(['A01'])
+            // The general codes are the car's (D-452): the target car has the source car's now.
+            ->and(array_column(CarCodes::of(DocumentCarEntry::query()->with('vehicle')->findOrFail($one->id)), 'code'))->toBe(['A01'])
             ->and(AuditLog::query()->where('description', 'approval.lines_copied')->sole()->properties['cars'])->toBe(2);
     });
 

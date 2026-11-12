@@ -226,6 +226,7 @@ final class AuditDescriber
         'approval.colour_added' => 'gutachten',
         'approval.combination_codes_corrected' => 'gutachten',
         'approval.combination_codes_to_sets' => 'gutachten',
+        'approval.vehicle_codes_per_car' => 'gutachten',
         'approval.limit_confirmed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
@@ -757,6 +758,11 @@ final class AuditDescriber
                     .' jetzt an der Reifenkombination, neben der sie eingetragen sind – für beide Achsen und für keine andere Kombination: '
                     .self::count((int) (self::text($p, 'combinations') ?? 0), 'Kombination', 'Kombinationen').', vorher an '
                     .self::count((int) (self::text($p, 'sizes') ?? 0), 'Reifengröße', 'Reifengrößen').'.',
+                [],
+            ],
+            'approval.vehicle_codes_per_car' => [
+                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' gelten die allgemeinen Codes '.implode(', ', array_map(self::q(...), self::list($p, 'codes')))
+                    .' jetzt für jede Felgenkombination ihres Fahrzeugs: an '.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').' ergänzt.',
                 [],
             ],
             'approval.colour_added' => ['Für eine neue Farbe von '.self::q(self::text($p, 'size') ?? '–').' kam in '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' dazu: '.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').'.', []],

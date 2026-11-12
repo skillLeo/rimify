@@ -25,6 +25,7 @@ use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
 use App\Support\EgNumber;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use LogicException;
 
 /**
@@ -89,8 +90,42 @@ final class DocumentEntryWriter
     /** Whether the paper of the last `desired()` has a list of combinations: then a line of it carries its set's codes there. */
     private bool $hasList = false;
 
+    /**
+     * The general codes of the last `desired()`'s cars (D-452), per car; empty before `document_vehicle_codes` exists (a migration
+     * of the round before it).
+     *
+     * @var array<string, list<array{code: string, note: string|null}>>
+     */
+    private array $carCodes = [];
+
+    /** @var array<int, list<array{code: string, note: string|null}>> per cell: its own row's codes, carried from the rows before the five steps */
+    private array $cellCodes = [];
+
     /** @var array<string, array{entry: DocumentCarEntry, sizes: list<array<string, mixed>>, codes: list<array{code: string, note: string|null}>}> which entry each row of the last `desired()` came from, and its children in the order they were entered */
     private array $sources = [];
+
+    private function readCarCodes(int $documentId): void
+    {
+        CarCodes::forget();
+        $this->carCodes = Schema::hasTable('document_vehicle_codes') ? CarCodes::forDocument($documentId) : [];
+        $this->cellCodes = [];
+
+        foreach (DB::table('document_car_entry_codes')->join('document_car_entries', 'document_car_entries.id', '=', 'document_car_entry_codes.document_car_entry_id')
+            ->where('document_car_entries.approval_document_id', $documentId)->orderBy('document_car_entry_codes.id')
+            ->get(['document_car_entry_codes.document_car_entry_id', 'document_car_entry_codes.code', 'document_car_entry_codes.note_de']) as $row) {
+            $this->cellCodes[(int) $row->document_car_entry_id][] = ['code' => (string) $row->code, 'note' => $row->note_de === null ? null : (string) $row->note_de];
+        }
+    }
+
+    /**
+     * What a cell's row says itself: its car's general codes (D-452), and the codes its own row carried from before the five steps.
+     *
+     * @return list<array{code: string, note: string|null}>
+     */
+    private function generalCodes(DocumentCarEntry $entry): array
+    {
+        return CarCodes::unique([...($this->carCodes[CarCodes::keyOfEntry($entry)] ?? []), ...($this->cellCodes[(int) $entry->id] ?? [])]);
+    }
 
     /**
      * The paper's codes of a FOR_THE_SET kind.
@@ -135,6 +170,7 @@ final class DocumentEntryWriter
         $this->caps = self::capsOf($model->document->id);
         $this->forTheSet = self::forTheSetOf($model->document->id);
         $this->hasList = $model->hasList();
+        $this->readCarCodes($model->document->id);
         $this->sources = [];
         $colours = [];
         /** @var array<int, array<int, list<array{entry: DocumentCarEntry, axle: string, sizes: list<array<string, mixed>>, crossed: bool}>>> $parts */
@@ -438,8 +474,8 @@ final class DocumentEntryWriter
                 $sizes[$key] = $size;
             }
 
-            foreach ($part['entry']->codes as $code) {
-                $codes[$code->code] ??= ['code' => $code->code, 'note' => $code->note_de];
+            foreach ($this->generalCodes($part['entry']) as $code) {
+                $codes[$code['code']] ??= $code;
             }
         }
 

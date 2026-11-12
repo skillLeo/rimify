@@ -62,13 +62,22 @@ final readonly class EntryView
      */
     public function lines(DocumentCarEntry $entry): array
     {
-        $entry->loadMissing(['lines.codes', 'codes', 'wheelConfig.wheelFinish', 'combination.front', 'combination.rear']);
+        $entry->loadMissing(['lines.codes', 'codes', 'wheelConfig.wheelFinish', 'combination.front', 'combination.rear', 'vehicle']);
+        $sharing = CarCodes::cellsSharing($entry);
 
         return [
             'id' => (int) $entry->id,
             'page' => $entry->source_page,
             'lines' => $entry->lines->map(static fn (DocumentTyreLine $line): array => self::line($line, $entry))->values()->all(),
-            'codes' => $entry->codes->map(static fn ($code): array => ['code' => $code->code, 'note' => $code->note_de])->values()->all(),
+            // The car's, not this cell's (D-452): every wheel combination of the car — and every car of its HSN/TSN — says them.
+            'codes' => CarCodes::of($entry),
+            'codesFor' => [
+                'car' => CarCodes::keyOfEntry($entry),
+                'cells' => count($sharing),
+                'cars' => count(array_unique(array_map(static fn (DocumentCarEntry $cell): int => (int) $cell->vehicle_id, $sharing))),
+            ],
+            // This combination's own row's codes, carried from before the five steps where the car's rows said different ones.
+            'cellCodes' => $entry->codes->map(static fn ($code): array => ['code' => (string) $code->code, 'note' => $code->note_de])->values()->all(),
             'columns' => [
                 'entry_note' => $entry->entry_note_de,
                 'entry_override' => $entry->entry_override,
@@ -114,7 +123,7 @@ final readonly class EntryView
                     'kw' => $line->kw_min === null || $line->kw_max === null ? null : $line->kw_min.'–'.$line->kw_max,
                     'codes' => $line->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->values()->all(),
                 ])->values()->all(),
-                'codes' => $entry->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->values()->all(),
+                'codes' => array_values(array_unique([...array_column(CarCodes::of($entry), 'code'), ...$entry->codes->pluck('code')->map(static fn (mixed $code): string => (string) $code)->all()])),
             ];
         }
 
@@ -345,7 +354,7 @@ final readonly class EntryView
             'lines' => $readable->count(),
             'pairs' => $pairs,
             'unread' => $entry->lines->count() - $readable->count(),
-            'codes' => $entry->codes->count(),
+            'codes' => count(CarCodes::unique([...CarCodes::of($entry), ...$entry->codes->map(static fn ($code): array => ['code' => (string) $code->code, 'note' => $code->note_de])->all()])),
             'done' => $readable->isNotEmpty(),
             'page' => $entry->source_page,
             'copiedFrom' => $entry->copied_from_id === null ? null : self::copiedName($entry),

@@ -129,7 +129,7 @@ class GutachtenErfassungController extends Controller
             // The car as it is now, held: a save from a form opened on another state is refused (EditStamp, F-25).
             $locked = DocumentCarEntry::query()->lockForUpdate()->findOrFail($entry->id);
             EditStamp::guard($request, $this->view->lines($locked));
-            $this->editor->saveCar($locked, $request->lines(), $request->codes(), $request->columns(), $request->admin());
+            $this->editor->saveCar($locked, $request->lines(), $request->codes(), $request->columns(), $request->admin(), $request->codesChanged(), $request->cellCodes());
         });
 
         $fresh = $entry->fresh();

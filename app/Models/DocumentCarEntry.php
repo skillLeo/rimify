@@ -101,7 +101,12 @@ class DocumentCarEntry extends Model
         return $this->hasMany(DocumentTyreLine::class)->orderBy('position')->orderBy('id');
     }
 
-    /** @return HasMany<DocumentCarEntryCode, $this> */
+    /**
+     * The codes of this cell's own row, carried from the rows before the five steps where the car's rows said different ones (D-452):
+     * a combination's own, beside the car's general codes (CarCodes). Typed in the five steps, general codes are the car's.
+     *
+     * @return HasMany<DocumentCarEntryCode, $this>
+     */
     public function codes(): HasMany
     {
         return $this->hasMany(DocumentCarEntryCode::class)->orderBy('id');

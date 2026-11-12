@@ -52,6 +52,12 @@ class EntryLinesRequest extends EntryRequest
             'codes' => ['present', 'array', 'max:40'],
             'codes.*.code' => ['required', 'string', 'distinct', 'regex:'.DocumentConditions::CODE],
             'codes.*.note' => ['nullable', 'string', 'max:300'],
+            // The form says whether it changed the car's general codes (D-452); a form from before says nothing, and is taken at its word.
+            'codes_changed' => ['sometimes', 'boolean'],
+            // A combination's own codes from before the five steps (D-452): only where the form shows them.
+            'cell_codes' => ['sometimes', 'array', 'max:40'],
+            'cell_codes.*.code' => ['required', 'string', 'distinct', 'regex:'.DocumentConditions::CODE],
+            'cell_codes.*.note' => ['nullable', 'string', 'max:300'],
             'source_page' => ['nullable', 'integer', 'min:1', 'max:2000'],
             'entry_note' => ['sometimes', 'nullable', 'string', 'max:500'],
             'entry_override' => ['sometimes', 'nullable', Rule::in(['required', 'not_required'])],
@@ -209,6 +215,30 @@ class EntryLinesRequest extends EntryRequest
 
             return ['code' => trim((string) $code['code']), 'note' => $note === '' ? null : $note];
         }, (array) $this->validated('codes')));
+    }
+
+    /**
+     * This combination's own codes from before the five steps, where the form sent them; null where it did not.
+     *
+     * @return list<array{code: string, note: string|null}>|null
+     */
+    public function cellCodes(): ?array
+    {
+        if (! $this->has('cell_codes')) {
+            return null;
+        }
+
+        return array_values(array_map(static function (array $code): array {
+            $note = isset($code['note']) ? trim((string) $code['note']) : '';
+
+            return ['code' => trim((string) $code['code']), 'note' => $note === '' ? null : $note];
+        }, (array) $this->validated('cell_codes')));
+    }
+
+    /** Whether this form changed the car's general codes: only then are they the car's now (D-452). */
+    public function codesChanged(): bool
+    {
+        return $this->boolean('codes_changed', true);
     }
 
     /**

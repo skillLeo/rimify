@@ -243,23 +243,41 @@ final readonly class EntryEditor
     }
 
     /**
-     * One car's lines, its general codes, its page and what its row says beside them.
+     * One car's lines, its general codes, its page and what its row says beside them. The general codes are the car's (D-452):
+     * changed here, every wheel combination of the car and every car of its HSN/TSN says them — and only where this form changed
+     * them, so a save of the lines alone never puts back what another combination's form changed meanwhile.
      *
      * @param  list<LineInput>  $lines
      * @param  list<CodeInput>  $codes
      * @param  array<string, mixed>  $columns  only the columns the form sent
+     * @param  list<CodeInput>|null  $cellCodes  this combination's own codes from before the five steps; null where the form shows none
      */
-    public function saveCar(DocumentCarEntry $entry, array $lines, array $codes, array $columns, AdminUser $admin): void
+    public function saveCar(DocumentCarEntry $entry, array $lines, array $codes, array $columns, AdminUser $admin, bool $codesChanged = true, ?array $cellCodes = null): void
     {
-        DB::transaction(function () use ($entry, $lines, $codes, $columns, $admin): void {
+        DB::transaction(function () use ($entry, $lines, $codes, $columns, $admin, $codesChanged, $cellCodes): void {
             $this->applyColumns($entry, $columns, $admin);
             $entry->forceFill(['copied_from_id' => null])->save();
-            $this->replaceCodes($entry, $codes);
+            $cars = [(int) $entry->vehicle_id];
+
+            if ($codesChanged && CarCodes::unique($codes) !== CarCodes::of($entry)) {
+                CarCodes::put($entry, $codes);
+                $cars = CarCodes::vehiclesSharing($entry);
+            }
+
+            // This combination's own codes from before the five steps, where the form sends them (D-452).
+            if ($cellCodes !== null) {
+                $entry->codes()->delete();
+
+                foreach (CarCodes::unique($cellCodes) as $code) {
+                    DocumentCarEntryCode::query()->create(['document_car_entry_id' => $entry->id, 'code' => $code['code'], 'note_de' => $code['note']]);
+                }
+            }
+
             $this->replaceLines($entry, $lines);
 
             /** @var ApprovalDocument $document */
             $document = $entry->document;
-            $this->writer->write($document, $admin, [$entry->vehicle_id]);
+            $this->writer->write($document, $admin, $cars);
 
             // Saved at every pause in the typing: the Protokoll says it once per car, person and quarter of an hour, or a paper of a
             // hundred cars would bury everything else there.
@@ -292,11 +310,11 @@ final readonly class EntryEditor
         $result = ['cars' => 0, 'lines' => 0];
 
         DB::transaction(function () use ($source, $targetIds, $replace, $admin, $dryRun, &$result): void {
-            $source->loadMissing(['lines.codes', 'codes']);
+            $source->loadMissing(['lines.codes', 'codes', 'vehicle']);
             /** @var ApprovalDocument $document */
             $document = $source->document;
             // Only the same wheel combination: another's tyres may not fit its wheels.
-            $targets = DocumentCarEntry::query()->with(['lines', 'codes'])->where('approval_document_id', $document->id)->where('document_wheel_combination_id', $source->document_wheel_combination_id)
+            $targets = DocumentCarEntry::query()->with(['lines', 'codes', 'vehicle'])->where('approval_document_id', $document->id)->where('document_wheel_combination_id', $source->document_wheel_combination_id)
                 ->whereIn('id', $targetIds)->whereKeyNot($source->id)->get();
 
             foreach ($targets as $target) {
@@ -343,6 +361,12 @@ final readonly class EntryEditor
                 }
 
                 if (! $dryRun) {
+                    // The car's general codes (D-452): the source car's, in place of the target car's or beside them.
+                    if (CarCodes::keyOfEntry($target) !== CarCodes::keyOfEntry($source)) {
+                        CarCodes::put($target, $replace ? CarCodes::of($source) : CarCodes::unique([...CarCodes::of($target), ...CarCodes::of($source)]));
+                    }
+
+                    // A combination's own codes from before the five steps go with its lines, as before.
                     if ($replace) {
                         $target->codes()->delete();
                     }
@@ -363,7 +387,9 @@ final readonly class EntryEditor
             }
 
             if (! $dryRun && $targets->isNotEmpty()) {
-                $this->writer->write($document, $admin, $targets->pluck('vehicle_id')->map(static fn (mixed $id): int => (int) $id)->all());
+                // Each target car's rows, and those of every car that shares its general codes by HSN/TSN (D-452).
+                $cars = $targets->flatMap(static fn (DocumentCarEntry $target): array => CarCodes::vehiclesSharing($target))->unique()->values()->all();
+                $this->writer->write($document, $admin, $cars);
 
                 AuditTrail::record($admin, 'approval.lines_copied', [
                     'document' => FitmentRows::label($document),
@@ -439,16 +465,6 @@ final readonly class EntryEditor
 
         if ($columns !== []) {
             $entry->forceFill($columns)->save();
-        }
-    }
-
-    /** @param list<CodeInput> $codes */
-    private function replaceCodes(DocumentCarEntry $entry, array $codes): void
-    {
-        $entry->codes()->delete();
-
-        foreach ($codes as $code) {
-            DocumentCarEntryCode::query()->create(['document_car_entry_id' => $entry->id, 'code' => $code['code'], 'note_de' => $code['note']]);
         }
     }
 
