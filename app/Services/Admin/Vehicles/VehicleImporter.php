@@ -324,23 +324,31 @@ final class VehicleImporter
      * how many of them go on to the cars from a Gutachten — the caller counts, so no step counts the whole file again.
      * False when every row is decided.
      *
+     * `$after` is where each step stands: the last line it decided. Each batch is asked for from there on, never from the
+     * first line of its outcome again — inside the import's one transaction, the database keeps every row a step has
+     * already moved on in that outcome's index until the transaction ends, and a batch asked from the start walked past
+     * all of them again: half a million rows took a quarter of an hour (D-462).
+     *
+     * @param  array<string, int>  $after
      * @return array{step: string, rows: int, open: int}|false
      */
-    public function checkStep(VehicleImport $import): array|false
+    public function checkStep(VehicleImport $import, array &$after = []): array|false
     {
         $source = VehicleSource::from($import->source);
 
-        $pending = $import->lines()->where('status', VehicleImportRow::PENDING)->orderBy('line')->limit(self::BATCH)->get();
+        $pending = $import->lines()->where('status', VehicleImportRow::PENDING)->where('line', '>', $after[VehicleImportRow::PENDING] ?? 0)->orderBy('line')->limit(self::BATCH)->get();
 
         if ($pending->isNotEmpty()) {
+            $after[VehicleImportRow::PENDING] = (int) $pending->last()->line;
             $open = $this->againstCars($import, $pending->all(), $source);
 
             return ['step' => self::STEP_CARS, 'rows' => $pending->count(), 'open' => $open];
         }
 
-        $open = $import->lines()->where('status', VehicleImportRow::OPEN)->orderBy('line')->limit(self::BATCH)->get();
+        $open = $import->lines()->where('status', VehicleImportRow::OPEN)->where('line', '>', $after[VehicleImportRow::OPEN] ?? 0)->orderBy('line')->limit(self::BATCH)->get();
 
         if ($open->isNotEmpty()) {
+            $after[VehicleImportRow::OPEN] = (int) $open->last()->line;
             $this->againstGutachten($open->all(), $source);
 
             return ['step' => self::STEP_GUTACHTEN, 'rows' => $open->count(), 'open' => 0];
@@ -882,8 +890,9 @@ final class VehicleImporter
             // The plan again, from what each row is by itself, against the cars as they are now.
             $eligible = $import->lines()->where('read_refused', false)->update(['status' => VehicleImportRow::PENDING, 'vehicle_id' => null, 'changes' => null, 'fills' => null, 'reason' => null]);
             $count = new CheckCount($eligible);
+            $after = [];
 
-            while (($step = $this->checkStep($import)) !== false) {
+            while (($step = $this->checkStep($import, $after)) !== false) {
                 $shown = $count->add($step);
                 $progress('Noch einmal prüfen: '.$shown['step'], $shown['done'], $shown['total']);
             }
@@ -919,7 +928,7 @@ final class VehicleImporter
                     break;
                 }
 
-                $after = (int) $rows->last()?->line;
+                $after = (int) $rows->last()->line;
                 $rows = $rows->filter(static fn (VehicleImportRow $row): bool => in_array($row->status, [self::CREATE, self::UPDATE, self::MERGE], true));
 
                 if ($rows->isEmpty()) {

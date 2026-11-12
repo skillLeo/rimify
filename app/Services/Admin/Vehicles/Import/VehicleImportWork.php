@@ -327,10 +327,12 @@ final class VehicleImportWork
         try {
             $cursor = (array) $import->cursor;
             $count = new CheckCount((int) ($cursor['eligible'] ?? 0), (array) ($cursor['count'] ?? []) + ['cars' => 0, 'open' => 0, 'gutachten' => 0]);
+            /** @var array<string, int> $after */
+            $after = array_map('intval', (array) ($cursor['after'] ?? []));
 
             // At least one batch, however little time is left: a part of the work always moves the run on.
             do {
-                $step = $this->importer->checkStep($import);
+                $step = $this->importer->checkStep($import, $after);
 
                 if ($step === false) {
                     $finished = $this->importer->finish($import, (array) ($cursor['gaps'] ?? []));
@@ -339,7 +341,7 @@ final class VehicleImportWork
                     return false;
                 }
 
-                $cursor = [...$cursor, 'step' => $count->add($step), 'count' => $count->state()];
+                $cursor = [...$cursor, 'step' => $count->add($step), 'count' => $count->state(), 'after' => $after];
                 $import->forceFill(['cursor' => $cursor])->save();
                 self::beat($import->id);
             } while (microtime(true) < $deadline);
