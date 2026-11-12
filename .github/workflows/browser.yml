@@ -30,11 +30,11 @@ jobs:
       fail-fast: false
       matrix:
         suite:
-          - { name: 'E2E 1/4', key: e2e-1, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=1/4 --reporter=list,json --update-snapshots=missing' }
-          - { name: 'E2E 2/4', key: e2e-2, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=2/4 --reporter=list,json --update-snapshots=missing' }
-          - { name: 'E2E 3/4', key: e2e-3, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=3/4 --reporter=list,json --update-snapshots=missing' }
-          - { name: 'E2E 4/4', key: e2e-4, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=4/4 --reporter=list,json --update-snapshots=missing' }
-          - { name: 'Telefon', key: phone, config: tests/e2e/mobile/playwright.config.ts, report: report.json, run: 'npx playwright test -c tests/e2e/mobile/playwright.config.ts --reporter=list,json --update-snapshots=missing' }
+          - { name: 'E2E 1/4', key: e2e-1, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=1/4 --reporter=list,json' }
+          - { name: 'E2E 2/4', key: e2e-2, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=2/4 --reporter=list,json' }
+          - { name: 'E2E 3/4', key: e2e-3, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=3/4 --reporter=list,json' }
+          - { name: 'E2E 4/4', key: e2e-4, config: playwright.config.ts, report: report.json, run: 'npx playwright test --shard=4/4 --reporter=list,json' }
+          - { name: 'Telefon', key: phone, config: tests/e2e/mobile/playwright.config.ts, report: report.json, run: 'npx playwright test -c tests/e2e/mobile/playwright.config.ts --reporter=list,json' }
     env:
       # Pest's database (tests/env.php pins everything else).
       TEST_DB_HOST: 127.0.0.1
