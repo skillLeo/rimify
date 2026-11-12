@@ -1,12 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { checkPaste, parseKwBand, pasteToSides, readPaste, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
+import { checkPaste, parseKwBand, pasteToSides, readPaste, readService, readTyre, sizeKey, tyreLabel, whyUnread } from './tyreInput'
 
 interface Notation { text: string; label: string; width: number; aspect: number; diameter: number; li: number | null; li2: number | null; si: string | null; marker: string | null }
 
 /* One list, read by this test and by the server's (tests/Unit/Support/TyreTextTest.php): the two readings cannot drift apart. */
-const notations = JSON.parse(readFileSync(resolve(process.cwd(), 'tests/Fixtures/tyre-notations.json'), 'utf8')) as { reads: Notation[]; refuses: string[] }
+const notations = JSON.parse(readFileSync(resolve(process.cwd(), 'tests/Fixtures/tyre-notations.json'), 'utf8')) as {
+    reads: Notation[]
+    refuses: string[]
+    services: (Pick<Notation, 'text' | 'li' | 'li2' | 'si' | 'marker'>)[]
+    servicesRefused: string[]
+}
+
+/* The service description alone, as the catalogue form takes it (the client's review of 11.11, D; D-453). */
+describe('readService: the index and the symbol alone', () => {
+    it.each(notations.services)('$text reads as $li $si', (service) => {
+        expect(readService(service.text)).toEqual({ li: service.li, li2: service.li2, si: service.si, marker: service.marker })
+    })
+
+    it.each(notations.servicesRefused)('refuses %j', (input) => {
+        expect(readService(input)).toBeNull()
+    })
+})
 
 describe('readTyre: the notations a Gutachten prints', () => {
     it('has notations to read', () => {
@@ -166,6 +182,20 @@ describe('the codes after the sizes of a pasted line (D-451)', () => {
     it('reads codes after a size alone, and none where the paper prints none', () => {
         expect(readPaste('225/40R18 88W A01')[0]).toMatchObject({ status: 'single', codes: ['A01'] })
         expect(readPaste('225/40R18 88W')[0]?.codes).toBeUndefined()
+    })
+
+    it('takes no bracketed service description for a code: only W and Y are printed in brackets (D-453)', () => {
+        for (const input of ['225/35R18 92(V)', '225/35R18 (92V)', '225/35R18 – 255/35R18 92(X) 11A']) {
+            const [line] = readPaste(input)
+
+            expect(line?.status).toBe('unread')
+            expect(line?.codes).toBeUndefined()
+        }
+
+        expect(readPaste('225/35R18 92(V)')[0]?.reason).toBe('In Klammern kennen wir nur die Symbole (W) und (Y): „92(V)“ lesen wir nicht.')
+        // W and Y in brackets are the symbols they are, never codes.
+        expect(readPaste('225/35R18 92(W) 11A')[0]).toMatchObject({ status: 'single', codes: ['11A'] })
+        expect(readPaste('225/35R18 92(W) 11A')[0]?.sizes?.map(tyreLabel)).toEqual(['225/35 R18 92(W)'])
     })
 
     it('says so where the words after a size are no code, and takes nothing over', () => {

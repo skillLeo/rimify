@@ -11,6 +11,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
+import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
 import AdminState from '../../../Components/Admin/AdminState.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
@@ -150,6 +151,37 @@ function toggle(method: Method): void {
     )
 }
 
+/* „Löschen“ (D-454): asked first, then gone; every order keeps what it was sent by. */
+const deleteOpen = ref(false)
+const deleting = ref<Method | null>(null)
+
+function askDelete(method: Method): void {
+    deleting.value = method
+    deleteOpen.value = true
+}
+
+function destroy(): void {
+    const method = deleting.value
+
+    if (method === null) {
+        return
+    }
+
+    sent.value = true
+    busy.value = true
+    router.delete(`${BASE}/${method.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            deleteOpen.value = false
+
+            if (editing.value === method.id) {
+                reset()
+            }
+        },
+        onFinish: () => (busy.value = false),
+    })
+}
+
 /** „Nach oben“ / „Nach unten“: the whole order, sent as one list. */
 function move(method: Method, by: -1 | 1): void {
     const ids = props.methods.map((m) => m.id)
@@ -172,8 +204,8 @@ function move(method: Method, by: -1 | 1): void {
     <AdminPage title="Versand" :context="context" :read-only="!canEdit">
         <p class="adm-note vs__lead">
             Die Kasse bietet die aktiven Versandarten in dieser Reihenfolge an, mit Preis und Lieferzeit vor dem Bestellknopf. Bis
-            jemand eine andere wählt, gilt die günstigste. Eine Versandart wird nicht gelöscht, nur ausgeschaltet: Bestellungen
-            behalten, womit sie verschickt wurden.
+            jemand eine andere wählt, gilt die günstigste. Ausgeschaltet bleibt eine Versandart in der Liste, gelöscht ist sie weg:
+            Bestellungen behalten in beiden Fällen, womit sie verschickt werden.
         </p>
         <p v-if="productLine" class="vs__line"><span class="vs__line-label">Auf der Produktseite</span> {{ productLine }}</p>
         <p v-else-if="fromEnv" class="adm-note vs__line">Noch keine Versandart angelegt. Bis dahin gelten die Werte aus der .env-Datei: {{ fromEnv }}.</p>
@@ -310,6 +342,9 @@ function move(method: Method, by: -1 | 1): void {
                                     <button class="btn btn--secondary btn--sm" type="button" :disabled="busy || i === methods.length - 1" @click="move(method, 1)">
                                         Nach unten<span class="visually-hidden">: {{ method.name }}</span>
                                     </button>
+                                    <button class="btn btn--secondary btn--sm" type="button" :disabled="busy" @click="askDelete(method)">
+                                        Löschen<span class="visually-hidden">: {{ method.name }}</span>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -319,6 +354,15 @@ function move(method: Method, by: -1 | 1): void {
 
             <AdminState v-else kind="empty" text="Noch keine Versandart angelegt." />
         </section>
+
+        <AdminConfirm
+            v-model:open="deleteOpen"
+            :title="`Versandart „${deleting?.name ?? ''}“ löschen?`"
+            body="Sie verschwindet aus der Kasse und aus dieser Liste. Bestellungen, die schon mit ihr verschickt werden, behalten Namen, Preis und Lieferzeit."
+            confirm-label="Löschen"
+            :busy="busy"
+            @confirm="destroy"
+        />
     </AdminPage>
 </template>
 

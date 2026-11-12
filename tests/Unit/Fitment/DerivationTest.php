@@ -134,9 +134,10 @@ it('covers every symbol in the table across the speed range', function (): void 
         }
     }
 
+    // Every symbol but (W): read at W's 270 km/h, it is never the first to cover a speed — a car above 270 needs Y (D-453).
     expect(array_keys($derived))->toEqualCanonicalizing(
-        array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol')
-    );
+        array_values(array_diff(array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol'), ['(W)']))
+    )->and($derived)->not->toHaveKey('(W)');
 });
 
 it('reproduces the legal minimum exactly when the safety margin is zero', function (): void {
@@ -173,8 +174,8 @@ it('ranks the whole table in speed order, which is not alphabetical order', func
         $this->tables->speedSymbols,
     );
 
-    // J and K below L since the client's round of 08.11.2026, §4 (D-442).
-    expect($bySpeed)->toBe(['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)']);
+    // J and K below L since the client's round of 08.11.2026, §4 (D-442); (W) between W and Y since his review of 11.11, D (D-453).
+    expect($bySpeed)->toBe(['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', '(W)', 'Y', '(Y)']);
 
     $alphabetical = $bySpeed;
     sort($alphabetical);

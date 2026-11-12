@@ -152,6 +152,7 @@ class DocumentEntryReader
             'position' => $position,
         ]);
 
+        // The row's own codes stay this combination's (D-452): a row of before the five steps says them for its wheel, not the car's.
         foreach ($row->conditionCodes as $code) {
             DocumentCarEntryCode::query()->create(['document_car_entry_id' => $entry->id, 'code' => $code->code, 'note_de' => $code->note_de]);
         }

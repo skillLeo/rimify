@@ -110,6 +110,7 @@ final class AuditDescriber
         'shipping_method.created' => 'verkauf',
         'shipping_method.updated' => 'verkauf',
         'shipping_method.sorted' => 'verkauf',
+        'shipping_method.deleted' => 'verkauf',
         'payments.settings_updated' => 'zugriff',
         'payments.connection_tested' => 'zugriff',
         'brand.manufacturer_updated' => 'katalog',
@@ -226,6 +227,7 @@ final class AuditDescriber
         'approval.colour_added' => 'gutachten',
         'approval.combination_codes_corrected' => 'gutachten',
         'approval.combination_codes_to_sets' => 'gutachten',
+        'approval.vehicle_codes_per_car' => 'gutachten',
         'approval.limit_confirmed' => 'gutachten',
         'condition.created' => 'gutachten',
         'condition.updated' => 'gutachten',
@@ -551,6 +553,12 @@ final class AuditDescriber
             'shipping_method.created' => ['Die Versandart '.self::q((string) ($p['method'] ?? '')).' wurde angelegt.', self::shippingChanges([], self::map($p, 'values'))],
             'shipping_method.updated' => self::shippingMethodUpdated($p),
             'shipping_method.sorted' => ['Die Reihenfolge der Versandarten wurde geändert: '.implode(', ', array_map('strval', array_values(self::map($p, 'order')))).'.', []],
+            'shipping_method.deleted' => [
+                'Die Versandart '.self::q((string) ($p['method'] ?? '')).' wurde gelöscht'
+                    .(isset(self::map($p, 'values')['price_cents']) ? ' ('.self::money(self::map($p, 'values')['price_cents']).', '.(string) (self::map($p, 'values')['delivery'] ?? '–').')' : '')
+                    .'. Bestellungen behalten, womit sie verschickt werden.',
+                [],
+            ],
             'payments.settings_updated' => self::paymentsUpdated($p),
             'payments.connection_tested' => [
                 ($p['ok'] ?? false) === true
@@ -757,6 +765,11 @@ final class AuditDescriber
                     .' jetzt an der Reifenkombination, neben der sie eingetragen sind – für beide Achsen und für keine andere Kombination: '
                     .self::count((int) (self::text($p, 'combinations') ?? 0), 'Kombination', 'Kombinationen').', vorher an '
                     .self::count((int) (self::text($p, 'sizes') ?? 0), 'Reifengröße', 'Reifengrößen').'.',
+                [],
+            ],
+            'approval.vehicle_codes_per_car' => [
+                'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' gelten die allgemeinen Codes '.implode(', ', array_map(self::q(...), self::list($p, 'codes')))
+                    .' jetzt für jede Felgenkombination ihres Fahrzeugs: an '.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').' ergänzt.',
                 [],
             ],
             'approval.colour_added' => ['Für eine neue Farbe von '.self::q(self::text($p, 'size') ?? '–').' kam in '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' dazu: '.self::count((int) (self::text($p, 'rows') ?? 0), 'Zeile', 'Zeilen').'.', []],

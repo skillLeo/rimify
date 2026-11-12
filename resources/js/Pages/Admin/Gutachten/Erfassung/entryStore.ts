@@ -122,7 +122,12 @@ export interface CarDetail {
     id: number
     page: number | null
     lines: ServerLine[]
+    /** „Allgemeine Codes dieses Fahrzeugs“: the car's, not this cell's (D-452). */
     codes: { code: string; note: string | null }[]
+    /** Who shares them: the car (`0005/683`, `#152` without key numbers), its cells in this paper and the cars of its HSN/TSN. */
+    codesFor?: { car: string; cells: number; cars: number }
+    /** This combination's own row's codes, carried from before the five steps where the car's rows said different ones. */
+    cellCodes?: { code: string; note: string | null }[]
     columns: Record<string, string | number | null>
 }
 

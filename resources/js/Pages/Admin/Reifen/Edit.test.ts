@@ -141,11 +141,11 @@ describe('Katalog › Reifen › one tyre', () => {
     it('locks a sold tyre’s size, load index and symbol, says why, and leaves the rest open @admin-210', () => {
         const wrapper = page({ tyre: saved({ sold: true }) })
 
-        for (const id of ['#rf-width', '#rf-aspect', '#rf-diameter', '#rf-load']) {
+        // The symbol is typed as printed since D-453, read as step 4 reads it: locked like the other figures.
+        for (const id of ['#rf-width', '#rf-aspect', '#rf-diameter', '#rf-load', '#rf-speed']) {
             expect(wrapper.find<HTMLInputElement>(id).element.readOnly).toBe(true)
         }
 
-        expect(wrapper.find<HTMLSelectElement>('#rf-speed').element.disabled).toBe(true)
         expect(wrapper.find<HTMLInputElement>('#rf-price').element.readOnly).toBe(false)
         expect(wrapper.text()).toContain('Dieser Reifen wurde schon bestellt.')
     })

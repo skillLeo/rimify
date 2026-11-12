@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ShippingMethodDeleteRequest;
 use App\Http\Requests\Admin\ShippingMethodOrderRequest;
 use App\Http\Requests\Admin\ShippingMethodRequest;
 use App\Models\ShippingMethod;
@@ -18,8 +19,9 @@ use Inertia\Response;
 
 /**
  * Einstellungen › Versand (his round of 08.11, §7B; D-449): the shipping methods the checkout offers — create, edit, sort,
- * activate and deactivate. Each write asks ShippingMethodPolicy (R-11) and leaves one Protokoll entry. A method is never
- * deleted: an order keeps its own copy of what it was sent by, and a method no longer wanted is switched off.
+ * activate and deactivate, and delete (his review of 11.11, F; D-454). Each write asks ShippingMethodPolicy (R-11) and leaves one
+ * Protokoll entry. An order keeps its own copy of what it was sent by — name, price, delivery time —, so a method deleted takes
+ * nothing an order says with it.
  */
 class VersandartenController extends Controller
 {
@@ -82,6 +84,24 @@ class VersandartenController extends Controller
         });
 
         return back()->with('toast', self::toast());
+    }
+
+    /** „Löschen“, after the dialog: gone from the checkout and the list; every order keeps what it was sent by. */
+    public function destroy(ShippingMethodDeleteRequest $request, ShippingMethod $method): RedirectResponse
+    {
+        $admin = $request->admin();
+
+        DB::transaction(static function () use ($admin, $method): void {
+            $values = self::audited($method);
+            $name = $method->name;
+            $method->delete();
+
+            AuditTrail::record($admin, 'shipping_method.deleted', ['method' => $name, 'values' => $values]);
+        });
+
+        return back()->with('toast', ShippingMethod::query()->where('active', true)->exists()
+            ? 'Gelöscht. Bestellungen behalten, womit sie verschickt werden.'
+            : 'Gelöscht. Keine Versandart ist aktiv: Solange nimmt der Shop keine echte Bestellung an.');
     }
 
     /** „Nach oben“ / „Nach unten“: the order the checkout offers them in, as one list of ids. */

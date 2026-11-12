@@ -20,9 +20,10 @@ final readonly class PapersIndex
 {
     /**
      * The speed symbols a passenger car tyre carries, slowest first — H sits between U and V, as the derating table has
-     * it; `(Y)` last, the tyre rated above 300 km/h whose papers print `(94Y)`.
+     * it; `(W)` between W and Y, above 270 km/h to the maker's limit (D-453); `(Y)` last, the tyre rated above 300 km/h whose
+     * papers print `(94Y)`.
      */
-    public const SYMBOLS = ['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'];
+    public const SYMBOLS = ['L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', '(W)', 'Y', '(Y)'];
 
     public const LOAD_MIN = 60;
 
@@ -49,25 +50,26 @@ final readonly class PapersIndex
 
     /**
      * The index and the symbol at the end of what field 15.1 or 15.2 prints: `225/45 R17 91W`, `91 W`, `91w` — and
-     * `245/35 ZR20 (95Y)`, read as `(Y)`, never as the slower `Y`. Null where there is no such pair at the end — a size
-     * without its index tells nothing — and where a bracket is only half there.
+     * `245/35 ZR20 (95Y)` or `95(Y)`, read as `(Y)`, never as the slower `Y`; `97(W)`, `(97W)` as `(W)` (D-453). Null where
+     * there is no such pair at the end — a size without its index tells nothing — and where a bracket is only half there.
      *
      * @return array{0: int, 1: string}|null
      */
     public static function parse(string $typed): ?array
     {
-        if (preg_match('/(\()?\s*(\d{2,3})\s*([a-zA-Z])\s*(\))?\s*$/u', trim($typed), $m) !== 1) {
+        if (preg_match('/(\()?\s*(\d{2,3})\s*(\()?\s*([a-zA-Z])\s*(\))?\s*$/u', trim($typed), $m) !== 1) {
             return null;
         }
 
-        $open = $m[1] !== '';
+        // One bracket, opened before the index or before the symbol, and closed after the symbol.
+        $open = $m[1] !== '' || $m[3] !== '';
 
-        if ($open !== (($m[4] ?? '') !== '')) {
+        if (($m[1] !== '' && $m[3] !== '') || $open !== (($m[5] ?? '') !== '')) {
             return null;
         }
 
         $index = (int) $m[2];
-        $letter = mb_strtoupper($m[3]);
+        $letter = mb_strtoupper($m[4]);
         $symbol = $open ? '('.$letter.')' : $letter;
 
         return $index >= self::LOAD_MIN && $index <= self::LOAD_MAX && in_array($symbol, self::SYMBOLS, true) ? [$index, $symbol] : null;

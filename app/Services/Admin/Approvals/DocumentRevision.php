@@ -30,7 +30,7 @@ final class DocumentRevision
     public const TABLES = [
         'approval_documents', 'document_conditions', 'document_condition_reworks', 'document_fasteners', 'document_notices',
         'document_speed_deratings', 'document_tyre_combinations', 'document_tyre_combination_conditions', 'fitments', 'fitment_conditions', 'fitment_tyre_sizes',
-        'fitment_tyre_size_conditions', 'fitment_wheel_sets', 'document_wheel_sizes', 'document_wheel_combinations', 'document_car_entries', 'document_car_entry_codes',
+        'fitment_tyre_size_conditions', 'fitment_wheel_sets', 'document_wheel_sizes', 'document_wheel_combinations', 'document_car_entries', 'document_car_entry_codes', 'document_vehicle_codes',
         'document_tyre_lines', 'document_tyre_line_codes', 'document_kept_combinations',
     ];
 
@@ -130,6 +130,9 @@ final class DocumentRevision
             $copy = self::insertCopy('document_wheel_combinations', (array) $combination, ['approval_document_id' => $to, 'front_wheel_size_id' => $sizes[(int) $combination->front_wheel_size_id], 'rear_wheel_size_id' => $sizes[(int) $combination->rear_wheel_size_id]]);
             $entries += self::copyChildren('document_car_entries', 'document_wheel_combination_id', (int) $combination->id, $copy, ['approval_document_id' => $to, 'copied_from_id' => null]);
         }
+
+        // The cars' general codes (D-452): the paper's, car by car.
+        self::copyChildren('document_vehicle_codes', 'approval_document_id', $from, $to);
 
         foreach ($entries as $entryFrom => $entryTo) {
             self::copyChildren('document_car_entry_codes', 'document_car_entry_id', $entryFrom, $entryTo);

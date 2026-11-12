@@ -662,6 +662,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             Route::post('/', [VersandartenController::class, 'store'])->middleware('throttle:30,1,versandarten-store')->name('versandarten.store');
             Route::put('/reihenfolge', [VersandartenController::class, 'sort'])->middleware('throttle:30,1,versandarten-sort')->name('versandarten.sort');
             Route::put('/{method}', [VersandartenController::class, 'update'])->whereNumber('method')->middleware('throttle:30,1,versandarten-update')->name('versandarten.update');
+            Route::delete('/{method}', [VersandartenController::class, 'destroy'])->whereNumber('method')->middleware('throttle:30,1,versandarten-destroy')->name('versandarten.destroy');
         });
 
         // Einstellungen › Verkäufer & Versand: the seller as the law names it and the shipping terms, read by the

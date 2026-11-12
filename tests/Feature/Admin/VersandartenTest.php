@@ -7,6 +7,7 @@ use App\Http\Middleware\EnsureSudo;
 use App\Http\Requests\Admin\ShippingMethodOrderRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
+use App\Models\Order;
 use App\Models\ShippingMethod;
 use App\Services\Admin\AuditDescriber;
 use App\Support\GermanFormat;
@@ -55,6 +56,7 @@ it('is the Super-Admin\'s alone, on every route, whatever the page shows (R-11)'
     vsAs($role)->post(VS_URL, vsForm())->assertForbidden();
     vsAs($role)->put(VS_URL.'/'.$method->id, vsForm())->assertForbidden();
     vsAs($role)->put(VS_URL.'/reihenfolge', ['ids' => [$method->id]])->assertForbidden();
+    vsAs($role)->delete(VS_URL.'/'.$method->id)->assertForbidden();
 
     expect(ShippingMethod::query()->count())->toBe(1)
         ->and(AuditLog::query()->where('description', 'like', 'shipping_method.%')->count())->toBe(0);
@@ -161,6 +163,32 @@ it('sorts the methods as one list, every method once, and records the new order'
 it('asks for the password again before the page, as the other settings that touch the checkout do', function (): void {
     $this->actingAs(vsAdmin(), 'admin')->get(VS_URL)->assertRedirectContains('/admin/bestaetigen');
     $this->actingAs(vsAdmin(), 'admin')->post(VS_URL, vsForm())->assertRedirectContains('/admin/bestaetigen');
+
+    expect(ShippingMethod::query()->count())->toBe(0);
+});
+
+// The client's review of 11.11, F (D-454): „create, edit, deactivate, delete“. An order keeps what it was sent by.
+it('deletes a method after the dialog: gone from the list and the checkout, every order keeping what it was sent by, said in the Protokoll', function (): void {
+    $express = ShippingMethod::factory()->create(['name' => 'Express', 'price_cents' => 5_990, 'delivery_min_days' => 1, 'delivery_max_days' => 2, 'position' => 1]);
+    ShippingMethod::factory()->create(['name' => 'Standard', 'price_cents' => 3_000, 'position' => 2]);
+    $order = Order::factory()->create(['shipping_method_id' => $express->id, 'shipping_method_name' => 'Express', 'shipping_delivery_time' => '1–2 Werktage', 'shipping_cents' => 5_990]);
+
+    vsAs()->delete(VS_URL.'/'.$express->id)->assertRedirect(VS_URL)->assertSessionHas('toast', 'Gelöscht. Bestellungen behalten, womit sie verschickt werden.');
+
+    $order->refresh();
+
+    expect(ShippingMethod::query()->pluck('name')->all())->toBe(['Standard'])
+        ->and($order->shipping_method_id)->toBeNull()
+        ->and($order->shipping_method_name)->toBe('Express')
+        ->and($order->shipping_delivery_time)->toBe('1–2 Werktage')
+        ->and($order->shipping_cents)->toBe(5_990)
+        ->and(vsSentence('shipping_method.deleted'))->toBe('Die Versandart „Express“ wurde gelöscht ('.GermanFormat::money(5_990).', 1–2 Werktage). Bestellungen behalten, womit sie verschickt werden.');
+});
+
+it('says so where the last active method was deleted: no real order until one is', function (): void {
+    $only = ShippingMethod::factory()->create(['name' => 'Standard']);
+
+    vsAs()->delete(VS_URL.'/'.$only->id)->assertSessionHas('toast', 'Gelöscht. Keine Versandart ist aktiv: Solange nimmt der Shop keine echte Bestellung an.');
 
     expect(ShippingMethod::query()->count())->toBe(0);
 });

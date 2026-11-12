@@ -72,8 +72,12 @@ final class ReferenceTables
         ['symbol' => 'H', 'rank' => 12, 'max_kmh' => 210],
         ['symbol' => 'V', 'rank' => 13, 'max_kmh' => 240],
         ['symbol' => 'W', 'rank' => 14, 'max_kmh' => 270],
-        ['symbol' => 'Y', 'rank' => 15, 'max_kmh' => 300],
-        ['symbol' => '(Y)', 'rank' => 16, 'max_kmh' => null],
+        // (W): above 270 km/h, to a limit only the tyre's maker states (the client's review of 11.11, D; D-453). Between W and Y — a Y
+        // guarantees 300, a (W) no more than W's 270 —, so its 270 is the floor it is read at: never derived as a minimum, and a tyre
+        // with (W) never passes where Y is asked. Ranks above moved up by one, in one migration.
+        ['symbol' => '(W)', 'rank' => 15, 'max_kmh' => 270],
+        ['symbol' => 'Y', 'rank' => 16, 'max_kmh' => 300],
+        ['symbol' => '(Y)', 'rank' => 17, 'max_kmh' => null],
     ];
 
     /** @codeCoverageIgnore Constants only: the constructor exists so the class cannot be built, and never runs (D-433). */

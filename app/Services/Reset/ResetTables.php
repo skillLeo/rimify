@@ -97,6 +97,7 @@ final class ResetTables
         'fitment_wheel_sets',
         'document_car_entries',
         'document_car_entry_codes',
+        'document_vehicle_codes',
         'document_tyre_lines',
         'document_tyre_line_codes',
         'document_kept_combinations',

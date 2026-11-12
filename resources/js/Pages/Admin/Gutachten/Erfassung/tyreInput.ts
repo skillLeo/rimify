@@ -7,8 +7,8 @@
 
 import { isCodeWord, normaliseCode, readCodes } from './codes'
 
-/* Every ETRTO speed symbol, in the engine's rank order (ReferenceTables::SPEED_SYMBOLS): J and K since the client's round of 08.11.2026, §4 (D-442). */
-export const SPEED_SYMBOLS = ['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'] as const
+/* Every ETRTO speed symbol, in the engine's rank order (ReferenceTables::SPEED_SYMBOLS): J and K since the client's round of 08.11.2026, §4 (D-442), (W) since his review of 11.11, D (D-453). */
+export const SPEED_SYMBOLS = ['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', '(W)', 'Y', '(Y)'] as const
 
 /* The highest load index the ETRTO lists. */
 export const MAX_LOAD_INDEX = 279
@@ -47,8 +47,8 @@ export interface PasteLine {
 }
 
 const SIZE = '(\\d{3})\\s*\\/\\s*(\\d{2})\\s*(?:Z?\\s*R|-)\\s*(\\d{2})(\\s*C\\b)?'
-/* (92Y) · 92(Y) · 115/113R · 92 · (Y) · Y — as App\\Support\\TyreText reads them. */
-const MINIMUM = '(?:\\s*-?\\s*(?:\\(\\s*(\\d{1,3})\\s*([A-Z])\\s*\\)|(\\d{1,3})(?:\\s*\\/\\s*(\\d{1,3}))?\\s*(\\(Y\\)|[A-Z])?|(\\(Y\\)|[A-Z])))?'
+/* (92Y) · 92(Y) · 92 (W) · 115/113R · 92 · (Y) · Y — as App\\Support\\TyreText reads them. */
+const MINIMUM = '(?:\\s*-?\\s*(?:\\(\\s*(\\d{1,3})\\s*([A-Z])\\s*\\)|(\\d{1,3})(?:\\s*\\/\\s*(\\d{1,3}))?\\s*(\\(\\s*[A-Z]\\s*\\)|[A-Z])?|(\\(\\s*[A-Z]\\s*\\)|[A-Z])))?'
 const TYRE = new RegExp(`^${SIZE}${MINIMUM}$`)
 
 /* A size somewhere in the text: what tells a line of tyres from a heading. */
@@ -86,12 +86,13 @@ export function readTyre(text: string): TyreSpec | null {
         return null
     }
 
-    // In brackets, the whole service description says the category above 300 km/h: only a Y is ever so printed.
-    if (m[5] !== undefined && m[6] !== 'Y') {
+    // In brackets, the service description says the open category above it: above 300 km/h for Y, above 270 km/h for W (D-453).
+    if (m[5] !== undefined && m[6] !== 'Y' && m[6] !== 'W') {
         return null
     }
 
-    const symbol = m[5] !== undefined ? '(Y)' : (m[9] ?? m[10] ?? null)
+    const plain = m[9] ?? m[10]
+    const symbol = m[5] !== undefined ? `(${m[6]})` : plain === undefined ? null : plain.replace(/\s+/g, '')
     const index = m[5] ?? m[7] ?? null
     const dual = m[8] ?? null
 
@@ -109,6 +110,20 @@ export function readTyre(text: string): TyreSpec | null {
         // A C tyre is built for its load: the C names it, whatever else the paper prints beside it.
         marker: m[4] !== undefined ? 'C' : marker,
     }
+}
+
+/**
+ * The service description alone, as the catalogue form takes it (D-453): `97(W)`, `94W XL`, `115/113R`, `(92Y)`, `92 (W)`, `W`, `(w)` —
+ * read as the end of a size is (readTyre); as App\\Support\\TyreText::service reads it. Null where it does not read.
+ */
+export function readService(text: string): Pick<TyreSpec, 'li' | 'li2' | 'si' | 'marker'> | null {
+    const tyre = readTyre(`100/10R10 ${text.trim()}`)
+
+    if (tyre === null || (tyre.li === null && tyre.si === null) || tyre.marker === 'C') {
+        return null
+    }
+
+    return { li: tyre.li, li2: tyre.li2, si: tyre.si, marker: tyre.marker }
 }
 
 /**
@@ -171,7 +186,8 @@ function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyr
         const tyre = readTyre(words.slice(0, k).join(' '))
 
         if (tyre !== null) {
-            const rest = words.slice(k).map(normaliseCode).filter((word) => word !== '')
+            const typed = words.slice(k)
+            const rest = typed.map(normaliseCode).filter((word) => word !== '')
             // `255/35R18 90X`: a load index with a speed symbol nobody knows, not a code — `11A` after a size is one (no tyre carries
             // index 11). Said as the symbol it is, and nothing taken over.
             const service = rest[0]?.match(/^(\d{2,3})([A-Z])$/)
@@ -180,7 +196,13 @@ function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyr
                 return { tyre: null, why: whyUnread(`${words.slice(0, k).join(' ')} ${rest[0]}`) }
             }
 
-            return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${words.slice(k).join(' ')}“ hinter der Größe ist kein Code.` }
+            // A bracket belongs to a service description, never to a code: in brackets we know (W) and (Y) alone (D-453), so `92(V)`
+            // is a symbol we do not read, not the code „92(V“.
+            if (typed.some((word) => /[()]/.test(word))) {
+                return { tyre: null, why: `In Klammern kennen wir nur die Symbole (W) und (Y): „${typed.join(' ')}“ lesen wir nicht.` }
+            }
+
+            return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${typed.join(' ')}“ hinter der Größe ist kein Code.` }
         }
     }
 

@@ -41,6 +41,20 @@ it('refuses what does not read rather than guess', function (): void {
     }
 });
 
+// The client's review of 11.11, D (D-453): the service description alone, as the catalogue form takes it — (W) and (Y) in each bracket form.
+it('reads the service description alone, and refuses what is none', function (): void {
+    $services = tyreNotations()['services'];
+    expect($services)->not->toBeEmpty();
+
+    foreach ($services as $case) {
+        expect(TyreText::service($case['text']))->toBe(['li' => $case['li'], 'li2' => $case['li2'], 'si' => $case['si'], 'marker' => $case['marker']], $case['text']);
+    }
+
+    foreach (tyreNotations()['servicesRefused'] as $text) {
+        expect(TyreText::service($text))->toBeNull((string) json_encode($text));
+    }
+});
+
 it('keeps a figure the paper does not print as not given', function (): void {
     expect(TyreText::read('235/50R18'))->toBe(['width' => 235, 'aspect' => 50, 'diameter' => 18, 'li' => null, 'li2' => null, 'si' => null, 'marker' => null]);
 });

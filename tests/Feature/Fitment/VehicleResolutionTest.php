@@ -128,8 +128,8 @@ it('builds the index tables from the seeded rows, not from constants', function 
 
     // 70 to 120, as Regulation No 30 prints them (D-310).
     expect($tables->loadIndices)->toHaveCount(51)
-        // J to (Y): sixteen since J and K joined below L (D-442).
-        ->and($tables->speedSymbols)->toHaveCount(16)
+        // J to (Y): seventeen since J and K joined below L (D-442) and (W) between W and Y (D-453).
+        ->and($tables->speedSymbols)->toHaveCount(17)
         ->and($tables->speedSymbol('H')?->rank)->toBeGreaterThan($tables->speedSymbol('U')?->rank);
 });
 

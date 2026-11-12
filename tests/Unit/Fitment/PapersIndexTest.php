@@ -83,6 +83,14 @@ it('reads the index and the symbol at the end of what 15.1 and 15.2 print, and n
         ->and(PapersIndex::parse(' 94 y '))->toBe([94, 'Y'])
         // A bracket is a tyre above 300 km/h, never the slower Y.
         ->and(PapersIndex::parse('245/35 ZR20 (95Y)'))->toBe([95, '(Y)'])
+        // (W): above 270 km/h, to the maker's limit (D-453) — in either bracket, and Y's second bracket form too.
+        ->and(PapersIndex::parse('245/40 ZR18 97(W)'))->toBe([97, '(W)'])
+        ->and(PapersIndex::parse('245/40 ZR18 (97W)'))->toBe([97, '(W)'])
+        ->and(PapersIndex::parse('245/40 ZR18 97 ( W )'))->toBe([97, '(W)'])
+        ->and(PapersIndex::parse('245/35 ZR20 95(Y)'))->toBe([95, '(Y)'])
+        ->and(PapersIndex::parse('245/40 ZR18 (97V)'))->toBeNull()
+        ->and(PapersIndex::parse('245/40 ZR18 97(V)'))->toBeNull()
+        ->and(PapersIndex::parse('245/40 ZR18 (97(W)'))->toBeNull()
         ->and(PapersIndex::parse('245/35 ZR20 (95Y'))->toBeNull()
         ->and(PapersIndex::parse('245/35 ZR20 95Y)'))->toBeNull()
         // A size without its index, a letter no tyre carries, an index no car tyre has: refused, never guessed.

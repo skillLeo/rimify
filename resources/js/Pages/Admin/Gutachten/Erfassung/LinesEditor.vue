@@ -38,6 +38,13 @@ const loadFailed = ref(false)
 const lines = ref<EditLine[]>([])
 const general = ref<string[]>([])
 const notes = ref<Record<string, string | null>>({})
+/* Who the general codes belong to (D-452), and what they were when this form loaded or last saved them. */
+const codesFor = ref<CarDetail['codesFor'] | null>(null)
+let codesLoaded = '[]'
+/* A combination carried from the rows before the five steps keeps its own row's codes beside the car's (D-452): shown where it has any. */
+const own = ref<string[]>([])
+const ownNotes = ref<Record<string, string | null>>({})
+const ownShown = ref(false)
 const page = ref('')
 const stamp = ref('')
 const openLine = ref<number | null>(null)
@@ -65,6 +72,11 @@ function take(detail: CarDetail & { stamp?: string }): void {
     lines.value = detail.lines.map(toEditLine)
     general.value = detail.codes.map((code) => code.code)
     notes.value = Object.fromEntries(detail.codes.map((code) => [code.code, code.note]))
+    codesFor.value = detail.codesFor ?? null
+    codesLoaded = JSON.stringify(detail.codes.map((code) => ({ code: code.code, note: code.note ?? null })))
+    own.value = (detail.cellCodes ?? []).map((code) => code.code)
+    ownNotes.value = Object.fromEntries((detail.cellCodes ?? []).map((code) => [code.code, code.note]))
+    ownShown.value = own.value.length > 0
     page.value = detail.page === null ? '' : String(detail.page)
     storedPage = detail.page
     stamp.value = detail.stamp ?? ''
@@ -88,9 +100,23 @@ function fields(line: EditLine) {
 }
 
 const generalCodes = computed(() => general.value.map((code) => ({ code, note: notes.value[code] ?? null })))
+const ownCodes = computed(() => own.value.map((code) => ({ code, note: ownNotes.value[code] ?? null })))
+
+/* Whose they are (D-452): „Gilt für alle 3 Felgenkombinationen dieses Fahrzeugs in diesem Gutachten.“ */
+const generalFor = computed(() => {
+    const scope = codesFor.value
+    const cells = scope?.cells ?? 1
+    const combinations = cells > 1 ? `alle ${cells} Felgenkombinationen` : 'alle Felgenkombinationen'
+
+    if (scope && scope.cars > 1 && !scope.car.startsWith('#')) {
+        return `Gilt für ${combinations} der ${scope.cars} Fahrzeuge mit HSN/TSN ${scope.car} in diesem Gutachten.`
+    }
+
+    return `Gilt für ${combinations} dieses Fahrzeugs in diesem Gutachten.`
+})
 
 /* What a save would change on the server. A line's id is not in it, nor a line still empty: an answer or „+ Kombination“ is no change. */
-const content = computed(() => JSON.stringify([lines.value.filter(filled).map(fields), generalCodes.value, pageNumber.value, columns]))
+const content = computed(() => JSON.stringify([lines.value.filter(filled).map(fields), generalCodes.value, ownCodes.value, pageNumber.value, columns]))
 
 const autosave = createAutosave({
     content: () => content.value,
@@ -170,16 +196,21 @@ async function write(): Promise<boolean> {
 
     // The list as it goes out: the server drops an empty line, so its answer is in the order of these.
     const sent = lines.value.filter(filled)
+    // The car's general codes go only where this form changed them (D-452): its other combinations may have, meanwhile.
+    const codesNow = JSON.stringify(generalCodes.value)
 
     try {
         const answer = await store.save<{ car: CarDetail; stamp: string }>('PUT', `/fahrzeuge/${props.car.id}`, {
             lines: lines.value.map((line) => ({ id: line.id, ...fields(line) })),
             codes: generalCodes.value,
+            codes_changed: codesNow !== codesLoaded,
+            ...(ownShown.value ? { cell_codes: ownCodes.value } : {}),
             source_page: pageNumber.value,
             ...(columnsSeen ? { ...columns, entry_override: columns.entry_override === '' ? null : columns.entry_override } : {}),
         }, stampHeaders(stamp.value))
 
         stamp.value = answer.stamp
+        codesLoaded = codesNow
         problem.value = ''
         stale.value = false
         retryable.value = false
@@ -425,7 +456,15 @@ async function copy(): Promise<void> {
 
             <div class="ef-editor__block">
                 <h4 id="ef-general-h" class="ef-editor__label">Allgemeine Codes dieses Fahrzeugs</h4>
+                <!-- The car's (D-452): one set for every wheel combination of it, and for every car with its HSN/TSN in this Gutachten. -->
+                <p id="ef-general-for" class="ef-count">{{ generalFor }}</p>
                 <CodeTags id="ef-general" v-model="general" label="Allgemeine Codes dieses Fahrzeugs" :disabled="!state.editable" />
+            </div>
+
+            <div v-if="ownShown" class="ef-editor__block">
+                <h4 id="ef-own-h" class="ef-editor__label">Codes dieser Felgenkombination</h4>
+                <p class="ef-count">Aus den Zeilen vor der Erfassung: Dort standen sie bei dieser Felgenkombination, nicht bei allen des Fahrzeugs.</p>
+                <CodeTags id="ef-own" v-model="own" label="Codes dieser Felgenkombination" :disabled="!state.editable" />
             </div>
 
             <div class="form-field">

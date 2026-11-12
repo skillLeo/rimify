@@ -18,6 +18,7 @@ import AdminPage, { type AdminPageAction } from '../../../Components/Admin/Admin
 import AdminSaveBar from '../../../Components/Admin/AdminSaveBar.vue'
 import TyreLabel, { type TyreClass } from '../../../Components/Ui/TyreLabel.vue'
 import { useDirtyForm } from '../../../composables/admin/useDirtyForm'
+import { readService } from '../Gutachten/Erfassung/tyreInput'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import type { AdminReifenEditProps, TyreForm } from '../../../types/admin/reifen'
 
@@ -94,6 +95,25 @@ const errors = computed(() => form.errors as Record<string, string | undefined>)
 
 function err(field: string): string {
     return errors.value[field] ?? ''
+}
+
+/*
+ * The speed symbol as the paper or the sidewall prints it, read the way step 4 reads a size's end (the client's review of 11.11, D;
+ * D-453): `W`, `(W)`, `( w )` — or the whole service description, `97(W)`, `94W XL`, `115/113R`, `(92Y)`, which fills the load index
+ * too where it is still empty. What does not read stays as typed, and the server says why.
+ */
+function tidySpeed(): void {
+    const read = readService(String(form.speed_symbol))
+
+    if (read === null || read.si === null) {
+        return
+    }
+
+    if (read.li !== null && String(form.load_index).trim() === '') {
+        form.load_index = String(read.li)
+    }
+
+    form.speed_symbol = read.si
 }
 
 const errorCount = computed(() => Object.values(errors.value).filter((value) => typeof value === 'string' && value !== '').length)
@@ -309,10 +329,8 @@ const more = computed<AdminPageAction[]>(() => {
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="rf-speed">Geschwindigkeitssymbol</label>
-                            <select id="rf-speed" v-model="form.speed_symbol" class="input" :disabled="sizeLocked" :aria-invalid="err('speed_symbol') ? 'true' : undefined" aria-describedby="rf-speed-err">
-                                <option value="" disabled>Symbol wählen</option>
-                                <option v-for="symbol in options.speedSymbols" :key="symbol" :value="symbol">{{ symbol }}</option>
-                            </select>
+                            <input id="rf-speed" v-model="form.speed_symbol" class="input num" type="text" maxlength="24" spellcheck="false" autocomplete="off" placeholder="W" :readonly="sizeLocked" :aria-invalid="err('speed_symbol') ? 'true' : undefined" aria-describedby="rf-speed-help rf-speed-err" @blur="tidySpeed">
+                            <p id="rf-speed-help" class="form-field__help">Wie gedruckt, auch in Klammern: {{ options.speedSymbols.join(', ') }}. Mit Lastindex, etwa 97(W), füllt es beides.</p>
                             <p id="rf-speed-err" class="form-field__error">{{ err('speed_symbol') }}</p>
                         </div>
                     </div>
