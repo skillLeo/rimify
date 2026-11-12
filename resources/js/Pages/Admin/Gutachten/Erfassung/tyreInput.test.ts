@@ -184,6 +184,20 @@ describe('the codes after the sizes of a pasted line (D-451)', () => {
         expect(readPaste('225/40R18 88W')[0]?.codes).toBeUndefined()
     })
 
+    it('takes no bracketed service description for a code: only W and Y are printed in brackets (D-453)', () => {
+        for (const input of ['225/35R18 92(V)', '225/35R18 (92V)', '225/35R18 – 255/35R18 92(X) 11A']) {
+            const [line] = readPaste(input)
+
+            expect(line?.status).toBe('unread')
+            expect(line?.codes).toBeUndefined()
+        }
+
+        expect(readPaste('225/35R18 92(V)')[0]?.reason).toBe('In Klammern druckt ein Gutachten nur W oder Y: „92(V)“ lesen wir nicht.')
+        // W and Y in brackets are the symbols they are, never codes.
+        expect(readPaste('225/35R18 92(W) 11A')[0]).toMatchObject({ status: 'single', codes: ['11A'] })
+        expect(readPaste('225/35R18 92(W) 11A')[0]?.sizes?.map(tyreLabel)).toEqual(['225/35 R18 92(W)'])
+    })
+
     it('says so where the words after a size are no code, and takes nothing over', () => {
         const [line] = readPaste('225/40R18 88W siehe Seite 4')
 

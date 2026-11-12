@@ -186,7 +186,8 @@ function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyr
         const tyre = readTyre(words.slice(0, k).join(' '))
 
         if (tyre !== null) {
-            const rest = words.slice(k).map(normaliseCode).filter((word) => word !== '')
+            const typed = words.slice(k)
+            const rest = typed.map(normaliseCode).filter((word) => word !== '')
             // `255/35R18 90X`: a load index with a speed symbol nobody knows, not a code — `11A` after a size is one (no tyre carries
             // index 11). Said as the symbol it is, and nothing taken over.
             const service = rest[0]?.match(/^(\d{2,3})([A-Z])$/)
@@ -195,7 +196,13 @@ function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyr
                 return { tyre: null, why: whyUnread(`${words.slice(0, k).join(' ')} ${rest[0]}`) }
             }
 
-            return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${words.slice(k).join(' ')}“ hinter der Größe ist kein Code.` }
+            // A bracket belongs to a service description, never to a code: `92(V)` is a symbol no paper prints in brackets — only W
+            // and Y are (D-453) —, not the code „92(V“.
+            if (typed.some((word) => /[()]/.test(word))) {
+                return { tyre: null, why: `In Klammern druckt ein Gutachten nur W oder Y: „${typed.join(' ')}“ lesen wir nicht.` }
+            }
+
+            return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${typed.join(' ')}“ hinter der Größe ist kein Code.` }
         }
     }
 
