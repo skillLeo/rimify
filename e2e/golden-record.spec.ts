@@ -242,9 +242,9 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
 
     await page.goto(documentUrl, { waitUntil: 'networkidle' })
     await waitForApp(page)
-    // Said here rather than as a disabled button in the shop: a released Gutachten without its table cannot
-    // confirm tyres above 210 km/h, and a released one can no longer be given a table.
-    await expect(page.locator('.dt-table'), 'the Gutachten was released without a table of tyre load at speed').toBeVisible()
+    // Released with no table of tyre load at speed to show or type: every Gutachten reads ETRTO's (D-459).
+    await expect(page.getByRole('heading', { name: 'Fahrzeuge und Reifen' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Tragfähigkeit bei hoher Geschwindigkeit' }), 'a table section is back on the released Gutachten').toHaveCount(0)
     await shot(page, '06-freigegeben')
 
     // ── 7 · Shop: the car by HSN/TSN ──────────────────────────────────────────────────────
