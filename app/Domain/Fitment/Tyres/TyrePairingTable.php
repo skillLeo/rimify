@@ -141,10 +141,23 @@ final readonly class TyrePairingTable
      */
     public function intersect(self $other): self
     {
-        $keys = array_map(static fn (TyrePairing $p): string => $p->key(), $other->pairs);
+        $theirs = [];
+
+        foreach ($other->pairs as $pair) {
+            $theirs[$pair->key()] = $pair;
+        }
+
+        $kept = [];
+
+        foreach ($this->pairs as $pair) {
+            // Kept where both name it, with what each says beside it (D-451): read together, toward caution.
+            if (isset($theirs[$pair->key()])) {
+                $kept[] = $pair->joinedWith($theirs[$pair->key()]);
+            }
+        }
 
         return new self(
-            array_values(array_filter($this->pairs, static fn (TyrePairing $p): bool => in_array($p->key(), $keys, true))),
+            $kept,
             trim(implode(' ', array_unique(array_filter([$this->rulesDe, $other->rulesDe])))) ?: null,
             $this->sourcePage,
             // A list with no entry for the car stays one, whatever it is read with: nothing is offered either way.

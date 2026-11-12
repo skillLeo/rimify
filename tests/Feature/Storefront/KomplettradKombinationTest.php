@@ -392,3 +392,55 @@ it('confirms no tyres for a car whose field K no entry takes in — never a neig
 
     expect(session(Basket::SESSION_KEY) ?? [])->toBe([]);
 });
+
+it('says a combination\'s own Auflage with that combination, on both its axles, and never with the one that shares its size (D-451, E) @admin-451', function (): void {
+    [$fx, $front, $rear, $nr1, $nr2] = kombiShopSetup();
+    DocumentCondition::query()->create([
+        'approval_document_id' => $fx->document->id,
+        'code' => 'B01',
+        'kind' => ConditionKind::Karosseriearbeit,
+        'text_de' => 'Die Radhausausschnitte hinten sind zu bördeln.',
+        'source_page' => 7,
+    ]);
+    DB::table('document_tyre_combination_conditions')->insert(['document_tyre_combination_id' => $nr2->id, 'wheel_config_id' => $fx->config->id, 'code' => 'B01', 'created_at' => now(), 'updated_at' => now()]);
+    $frontTyre = kombiShopTyre($front);
+    $rearTyre = kombiShopTyre($rear, ['brand_id' => $frontTyre->brand_id, 'price_cents' => 18_000]);
+    $verdict = app(FitmentResolver::class)->resolve($fx->vehicle->id, $fx->config->id);
+    $bördeln = $verdict->pairConditions[0]->conditions[0]->sentenceDe();
+    $said = static fn (array $answer): array => [...$answer['combination'], ...collect($answer['sizes'])->flatMap(static fn (array $s): array => $s['conditions'])->all()];
+
+    $combinations = collect(kombiShopRow($fx)['komplettrad']['combinations']);
+
+    // Nr. 1 shares the front size with Nr. 2 and says nothing of it; Nr. 2 says it once, for both axles, under neither axle alone.
+    expect($verdict->pairConditions)->toHaveCount(1)
+        ->and($said($combinations[0]['answer']))->not->toContain($bördeln)
+        ->and($combinations[1]['answer']['combination'])->toContain($bördeln)
+        ->and(collect($combinations[1]['answer']['sizes'])->flatMap(static fn (array $s): array => $s['conditions'])->all())->not->toContain($bördeln);
+
+    // The basket and the order: each axle's line of the set says it.
+    $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
+        'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'tyreVariantId' => $frontTyre->id, 'rearTyreVariantId' => $rearTyre->id, 'quantity' => 4,
+    ])->assertSessionHasNoErrors();
+
+    $this->withCookies($fx->cookies())->get('/warenkorb')->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('lines', 2)
+            ->where('lines.0.verdict.conditionGroups.combination', fn ($sentences): bool => collect($sentences)->contains($bördeln))
+            ->where('lines.1.verdict.conditionGroups.combination', fn ($sentences): bool => collect($sentences)->contains($bördeln)));
+
+    $this->withCookies($fx->cookies())->from('/kasse')->post('/kasse', [
+        'email' => 'kombi@beispiel.de', 'phone' => '', 'name' => 'Erika Mustermann', 'street' => 'Hauptstraße',
+        'houseNumber' => '12', 'zip' => '50667', 'city' => 'Köln', 'billingSame' => true, 'shipping' => 'standard', 'rdks' => 'nein',
+    ])->assertSessionHasNoErrors();
+
+    $frozen = OrderLineFitment::query()->whereIn('order_line_id', OrderLine::query()->where('order_id', Order::query()->latest('id')->value('id'))->pluck('id'))
+        ->orderBy('order_line_id')->get()->map(static fn (OrderLineFitment $f): array => $f->verdict['combination'] ?? []);
+
+    expect($frozen)->toHaveCount(2);
+
+    foreach ($frozen as $combination) {
+        expect($combination['number'])->toBe(2)
+            ->and($combination['front']['conditions'])->toContain($bördeln)
+            ->and($combination['rear']['conditions'])->toContain($bördeln);
+    }
+});

@@ -91,6 +91,7 @@ final class ResetTables
         'document_notices',
         'document_speed_deratings',
         'document_tyre_combinations',
+        'document_tyre_combination_conditions',
         'document_wheel_sizes',
         'document_wheel_combinations',
         'fitment_wheel_sets',

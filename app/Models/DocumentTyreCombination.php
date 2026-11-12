@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * One of a Gutachten's own „Bereifungskombinationen“ (D-256): `Kombination 2: vorn 225/40 R18, hinten 245/35 R18`, as
@@ -54,6 +55,16 @@ class DocumentTyreCombination extends Model
             'rear_diameter_in' => 'float',
             'source_page' => 'integer',
         ];
+    }
+
+    /**
+     * The combination's own Auflagen (D-451): typed beside it, for it alone.
+     *
+     * @return HasMany<DocumentTyreCombinationCondition, $this>
+     */
+    public function conditions(): HasMany
+    {
+        return $this->hasMany(DocumentTyreCombinationCondition::class)->orderBy('id');
     }
 
     /** @return BelongsTo<ApprovalDocument, $this> */

@@ -34,8 +34,8 @@ withDefaults(defineProps<{
 
         <template v-else>
             <template v-if="groups.combination.filter((c) => !omit.includes(c)).length">
-                <!-- Labelled only where sizes follow: alone, the list is simply the answer's. A set per axle: both axles (D-335). -->
-                <p v-if="groups.sizes.length" class="cgroups__head">{{ groups.perAxle ? 'Für beide Achsen' : 'Für jede zulässige Reifengröße' }}</p>
+                <!-- Labelled only where sizes or combinations follow: alone, the list is simply the answer's. A set per axle: both axles (D-335). -->
+                <p v-if="groups.sizes.length || groups.pairs?.length" class="cgroups__head">{{ groups.perAxle ? 'Für beide Achsen' : 'Für jede zulässige Reifengröße' }}</p>
                 <ul class="cgroups__list">
                     <li v-for="condition in groups.combination.filter((c) => !omit.includes(c))" :key="condition">{{ condition }}</li>
                 </ul>
@@ -52,6 +52,17 @@ withDefaults(defineProps<{
                 </p>
                 <ul v-if="size.conditions.filter((c) => !omit.includes(c)).length" class="cgroups__list">
                     <li v-for="condition in size.conditions.filter((c) => !omit.includes(c))" :key="condition">{{ condition }}</li>
+                </ul>
+                <p v-else class="cgroups__none">Keine weiteren Auflagen.</p>
+            </section>
+
+            <!-- A tyre combination's own Auflagen (D-451): with that combination alone, for both its axles. -->
+            <section v-for="pair in groups.pairs ?? []" :key="`pair-${pair.pair}`" class="cgroups__size" :aria-label="`Auflagen nur bei ${pair.pair}`">
+                <p class="cgroups__head">
+                    Nur bei <span class="data" translate="no">{{ pair.pair }}</span>
+                </p>
+                <ul v-if="pair.conditions.filter((c) => !omit.includes(c)).length" class="cgroups__list">
+                    <li v-for="condition in pair.conditions.filter((c) => !omit.includes(c))" :key="condition">{{ condition }}</li>
                 </ul>
                 <p v-else class="cgroups__none">Keine weiteren Auflagen.</p>
             </section>

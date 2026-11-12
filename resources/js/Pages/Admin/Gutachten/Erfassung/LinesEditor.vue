@@ -504,7 +504,7 @@ async function copy(): Promise<void> {
             </div>
 
             <CopyDialog v-model:open="copyOpen" :from="car" />
-            <PasteDialog v-model:open="pasteOpen" :car="car" :combination="combination" @take="(sides) => { lines = [...lines, ...sides.map((side) => blankLine(side.front, side.rear))] }" />
+            <PasteDialog v-model:open="pasteOpen" :car="car" :combination="combination" @take="(sides) => { lines = [...lines, ...sides.map((side) => ({ ...blankLine(side.front, side.rear), codes: side.codes }))] }" />
         </template>
     </section>
 </template>

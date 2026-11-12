@@ -5,6 +5,8 @@
  * (App\Support\TyreText); both tests read one list of them (tests/Fixtures/tyre-notations.json).
  */
 
+import { isCodeWord, normaliseCode, readCodes } from './codes'
+
 /* Every ETRTO speed symbol, in the engine's rank order (ReferenceTables::SPEED_SYMBOLS): J and K since the client's round of 08.11.2026, §4 (D-442). */
 export const SPEED_SYMBOLS = ['J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'H', 'V', 'W', 'Y', '(Y)'] as const
 
@@ -39,6 +41,8 @@ export interface PasteLine {
     number?: string
     sizes?: TyreSpec[]
     pairs?: TyrePair[]
+    /** The codes printed after the sizes (D-451): the combination's, on every line the entry becomes. */
+    codes?: string[]
     reason?: string
 }
 
@@ -156,6 +160,62 @@ export function readPaste(text: string): PasteLine[] {
     return out
 }
 
+/**
+ * One size as printed, and the codes after it (D-451): `255/35R18 90W 11A K2b` → the size, then `11A`, `K2b` — the longest beginning
+ * that reads as a size is the size, every word after it must be a code by itself (codes.ts), else nothing reads. Null where no size does.
+ */
+function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyre: null; why: string | null } {
+    const words = part.trim().split(/\s+/)
+
+    for (let k = words.length; k > 0; k--) {
+        const tyre = readTyre(words.slice(0, k).join(' '))
+
+        if (tyre !== null) {
+            const rest = words.slice(k).map(normaliseCode).filter((word) => word !== '')
+            // `255/35R18 90X`: a load index with a speed symbol nobody knows, not a code — `11A` after a size is one (no tyre carries
+            // index 11). Said as the symbol it is, and nothing taken over.
+            const service = rest[0]?.match(/^(\d{2,3})([A-Z])$/)
+
+            if (service && tyre.li === null && tyre.si === null && Number(service[1]) >= 50) {
+                return { tyre: null, why: whyUnread(`${words.slice(0, k).join(' ')} ${rest[0]}`) }
+            }
+
+            return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${words.slice(k).join(' ')}“ hinter der Größe ist kein Code.` }
+        }
+    }
+
+    return { tyre: null, why: null }
+}
+
+/** The parts of a line split at its commas: each a size with its codes, or — where it holds no size — codes alone (`…, Nicht 330D`). */
+function readParts(text: string): { tyres: (TyreSpec | null)[]; bad: string; why: string | null; codes: string[] } {
+    const tyres: (TyreSpec | null)[] = []
+    const codes: string[] = []
+    let bad = ''
+    let why: string | null = null
+
+    for (const part of text.split(/\s*[,;]\s*/).filter((p) => p.trim() !== '')) {
+        if (!ANY_SIZE.test(part)) {
+            codes.push(...readCodes(part, []))
+            continue
+        }
+
+        const read = sizeAndCodes(part)
+
+        if (read.tyre === null) {
+            tyres.push(null)
+            bad ||= part
+            why ??= read.why
+            continue
+        }
+
+        tyres.push(read.tyre)
+        codes.push(...read.codes)
+    }
+
+    return { tyres, bad, why, codes: [...new Set(codes)] }
+}
+
 function readEntry(entry: string, line: number): PasteLine {
     const numbered = entry.match(NUMBER)
     const number = numbered?.[1]
@@ -173,31 +233,31 @@ function readEntry(entry: string, line: number): PasteLine {
     }
 
     if (parts.length === 2) {
-        const front = readTyre(parts[0] ?? '')
-        const rears = (parts[1] ?? '').split(/\s*,\s*/).map((part) => readTyre(part))
+        const front = sizeAndCodes(parts[0] ?? '')
+        const rears = readParts(parts[1] ?? '')
 
-        if (front === null) {
-            return { ...base, status: 'unread', reason: whyUnread(parts[0] ?? '') ?? 'Die vordere Größe ist nicht lesbar.' }
+        if (front.tyre === null) {
+            return { ...base, status: 'unread', reason: whyUnread(parts[0] ?? '') ?? front.why ?? 'Die vordere Größe ist nicht lesbar.' }
         }
 
-        if (rears.length === 0 || rears.some((rear) => rear === null)) {
-            const bad = (parts[1] ?? '').split(/\s*,\s*/).find((part) => readTyre(part) === null) ?? ''
-
-            return { ...base, status: 'unread', reason: whyUnread(bad) ?? 'Die hintere Größe ist nicht lesbar.' }
+        if (rears.tyres.length === 0 || rears.tyres.some((rear) => rear === null)) {
+            return { ...base, status: 'unread', reason: whyUnread(rears.bad) ?? rears.why ?? 'Die hintere Größe ist nicht lesbar.' }
         }
 
-        return { ...base, status: 'pair', pairs: (rears as TyreSpec[]).map((rear) => ({ front, rear })) }
+        const codes = [...new Set([...front.codes, ...rears.codes])]
+
+        return { ...base, status: 'pair', pairs: (rears.tyres as TyreSpec[]).map((rear) => ({ front: front.tyre, rear })), ...(codes.length ? { codes } : {}) }
     }
 
-    const sizes = body.split(/\s*[,;]\s*/).filter((part) => part !== '').map((part) => readTyre(part))
+    const read = readParts(body)
 
-    if (sizes.some((size) => size === null)) {
-        const why = whyUnread(body)
+    if (read.tyres.length === 0 || read.tyres.some((size) => size === null)) {
+        const why = whyUnread(read.bad || body) ?? read.why
 
-        return { ...base, status: 'unread', reason: why ?? (sizes.every((size) => size === null) ? 'Keine Reifengröße erkannt.' : 'Nicht jede Größe in der Zeile ist lesbar.') }
+        return { ...base, status: 'unread', reason: why ?? (read.tyres.every((size) => size === null) ? 'Keine Reifengröße erkannt.' : 'Nicht jede Größe in der Zeile ist lesbar.') }
     }
 
-    return { ...base, status: 'single', sizes: sizes as TyreSpec[] }
+    return { ...base, status: 'single', sizes: read.tyres as TyreSpec[], ...(read.codes.length ? { codes: read.codes } : {}) }
 }
 
 /**
@@ -234,17 +294,20 @@ export function checkPaste(lines: PasteLine[], wheels: { front: number; rear: nu
     })
 }
 
-/** What „Mehrere einfügen" adds: each read line as vorne + hinten — a size alone on both sides, a pair as a pair. */
-export function pasteToSides(lines: PasteLine[]): { front: string; rear: string }[] {
-    const out: { front: string; rear: string }[] = []
+/**
+ * What „Mehrere einfügen" adds: each read line as vorne + hinten — a size alone on both sides, a pair as a pair —, with the codes
+ * printed after it (D-451), on each.
+ */
+export function pasteToSides(lines: PasteLine[]): { front: string; rear: string; codes: string[] }[] {
+    const out: { front: string; rear: string; codes: string[] }[] = []
 
     for (const line of lines) {
         for (const size of line.sizes ?? []) {
-            out.push({ front: tyreLabel(size), rear: tyreLabel(size) })
+            out.push({ front: tyreLabel(size), rear: tyreLabel(size), codes: [...(line.codes ?? [])] })
         }
 
         for (const pair of line.pairs ?? []) {
-            out.push({ front: tyreLabel(pair.front), rear: tyreLabel(pair.rear) })
+            out.push({ front: tyreLabel(pair.front), rear: tyreLabel(pair.rear), codes: [...(line.codes ?? [])] })
         }
     }
 

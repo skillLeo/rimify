@@ -254,13 +254,23 @@ class DocumentEntryReader
         // The same size on both axles: the size's own line, where it has one that does not carry a row yet.
         $own = $lines->first(static fn (DocumentTyreLine $line): bool => $front($line) && $rear($line) && $line->in_list === false);
 
+        // The combination's own codes (D-451) come with it: the line is where they are typed, and where the next save reads them.
+        $codes = DB::table('document_tyre_combination_conditions')->where('document_tyre_combination_id', $row->id)->distinct()->orderBy('code')->pluck('code')
+            ->map(static fn (mixed $code): string => (string) $code)->all();
+        $withCodes = static function (DocumentTyreLine $line) use ($codes): void {
+            foreach ($codes as $code) {
+                DocumentTyreLineCode::query()->firstOrCreate(['document_tyre_line_id' => $line->id, 'code' => $code]);
+            }
+        };
+
         if ($own !== null) {
             $own->forceFill($marks)->save();
+            $withCodes($own);
 
             return true;
         }
 
-        DocumentTyreLine::query()->create([
+        $line = DocumentTyreLine::query()->create([
             'document_car_entry_id' => $entry->id,
             'position' => (int) $lines->max('position') + 1,
             'front_width_mm' => $row->front_width_mm,
@@ -273,6 +283,7 @@ class DocumentEntryReader
             'from_rows' => false,
             ...$marks,
         ]);
+        $withCodes($line);
 
         return true;
     }

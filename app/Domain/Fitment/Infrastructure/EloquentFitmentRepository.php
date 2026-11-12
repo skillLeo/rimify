@@ -28,6 +28,7 @@ use App\Models\Fitment;
 use App\Models\WheelConfig;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -112,7 +113,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes', 'vehicle:id,eg_nummer_norm'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations.conditions', 'approvalDocument.supplementTo', 'tyreSizes.conditionCodes', 'conditionCodes', 'vehicle:id,eg_nummer_norm'])
             ->where('fitments.vehicle_id', $vehicleId)
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             ->tap($this->visible(...))
@@ -194,7 +195,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         }
 
         $rows = Fitment::query()
-            ->with(['approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations', 'approvalDocument.supplementTo'])
+            ->with(['approvalDocument.conditions', 'approvalDocument.speedDeratings', 'approvalDocument.tyreCombinations.conditions', 'approvalDocument.supplementTo'])
             ->whereIn('fitments.wheel_config_id', $wheelConfigIds)
             // Incomplete until a person asserted otherwise (EIGENE-FUNDE 119, D-227): unanswered reads as partial.
             ->whereHas('approvalDocument', static fn (Builder $q) => $q->where(static fn (Builder $w) => $w->whereNull('completeness')->orWhere('completeness', '<>', ApprovalDocument::COMPLETE)))
@@ -407,7 +408,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         return new FitmentRow(
             id: $fitment->id,
-            document: $this->documentRecord($document, $fitment->source_page, true, $fitment->vehicle?->eg_nummer_norm, (int) $fitment->vehicle_id),
+            document: $this->documentRecord($document, $fitment->source_page, true, $fitment->vehicle?->eg_nummer_norm, (int) $fitment->vehicle_id, (int) $fitment->wheel_config_id),
             vehicleId: $fitment->vehicle_id,
             wheelConfigId: $fitment->wheel_config_id,
             axle: $fitment->axle->value,
@@ -433,7 +434,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
      * The document as the engine reads it — for a row, with the page that row stands on and the car the row names (its
      * field K chooses the document's combinations, D-358); without a car, the document alone.
      */
-    private function documentRecord(ApprovalDocument $document, ?int $sourcePage, bool $forCar = false, ?string $carK = null, ?int $vehicleId = null): DocumentRecord
+    private function documentRecord(ApprovalDocument $document, ?int $sourcePage, bool $forCar = false, ?string $carK = null, ?int $vehicleId = null, ?int $configId = null): DocumentRecord
     {
         return new DocumentRecord(
             id: $document->id,
@@ -453,7 +454,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             missingAnnexes: $document->missing_annexes === null || trim($document->missing_annexes) === '' ? null : trim($document->missing_annexes),
             completeness: $document->completeness,
             isDemo: (bool) $document->getAttribute('is_demo'),
-            tyreCombinations: $this->wholeDocumentLists ? self::wholeList($document) : self::tyreCombinations($document, $forCar, $carK, $vehicleId),
+            tyreCombinations: $this->wholeDocumentLists ? self::wholeList($document, $configId) : self::tyreCombinations($document, $forCar, $carK, $vehicleId, $configId),
             tyreIndexSource: $document->tyre_index_source?->value,
             // „nur für Fahrzeuge mit maximaler Achslast 1160 kg“, as declared at release: the wheel's approval rests on it (D-289).
             axleLimitKg: $document->counted_axle_limit_kg,
@@ -474,24 +475,22 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
      * those are their pairs, not its own. And an entry whose rows hold different pairs for different cars is chosen for no car
      * at all: it could not say whose list it would be. Both fail closed (CLAUDE.md §2).
      */
-    private static function tyreCombinations(ApprovalDocument $document, bool $forCar, ?string $carK, ?int $vehicleId): ?TyrePairingTable
+    private static function tyreCombinations(ApprovalDocument $document, bool $forCar, ?string $carK, ?int $vehicleId, ?int $configId = null): ?TyrePairingTable
     {
         if (! $forCar || $document->tyreCombinations->isEmpty()) {
             return null;
         }
 
-        $pair = static fn (DocumentTyreCombination $combination): TyrePairing => new TyrePairing(
-            $combination->number,
-            new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in),
-            new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in),
-            // The row an order line freezes as the combination it was sold in (D-335).
-            (int) $combination->id,
-        );
+        /** @var array<string, DocumentCondition> $defined */
+        $defined = $document->conditions->keyBy('code')->all();
+        $pair = static fn (DocumentTyreCombination $combination): ?TyrePairing => self::pairOf($combination, $defined, $configId);
+        // A combination whose code the paper does not describe is not offered (fails closed); the release refuses such a code.
+        $pairs = static fn (Collection $rows): array => array_values(array_filter($rows->map($pair)->all()));
 
         $own = $vehicleId === null ? collect() : $document->tyreCombinations->filter(static fn (DocumentTyreCombination $c): bool => $c->vehicle_id === $vehicleId);
 
         if ($own->isNotEmpty()) {
-            return TyrePairingTable::recorded($own->map($pair)->values()->all(), $own->first(static fn (DocumentTyreCombination $c): bool => $c->source_page !== null)?->source_page);
+            return TyrePairingTable::recorded($pairs($own), $own->first(static fn (DocumentTyreCombination $c): bool => $c->source_page !== null)?->source_page);
         }
 
         /** @var array<string, array<int, list<DocumentTyreCombination>>> $groups entry => car (0: none) => its rows */
@@ -511,7 +510,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             $lists = [];
 
             foreach ($byCar as $rows) {
-                $list = array_map(static fn (DocumentTyreCombination $c): string => $pair($c)->key(), $rows);
+                $list = array_map(static fn (DocumentTyreCombination $c): string => TyrePairing::keyOf(self::sizeOf($c, 'front')->key(), self::sizeOf($c, 'rear')->key()), $rows);
                 sort($list);
                 $lists[implode('|', $list)] = true;
             }
@@ -530,22 +529,81 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         $rows = collect($rows);
 
-        return TyrePairingTable::recorded($rows->map($pair)->values()->all(), $rows->first(static fn (DocumentTyreCombination $c): bool => $c->source_page !== null)?->source_page);
+        return TyrePairingTable::recorded($pairs($rows), $rows->first(static fn (DocumentTyreCombination $c): bool => $c->source_page !== null)?->source_page);
+    }
+
+    /**
+     * A combination of the paper's list as the engine reads it, with the Auflagen typed beside it (D-451) looked up in the paper's own
+     * Auflagenverzeichnis: a body-form or drive code narrows the combination; a code the paper does not describe keeps it out. Only
+     * the codes typed for this wheel (`$configId`): a code typed in one cell of the car is that cell's, never another's.
+     *
+     * @param  array<string, DocumentCondition>  $defined
+     */
+    private static function pairOf(DocumentTyreCombination $combination, array $defined, ?int $configId): ?TyrePairing
+    {
+        $conditions = [];
+        $filters = [];
+
+        foreach ($combination->conditions as $code) {
+            if ($configId === null || $code->wheel_config_id !== $configId) {
+                continue;
+            }
+
+            $definition = $defined[$code->code] ?? null;
+
+            if (! $definition instanceof DocumentCondition) {
+                return null;
+            }
+
+            if ($definition->kind->isFilter()) {
+                $filters[] = new RowFilter(
+                    code: $code->code,
+                    kind: $definition->kind->value,
+                    bodyForms: $definition->body_forms ?? [],
+                    driveMode: is_array($definition->drive) ? ($definition->drive['mode'] ?? null) : null,
+                    drive: is_array($definition->drive) ? ($definition->drive['drive'] ?? null) : null,
+                    textDe: $definition->text_de,
+                );
+
+                continue;
+            }
+
+            $conditions[] = Condition::ofKind($code->code, $definition->kind, $definition->text_de, null, $definition->source_page, $definition->max_axle_load_kg, $definition->level, $definition->axle, $definition->shop_colour);
+        }
+
+        return new TyrePairing(
+            $combination->number,
+            self::sizeOf($combination, 'front'),
+            self::sizeOf($combination, 'rear'),
+            // The row an order line freezes as the combination it was sold in (D-335).
+            (int) $combination->id,
+            $conditions,
+            $filters,
+        );
+    }
+
+    private static function sizeOf(DocumentTyreCombination $combination, string $side): TyreSize
+    {
+        return $side === 'front'
+            ? new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in)
+            : new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in);
     }
 
     /** The document's whole list, every row whatever its entry, as the shop read it before D-358 (beforeEntries()). */
-    private static function wholeList(ApprovalDocument $document): ?TyrePairingTable
+    private static function wholeList(ApprovalDocument $document, ?int $configId): ?TyrePairingTable
     {
         $pairs = [];
         $page = null;
+        /** @var array<string, DocumentCondition> $defined */
+        $defined = $document->conditions->keyBy('code')->all();
 
         foreach ($document->tyreCombinations as $combination) {
-            $pairs[] = new TyrePairing(
-                $combination->number,
-                new TyreSize($combination->front_width_mm, $combination->front_aspect, $combination->front_diameter_in),
-                new TyreSize($combination->rear_width_mm, $combination->rear_aspect, $combination->rear_diameter_in),
-                (int) $combination->id,
-            );
+            $pair = self::pairOf($combination, $defined, $configId);
+
+            if ($pair instanceof TyrePairing) {
+                $pairs[] = $pair;
+            }
+
             $page ??= $combination->source_page;
         }
 
