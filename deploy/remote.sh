@@ -107,6 +107,9 @@ COMPOSER="$(command -v composer || echo /usr/local/bin/composer)"
 if [ "$TARGET_ENV" = production ]; then
     "$PHP" artisan demo:assert-clean --no-interaction
 fi
+# D-477: the host's own plain wdbi_ indexes (its MariaDB adds one after a slow query) go before the migrations, so no
+# migration meets an index it did not make; each one is named in this log and in the Protokoll.
+"$PHP" artisan rimify:host-indizes --entfernen --no-interaction
 "$PHP" artisan migrate --force --no-interaction
 
 # A brand-new database gets the reference data once — and, on staging only, the development cars

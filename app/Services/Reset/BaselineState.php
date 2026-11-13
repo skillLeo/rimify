@@ -92,7 +92,9 @@ final class BaselineState
             return 'Die Vorlage für den leeren Shop ist älter als die Prüfung ihres Aufbaus und nennt keinen Fingerabdruck.'.$rebuild;
         }
 
-        $live = SchemaFingerprint::of($db);
+        // The host's own plain `wdbi_` indexes are not ours and change nothing a reset restores (D-477): this check alone
+        // looks past them. A unique one, or any other name, still refuses.
+        $live = SchemaFingerprint::of($db, withoutHostIndexes: true);
 
         if (! hash_equals($baseline['schema'], $live)) {
             return sprintf(
