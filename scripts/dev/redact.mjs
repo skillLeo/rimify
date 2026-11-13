@@ -144,6 +144,10 @@ const SHAPES = [
     [/\bAKIA[0-9A-Z]{16}\b/g, MASK],
     [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g, MASK],
     [/\b(MYSQL_PWD|PASSWORD|PASSWD|SECRET|TOKEN)(\s*[=:]\s*)("[^"]*"|'[^']*'|\S+)/gi, `$1$2${MASK}`],
+    // A database account's stored password: SHOW GRANTS prints `IDENTIFIED BY PASSWORD '*<40 hex>'`, and the hash alone
+    // opens the password to an offline guess (D-473: a grant on the preview printed one, 13.11.2026).
+    [/\b(IDENTIFIED\s+(?:BY|VIA|WITH)\s+(?:PASSWORD\s+|[a-z_]+\s+(?:AS|USING)\s+)?)('[^']*'|"[^"]*")/gi, `$1${MASK}`],
+    [/\*[0-9A-Fa-f]{40}\b/g, MASK],
 ]
 
 const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

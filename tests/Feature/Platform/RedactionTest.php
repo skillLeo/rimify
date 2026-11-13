@@ -41,6 +41,30 @@ it('masks key shapes, environment secrets and password columns, and leaves the r
         ->and($out['line'])->toBe('DB [verborgen] · Konto [verborgen] · sk_live_[verborgen] · [verborgen] · PASSWORD=[verborgen] · RIMIFY');
 });
 
+it('masks a database account\'s stored password as SHOW GRANTS prints it (D-473)', function (): void {
+    // The hash is assembled at run time, so this file holds none for the scanner to find.
+    $script = <<<'JS'
+        import { redactLine } from './scripts/dev/redact.mjs';
+        const hash = '*' + 'AB12'.repeat(10);
+        console.log(JSON.stringify([
+            redactLine("GRANT USAGE ON *.* TO `shop`@`::1` IDENTIFIED BY PASSWORD '" + hash + "' WITH MAX_STATEMENT_TIME 120", []),
+            redactLine("ALTER USER shop IDENTIFIED VIA mysql_native_password USING '" + hash + "'", []),
+            redactLine('authentication_string ' + hash, []),
+            redactLine('GRANT ALL PRIVILEGES ON `shop`.* TO `shop`@`::1`', []),
+        ]));
+        JS;
+
+    $process = runNode(['--input-type=module', '-e', $script]);
+
+    expect($process->isSuccessful())->toBeTrue($process->getErrorOutput())
+        ->and(json_decode(trim($process->getOutput()), true))->toBe([
+            'GRANT USAGE ON *.* TO `shop`@`::1` IDENTIFIED BY PASSWORD [verborgen] WITH MAX_STATEMENT_TIME 120',
+            'ALTER USER shop IDENTIFIED VIA mysql_native_password USING [verborgen]',
+            'authentication_string [verborgen]',
+            'GRANT ALL PRIVILEGES ON `shop`.* TO `shop`@`::1`',
+        ]);
+});
+
 it('masks the main checkout\'s accounts file from a linked worktree, which has none of its own', function (): void {
     $base = sys_get_temp_dir().'/rimify-redact-'.bin2hex(random_bytes(4));
     mkdir($base.'/main/docs/review', 0777, true);
