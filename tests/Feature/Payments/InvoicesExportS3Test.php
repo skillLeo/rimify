@@ -9,6 +9,7 @@ use App\Services\Admin\SystemHealth;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
@@ -26,6 +27,7 @@ const EXPORT_PDF = "%PDF-1.4\n% eine Rechnung von Stripe\n%%EOF\n";
 
 beforeEach(function (): void {
     config([
+        'rimify.payments.driver' => 'stripe',
         'services.stripe.mode' => 'test',
         'services.stripe.key' => 'pk_test_fakeKey',
         'services.stripe.secret' => 'sk_test_fakeKey',
@@ -163,6 +165,45 @@ it('says what is missing where no bucket is set up, and refuses days it cannot r
 
     $this->artisan('rimify:invoices:export-s3', ['--date' => '28.10.2026'])->assertExitCode(2);
     $this->artisan('rimify:invoices:export-s3', ['--from' => '2026-10-28', '--to' => '2026-10-27'])->assertExitCode(2);
+});
+
+it('rests without Stripe keys: says so, succeeds, calls no Stripe and writes nothing (D-475)', function (): void {
+    exportInvoice('2026-10-28 10:00', 1);
+    config(['services.stripe.key' => null, 'services.stripe.secret' => null, 'services.stripe.webhook_secret' => null]);
+
+    $this->artisan('rimify:invoices:export-s3', ['--date' => '2026-10-28'])
+        ->expectsOutputToContain('Keine Stripe-Schlüssel hinterlegt')
+        ->doesntExpectOutputToContain('abgelegt')
+        ->assertSuccessful();
+
+    expect($this->stripe->sent)->toBe([])
+        ->and($this->bucket->allFiles())->toBe([])
+        ->and(InvoiceExport::query()->count())->toBe(0)
+        ->and(AuditLog::query()->where('event', 'invoice_export.failed')->count())->toBe(0)
+        ->and(Cache::get(InvoicesExportS3Command::LAST_RUN)['without_stripe'] ?? null)->toBeTrue()
+        ->and(collect(app(SystemHealth::class)->report()['checks'])->firstWhere('key', 'invoices'))
+        ->toMatchArray(['state' => 'ok', 'sentence' => 'Keine Stripe-Schlüssel hinterlegt, also legt der Shop keine Stripe-Rechnungen an: Die Kopie nach S3 ist übersprungen. Sie läuft, sobald die Schlüssel unter Einstellungen › Zahlung stehen.']);
+});
+
+it('rests where the checkout takes no payment through Stripe, as on the preview\'s sandbox — dry run too, and without a bucket (D-475)', function (): void {
+    exportInvoice('2026-10-28 10:00', 1);
+    config(['rimify.payments.driver' => 'sandbox', 'rimify.review.enabled' => true, 'filesystems.disks.invoices_s3.bucket' => null]);
+
+    foreach ([[], ['--dry-run' => true]] as $options) {
+        $this->artisan('rimify:invoices:export-s3', ['--date' => '2026-10-28', ...$options])
+            ->expectsOutputToContain('Die Kasse nimmt hier keine Zahlungen über Stripe an')
+            ->doesntExpectOutputToContain('würde ablegen')
+            ->assertSuccessful();
+    }
+
+    expect($this->stripe->sent)->toBe([])
+        ->and($this->bucket->allFiles())->toBe([])
+        ->and(InvoiceExport::query()->count())->toBe(0);
+
+    // Stripe back in force: the same day is copied, so the rest was the driver's, not the invoice's.
+    config(['rimify.payments.driver' => 'stripe', 'filesystems.disks.invoices_s3.bucket' => 'rimify-rechnungen-test']);
+    $this->artisan('rimify:invoices:export-s3', ['--date' => '2026-10-28'])->assertSuccessful();
+    expect(InvoiceExport::query()->count())->toBe(1);
 });
 
 it('is scheduled daily at 03:15 Berlin time', function (): void {

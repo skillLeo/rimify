@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\InvoiceExport;
+use App\Payments\PaymentConfig;
+use App\Payments\Payments;
 use App\Payments\Stripe\IssuedInvoice;
+use App\Payments\Stripe\StripeGateway;
 use App\Payments\Stripe\StripeInvoices;
 use App\Services\Admin\AdminAlerts;
 use App\Services\Admin\AuditTrail;
@@ -58,6 +61,20 @@ final class InvoicesExportS3Command extends Command
 
         $dry = (bool) $this->option('dry-run');
 
+        // D-475: where the checkout takes no payment through Stripe, the shop makes no Stripe invoice — nothing to copy,
+        // and no call to Stripe with keys that are not in force (the preview's placeholders failed every night).
+        $idle = self::withoutStripe();
+
+        if ($idle !== null) {
+            $this->info($idle);
+
+            if (! $dry) {
+                Cache::forever(self::LAST_RUN, ['at' => now()->toIso8601String(), 'days' => [], 'stored' => 0, 'skipped' => 0, 'failed' => 0, 'without_stripe' => true]);
+            }
+
+            return self::SUCCESS;
+        }
+
         if (! $dry && ! self::configured()) {
             $this->error('Für die Rechnungskopie ist kein S3-Speicher eingerichtet (INVOICE_S3_BUCKET, INVOICE_S3_KEY, INVOICE_S3_SECRET in der .env).');
             Cache::forever(self::LAST_RUN, ['at' => now()->toIso8601String(), 'days' => [], 'stored' => 0, 'skipped' => 0, 'failed' => 0, 'unconfigured' => true]);
@@ -83,6 +100,21 @@ final class InvoicesExportS3Command extends Command
         }
 
         return $counts['failed'] === 0 ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Why the copy rests, in one German sentence, or null where Stripe is the payment driver in force (D-475): without
+     * all three keys, or with another driver (the preview's sandbox), the shop makes no Stripe invoice to copy.
+     */
+    public static function withoutStripe(): ?string
+    {
+        if (Payments::gateway() instanceof StripeGateway) {
+            return null;
+        }
+
+        return PaymentConfig::current()->complete()
+            ? 'Die Kasse nimmt hier keine Zahlungen über Stripe an, also legt der Shop keine Stripe-Rechnungen an: Die Kopie nach S3 ist übersprungen.'
+            : 'Keine Stripe-Schlüssel hinterlegt, also legt der Shop keine Stripe-Rechnungen an: Die Kopie nach S3 ist übersprungen. Sie läuft, sobald die Schlüssel unter Einstellungen › Zahlung stehen.';
     }
 
     public static function configured(): bool

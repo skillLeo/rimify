@@ -272,6 +272,11 @@ final class SystemHealth
     private function invoiceCopy(): array
     {
         return $this->guard('invoices', 'Rechnungskopie', static function (): array {
+            // D-475: no Stripe in the checkout, no Stripe invoice — the copy rests, and says why.
+            if (($idle = InvoicesExportS3Command::withoutStripe()) !== null) {
+                return ['state' => 'ok', 'sentence' => $idle, 'short' => '', 'count' => null];
+            }
+
             if (! InvoicesExportS3Command::configured()) {
                 return ['state' => 'ok', 'sentence' => 'Für die tägliche Kopie der Stripe-Rechnungen ist noch kein S3-Speicher eingerichtet.', 'short' => '', 'count' => null];
             }
