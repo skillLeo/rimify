@@ -364,6 +364,37 @@ it('writes nothing when any car changed after its Probelauf began — one the fi
         ->and(DB::table(VehicleImporter::STAGE)->count())->toBe(0);
 });
 
+it('clears what imports left in the work table from the scheduler, and never what a run at work still needs (D-472)', function (): void {
+    $stage = static function (string $prefix): VehicleImport {
+        $import = largeSend(test(), largeCsv(1_200, 0, $prefix), 1_000_000, $prefix.'.csv');
+        app(ImportUpload::class)->finish($import);
+        largeDrain($import->id);
+        VehicleImport::query()->whereKey($import->id)->update(['status' => VehicleImport::APPLYING, 'applied_by' => largeAdmin()->id]);
+
+        // Begun, cleared, two batches prepared.
+        for ($part = 0; $part < 4; $part++) {
+            app(VehicleImportWork::class)->advance($import->id, 0.0);
+        }
+
+        return $import->refresh();
+    };
+    $done = $stage('L');
+    $busy = $stage('M');
+
+    // An import whose own sweep had no time left: done, its prepared rows still there. Another is at work.
+    VehicleImport::query()->whereKey($done->id)->update(['status' => VehicleImport::APPLIED, 'cursor' => null]);
+    $rows = static fn (VehicleImport $run): int => DB::table(VehicleImporter::STAGE)->where('vehicle_import_id', $run->id)->count();
+
+    expect($rows($done))->toBe(1_000)
+        ->and($rows($busy))->toBe(1_000);
+
+    $this->artisan('fahrzeuge:import-weiter', ['--sekunden' => 60, '--run' => 0])->expectsOutput('work table: 1000 rows cleared')->assertSuccessful();
+
+    expect($rows($done))->toBe(0)
+        ->and($rows($busy))->toBe(1_000)
+        ->and($busy->refresh()->cursor['phase'])->toBe('stage');
+});
+
 it('says how far the server is while it reads, and gives it its next part of the work with each answer', function (): void {
     $bytes = largeCsv(3_000);
     $import = largeSend($this, $bytes, 1_000_000);
