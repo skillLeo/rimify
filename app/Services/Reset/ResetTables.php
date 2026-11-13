@@ -109,6 +109,7 @@ final class ResetTables
         'vehicles',
         'vehicle_imports',
         'vehicle_import_rows',
+        'vehicle_import_stage',
         // Orders, customers and everything that hangs off them.
         'customers',
         'customer_accounts',
