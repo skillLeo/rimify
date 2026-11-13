@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Models\VehicleImport;
 use App\Services\Admin\Vehicles\Import\ImportUpload;
 use App\Services\Admin\Vehicles\Import\VehicleImportWork;
+use App\Services\Admin\Vehicles\VehicleImporter;
 use Illuminate\Console\Command;
 
 /**
@@ -48,6 +49,17 @@ final class VehicleImportContinueCommand extends Command
             $work->advance((int) $id, $left);
             $run = VehicleImport::query()->find($id);
             $this->line(sprintf('#%d %s', $id, $run === null ? 'gone' : $run->status));
+        }
+
+        // What imports prepared and no run at work needs any more — the rest an import's own sweep had no time for (D-472).
+        $cleared = 0;
+
+        while (microtime(true) < $until && ($batch = VehicleImporter::clearStage()) > 0) {
+            $cleared += $batch;
+        }
+
+        if ($cleared > 0) {
+            $this->line(sprintf('work table: %d rows cleared', $cleared));
         }
 
         return self::SUCCESS;
