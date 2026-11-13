@@ -21,6 +21,7 @@ use App\Support\OrderLineLabel;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Twenty orders, covering every state the order machine can be in.
@@ -208,7 +209,9 @@ class CommerceSeeder extends Seeder
             $order = Order::query()->firstOrNew(['order_number' => $orderNumber]);
 
             if (! $order->exists) {
-                $order->forceFill(['origin' => Order::ORIGIN_SEEDED]);
+                // Its public id too (D-354): DatabaseSeeder runs WithoutModelEvents, so the model's own hook never
+                // gives it one here, and an order without it has no page (D-471).
+                $order->forceFill(['origin' => Order::ORIGIN_SEEDED, 'public_id' => (string) Str::uuid()]);
             }
 
             $order->fill(

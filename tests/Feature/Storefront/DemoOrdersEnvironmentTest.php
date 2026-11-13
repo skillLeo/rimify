@@ -53,3 +53,19 @@ it('seeds the demo orders locally', function (): void {
         expect(Order::query()->count())->toBeGreaterThan(0);
     });
 });
+
+it('gives every seeded order its public id, also where the seeding runs without model events (D-354, D-471)', function (): void {
+    seedInEnvironment('local', function (): void {
+        // DatabaseSeeder runs its seeders WithoutModelEvents: the order's own hook never fires there.
+        Order::withoutEvents(fn () => $this->seed(CommerceSeeder::class));
+
+        $ids = Order::query()->pluck('public_id');
+
+        expect($ids)->not->toBeEmpty()
+            ->and($ids->filter()->count())->toBe($ids->count())
+            ->and($ids->unique()->count())->toBe($ids->count());
+
+        // The order page opens by it, without signing in — the link the gate's QA follows.
+        $this->get('/bestellung/'.$ids->first())->assertOk();
+    });
+});
