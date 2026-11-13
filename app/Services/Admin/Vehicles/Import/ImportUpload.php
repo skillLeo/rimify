@@ -23,11 +23,15 @@ use Illuminate\Validation\ValidationException;
  */
 final class ImportUpload
 {
-    public const DIRECTORY = 'vehicle-imports';
-
     private const MAX_PART = 4 * 1024 * 1024;
 
     private const MIN_PART = 64 * 1024;
+
+    /** The run's file's folder on the private disk (config rimify.vehicle_import.directory). */
+    public static function directory(): string
+    {
+        return (string) config('rimify.vehicle_import.directory', 'vehicle-imports');
+    }
 
     /** The size of a part: half of what the host takes in one request, at most 4 MB — or what the configuration fixes. */
     public static function partBytes(): int
@@ -71,7 +75,7 @@ final class ImportUpload
             'bytes_done' => 0,
         ]);
 
-        $path = self::DIRECTORY.'/'.$import->id.'.upload';
+        $path = self::directory().'/'.$import->id.'.upload';
 
         if (! Storage::disk('local')->put($path, '')) {
             throw self::refuse('Auf dem Server lässt sich die Datei gerade nicht ablegen. Versuch es bitte später noch einmal.');

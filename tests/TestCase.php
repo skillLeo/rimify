@@ -42,6 +42,8 @@ abstract class TestCase extends BaseTestCase
             config([
                 'rimify.demo.wheels_dir' => config('rimify.demo.wheels_dir').'-'.$token,
                 'rimify.demo.placeholders_dir' => config('rimify.demo.placeholders_dir').'-'.$token,
+                // Every process's database begins at run #1: one folder each, or one test's file overwrites another's.
+                'rimify.vehicle_import.directory' => config('rimify.vehicle_import.directory').'-'.$token,
             ]);
         }
 

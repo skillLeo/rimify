@@ -210,7 +210,7 @@ it('reads a file as a stream: a file of 30 MB with memory for a few rows, not fo
 });
 
 it('reads Windows-1252 text, a UTF-8 byte order mark and an Excel workbook as before, each row under its own line', function (): void {
-    $dir = Storage::disk('local')->path('vehicle-imports-test');
+    $dir = Storage::disk('local')->path(ImportUpload::directory().'-test');
     @mkdir($dir, 0775, true);
 
     // Windows-1252: one byte for ä; the whole file is that, as the old reader decided it.
@@ -243,7 +243,7 @@ it('reads Windows-1252 text, a UTF-8 byte order mark and an Excel workbook as be
     }
     expect(iterator_to_array((new DatasetFile($first->state()))->records()))->toBe([3 => ['0005', 'ZA1']]);
 
-    Storage::disk('local')->deleteDirectory('vehicle-imports-test');
+    Storage::disk('local')->deleteDirectory(ImportUpload::directory().'-test');
 });
 
 it('imports all or nothing: an import stopped half-way leaves every car as it was and the Probelauf as it was shown', function (): void {

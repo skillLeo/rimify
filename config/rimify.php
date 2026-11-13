@@ -352,6 +352,9 @@ return [
     'vehicle_import' => [
         'part_bytes' => (int) env('RIMIFY_VEHICLE_IMPORT_PART_BYTES', 0),
         'progress_store' => env('RIMIFY_VEHICLE_IMPORT_PROGRESS_STORE', 'file'),
+        // Where a file lies on the private disk while its run reads it. Parallel tests take one each (TestCase): their
+        // databases all begin at run #1, and a shared folder let one test's file overwrite another's half-read.
+        'directory' => 'vehicle-imports',
     ],
 
     'gutachten' => [
