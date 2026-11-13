@@ -179,7 +179,7 @@ it('rests without Stripe keys: says so, succeeds, calls no Stripe and writes not
     expect($this->stripe->sent)->toBe([])
         ->and($this->bucket->allFiles())->toBe([])
         ->and(InvoiceExport::query()->count())->toBe(0)
-        ->and(AuditLog::query()->where('event', 'invoice_export.failed')->count())->toBe(0)
+        ->and(AuditLog::query()->where('description', 'invoice_export.failed')->count())->toBe(0)
         ->and(Cache::get(InvoicesExportS3Command::LAST_RUN)['without_stripe'] ?? null)->toBeTrue()
         ->and(collect(app(SystemHealth::class)->report()['checks'])->firstWhere('key', 'invoices'))
         ->toMatchArray(['state' => 'ok', 'sentence' => 'Keine Stripe-Schlüssel hinterlegt, also legt der Shop keine Stripe-Rechnungen an: Die Kopie nach S3 ist übersprungen. Sie läuft, sobald die Schlüssel unter Einstellungen › Zahlung stehen.']);

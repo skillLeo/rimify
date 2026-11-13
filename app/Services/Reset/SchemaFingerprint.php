@@ -20,13 +20,17 @@ use Illuminate\Database\Connection;
  */
 final class SchemaFingerprint
 {
-    public static function of(Connection $db): string
+    /**
+     * `$withoutHostIndexes` leaves out the host's own plain `wdbi_` indexes (HostIndexes, D-477) — asked for by the reset's
+     * check alone; every other caller sees every index.
+     */
+    public static function of(Connection $db, bool $withoutHostIndexes = false): string
     {
-        return hash('sha256', (string) json_encode(self::shape($db), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        return hash('sha256', (string) json_encode(self::shape($db, $withoutHostIndexes), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
     }
 
     /** @return array<string, list<string>> */
-    public static function shape(Connection $db): array
+    public static function shape(Connection $db, bool $withoutHostIndexes = false): array
     {
         $tables = array_map(
             static fn (object $r): string => (string) $r->t,
@@ -51,10 +55,13 @@ final class SchemaFingerprint
 
         $indexes = array_map(
             static fn (object $r): string => implode('|', [(string) $r->t, (string) $r->i, (string) $r->s, (string) $r->c, (string) $r->u, strtolower((string) $r->ty)]),
-            $db->select(
-                'SELECT TABLE_NAME AS t, INDEX_NAME AS i, SEQ_IN_INDEX AS s, COLUMN_NAME AS c, NON_UNIQUE AS u, INDEX_TYPE AS ty
-                 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX'
-            ),
+            array_values(array_filter(
+                $db->select(
+                    'SELECT TABLE_NAME AS t, INDEX_NAME AS i, SEQ_IN_INDEX AS s, COLUMN_NAME AS c, NON_UNIQUE AS u, INDEX_TYPE AS ty
+                     FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX'
+                ),
+                static fn (object $r): bool => ! $withoutHostIndexes || ! HostIndexes::is((string) $r->i, (int) $r->u === 1),
+            )),
         );
 
         $keys = array_map(
