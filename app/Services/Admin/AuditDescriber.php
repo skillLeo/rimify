@@ -11,6 +11,7 @@ use App\Enums\PermissionModule;
 use App\Models\AuditLog;
 use App\Models\TyreVariant;
 use App\Services\Admin\Approvals\CountFigures;
+use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Orders\OrderList;
 use App\Services\Content\NavigationSchema;
@@ -199,6 +200,7 @@ final class AuditDescriber
         'approval.condition_added' => 'gutachten',
         'approval.condition_changed' => 'gutachten',
         'approval.condition_removed' => 'gutachten',
+        'approval.code_deleted' => 'gutachten',
         'approval.condition_level_set' => 'gutachten',
         'conflict.decided' => 'gutachten',
         'approval.fastener_added' => 'gutachten',
@@ -687,6 +689,8 @@ final class AuditDescriber
             'approval.condition_added' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' angelegt.', []],
             'approval.condition_changed' => ['Im Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' geändert.', []],
             'approval.condition_removed' => ['Aus dem Auflagenverzeichnis von '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' entfernt.', []],
+            // Deleted everywhere (D-461): where it stood, as the person was shown before confirming.
+            'approval.code_deleted' => ['Aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' wurde der Code '.self::q(self::text($p, 'code') ?? '–').' überall gelöscht. '.DocumentConditions::usageSentence(self::text($p, 'code') ?? '–', ['combinations' => (int) ($p['combinations'] ?? 0), 'cars' => (int) ($p['cars'] ?? 0), 'rows' => (int) ($p['rows'] ?? 0), 'reworks' => (int) ($p['reworks'] ?? 0)]), []],
             // The level, not a look the shop would give it: a level moves only an answer's label (D-247, ADMIN-GEFUNDEN 512).
             'approval.condition_level_set' => [
                 'In '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' hat der Code '.self::q(self::text($p, 'code') ?? '–').' jetzt die Stufe '

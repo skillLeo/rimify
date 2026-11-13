@@ -9,9 +9,14 @@ use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\Vehicle;
 use App\Models\VehicleImport;
+use App\Models\VehicleImportRow;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\CatalogueImporter;
+use App\Services\Admin\Vehicles\Import\CheckCount;
+use App\Services\Admin\Vehicles\Import\ImportTally;
+use App\Services\Admin\Vehicles\Import\PlanChanged;
 use App\Support\CatalogueVersion;
+use App\Support\ColumnCollation;
 use App\Support\GermanFormat;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
@@ -39,13 +44,15 @@ use Illuminate\Validation\ValidationException;
  * axle loads or top speed waits under „Zur Prüfung“. Lochkreis is not asked for — a verdict comes from the Gutachten
  * naming the car, never from geometry.
  *
- * Applying checks the plan again first: if the cars changed since the Probelauf, nothing is written and a new
- * Probelauf is asked for. One transaction, one Protokoll entry for the run, and one per car the merge fills.
+ * A file of any size (D-462): the rows live in `vehicle_import_rows`, and the Probelauf decides them a batch at a time —
+ * first what a row is by itself (readRow(), while the file is read, with a second row under the same key refused there),
+ * then against the shop's cars (the key, then the dataset's number), then against the cars from a Gutachten, then the
+ * Gutachten cars several rows claim. Each step reads the cars as they are when it runs; the import plans everything
+ * again inside its own transaction and writes nothing when the plan no longer reads the way the Probelauf on screen
+ * did — one transaction, one Protokoll entry for the run, and one per car the merge fills.
  */
 final class VehicleImporter
 {
-    public const MAX_ROWS = CatalogueImporter::MAX_ROWS;
-
     public const CREATE = 'create';
 
     public const UPDATE = 'update';
@@ -57,6 +64,12 @@ final class VehicleImporter
     public const KEPT = 'kept';
 
     public const REFUSED = 'refused';
+
+    /** The outcomes a Probelauf ends with, in the order the counts are kept. */
+    public const OUTCOMES = [self::CREATE, self::UPDATE, self::UNCHANGED, self::MERGE, self::KEPT, self::REFUSED];
+
+    /** The rows one step of the work decides together: one query each for the cars they name. */
+    public const BATCH = 500;
 
     /** The sources an import may stamp, as the admin names the file's origin. */
     public const SOURCES = [
@@ -147,6 +160,13 @@ final class VehicleImporter
         'max_speed_kmh' => 'maxSpeedKmh',
     ];
 
+    /** The steps of the Probelauf after the file is read, as the page names them. */
+    public const STEP_CARS = 'Abgleich mit den Fahrzeugen im Shop';
+
+    public const STEP_GUTACHTEN = 'Abgleich mit den Fahrzeugen aus Gutachten';
+
+    public const STEP_WRITE = 'Fahrzeuge speichern';
+
     public function __construct(private readonly VehicleMerge $merge) {}
 
     /**
@@ -209,145 +229,169 @@ final class VehicleImporter
     }
 
     /**
-     * A Probelauf of a file: mapped (as given, or as the last import of this source had it, or by the column names),
-     * every row planned against the cars as they are now. Nothing is written to the cars.
+     * A row of the file under a mapping: the contract's fields as typed, and `_line`.
      *
-     * @param  array{name: string, format: string, sha256: string, headers: list<string>, rows: list<array<string, string>>}  $file
-     * @param  array<string, string>|null  $mapping
+     * @param  array<string, string>  $raw  header → cell
+     * @param  array<string, string>  $mapping  field → header
+     * @return array<string, string>
      */
-    public function preview(array $file, ?array $mapping, VehicleSource $source, AdminUser $admin): VehicleImport
+    public static function mapped(array $raw, array $mapping, int $line): array
     {
-        $mapping ??= self::guessMapping($file['headers'], VehicleImport::savedMapping($source));
+        $row = ['_line' => (string) $line];
 
-        $import = new VehicleImport([
-            'admin_user_id' => $admin->id,
-            'file_name' => mb_substr($file['name'], 0, 200),
-            'file_format' => $file['format'],
-            'file_sha256' => $file['sha256'],
-            'source' => $source->value,
-            'status' => VehicleImport::PREVIEWED,
-            'file' => ['headers' => $file['headers'], 'rows' => $file['rows']],
-        ]);
-
-        $this->evaluate($import, $mapping);
-        $import->save();
-
-        return $import;
-    }
-
-    /**
-     * The same file under another mapping, checked again — only while it is a Probelauf, asked under its lock: an
-     * imported run keeps the mapping it was imported with.
-     *
-     * @param  array<string, string>  $mapping
-     */
-    public function remap(VehicleImport $import, array $mapping): VehicleImport
-    {
-        return DB::transaction(function () use ($import, $mapping): VehicleImport {
-            $import = VehicleImport::query()->lockForUpdate()->findOrFail($import->id);
-
-            if ($import->status !== VehicleImport::PREVIEWED) {
-                throw ValidationException::withMessages(['import' => 'Diese Datei ist schon importiert. Ihre Zuordnung bleibt, wie sie war.']);
-            }
-
-            $this->evaluate($import, $mapping);
-            $import->save();
-
-            return $import;
-        });
-    }
-
-    /** @param  array<string, string>  $mapping */
-    private function evaluate(VehicleImport $import, array $mapping): void
-    {
-        $headers = $import->file['headers'];
-        $mapping = array_filter($mapping, static fn (string $header): bool => in_array($header, $headers, true));
-        $rows = [];
-
-        foreach ($import->file['rows'] as $raw) {
-            $row = ['_line' => (string) ($raw['_line'] ?? '')];
-
-            foreach (array_keys(self::FIELDS) as $field) {
-                $header = $mapping[$field] ?? null;
-                $row[$field] = $header === null ? '' : trim((string) ($raw[$header] ?? ''));
-            }
-
-            $rows[] = $row;
+        foreach (array_keys(self::FIELDS) as $field) {
+            $header = $mapping[$field] ?? null;
+            $row[$field] = $header === null ? '' : trim((string) ($raw[$header] ?? ''));
         }
 
-        [$plan, $summary] = self::missing($mapping, $headers) === [] ? $this->plan($rows, VehicleSource::from($import->source)) : [[], []];
-
-        $import->forceFill(['mapping' => $mapping, 'rows' => $rows, 'plan' => $plan, 'summary' => $summary]);
+        return $row;
     }
 
     /**
-     * Every row against the cars as they are now.
+     * What a row is by itself, while the file is read: refused with its reason — no key numbers, no name, a name too
+     * long for the table, a build window that does not read —, or waiting for the cars. `dup_key` keeps rows apart the
+     * way the shop does: HSN, TSN and the variant whatever its case.
      *
-     * @param  list<array<string, string>>  $rows  the contract's fields, as typed, and `_line`
-     * @return array{0: list<array<string, mixed>>, 1: array<string, int>}
+     * @param  array<string, string>  $row  the contract fields as typed, and `_line`
+     * @return array{car: DatasetVehicle, status: string, reason: string|null, label: string, keys: string|null, notes: list<string>, dup_key: string|null, number: int|null}
      */
-    public function plan(array $rows, VehicleSource $source): array
+    public static function readRow(array $row, VehicleSource $source): array
     {
-        $plan = [];
-        $seen = [];
-        $numbers = [];
-        $open = [];
-        $gaps = array_fill_keys(array_keys(self::GAPS), 0);
+        $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$row]);
+        // Without both key numbers the row has none to show: its reason says what is missing (the page shows „–“).
+        $keys = $car->hsn === null || $car->tsn === null ? null : GermanFormat::keyNumbers($car->hsn, $car->tsn);
+        $entry = ['car' => $car, 'status' => VehicleImportRow::PENDING, 'reason' => null, 'label' => mb_substr($car->label(), 0, 500), 'keys' => $keys, 'notes' => self::unread($row, $car), 'dup_key' => null, 'number' => $car->sourceVehicleId];
+
+        $reason = match (true) {
+            $car->hsn === null || $car->tsn === null => 'HSN oder TSN fehlt oder ist nicht lesbar. Die HSN hat vier Ziffern, die TSN drei Zeichen.',
+            $car->make === '' || $car->model === '' || $car->variant === '' => 'Hersteller, Modell oder Variante fehlt.',
+            // What the table would refuse is refused here, with its reason — never a run that fails at „Importieren“.
+            max(mb_strlen($car->make), mb_strlen($car->model), mb_strlen($car->variant), mb_strlen((string) $car->typeDesignation)) > 255 => 'Hersteller, Modell, Variante oder Fahrzeugtyp ist zu lang: höchstens 255 Zeichen.',
+            // The build window decides which Gutachten rows reach the car (R-02): read, or the row waits. An empty start or
+            // an unread end would be an open window — a car built at any time —, so neither is ever stored.
+            default => self::windowRefused($row, $car),
+        };
+
+        if ($reason !== null) {
+            return [...$entry, 'status' => self::REFUSED, 'reason' => $reason];
+        }
+
+        return [...$entry, 'dup_key' => sha1($car->hsn.'|'.$car->tsn.'|'.mb_strtolower($car->variant))];
+    }
+
+    /**
+     * A second row under a key an earlier row of the file carries is refused, with the earlier row's line — the earlier
+     * rows of the run read from the table, the batch's own from each other.
+     *
+     * @param  list<array<string, mixed>>  $rows  rows as readRow() decided them, each with its `line`, in the file's order
+     * @return list<array<string, mixed>>
+     */
+    public static function refuseDuplicates(VehicleImport $import, array $rows): array
+    {
+        $keys = array_values(array_unique(array_filter(array_column($rows, 'dup_key'))));
+
+        if ($keys === []) {
+            return $rows;
+        }
+
+        /** @var array<string, int> $seen */
+        $seen = $import->lines()->where('read_refused', false)->whereIn('dup_key', $keys)
+            ->groupBy('dup_key')->selectRaw('dup_key, MIN(line) AS first_line')->pluck('first_line', 'dup_key')
+            ->map(static fn (mixed $line): int => (int) $line)->all();
 
         foreach ($rows as $i => $row) {
-            $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$row]);
-            $line = (string) ($row['_line'] ?? $i + 2);
-            // Missing is blank or no number; a number outside its band is the third state, implausible (implausible()).
-            $gaps['without_speed'] += DatasetVehicle::whole($row['hoechstgeschwindigkeit_kmh'] ?? null) === null ? 1 : 0;
-            $gaps['without_axle'] += DatasetVehicle::whole($row['achslast_vorn_kg'] ?? null) === null || DatasetVehicle::whole($row['achslast_hinten_kg'] ?? null) === null ? 1 : 0;
-            $gaps['without_keys'] += $car->hsn === null || $car->tsn === null ? 1 : 0;
-            $gaps['without_eg'] += $car->egNumber === null ? 1 : 0;
-            // Without both key numbers the row has none to show: its reason says what is missing (the page shows „–“).
-            $keys = $car->hsn === null || $car->tsn === null ? null : GermanFormat::keyNumbers($car->hsn, $car->tsn);
-            $entry = ['line' => $line, 'label' => $car->label(), 'keys' => $keys, 'status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'notes' => self::unread($row, $car), 'reason' => null];
+            $key = $row['dup_key'] ?? null;
 
-            if ($car->hsn === null || $car->tsn === null) {
-                $plan[$i] = [...$entry, 'reason' => 'HSN oder TSN fehlt oder ist nicht lesbar. Die HSN hat vier Ziffern, die TSN drei Zeichen.'];
-
+            if ($key === null) {
                 continue;
             }
-
-            if ($car->make === '' || $car->model === '' || $car->variant === '') {
-                $plan[$i] = [...$entry, 'reason' => 'Hersteller, Modell oder Variante fehlt.'];
-
-                continue;
-            }
-
-            // What the table would refuse is refused here, with its reason — never a run that fails at „Importieren“.
-            if (max(mb_strlen($car->make), mb_strlen($car->model), mb_strlen($car->variant), mb_strlen((string) $car->typeDesignation)) > 255) {
-                $plan[$i] = [...$entry, 'reason' => 'Hersteller, Modell, Variante oder Fahrzeugtyp ist zu lang: höchstens 255 Zeichen.'];
-
-                continue;
-            }
-
-            // The build window decides which Gutachten rows reach the car (R-02): read, or the row waits. An empty start
-            // or an unread end would be an open window — a car built at any time —, so neither is ever stored.
-            $window = self::windowRefused($row, $car);
-
-            if ($window !== null) {
-                $plan[$i] = [...$entry, 'reason' => $window];
-
-                continue;
-            }
-
-            $key = $car->hsn.'|'.$car->tsn.'|'.mb_strtolower($car->variant);
 
             if (isset($seen[$key])) {
-                $plan[$i] = [...$entry, 'reason' => 'Doppelt in der Datei – gleiche HSN, TSN und Variante wie Zeile '.$seen[$key].'.'];
+                $rows[$i] = [...$row, 'status' => self::REFUSED, 'reason' => 'Doppelt in der Datei – gleiche HSN, TSN und Variante wie Zeile '.$seen[$key].'.'];
 
                 continue;
             }
 
-            $seen[$key] = $line;
-            $existing = Vehicle::withTrashed()->where('hsn', $car->hsn)->where('tsn', $car->tsn)->where('variant', $car->variant)->orderBy('id')->first();
+            $seen[$key] = (int) $row['line'];
+        }
 
-            if ($existing !== null) {
-                $plan[$i] = [...$entry, ...self::against($existing, $car, $source)];
+        return $rows;
+    }
+
+    /**
+     * One batch of the Probelauf's next step, against the cars as they are now — the cars by key and number, then the
+     * cars from a Gutachten, then the Gutachten cars several rows claim. Says which step, how many rows it decided and
+     * how many of them go on to the cars from a Gutachten — the caller counts, so no step counts the whole file again.
+     * False when every row is decided.
+     *
+     * `$after` is where each step stands: the last line it decided. Each batch is asked for from there on, never from the
+     * first line of its outcome again — inside the import's one transaction, the database keeps every row a step has
+     * already moved on in that outcome's index until the transaction ends, and a batch asked from the start walked past
+     * all of them again: half a million rows took a quarter of an hour (D-462).
+     *
+     * @param  array<string, int>  $after
+     * @return array{step: string, rows: int, open: int}|false
+     */
+    public function checkStep(VehicleImport $import, array &$after = []): array|false
+    {
+        $source = VehicleSource::from($import->source);
+
+        $pending = $import->lines()->where('status', VehicleImportRow::PENDING)->where('line', '>', $after[VehicleImportRow::PENDING] ?? 0)->orderBy('line')->limit(self::BATCH)->get();
+
+        if ($pending->isNotEmpty()) {
+            $after[VehicleImportRow::PENDING] = (int) $pending->last()->line;
+            $open = $this->againstCars($import, $pending->all(), $source);
+
+            return ['step' => self::STEP_CARS, 'rows' => $pending->count(), 'open' => $open];
+        }
+
+        $open = $import->lines()->where('status', VehicleImportRow::OPEN)->where('line', '>', $after[VehicleImportRow::OPEN] ?? 0)->orderBy('line')->limit(self::BATCH)->get();
+
+        if ($open->isNotEmpty()) {
+            $after[VehicleImportRow::OPEN] = (int) $open->last()->line;
+            $this->againstGutachten($open->all(), $source);
+
+            return ['step' => self::STEP_GUTACHTEN, 'rows' => $open->count(), 'open' => 0];
+        }
+
+        if ($import->lines()->where('status', VehicleImportRow::MATCHED)->exists()) {
+            $this->claims($import);
+
+            return ['step' => self::STEP_GUTACHTEN, 'rows' => 0, 'open' => 0];
+        }
+
+        return false;
+    }
+
+    /**
+     * Rows against the shop's cars: a car carrying the row's key decides it (against()); without one, the dataset's own
+     * number of the car must be free — in the shop, and among the rows before it.
+     *
+     * @param  list<VehicleImportRow>  $rows  in the file's order
+     * @return int the rows that go on to the cars from a Gutachten
+     */
+    private function againstCars(VehicleImport $import, array $rows, VehicleSource $source): int
+    {
+        $cars = [];
+
+        foreach ($rows as $row) {
+            $cars[$row->id] = DatasetVehicle::fromRow(['quelle' => $source->value, ...VehicleImportRow::fields($row->cells, $row->line)]);
+        }
+
+        $existing = self::carriers($cars);
+        $numbers = array_values(array_unique(array_filter(array_map(static fn (DatasetVehicle $car): ?int => $car->sourceVehicleId, array_diff_key($cars, $existing)))));
+        $holders = $numbers === [] ? collect() : Vehicle::withTrashed()->where('source', $source->value)->whereIn('source_vehicle_id', $numbers)->get()->keyBy('source_vehicle_id');
+        /** @var array<int, int> $earlier the dataset numbers rows before this batch claimed, and where */
+        $earlier = $numbers === [] ? [] : $import->lines()->where('status', VehicleImportRow::OPEN)->whereIn('number', $numbers)
+            ->groupBy('number')->selectRaw('number, MIN(line) AS first_line')->pluck('first_line', 'number')
+            ->mapWithKeys(static fn (mixed $line, mixed $number): array => [(int) $number => (int) $line])->all();
+        $updates = [];
+
+        foreach ($rows as $row) {
+            $car = $cars[$row->id];
+
+            if (isset($existing[$row->id])) {
+                $updates[$row->id] = self::against($existing[$row->id], $car, $source);
 
                 continue;
             }
@@ -355,57 +399,221 @@ final class VehicleImporter
             // The dataset's own number of the car: one car per number within its source, in the shop as in the file
             // (uq_vehicle_source_number) — another dataset counts its own cars.
             if ($car->sourceVehicleId !== null) {
-                $holder = Vehicle::withTrashed()->where('source', $source->value)->where('source_vehicle_id', $car->sourceVehicleId)->first();
+                $holder = $holders->get($car->sourceVehicleId);
 
-                if ($holder !== null || isset($numbers[$car->sourceVehicleId])) {
-                    $plan[$i] = [...$entry, 'reason' => $holder !== null
+                if ($holder !== null || isset($earlier[$car->sourceVehicleId])) {
+                    $updates[$row->id] = ['status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'reason' => $holder !== null
                         ? 'Die Nummer '.$car->sourceVehicleId.' aus dem Datensatz trägt schon ein Fahrzeug: '.self::name($holder).'.'
-                        : 'Die Nummer '.$car->sourceVehicleId.' aus dem Datensatz steht zweimal in der Datei, auch in Zeile '.$numbers[$car->sourceVehicleId].'.'];
+                        : 'Die Nummer '.$car->sourceVehicleId.' aus dem Datensatz steht zweimal in der Datei, auch in Zeile '.$earlier[$car->sourceVehicleId].'.'];
 
                     continue;
                 }
 
-                $numbers[$car->sourceVehicleId] = $line;
+                $earlier[$car->sourceVehicleId] = $row->line;
             }
 
             // No car carries the key: a car typed from a Gutachten may be this one (VehicleMerge decides), else it is new.
-            $open[$i] = $car;
-            $plan[$i] = $entry;
+            $updates[$row->id] = ['status' => VehicleImportRow::OPEN, 'vehicle' => null, 'changes' => [], 'reason' => null];
         }
 
-        $decided = $this->merge->plan(array_values($open));
+        self::write($updates);
 
-        foreach (array_keys($open) as $n => $i) {
-            $match = $decided[$n];
-            $plan[$i] = [...$plan[$i], ...match (true) {
-                // Matched, and every field the dataset gives is filled already: nothing to write.
-                $match['status'] === VehicleMerge::MATCHED && $match['fills'] === [] => ['status' => self::UNCHANGED, 'vehicle' => $match['vehicle']?->id],
-                $match['status'] === VehicleMerge::MATCHED => ['status' => self::MERGE, 'vehicle' => $match['vehicle']?->id, 'changes' => array_keys($match['fills']), 'reason' => self::mergedInto($match['vehicle'])],
-                $match['status'] === VehicleMerge::AMBIGUOUS => ['status' => self::REFUSED, 'reason' => (string) $match['reason']],
-                $match['status'] === VehicleMerge::KNOWN => ['status' => self::KEPT, 'reason' => 'Schon aus diesem Datensatz übernommen, unter anderer HSN, TSN oder Variante.'],
-                default => ['status' => self::CREATE],
-            }];
-        }
-
-        ksort($plan);
-        $plan = array_values($plan);
-        $summary = array_fill_keys([self::CREATE, self::UPDATE, self::UNCHANGED, self::MERGE, self::KEPT, self::REFUSED], 0);
-
-        foreach ($plan as $entry) {
-            $summary[$entry['status']]++;
-        }
-
-        $summary['unread'] = count(array_filter($plan, static fn (array $e): bool => $e['notes'] !== []));
-        $summary['rows'] = count($rows);
-
-        return [$plan, $summary + $gaps];
+        return count(array_filter($updates, static fn (array $u): bool => $u['status'] === VehicleImportRow::OPEN));
     }
 
     /**
-     * The file's gaps as the Probelauf shows them: each with its count and its share of the file's rows — every row,
-     * refused ones included, or a half-refused file would show flattering shares (the operator's rule of 20.10.2026).
-     * A gap read from a field without a column has no count, only `unmapped`: what was not read is not reported as
-     * missing. A run checked before the gaps were counted has none to show.
+     * For each car, the first car of the shop — removed ones among them (R-04) — that carries its HSN, TSN and variant,
+     * compared as the database compares them: one query for the batch, each key compared under the column's own
+     * collation, so a batch finds exactly what one `where()` per row found.
+     *
+     * @param  array<int, DatasetVehicle>  $cars  row id → car
+     * @return array<int, Vehicle> row id → the car that carries its key
+     */
+    private static function carriers(array $cars): array
+    {
+        if ($cars === []) {
+            return [];
+        }
+
+        $collate = ['hsn' => ColumnCollation::of('vehicles', 'hsn'), 'tsn' => ColumnCollation::of('vehicles', 'tsn'), 'variant' => ColumnCollation::of('vehicles', 'variant')];
+        $keys = [];
+        $bindings = [];
+
+        foreach ($cars as $id => $car) {
+            $keys[] = 'SELECT ? AS n, ? AS hsn, ? AS tsn, ? AS variant';
+            array_push($bindings, $id, (string) $car->hsn, (string) $car->tsn, $car->variant);
+        }
+
+        $found = DB::select(
+            'SELECT k.n AS n, MIN(v.id) AS id FROM ('.implode(' UNION ALL ', $keys).') AS k'
+            .' JOIN vehicles AS v ON v.hsn = k.hsn COLLATE '.$collate['hsn'].' AND v.tsn = k.tsn COLLATE '.$collate['tsn'].' AND v.variant = k.variant COLLATE '.$collate['variant']
+            .' GROUP BY k.n',
+            $bindings,
+        );
+
+        $ids = [];
+
+        foreach ($found as $hit) {
+            $ids[(int) $hit->n] = (int) $hit->id;
+        }
+
+        $vehicles = Vehicle::withTrashed()->whereIn('id', array_values(array_unique($ids)))->get()->keyBy('id');
+
+        return array_map(static fn (int $id): Vehicle => $vehicles->get($id), $ids);
+    }
+
+    /**
+     * Rows no shop car carries against the cars from a Gutachten (VehicleMerge): matched, ambiguous, known, or new.
+     * Which matches two rows claim is settled once every row is matched (claims()).
+     *
+     * @param  list<VehicleImportRow>  $rows
+     */
+    private function againstGutachten(array $rows, VehicleSource $source): void
+    {
+        $cars = array_map(static fn (VehicleImportRow $row): DatasetVehicle => DatasetVehicle::fromRow(['quelle' => $source->value, ...VehicleImportRow::fields($row->cells, $row->line)]), $rows);
+        $decided = $this->merge->decide($cars);
+        $updates = [];
+
+        foreach ($rows as $n => $row) {
+            $match = $decided[$n];
+            $updates[$row->id] = match (true) {
+                $match['status'] === VehicleMerge::MATCHED => ['status' => VehicleImportRow::MATCHED, 'vehicle' => $match['vehicle']?->id, 'changes' => [], 'reason' => null, 'fills' => $match['fills']],
+                $match['status'] === VehicleMerge::AMBIGUOUS => ['status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'reason' => (string) $match['reason']],
+                $match['status'] === VehicleMerge::KNOWN => ['status' => self::KEPT, 'vehicle' => null, 'changes' => [], 'reason' => 'Schon aus diesem Datensatz übernommen, unter anderer HSN, TSN oder Variante.'],
+                default => ['status' => self::CREATE, 'vehicle' => null, 'changes' => [], 'reason' => null],
+            };
+        }
+
+        self::write($updates);
+    }
+
+    /**
+     * The Gutachten cars once every row is matched: one claimed by several rows is a person's call, and every row that
+     * claims it is refused; a match with nothing to fill is unchanged, the others fill the car's empty fields.
+     */
+    private function claims(VehicleImport $import): void
+    {
+        $claimed = $import->lines()->where('status', VehicleImportRow::MATCHED)->groupBy('vehicle_id')
+            ->havingRaw('COUNT(*) > 1')->selectRaw('vehicle_id, COUNT(*) AS claims')->pluck('claims', 'vehicle_id');
+
+        foreach ($claimed as $vehicleId => $count) {
+            $vehicle = Vehicle::withTrashed()->find((int) $vehicleId) ?? new Vehicle;
+            $import->lines()->where('status', VehicleImportRow::MATCHED)->where('vehicle_id', (int) $vehicleId)
+                ->update(['status' => self::REFUSED, 'vehicle_id' => null, 'fills' => null, 'changes' => null, 'reason' => VehicleMerge::claimedBy((int) $count, $vehicle)]);
+        }
+
+        $import->lines()->where('status', VehicleImportRow::MATCHED)->chunkById(self::BATCH, function ($rows): void {
+            $vehicles = Vehicle::withTrashed()->whereIn('id', $rows->pluck('vehicle_id')->unique()->all())->get()->keyBy('id');
+            $updates = [];
+
+            foreach ($rows as $row) {
+                $fills = (array) ($row->fills ?? []);
+                // Matched, and every field the dataset gives is filled already: nothing to write.
+                $updates[$row->id] = $fills === []
+                    ? ['status' => self::UNCHANGED, 'vehicle' => $row->vehicle_id, 'changes' => [], 'reason' => null, 'fills' => null]
+                    : ['status' => self::MERGE, 'vehicle' => $row->vehicle_id, 'changes' => array_keys($fills), 'reason' => self::mergedInto($vehicles->get($row->vehicle_id)), 'fills' => null];
+            }
+
+            self::write($updates);
+        });
+    }
+
+    /**
+     * Each row's outcome, written in one statement per column for the batch, its values bound.
+     *
+     * @param  array<int, array{status: string, vehicle: int|null, changes: list<string>, reason: string|null, fills?: array<string, mixed>|null}>  $updates  row id → outcome
+     */
+    private static function write(array $updates): void
+    {
+        if ($updates === []) {
+            return;
+        }
+
+        $columns = [
+            'status' => static fn (array $u): string => $u['status'],
+            'vehicle_id' => static fn (array $u): ?int => $u['vehicle'],
+            'changes' => static fn (array $u): ?string => $u['changes'] === [] ? null : (string) json_encode($u['changes']),
+            'reason' => static fn (array $u): ?string => $u['reason'],
+            // A match with nothing to fill keeps no fills: claims() reads none as nothing to write.
+            'fills' => static fn (array $u): ?string => ($u['fills'] ?? []) === [] ? null : (string) json_encode($u['fills']),
+        ];
+        $sets = [];
+        $bindings = [];
+
+        foreach ($columns as $column => $value) {
+            $cases = [];
+
+            foreach ($updates as $id => $update) {
+                $cases[] = 'WHEN ? THEN ?';
+                array_push($bindings, $id, $value($update));
+            }
+
+            $sets[] = $column.' = CASE id '.implode(' ', $cases).' END';
+        }
+
+        $ids = array_keys($updates);
+        DB::update(
+            'UPDATE vehicle_import_rows SET '.implode(', ', $sets).' WHERE id IN ('.implode(', ', array_fill(0, count($ids), '?')).')',
+            [...$bindings, ...$ids],
+        );
+    }
+
+    /**
+     * The Probelauf's counts once every row is decided — per outcome, the rows with a figure it could not read, every
+     * row of the file, and what the file lacks — and the plan's fingerprint, read row by row in the file's order.
+     *
+     * @param  array<string, int>  $gaps  ImportTally::gaps()
+     * @return array{summary: array<string, int>, hash: string}
+     */
+    public function finish(VehicleImport $import, array $gaps): array
+    {
+        $counts = $import->lines()->groupBy('status')->selectRaw('status, COUNT(*) AS n')->pluck('n', 'status');
+        $summary = [];
+
+        foreach (self::OUTCOMES as $outcome) {
+            $summary[$outcome] = (int) ($counts[$outcome] ?? 0);
+        }
+
+        $summary['unread'] = $import->lines()->whereNotNull('notes')->count();
+        $summary['rows'] = $import->lines()->count();
+
+        return ['summary' => $summary + $gaps, 'hash' => self::planHash($import)];
+    }
+
+    /**
+     * fingerprint() of the whole plan, without holding it: the same bytes, written a row at a time.
+     */
+    public static function planHash(VehicleImport $import): string
+    {
+        $context = hash_init('sha256');
+        hash_update($context, '[');
+        $first = true;
+        $after = 0;
+
+        while (true) {
+            $rows = $import->lines()->where('line', '>', $after)->orderBy('line')->limit(2000)->get();
+
+            foreach ($rows as $row) {
+                hash_update($context, ($first ? '' : ',').json_encode(self::sortKeys($row->entry())));
+                $first = false;
+                $after = $row->line;
+            }
+
+            if ($rows->count() < 2000) {
+                break;
+            }
+        }
+
+        hash_update($context, ']');
+
+        return hash_final($context);
+    }
+
+    /**
+     * The gaps as the Probelauf shows them: each with its count and its share of the file's rows — every row, refused
+     * ones included, or a half-refused file would show flattering shares (the operator's rule of 20.10.2026). A gap read
+     * from a field without a column has no count, only `unmapped`: what was not read is not reported as missing. A run
+     * checked before the gaps were counted has none to show.
      *
      * @param  array<string, mixed>  $summary
      * @param  array<string, string>  $mapping  the run's mapping, field → header
@@ -446,7 +654,7 @@ final class VehicleImporter
      * @param  array<string, string>  $mapping
      * @param  list<string>  $headers
      */
-    private static function unmapped(array $fields, array $mapping, array $headers): ?string
+    public static function unmapped(array $fields, array $mapping, array $headers): ?string
     {
         $unread = array_values(array_filter($fields, static fn (string $field): bool => ! in_array($mapping[$field] ?? null, $headers, true), ARRAY_FILTER_USE_KEY));
 
@@ -578,7 +786,7 @@ final class VehicleImporter
      *
      * @return array<string, array{min: int, max: int, unit: string, what: string}>
      */
-    private static function bands(): array
+    public static function bands(): array
     {
         $axle = ['min' => DatasetVehicle::AXLE_MIN_KG, 'max' => DatasetVehicle::AXLE_MAX_KG, 'unit' => 'kg', 'what' => 'eine Achslast'];
 
@@ -590,12 +798,12 @@ final class VehicleImporter
     }
 
     /** @param  array{min: int, max: int, unit: string, what: string}  $band */
-    private static function expected(array $band): string
+    public static function expected(array $band): string
     {
         return 'Erwartet für '.$band['what'].': '.GermanFormat::integer($band['min']).' bis '.self::figure($band['max'], $band['unit']);
     }
 
-    private static function figure(int $value, string $unit): string
+    public static function figure(int $value, string $unit): string
     {
         return GermanFormat::integer($value).GermanFormat::NBSP.$unit;
     }
@@ -605,7 +813,8 @@ final class VehicleImporter
      * not as what its field can be. A column mapped to the wrong column reads fine row by row — 8.1 on the total mass,
      * say — and only such a check shows it. Each check says what was read and what was expected, with up to three rows,
      * never what his file contains. None refuses a row or blocks the import: the fix is a mapping, not the data. A check
-     * that could run on no row says so instead of a nought (docs/dev/TEST-SMELLS.md, 2).
+     * that could run on no row says so instead of a nought (docs/dev/TEST-SMELLS.md, 2). Counted as the file is read
+     * (ImportTally); this is the same count over rows held in hand.
      *
      * @param  list<array<string, string>>  $rows  the contract's fields, as typed, and `_line`
      * @param  array<string, string>  $mapping  field → header
@@ -614,153 +823,17 @@ final class VehicleImporter
      */
     public static function implausible(array $rows, array $mapping, array $headers): array
     {
-        if ($rows === []) {
-            return [];
-        }
-
-        $bands = self::bands();
-        $axles = ['achslast_vorn_kg' => '8.1', 'achslast_hinten_kg' => '8.2'];
-        $lineOf = static fn (array $row, int $i): string => 'Zeile '.($row['_line'] ?? (string) ($i + 2));
-        $out = [];
-
-        // Each axle load on its own against what an axle load can be.
-        [$count, $checked, $examples] = [0, 0, []];
+        $tally = ImportTally::start();
 
         foreach ($rows as $i => $row) {
-            $read = 0;
-            $odd = [];
-
-            foreach ($axles as $field => $number) {
-                $value = DatasetVehicle::whole($row[$field] ?? null);
-
-                if ($value === null) {
-                    continue;
-                }
-
-                $read++;
-
-                if (! self::inBand($value, $bands[$field])) {
-                    $odd[] = self::figure($value, 'kg').' ('.$number.')';
-                }
-            }
-
-            $checked += $read > 0 ? 1 : 0;
-
-            if ($odd !== []) {
-                $count++;
-                $examples[] = $lineOf($row, $i).': Gelesen: '.implode(', ', $odd);
-            }
+            $tally->add($row, $i);
         }
 
-        $out[] = self::check(
-            'axle_range',
-            'Achslast vorn oder hinten (8.1 oder 8.2)',
-            self::expected($bands['achslast_vorn_kg']).'.',
-            self::unmapped($axles, $mapping, $headers),
-            $count,
-            $checked,
-            $examples,
-            // Over no row, „in keiner Zeile“ would be a pass nobody checked (docs/dev/TEST-SMELLS.md, 2).
-            $checked === 0 ? 'Nicht geprüft: keine Zeile, in der eine Achslast gelesen wurde.' : null,
-        );
-
-        // 8.1 equal to 8.2 in every row: two columns read as one, or the same column mapped twice.
-        $pairs = [];
-
-        foreach ($rows as $i => $row) {
-            $front = DatasetVehicle::whole($row['achslast_vorn_kg'] ?? null);
-            $rear = DatasetVehicle::whole($row['achslast_hinten_kg'] ?? null);
-
-            if ($front !== null && $rear !== null) {
-                $pairs[] = ['line' => $lineOf($row, $i), 'front' => $front, 'rear' => $rear];
-            }
-        }
-
-        $same = count($pairs) >= self::SAME_MIN_ROWS && array_filter($pairs, static fn (array $p): bool => $p['front'] !== $p['rear']) === [];
-        $column = $mapping['achslast_vorn_kg'] ?? null;
-        $sameColumn = $column !== null && $column === ($mapping['achslast_hinten_kg'] ?? null);
-        $out[] = self::check(
-            'axle_same',
-            'Achslast vorn gleich hinten (8.1 = 8.2) in jeder geprüften Zeile',
-            'Erwartet: mindestens eine Zeile mit verschiedenen Werten vorn und hinten.',
-            self::unmapped($axles, $mapping, $headers),
-            $same ? count($pairs) : 0,
-            count($pairs),
-            $same ? [
-                ...($sameColumn ? ['Die Spalte „'.$column.'“ ist sowohl 8.1 als auch 8.2 zugeordnet.'] : []),
-                ...array_map(static fn (array $p): string => $p['line'].': Gelesen: '.self::figure($p['front'], 'kg').' und '.self::figure($p['rear'], 'kg'), $pairs),
-            ] : [],
-            count($pairs) < self::SAME_MIN_ROWS ? 'Nicht geprüft: Dafür sind mindestens '.self::SAME_MIN_ROWS.' Zeilen nötig, in denen beide Achslasten gelesen wurden.' : null,
-        );
-
-        // 8.1 plus 8.2 against the car's own total mass, where both axle loads are believable and the mass is read.
-        [$count, $checked, $examples] = [0, 0, []];
-
-        foreach ($rows as $i => $row) {
-            $front = DatasetVehicle::whole($row['achslast_vorn_kg'] ?? null);
-            $rear = DatasetVehicle::whole($row['achslast_hinten_kg'] ?? null);
-            $mass = DatasetVehicle::whole($row['gesamtmasse_kg'] ?? null);
-
-            if ($front === null || $rear === null || $mass === null || $mass === 0 || ! self::inBand($front, $bands['achslast_vorn_kg']) || ! self::inBand($rear, $bands['achslast_hinten_kg'])) {
-                continue;
-            }
-
-            $checked++;
-            $percent = ($front + $rear) / $mass * 100;
-
-            if ($percent < self::SUM_MIN_PERCENT || $percent > self::SUM_MAX_PERCENT) {
-                $count++;
-                $examples[] = $lineOf($row, $i).': Gelesen: '.self::figure($front, 'kg').' + '.self::figure($rear, 'kg').' = '.self::figure($front + $rear, 'kg')
-                    // One decimal: a flagged 140,4 % must never read as the 140 % the band allows.
-                    .' bei '.self::figure($mass, 'kg').' Gesamtmasse ('.GermanFormat::percent($percent, false).')';
-            }
-        }
-
-        $out[] = self::check(
-            'axle_sum',
-            'Achslast vorn plus hinten (8.1 + 8.2) im Verhältnis zur zulässigen Gesamtmasse (F.2)',
-            'Erwartet: '.self::SUM_MIN_PERCENT.' bis '.GermanFormat::percent(self::SUM_MAX_PERCENT, false).' der zulässigen Gesamtmasse.',
-            self::unmapped([...$axles, 'gesamtmasse_kg' => 'F.2'], $mapping, $headers),
-            $count,
-            $checked,
-            $examples,
-            $checked === 0 ? 'Nicht geprüft: keine Zeile, in der eine Gesamtmasse gelesen wurde und beide Achslasten im erwarteten Bereich liegen.' : null,
-        );
-
-        // The top speed against the band the customer's papers form holds it to.
-        [$count, $checked, $examples] = [0, 0, []];
-
-        foreach ($rows as $i => $row) {
-            $speed = DatasetVehicle::whole($row['hoechstgeschwindigkeit_kmh'] ?? null);
-
-            if ($speed === null) {
-                continue;
-            }
-
-            $checked++;
-
-            if (! self::inBand($speed, $bands['hoechstgeschwindigkeit_kmh'])) {
-                $count++;
-                $examples[] = $lineOf($row, $i).': Gelesen: '.self::figure($speed, 'km/h');
-            }
-        }
-
-        $out[] = self::check(
-            'speed_range',
-            'Höchstgeschwindigkeit (T)',
-            self::expected($bands['hoechstgeschwindigkeit_kmh']).'.',
-            self::unmapped(['hoechstgeschwindigkeit_kmh' => 'T'], $mapping, $headers),
-            $count,
-            $checked,
-            $examples,
-            $checked === 0 ? 'Nicht geprüft: keine Zeile, in der eine Höchstgeschwindigkeit gelesen wurde.' : null,
-        );
-
-        return $out;
+        return $tally->checks($mapping, $headers);
     }
 
     /** @param  array{min: int, max: int, unit: string, what: string}  $band */
-    private static function inBand(int $value, array $band): bool
+    public static function inBand(int $value, array $band): bool
     {
         return $value >= $band['min'] && $value <= $band['max'];
     }
@@ -772,7 +845,7 @@ final class VehicleImporter
      * @param  list<string>  $examples
      * @return array{key: string, label: string, expected: string, count: int|null, checked: int, examples: list<string>, unmapped: string|null, unchecked: string|null}
      */
-    private static function check(string $key, string $label, string $expected, ?string $unmapped, int $count, int $checked, array $examples, ?string $unchecked = null): array
+    public static function check(string $key, string $label, string $expected, ?string $unmapped, int $count, int $checked, array $examples, ?string $unchecked = null): array
     {
         $counted = $unmapped === null && $unchecked === null;
 
@@ -794,71 +867,119 @@ final class VehicleImporter
     }
 
     /**
-     * Writes the Probelauf, planned again first: a plan that no longer reads the way it did is not applied.
+     * Writes the Probelauf: inside one transaction, the plan is made again from the file's rows against the cars as
+     * they are now, and nothing is written when it no longer reads the way the Probelauf did (PlanChanged) — the
+     * transaction then gives back the Probelauf's own rows. A run stopped half-way writes nothing at all.
      *
-     * All of it under the run's own lock and inside one transaction: a second click, or a second tab, waits for the
-     * first and then finds the file imported — never a car written twice. `$shown` is the fingerprint of the Probelauf
-     * on the person's screen: what is imported is what they saw, not one another tab has checked since.
+     * `$progress` hears how far the work is, from outside the transaction (VehicleImportWork).
+     *
+     * @param  (callable(string, int, int): void)|null  $progress
      */
-    public function apply(VehicleImport $import, AdminUser $admin, ?string $shown = null): VehicleImport
+    public function apply(VehicleImport $import, AdminUser $admin, ?callable $progress = null): VehicleImport
     {
-        return DB::transaction(function () use ($import, $admin, $shown): VehicleImport {
-            $import = VehicleImport::query()->lockForUpdate()->findOrFail($import->id);
+        $progress ??= static function (string $step, int $done, int $total): void {};
 
-            if ($import->status !== VehicleImport::PREVIEWED) {
-                throw ValidationException::withMessages(['import' => 'Diese Datei ist schon importiert.']);
-            }
+        return DB::transaction(function () use ($import, $admin, $progress): VehicleImport {
+            $import = VehicleImport::query()->findOrFail($import->id);
+            $source = VehicleSource::from($import->source);
 
-            if (self::missing($import->mapping, $import->file['headers']) !== []) {
+            if (self::missing((array) $import->mapping, $import->headers()) !== []) {
                 throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und wähl „Neu prüfen“.']);
             }
 
-            if ($shown !== null && ! hash_equals(self::fingerprint($import->plan), $shown)) {
-                throw ValidationException::withMessages(['import' => 'Der Probelauf wurde geändert, seit du diese Seite geöffnet hast. Lad die Seite neu und prüf ihn, bevor du importierst.']);
+            // The plan again, from what each row is by itself, against the cars as they are now.
+            $eligible = $import->lines()->where('read_refused', false)->update(['status' => VehicleImportRow::PENDING, 'vehicle_id' => null, 'changes' => null, 'fills' => null, 'reason' => null]);
+            $count = new CheckCount($eligible);
+            $after = [];
+
+            while (($step = $this->checkStep($import, $after)) !== false) {
+                $shown = $count->add($step);
+                $progress('Noch einmal prüfen: '.$shown['step'], $shown['done'], $shown['total']);
             }
 
-            $source = VehicleSource::from($import->source);
-            [$plan, $summary] = $this->plan($import->rows, $source);
+            $finished = $this->finish($import, array_intersect_key((array) $import->summary, self::GAPS));
 
-            if (self::fingerprint($plan) !== self::fingerprint($import->plan)) {
-                throw ValidationException::withMessages(['import' => 'Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.']);
+            if ($import->plan_hash === null || ! hash_equals($import->plan_hash, $finished['hash'])) {
+                throw new PlanChanged('Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.');
             }
+
+            $summary = $finished['summary'];
 
             if ($summary[self::CREATE] + $summary[self::UPDATE] + $summary[self::MERGE] === 0) {
                 throw ValidationException::withMessages(['import' => 'Der Probelauf hat nichts zu importieren gefunden.']);
             }
 
-            $merges = [];
             // An imported car carries a number of its own (chk_veh_export_id_from_source): the file's, or one past the
             // highest of its source and of the file — read under a lock, so two imports never hand out the same, and
             // never one a row of this file brings itself.
-            $numbered = array_filter(array_map(static fn (array $row): ?int => DatasetVehicle::fromRow(['quelle' => $source->value, ...$row])->sourceVehicleId, $import->rows));
-            $next = max((int) Vehicle::withTrashed()->where('source', $source->value)->lockForUpdate()->max('source_vehicle_id'), $numbered === [] ? 0 : max($numbered)) + 1;
+            $next = max((int) Vehicle::withTrashed()->where('source', $source->value)->lockForUpdate()->max('source_vehicle_id'), (int) $import->lines()->max('number')) + 1;
+            $total = $summary[self::CREATE] + $summary[self::UPDATE] + $summary[self::MERGE];
+            $done = 0;
+            $merges = [];
+            $after = 0;
+            $now = now();
 
-            foreach ($plan as $n => $entry) {
-                $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$import->rows[$n]]);
+            // Down the file by its line — the run's own unique index —, a batch at a time: asked by three outcomes at once,
+            // the database sorted every remaining row again for each batch, and half a million rows took over an hour.
+            while (true) {
+                $rows = $import->lines()->where('line', '>', $after)->orderBy('line')->limit(self::BATCH)->get();
 
-                if ($entry['status'] === self::CREATE) {
-                    $values = self::row($car);
-                    Vehicle::query()->create([
-                        ...$values,
-                        'hsn' => $car->hsn,
-                        'tsn' => $car->tsn,
-                        'variant' => $car->variant,
-                        'source' => $source->value,
-                        'source_vehicle_id' => $car->sourceVehicleId ?? $next++,
-                        'imported_at' => now(),
-                        'needs_review' => ! self::complete($values),
-                        'raw' => ['import' => ['file' => $import->file_name, 'line' => $entry['line'], 'row' => $import->rows[$n]]],
-                    ]);
-                } elseif ($entry['status'] === self::UPDATE) {
-                    $vehicle = Vehicle::query()->lockForUpdate()->findOrFail((int) $entry['vehicle']);
-                    $vehicle->forceFill(self::changes($vehicle, $car) + ['imported_at' => now()]);
-                    $vehicle->needs_review = ! self::complete($vehicle->only(['axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh']));
-                    $vehicle->save();
-                } elseif ($entry['status'] === self::MERGE) {
-                    $merges[] = $car;
+                if ($rows->isEmpty()) {
+                    break;
                 }
+
+                $after = (int) $rows->last()->line;
+                $rows = $rows->filter(static fn (VehicleImportRow $row): bool => in_array($row->status, [self::CREATE, self::UPDATE, self::MERGE], true));
+
+                if ($rows->isEmpty()) {
+                    continue;
+                }
+
+                $creates = [];
+                $updates = [];
+
+                foreach ($rows as $row) {
+                    $fields = VehicleImportRow::fields($row->cells, $row->line);
+                    $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$fields]);
+
+                    if ($row->status === self::CREATE) {
+                        $values = self::row($car);
+                        $vehicle = new Vehicle([
+                            ...$values,
+                            'hsn' => $car->hsn,
+                            'tsn' => $car->tsn,
+                            'variant' => $car->variant,
+                            'source' => $source->value,
+                            'source_vehicle_id' => $car->sourceVehicleId ?? $next++,
+                            'imported_at' => $now,
+                            'needs_review' => ! self::complete($values),
+                            'raw' => ['import' => ['file' => $import->file_name, 'line' => (string) $row->line, 'row' => $fields]],
+                        ]);
+                        $vehicle->setCreatedAt($now)->setUpdatedAt($now);
+                        $attributes = $vehicle->getAttributes();
+                        ksort($attributes);
+                        $creates[] = $attributes;
+                    } elseif ($row->status === self::UPDATE) {
+                        $updates[(int) $row->vehicle_id] = $car;
+                    } else {
+                        $merges[] = $car;
+                    }
+                }
+
+                if ($creates !== []) {
+                    Vehicle::query()->insert($creates);
+                }
+
+                if ($updates !== []) {
+                    foreach (Vehicle::query()->lockForUpdate()->whereIn('id', array_keys($updates))->orderBy('id')->get() as $vehicle) {
+                        $vehicle->forceFill(self::changes($vehicle, $updates[$vehicle->id]) + ['imported_at' => $now]);
+                        $vehicle->needs_review = ! self::complete($vehicle->only(['axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh']));
+                        $vehicle->save();
+                    }
+                }
+
+                $done += $rows->count();
+                $progress(self::STEP_WRITE, $done, $total);
             }
 
             // The Gutachten cars: through the merge itself, so it fills only empty fields and writes its own Protokoll.
@@ -866,8 +987,8 @@ final class VehicleImporter
                 $this->merge->apply($this->merge->plan($merges), $admin);
             }
 
-            $import->forceFill(['status' => VehicleImport::APPLIED, 'applied_at' => now(), 'applied_by' => $admin->id, 'plan' => $plan, 'summary' => $summary])->save();
-            VehicleImport::rememberMapping($source, $import->mapping);
+            $import->forceFill(['status' => VehicleImport::APPLIED, 'applied_at' => now(), 'applied_by' => $admin->id, 'summary' => $summary, 'error' => null])->save();
+            VehicleImport::rememberMapping($source, (array) $import->mapping);
 
             AuditTrail::record($admin, 'vehicle.import_applied', [
                 'file' => $import->file_name,
@@ -909,24 +1030,26 @@ final class VehicleImporter
 
     /**
      * A plan as it reads, whatever order a JSON column keeps object keys in — MySQL sorts them on storing, MariaDB does
-     * not —, as the catalogue's import compares its own (CatalogueImporter::fingerprint).
+     * not —, as the catalogue's import compares its own (CatalogueImporter::fingerprint). planHash() writes the same
+     * bytes a row at a time.
      *
      * @param  list<array<string, mixed>>  $plan
      */
     public static function fingerprint(array $plan): string
     {
-        $sorted = static function (mixed $value) use (&$sorted): mixed {
-            if (! is_array($value)) {
-                return $value;
-            }
+        return hash('sha256', (string) json_encode(self::sortKeys($plan)));
+    }
 
-            if (! array_is_list($value)) {
-                ksort($value);
-            }
+    private static function sortKeys(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
 
-            return array_map($sorted, $value);
-        };
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
 
-        return hash('sha256', (string) json_encode($sorted($plan)));
+        return array_map(self::sortKeys(...), $value);
     }
 }

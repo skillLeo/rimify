@@ -12,6 +12,7 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
 use App\Models\DocumentConditionRework;
+use App\Services\Admin\Approvals\Entry\EntryModel;
 use App\Services\Admin\AuditTrail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +23,8 @@ use Illuminate\Validation\ValidationException;
  *
  * Nothing is classified here: the kind decides what a customer is told, so a person chooses it for every
  * code. A pasted legend block is split in the browser (splitLegend) and stored only as the person confirmed it.
- * A code a row still carries is never taken away — the row would lose its sentence.
+ * A code a row still carries is not taken away by delete() — the row would lose its sentence without a word. Taken away
+ * everywhere it is only by deleteEverywhere(), after the person was shown where it stands (D-461).
  *
  * @phpstan-type ConditionInput array{code: string, kind: string, text_de: string, source_page: int|null, body_forms: list<string>|null, drive: array{mode: string, drive: string}|null, max_axle_load_kg: int|null, axle: string|null, shop_colour?: string}
  */
@@ -65,6 +67,9 @@ final class DocumentConditions
     public const IN_USE = 'Dieser Code steht noch in Zeilen des Verwendungsbereichs. Nimm ihn dort zuerst heraus.';
 
     public const HAS_REWORKS = 'Zu diesem Code stehen Maße der Nacharbeit. Nimm sie unter „Befestigung und Hinweise“ zuerst heraus.';
+
+    /** Said when a code was used elsewhere since the question was asked: asked again, never deleted over (D-461). */
+    public const USES_MOVED = 'Der Code wird inzwischen an anderer Stelle verwendet als eben angezeigt. Sieh dir die Zahl noch einmal an und bestätige erneut.';
 
     /** @param ConditionInput $input */
     public function create(ApprovalDocument $document, array $input, AdminUser $admin): DocumentCondition
@@ -192,6 +197,114 @@ final class DocumentConditions
             ->count();
 
         return $rows + $sizes;
+    }
+
+    /**
+     * Where a code of this paper stands — what „überall löschen“ takes it from (the client's request of 12.11.2026, G; D-461): the
+     * combinations of step 4 (every line of a car is one, „+ Kombination“; its codes are what the person typed beside it), the cars'
+     * „Allgemeine Codes“ (and the cells they stood on before D-452), rows not entered through the five steps, and the code's rework
+     * measurements. What the steps write from these — the combination list, the rows — is not counted a second time.
+     *
+     * @return array{combinations: int, cars: int, rows: int, reworks: int}
+     */
+    public static function usage(ApprovalDocument $document, string $code): array
+    {
+        $id = (int) $document->id;
+        $condition = DocumentCondition::query()->where('approval_document_id', $id)->where('code', $code)->first();
+        $cars = DB::table('document_vehicle_codes')->where('approval_document_id', $id)->where('code', $code)->distinct()->count('car_key')
+            + DB::table('document_car_entry_codes as ec')->join('document_car_entries as e', 'e.id', '=', 'ec.document_car_entry_id')
+                ->where('e.approval_document_id', $id)->where('ec.code', $code)->count();
+
+        $entered = EntryModel::of($document)->isEntered();
+
+        return [
+            'combinations' => $entered
+                ? DB::table('document_tyre_line_codes as lc')
+                    ->join('document_tyre_lines as l', 'l.id', '=', 'lc.document_tyre_line_id')
+                    ->join('document_car_entries as e', 'e.id', '=', 'l.document_car_entry_id')
+                    ->where('e.approval_document_id', $id)->where('lc.code', $code)->count()
+                // A paper not entered through the steps: its own combination list (D-256) is what was typed.
+                : DB::table('document_tyre_combination_conditions as c')
+                    ->join('document_tyre_combinations as t', 't.id', '=', 'c.document_tyre_combination_id')
+                    ->where('t.approval_document_id', $id)->where('c.code', $code)
+                    ->distinct()->count('c.document_tyre_combination_id'),
+            'cars' => $cars,
+            'rows' => $entered ? 0 : self::usesByCode($document)[$code] ?? 0,
+            'reworks' => $condition === null ? 0 : DocumentConditionRework::query()->where('document_condition_id', $condition->id)->count(),
+        ];
+    }
+
+    /**
+     * Where a code stands, as the question before deleting it says it: „„68B“ wird in 6 Kombinationen und in den „Allgemeinen Codes“
+     * von 2 Fahrzeugen verwendet.“ — in the words step 4 uses for those places.
+     *
+     * @param  array{combinations: int, cars: int, rows: int, reworks: int}  $uses
+     */
+    public static function usageSentence(string $code, array $uses): string
+    {
+        $count = static fn (int $n, string $one, string $many): string => $n === 1 ? "1 {$one}" : "{$n} {$many}";
+        $parts = array_values(array_filter([
+            $uses['combinations'] > 0 ? 'in '.$count($uses['combinations'], 'Kombination', 'Kombinationen') : null,
+            $uses['cars'] > 0 ? 'in den „Allgemeinen Codes“ von '.$count($uses['cars'], 'Fahrzeug', 'Fahrzeugen') : null,
+            $uses['rows'] > 0 ? 'in '.$count($uses['rows'], 'Zeile', 'Zeilen').' des Verwendungsbereichs' : null,
+        ]));
+
+        $where = $parts === []
+            ? "„{$code}“ wird in diesem Gutachten nirgends verwendet."
+            : "„{$code}“ wird ".(count($parts) === 1 ? $parts[0] : implode(', ', array_slice($parts, 0, -1)).' und '.$parts[count($parts) - 1]).' verwendet.';
+
+        return $uses['reworks'] > 0
+            ? $where.($uses['reworks'] === 1 ? ' Mit dem Code geht 1 Maß der Nacharbeit.' : ' Mit dem Code gehen '.$uses['reworks'].' Maße der Nacharbeit.')
+            : $where;
+    }
+
+    /**
+     * A code taken out of this paper everywhere — the places usage() names, and its line in the Auflagenverzeichnis — on a draft
+     * only: a released paper changes through a new Fassung and the release door, as every edit (ApprovalDocumentPolicy::update).
+     * The person was shown where it stands first; $seen is that count, and a count that moved since is asked again, never deleted
+     * over. Orders keep their frozen proof (R-12): nothing here touches them. One Protokoll entry, with every count.
+     *
+     * @param  array{combinations: int, cars: int, rows: int, reworks: int}  $seen
+     * @return array{combinations: int, cars: int, rows: int, reworks: int}
+     */
+    public function deleteEverywhere(ApprovalDocument $document, string $code, array $seen, AdminUser $admin): array
+    {
+        return DB::transaction(function () use ($document, $code, $seen, $admin): array {
+            // One at a time per paper: a second tab deleting the same code waits, then finds it gone and the count moved.
+            ApprovalDocument::query()->whereKey($document->id)->lockForUpdate()->first();
+            $uses = self::usage($document, $code);
+
+            if ($uses !== $seen) {
+                throw ValidationException::withMessages(['code' => self::USES_MOVED]);
+            }
+
+            $id = (int) $document->id;
+            $entries = DB::table('document_car_entries')->where('approval_document_id', $id)->select('id');
+
+            DB::table('document_tyre_combination_conditions')->where('code', $code)
+                ->whereIn('document_tyre_combination_id', DB::table('document_tyre_combinations')->where('approval_document_id', $id)->select('id'))->delete();
+            DB::table('document_tyre_line_codes')->where('code', $code)
+                ->whereIn('document_tyre_line_id', DB::table('document_tyre_lines')->whereIn('document_car_entry_id', $entries)->select('id'))->delete();
+            DB::table('document_car_entry_codes')->where('code', $code)->whereIn('document_car_entry_id', $entries)->delete();
+            DB::table('document_vehicle_codes')->where('approval_document_id', $id)->where('code', $code)->delete();
+            // Rows not entered through the steps carry their codes themselves; entered ones are written again below.
+            DB::table('fitment_conditions')->where('code', $code)
+                ->whereIn('fitment_id', DB::table('fitments')->where('approval_document_id', $id)->select('id'))->delete();
+            DB::table('fitment_tyre_size_conditions')->where('code', $code)
+                ->whereIn('fitment_tyre_size_id', DB::table('fitment_tyre_sizes as s')->join('fitments as f', 'f.id', '=', 's.fitment_id')->where('f.approval_document_id', $id)->select('s.id'))->delete();
+
+            $condition = DocumentCondition::query()->where('approval_document_id', $id)->where('code', $code)->first();
+
+            if ($condition !== null) {
+                DocumentConditionRework::query()->where('document_condition_id', $condition->id)->delete();
+                $condition->delete();
+            }
+
+            AuditTrail::record($admin, 'approval.code_deleted', ['document' => FitmentRows::label($document), 'code' => $code, ...$uses], $document);
+            FitmentRows::refreshEntry($document);
+
+            return $uses;
+        });
     }
 
     /**

@@ -583,6 +583,61 @@ describe('text typed into something that closes', () => {
     })
 })
 
+describe('a code deleted from the whole paper (D-461)', () => {
+    it('says where it stands before deleting it everywhere, and sends the count it showed', async () => {
+        const { router } = await import('@inertiajs/vue3')
+        page.props.conditions = [{ id: 1, code: '68B', kind: 'hinweis', kindLabel: 'Hinweis', text: 'Text', level: 'hinweis' }]
+        const uses = { combinations: 6, cars: 1, rows: 0, reworks: 0 }
+        reply = (call) => {
+            if (call.url.includes('/codes/verwendung?code=68B')) {
+                return json({ code: '68B', uses, sentence: '„68B“ wird in 6 Kombinationen und in den „Allgemeinen Codes“ von 1 Fahrzeug verwendet.' })
+            }
+
+            return call.url.endsWith('/codes/loeschen') ? json({ entry: entry(), toast: '„68B“ ist aus diesem Gutachten gelöscht.', deleted: '68B', uses }) : null
+        }
+
+        const { wrapper } = withStore(CodesPanel)
+
+        await wrapper.find('.ef-codeitem__delete').trigger('click')
+        await settle()
+
+        expect(document.body.textContent).toContain('„68B“ überall löschen?')
+        expect(document.body.textContent).toContain('„68B“ wird in 6 Kombinationen und in den „Allgemeinen Codes“ von 1 Fahrzeug verwendet. Gelöscht verschwindet er überall in diesem Gutachten, im Shop mit der Freigabe. Bestellungen behalten ihren Nachweis.')
+        // Nothing deleted by asking.
+        expect(sent.filter((c) => c.url.endsWith('/codes/loeschen'))).toEqual([])
+
+        Array.from(document.body.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Überall löschen')!.click()
+        await settle()
+
+        const deleted = sent.filter((c) => c.url.endsWith('/codes/loeschen'))
+
+        expect(deleted.map((c) => [c.method, c.body])).toEqual([['POST', { code: '68B', seen: uses }]])
+        expect(router.reload).toHaveBeenCalledWith(expect.objectContaining({ only: ['conditions'] }))
+    })
+
+    it('says why where the server refuses, and leaves the code where it is', async () => {
+        page.props.conditions = [{ id: 1, code: '68B', kind: 'hinweis', kindLabel: 'Hinweis', text: 'Text', level: 'hinweis' }]
+        const uses = { combinations: 6, cars: 0, rows: 0, reworks: 0 }
+        reply = (call) => {
+            if (call.url.includes('/codes/verwendung')) {
+                return json({ code: '68B', uses, sentence: '„68B“ wird in 6 Kombinationen verwendet.' })
+            }
+
+            return call.url.endsWith('/codes/loeschen') ? json({ message: 'x', errors: { code: ['Der Code wird inzwischen an anderer Stelle verwendet als eben angezeigt. Sieh dir die Zahl noch einmal an und bestätige erneut.'] } }, 422) : null
+        }
+
+        const { wrapper } = withStore(CodesPanel)
+
+        await wrapper.find('.ef-codeitem__delete').trigger('click')
+        await settle()
+        Array.from(document.body.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Überall löschen')!.click()
+        await settle()
+
+        expect(wrapper.find('[role="alert"]').text()).toBe('Der Code wird inzwischen an anderer Stelle verwendet als eben angezeigt. Sieh dir die Zahl noch einmal an und bestätige erneut.')
+        expect(wrapper.findAll('.ef-codeitem .ef-code').map((c) => c.text())).toEqual(['68B'])
+    })
+})
+
 describe('a tag field', () => {
     function tags(start: string[] = [], listed: string[] = []) {
         page.props.conditions = listed.map((code, i) => ({ id: i, code, kind: 'hinweis', kindLabel: 'Hinweis', text: 'Text', level: 'hinweis' }))

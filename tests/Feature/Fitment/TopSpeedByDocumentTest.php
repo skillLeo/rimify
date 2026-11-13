@@ -39,8 +39,7 @@ beforeEach(function (): void {
  */
 function underDocument(TyreIndexSource $source, ?int $topSpeed, ?string $symbol = null, ?int $wheelLoadKg = null, ?int $loadIndex = null): FitmentVerdict
 {
-    $factory = ApprovalDocument::factory()->abe()->tyreIndex($source);
-    $document = ($source === TyreIndexSource::Table ? $factory->printingDeratingTable() : $factory)->create();
+    $document = ApprovalDocument::factory()->abe()->tyreIndex($source)->create();
     $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => $topSpeed, 'needs_review' => $topSpeed === null]);
     $wheel = WheelConfig::factory()->havanna85x18()->create(['max_load_kg' => $wheelLoadKg]);
     $row = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $wheel->id]);
@@ -168,27 +167,32 @@ it('is never PERMITTED without the top speed where one covering document needs i
 describe('a car whose top speed is known, under „bei jeder Reifengröße“ (D-438)', function (): void {
     // The client's round of 08.11.2026, §3.3: „Remove the requirement to provide a load capacity table, as we have selected the option to
     // display this information for each individual tire.“ The BMW at 250 km/h under ABE 53841, 90W beside every size: no table entered.
-    it('answers from the figures beside the size, as without the top speed: no table asked for', function (): void {
+    it('answers from the figures beside the size with ETRTO\'s floor under them: no table asked for, the stricter governs (R-06, D-459)', function (): void {
         $verdict = underDocument(TyreIndexSource::Document, 250, 'W', loadIndex: 91);
         $lines = $verdict->tyre->lines ?? [];
+
+        // ETRTO at 250 km/h: W carries 95 % — 550 ÷ 0,95 = 578,9 kg asks LI 89; the printed 91 is stricter and binds.
+        expect($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
+            ->and($verdict->front->minSpeedSymbol)->toBe('W')
+            ->and($verdict->front->minLoadIndex)->toBe(91)
+            ->and(implode(' ', $lines))->toContain('nach unserer Tabelle nur 95 % der Last seines Tragfähigkeitsindex')
+            ->and($lines)->toContain('Maßgeblich ist die Reifengröße im Gutachten: mindestens Tragfähigkeitsindex 91, Geschwindigkeitsindex W.')
+            ->and(implode(' ', $lines))->not->toContain('Tragfähigkeitstabelle');
+    });
+
+    it('answers a symbol beside the size below what the top speed asks for from ETRTO: the speed symbol the speed asks, the load it carries there', function (): void {
+        // 91V at 250 km/h: a V tyre is rated to 240. Before D-459 „Noch nicht bestätigt“ for want of a table; ETRTO's 250 km/h
+        // row gives W 95 % — less strict, from that ETRTO value (the old table held none).
+        $verdict = underDocument(TyreIndexSource::Document, 250, 'V', loadIndex: 91);
 
         expect($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
             ->and($verdict->front->minSpeedSymbol)->toBe('W')
             ->and($verdict->front->minLoadIndex)->toBe(91)
-            ->and($lines)->toContain('Bei der Reifengröße gibt das Gutachten Tragfähigkeitsindex 91 und Geschwindigkeitsindex W an.')
-            ->and(implode(' ', $lines))->not->toContain('Tragfähigkeitstabelle');
+            ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('Bei 250 km/h trägt ein Reifen mit Geschwindigkeitsindex W nach unserer Tabelle nur 95 % der Last seines Tragfähigkeitsindex');
     });
 
-    it('still asks for the table where the symbol beside the size is below what the top speed asks for: only the table can say what it carries', function (): void {
-        // 91V at 250 km/h: a V tyre is rated to 240.
-        $verdict = underDocument(TyreIndexSource::Document, 250, 'V', loadIndex: 91);
-
-        expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-            ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('keine Tragfähigkeitstabelle für hohe Geschwindigkeit');
-    });
-
-    it('still reads a table that was entered: the stricter governs (R-06)', function (): void {
-        $document = ApprovalDocument::factory()->abe()->tyreIndex(TyreIndexSource::Document)->printingDeratingTable()->create();
+    it('reads ETRTO\'s table as every document\'s own above 210 km/h: the stricter governs (R-06)', function (): void {
+        $document = ApprovalDocument::factory()->abe()->tyreIndex(TyreIndexSource::Document)->create();
         $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 250]);
         $wheel = WheelConfig::factory()->havanna85x18()->create();
         $row = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $wheel->id]);
@@ -200,14 +204,15 @@ describe('a car whose top speed is known, under „bei jeder Reifengröße“ (D
             ->and(implode(' ', $verdict->tyre->lines ?? []))->not->toContain('Bei der Reifengröße gibt das Gutachten');
     });
 
-    it('leaves a paper „in einer Tabelle“ asking for its table, as before', function (): void {
+    it('answers a paper „in einer Tabelle“ from ETRTO\'s table, nothing typed (D-459)', function (): void {
         $document = ApprovalDocument::factory()->abe()->tyreIndex(TyreIndexSource::Table)->create();
         $vehicle = Vehicle::factory()->create(['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 250]);
         $wheel = WheelConfig::factory()->havanna85x18()->create();
         $row = Fitment::factory()->create(['approval_document_id' => $document->id, 'vehicle_id' => $vehicle->id, 'wheel_config_id' => $wheel->id]);
         FitmentTyreSize::factory()->for($row)->size(225, 40, 18.0)->create(['min_speed_symbol' => 'W', 'min_load_index' => 91]);
 
-        expect(app(FitmentResolver::class)->resolve($vehicle->id, $wheel->id)->tyre?->status)->toBe(VerdictStatus::Unknown);
+        // Before D-459 „Noch nicht bestätigt“ for want of a typed table: less strict now, from ETRTO's 250 km/h row (W 95 %).
+        expect(app(FitmentResolver::class)->resolve($vehicle->id, $wheel->id)->tyre?->status)->toBe(VerdictStatus::Permitted);
     });
 });
 

@@ -45,7 +45,8 @@ final class OnRecordTable
         ## Reworded on 14.10.2026 — the answer is the same, the sentence now says what is on record
 
         No verdict changed. Each sentence said what a document does not contain; each now says what is not on record with us.
-        The last two were the same bare refusal for two different causes (the rule's last sentence).
+        The last two were the same bare refusal for two different causes (the rule's last sentence). The first two were
+        retired on 12.11.2026 with the documents' own speed tables (D-459): every Gutachten reads ETRTO's.
 
         | Now | Before | Where it is read |
         |---|---|---|

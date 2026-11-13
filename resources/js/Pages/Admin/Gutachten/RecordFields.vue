@@ -91,7 +91,8 @@ watch(refused, (value) => {
             <p :id="`${id('base')}-err`" class="form-field__error">{{ err('supplement_to_id') || err('supplement_to_number') }}</p>
         </div>
 
-        <!-- D-277: read off the document, asked before release — it decides whether a car's top speed is needed. -->
+        <!-- D-277: read off the document, asked before release — it decides whether a car's top speed is needed. A table it
+             prints is never typed: every Gutachten reads ETRTO's (D-459). -->
         <fieldset class="rsf-group">
             <legend class="form-field__label">Wie gibt das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen an?</legend>
             <label class="check">
@@ -107,7 +108,7 @@ watch(refused, (value) => {
                 <span>In einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, etwa 210 bis 300&nbsp;km/h für V, W und Y</span>
             </label>
             <p :id="`${id('index')}-help`" class="form-field__help">
-                Steht im Verwendungsbereich oder in den Auflagen. Ohne Antwort ist keine Freigabe möglich. Druckt das Gutachten eine solche Tabelle, wähl die Tabelle – auch wenn es zusätzlich auf die Fahrzeugpapiere verweist. Steht das Geschwindigkeitssymbol nur bei manchen Größen, wähl den Verweis auf die Fahrzeugpapiere.
+                Steht im Verwendungsbereich oder in den Auflagen. Ohne Antwort ist keine Freigabe möglich. Druckt das Gutachten eine solche Tabelle, wähl die Tabelle – auch wenn es zusätzlich auf die Fahrzeugpapiere verweist. Die Werte der Tabelle trägst du nicht ein: Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle. Steht das Geschwindigkeitssymbol nur bei manchen Größen, wähl den Verweis auf die Fahrzeugpapiere.
             </p>
             <p :id="`${id('index')}-err`" class="form-field__error">{{ err('tyre_index_source') }}</p>
         </fieldset>

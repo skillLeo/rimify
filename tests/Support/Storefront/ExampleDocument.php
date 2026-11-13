@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 final class ExampleDocument
 {
     /** Tables that belong to a document and are read with its rows. */
-    private const DOCUMENT_TABLES = ['document_conditions', 'document_fasteners', 'document_notices', 'document_speed_deratings'];
+    private const DOCUMENT_TABLES = ['document_conditions', 'document_fasteners', 'document_notices'];
 
     /** @var array<string, list<string>> */
     private static array $generated = [];

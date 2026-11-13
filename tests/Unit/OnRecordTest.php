@@ -82,7 +82,7 @@ it('catches the sentences the rule was written for', function (string $sentence)
 it('lets the same things be said as what is on record', function (string $sentence): void {
     expect(OnRecord::denies($sentence) && ! OnRecord::speaksOfOurRecord($sentence))->toBeFalse();
 })->with([
-    ['Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt.'],
+    ['Zu den Auflagen dieses Gutachtens sind Tragfähigkeitsindizes nur bis 1.100 kg Achslast hinterlegt.'],
     ['Für dieses Fahrzeug ist zu diesem Gutachten bei uns keine Freigabe hinterlegt.'],
     ['Für dieses Fahrzeug liegt uns die entsprechende Anlage des Gutachtens noch nicht vor.'],
     ['Eine Auflage des Gutachtens ist bei uns noch nicht vollständig erfasst.'],

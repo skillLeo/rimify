@@ -167,18 +167,9 @@ export interface PreviewVerdict {
     sourcePage: number | null
 }
 
-/** A document's table of tyre load at speed (ABE 55255, p. 6): each cell „97“, „–“ or absent. */
-export interface DeratingView {
-    sourcePage: number | null
-    /** Written by the demo seed, not typed from this document's pages — said on the record. */
-    seededFrom: string | null
-    symbols: string[]
-    rows: { speed: number; cells: Record<string, string> }[]
-}
-
 export interface AdminGutachtenShowProps {
     /** What each card was opened on (EditStamp): a save against an older state is refused. */
-    stamps: { document: string; derating: string }
+    stamps: { document: string }
     document: DocumentFacts
     /** Every row of the document, counted: what the release brings into the shop (F-37). */
     rowsTotal?: number
@@ -198,8 +189,6 @@ export interface AdminGutachtenShowProps {
     fasteners: FastenerView[]
     notices: NoticeView[]
     reworks: ReworkView[]
-    /** The document's own table of tyre load at speed; `rows` empty when it has none. */
-    derating: DeratingView
     openConflicts: number
     /** `levels`: may set how loud each Auflage is in the shop (#23, D-104) — on a released document too. */
     /** `revise`: may start a new revision of this released document (ADMIN-GEFUNDEN 510). */

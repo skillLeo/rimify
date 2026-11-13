@@ -8,6 +8,7 @@ use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\Vehicle;
 use App\Services\Admin\AuditTrail;
+use App\Support\ColumnCollation;
 use App\Support\EgNumber;
 use App\Support\GermanFormat;
 use App\Support\VehicleName;
@@ -60,20 +61,17 @@ final class VehicleMerge
      */
     public function plan(iterable $dataset): array
     {
-        $entries = [];
+        $entries = $this->decide($dataset);
         $claims = [];
 
-        foreach ($dataset as $row) {
-            $entry = $this->match($row);
-            $entries[] = $entry;
-
+        foreach ($entries as $i => $entry) {
             if ($entry['status'] === self::MATCHED && $entry['vehicle'] !== null) {
-                $claims[$entry['vehicle']->id][] = array_key_last($entries);
+                $claims[$entry['vehicle']->id][] = $i;
             }
         }
 
         // Several dataset cars for one car: which engine the document meant is a person's call.
-        foreach ($claims as $vehicleId => $indices) {
+        foreach ($claims as $indices) {
             if (count($indices) < 2) {
                 continue;
             }
@@ -84,7 +82,7 @@ final class VehicleMerge
                     'status' => self::AMBIGUOUS,
                     'fills' => [],
                     'kept' => [],
-                    'reason' => sprintf('%d Fahrzeuge des Datensatzes passen zu %s. Welches gemeint ist, entscheidet eine Person.', count($indices), VehicleName::from($entries[$i]['vehicle'] ?? new Vehicle)),
+                    'reason' => self::claimedBy(count($indices), $entries[$i]['vehicle'] ?? new Vehicle),
                 ];
             }
         }
@@ -93,13 +91,120 @@ final class VehicleMerge
     }
 
     /**
+     * Each dataset car on its own — matched, ambiguous, known or new —, before the claims plan() settles: the importer
+     * decides a file's cars a batch at a time and settles the claims once over all of them (VehicleImporter, D-462).
+     * The cars a batch asks about are read once per EG approval and Fahrzeugtyp, and its known numbers in one query.
+     *
+     * @param  iterable<DatasetVehicle>  $dataset
+     * @return list<array{row: DatasetVehicle, status: string, vehicle: Vehicle|null, fills: array<string, mixed>, kept: array<string, array{ours: string, theirs: string}>, reason: string|null}>
+     */
+    public function decide(iterable $dataset): array
+    {
+        $rows = [];
+
+        foreach ($dataset as $row) {
+            $rows[] = $row;
+        }
+
+        $known = [];
+
+        foreach ($rows as $row) {
+            if ($row->sourceVehicleId !== null) {
+                $known[$row->source->value][] = $row->sourceVehicleId;
+            }
+        }
+
+        foreach ($known as $source => $numbers) {
+            $known[$source] = array_flip(Vehicle::query()->where('source', $source)->whereIn('source_vehicle_id', array_values(array_unique($numbers)))->pluck('source_vehicle_id')->map(static fn (mixed $n): int => (int) $n)->all());
+        }
+
+        $candidates = $this->candidates($rows, $known);
+
+        return array_map(fn (DatasetVehicle $row): array => $this->match($row, $known, $candidates), $rows);
+    }
+
+    /**
+     * The cars from a Gutachten or checked by hand for every approval and Fahrzeugtyp the batch names, in one query: each
+     * pair joined to the cars exactly as match() asks for one — the approval's base as a prefix of the normalised EG
+     * number, the type equal, both compared under the columns' own collations, removed cars left out —, in the order of
+     * their ids. Keyed as match() keys its memo.
+     *
+     * @param  list<DatasetVehicle>  $rows
+     * @param  array<string, array<int, int>>  $known
+     * @return array<string, array<int, Vehicle>>
+     */
+    private function candidates(array $rows, array $known): array
+    {
+        $pairs = [];
+
+        foreach ($rows as $row) {
+            if ($row->sourceVehicleId !== null && isset($known[$row->source->value][$row->sourceVehicleId])) {
+                continue;
+            }
+
+            $eg = EgNumber::parse($row->egNumber);
+
+            if ($eg !== null && $row->typeDesignation !== null) {
+                $pairs[$eg->base."\0".$row->typeDesignation] = [addcslashes($eg->base, '%_\\').'%', $row->typeDesignation];
+            }
+        }
+
+        if ($pairs === []) {
+            return [];
+        }
+
+        $memos = array_keys($pairs);
+        $found = [];
+
+        // A thousand pairs a query at most: three bound values each, far below what a statement may carry.
+        foreach (array_chunk($memos, 1000, true) as $chunk) {
+            $keys = [];
+            $bindings = [];
+
+            foreach ($chunk as $n => $memo) {
+                $keys[] = 'SELECT ? AS n, ? AS pattern, ? AS type';
+                array_push($bindings, $n, $pairs[$memo][0], $pairs[$memo][1]);
+            }
+
+            array_push($found, ...DB::select(
+                'SELECT k.n AS n, v.id AS id FROM ('.implode(' UNION ALL ', $keys).') AS k'
+                .' JOIN vehicles AS v ON v.eg_nummer_norm LIKE k.pattern COLLATE '.ColumnCollation::of('vehicles', 'eg_nummer_norm')
+                .' AND v.type_designation = k.type COLLATE '.ColumnCollation::of('vehicles', 'type_designation')
+                .' WHERE v.source IN (?, ?) AND v.deleted_at IS NULL ORDER BY k.n, v.id',
+                [...$bindings, VehicleSource::Gutachten->value, VehicleSource::ManuellGeprueft->value],
+            ));
+        }
+
+        $vehicles = Vehicle::query()->whereIn('id', array_values(array_unique(array_map(static fn (object $hit): int => (int) $hit->id, $found))))->get()->keyBy('id');
+        $candidates = array_fill_keys($memos, []);
+
+        foreach ($found as $hit) {
+            $vehicle = $vehicles->get((int) $hit->id);
+
+            if ($vehicle !== null) {
+                $candidates[$memos[(int) $hit->n]][] = $vehicle;
+            }
+        }
+
+        return $candidates;
+    }
+
+    /** Why the rows that claim one car are refused: which engine the document meant is a person's call. */
+    public static function claimedBy(int $count, Vehicle $vehicle): string
+    {
+        return sprintf('%d Fahrzeuge des Datensatzes passen zu %s. Welches gemeint ist, entscheidet eine Person.', $count, VehicleName::from($vehicle));
+    }
+
+    /**
+     * @param  array<string, array<int, int>>  $known  source → the numbers a car of that source carries, as keys
+     * @param  array<string, array<int, Vehicle>>  $candidates  the cars already read for an approval and Fahrzeugtyp, filled as it goes
      * @return array{row: DatasetVehicle, status: string, vehicle: Vehicle|null, fills: array<string, mixed>, kept: array<string, array{ours: string, theirs: string}>, reason: string|null}
      */
-    private function match(DatasetVehicle $row): array
+    private function match(DatasetVehicle $row, array $known, array &$candidates): array
     {
         $entry = ['row' => $row, 'status' => self::NEW, 'vehicle' => null, 'fills' => [], 'kept' => [], 'reason' => null];
 
-        if ($row->sourceVehicleId !== null && Vehicle::query()->where('source', $row->source->value)->where('source_vehicle_id', $row->sourceVehicleId)->exists()) {
+        if ($row->sourceVehicleId !== null && isset($known[$row->source->value][$row->sourceVehicleId])) {
             return [...$entry, 'status' => self::KNOWN, 'reason' => 'Schon aus diesem Datensatz übernommen.'];
         }
 
@@ -112,25 +217,30 @@ final class VehicleMerge
         // Same approval and Fahrzeugtyp, and the car's range takes in this dataset car's extension (EgNumber). A car
         // that carries key numbers — typed from its papers, or completed before — is that one car: a dataset car under
         // other key numbers is another, and never fills its axle loads (D-297).
-        $candidates = Vehicle::query()
+        // The cars of one approval and Fahrzeugtyp, read once for every dataset car that names them — the database compares
+        // the type, as it always did.
+        $memo = $eg->base."\0".$row->typeDesignation;
+        $candidates[$memo] ??= Vehicle::query()
             ->whereIn('source', [VehicleSource::Gutachten->value, VehicleSource::ManuellGeprueft->value])
             ->where('eg_nummer_norm', 'like', addcslashes($eg->base, '%_\\').'%')
             ->where('type_designation', $row->typeDesignation)
             ->orderBy('id')
             ->get()
+            ->all();
+        $fitting = collect($candidates[$memo])
             ->filter(static fn (Vehicle $v): bool => ($v->hsn === null || ($v->hsn === $row->hsn && $v->tsn === $row->tsn))
                 && (EgNumber::parse($v->getAttribute('eg_nummer_norm'))?->covers($eg) ?? false))
             ->values();
 
-        if ($candidates->count() > 1) {
+        if ($fitting->count() > 1) {
             return [...$entry, 'status' => self::AMBIGUOUS, 'reason' => sprintf(
                 '%d Fahrzeuge tragen diese EG-Nummer und diesen Fahrzeugtyp: %s. Nichts wird zusammengeführt.',
-                $candidates->count(),
-                $candidates->map(static fn (Vehicle $v): string => VehicleName::from($v).' (#'.$v->id.')')->implode(', '),
+                $fitting->count(),
+                $fitting->map(static fn (Vehicle $v): string => VehicleName::from($v).' (#'.$v->id.')')->implode(', '),
             )];
         }
 
-        $vehicle = $candidates->first();
+        $vehicle = $fitting->first();
 
         if ($vehicle === null) {
             return $entry;

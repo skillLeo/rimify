@@ -652,6 +652,7 @@ describe('putting every entry into words', function (): void {
             'approval.condition_added' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ angelegt.', []],
             'approval.condition_changed' => [['document' => 'ABE 53810', 'code' => 'A01', 'kind' => 'abnahme'], 'Im Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ geändert.', []],
             'approval.condition_removed' => [['document' => 'ABE 53810', 'code' => 'A01'], 'Aus dem Auflagenverzeichnis von „ABE 53810“ wurde der Code „A01“ entfernt.', []],
+            'approval.code_deleted' => [['document' => 'ABE 53810', 'code' => '68B', 'combinations' => 6, 'cars' => 1, 'rows' => 0, 'reworks' => 2], 'Aus „ABE 53810“ wurde der Code „68B“ überall gelöscht. „68B“ wird in 6 Kombinationen und in den „Allgemeinen Codes“ von 1 Fahrzeug verwendet. Mit dem Code gehen 2 Maße der Nacharbeit.', []],
             'approval.condition_level_set' => [
                 ['document' => 'ABE 55255', 'code' => 'S03', 'old' => 'auflage', 'level' => 'hinweis'],
                 'In „ABE 55255“ hat der Code „S03“ jetzt die Stufe „Hinweis – nichts zu tun“.',

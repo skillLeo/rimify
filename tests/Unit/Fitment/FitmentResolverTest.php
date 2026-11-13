@@ -177,7 +177,7 @@ it('carries the document’s § 15 FZV exemption on a positive verdict, and free
     $base = FitmentFixtures::document();
     $exempt = new DocumentRecord(
         id: $base->id, kind: 'ABE', number: '53841', revision: $base->revision, issuedOn: $base->issuedOn, pdfKey: $base->pdfKey,
-        pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating, papersCorrectionRequired: false,
+        pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, papersCorrectionRequired: false,
     );
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(document: $exempt)])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
 
@@ -199,7 +199,7 @@ it('never carries the exemption on a verdict that does not let the wheel on the 
     $base = FitmentFixtures::document();
     $exempt = new DocumentRecord(
         id: $base->id, kind: 'ABE', number: '53841', revision: $base->revision, issuedOn: $base->issuedOn, pdfKey: $base->pdfKey,
-        pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating, papersCorrectionRequired: false,
+        pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, papersCorrectionRequired: false,
     );
     $refused = FitmentFixtures::resolver([
         FitmentFixtures::row(window: new BuildWindow(new DateTimeImmutable('2024-01-01'), null), document: $exempt),
@@ -372,7 +372,7 @@ it('reports the newest revision among the covering rows', function (): void {
 /** A second document, issued later than the fixture's own. */
 function laterDocument(): DocumentRecord
 {
-    return new DocumentRecord(id: 58, kind: 'ABE', number: '55255', revision: 1, issuedOn: new DateTimeImmutable('2025-06-02'), sourcePage: 4, speedDerating: FitmentFixtures::deratingTable());
+    return new DocumentRecord(id: 58, kind: 'ABE', number: '55255', revision: 1, issuedOn: new DateTimeImmutable('2025-06-02'), sourcePage: 4);
 }
 
 it('names every document that agrees, the newest first', function (): void {

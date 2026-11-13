@@ -79,7 +79,7 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
             tyre: {
                 statusLabel: 'Freigegeben',
                 summary: 'Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.',
-                basis: 'Grundlage: Tabelle auf Seite 6 im Gutachten 55255.',
+                basis: 'Grundlage: Gutachten 55255 und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.',
                 lines,
                 stricterByPapers: true,
             },

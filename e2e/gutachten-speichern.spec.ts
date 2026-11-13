@@ -237,7 +237,8 @@ test('step 1: one save at a time, nothing typed is lost, and the step is only le
 
     await expect(page.locator('#ef-wheel-q')).toBeVisible({ timeout: 15_000 })
     await expect.poll(() => puts).toBe(2)
-    expect(new URL(page.url()).searchParams.get('schritt')).toBe('2')
+    // The address follows the step a moment after the step is drawn: waited for, never read at the instant (CI, 13.11.2026).
+    await expect(page).toHaveURL((url) => url.searchParams.get('schritt') === '2')
 
     await goToStep(page, 'Gutachten')
     await expect(page.locator('#ef-issuer')).toHaveValue('TÜV SÜD')

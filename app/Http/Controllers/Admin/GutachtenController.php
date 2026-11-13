@@ -307,12 +307,9 @@ class GutachtenController extends Controller
                     'measure' => $r->measureDe(),
                     'note' => $r->note_de,
                 ])->values()->all(),
-            // Its own table of tyre load at speed (ABE 55255, p. 6): rows of speeds, columns of symbols.
-            'derating' => self::deratingView($document),
             // What each card was opened on: a save against an older state is refused (EditStamp, the admin audit's F-25).
             'stamps' => [
                 'document' => EditStamp::of(self::documentState($document->id)),
-                'derating' => EditStamp::of(self::deratingState($document)),
             ],
             'openConflicts' => DB::table('fitment_conflicts')->where('status', 'open')
                 ->whereIn('candidate_fitment_id', Fitment::query()->where('approval_document_id', $document->id)->select('id'))->count(),
@@ -366,43 +363,6 @@ class GutachtenController extends Controller
     public static function documentState(int $id, bool $lock = false): ?array
     {
         return ApprovalDocument::query()->whereKey($id)->when($lock, static fn ($q) => $q->lockForUpdate())->first()?->getAttributes();
-    }
-
-    /**
-     * The table of tyre load at speed as stored now (EditStamp, F-25).
-     *
-     * @return list<array<string, mixed>>
-     */
-    public static function deratingState(ApprovalDocument $document): array
-    {
-        return $document->speedDeratings()->reorder()->orderBy('id')->get()->map(static fn ($cell): array => $cell->getAttributes())->all();
-    }
-
-    /**
-     * The document's table as the grid shows it: its columns in the order first entered (V, W, Y), its rows
-     * by speed, each cell „97“, „–“ or empty.
-     *
-     * @return array{sourcePage: int|null, seededFrom: string|null, symbols: list<string>, rows: list<array{speed: int, cells: array<string, string>}>}
-     */
-    private static function deratingView(ApprovalDocument $document): array
-    {
-        $cells = $document->speedDeratings()->get();
-        $symbols = [];
-        $rows = [];
-
-        foreach ($cells as $cell) {
-            $symbols[$cell->symbol] = true;
-            $rows[$cell->speed_kmh][$cell->symbol] = $cell->percent === null ? '–' : (string) $cell->percent;
-        }
-
-        ksort($rows);
-
-        return [
-            'sourcePage' => $cells->first()?->source_page,
-            'seededFrom' => $cells->first()?->seeded_from,
-            'symbols' => array_keys($symbols),
-            'rows' => array_map(static fn (int $speed, array $row): array => ['speed' => $speed, 'cells' => $row], array_keys($rows), $rows),
-        ];
     }
 
     public function update(ApprovalDocumentRequest $request, ApprovalDocument $document, PdfUpload $uploads): RedirectResponse

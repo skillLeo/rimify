@@ -184,9 +184,9 @@ final class DocumentRelease
     }
 
     /**
-     * How the document gives its tyres' load index and speed symbol (D-277) — answered, and borne out by the entry: a
-     * table it prints is entered, the index it prints beside every size — load index and symbol — is entered at every
-     * size (D-285). Without the answer the
+     * How the document gives its tyres' load index and speed symbol (D-277) — answered, and borne out by the entry: the
+     * index it prints beside every size — load index and symbol — is entered at every size (D-285). A table of tyre load at
+     * speed it prints is not typed: the shop reads ETRTO's, the same for every document (D-459). Without the answer the
      * shop reads it the safe way and needs the car's top speed; the question is asked all the same, because the answer
      * decides whether a car without one can be answered at all.
      *
@@ -199,11 +199,6 @@ final class DocumentRelease
 
         if ($source === null) {
             return ['Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.'];
-        }
-
-        // Transcribed from this document, not the demo seed's example table.
-        if ($source === TyreIndexSource::Table && ! $document->speedDeratings()->whereNull('seeded_from')->exists()) {
-            return ['Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, erfasst ist sie nicht. Trag sie ein oder ändere die Angabe.'];
         }
 
         if ($source === TyreIndexSource::Document) {

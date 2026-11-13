@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
-use App\Models\DocumentSpeedDerating;
 use App\Models\Fitment;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
@@ -17,8 +16,8 @@ use Database\Seeders\ReferenceDataSeeder;
 use Tests\Support\Gutachten\EntryDriver;
 
 /*
- * The admin audit's F-25 on a draft Gutachten (ADMIN-AUDIT.md): „Angaben“, „Zählung“, the table of tyre load at speed,
- * a car's lines and a code are each saved whole. A card opened before someone else's save would
+ * The admin audit's F-25 on a draft Gutachten (ADMIN-AUDIT.md): „Angaben“, „Zählung“, a car's lines and a code are each
+ * saved whole (the table of tyre load at speed went with D-459). A card opened before someone else's save would
  * put the old values back; it is refused in a sentence instead, and the other save stands.
  */
 
@@ -46,12 +45,6 @@ function standStamp(ApprovalDocument $document, string $card): string
     return (string) $stamp;
 }
 
-/** @return array<string, mixed> */
-function standTable(string $y240 = '100'): array
-{
-    return ['source_page' => 6, 'symbols' => ['V', 'W', 'Y'], 'rows' => [['speed_kmh' => 240, 'cells' => ['V' => '91', 'W' => '100', 'Y' => $y240]]]];
-}
-
 it('refuses „Angaben“ saved from a page opened before the last save, and keeps that save', function (): void {
     $document = standDraft();
     $url = "/admin/gutachten/{$document->id}";
@@ -63,18 +56,6 @@ it('refuses „Angaben“ saved from a page opened before the last save, and kee
         ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
 
     expect($document->refresh()->kba_number)->toBe('55256');
-});
-
-it('refuses a table saved from a page opened before the last one, and keeps that one', function (): void {
-    $document = standDraft();
-    $url = "/admin/gutachten/{$document->id}";
-    $stale = standStamp($document, 'derating');
-
-    $this->actingAs(standAdmin(), 'admin')->from($url)->put("{$url}/tragfaehigkeitstabelle", standTable('95'))->assertSessionHasNoErrors();
-    $this->actingAs(standAdmin(), 'admin')->from($url)->withHeader(EditStamp::HEADER, $stale)->put("{$url}/tragfaehigkeitstabelle", standTable('85'))
-        ->assertSessionHasErrors(['_stamp' => EditStamp::MESSAGE]);
-
-    expect(DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->where('symbol', 'Y')->value('percent'))->toBe(95);
 });
 
 /** A car's lines as step 4 sends them: one tyre, one page. */

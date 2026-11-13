@@ -5,10 +5,10 @@
  */
 
 import { useGutachtenPage } from './entryStore'
-import { router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 import ConditionGroups from '../../../../Components/Fitment/ConditionGroups.vue'
 import { sizesByAxle } from '../../../../fitment/axles'
+import { freshReload } from '../../../../lib/freshReload'
 
 const page = useGutachtenPage()
 const props = computed(() => page.props)
@@ -35,7 +35,7 @@ function load(): void {
     }
 
     busy.value = true
-    router.reload({
+    freshReload('erfassung-vorschau', {
         only: ['preview', 'previewVehicle', 'flash'],
         data: { fahrzeug: vehicle.value },
         onFinish: () => (busy.value = false),

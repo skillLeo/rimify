@@ -51,12 +51,11 @@ function withPapersIndex(VehicleRecord $car, string $front, string $rear, int $a
     return $figures->applyTo($car);
 }
 
-function decideIndexed(VehicleRecord $vehicle, bool $withTable = true): FitmentVerdict
+function decideIndexed(VehicleRecord $vehicle): FitmentVerdict
 {
     $tables = FitmentFixtures::tables();
     $document = new DocumentRecord(
         id: 57, kind: 'ABE', number: '55255', revision: 1, sourcePage: 4,
-        speedDerating: $withTable ? FitmentFixtures::deratingTable() : null,
     );
     $wheel = new WheelConfigRecord(
         id: FitmentFixtures::WHEEL_CONFIG_ID, wheelModelId: 23, wheelFinishId: 44,
@@ -116,7 +115,7 @@ it('takes the papers’ index where it is the stricter, and keeps its own comput
         ->and($verdict->tyre?->stricterByPapers)->toBeTrue()
         ->and($verdict->tyre?->summary)->toBe('Beide Achsen mit '.indexKg('1.100').': mindestens Tragfähigkeitsindex 91, Geschwindigkeitsindex Y.')
         // The computation stands as it would without the papers: W at 95 %, LI 89 …
-        ->and($verdict->tyre?->lines)->toContain('Bei 250 km/h trägt ein Reifen mit Geschwindigkeitsindex W nur 95 % seiner Last (Tabelle auf Seite 6 im Gutachten 55255): '
+        ->and($verdict->tyre?->lines)->toContain('Bei 250 km/h trägt ein Reifen mit Geschwindigkeitsindex W nach unserer Tabelle nur 95 % der Last seines Tragfähigkeitsindex: '
             .indexKg('550').' ÷ 0,95 = '.indexKg('578,9').' – das verlangt Tragfähigkeitsindex 89 ('.indexKg('580').').')
         // … the papers' index is said on its own, and the one that governs is named.
         ->and($verdict->tyre?->lines)->toContain('Nach deinen Angaben aus Feld 15.1: Tragfähigkeitsindex 91, Geschwindigkeitsindex Y.')
@@ -157,8 +156,8 @@ it('credits each half to what set it where the papers set only one', function ()
 });
 
 it('never answers on the papers’ index alone: without its own computation the tyres stay open, and it says why (R-03)', function (): void {
-    // No table above 210 km/h: the engine cannot compute, so 91Y and 94Y confirm nothing on their own.
-    $verdict = decideIndexed(withPapersIndex(indexedCar(), '91Y', '94Y'), withTable: false);
+    // Above ETRTO's last row (300 km/h) the engine cannot compute, so 91Y and 94Y confirm nothing on their own (D-459).
+    $verdict = decideIndexed(withPapersIndex(indexedCar(1100, 1100, 310), '91Y', '94Y', 1100, 1100, 310));
 
     expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
         ->and($verdict->status)->toBe(VerdictStatus::Unknown)

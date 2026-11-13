@@ -647,7 +647,7 @@ describe('the RC200 paper\'s cases (D-390), its second real example', function (
         expect($document->refresh()->tyre_index_source)->toBe(TyreIndexSource::Papers);
     });
 
-    it('suggests „bei jeder Reifengröße“ where every side has both figures, and a table where the paper has one', function (): void {
+    it('suggests „bei jeder Reifengröße“ where every side has both figures, and the papers where one lacks its symbol — never a table, none is typed (D-459)', function (): void {
         $document = ApprovalDocument::factory()->draft()->create();
         $entry = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create()->id, stepsWheel()->id);
 
@@ -656,10 +656,10 @@ describe('the RC200 paper\'s cases (D-390), its second real example', function (
         $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
             ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.suggestion', TyreIndexSource::Document->value));
 
-        DB::table('document_speed_deratings')->insert(['approval_document_id' => $document->id, 'speed_kmh' => 240, 'symbol' => 'V', 'percent' => '91', 'created_at' => now(), 'updated_at' => now()]);
+        stepsSave($entry, [stepsLine('225/40 R18 88')]);
 
         $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.suggestion', TyreIndexSource::Table->value));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.suggestion', TyreIndexSource::Papers->value));
     });
 
     it('keeps „ab e1*2007/46*0130*16“ a condition staff define: never a range on the row\'s own number', function (): void {

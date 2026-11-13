@@ -358,6 +358,15 @@ function print(): void {
 
 /* A phone: 7 · 30 · 90 · Eigen as one segmented control across the width, the comparison and the
    menu on the line beneath. The chosen own range is named in the line under the header anyway. */
+/* 768–1023: the comparison on its own line, always. Beside the period it fitted or wrapped by three pixels, depending on
+   the font's arrival and the scrollbar's width — and moved 400 px up when the font came in (CLS 0,03 on GitHub's Linux
+   machines, 13.11.2026). Where it stands must not depend on either. */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .period__compare {
+        flex-basis: 100%;
+    }
+}
+
 @media (max-width: 767px) {
     .period {
         display: grid;

@@ -41,7 +41,7 @@ function kombiDocument(?TyrePairingTable $list, int $id = 57): DocumentRecord
 
     return new DocumentRecord(
         id: $id, kind: $base->kind, number: $base->number, revision: $base->revision, issuedOn: $base->issuedOn,
-        pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating,
+        pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage,
         completeness: $base->completeness, tyreCombinations: $list,
     );
 }

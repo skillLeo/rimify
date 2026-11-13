@@ -15,8 +15,6 @@ import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
-import DeratingTable from './DeratingTable.vue'
-import { deratingAbsent as absentLine, deratingShown as isDeratingShown } from './derating'
 import DocumentExtras from './DocumentExtras.vue'
 import PreviewSection from './Erfassung/PreviewSection.vue'
 import ReleaseDialog from './ReleaseDialog.vue'
@@ -79,11 +77,6 @@ function lineText(line: ReadLine): string {
 }
 
 const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).release ?? '')
-
-/* ── Tragfähigkeit bei hoher Geschwindigkeit (his admin item 15, D-295) ──────── */
-
-const deratingShown = computed(() => isDeratingShown(props.document.shape.tyre_index_source, props.derating.rows.length))
-const deratingAbsent = computed(() => absentLine(props.document.shape.tyre_index_source, false))
 
 const more = computed<AdminPageAction[]>(() => (props.document.pdfUrl ? [{ label: 'PDF öffnen', href: props.document.pdfUrl, external: true, icon: 'documents' }] : []))
 
@@ -261,23 +254,6 @@ watch(
             <DocumentExtras :document-id="document.id" :fasteners="fasteners" :notices="notices" :reworks="reworks" :conditions="conditions" :editable="false" :page-count="document.pageCount" />
         </section>
 
-        <!-- ── Its own table of tyre load at speed: whole where the document prints one, else one line (his item 15) ── -->
-        <section v-if="deratingShown" class="adm-section" aria-labelledby="gs-derating-h">
-            <div class="adm-section__head">
-                <h2 id="gs-derating-h" class="adm-section__title">Tragfähigkeit bei hoher Geschwindigkeit</h2>
-                <!-- A table the demo seed wrote carries the same tag as every other demo row. -->
-                <span v-if="derating.seededFrom" class="adm-tag adm-tag--neutral">Demodaten</span>
-            </div>
-            <DeratingTable :document-id="document.id" :stamp="stamps.derating" :derating="derating" :editable="false" :page-count="document.pageCount" :required="false" />
-        </section>
-        <details v-else class="adm-section gs-fold">
-            <summary class="gs-fold__summary">
-                <h2 id="gs-derating-h" class="adm-section__title">Tragfähigkeit bei hoher Geschwindigkeit</h2>
-                <span class="gs-fold__state">Keine Tabelle hinterlegt</span>
-            </summary>
-            <p class="adm-note">{{ deratingAbsent }}</p>
-        </details>
-
         <!-- ── Its cars, each with its tyres: short tags, the text on hover and above ── -->
         <section class="adm-section" aria-labelledby="gs-rows-h">
             <div class="adm-section__head">
@@ -399,28 +375,6 @@ watch(
 }
 
 .gs-lead {
-    margin-bottom: var(--sp-12);
-}
-
-/* A section with nothing to show folded to its heading and its state (his item 15): open, it says why. */
-.gs-fold__summary {
-    min-height: var(--adm-control-h);
-    padding-block: var(--sp-8);
-    cursor: pointer;
-}
-
-.gs-fold__summary .adm-section__title {
-    display: inline;
-}
-
-.gs-fold__state {
-    margin-left: var(--sp-12);
-    font-size: var(--fs-small);
-    line-height: var(--lh-small);
-    color: var(--c-ink-2);
-}
-
-.gs-fold[open] .gs-fold__summary {
     margin-bottom: var(--sp-12);
 }
 

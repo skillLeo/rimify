@@ -72,19 +72,22 @@ async function measure(
                     PerformanceEntry & {
                         value: number;
                         hadRecentInput: boolean;
-                        sources?: Array<{ node?: Node | null }>;
+                        sources?: Array<{ node?: Node | null; previousRect?: DOMRectReadOnly; currentRect?: DOMRectReadOnly }>;
                     }
                 >) {
                     if (!entry.hadRecentInput) {
+                        // Each node with where it was and where it went, and when: a shift on another machine says itself
+                        // what moved, without a trace to read (the admin's 1024 px on CI, 13.11.2026).
+                        const rect = (r?: DOMRectReadOnly) => (r ? `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}×${Math.round(r.height)}` : '–');
                         const what = (entry.sources ?? [])
                             .map((s) =>
                                 s.node instanceof Element
-                                    ? `${s.node.tagName.toLowerCase()}.${String(s.node.className).split(' ')[0]}`
+                                    ? `${s.node.tagName.toLowerCase()}.${String(s.node.className).split(' ')[0]} ${rect(s.previousRect)} → ${rect(s.currentRect)}`
                                     : 'text',
                             )
                             .join(', ');
 
-                        w.__shifts.push({ value: entry.value, what });
+                        w.__shifts.push({ value: entry.value, what: `at ${Math.round(entry.startTime)} ms: ${what}` });
                     }
                 }
             }).observe({ type: 'layout-shift', buffered: true });

@@ -51,13 +51,29 @@ function datasetLine(array $overrides = []): array
     return array_values($row);
 }
 
-function vehicleProbelauf(object $test, UploadedFile $file, string $source = 'import_kba'): VehicleImport
+/**
+ * A file through the page's own path (D-462): announced, sent in the parts the server asks for, marked complete — and
+ * read and checked by the server after the answer, as the request's end runs it in a test.
+ */
+function vehicleProbelauf(object $test, UploadedFile $file, string $source = 'import_kba', ?int $part = null): VehicleImport
 {
-    $test->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/probelauf', ['file' => $file, 'quelle' => $source])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect();
+    $bytes = (string) file_get_contents((string) $file->getRealPath());
+    $started = $test->actingAs(vehicleImportAdmin(), 'admin')
+        ->postJson('/admin/fahrzeuge/import/hochladen', ['name' => $file->getClientOriginalName(), 'size' => strlen($bytes), 'quelle' => $source])
+        ->assertCreated();
+    $id = (int) $started->json('id');
+    $part ??= (int) $started->json('part');
 
-    return VehicleImport::query()->latest('id')->firstOrFail();
+    for ($offset = 0; $offset < strlen($bytes); $offset += $part) {
+        $test->actingAs(vehicleImportAdmin(), 'admin')
+            ->post('/admin/fahrzeuge/import/'.$id.'/teil', ['offset' => $offset, 'part' => UploadedFile::fake()->createWithContent('teil', substr($bytes, $offset, $part))], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJson(['held' => min(strlen($bytes), $offset + $part)]);
+    }
+
+    $test->actingAs(vehicleImportAdmin(), 'admin')->postJson('/admin/fahrzeuge/import/'.$id.'/fertig')->assertOk()->assertJson(['href' => '/admin/fahrzeuge/import/'.$id]);
+
+    return VehicleImport::query()->findOrFail($id);
 }
 
 it('makes a Probelauf that writes no car, and counts what the import would do @admin-202', function (): void {
@@ -66,9 +82,9 @@ it('makes a Probelauf that writes no car, and counts what the import would do @a
     expect(Vehicle::query()->count())->toBe(0)
         ->and($import->status)->toBe(VehicleImport::PREVIEWED)
         ->and($import->summary)->toMatchArray([VehicleImporter::CREATE => 2, VehicleImporter::REFUSED => 1])
-        ->and(collect($import->plan)->firstWhere('status', VehicleImporter::REFUSED)['reason'])->toBe('HSN oder TSN fehlt oder ist nicht lesbar. Die HSN hat vier Ziffern, die TSN drei Zeichen.')
+        ->and(collect($import->planEntries())->firstWhere('status', VehicleImporter::REFUSED)['reason'])->toBe('HSN oder TSN fehlt oder ist nicht lesbar. Die HSN hat vier Ziffern, die TSN drei Zeichen.')
         // Without both key numbers the row shows none: its reason says what is missing.
-        ->and(collect($import->plan)->firstWhere('status', VehicleImporter::REFUSED)['keys'])->toBeNull();
+        ->and(collect($import->planEntries())->firstWhere('status', VehicleImporter::REFUSED)['keys'])->toBeNull();
 
     $this->actingAs(vehicleImportAdmin(), 'admin')->get('/admin/fahrzeuge/import/'.$import->id)
         ->assertOk()
@@ -113,7 +129,7 @@ it('changes a car of its own source where the file says otherwise, and never emp
     $import = vehicleProbelauf($this, vehicleFile([datasetLine(['speed' => '230', 'front' => ''])]));
 
     expect($import->summary)->toMatchArray([VehicleImporter::UPDATE => 1])
-        ->and($import->plan[0]['changes'])->toBe(['max_speed_kmh']);
+        ->and($import->planEntries()[0]['changes'])->toBe(['max_speed_kmh']);
 
     $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')->assertSessionHasNoErrors();
 
@@ -125,7 +141,7 @@ it('never overwrites a car a person checked, nor changes a source @admin-202', f
     Vehicle::factory()->create(['hsn' => '0005', 'tsn' => 'ZA3', 'variant' => '2.0 Coupé', 'source' => VehicleSource::ImportDat->value]);
 
     $import = vehicleProbelauf($this, vehicleFile([datasetLine(), datasetLine(['tsn' => 'ZA3', 'variant' => '2.0 Coupé'])]));
-    $reasons = collect($import->plan)->pluck('reason', 'line');
+    $reasons = collect($import->planEntries())->pluck('reason', 'line');
 
     expect($import->summary)->toMatchArray([VehicleImporter::KEPT => 2, VehicleImporter::CREATE => 0])
         ->and($reasons->first())->toBe('Von Hand angelegt und geprüft – bleibt, wie es ist.')
@@ -179,7 +195,7 @@ it('refuses a row whose build window does not read — never an open window, a c
         datasetLine(['tsn' => 'ZA3', 'variant' => '2.0 Coupé', 'to' => 'Dez 19']),
         datasetLine(['tsn' => 'ZA4', 'variant' => '2.0 Cabrio', 'from' => '06.2016', 'to' => '03.2015']),
     ]));
-    $reasons = collect($import->plan)->pluck('reason', 'line');
+    $reasons = collect($import->planEntries())->pluck('reason', 'line');
 
     expect($import->summary)->toMatchArray([VehicleImporter::REFUSED => 4, VehicleImporter::CREATE => 0])
         ->and($reasons['2'])->toBe('Der Baubeginn ist nicht lesbar: „201503“. Bitte Monat und Jahr, etwa 03.2015.')
@@ -190,7 +206,7 @@ it('refuses a row whose build window does not read — never an open window, a c
 
 it('imports a run once: a page another tab has checked since is told to reload, a second click that it is done @admin-202', function (): void {
     $import = vehicleProbelauf($this, vehicleFile([datasetLine()]));
-    $shown = VehicleImporter::fingerprint($import->plan);
+    $shown = VehicleImporter::fingerprint($import->planEntries());
 
     // Another tab checks the run again under another mapping: the Probelauf on this page is no longer the run's.
     $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/zuordnung', ['mapping' => array_diff_key($import->mapping, ['fahrzeugtyp' => true])])
@@ -200,14 +216,14 @@ it('imports a run once: a page another tab has checked since is told to reload, 
 
     expect(Vehicle::query()->count())->toBe(0);
 
-    $fresh = VehicleImporter::fingerprint($import->refresh()->plan);
+    $fresh = VehicleImporter::fingerprint($import->refresh()->planEntries());
     $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren', ['plan' => $fresh])->assertSessionHasNoErrors();
 
     // The second click, or the second tab: told the file is imported — never that a right is missing —, nothing twice.
     $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren', ['plan' => $fresh])
         ->assertSessionHasErrors(['import' => 'Diese Datei ist schon importiert.']);
     $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/zuordnung', ['mapping' => $import->mapping])
-        ->assertSessionHasErrors(['import' => 'Diese Datei ist schon importiert. Ihre Zuordnung bleibt, wie sie war.']);
+        ->assertSessionHasErrors(['import' => 'Diese Datei ist schon importiert. Die Zuordnung bleibt, wie sie war.']);
 
     expect(Vehicle::query()->count())->toBe(1);
 });
@@ -226,7 +242,7 @@ it('counts a dataset’s car numbers within its source, and never hands out one 
 
     expect($import->summary)->toMatchArray([VehicleImporter::CREATE => 3, VehicleImporter::REFUSED => 0]);
 
-    $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren', ['plan' => VehicleImporter::fingerprint($import->plan)])
+    $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren', ['plan' => VehicleImporter::fingerprint($import->planEntries())])
         ->assertSessionHasNoErrors();
 
     // The row without a number gets one past the file's own (7002), not the 7002 another row of the file brings.
@@ -238,12 +254,12 @@ it('reads a file saved as Unicode text — UTF-16 with its byte order mark, tab-
     $import = vehicleProbelauf($this, UploadedFile::fake()->createWithContent('unicode.txt', "\xFF\xFE".mb_convert_encoding($text, 'UTF-16LE', 'UTF-8')));
 
     expect($import->summary)->toMatchArray([VehicleImporter::CREATE => 1, VehicleImporter::REFUSED => 0])
-        ->and($import->plan[0]['keys'])->toBe('HSN 0005 · TSN ZU1');
+        ->and($import->planEntries()[0]['keys'])->toBe('HSN 0005 · TSN ZU1');
 });
 
 it('refuses a row twice in the file and says which figures it could not read @admin-202', function (): void {
     $import = vehicleProbelauf($this, vehicleFile([datasetLine(), datasetLine(), datasetLine(['tsn' => 'ZA2', 'variant' => '2.0 Touring', 'front' => 'viel'])]));
-    $plan = collect($import->plan);
+    $plan = collect($import->planEntries());
 
     expect($plan->firstWhere('line', '3')['reason'])->toBe('Doppelt in der Datei – gleiche HSN, TSN und Variante wie Zeile 2.')
         ->and($plan->firstWhere('line', '4')['notes'])->toBe(['Achslast vorn in kg (8.1) nicht lesbar: „viel“']);
@@ -256,7 +272,7 @@ it('reads his demo data’s `fahrzeug_max_kmh` as field T, and never a zero, a b
     $file = UploadedFile::fake()->createWithContent('demo.csv', implode("\n", array_map(static fn (array $cells): string => implode(';', $cells), [$header, ...$rows]))."\n");
 
     $import = vehicleProbelauf($this, $file);
-    $notes = collect($import->plan)->pluck('notes', 'line');
+    $notes = collect($import->planEntries())->pluck('notes', 'line');
 
     expect($import->mapping['hoechstgeschwindigkeit_kmh'] ?? null)->toBe('fahrzeug_max_kmh')
         ->and($import->summary)->toMatchArray([VehicleImporter::CREATE => 5, VehicleImporter::REFUSED => 0])
@@ -444,14 +460,19 @@ it('applies nothing when the cars changed since the Probelauf @admin-202', funct
     $import = vehicleProbelauf($this, vehicleFile([datasetLine()]));
     Vehicle::factory()->create(['hsn' => '0005', 'tsn' => 'ZA1', 'variant' => '2.0 Limousine', 'source' => VehicleSource::ManuellGeprueft->value]);
 
-    $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')
-        ->assertSessionHasErrors(['import' => 'Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.']);
+    // Asked for, the import plans the file again inside its transaction, finds it changed, and writes nothing: the run
+    // is a Probelauf again, with the reason on its page.
+    $this->actingAs(vehicleImportAdmin(), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')->assertSessionHasNoErrors();
 
-    expect(Vehicle::query()->count())->toBe(1);
+    expect(Vehicle::query()->count())->toBe(1)
+        ->and($import->refresh()->status)->toBe(VehicleImport::PREVIEWED)
+        ->and($import->error)->toBe('Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.')
+        // The Probelauf's own rows are back, as the page showed them.
+        ->and(collect($import->planEntries())->pluck('status')->all())->toBe([VehicleImporter::CREATE]);
 });
 
 it('lets only who may import and create vehicles bring a file in (R-11)', function (): void {
-    $this->actingAs(vehicleImportAdmin('catalogue-manager'), 'admin')->post('/admin/fahrzeuge/import/probelauf', ['file' => vehicleFile([datasetLine()]), 'quelle' => 'import_kba'])->assertForbidden();
+    $this->actingAs(vehicleImportAdmin('catalogue-manager'), 'admin')->postJson('/admin/fahrzeuge/import/hochladen', ['name' => 'fahrzeuge.csv', 'size' => 100, 'quelle' => 'import_kba'])->assertForbidden();
 
     $import = vehicleProbelauf($this, vehicleFile([datasetLine()]));
     $this->actingAs(vehicleImportAdmin('catalogue-manager'), 'admin')->post('/admin/fahrzeuge/import/'.$import->id.'/importieren')->assertForbidden();

@@ -3,14 +3,19 @@
  * Fahrzeuge › Import › one run (his admin item 2, D-297): which column holds what, what the Probelauf found, and the
  * import itself (VehicleImporter).
  *
- * The mapping can change without a new upload: the file's cells were kept as read. The import applies exactly the
- * Probelauf on screen; if the cars changed in between, the server asks for a new one.
+ * The mapping can change without a new upload: the file stays on the server. The import applies exactly the Probelauf
+ * on screen; if the cars changed in between, the server asks for a new one.
+ *
+ * A file of any size (D-462): while the server reads, checks or imports it, the page shows how far it is and asks
+ * again every second and a half — each answer also gives the server its next part of the work — and reloads itself
+ * once the step is done.
  */
 
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
+import AdminProgress from '../../../Components/Admin/AdminProgress.vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import { decimal } from '../../../format'
 
@@ -40,20 +45,41 @@ interface PlanRow {
     reason: string | null
 }
 
+type RunStatus = 'uploading' | 'reading' | 'checking' | 'previewed' | 'applying' | 'applied' | 'failed'
+
+interface Progress {
+    step: string
+    done: number
+    total: number
+    percent: number
+    text: string
+}
+
 const props = defineProps<{
     run: {
         id: number
         file: string
         source: string
         format: string
-        status: 'previewed' | 'applied'
+        status: RunStatus
         statusLabel: string
         summary: Partial<Record<Status | 'unread', number>>
         by: string | null
         at: string | null
         rowCount: number
         appliedAt: string | null
+        /** Why the last step stopped: a file the server could not read, or an import that did not go through. */
+        error?: string | null
+        /** A Probelauf from before runs kept their file: it shows what it found, and asks for the file again. */
+        expired?: boolean
+        size?: string | null
     }
+    /** How far the server is while it works on the run; null once it is done. */
+    progress?: Progress | null
+    /** Where the page asks how far the server is. */
+    poll?: string
+    /** Whether the server goes on with the page closed (the host runs the scheduler). */
+    unattended?: boolean
     fields: { key: string; label: string; required: boolean; hint: string | null }[]
     headers: string[]
     examples: Record<string, string>
@@ -96,12 +122,95 @@ function remap(): void {
 
 const s = computed(() => props.run.summary)
 const ready = computed(() => props.missing.length === 0)
+/* A Probelauf to show: the server is done with the file (or imports it), and every row is decided. */
+const decided = computed(() => ['previewed', 'applying', 'applied'].includes(props.run.status) && Object.keys(props.run.summary).length > 0)
 const importable = computed(() => (s.value.create ?? 0) + (s.value.update ?? 0) + (s.value.merge ?? 0))
 
 const context = computed(() => {
     const rows = props.run.rowCount === 1 ? '1 Zeile' : `${decimal(props.run.rowCount, 0)} Zeilen`
+    const parts = [props.run.statusLabel, props.run.source, props.run.rowCount > 0 ? rows : (props.run.size ?? ''), props.run.format, props.run.at ?? '']
 
-    return `${props.run.statusLabel} · ${props.run.source} · ${rows} · ${props.run.format}${props.run.at ? ` · ${props.run.at}` : ''}`
+    return parts.filter((part) => part !== '' && part !== '–').join(' · ')
+})
+
+/* ── While the server works ───────────────────────────────────────── */
+
+const WORKING: RunStatus[] = ['reading', 'checking', 'applying']
+const working = computed(() => WORKING.includes(props.run.status))
+const live = ref<Progress | null>(props.progress ?? null)
+const lost = ref(false)
+let timer: ReturnType<typeof setTimeout> | null = null
+let stopped = false
+
+watch(
+    () => props.progress,
+    (progress) => {
+        live.value = progress ?? null
+    }
+)
+
+const STAGE: Partial<Record<RunStatus, string>> = {
+    reading: 'Die Datei wird gelesen',
+    checking: 'Der Probelauf läuft',
+    applying: 'Die Fahrzeuge werden importiert',
+}
+
+async function ask(): Promise<void> {
+    if (stopped || !props.poll) {
+        return
+    }
+
+    try {
+        const response = await fetch(props.poll, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+
+        if (!response.ok) {
+            throw new Error(String(response.status))
+        }
+
+        const answer = (await response.json()) as { status: RunStatus; progress: Progress | null }
+        lost.value = false
+
+        if (answer.status !== props.run.status) {
+            // The step is done (or stopped): the page as the server now has it — and, if it works on, the next question.
+            router.reload({ onFinish: () => schedule() })
+
+            return
+        }
+
+        live.value = answer.progress
+    } catch {
+        lost.value = true
+    }
+
+    schedule()
+}
+
+function schedule(): void {
+    if (timer !== null) {
+        clearTimeout(timer)
+        timer = null
+    }
+
+    if (!stopped && working.value) {
+        timer = setTimeout(() => void ask(), 1500)
+    }
+}
+
+onMounted(schedule)
+
+/* „Importieren“ or „Neu prüfen“ puts the run to work again on this page: ask from then on. */
+watch(working, (now, before) => {
+    if (now && !before) {
+        schedule()
+    }
+})
+
+onBeforeUnmount(() => {
+    stopped = true
+
+    if (timer !== null) {
+        clearTimeout(timer)
+    }
 })
 
 const serverError = computed(() => ((page.props.errors ?? {}) as Record<string, string | undefined>).import ?? '')
@@ -222,10 +331,47 @@ function runImport(): void {
         </template>
 
         <p v-if="serverError" class="adm-alert" role="alert">{{ serverError }}</p>
+        <p v-if="run.error && !working" class="adm-alert" role="alert">{{ run.error }}</p>
         <p v-if="run.status === 'applied'" class="adm-note fr-state">Importiert am {{ run.appliedAt }}.</p>
 
+        <!-- ── While the server works on the file ────────────────────────── -->
+        <section v-if="working" class="adm-section fr-work" aria-labelledby="fr-h-work">
+            <div class="adm-section__head">
+                <h2 id="fr-h-work" class="adm-section__title">{{ STAGE[run.status] }}</h2>
+            </div>
+            <p class="fr-work__step">{{ live?.step ?? 'Wird vorbereitet …' }}</p>
+            <AdminProgress id="fr-progress" :percent="live?.percent ?? 0" :text="live?.text ?? 'Wird vorbereitet …'" />
+            <p class="adm-note">
+                <template v-if="unattended">Du kannst die Seite schließen: Der Server arbeitet weiter, und das Ergebnis steht danach hier.</template>
+                <template v-else>Lass diese Seite offen, bis das Ergebnis hier steht: Der Server arbeitet weiter, solange sie offen ist.</template>
+                <template v-if="run.status === 'applying'"> Bis der Import fertig ist, ändert sich an den Fahrzeugen nichts – er speichert alles auf einmal oder gar nichts.</template>
+            </p>
+            <p v-if="lost" class="adm-note" role="status">Der Server antwortet gerade nicht. Die Seite fragt weiter nach.</p>
+        </section>
+
+        <section v-else-if="run.status === 'uploading'" class="adm-section" aria-labelledby="fr-h-upload">
+            <div class="adm-section__head">
+                <h2 id="fr-h-upload" class="adm-section__title">Datei nicht vollständig</h2>
+            </div>
+            <p class="adm-note">Die Datei ist noch nicht vollständig hochgeladen. Ist das Hochladen abgebrochen, lad sie bitte noch einmal hoch.</p>
+            <p><Link href="/admin/fahrzeuge/import">Zum Hochladen</Link></p>
+        </section>
+
+        <section v-else-if="run.status === 'failed'" class="adm-section" aria-labelledby="fr-h-failed">
+            <div class="adm-section__head">
+                <h2 id="fr-h-failed" class="adm-section__title">Probelauf abgebrochen</h2>
+            </div>
+            <p class="adm-note">An den Fahrzeugen hat sich nichts geändert. Korrigier die Datei, wenn nötig, und lad sie noch einmal hoch.</p>
+            <p><Link href="/admin/fahrzeuge/import">Zum Hochladen</Link></p>
+        </section>
+
+        <p v-if="run.expired" class="adm-note fr-state">
+            Dieser Probelauf stammt aus der Zeit, bevor der Server Dateien aufbewahrt hat. Das Ergebnis steht unten. Zum Importieren lad die Datei bitte
+            noch einmal hoch.
+        </p>
+
         <!-- ── What the Probelauf found ────────────────────────────────── -->
-        <section v-if="ready" class="adm-section" aria-labelledby="fr-h-result">
+        <section v-if="ready && decided" class="adm-section" aria-labelledby="fr-h-result">
             <div class="adm-section__head">
                 <h2 id="fr-h-result" class="adm-section__title">{{ run.status === 'previewed' ? 'Probelauf' : 'Ergebnis' }}</h2>
             </div>
@@ -325,7 +471,7 @@ function runImport(): void {
         </section>
 
         <!-- ── Which column holds what ────────────────────────────────── -->
-        <section class="adm-section" aria-labelledby="fr-h-map">
+        <section v-if="decided || run.status === 'previewed'" class="adm-section" aria-labelledby="fr-h-map">
             <div class="adm-section__head">
                 <h2 id="fr-h-map" class="adm-section__title">Zuordnung der Spalten</h2>
             </div>
@@ -377,6 +523,16 @@ function runImport(): void {
 <style scoped>
 .fr-state {
     margin-bottom: var(--sp-16);
+}
+
+.fr-work {
+    display: grid;
+    gap: var(--sp-12);
+}
+
+.fr-work__step {
+    margin: 0;
+    font-weight: 500;
 }
 
 .fr-counts {

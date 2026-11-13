@@ -38,7 +38,7 @@ function boreFitment(?float $centreBoreMm): Fitment
     // An RS 4 runs 280 km/h: its document prints the table of tyre load at speed, or the tyre half is UNKNOWN.
     $fitment = Fitment::factory()
         ->statingCentreBore($centreBoreMm)
-        ->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()->printingDeratingTable()]);
+        ->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()]);
 
     FitmentTyreSize::factory()->for($fitment)->size(245, 45, 18.0)->create();
 
@@ -97,7 +97,7 @@ it('states no bore where two published documents disagree about this car', funct
     // and a Teilegutachten make when both cover a fitment and their measurements differ.
     $second = Fitment::factory()
         ->statingCentreBore(66.6)
-        ->create(['vehicle_id' => $first->vehicle_id, 'wheel_config_id' => $first->wheel_config_id, 'approval_document_id' => ApprovalDocument::factory()->printingDeratingTable()]);
+        ->create(['vehicle_id' => $first->vehicle_id, 'wheel_config_id' => $first->wheel_config_id, 'approval_document_id' => ApprovalDocument::factory()]);
 
     FitmentTyreSize::factory()->for($second)->size(245, 45, 18.0)->create();
 

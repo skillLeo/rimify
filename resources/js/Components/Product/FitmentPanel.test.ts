@@ -99,7 +99,7 @@ describe('FitmentPanel', () => {
     // Finding 103 (the operator's decision of 14.10.2026): the client's own wheel on his own car read „Keine Freigabe
     // hinterlegt“ over a row saying „Freigegeben mit Auflagen“. Unverified is neither forbidden nor unavailable.
     it('leads with the half that is true where the wheel is approved and only the tyre size is unconfirmed — and shows a way on', () => {
-        const summary = 'Zu diesem Gutachten ist keine Tragfähigkeitstabelle für hohe Geschwindigkeit hinterlegt. Für 250 km/h können wir die Reifen deshalb nicht bestätigen.'
+        const summary = 'Für eine Höchstgeschwindigkeit von 310 km/h ist bei uns keine Tragfähigkeit hinterlegt: Die Tabelle, nach der wir rechnen, reicht nur bis 300 km/h. Die Reifen können wir deshalb nicht bestätigen.'
         const open = mount(FitmentPanel, {
             props: {
                 vehicle,
@@ -119,7 +119,7 @@ describe('FitmentPanel', () => {
         // What is on record, said as that — and never what the document does or does not print (R-17).
         expect(open.find('.fit__tyre-summary').text()).toBe(summary)
         expect(open.text()).not.toMatch(/Gutachten (druckt|enthält|nennt) kein/)
-        expect(open.find('[data-open="next"]').text()).toContain('Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand.')
+        expect(open.find('[data-open="next"]').text()).toBe('Wenn du deine Wunschreifen nennst, prüfen wir sie vorab von Hand. Wunschreifen nennen')
         expect(open.find('[data-open="next"] a').attributes('href')).toBe('/kontakt?betreff=Wunschreifen')
 
         // A wheel approved outright reads without „mit Auflagen“; a plain „we hold nothing“ stays what it was.

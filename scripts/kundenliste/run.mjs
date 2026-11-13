@@ -142,8 +142,18 @@ if (!skip.has('playwright')) {
     }
 
     if (existsSync(json)) {
-        ran.add('playwright')
         const report = JSON.parse(readFileSync(json, 'utf8'))
+
+        // A run that broke outside every test — its servers never answered — ran nothing: the list fails, it does not pass
+        // with every item open (CI, 12.11.2026).
+        if ((report.errors ?? []).length > 0) {
+            for (const error of report.errors) {
+                process.stderr.write(`Playwright, outside a test: ${String(error.message ?? '').split('\n')[0]}\n`)
+            }
+        } else {
+            ran.add('playwright')
+        }
+
         const walk = (suite, titles) => {
             for (const spec of suite.specs ?? []) {
                 const name = [...titles, spec.title, ...(spec.tags ?? []).map((t) => (t.startsWith('@') ? t : `@${t}`))].join(' ')

@@ -825,6 +825,13 @@ function runBulk(): void {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    /* KATALOG-10 again, on CI (13.11.2026): beside a classic scrollbar — Windows, Linux: 15 to 17 px — the panel at 768
+       px is 649 px, and the narrowest table was 653. Eight pixels a side instead of twelve leave it room to spare. */
+    .fg-table th,
+    .fg-table td {
+        padding-inline: var(--sp-8);
+    }
+
     .fg-filters__actions {
         grid-column: 1 / -1;
     }

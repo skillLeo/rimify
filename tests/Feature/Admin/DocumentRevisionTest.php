@@ -11,7 +11,6 @@ use App\Models\DocumentCondition;
 use App\Models\DocumentConditionRework;
 use App\Models\DocumentFastener;
 use App\Models\DocumentNotice;
-use App\Models\DocumentSpeedDerating;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -57,7 +56,6 @@ function releasedWithEverything(): ApprovalDocument
     DocumentConditionRework::query()->create(['document_condition_id' => $arch->id, 'vehicle_type' => 'E90', 'axle' => 'REAR', 'from_mm' => 15, 'to_mm' => 30, 'flare_mm' => null, 'note_de' => null]);
     DocumentFastener::query()->create(['approval_document_id' => $document->id, 'number' => 'S01', 'thread' => 'M14x1,25', 'seat' => 'Kegelbund 60°', 'torque_nm' => 120, 'source_page' => 5]);
     DocumentNotice::query()->create(['approval_document_id' => $document->id, 'text_de' => 'Radschrauben nach 50 km nachziehen.', 'source_page' => 5, 'sort_order' => 1]);
-    DocumentSpeedDerating::query()->create(['approval_document_id' => $document->id, 'speed_kmh' => 240, 'symbol' => 'V', 'percent' => '91', 'source_page' => 6]);
 
     $model = WheelModel::factory()->draft()->create(['is_demo' => false, 'name' => 'LeMans']);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
@@ -98,7 +96,6 @@ function holdings(int $id): array
         'document_condition_reworks' => DB::table('document_condition_reworks')->whereIn('document_condition_id', $conditions)->count(),
         'document_fasteners' => DB::table('document_fasteners')->where('approval_document_id', $id)->count(),
         'document_notices' => DB::table('document_notices')->where('approval_document_id', $id)->count(),
-        'document_speed_deratings' => DB::table('document_speed_deratings')->where('approval_document_id', $id)->count(),
         'document_tyre_combinations' => DB::table('document_tyre_combinations')->where('approval_document_id', $id)->count(),
         'fitments' => $rows->count(),
         'fitment_conditions' => DB::table('fitment_conditions')->whereIn('fitment_id', $rows)->count(),

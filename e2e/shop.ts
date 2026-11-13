@@ -18,6 +18,8 @@ export const E2E_FEATURES = {
     RIMIFY_FEATURE_KEY_NUMBERS: 'on',
     // A spec may name the day its requests are answered on — the demo set's last day (onDemoDay, E2eToday, D-337).
     RIMIFY_E2E_CLOCK: 'on',
+    // A vehicle file in parts of 64 KB: a file of a few hundred KB goes through the page in several (D-462).
+    RIMIFY_VEHICLE_IMPORT_PART_BYTES: '65536',
 }
 
 /**

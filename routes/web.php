@@ -27,7 +27,6 @@ use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenErfassungController;
 use App\Http\Controllers\Admin\GutachtenFahrzeugController;
 use App\Http\Controllers\Admin\GutachtenSucheController;
-use App\Http\Controllers\Admin\GutachtenTabelleController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
 use App\Http\Controllers\Admin\MarkenController;
@@ -336,6 +335,9 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::get('/gutachten/{document}/pdf', [GutachtenErfassungController::class, 'pdf'])->whereNumber('document')->name('gutachten.pdf');
         // The five steps' saves (the Gutachten rework, Phase 2): each answers with the state the page redraws from.
         Route::put('/gutachten/{document}/erfassung/felge', [GutachtenErfassungController::class, 'wheel'])->whereNumber('document')->name('gutachten.erfassung.felge');
+        // A code deleted from the whole paper: where it stands first, then everywhere at once (the client's request of 12.11.2026, G; D-461).
+        Route::get('/gutachten/{document}/erfassung/codes/verwendung', [GutachtenErfassungController::class, 'codeUsage'])->whereNumber('document')->name('gutachten.erfassung.code.verwendung');
+        Route::post('/gutachten/{document}/erfassung/codes/loeschen', [GutachtenErfassungController::class, 'deleteCode'])->whereNumber('document')->name('gutachten.erfassung.code.loeschen');
         Route::post('/gutachten/{document}/erfassung/kombinationen', [GutachtenErfassungController::class, 'addCombination'])->whereNumber('document')->name('gutachten.erfassung.kombination.add');
         Route::put('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'changeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.change');
         Route::delete('/gutachten/{document}/erfassung/kombinationen/{combination}', [GutachtenErfassungController::class, 'removeCombination'])->whereNumber(['document', 'combination'])->name('gutachten.erfassung.kombination.remove');
@@ -373,8 +375,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/gutachten/{document}/hinweise/{notice}', [GutachtenAngabenController::class, 'destroyNotice'])->whereNumber(['document', 'notice'])->name('gutachten.hinweis.entfernen');
         Route::post('/gutachten/{document}/nacharbeit', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.nacharbeit.store');
         Route::delete('/gutachten/{document}/nacharbeit/{rework}', [GutachtenAngabenController::class, 'destroyRework'])->whereNumber(['document', 'rework'])->name('gutachten.nacharbeit.entfernen');
-        // Its own table of tyre load at speed (ABE 55255, p. 6), saved whole.
-        Route::put('/gutachten/{document}/tragfaehigkeitstabelle', [GutachtenTabelleController::class, 'update'])->whereNumber('document')->name('gutachten.tabelle.update');
 
         // The review kit (the review release §3): the board, the point sent from the feedback button, the
         // list the team answers from and a point's screenshot — only where the review is on
@@ -407,8 +407,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         // Fahrzeuge › Import (his admin item 2, D-297): a vehicle dataset in a Probelauf, then imported (VehicleImportPolicy).
         Route::get('/fahrzeuge/import', [FahrzeugImportController::class, 'index'])->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.index');
         Route::get('/fahrzeuge/import/beispiel.csv', [FahrzeugImportController::class, 'sample'])->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.beispiel');
-        Route::post('/fahrzeuge/import/probelauf', [FahrzeugImportController::class, 'preview'])->middleware('throttle:20,1,fahrzeugimport-probelauf')->name('fahrzeugimport.probelauf');
+        // A file of any size, in parts (D-462): announced, sent part after part, complete — then the server works on it.
+        Route::post('/fahrzeuge/import/hochladen', [FahrzeugImportController::class, 'start'])->middleware('throttle:20,1,fahrzeugimport-hochladen')->name('fahrzeugimport.hochladen');
+        Route::post('/fahrzeuge/import/{import}/teil', [FahrzeugImportController::class, 'part'])->whereNumber('import')->middleware('throttle:1200,1,fahrzeugimport-teil')->name('fahrzeugimport.teil');
+        Route::post('/fahrzeuge/import/{import}/fertig', [FahrzeugImportController::class, 'finish'])->whereNumber('import')->middleware('throttle:20,1,fahrzeugimport-fertig')->name('fahrzeugimport.fertig');
         Route::get('/fahrzeuge/import/{import}', [FahrzeugImportController::class, 'show'])->whereNumber('import')->middleware(EnsureAdminMay::class.':imports,view')->name('fahrzeugimport.show');
+        Route::get('/fahrzeuge/import/{import}/stand', [FahrzeugImportController::class, 'status'])->whereNumber('import')->middleware([EnsureAdminMay::class.':imports,view', 'throttle:120,1,fahrzeugimport-stand'])->name('fahrzeugimport.stand');
         Route::post('/fahrzeuge/import/{import}/zuordnung', [FahrzeugImportController::class, 'remap'])->whereNumber('import')->middleware('throttle:30,1,fahrzeugimport-zuordnung')->name('fahrzeugimport.zuordnung');
         Route::post('/fahrzeuge/import/{import}/importieren', [FahrzeugImportController::class, 'apply'])->whereNumber('import')->middleware('throttle:10,1,fahrzeugimport-importieren')->name('fahrzeugimport.importieren');
         // Team: roles and their rights, the accounts that hold them, and the record of every change

@@ -163,8 +163,6 @@ export interface CoverageMatrix {
      * matrix counts for them are not the whole approval (the corrections memo §4). Additive.
      */
     incomplete?: { document: string; href: string; sentence: string; base: string | null }[]
-    /** Released documents without a table of tyre load at speed: no tyre answer above 210 km/h from them. Additive. */
-    noSpeedTable?: { document: string; href: string }[]
     /** Released documents whose Verwendungsbereich we hold only in part („1–15“ missing). Additive. */
     missingAnnexes?: { document: string; href: string; annexes: string }[]
 }

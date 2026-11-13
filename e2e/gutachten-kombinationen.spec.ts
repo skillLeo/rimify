@@ -54,7 +54,7 @@ test('18 inch in front and 19 behind: a combination, its tyres per car, a matrix
     await expect(page.getByRole('button', { name: 'Kombination hinzufügen' })).toBeDisabled()
     await version(page, 1, 19).check()
     await expect(page.locator('[data-pick-badge]')).toHaveText('vorne und hinten verschieden')
-    await page.screenshot({ path: '/Users/apple/rimify/resume/shots-p2/step2-1440.png', fullPage: true })
+    await page.screenshot({ path: 'docs/qa/shots/gutachten-kombinationen/step2-1440.png', fullPage: true })
     await add(page)
     await expect(page.locator('.ef-combo')).toHaveCount(2)
 
@@ -104,7 +104,7 @@ test('18 inch in front and 19 behind: a combination, its tyres per car, a matrix
     await expect(paste.locator('.ef-paste__line--bad')).toContainText('Eine Größe allein geht hier nicht')
     await paste.getByRole('button', { name: '1 Zeile übernehmen' }).click()
     await expect(front).toHaveCount(2)
-    await page.screenshot({ path: '/Users/apple/rimify/resume/shots-p2/step4-1440.png', fullPage: true })
+    await page.screenshot({ path: 'docs/qa/shots/gutachten-kombinationen/step4-1440.png', fullPage: true })
 
     // Step 5: the matrix; the combination with no tyres says so, and can be taken out for this car.
     await goToStep(page, 'Freigeben')
@@ -113,7 +113,7 @@ test('18 inch in front and 19 behind: a combination, its tyres per car, a matrix
     await expect(matrix.locator('.ef-cellbtn').nth(0)).toContainText('noch leer')
     await expect(matrix.locator('.ef-cellbtn').nth(1)).toContainText('2 Kombinationen')
     await expect(page.locator('.ef-blockers')).toContainText('Felgenkombination', { timeout: 15_000 })
-    await page.screenshot({ path: '/Users/apple/rimify/resume/shots-p2/step5-1440.png', fullPage: true })
+    await page.screenshot({ path: 'docs/qa/shots/gutachten-kombinationen/step5-1440.png', fullPage: true })
     await matrix.getByRole('button', { name: 'Gilt nicht für dieses Fahrzeug' }).click()
     await expect(matrix.getByRole('button', { name: 'Wieder aufnehmen' })).toBeVisible()
     await expect(page.locator('.ef-blockers', { hasText: 'Felgenkombination' })).toHaveCount(0, { timeout: 15_000 })
@@ -159,7 +159,7 @@ test('warned, never held back: a version the paper does not print, and two bolt 
     await add(page)
     await expect(page.locator('.ef-combo .ef-warn')).toContainText('Durchmesser: im Gutachten 21 Zoll')
     await expect(page.getByRole('button', { name: 'Weiter: Fahrzeuge' })).toBeEnabled()
-    await page.screenshot({ path: '/Users/apple/rimify/resume/shots-p2/step2-warn-1440.png', fullPage: true })
+    await page.screenshot({ path: 'docs/qa/shots/gutachten-kombinationen/step2-warn-1440.png', fullPage: true })
 })
 
 test('what was picked and not added is asked about before leaving the step; a double press removes once', async ({ page }) => {

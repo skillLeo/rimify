@@ -80,6 +80,35 @@ final class ReferenceTables
         ['symbol' => '(Y)', 'rank' => 17, 'max_kmh' => null],
     ];
 
+    /**
+     * The load a tyre carries at speed, in percent of its load index's capacity: ETRTO's table for passenger-car tyres of
+     * speed symbol V, W and Y, as German Gutachten print it — ABE 55255 on its page 6, cell for cell (SpeedLoadTableTest).
+     * One table for every Gutachten, nothing typed or kept per paper (the client's review of 11.11.2026, C; the operator's
+     * answer b, D-459): it replaced the tables typed into each document by hand.
+     *
+     * Speed (km/h) → symbol → percent; null is the table's „–“: a tyre of that symbol may not be used at that speed. Up to
+     * 210 km/h no tyre loses load (SpeedLoadTable::FULL_LOAD_UP_TO_KMH), and a speed is read at the next row up, never
+     * interpolated (the operator's review of C9, §2).
+     *
+     * Only the cells a printed table holds, never one of our own: a symbol in brackets — (W), (Y), a ZR tyre rated beyond 270 or
+     * 300 km/h (D-453) — has no column, so where its load at speed decides, it is not on record: „Noch nicht bestätigt“, as
+     * under every document's own table before.
+     *
+     * @var array<int, array<string, int|null>>
+     */
+    public const SPEED_LOAD_PERCENT = [
+        210 => ['V' => 100, 'W' => 100, 'Y' => 100],
+        220 => ['V' => 97, 'W' => 100, 'Y' => 100],
+        230 => ['V' => 94, 'W' => 100, 'Y' => 100],
+        240 => ['V' => 91, 'W' => 100, 'Y' => 100],
+        250 => ['V' => null, 'W' => 95, 'Y' => 100],
+        260 => ['V' => null, 'W' => 90, 'Y' => 100],
+        270 => ['V' => null, 'W' => 85, 'Y' => 100],
+        280 => ['V' => null, 'W' => null, 'Y' => 95],
+        290 => ['V' => null, 'W' => null, 'Y' => 90],
+        300 => ['V' => null, 'W' => null, 'Y' => 85],
+    ];
+
     /** @codeCoverageIgnore Constants only: the constructor exists so the class cannot be built, and never runs (D-433). */
     private function __construct() {}
 }

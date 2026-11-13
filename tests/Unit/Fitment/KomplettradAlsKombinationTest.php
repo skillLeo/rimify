@@ -65,7 +65,7 @@ function alsKombiVerdict(TyrePairingTable $list, array $conditions = []): Fitmen
     $base = FitmentFixtures::document();
     $document = new DocumentRecord(
         id: $base->id, kind: $base->kind, number: $base->number, revision: $base->revision, issuedOn: $base->issuedOn,
-        pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating,
+        pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage,
         completeness: $base->completeness, tyreCombinations: $list,
     );
     $wheel = new WheelConfigRecord(
@@ -272,7 +272,7 @@ it('answers no axle on its tyre where the offer itself refuses — a tyre rule t
         sizes: [new TyreSize(235, 45, 19.0)],
         document: new DocumentRecord(
             id: $base->id, kind: $base->kind, number: $base->number, revision: $base->revision, issuedOn: $base->issuedOn,
-            pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage, speedDerating: $base->speedDerating,
+            pdfKey: $base->pdfKey, pdfSha256: $base->pdfSha256, sourcePage: $base->sourcePage,
             completeness: $base->completeness, tyreCombinations: alsKombiBbs(),
         ),
     );

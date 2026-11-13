@@ -131,20 +131,36 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(signal, () => process.exit(0))
 }
 
-/** Resolves once a backend answers `/up`, or rejects after the given milliseconds. */
+/**
+ * Resolves once a backend answers `/up`, or rejects after the given milliseconds — saying what it last answered, if anything:
+ * a 500 from an app that boots against an empty database is another fault than a worker that never listened (CI, 12.11.2026).
+ */
 function ready(backend, timeout) {
     const started = Date.now()
+    let last = 'nothing'
 
     return new Promise((resolve, reject) => {
         const probe = () => {
             const request = http.get({ host: '127.0.0.1', port: backend.port, path: '/up', timeout: 2000 }, (response) => {
-                response.resume()
-                response.statusCode === 200 ? resolve() : retry()
+                if (response.statusCode === 200) {
+                    response.resume()
+                    resolve()
+
+                    return
+                }
+
+                let body = ''
+                response.setEncoding('utf8')
+                response.on('data', (chunk) => { body = (body + chunk).slice(0, 2000) })
+                response.on('end', () => {
+                    last = `status ${response.statusCode}: ${body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400)}`
+                    retry()
+                })
             })
-            request.on('error', retry)
+            request.on('error', (error) => { last = error.message; retry() })
             request.on('timeout', () => request.destroy())
         }
-        const retry = () => (Date.now() - started > timeout ? reject(new Error(`PHP on ${backend.port} did not answer`)) : setTimeout(probe, 250))
+        const retry = () => (Date.now() - started > timeout ? reject(new Error(`PHP on ${backend.port} did not answer /up with 200 (${env.DB_DATABASE ?? '.env database'}); last: ${last}`)) : setTimeout(probe, 250))
 
         probe()
     })

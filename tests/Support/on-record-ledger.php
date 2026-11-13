@@ -21,14 +21,11 @@ declare(strict_types=1);
 return [
     // ── What the customer reads: the engine ──────────────────────────────────────────────────────────────────────────
     'laut Gutachten nur für Fahrzeuge mit %s zugelassen' => ['backed', 'the kW band recorded beside the tyre size (TyreSize::powerBandDe)'],
-    'ist laut Tabelle des Gutachtens kein Reifen mit Geschwindigkeitsindex' => ['backed', 'a recorded „–“ in the document\'s speed table (DeratingLookup::isNotPermitted)'],
-    'laut Tabelle des Gutachtens nicht zulässig, erforderlich ist' => ['backed', 'a recorded „–“ for the lower speed symbol in the document\'s speed table'],
-    'Beispieltabelle aus den Demodaten, nicht aus dem Gutachten' => ['backed', 'the recorded origin of a demo table (seededFrom)'],
-    'die Reifen, die das Gutachten dazu nennt, aber nicht' => ['backed', 'the tyre half is NOT_PERMITTED on the recorded sizes and the recorded table'],
+    'die Reifen, die das Gutachten dazu nennt, aber nicht' => ['backed', 'the tyre half is NOT_PERMITTED on the recorded sizes — on a frozen answer: since D-459 a live one never is, ETRTO\'s table naming a permitted symbol at every speed'],
     'Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs' => ['backed', 'the build window recorded on a row that names the car (FitmentRow::windowCovers)'],
     'Das Gutachten gilt nicht für die Karosserieform oder den Antrieb' => ['backed', 'the body or drive restriction recorded on every row that names the car'],
     'Das Gutachten gilt nur für bestimmte Karosserieformen oder Antriebe' => ['backed', 'the same recorded restriction; what is unknown is the car\'s own body or drive, and the sentence says so'],
-    'lässt das Gutachten keinen passenden Reifen zu' => ['backed', 'a recorded „–“ in the document\'s speed table for the car\'s top speed'],
+    'lässt das Gutachten keinen passenden Reifen zu' => ['backed', 'a „–“ recorded in the document\'s own speed table, on a frozen answer: since D-459 every document reads ETRTO\'s, which names a permitted symbol at every speed'],
     'nur in den Reifenkombinationen, die das Gutachten nennt' => ['backed', 'the document\'s own list of combinations as entered (document_tyre_combinations, D-256): closed, the Komplettrad is one of them (D-335)'],
     'nur\s+Reifen\s+eines\s+Herstellers\s+und\s+achsweise' => ['code', 'the pattern that reads ABE 55255 V19\'s clause in the recorded sentence, never a sentence anyone reads (TyreLineRule, D-336)'],
     '(?:Profiltyps|Typs)(?:\s+zulässig)?/iu\', self::SET, self::SET' => ['code', 'the pattern that reads a clause asking one maker and one type on every tyre (TyreLineRule, D-336)'],
@@ -84,7 +81,6 @@ return [
     'Entfernt nur die Beispieldaten, nicht deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what the button removes'],
     'und das Gutachten ist so lange nicht freigebbar' => ['ours', 'a rule of the release'],
     'Am Urteil des Gutachtens ändert das nichts' => ['ours', 'what an edit of ours does not change'],
-    'nicht aus diesem Gutachten übertragen' => ['backed', 'the recorded origin of a demo table (seeded_from)'],
     'Entwurf, noch nicht freigegeben' => ['ours', 'the state of a record'],
     'Zurücknehmen lässt sich nur eine Freigabe: Dieses Gutachten ist nicht freigegeben' => ['ours', 'the state of a record: only a released one can be taken back (D-225)'],
     'Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht' => ['backed', 'the field being filled in: valid_from_production'],
@@ -105,4 +101,5 @@ return [
 
     // ── The five steps: staff read the paper, and these ask them to say what it prints ──────────────────────
     'was du aus dem Gutachten eingetragen hast' => ['ours', 'compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen'],
+    'Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle' => ['ours', 'what the shop computes the load at speed with: ETRTO\'s table in code, the same for every document, nothing typed (D-459)'],
 ];

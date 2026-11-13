@@ -113,8 +113,8 @@ export const ITEMS = [
     {
         nr: 215,
         wish: 'Unter Gutachten › Dokumente die „Tragfähigkeit bei hoher Geschwindigkeit“ nicht brauchen',
-        now: 'Die Tabelle erscheint nur noch bei einem Gutachten, das laut den eingetragenen Angaben eine druckt – dort verlangt die Freigabe sie. Bei allen anderen steht an ihrer Stelle eine eingeklappte Zeile, „Keine Tabelle hinterlegt“. Entfernt haben wir sie nicht: Bei einem Gutachten wie der ABE 55255, das sie druckt, entscheidet sie bei Autos mit mehr als 210 km/h Höchstgeschwindigkeit, welche Reifen zulässig sind.',
-        state: 'anders gelöst',
+        now: 'Die Tabelle gibt es nicht mehr: Kein Gutachten zeigt oder verlangt sie, und du trägst nirgends eine ein. Für Autos über 210 km/h rechnet der Shop bei jedem Gutachten mit der ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, die fest im Shop hinterlegt ist.',
+        state: 'erledigt',
     },
     {
         nr: 216,
@@ -167,7 +167,7 @@ export const NOTES = {
     212: 'The Ratgeber has its own admin page under Inhalte › Ratgeber with search, sorting, create, edit, publish, withdraw and delete; old addresses redirect there, and /blog lists every published article.',
     213: 'The title composes itself from brand, model and Radtypenbezeichnung; a title typed otherwise under „Titel im Shop“ stays, the rim list flags it „Titel weicht ab“, and in the form the composed title is one click away.',
     214: 'Every rim page carries structured data for Google (JSON-LD), each size and colour a product of its own with SKU, EAN, price and availability, ratings only from real reviews and the shipping cost once you have entered it under Einstellungen › Verkäufer & Versand; delivery time and returns are not in it yet.',
-    215: 'Solved differently: the table is shown, and required at release, only on a Gutachten that according to its entered details prints one — like ABE 55255, where it decides the tyres for cars above 210 km/h — and everywhere else it folds to one line, „Keine Tabelle hinterlegt“.',
+    215: 'Done with the client\'s review of 11.11 (C, D-459): no Gutachten keeps a table of tyre load at speed any more — the admin shows none, the release asks for none, nothing is typed; above 210 km/h the shop reads ETRTO\'s table, fixed in code.',
     216: 'The shop tells the browser and the host not to store its pages, so every change to the catalogue applies at once, and a page brought back with the Back button checks with the shop and reloads if anything changed.',
     217: 'Part 1 is done: the shop no longer creates, numbers or mentions its own invoices, and older ones stay readable; Stripe invoices with every line and 19 % VAT, and the daily copy to S3, come with the next release.',
     218: 'The order link now carries a random UUID and keeps its signature; a link with the order number finds nothing. Order numbers look like 2610-10487 everywhere, Stripe included, and the admin search finds them with or without the dash, old RMF numbers too.',

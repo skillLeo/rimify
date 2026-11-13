@@ -484,7 +484,7 @@ final class AcceptanceSeeder
                 }
             }
 
-            foreach (['fasteners' => 'document_fasteners', 'notices' => 'document_notices', 'speed_deratings' => 'document_speed_deratings'] as $part => $table) {
+            foreach (['fasteners' => 'document_fasteners', 'notices' => 'document_notices'] as $part => $table) {
                 foreach ($document[$part] as $child) {
                     DB::table($table)->insert([...$child, 'approval_document_id' => $ids[$key], 'created_at' => now(), 'updated_at' => now()]);
                     $counts[$table] = ($counts[$table] ?? 0) + 1;

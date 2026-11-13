@@ -1,0 +1,1 @@
+import{p as e}from"./app-Bpn0vvB8.js";var t=new Map;function n(n,i={}){r(n);let a;e.reload({...i,onCancelToken:e=>{a=e,t.set(n,e),i.onCancelToken?.(e)},onFinish:e=>{t.get(n)===a&&t.delete(n),i.onFinish?.(e)}})}function r(e){t.get(e)?.cancel(),t.delete(e)}export{n,r as t};

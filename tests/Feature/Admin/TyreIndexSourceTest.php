@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Enums\TyreIndexSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
-use App\Models\DocumentSpeedDerating;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -40,7 +39,6 @@ beforeEach(function (): void {
 });
 
 const INDEX_UNANSWERED = 'Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.';
-const INDEX_TABLE_MISSING = 'Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, erfasst ist sie nicht. Trag sie ein oder ändere die Angabe.';
 
 function indexAdmin(): AdminUser
 {
@@ -127,17 +125,12 @@ it('does not release a document nobody has answered it for, and says where to an
     expect($document->refresh()->status->value)->toBe('published');
 });
 
-it('holds „Tabelle“ to a table typed from this document — the demo seed’s example is not one', function (): void {
+it('releases „Tabelle“ with no table typed: the shop reads ETRTO\'s for every document (D-459)', function (): void {
     $document = indexDraft(TyreIndexSource::Table);
 
-    expect(app(DocumentRelease::class)->check($document))->toBe([INDEX_TABLE_MISSING]);
-
-    DocumentSpeedDerating::query()->create(['approval_document_id' => $document->id, 'speed_kmh' => 240, 'symbol' => 'V', 'percent' => 91, 'source_page' => 6, 'seeded_from' => 'ABE 55255']);
-    expect(app(DocumentRelease::class)->check($document))->toBe([INDEX_TABLE_MISSING]);
-
-    DocumentSpeedDerating::query()->where('approval_document_id', $document->id)->delete();
-    DocumentSpeedDerating::query()->create(['approval_document_id' => $document->id, 'speed_kmh' => 240, 'symbol' => 'V', 'percent' => 91, 'source_page' => 6]);
     expect(app(DocumentRelease::class)->check($document))->toBe([]);
+    $this->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertSessionHasNoErrors();
+    expect($document->refresh()->status->value)->toBe('published');
 });
 
 it('holds „bei jeder Reifengröße“ to both figures at every size — load index and symbol (D-285)', function (): void {
@@ -165,14 +158,14 @@ it('carries the answer into a new revision: it is a fact of the document, not of
     expect(app(DocumentRevision::class)->draftFrom($released, indexAdmin())->tyre_index_source)->toBe(TyreIndexSource::Table);
 });
 
-it('reads the client’s two documents as the team entered them: ABE 55255 by its table, the Nachtrag by the papers', function (): void {
-    /** @var array{documents: array<string, array{row: array<string, mixed>, speed_deratings: list<array<string, mixed>>}>} $set */
+it('reads the client’s two documents as the team entered them: ABE 55255 by its table, the Nachtrag by the papers — the table itself never typed (D-459)', function (): void {
+    /** @var array{documents: array<string, array<string, mixed>&array{row: array<string, mixed>}>} $set */
     $set = require database_path('seeders/content/abnahme/gutachten.php');
     $read = fn (string $file): mixed => json_decode((string) file_get_contents(base_path("docs/gutachten/{$file}")), true, flags: JSON_THROW_ON_ERROR)['document']['tyre_index_source'] ?? null;
 
     expect($set['documents']['abe-55255']['row']['tyre_index_source'])->toBe('table')
-        // Its table is typed from page 6, not the demo seed's: the answer is borne out.
-        ->and(collect($set['documents']['abe-55255']['speed_deratings'])->whereNull('seeded_from')->count())->toBeGreaterThan(0)
+        // Its table is not typed: every document reads ETRTO's, the same figures as its page 6.
+        ->and($set['documents']['abe-55255'])->not->toHaveKey('speed_deratings')
         ->and($set['documents']['nachtrag-366-0350-21']['row']['tyre_index_source'])->toBe('papers')
         ->and($read('abe-55255.json'))->toBe('table')
         ->and($read('366-0350-21-WIRD-N1.json'))->toBe('papers');

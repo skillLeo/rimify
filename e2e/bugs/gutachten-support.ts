@@ -65,41 +65,60 @@ export async function guardWrites(page: Page): Promise<WriteLog> {
  * rows above zero, so its page stays quick — a document of 1.400 rows makes every step slow, not different.
  */
 export async function busiestDocument(page: Page): Promise<number> {
-    // The released ones: the list comes in pages, drafts first, and the suite's own drafts would fill the first.
-    await page.goto('/admin/gutachten?status=published', { waitUntil: 'domcontentloaded' });
-    await waitForApp(page);
-    await expect(page.locator('a.gd-link').first(), 'the Dokumente list shows no document (the dev DB should hold the seeded Gutachten)').toBeVisible();
+    // The released ones, a page at a time: the list comes in pages of 50, a paper without its issue date first — and every
+    // run of the suite releases its own papers without one (e2e/gutachten-erfassung.spec.ts, „E2E-…“). On a machine
+    // that has run the suite many times they fill the first pages (the gate of 13.11.2026: 71 of them), so the seeded
+    // papers are looked for on the pages after, up to ten.
+    for (let seite = 1; seite <= 10; seite++) {
+        await page.goto(`/admin/gutachten?status=published${seite > 1 ? `&seite=${seite}` : ''}`, { waitUntil: 'domcontentloaded' });
+        await waitForApp(page);
 
-    const picked = await page.evaluate(() => {
-        let best = { id: 0, rows: Number.POSITIVE_INFINITY };
-
-        for (const tr of Array.from(document.querySelectorAll('table.adm-table tbody tr'))) {
-            // A paper the suite itself entered (e2e/gutachten-erfassung.spec.ts) is not what these specs are about.
-            if ((tr.textContent ?? '').includes('E2E-')) {
-                continue;
-            }
-
-            const href = tr.querySelector('a.gd-link')?.getAttribute('href') ?? '';
-            const id = Number(href.split('/').pop());
-            // "N von M": N rows in the shop, M in all. Only a released document has rows in the shop — the
-            // callers answer it in the browser as a draft and release it again; a real draft (QA-ENTWURF)
-            // is not what they are about.
-            const cell = tr.querySelector('td[data-label="Zeilen im Shop"]')?.textContent ?? '';
-            const [, live = '0', total = '0'] = /([\d.]+)\s+von\s+([\d.]+)/.exec(cell) ?? [];
-            const inShop = Number(live.replace(/\./g, ''));
-            const rows = Number(total.replace(/\./g, ''));
-
-            if (Number.isInteger(id) && id > 0 && inShop > 0 && rows > 0 && rows < best.rows) {
-                best = { id, rows };
-            }
+        if (seite === 1) {
+            await expect(page.locator('a.gd-link').first(), 'the Dokumente list shows no document (the dev DB should hold the seeded Gutachten)').toBeVisible();
         }
 
-        return best;
-    });
+        const picked = await page.evaluate(() => {
+            let best = { id: 0, rows: Number.POSITIVE_INFINITY, listed: 0 };
 
-    expect(picked.id > 0, 'no document id on the Dokumente list').toBe(true);
+            for (const tr of Array.from(document.querySelectorAll('table.adm-table tbody tr'))) {
+                best.listed++;
 
-    return picked.id;
+                // A paper the suite itself entered (e2e/gutachten-erfassung.spec.ts) is not what these specs are about.
+                if ((tr.textContent ?? '').includes('E2E-')) {
+                    continue;
+                }
+
+                const href = tr.querySelector('a.gd-link')?.getAttribute('href') ?? '';
+                const id = Number(href.split('/').pop());
+                // "N von M": N rows in the shop, M in all. Only a released document has rows in the shop — the
+                // callers answer it in the browser as a draft and release it again; a real draft (QA-ENTWURF)
+                // is not what they are about.
+                const cell = tr.querySelector('td[data-label="Zeilen im Shop"]')?.textContent ?? '';
+                const [, live = '0', total = '0'] = /([\d.]+)\s+von\s+([\d.]+)/.exec(cell) ?? [];
+                const inShop = Number(live.replace(/\./g, ''));
+                const rows = Number(total.replace(/\./g, ''));
+
+                if (Number.isInteger(id) && id > 0 && inShop > 0 && rows > 0 && rows < best.rows) {
+                    best = { id, rows, listed: best.listed };
+                }
+            }
+
+            return best;
+        });
+
+        if (picked.id > 0) {
+            return picked.id;
+        }
+
+        // A page shorter than 50 is the last one.
+        if (picked.listed < 50) {
+            break;
+        }
+    }
+
+    expect(false, 'no document id on the Dokumente list').toBe(true);
+
+    return 0;
 }
 
 /* ── Focus ─────────────────────────────────────────────────────────────────────────────────────────── */

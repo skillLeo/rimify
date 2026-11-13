@@ -344,6 +344,16 @@ return [
         'baseline' => env('RIMIFY_RESET_BASELINE', 'database/baseline/testumgebung.sql'),
     ],
 
+    /*
+    | Fahrzeuge › Import of any size (D-462): a file arrives in parts no larger than the host takes in one request — half
+    | of upload_max_filesize or post_max_size, at most 4 MB; `part_bytes` fixes it (the suites send small parts). How far a
+    | run is goes to a cache that lives outside the import's transaction: the file store unless set.
+    */
+    'vehicle_import' => [
+        'part_bytes' => (int) env('RIMIFY_VEHICLE_IMPORT_PART_BYTES', 0),
+        'progress_store' => env('RIMIFY_VEHICLE_IMPORT_PROGRESS_STORE', 'file'),
+    ],
+
     'gutachten' => [
         'disk' => env('RIMIFY_GUTACHTEN_DISK', 'local'),
 

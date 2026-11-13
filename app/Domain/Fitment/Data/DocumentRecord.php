@@ -35,12 +35,6 @@ final readonly class DocumentRecord
          */
         public array $notesDe = [],
         /**
-         * The document's own table of tyre load at speed; null when it prints none — then above 210 km/h
-         * its tyre answer is UNKNOWN, never borrowed from another document. Not frozen onto a snapshot: the
-         * sum it produced is, in the verdict's tyre lines.
-         */
-        public ?SpeedDeratingTable $speedDerating = null,
-        /**
          * § 15 FZV: false where the document — or, for a Nachtrag, its base — frees the papers from correction (ABE
          * 53841, point 10); null where it says nothing, and then nothing is claimed. Not the Änderungsabnahme, which the
          * Auflagen decide. Frozen with the verdict: it is part of what the customer was told.
@@ -64,8 +58,8 @@ final readonly class DocumentRecord
          * The document's own list of tyre combinations, front against rear, as entered (`document_tyre_combinations`,
          * D-256); null where none is entered. Entered, it is closed: the document approves the wheel only with these —
          * BBS's Anlage BMW15, „in Verbindung mit“ four combinations — so the Komplettrad is one of them, two wheels on each
-         * axle in the sizes it names, never four of one size (D-335). Not frozen onto a snapshot as a list, like the
-         * derating table — TyreEligibility answers live verdicts only —; the combination a set was sold in is, on its
+         * axle in the sizes it names, never four of one size (D-335). Not frozen onto a snapshot as a list —
+         * TyreEligibility answers live verdicts only —; the combination a set was sold in is, on its
          * order lines.
          */
         public ?TyrePairingTable $tyreCombinations = null,
