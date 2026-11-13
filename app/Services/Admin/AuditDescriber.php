@@ -242,6 +242,10 @@ final class AuditDescriber
         'vehicle.created_manually' => 'fahrzeuge',
         'vehicle.import_applied' => 'fahrzeuge',
         'vehicle.corrected' => 'fahrzeuge',
+        'vehicle.test_data_removed' => 'fahrzeuge',
+        'vehicle.test_data_purged' => 'fahrzeuge',
+        'vehicle.import_rows_purged' => 'fahrzeuge',
+        'schema.host_indexes_removed' => 'protokoll',
     ];
 
     /**
@@ -795,6 +799,23 @@ final class AuditDescriber
             ],
             'vehicle.import_applied' => [self::vehicleImport($p), []],
             'vehicle.corrected' => self::vehicleCorrected($p),
+            // D-462, D-476, D-477: the cars and rows of test imports, written on the preview by hand — and the indexes the
+            // host adds on its own, removed by every release.
+            'vehicle.test_data_removed' => [
+                self::count(self::number($p, 'count'), 'Testfahrzeug', 'Testfahrzeuge').' '.self::q(self::text($p, 'make') ?? 'ohne Namen')
+                    .self::runs($p).' wurden aus der Fahrzeugauswahl genommen; sie lassen sich wiederherstellen.',
+                [],
+            ],
+            'vehicle.test_data_purged' => [
+                self::count(self::number($p, 'count'), 'Testfahrzeug', 'Testfahrzeuge').' '.self::q(self::text($p, 'make') ?? 'ohne Namen')
+                    .self::runs($p).' wurden endgültig gelöscht'.self::backup($p).'.',
+                [],
+            ],
+            'vehicle.import_rows_purged' => [
+                'Die '.self::count(self::number($p, 'count'), 'Zeile', 'Zeilen').self::runs($p).' wurden gelöscht'.self::backup($p).'; die Importe selbst bleiben stehen.',
+                [],
+            ],
+            'schema.host_indexes_removed' => [self::hostIndexes($p), []],
             default => [
                 'Hier wurde etwas geändert, das das Protokoll noch nicht in Worten beschreiben kann.',
                 self::diff(self::map($p, 'old'), self::map($p, 'attributes') + self::map($p, 'new')),
@@ -821,6 +842,59 @@ final class AuditDescriber
 
         return 'Der Fahrzeugdatensatz '.self::q(self::text($p, 'file') ?? 'ohne Namen').' wurde importiert'
             .($parts === [] ? '.' : ': '.implode(', ', $parts).'.');
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function number(array $p, string $key): int
+    {
+        return is_numeric($p[$key] ?? null) ? (int) $p[$key] : 0;
+    }
+
+    /** „ aus dem Import 1“, „ aus den Importen 1, 2 und 3“ — or nothing where no run is named. */
+    /** @param  array<array-key, mixed>  $p */
+    private static function runs(array $p): string
+    {
+        $runs = array_values(array_map(static fn (mixed $r): string => (string) $r, array_filter(self::map($p, 'runs'), 'is_numeric')));
+
+        if ($runs === []) {
+            return '';
+        }
+
+        $last = (string) array_pop($runs);
+
+        return $runs === [] ? ' aus dem Import '.$last : ' aus den Importen '.implode(', ', $runs).' und '.$last;
+    }
+
+    /** @param  array<array-key, mixed>  $p */
+    private static function backup(array $p): string
+    {
+        $file = self::text($p, 'backup');
+
+        return $file === null ? '' : ', nachdem die Datenbank in '.self::q($file).' gesichert war';
+    }
+
+    /**
+     * „Ein Index, den der Host selbst angelegt hatte, wurde entfernt: bei den Fahrzeugen, über 2 Spalten.“ — the tables in
+     * words, never their names (a code); which columns stays in the entry's data and in the log.
+     *
+     * @param  array<array-key, mixed>  $p
+     */
+    private static function hostIndexes(array $p): string
+    {
+        $tables = ['vehicles' => 'bei den Fahrzeugen', 'vehicle_import_rows' => 'bei den Zeilen der Fahrzeugimporte'];
+        $named = [];
+
+        foreach (self::map($p, 'indexes') as $index) {
+            if (is_array($index) && is_string($index['table'] ?? null)) {
+                $columns = count(array_filter((array) ($index['columns'] ?? []), 'is_string'));
+                $named[] = ($tables[$index['table']] ?? 'in einer weiteren Tabelle').($columns === 0 ? '' : ', über '.self::count($columns, 'Spalte', 'Spalten'));
+            }
+        }
+
+        $n = self::number($p, 'count') ?: count($named);
+
+        return ($n === 1 ? 'Ein Index, den der Host selbst angelegt hatte, wurde entfernt' : GermanFormat::integer($n).' Indizes, die der Host selbst angelegt hatte, wurden entfernt')
+            .($named === [] ? '.' : ': '.implode('; ', $named).'.');
     }
 
     /** @param  array<array-key, mixed>  $p */

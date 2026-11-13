@@ -733,6 +733,30 @@ describe('putting every entry into words', function (): void {
                 'Der Fahrzeugdatensatz „fahrzeuge.csv“ wurde importiert: 2 Fahrzeuge neu, 1 ergänzt, 1 abgelehnt.',
                 [],
             ],
+            // D-462, D-476, D-477: written on the preview by hand, as they stand in its Protokoll.
+            'vehicle.test_data_removed' => [
+                ['count' => 531337, 'make' => 'Testdaten H', 'hsn' => '9990–9999', 'runs' => [1, 3], 'why' => 'Test H'],
+                '531.337 Testfahrzeuge „Testdaten H“ aus den Importen 1 und 3 wurden aus der Fahrzeugauswahl genommen; sie lassen sich wiederherstellen.',
+                [],
+            ],
+            'vehicle.test_data_purged' => [
+                ['table' => 'vehicles', 'count' => 1337, 'make' => 'Testdaten H', 'runs' => [3], 'backup' => 'rimify-20261113-1130-vor-loeschen.sql.gz', 'why' => 'Rest'],
+                '1.337 Testfahrzeuge „Testdaten H“ aus dem Import 3 wurden endgültig gelöscht, nachdem die Datenbank in „rimify-20261113-1130-vor-loeschen.sql.gz“ gesichert war.',
+                [],
+            ],
+            'vehicle.import_rows_purged' => [
+                ['table' => 'vehicle_import_rows', 'count' => 974117, 'runs' => [1, 2, 3], 'backup' => 'rimify-20261113-1321-vor-zeilen.sql.gz'],
+                'Die 974.117 Zeilen aus den Importen 1, 2 und 3 wurden gelöscht, nachdem die Datenbank in „rimify-20261113-1321-vor-zeilen.sql.gz“ gesichert war; die Importe selbst bleiben stehen.',
+                [],
+            ],
+            'schema.host_indexes_removed' => [
+                ['count' => 2, 'indexes' => [
+                    ['table' => 'vehicle_import_rows', 'name' => 'wdbi_vehicle_import_id_status_number_9482939ca9d0', 'columns' => ['vehicle_import_id', 'status', 'number']],
+                    ['table' => 'vehicles', 'name' => 'wdbi_make_source_4794d48378d7', 'columns' => ['make', 'source']],
+                ]],
+                '2 Indizes, die der Host selbst angelegt hatte, wurden entfernt: bei den Zeilen der Fahrzeugimporte, über 3 Spalten; bei den Fahrzeugen, über 2 Spalten.',
+                [],
+            ],
             'order.shipped' => [['order' => 'RMF-2026-1001', 'tracking' => '00340434 1234'], 'Die Bestellung „RMF-2026-1001“ wurde als versendet markiert, Sendungsnummer „00340434 1234“.', []],
             'order.delivered' => [['order' => 'RMF-2026-1001'], 'Die Bestellung „RMF-2026-1001“ wurde als zugestellt markiert. Einige Tage danach lädt der Shop zur Bewertung ein.', []],
             // The admin audit's F-35: written for months, read as „noch nicht in Worten“.
