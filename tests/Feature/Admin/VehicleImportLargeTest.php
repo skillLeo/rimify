@@ -16,6 +16,7 @@ use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
@@ -267,8 +268,8 @@ it('imports all or nothing: an import stopped half-way leaves every car as it wa
 
     expect($import->summary)->toMatchArray([VehicleImporter::CREATE => 1_100, VehicleImporter::MERGE => 1]);
 
-    // The merge is the last thing the import writes: it stops there — the database gone, a time limit —, after three
-    // batches of new cars are in.
+    // The merge is the last thing the import writes: it stops there — the database gone, a time limit —, after every
+    // new car is in, in the same transaction (D-469).
     DB::listen(static function (QueryExecuted $query): void {
         if (preg_match('/^update [`"]?vehicles[`"]? /i', $query->sql) === 1) {
             throw new RuntimeException('Stopped half-way');
@@ -283,6 +284,84 @@ it('imports all or nothing: an import stopped half-way leaves every car as it wa
         ->and($import->error)->toBe('Der Import ist abgebrochen, bevor er fertig war. An den Fahrzeugen hat sich nichts geändert. Starte ihn bitte noch einmal.')
         ->and($import->planEntries())->toBe($shown)
         ->and($import->applied_at)->toBeNull();
+});
+
+it('keeps the import\'s work table the shape of the cars, and the cars\' fingerprint over every column of theirs (D-469)', function (): void {
+    $shape = static fn (string $table): array => collect(Schema::getColumns($table))
+        ->mapWithKeys(static fn (array $column): array => [$column['name'] => [$column['type'], $column['nullable'], $column['default']]])
+        ->all();
+    $cars = $shape('vehicles');
+
+    // A column added to the cars and not to the work table — or not to the fingerprint — fails here, not in an import.
+    expect(array_diff_key($shape(VehicleImporter::STAGE), array_flip(['vehicle_import_id', 'target_id', 'line'])))->toBe($cars)
+        ->and([...VehicleImporter::FINGERPRINT_COLUMNS, 'raw'])->toEqualCanonicalizing(array_keys($cars));
+});
+
+it('imports in parts no host stops: no car written before the last, then every one in one transaction (D-469)', function (): void {
+    $import = largeSend($this, largeCsv(1_200), 1_000_000);
+    app(ImportUpload::class)->finish($import);
+    $import = largeDrain($import->id);
+    VehicleImport::query()->whereKey($import->id)->update(['status' => VehicleImport::APPLYING, 'applied_by' => largeAdmin()->id]);
+    $work = app(VehicleImportWork::class);
+    $prepared = [];
+
+    // A part of no time at all still does one step: begun, the work table cleared, then a batch at a time.
+    for ($part = 0; $part < 20 && $import->refresh()->status === VehicleImport::APPLYING; $part++) {
+        expect(Vehicle::query()->count())->toBe(0);
+        $prepared[] = DB::table(VehicleImporter::STAGE)->where('vehicle_import_id', $import->id)->count();
+        $work->advance($import->id, 0.0);
+
+        // The page says how far: asked here, not through the page, whose answer would give the server its next part.
+        if (($import->refresh()->cursor['phase'] ?? null) === 'stage' && ($import->cursor['done'] ?? 0) === 500) {
+            expect(VehicleImportWork::progress($import))->toBe(['step' => 'Fahrzeuge vorbereiten', 'done' => 500, 'total' => 1_200, 'unit' => 'rows']);
+            $shown = true;
+        }
+    }
+
+    expect($import->status)->toBe(VehicleImport::APPLIED)
+        ->and($shown ?? false)->toBeTrue()
+        ->and($prepared)->toBe([0, 0, 0, 500, 1_000, 1_200, 1_200])
+        ->and(Vehicle::query()->where('make', 'Lasttest')->count())->toBe(1_200)
+        // Written, what was prepared goes; the file's order is the cars' order.
+        ->and(DB::table(VehicleImporter::STAGE)->count())->toBe(0)
+        ->and(Vehicle::query()->orderBy('id')->value('variant'))->toBe('L 000000')
+        ->and(DB::table('audit_logs')->where('description', 'vehicle.import_applied')->count())->toBe(1);
+});
+
+it('writes nothing when any car changed after its Probelauf began — one the file names or not, before the import or during it', function (): void {
+    $import = largeSend($this, largeCsv(1_200), 1_000_000);
+    app(ImportUpload::class)->finish($import);
+    $import = largeDrain($import->id);
+    $other = Vehicle::factory()->create(['hsn' => '0005', 'tsn' => 'ZA1', 'max_speed_kmh' => 210]);
+    $fingerprint = $import->cars_fingerprint;
+
+    // A car came after the Probelauf began, that the file does not name: the import does not begin.
+    expect($fingerprint)->not->toBeNull();
+    VehicleImport::query()->whereKey($import->id)->update(['status' => VehicleImport::APPLYING, 'applied_by' => largeAdmin()->id]);
+    app(VehicleImportWork::class)->advance($import->id, 0.0);
+
+    expect($import->refresh()->status)->toBe(VehicleImport::PREVIEWED)
+        ->and($import->error)->toBe('Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.');
+
+    // Begun against the cars as they were — then one changes while the cars are prepared: none is written, and what was
+    // prepared goes.
+    VehicleImport::query()->whereKey($import->id)->update(['status' => VehicleImport::APPLYING, 'applied_by' => largeAdmin()->id, 'error' => null, 'cars_fingerprint' => VehicleImporter::carsFingerprint()]);
+    $work = app(VehicleImportWork::class);
+
+    for ($part = 0; $part < 4; $part++) {
+        $work->advance($import->id, 0.0);
+    }
+
+    expect($import->refresh()->cursor['phase'])->toBe('stage')
+        ->and(DB::table(VehicleImporter::STAGE)->where('vehicle_import_id', $import->id)->count())->toBe(1_000);
+
+    $other->update(['max_speed_kmh' => 220]);
+    largeDrain($import->id);
+
+    expect($import->refresh()->status)->toBe(VehicleImport::PREVIEWED)
+        ->and($import->error)->toBe('Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.')
+        ->and(Vehicle::query()->count())->toBe(1)
+        ->and(DB::table(VehicleImporter::STAGE)->count())->toBe(0);
 });
 
 it('says how far the server is while it reads, and gives it its next part of the work with each answer', function (): void {

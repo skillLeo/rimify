@@ -12,13 +12,13 @@ use App\Models\VehicleImport;
 use App\Models\VehicleImportRow;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Catalogue\CatalogueImporter;
-use App\Services\Admin\Vehicles\Import\CheckCount;
 use App\Services\Admin\Vehicles\Import\ImportTally;
 use App\Services\Admin\Vehicles\Import\PlanChanged;
 use App\Support\CatalogueVersion;
 use App\Support\ColumnCollation;
 use App\Support\GermanFormat;
 use DateTimeInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -166,6 +166,23 @@ final class VehicleImporter
     public const STEP_GUTACHTEN = 'Abgleich mit den Fahrzeugen aus Gutachten';
 
     public const STEP_WRITE = 'Fahrzeuge speichern';
+
+    /** The import's own steps (D-469): the cars prepared a part at a time, then written in one transaction. */
+    public const STEP_STAGE = 'Fahrzeuge vorbereiten';
+
+    /**
+     * Every column of a car but `raw` (the file's row as it came, written together with the columns it fills): the
+     * cars' fingerprint reads them all, so no change to a car passes unseen. VehicleImportStageTest holds it to the table.
+     */
+    public const FINGERPRINT_COLUMNS = [
+        'id', 'source_vehicle_id', 'source', 'source_document_id', 'source_page', 'hsn', 'tsn', 'vsn', 'make', 'model', 'variant',
+        'type_designation', 'eg_nummer_raw', 'eg_nummer_norm', 'body_form', 'drive_axle', 'build_from', 'build_to',
+        'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh', 'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
+        'needs_review', 'imported_at', 'created_at', 'updated_at', 'deleted_at', 'is_demo', 'demo_ref',
+    ];
+
+    /** The import's work table: each car it writes, prepared, with the run, the line and — for an update — the car. */
+    public const STAGE = 'vehicle_import_stage';
 
     public function __construct(private readonly VehicleMerge $merge) {}
 
@@ -867,127 +884,204 @@ final class VehicleImporter
     }
 
     /**
-     * Writes the Probelauf: inside one transaction, the plan is made again from the file's rows against the cars as
-     * they are now, and nothing is written when it no longer reads the way the Probelauf did (PlanChanged) — the
-     * transaction then gives back the Probelauf's own rows. A run stopped half-way writes nothing at all.
-     *
-     * `$progress` hears how far the work is, from outside the transaction (VehicleImportWork).
-     *
-     * @param  (callable(string, int, int): void)|null  $progress
+     * The cars as they are, in one line (D-469): how many there are, the highest id, and two sums over every row's
+     * columns (FINGERPRINT_COLUMNS) — a car added, changed, deleted or brought back changes it. Taken when the Probelauf
+     * begins and again in the import's transaction: equal, the plan the Probelauf made is the plan the import writes.
      */
-    public function apply(VehicleImport $import, AdminUser $admin, ?callable $progress = null): VehicleImport
+    public static function carsFingerprint(): string
     {
-        $progress ??= static function (string $step, int $done, int $total): void {};
+        $columns = implode(', ', array_map(static fn (string $column): string => DB::getQueryGrammar()->wrap($column), self::FINGERPRINT_COLUMNS));
+        $row = DB::selectOne('SELECT COUNT(*) AS n, COALESCE(MAX(id), 0) AS top, COALESCE(SUM(CRC32(JSON_ARRAY('.$columns.'))), 0) AS total, COALESCE(BIT_XOR(CRC32(JSON_ARRAY('.$columns.'))), 0) AS bits FROM vehicles');
 
-        return DB::transaction(function () use ($import, $admin, $progress): VehicleImport {
-            $import = VehicleImport::query()->findOrFail($import->id);
+        return implode(':', [(int) $row->n, (int) $row->top, (string) $row->total, (string) $row->bits]);
+    }
+
+    /**
+     * The import begins (D-469): only while the cars are still those the Probelauf was made against — then the plan it
+     * made is still the plan, and nothing has to be checked again. Where the run stands is kept on it: the numbers the
+     * new cars get from, the time they are stamped with, and how many rows there are to write.
+     */
+    public function begin(VehicleImport $import): void
+    {
+        $source = VehicleSource::from($import->source);
+
+        if (self::missing((array) $import->mapping, $import->headers()) !== []) {
+            throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und wähl „Neu prüfen“.']);
+        }
+
+        if ($import->cars_fingerprint === null || ! hash_equals($import->cars_fingerprint, self::carsFingerprint())) {
+            throw new PlanChanged('Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.');
+        }
+
+        $summary = (array) $import->summary;
+        $total = (int) ($summary[self::CREATE] ?? 0) + (int) ($summary[self::UPDATE] ?? 0) + (int) ($summary[self::MERGE] ?? 0);
+
+        if ($total === 0) {
+            throw ValidationException::withMessages(['import' => 'Der Probelauf hat nichts zu importieren gefunden.']);
+        }
+
+        // An imported car carries a number of its own (chk_veh_export_id_from_source): the file's, or one past the highest
+        // of its source and of the file. The highest is kept: the transaction that writes the cars finds it unchanged.
+        $top = (int) Vehicle::withTrashed()->where('source', $source->value)->max('source_vehicle_id');
+
+        $import->forceFill(['cursor' => [
+            'phase' => 'clear',
+            'top' => $top,
+            'next' => max($top, (int) $import->lines()->max('number')) + 1,
+            'now' => now()->toIso8601String(),
+            'after' => 0,
+            'done' => 0,
+            'total' => $total,
+        ]])->save();
+    }
+
+    /**
+     * Rows of the work table no run at work needs — an import done, given up or stopped —, up to `$limit`, and this run's
+     * own from an earlier try. Returns how many went: none, and the table is clear for the run.
+     */
+    public static function clearStage(?int $for = null, int $limit = 5000): int
+    {
+        $busy = VehicleImport::query()->where('status', VehicleImport::APPLYING)->when($for !== null, static fn ($q) => $q->whereKeyNot($for))->pluck('id')->all();
+
+        return DB::table(self::STAGE)->when($busy !== [], static fn ($q) => $q->whereNotIn('vehicle_import_id', $busy))->limit($limit)->delete();
+    }
+
+    /**
+     * One batch of the file's rows, prepared down the file by its line (D-469): each new car as its row in `vehicles`
+     * will read, each car the file changes as it will read changed — into the work table, together with where the run
+     * stands, in one short transaction. No car is written here. Returns false once every row is prepared.
+     */
+    public function stageStep(VehicleImport $import): bool
+    {
+        $cursor = (array) $import->cursor;
+        $source = VehicleSource::from($import->source);
+        $rows = $import->lines()->where('line', '>', (int) $cursor['after'])->orderBy('line')->limit(self::BATCH)->get();
+
+        if ($rows->isEmpty()) {
+            $import->forceFill(['cursor' => [...$cursor, 'phase' => 'commit']])->save();
+
+            return false;
+        }
+
+        $next = (int) $cursor['next'];
+        $now = Carbon::parse((string) $cursor['now']);
+        $creates = [];
+        $updates = [];
+        $done = 0;
+
+        foreach ($rows as $row) {
+            if (! in_array($row->status, [self::CREATE, self::UPDATE, self::MERGE], true)) {
+                continue;
+            }
+
+            $done++;
+
+            if ($row->status === self::MERGE) {
+                // The Gutachten cars go through the merge itself, in the transaction that writes the cars (commit).
+                continue;
+            }
+
+            $fields = VehicleImportRow::fields($row->cells, $row->line);
+            $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$fields]);
+
+            if ($row->status === self::CREATE) {
+                $values = self::row($car);
+                $vehicle = new Vehicle([
+                    ...$values,
+                    'hsn' => $car->hsn,
+                    'tsn' => $car->tsn,
+                    'variant' => $car->variant,
+                    'source' => $source->value,
+                    'source_vehicle_id' => $car->sourceVehicleId ?? $next++,
+                    'imported_at' => $now,
+                    'needs_review' => ! self::complete($values),
+                    'raw' => ['import' => ['file' => $import->file_name, 'line' => (string) $row->line, 'row' => $fields]],
+                ]);
+                $vehicle->setCreatedAt($now)->setUpdatedAt($now);
+                $creates[] = self::staged($vehicle->getAttributes(), $import, (int) $row->line, null);
+            } else {
+                $updates[(int) $row->vehicle_id] = [$car, (int) $row->line];
+            }
+        }
+
+        $changed = [];
+
+        if ($updates !== []) {
+            foreach (Vehicle::query()->whereIn('id', array_keys($updates))->orderBy('id')->get() as $vehicle) {
+                [$car, $line] = $updates[$vehicle->id];
+                $vehicle->forceFill(self::changes($vehicle, $car) + ['imported_at' => $now]);
+                $vehicle->needs_review = ! self::complete($vehicle->only(['axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh']));
+                $vehicle->setUpdatedAt($now);
+                $changed[] = self::staged($vehicle->getAttributes(), $import, $line, (int) $vehicle->id);
+            }
+        }
+
+        DB::transaction(static function () use ($import, $cursor, $rows, $creates, $changed, $next, $done): void {
+            foreach ([$creates, $changed] as $staged) {
+                foreach (array_chunk($staged, 250) as $chunk) {
+                    DB::table(self::STAGE)->insert($chunk);
+                }
+            }
+
+            $import->forceFill(['cursor' => [...$cursor, 'after' => (int) $rows->last()->line, 'next' => $next, 'done' => (int) $cursor['done'] + $done]])->save();
+        });
+
+        return true;
+    }
+
+    /**
+     * The import itself (D-469), in one transaction and a few statements however long the file: the cars still as the
+     * Probelauf found them and no number handed out since — else nothing is written (PlanChanged) —, then every new car
+     * at once, every changed car at once, the Gutachten cars through the merge, and the run with its Protokoll entry.
+     * Stopped anywhere, it writes nothing.
+     */
+    public function commit(VehicleImport $import, AdminUser $admin): VehicleImport
+    {
+        return DB::transaction(function () use ($import, $admin): VehicleImport {
+            $import = VehicleImport::query()->lockForUpdate()->findOrFail($import->id);
+            $cursor = (array) $import->cursor;
             $source = VehicleSource::from($import->source);
+            $top = (int) Vehicle::withTrashed()->where('source', $source->value)->lockForUpdate()->max('source_vehicle_id');
 
-            if (self::missing((array) $import->mapping, $import->headers()) !== []) {
-                throw ValidationException::withMessages(['import' => 'Ordne zuerst jedem Pflichtfeld eine Spalte zu und wähl „Neu prüfen“.']);
-            }
-
-            // The plan again, from what each row is by itself, against the cars as they are now.
-            $eligible = $import->lines()->where('read_refused', false)->update(['status' => VehicleImportRow::PENDING, 'vehicle_id' => null, 'changes' => null, 'fills' => null, 'reason' => null]);
-            $count = new CheckCount($eligible);
-            $after = [];
-
-            while (($step = $this->checkStep($import, $after)) !== false) {
-                $shown = $count->add($step);
-                $progress('Noch einmal prüfen: '.$shown['step'], $shown['done'], $shown['total']);
-            }
-
-            $finished = $this->finish($import, array_intersect_key((array) $import->summary, self::GAPS));
-
-            if ($import->plan_hash === null || ! hash_equals($import->plan_hash, $finished['hash'])) {
+            if ($top !== (int) $cursor['top'] || $import->cars_fingerprint === null || ! hash_equals($import->cars_fingerprint, self::carsFingerprint())) {
                 throw new PlanChanged('Die Fahrzeuge haben sich seit dem Probelauf geändert. Wähl „Neu prüfen“, bevor du importierst.');
             }
 
-            $summary = $finished['summary'];
+            $summary = (array) $import->summary;
+            $columns = array_values(array_diff(self::FINGERPRINT_COLUMNS, ['id']));
+            $columns[] = 'raw';
 
-            if ($summary[self::CREATE] + $summary[self::UPDATE] + $summary[self::MERGE] === 0) {
-                throw ValidationException::withMessages(['import' => 'Der Probelauf hat nichts zu importieren gefunden.']);
-            }
+            DB::table('vehicles')->insertUsing(
+                $columns,
+                DB::table(self::STAGE)->select($columns)->where('vehicle_import_id', $import->id)->whereNull('target_id')->orderBy('line'),
+            );
 
-            // An imported car carries a number of its own (chk_veh_export_id_from_source): the file's, or one past the
-            // highest of its source and of the file — read under a lock, so two imports never hand out the same, and
-            // never one a row of this file brings itself.
-            $next = max((int) Vehicle::withTrashed()->where('source', $source->value)->lockForUpdate()->max('source_vehicle_id'), (int) $import->lines()->max('number')) + 1;
-            $total = $summary[self::CREATE] + $summary[self::UPDATE] + $summary[self::MERGE];
-            $done = 0;
-            $merges = [];
-            $after = 0;
-            $now = now();
+            if ((int) ($summary[self::UPDATE] ?? 0) > 0) {
+                $grammar = DB::getQueryGrammar();
+                $set = [];
 
-            // Down the file by its line — the run's own unique index —, a batch at a time: asked by three outcomes at once,
-            // the database sorted every remaining row again for each batch, and half a million rows took over an hour.
-            while (true) {
-                $rows = $import->lines()->where('line', '>', $after)->orderBy('line')->limit(self::BATCH)->get();
-
-                if ($rows->isEmpty()) {
-                    break;
+                foreach ([...array_keys(self::COLUMNS), 'eg_nummer_norm', 'imported_at', 'needs_review', 'updated_at'] as $column) {
+                    $set['vehicles.'.$column] = DB::raw($grammar->wrap('staged.'.$column));
                 }
 
-                $after = (int) $rows->last()->line;
-                $rows = $rows->filter(static fn (VehicleImportRow $row): bool => in_array($row->status, [self::CREATE, self::UPDATE, self::MERGE], true));
-
-                if ($rows->isEmpty()) {
-                    continue;
-                }
-
-                $creates = [];
-                $updates = [];
-
-                foreach ($rows as $row) {
-                    $fields = VehicleImportRow::fields($row->cells, $row->line);
-                    $car = DatasetVehicle::fromRow(['quelle' => $source->value, ...$fields]);
-
-                    if ($row->status === self::CREATE) {
-                        $values = self::row($car);
-                        $vehicle = new Vehicle([
-                            ...$values,
-                            'hsn' => $car->hsn,
-                            'tsn' => $car->tsn,
-                            'variant' => $car->variant,
-                            'source' => $source->value,
-                            'source_vehicle_id' => $car->sourceVehicleId ?? $next++,
-                            'imported_at' => $now,
-                            'needs_review' => ! self::complete($values),
-                            'raw' => ['import' => ['file' => $import->file_name, 'line' => (string) $row->line, 'row' => $fields]],
-                        ]);
-                        $vehicle->setCreatedAt($now)->setUpdatedAt($now);
-                        $attributes = $vehicle->getAttributes();
-                        ksort($attributes);
-                        $creates[] = $attributes;
-                    } elseif ($row->status === self::UPDATE) {
-                        $updates[(int) $row->vehicle_id] = $car;
-                    } else {
-                        $merges[] = $car;
-                    }
-                }
-
-                if ($creates !== []) {
-                    Vehicle::query()->insert($creates);
-                }
-
-                if ($updates !== []) {
-                    foreach (Vehicle::query()->lockForUpdate()->whereIn('id', array_keys($updates))->orderBy('id')->get() as $vehicle) {
-                        $vehicle->forceFill(self::changes($vehicle, $updates[$vehicle->id]) + ['imported_at' => $now]);
-                        $vehicle->needs_review = ! self::complete($vehicle->only(['axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh']));
-                        $vehicle->save();
-                    }
-                }
-
-                $done += $rows->count();
-                $progress(self::STEP_WRITE, $done, $total);
+                DB::table('vehicles')
+                    ->join(self::STAGE.' as staged', 'staged.target_id', '=', 'vehicles.id')
+                    ->where('staged.vehicle_import_id', $import->id)
+                    ->update($set);
             }
 
             // The Gutachten cars: through the merge itself, so it fills only empty fields and writes its own Protokoll.
+            $merges = [];
+
+            foreach ($import->lines()->where('status', self::MERGE)->orderBy('line')->cursor() as $row) {
+                $merges[] = DatasetVehicle::fromRow(['quelle' => $source->value, ...VehicleImportRow::fields($row->cells, $row->line)]);
+            }
+
             if ($merges !== []) {
                 $this->merge->apply($this->merge->plan($merges), $admin);
             }
 
-            $import->forceFill(['status' => VehicleImport::APPLIED, 'applied_at' => now(), 'applied_by' => $admin->id, 'summary' => $summary, 'error' => null])->save();
+            $import->forceFill(['status' => VehicleImport::APPLIED, 'applied_at' => now(), 'applied_by' => $admin->id, 'error' => null, 'cursor' => null, 'attempts' => 0])->save();
             VehicleImport::rememberMapping($source, (array) $import->mapping);
 
             AuditTrail::record($admin, 'vehicle.import_applied', [
@@ -1000,6 +1094,21 @@ final class VehicleImporter
 
             return $import;
         });
+    }
+
+    /**
+     * A car's row for the work table: its columns as `vehicles` stores them, with whose it is.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private static function staged(array $attributes, VehicleImport $import, int $line, ?int $target): array
+    {
+        // Only what the car sets: a column it leaves out takes the table's default, as an insert into `vehicles` would.
+        $out = array_intersect_key($attributes, array_flip([...array_diff(self::FINGERPRINT_COLUMNS, ['id']), 'raw']));
+        ksort($out);
+
+        return [...$out, 'vehicle_import_id' => $import->id, 'target_id' => $target, 'line' => $line];
     }
 
     /** @param  array<string, mixed>  $values */

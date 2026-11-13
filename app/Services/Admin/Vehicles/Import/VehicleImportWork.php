@@ -20,9 +20,9 @@ use Throwable;
  * against the cars, importing it — a part at a time, after the response of the request that asked how far it is, or
  * from the scheduler where the host runs one (`fahrzeuge:import-weiter`). No request waits for a whole file.
  *
- * One process works on a run at a time (a lock in the cache). Reading and checking stop after their part and go on from
- * where they stopped; the import itself runs to its end in one transaction, since half an import is no import: stopped
- * by anything, it writes nothing, and the next part starts it again.
+ * One process works on a run at a time (a lock in the cache). Reading, checking and preparing the import stop after their
+ * part and go on from where they stopped; the import itself is one short transaction at the end (D-469), since half an
+ * import is no import: stopped by anything, it writes nothing, and the next part starts it again.
  */
 final class VehicleImportWork
 {
@@ -37,7 +37,7 @@ final class VehicleImportWork
 
     public function __construct(private readonly VehicleImporter $importer) {}
 
-    /** Works on the run for at most `$seconds` — the import itself always to its end —, unless another process does. */
+    /** Works on the run for at most `$seconds` — a batch it began always to its end —, unless another process does. */
     public function advance(int $id, float $seconds = self::SLICE_SECONDS): void
     {
         $import = VehicleImport::query()->find($id);
@@ -46,7 +46,7 @@ final class VehicleImportWork
             return;
         }
 
-        $lock = Cache::lock('vehicle-import:'.$id, $import->status === VehicleImport::APPLYING ? 3600 : 900);
+        $lock = Cache::lock('vehicle-import:'.$id, 900);
 
         if (! $lock->get()) {
             // Held — by a process at work, or by one a time limit or a restart stopped, which never lets go: its heartbeat
@@ -66,7 +66,7 @@ final class VehicleImportWork
 
         try {
             self::beat($id);
-            self::keepRunning($import->status === VehicleImport::APPLYING ? 1800 : 600);
+            self::keepRunning(600);
             $deadline = microtime(true) + $seconds;
 
             do {
@@ -74,7 +74,7 @@ final class VehicleImportWork
                 $more = match ($import->status) {
                     VehicleImport::READING => $this->read($import, $deadline),
                     VehicleImport::CHECKING => $this->check($import, $deadline),
-                    VehicleImport::APPLYING => $this->apply($import),
+                    VehicleImport::APPLYING => $this->apply($import, $deadline),
                     default => false,
                 };
             } while ($more && microtime(true) < $deadline);
@@ -97,14 +97,18 @@ final class VehicleImportWork
      */
     public static function progress(VehicleImport $import): ?array
     {
-        $kept = Cache::store(self::progressStore())->get(self::progressKey($import->id));
+        $cursor = (array) ($import->cursor ?? []);
 
         return match ($import->status) {
             VehicleImport::READING => self::reading($import),
             VehicleImport::CHECKING => is_array($import->cursor['step'] ?? null)
                 ? ['step' => (string) $import->cursor['step']['step'], 'done' => (int) $import->cursor['step']['done'], 'total' => (int) $import->cursor['step']['total'], 'unit' => 'rows']
                 : ['step' => VehicleImporter::STEP_CARS, 'done' => 0, 'total' => (int) ($import->cursor['eligible'] ?? $import->rows_total ?? 0), 'unit' => 'rows'],
-            VehicleImport::APPLYING => is_array($kept) ? [...$kept, 'unit' => 'rows'] : ['step' => 'Probelauf noch einmal prüfen', 'done' => 0, 'total' => 0, 'unit' => 'rows'],
+            VehicleImport::APPLYING => match ($cursor['phase'] ?? null) {
+                'stage' => ['step' => VehicleImporter::STEP_STAGE, 'done' => (int) $cursor['done'], 'total' => (int) $cursor['total'], 'unit' => 'rows'],
+                'commit' => ['step' => VehicleImporter::STEP_WRITE, 'done' => 0, 'total' => (int) $cursor['total'], 'unit' => 'rows'],
+                default => ['step' => 'Probelauf noch einmal prüfen', 'done' => 0, 'total' => 0, 'unit' => 'rows'],
+            },
             default => null,
         };
     }
@@ -243,6 +247,8 @@ final class VehicleImportWork
                 'plan_hash' => null,
                 'status' => $complete ? VehicleImport::CHECKING : VehicleImport::PREVIEWED,
                 'cursor' => ['gaps' => $tally->gaps(), 'eligible' => $eligible, 'count' => (new CheckCount($eligible))->state()],
+                // The cars as the Probelauf begins against them: the import writes its plan only while they still are (D-469).
+                'cars_fingerprint' => $complete ? VehicleImporter::carsFingerprint() : null,
             ])->save();
 
             return $complete;
@@ -353,14 +359,14 @@ final class VehicleImportWork
     }
 
     /**
-     * The import, to its end in one transaction (VehicleImporter::apply). Refused — the cars changed, nothing to
-     * import — or stopped, it writes nothing, and the run is a Probelauf again with the reason beside it.
+     * The import, a step at a time (D-469): begun only against the cars the Probelauf was made against, the work table
+     * cleared, every row prepared a batch at a time, then written in one short transaction (VehicleImporter::commit).
+     * Refused — the cars changed, nothing to import — or stopped by an error, it writes nothing, and the run is a
+     * Probelauf again with the reason beside it. Returns whether there is more to do.
      */
-    private function apply(VehicleImport $import): bool
+    private function apply(VehicleImport $import, float $deadline): bool
     {
         $admin = AdminUser::query()->find($import->applied_by);
-        $store = Cache::store(self::progressStore());
-        $key = self::progressKey($import->id);
 
         if ($admin === null) {
             $this->back($import, 'Wer den Import gestartet hat, ist nicht mehr im Team. Starte ihn bitte noch einmal.');
@@ -368,21 +374,39 @@ final class VehicleImportWork
             return false;
         }
 
-        // Counted before it begins, outside its transaction: an import a host stops every time is not begun a fourth time.
+        // Counted before the transaction, outside it: an import a host stops every time is not begun a fourth time.
         if ($import->attempts >= self::ATTEMPTS) {
             $this->back($import, 'Der Import wurde dreimal unterbrochen, bevor er fertig war. An den Fahrzeugen hat sich nichts geändert.');
 
             return false;
         }
 
-        VehicleImport::query()->whereKey($import->id)->increment('attempts');
-        $id = (int) $import->id;
-
         try {
-            $this->importer->apply($import, $admin, static function (string $step, int $done, int $total) use ($store, $key, $id): void {
-                $store->put($key, ['step' => $step, 'done' => $done, 'total' => $total], 3600);
-                self::beat($id);
-            });
+            switch ($import->cursor['phase'] ?? null) {
+                case null:
+                    $this->importer->begin($import);
+
+                    return true;
+
+                case 'clear':
+                    if (VehicleImporter::clearStage($import->id) === 0) {
+                        $import->forceFill(['cursor' => [...(array) $import->cursor, 'phase' => 'stage']])->save();
+                    }
+
+                    self::beat($import->id);
+
+                    return true;
+
+                case 'stage':
+                    $this->importer->stageStep($import);
+                    self::beat($import->id);
+
+                    return true;
+
+                default:
+                    VehicleImport::query()->whereKey($import->id)->increment('attempts');
+                    $this->importer->commit($import->refresh(), $admin);
+            }
         } catch (PlanChanged $changed) {
             $this->back($import, $changed->getMessage());
 
@@ -396,21 +420,29 @@ final class VehicleImportWork
             $this->back($import, 'Der Import ist abgebrochen, bevor er fertig war. An den Fahrzeugen hat sich nichts geändert. Starte ihn bitte noch einmal.');
 
             return false;
-        } finally {
-            $store->forget($key);
         }
 
-        // Imported: the rows keep what each became; the file itself is no longer read.
+        // Imported: the rows keep what each became; the file itself is no longer read, and what was prepared goes.
         ImportUpload::forget($import);
+        self::sweep($deadline);
 
         return false;
+    }
+
+    /** The work table cleared of rows no run at work needs, as far as the time allows: the next import clears the rest. */
+    private static function sweep(float $deadline): void
+    {
+        while (VehicleImporter::clearStage() > 0 && microtime(true) < $deadline) {
+            // a batch at a time
+        }
     }
 
     /** A Probelauf again, with the reason the import did not go through. */
     private function back(VehicleImport $import, string $reason): void
     {
         VehicleImport::query()->whereKey($import->id)->where('status', VehicleImport::APPLYING)
-            ->update(['status' => VehicleImport::PREVIEWED, 'applied_by' => null, 'attempts' => 0, 'error' => mb_substr($reason, 0, 1000)]);
+            ->update(['status' => VehicleImport::PREVIEWED, 'applied_by' => null, 'attempts' => 0, 'cursor' => null, 'error' => mb_substr($reason, 0, 1000)]);
+        self::sweep(microtime(true) + 5);
     }
 
     /** Given up, with its reason: the file goes, and so do the rows of a reading that will not be finished. */
@@ -439,17 +471,12 @@ final class VehicleImportWork
         return false;
     }
 
-    private static function progressKey(int $id): string
-    {
-        return 'vehicle-import-progress:'.$id;
-    }
-
     private static function beatKey(int $id): string
     {
         return 'vehicle-import-beat:'.$id;
     }
 
-    /** The import writes its progress from inside its transaction: to a store that transaction does not hold. */
+    /** The heartbeat, in a store no transaction holds: a process at work is seen at work. */
     private static function progressStore(): string
     {
         return (string) config('rimify.vehicle_import.progress_store', 'file');

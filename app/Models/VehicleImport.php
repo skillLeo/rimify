@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property list<array<string, mixed>>|null $checks
  * @property array<string, int>|null $summary
  * @property string|null $plan_hash
+ * @property string|null $cars_fingerprint the cars as the Probelauf began against them (VehicleImporter::carsFingerprint, D-469)
  * @property string|null $error
  * @property int $attempts
  * @property Carbon|null $applied_at
