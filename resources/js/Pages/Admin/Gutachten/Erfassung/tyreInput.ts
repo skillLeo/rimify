@@ -46,9 +46,10 @@ export interface PasteLine {
     reason?: string
 }
 
-const SIZE = '(\\d{3})\\s*\\/\\s*(\\d{2})\\s*(?:Z?\\s*R|-)\\s*(\\d{2})(\\s*C\\b)?'
+/* The rim in whole or half inches — `18`, `19.5`, `22,5` (D-479). */
+const SIZE = '(\\d{3})\\s*\\/\\s*(\\d{2})\\s*(?:Z?\\s*R|-)\\s*(\\d{2}(?:[.,]\\d)?)(\\s*C\\b)?'
 /* (92Y) · 92(Y) · 92 (W) · 115/113R · 92 · (Y) · Y — as App\\Support\\TyreText reads them. */
-const MINIMUM = '(?:\\s*-?\\s*(?:\\(\\s*(\\d{1,3})\\s*([A-Z])\\s*\\)|(\\d{1,3})(?:\\s*\\/\\s*(\\d{1,3}))?\\s*(\\(\\s*[A-Z]\\s*\\)|[A-Z])?|(\\(\\s*[A-Z]\\s*\\)|[A-Z])))?'
+const MINIMUM = '(?:\\s*-?\\s*(?:\\(\\s*(\\d{1,3})\\s*([A-Z]\\d?)\\s*\\)|(\\d{1,3})(?:\\s*\\/\\s*(\\d{1,3}))?\\s*(\\(\\s*[A-Z]\\d?\\s*\\)|[A-Z]\\d?)?|(\\(\\s*[A-Z]\\d?\\s*\\)|[A-Z]\\d?)))?'
 const TYRE = new RegExp(`^${SIZE}${MINIMUM}$`)
 
 /* A size somewhere in the text: what tells a line of tyres from a heading. */
@@ -86,24 +87,16 @@ export function readTyre(text: string): TyreSpec | null {
         return null
     }
 
-    // In brackets, the service description says the open category above it: above 300 km/h for Y, above 270 km/h for W (D-453).
-    if (m[5] !== undefined && m[6] !== 'Y' && m[6] !== 'W') {
-        return null
-    }
-
+    // Only the form is checked (D-479): any letter, in brackets too, any index of one to three digits — kept as typed.
     const plain = m[9] ?? m[10]
     const symbol = m[5] !== undefined ? `(${m[6]})` : plain === undefined ? null : plain.replace(/\s+/g, '')
     const index = m[5] ?? m[7] ?? null
     const dual = m[8] ?? null
 
-    if ((symbol !== null && !(SPEED_SYMBOLS as readonly string[]).includes(symbol)) || (index !== null && Number(index) > MAX_LOAD_INDEX) || (dual !== null && Number(dual) > MAX_LOAD_INDEX)) {
-        return null
-    }
-
     return {
         width: Number(m[1]),
         aspect: Number(m[2]),
-        diameter: Number(m[3]),
+        diameter: Number((m[3] ?? '').replace(',', '.')),
         li: index === null ? null : Number(index),
         li2: dual === null ? null : Number(dual),
         si: symbol,
@@ -127,17 +120,11 @@ export function readService(text: string): Pick<TyreSpec, 'li' | 'li2' | 'si' | 
 }
 
 /**
- * Why a size does not read, where there is more to say than „no size": the size and the load index read, and only the
- * speed symbol is one nobody knows (`255/35R18 90X`). Null where nothing more can be said.
+ * Why a size does not read, where there is more to say than „no size". Since D-479 no figure is ever unread — any symbol and
+ * any index of one to three digits read as typed —, so nothing more can be said: always null. Kept for the callers that ask.
  */
-export function whyUnread(text: string): string | null {
-    const m = text.trim().toUpperCase().match(/^(?:(?:HL|XL|RF)\s+)?\d{3}\s*\/\s*\d{2}\s*Z?\s*R\s*\d{2}(?:\s*C\b)?\s*-?\s*\(?\s*\d{1,3}(?:\s*\/\s*\d{1,3})?\s*([A-Z])\s*\)?$/)
-
-    if (m === null || (SPEED_SYMBOLS as readonly string[]).includes(m[1] ?? '')) {
-        return null
-    }
-
-    return `Das Geschwindigkeitssymbol „${m[1]}“ gibt es nicht.`
+export function whyUnread(_text: string): string | null {
+    return null
 }
 
 /** As the shop and the admin write it: `225/40 R18 88W`, `HL 255/35 R20 100`, `235/50 R18`, `235/65 R16 C 115/113R`. */
@@ -186,20 +173,21 @@ function sizeAndCodes(part: string): { tyre: TyreSpec; codes: string[] } | { tyr
         const tyre = readTyre(words.slice(0, k).join(' '))
 
         if (tyre !== null) {
-            const typed = words.slice(k)
-            const rest = typed.map(normaliseCode).filter((word) => word !== '')
-            // `255/35R18 90X`: a load index with a speed symbol nobody knows, not a code — `11A` after a size is one (no tyre carries
-            // index 11). Said as the symbol it is, and nothing taken over.
-            const service = rest[0]?.match(/^(\d{2,3})([A-Z])$/)
+            // After a size, `11A` or `68B` is a code, not a load index with a symbol (D-479): no road tyre carries an index below
+            // 50, and a symbol A to G (80 km/h and less) goes with a truck's index from 120 up, so below that a code is far likelier. A speed symbol typed apart from its index (`94 A8`) is read
+            // as one; the single field of a combination has no codes and reads every symbol.
+            const last = words[k - 1] ?? ''
 
-            if (service && tyre.li === null && tyre.si === null && Number(service[1]) >= 50) {
-                return { tyre: null, why: whyUnread(`${words.slice(0, k).join(' ')} ${rest[0]}`) }
+            if (k > 1 && ((tyre.li !== null && tyre.li < 50) || (tyre.si !== null && tyre.li !== null && tyre.li < 120 && /^\d{1,3}[A-G]\d?$/i.test(last)))) {
+                continue
             }
 
-            // A bracket belongs to a service description, never to a code: in brackets we know (W) and (Y) alone (D-453), so `92(V)`
-            // is a symbol we do not read, not the code „92(V“.
+            const typed = words.slice(k)
+            const rest = typed.map(normaliseCode).filter((word) => word !== '')
+
+            // A bracket belongs to a service description, never to a code: `92(V)` is not the code „92(V“.
             if (typed.some((word) => /[()]/.test(word))) {
-                return { tyre: null, why: `In Klammern kennen wir nur die Symbole (W) und (Y): „${typed.join(' ')}“ lesen wir nicht.` }
+                return { tyre: null, why: `Hinter der Größe steht eine Klammer, die wir nicht lesen: „${typed.join(' ')}“.` }
             }
 
             return rest.every(isCodeWord) ? { tyre, codes: rest } : { tyre: null, why: `„${typed.join(' ')}“ hinter der Größe ist kein Code.` }

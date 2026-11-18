@@ -184,18 +184,22 @@ describe('the codes after the sizes of a pasted line (D-451)', () => {
         expect(readPaste('225/40R18 88W')[0]?.codes).toBeUndefined()
     })
 
-    it('takes no bracketed service description for a code: only W and Y are printed in brackets (D-453)', () => {
-        for (const input of ['225/35R18 92(V)', '225/35R18 (92V)', '225/35R18 – 255/35R18 92(X) 11A']) {
-            const [line] = readPaste(input)
-
-            expect(line?.status).toBe('unread')
-            expect(line?.codes).toBeUndefined()
-        }
-
-        expect(readPaste('225/35R18 92(V)')[0]?.reason).toBe('In Klammern kennen wir nur die Symbole (W) und (Y): „92(V)“ lesen wir nicht.')
+    it('reads any symbol in brackets as the symbol it is, never as a code (D-479)', () => {
+        expect(readPaste('225/35R18 92(V)')[0]).toMatchObject({ status: 'single' })
+        expect(readPaste('225/35R18 92(V)')[0]?.sizes?.map(tyreLabel)).toEqual(['225/35 R18 92(V)'])
+        expect(readPaste('225/35R18 – 255/35R18 92(X) 11A')[0]).toMatchObject({ status: 'pair', codes: ['11A'] })
         // W and Y in brackets are the symbols they are, never codes.
         expect(readPaste('225/35R18 92(W) 11A')[0]).toMatchObject({ status: 'single', codes: ['11A'] })
         expect(readPaste('225/35R18 92(W) 11A')[0]?.sizes?.map(tyreLabel)).toEqual(['225/35 R18 92(W)'])
+        // A bracket after the size that belongs to no service description is no code either.
+        expect(readPaste('225/35R18 88W (siehe Seite 4)')[0]?.status).toBe('unread')
+    })
+
+    it('reads a code right after a size as a code, a symbol typed apart from its index as the symbol (D-479)', () => {
+        expect(readPaste('225/35R18 11A')[0]).toMatchObject({ status: 'single', codes: ['11A'] })
+        expect(readPaste('225/40R18 68B')[0]).toMatchObject({ status: 'single', codes: ['68B'] })
+        expect(readPaste('205/55R16 94 A8')[0]?.sizes?.map(tyreLabel)).toEqual(['205/55 R16 94A8'])
+        expect(readPaste('305/70 R22.5 160F')[0]?.sizes?.map(tyreLabel)).toEqual(['305/70 R22.5 160F'])
     })
 
     it('says so where the words after a size are no code, and takes nothing over', () => {
@@ -207,9 +211,10 @@ describe('the codes after the sizes of a pasted line (D-451)', () => {
 })
 
 describe('why a line does not read', () => {
-    it('names a speed symbol the table does not know, instead of „no size found"', () => {
-        expect(whyUnread('255/35R18 90X')).toBe('Das Geschwindigkeitssymbol „X“ gibt es nicht.')
-        expect(readPaste('255/35R18 90X')[0]?.reason).toBe('Das Geschwindigkeitssymbol „X“ gibt es nicht.')
+    it('has nothing to say about a figure: no symbol and no index is unknown any more (D-479)', () => {
+        expect(whyUnread('255/35R18 90X')).toBeNull()
+        expect(readTyre('255/35R18 90X')).toMatchObject({ li: 90, si: 'X' })
+        expect(readPaste('255/35R18 90X')[0]).toMatchObject({ status: 'single' })
         expect(whyUnread('Cabrio')).toBeNull()
     })
 })

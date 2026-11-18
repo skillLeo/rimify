@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Derivation\ReferenceTables;
+use App\Services\Admin\Approvals\Entry\EntryLineRules;
 use App\Support\TyreText;
 
 /*
@@ -72,7 +73,39 @@ it('reads every load index with every speed symbol, and every symbol in the orde
     }
 
     expect(TyreText::SYMBOLS)->toBe(array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol'))
-        ->and(TyreText::read('225/40 R18 280W'))->toBeNull();
+        // Since D-479 the form alone is read: an index of three digits and any symbol stand as typed.
+        ->and(TyreText::read('225/40 R18 280W'))->toMatchArray(['li' => 280, 'si' => 'W']);
+});
+
+// The client's message of 19.11.2026 (D-479): „remove all restrictions completely … only keep the normal string format validation“.
+it('reads the form of a size and nothing about its figures: half rims, any symbol, any index of one to three digits', function (string $text, string $label): void {
+    $tyre = TyreText::read($text);
+
+    expect($tyre)->not->toBeNull($text)
+        ->and(TyreText::label($tyre))->toBe($label);
+})->with([
+    ['305/70 R22.5 160F', '305/70 R22.5 160F'],
+    ['315/80R22.5 156/150L', '315/80 R22.5 156/150L'],
+    ['225/40 R18 88W', '225/40 R18 88W'],
+    ['245/45R18 100', '245/45 R18 100'],
+    ['235/50R18', '235/50 R18'],
+    ['225/45 ZR17 (91Y)', '225/45 R17 91(Y)'],
+    ['205/55 R16 91 V', '205/55 R16 91V'],
+    ['195/65 R15 C 99/97 T', '195/65 R15 C 99/97T'],
+    ['265/70 R19.5 140/138 M', '265/70 R19.5 140/138M'],
+    ['205/55 R16 94 A8', '205/55 R16 94A8'],
+    ['385/65 R22,5 164K', '385/65 R22.5 164K'],
+    ['225/40 R18 999Z', '225/40 R18 999Z'],
+    ['225/40 R18 5 B', '225/40 R18 5B'],
+]);
+
+it('still says „nicht lesbar“ for what is no tyre size, with a hint that names the half size', function (): void {
+    foreach (['Cabrio', '225/40', '22.5', '225/40 R', '2250/40R18 88W', '225/40R18 88W 91Y', '225/40 R18 1234W'] as $text) {
+        expect(TyreText::read($text))->toBeNull($text);
+    }
+
+    expect(EntryLineRules::whyNot('Cabrio'))->toBe('Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 305/70 R22.5 160F oder 235/50R18.')
+        ->and(EntryLineRules::whyNot('305/70 R22.5 160F'))->toBeNull();
 });
 
 // The operator's decision of 09.11.2026 (D-445): „ZR“ without a service description only says above 240 km/h, with no stated limit

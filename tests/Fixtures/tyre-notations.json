@@ -49,7 +49,15 @@
         {"text": "185/65R15 88M", "label": "185/65 R15 88M", "width": 185, "aspect": 65, "diameter": 15, "li": 88, "li2": null, "si": "M", "marker": null},
         {"text": "185/65R15 88U", "label": "185/65 R15 88U", "width": 185, "aspect": 65, "diameter": 15, "li": 88, "li2": null, "si": "U", "marker": null},
         {"text": "235/65 R16 C 115/113R", "label": "235/65 R16 C 115/113R", "width": 235, "aspect": 65, "diameter": 16, "li": 115, "li2": 113, "si": "R", "marker": "C"},
-        {"text": "225/45R17 91Y RF", "label": "RF 225/45 R17 91Y", "width": 225, "aspect": 45, "diameter": 17, "li": 91, "li2": null, "si": "Y", "marker": "RF"}
+        {"text": "225/45R17 91Y RF", "label": "RF 225/45 R17 91Y", "width": 225, "aspect": 45, "diameter": 17, "li": 91, "li2": null, "si": "Y", "marker": "RF"},
+        {"text": "305/70 R22.5 160F", "label": "305/70 R22.5 160F", "width": 305, "aspect": 70, "diameter": 22.5, "li": 160, "li2": null, "si": "F", "marker": null},
+        {"text": "315/80R22.5 156/150L", "label": "315/80 R22.5 156/150L", "width": 315, "aspect": 80, "diameter": 22.5, "li": 156, "li2": 150, "si": "L", "marker": null},
+        {"text": "225/45 ZR17 (91Y)", "label": "225/45 R17 91(Y)", "width": 225, "aspect": 45, "diameter": 17, "li": 91, "li2": null, "si": "(Y)", "marker": null},
+        {"text": "195/65 R15 C 99/97 T", "label": "195/65 R15 C 99/97T", "width": 195, "aspect": 65, "diameter": 15, "li": 99, "li2": 97, "si": "T", "marker": "C"},
+        {"text": "265/70 R19.5 140/138 M", "label": "265/70 R19.5 140/138M", "width": 265, "aspect": 70, "diameter": 19.5, "li": 140, "li2": 138, "si": "M", "marker": null},
+        {"text": "205/55 R16 94 A8", "label": "205/55 R16 94A8", "width": 205, "aspect": 55, "diameter": 16, "li": 94, "li2": null, "si": "A8", "marker": null},
+        {"text": "245/45 R19,5 99 (X)", "label": "245/45 R19.5 99(X)", "width": 245, "aspect": 45, "diameter": 19.5, "li": 99, "li2": null, "si": "(X)", "marker": null},
+        {"text": "225/40R18 280W", "label": "225/40 R18 280W", "width": 225, "aspect": 40, "diameter": 18, "li": 280, "li2": null, "si": "W", "marker": null}
     ],
     "services": [
         {"text": "97(W)", "li": 97, "li2": null, "si": "(W)", "marker": null},
@@ -65,8 +73,11 @@
         {"text": "w", "li": null, "li2": null, "si": "W", "marker": null},
         {"text": "( w )", "li": null, "li2": null, "si": "(W)", "marker": null},
         {"text": "(Y)", "li": null, "li2": null, "si": "(Y)", "marker": null},
-        {"text": "88", "li": 88, "li2": null, "si": null, "marker": null}
+        {"text": "88", "li": 88, "li2": null, "si": null, "marker": null},
+        {"text": "92(V)", "li": 92, "li2": null, "si": "(V)", "marker": null},
+        {"text": "92X", "li": 92, "li2": null, "si": "X", "marker": null},
+        {"text": "300W", "li": 300, "li2": null, "si": "W", "marker": null}
     ],
-    "servicesRefused": ["", "XL", "92(V)", "(92V)", "92X", "300W", "W Y", "92W 93W"],
-    "refuses": ["", "Cabrio", "225/40", "225/40R18 88X", "2250/40R18", "225/40R18 88W 91Y", "HL", "HL Cabrio", "AB 225/40R18", "225/40R18 280W", "225/40 R18 (92V)", "225/40 R18 92(V)", "225/40 R18 92(X)", "225/40 R18 (W)(Y)", "225/40R18 88/91/93W", "235/65 R16 C C 115R"]
+    "servicesRefused": ["", "XL", "W Y", "92W 93W"],
+    "refuses": ["", "Cabrio", "225/40", "2250/40R18", "225/40R18 88W 91Y", "HL", "HL Cabrio", "AB 225/40R18", "225/40 R18 (W)(Y)", "225/40R18 88/91/93W", "235/65 R16 C C 115R"]
 }
