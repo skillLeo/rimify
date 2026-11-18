@@ -11,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use ZipArchive;
 
 /**
  * A vehicle file of any size, brought to the server in parts (the operator's brief of 12.11.2026, item H; D-462): no
@@ -158,12 +159,18 @@ final class ImportUpload
                 throw self::refuse('Die Datei ist nicht vollständig angekommen. Lad sie bitte noch einmal hoch.');
             }
 
-            $head = (string) file_get_contents($path, false, null, 0, 4);
+            $format = self::format($path);
+
+            // A zip that is no workbook is a folder of files, as the dataset comes: the one table in it is taken out and
+            // read in its place (D-478) — the CSV first, else the workbook.
+            if ($format === 'zip') {
+                [$path, $format] = self::unpack($path, (string) $import->stored_as);
+                $import->bytes_total = (int) filesize($path);
+            }
 
             $import->forceFill([
                 'file_sha256' => (string) hash_file('sha256', $path),
-                // The format from the bytes, not the name: a workbook is a zip archive.
-                'file_format' => str_starts_with($head, "PK\x03\x04") ? 'xlsx' : 'csv',
+                'file_format' => $format,
                 'status' => VehicleImport::READING,
                 'cursor' => null,
                 'error' => null,
@@ -171,6 +178,100 @@ final class ImportUpload
 
             return $import;
         });
+    }
+
+    /**
+     * The file's format from its bytes, not its name: a workbook is a zip archive, so a zip is a workbook only when it holds
+     * one. A SQL dump is refused in words — the page would otherwise read its statements as a table.
+     *
+     * @return 'csv'|'xlsx'|'zip'
+     */
+    private static function format(string $path): string
+    {
+        $head = (string) file_get_contents($path, false, null, 0, 4096);
+
+        if (str_starts_with($head, "PK\x03\x04")) {
+            $zip = new ZipArchive;
+
+            if ($zip->open($path) !== true) {
+                throw self::refuse('Die Datei lässt sich nicht öffnen. Sie ist beschädigt oder kein Archiv. Lad bitte die CSV- oder die Excel-Datei hoch.');
+            }
+
+            $workbook = $zip->locateName('[Content_Types].xml') !== false;
+            $zip->close();
+
+            return $workbook ? 'xlsx' : 'zip';
+        }
+
+        if (preg_match('/^(?:\xEF\xBB\xBF)?\s*(?:--|\/\*!|CREATE\s+TABLE|INSERT\s+INTO|DROP\s+TABLE|SET\s+(?:NAMES|SQL_MODE))/i', $head) === 1) {
+            throw self::refuse('Das ist eine SQL-Datei. SQL-Dateien lesen wir nicht. Nimm die Tabelle als CSV- oder Excel-Datei (.csv, .xlsx) – im Datensatz liegt sie im Ordner „CSV“ oder „XLSX“.');
+        }
+
+        return 'csv';
+    }
+
+    /**
+     * The table out of a zip: the one CSV in it, else the one workbook; written beside the zip, which goes. A zip with none
+     * — or with several to choose from — says which files it holds.
+     *
+     * @return array{0: string, 1: 'csv'|'xlsx'}
+     */
+    private static function unpack(string $path, string $storedAs): array
+    {
+        $zip = new ZipArchive;
+
+        if ($zip->open($path) !== true) {
+            throw self::refuse('Das Archiv lässt sich nicht öffnen. Lad bitte die CSV- oder die Excel-Datei hoch.');
+        }
+
+        $found = ['csv' => [], 'xlsx' => [], 'sql' => []];
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = (string) $zip->getNameIndex($i);
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+            if (str_ends_with($name, '/') || str_contains($name, '__MACOSX/') || str_starts_with(basename($name), '.') || ! isset($found[$ext])) {
+                continue;
+            }
+
+            $found[$ext][] = $name;
+        }
+
+        $kind = $found['csv'] !== [] ? 'csv' : ($found['xlsx'] !== [] ? 'xlsx' : null);
+
+        if ($kind === null) {
+            $zip->close();
+
+            throw self::refuse($found['sql'] !== []
+                ? 'In diesem Archiv liegt nur eine SQL-Datei. SQL-Dateien lesen wir nicht. Nimm die CSV- oder die Excel-Datei aus dem Datensatz.'
+                : 'In diesem Archiv liegt keine CSV- und keine Excel-Datei. Lad bitte die Tabelle selbst hoch (.csv oder .xlsx).');
+        }
+
+        if (count($found[$kind]) > 1) {
+            $zip->close();
+
+            throw self::refuse('In diesem Archiv liegen mehrere Tabellen ('.implode(', ', array_map('basename', $found[$kind])).'). Entpack es und lad die eine hoch, die du importieren willst.');
+        }
+
+        $out = $path.'.unzipped';
+        $in = $zip->getStream($found[$kind][0]);
+        $to = fopen($out, 'wb');
+
+        if ($in === false || $to === false || stream_copy_to_stream($in, $to) === false) {
+            $zip->close();
+
+            throw self::refuse('Die Datei „'.basename($found[$kind][0]).'“ lässt sich aus dem Archiv nicht lesen. Entpack es und lad sie selbst hoch.');
+        }
+
+        fclose($in);
+        fclose($to);
+        $zip->close();
+        Storage::disk('local')->delete($storedAs);
+
+        // The next steps read the file under the name the run keeps; the unpacked table takes the zip's place.
+        rename($out, $path);
+
+        return [$path, $kind];
     }
 
     /** The run's file and the copies made of it to read from. */

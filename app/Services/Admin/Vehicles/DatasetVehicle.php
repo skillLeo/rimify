@@ -88,8 +88,9 @@ final readonly class DatasetVehicle
 
             return $day === null && $end ? $first->modify('last day of this month') : $first;
         };
-        $listed = static function (string $key, array $list) use ($text): ?string {
+        $listed = static function (string $key, array $list, array $synonyms = []) use ($text): ?string {
             $v = $text($key);
+            $v = $v === null ? null : ($synonyms[mb_strtolower($v)] ?? $v);
 
             foreach ($list as $entry) {
                 if ($v !== null && mb_strtolower($entry) === mb_strtolower($v)) {
@@ -125,7 +126,8 @@ final readonly class DatasetVehicle
             maxSpeedKmh: $number('hoechstgeschwindigkeit_kmh', PapersFigures::SPEED_MIN_KMH, PapersFigures::SPEED_MAX_KMH),
             powerKw: $number('leistung_kw', 10, 1000),
             bodyForm: $listed('karosserie', DocumentConditions::BODY_FORMS),
-            driveAxle: $listed('antrieb', array_values(array_diff(DocumentConditions::DRIVES, ['Allradlenkung']))),
+            // His dataset writes the drive as Allrad-, Front- or Heckantrieb (D-478): the same three axles.
+            driveAxle: $listed('antrieb', array_values(array_diff(DocumentConditions::DRIVES, ['Allradlenkung'])), ['allradantrieb' => 'Allrad', 'frontantrieb' => 'Vorderachse', 'vorderradantrieb' => 'Vorderachse', 'heckantrieb' => 'Hinterachse', 'hinterradantrieb' => 'Hinterachse']),
         );
     }
 

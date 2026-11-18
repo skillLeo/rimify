@@ -99,3 +99,17 @@ of what he bought, and he gets that in writing.
 
 **Comparison:** not yet — written when the full dataset has run, share by share against the sample, with whether the
 sample was representative of what he bought.
+
+## His list as it is — pkwliste_demo (19.11.2026, D-478)
+
+The client's own list has 46 columns, every value in double quotes except an unquoted `NULL`, CRLF line ends. Its names are
+found by themselves: `hersteller_name`, `modell_name`, `fahrzeug_name` (the variant), `fahrzeug_typ`, `fahrzeug_form`,
+`fahrzeug_eg_nummer`, `fahrzeug_antriebsachse`, `fahrzeug_achslast_va` / `_ha`, `fahrzeug_kw`, `fahrzeug_max_kmh`,
+`fahrzeug_zul_gesamtgewicht`, `fahrzeug_hsn`, `fahrzeug_tsn`, `fahrzeug_vsn`, `fahrzeug_id`.
+
+- **Build window:** `fahrzeug_prod_monat_von` / `_jahr_von` / `_monat_bis` / `_jahr_bis`. A month that is NULL reads against
+  the car: the start in December, the end in January — the window is never wider than the file says (R-02). A year alone in
+  the one „Gebaut ab“ / „Gebaut bis“ column reads the same way.
+- **Drive:** Allrad-, Front-, Heckantrieb are Allrad, Vorderachse, Hinterachse.
+- **VSN:** `001`, `00001` read as the first and stay out of the name; any other is put behind the variant — „RS 4 Avant Quattro (VSN 00017)“.
+- **Archive and formats:** a `.zip` is opened and the one CSV in it is read (else the one workbook); a `.sql` dump is not read — the message names the CSV or Excel file to take.

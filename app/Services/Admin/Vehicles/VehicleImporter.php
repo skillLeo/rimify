@@ -83,25 +83,32 @@ final class VehicleImporter
      * the headers it is found under without being told (compared as CatalogueImporter::headerKey() reads them).
      */
     public const FIELDS = [
-        'hsn' => ['label' => 'HSN (2.1)', 'required' => true, 'headers' => ['hsn', 'herstellerschluesselnummer', 'herstellerschluessel', '21', 'feld21']],
-        'tsn' => ['label' => 'TSN (2.2)', 'required' => true, 'headers' => ['tsn', 'typschluesselnummer', 'typschluessel', '22', 'feld22']],
-        'hersteller' => ['label' => 'Hersteller', 'required' => true, 'headers' => ['hersteller', 'marke', 'make', 'manufacturer', 'd1']],
-        'handelsname' => ['label' => 'Modell (Handelsbezeichnung)', 'required' => true, 'headers' => ['handelsname', 'handelsbezeichnung', 'modell', 'model', 'd3']],
-        'variante' => ['label' => 'Variante', 'required' => true, 'headers' => ['variante', 'variant', 'ausfuehrung', 'version', 'fahrzeugvariante']],
+        'hsn' => ['label' => 'HSN (2.1)', 'required' => true, 'headers' => ['hsn', 'herstellerschluesselnummer', 'herstellerschluessel', '21', 'feld21', 'fahrzeughsn']],
+        'tsn' => ['label' => 'TSN (2.2)', 'required' => true, 'headers' => ['tsn', 'typschluesselnummer', 'typschluessel', '22', 'feld22', 'fahrzeugtsn']],
+        'hersteller' => ['label' => 'Hersteller', 'required' => true, 'headers' => ['hersteller', 'marke', 'make', 'manufacturer', 'd1', 'herstellername']],
+        'handelsname' => ['label' => 'Modell (Handelsbezeichnung)', 'required' => true, 'headers' => ['handelsname', 'handelsbezeichnung', 'modell', 'model', 'd3', 'modellname']],
+        'variante' => ['label' => 'Variante', 'required' => true, 'headers' => ['variante', 'variant', 'ausfuehrung', 'version', 'fahrzeugvariante', 'fahrzeugname']],
         'fahrzeugtyp' => ['label' => 'Fahrzeugtyp (D.2)', 'required' => false, 'headers' => ['fahrzeugtyp', 'typ', 'type', 'd2']],
-        'eg_nummer' => ['label' => 'EG-Typgenehmigungsnummer (K)', 'required' => false, 'headers' => ['egnummer', 'egtypgenehmigungsnummer', 'typgenehmigungsnummer', 'typgenehmigung', 'feldk', 'k']],
-        'leistung_kw' => ['label' => 'Leistung in kW (P.2)', 'required' => false, 'headers' => ['leistungkw', 'leistung', 'kw', 'p2']],
+        'eg_nummer' => ['label' => 'EG-Typgenehmigungsnummer (K)', 'required' => false, 'headers' => ['egnummer', 'egtypgenehmigungsnummer', 'typgenehmigungsnummer', 'typgenehmigung', 'feldk', 'k', 'fahrzeugegnummer']],
+        'leistung_kw' => ['label' => 'Leistung in kW (P.2)', 'required' => false, 'headers' => ['leistungkw', 'leistung', 'kw', 'p2', 'fahrzeugkw']],
         // Required: without a start the window would be open — a car built at any time (R-02, windowRefused).
         'baubeginn' => ['label' => 'Gebaut ab', 'required' => true, 'headers' => ['baubeginn', 'bauvon', 'baujahrvon', 'gebautab', 'von', 'buildfrom']],
         'bauende' => ['label' => 'Gebaut bis', 'required' => false, 'headers' => ['bauende', 'baubis', 'baujahrbis', 'gebautbis', 'bis', 'buildto']],
-        'karosserie' => ['label' => 'Karosserie', 'required' => false, 'headers' => ['karosserie', 'karosserieform', 'aufbau', 'body']],
-        'antrieb' => ['label' => 'Antrieb', 'required' => false, 'headers' => ['antrieb', 'antriebsart', 'drive']],
-        'achslast_vorn_kg' => ['label' => 'Achslast vorn in kg (8.1)', 'required' => false, 'headers' => ['achslastvornkg', 'achslastvorn', 'achslastvorne', '81', 'feld81']],
-        'achslast_hinten_kg' => ['label' => 'Achslast hinten in kg (8.2)', 'required' => false, 'headers' => ['achslasthintenkg', 'achslasthinten', '82', 'feld82']],
+        'karosserie' => ['label' => 'Karosserie', 'required' => false, 'headers' => ['karosserie', 'karosserieform', 'aufbau', 'body', 'fahrzeugform']],
+        'antrieb' => ['label' => 'Antrieb', 'required' => false, 'headers' => ['antrieb', 'antriebsart', 'drive', 'fahrzeugantriebsachse']],
+        'achslast_vorn_kg' => ['label' => 'Achslast vorn in kg (8.1)', 'required' => false, 'headers' => ['achslastvornkg', 'achslastvorn', 'achslastvorne', '81', 'feld81', 'fahrzeugachslastva']],
+        'achslast_hinten_kg' => ['label' => 'Achslast hinten in kg (8.2)', 'required' => false, 'headers' => ['achslasthintenkg', 'achslasthinten', '82', 'feld82', 'fahrzeugachslastha']],
         // `fahrzeug_max_kmh` is his demo data's column for T (his message of 19.10.2026, D-287); docs/launch/FAHRZEUGDATEN.md.
         'hoechstgeschwindigkeit_kmh' => ['label' => 'Höchstgeschwindigkeit in km/h (T)', 'required' => false, 'headers' => ['hoechstgeschwindigkeitkmh', 'fahrzeugmaxkmh', 'hoechstgeschwindigkeit', 'vmax', 'feldt', 't']],
         // Read for one check only — 8.1 and 8.2 against the car's own total mass (D-318) — and never stored.
-        'gesamtmasse_kg' => ['label' => 'Zulässige Gesamtmasse in kg (F.2)', 'required' => false, 'hint' => 'Wird nur zum Abgleich mit 8.1 und 8.2 gelesen und nicht gespeichert.', 'headers' => ['gesamtmassekg', 'gesamtmasse', 'zulaessigegesamtmasse', 'zulgesamtmasse', 'gesamtgewicht', 'zulaessigesgesamtgewicht', 'zulgesamtgewicht', 'f2', 'feldf2']],
+        'gesamtmasse_kg' => ['label' => 'Zulässige Gesamtmasse in kg (F.2)', 'required' => false, 'hint' => 'Wird nur zum Abgleich mit 8.1 und 8.2 gelesen und nicht gespeichert.', 'headers' => ['gesamtmassekg', 'gesamtmasse', 'zulaessigegesamtmasse', 'zulgesamtmasse', 'gesamtgewicht', 'zulaessigesgesamtgewicht', 'zulgesamtgewicht', 'fahrzeugzulgesamtgewicht', 'f2', 'feldf2']],
+        // His dataset (pkwliste_demo, 19.11.2026) names the build window as four columns — month and year, from and to — and a month
+        // may be NULL. They are put together into Gebaut ab / Gebaut bis by mapped(), D-478; a VSN other than the first is part of the variant.
+        'bauvon_monat' => ['label' => 'Gebaut ab: Monat', 'required' => false, 'hint' => 'Nur zusammen mit „Gebaut ab: Jahr“. Ohne Monat gilt der späteste: Dezember.', 'headers' => ['fahrzeugprodmonatvon', 'baumonatvon', 'bauvonmonat']],
+        'bauvon_jahr' => ['label' => 'Gebaut ab: Jahr', 'required' => false, 'hint' => 'Ersetzt „Gebaut ab“, wenn die Datei Monat und Jahr getrennt führt.', 'headers' => ['fahrzeugprodjahrvon', 'bauvonjahr']],
+        'bauende_monat' => ['label' => 'Gebaut bis: Monat', 'required' => false, 'hint' => 'Nur zusammen mit „Gebaut bis: Jahr“. Ohne Monat gilt der früheste: Januar.', 'headers' => ['fahrzeugprodmonatbis', 'baumonatbis', 'bauendemonat']],
+        'bauende_jahr' => ['label' => 'Gebaut bis: Jahr', 'required' => false, 'hint' => 'Ersetzt „Gebaut bis“, wenn die Datei Monat und Jahr getrennt führt. Leer: noch gebaut.', 'headers' => ['fahrzeugprodjahrbis', 'bauendejahr']],
+        'vsn' => ['label' => 'VSN (Variantenschlüssel)', 'required' => false, 'hint' => 'Zwei Fahrzeuge mit gleicher HSN, TSN und Bezeichnung bleiben so auseinander: eine VSN außer 001 steht in Klammern hinter der Variante.', 'headers' => ['vsn', 'fahrzeugvsn', 'variantenschluessel']],
         'fahrzeug_id' => ['label' => 'Nummer des Fahrzeugs im Datensatz', 'required' => false, 'headers' => ['fahrzeugid', 'datensatzid', 'id']],
     ];
 
@@ -241,7 +248,10 @@ final class VehicleImporter
     {
         return array_values(array_map(
             static fn (array $spec): string => $spec['label'],
-            array_filter(self::FIELDS, static fn (array $spec, string $field): bool => $spec['required'] && ! in_array($mapping[$field] ?? null, $headers, true), ARRAY_FILTER_USE_BOTH),
+            array_filter(self::FIELDS, static fn (array $spec, string $field): bool => $spec['required']
+                && ! in_array($mapping[$field] ?? null, $headers, true)
+                // The start of the build window may come as a year column (and a month column beside it, D-478).
+                && ! ($field === 'baubeginn' && in_array($mapping['bauvon_jahr'] ?? null, $headers, true)), ARRAY_FILTER_USE_BOTH),
         ));
     }
 
@@ -258,7 +268,50 @@ final class VehicleImporter
 
         foreach (array_keys(self::FIELDS) as $field) {
             $header = $mapping[$field] ?? null;
-            $row[$field] = $header === null ? '' : trim((string) ($raw[$header] ?? ''));
+            $value = $header === null ? '' : trim((string) ($raw[$header] ?? ''));
+            // A dump writes an empty value as an unquoted NULL (his pkwliste_demo, D-478): no value, not the word.
+            $row[$field] = in_array($value, ['NULL', '\\N'], true) ? '' : $value;
+        }
+
+        return self::composed($row);
+    }
+
+    /**
+     * What a file that names the build window as month and year columns, and a VSN beside the variant, says in the
+     * contract's own fields (D-478). A month that is NULL is read against the car — the later start, the earlier end —, so
+     * the window is never wider than the file says: a missed sale rather than a wrong approval (R-02, governing rule).
+     *
+     * @param  array<string, string>  $row
+     * @return array<string, string>
+     */
+    private static function composed(array $row): array
+    {
+        $year = static fn (string $v): ?int => preg_match('/^\d{4}$/', $v) === 1 ? (int) $v : null;
+        $month = static fn (string $v): ?int => preg_match('/^\d{1,2}$/', $v) === 1 && (int) $v >= 1 && (int) $v <= 12 ? (int) $v : null;
+
+        if ($row['baubeginn'] === '' && $row['bauvon_jahr'] !== '') {
+            $y = $year($row['bauvon_jahr']);
+            // Not readable stays as typed, so the row's reason can name it.
+            $row['baubeginn'] = $y === null ? $row['bauvon_jahr'] : sprintf('%02d.%04d', $month($row['bauvon_monat']) ?? 12, $y);
+        }
+
+        if ($row['bauende'] === '' && $row['bauende_jahr'] !== '') {
+            $y = $year($row['bauende_jahr']);
+            $row['bauende'] = $y === null ? $row['bauende_jahr'] : sprintf('%02d.%04d', $month($row['bauende_monat']) ?? 1, $y);
+        }
+
+        // A year alone in the one date column (his full list, run 4 of 14.11.2026: every row refused) reads the same way.
+        if (preg_match('/^\d{4}$/', $row['baubeginn']) === 1) {
+            $row['baubeginn'] = '12.'.$row['baubeginn'];
+        }
+
+        if (preg_match('/^\d{4}$/', $row['bauende']) === 1) {
+            $row['bauende'] = '01.'.$row['bauende'];
+        }
+
+        // A VSN other than 001 keeps two cars of one HSN, TSN and name apart — in the variant, which is the shop's key.
+        if ($row['vsn'] !== '' && preg_match('/^0*1$/', $row['vsn']) !== 1) {
+            $row['variante'] = trim(($row['variante'] !== '' ? $row['variante'] : $row['handelsname']).' (VSN '.$row['vsn'].')');
         }
 
         return $row;
