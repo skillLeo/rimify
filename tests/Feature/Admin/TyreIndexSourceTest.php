@@ -183,18 +183,54 @@ it('reads load index and speed symbol apart, and keeps a line neither stands in 
         'lines' => [['id' => null, 'front' => $tyre, 'rear' => $tyre, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
     ])->assertOk();
 
-    // A tyre that does not read — no ETRTO index above 279 — is kept as typed, said, and writes nothing; the release waits for it.
-    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 245/45R18 100 oder 235/50R18.');
+    // A tyre that does not read — no size in it — is kept as typed, said, and writes nothing; the release waits for it. A figure is
+    // never why (D-479): the form of the size is all that is checked.
+    $line('Winterreifen 245')->assertJsonPath('car.lines.0.frontWhy', 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 305/70 R22.5 160F oder 235/50R18.');
     expect(DB::table('fitment_tyre_sizes')->count())->toBe(0)
         ->and(implode(' ', app(DocumentRelease::class)->check($document)))->toContain('nicht lesbar');
     // Past 120 Regulation No 30 prints no capacity (D-310): entered as the paper prints it all the same, since the client's round of
     // 08.11.2026, §4 (D-442) — the shop answers its tyres „Noch nicht bestätigt“ (TopSpeedByDocumentTest), never an estimate.
     $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', null);
     expect(DB::table('fitment_tyre_sizes')->orderByDesc('id')->value('min_load_index'))->toBe(121);
-    $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X');
+    // Any symbol is kept as typed (D-479); the exact size is what the shop then offers.
+    $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X')->assertJsonPath('car.lines.0.frontWhy', null);
     $line('245/35 R19 93Y')->assertJsonPath('car.lines.0.frontWhy', null);
 
     $size = DB::table('fitment_tyre_sizes')->orderByDesc('id')->first();
     expect($size?->min_load_index)->toBe(93)
         ->and($size?->min_speed_symbol)->toBe('Y');
 });
+
+// The client's message of 19.11.2026 (D-479): „remove all restrictions completely … only keep the normal string format validation“.
+// Each string he and the brief name is saved by the step-4 entry as typed, written with its figures, and shown back.
+it('saves every size the client types in step 4, with any load index and any symbol, and shows it back as typed (D-479)', function (string $typed, string $shown, float $rim, ?int $li, ?string $si): void {
+    $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 12]);
+    $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
+    $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
+    $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => $rim]);
+    $entry = EntryDriver::car(test(), indexAdmin(), $document->id, Vehicle::factory()->create()->id, $config->id);
+
+    test()->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}", [
+        'lines' => [['id' => null, 'front' => $typed, 'rear' => $typed, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
+    ])->assertOk()
+        ->assertJsonPath('car.lines.0.front', $shown)->assertJsonPath('car.lines.0.rear', $shown)
+        ->assertJsonPath('car.lines.0.frontWhy', null)->assertJsonPath('car.lines.0.rearWhy', null);
+
+    $size = DB::table('fitment_tyre_sizes')->orderByDesc('id')->first();
+
+    expect($size)->not->toBeNull()
+        ->and((float) $size->diameter_in)->toBe($rim)
+        ->and($size->min_load_index)->toBe($li)
+        ->and($size->min_speed_symbol)->toBe($si);
+})->with([
+    'the screenshot' => ['305/70 R22.5 160F', '305/70 R22.5 160F', 22.5, 160, 'F'],
+    'dual index, L' => ['315/80R22.5 156/150L', '315/80 R22.5 156/150L', 22.5, 156, 'L'],
+    'W' => ['225/40 R18 88W', '225/40 R18 88W', 18.0, 88, 'W'],
+    'no symbol' => ['245/45R18 100', '245/45 R18 100', 18.0, 100, null],
+    'no figures' => ['235/50R18', '235/50 R18', 18.0, null, null],
+    'ZR, bracket Y' => ['225/45 ZR17 (91Y)', '225/45 R17 91(Y)', 17.0, 91, '(Y)'],
+    'index and symbol apart' => ['205/55 R16 91 V', '205/55 R16 91V', 16.0, 91, 'V'],
+    'C, dual, T' => ['195/65 R15 C 99/97 T', '195/65 R15 C 99/97T', 15.0, 99, 'T'],
+    'half rim 19.5, M' => ['265/70 R19.5 140/138 M', '265/70 R19.5 140/138M', 19.5, 140, 'M'],
+    'A8' => ['205/55 R16 94 A8', '205/55 R16 94A8', 16.0, 94, 'A8'],
+]);

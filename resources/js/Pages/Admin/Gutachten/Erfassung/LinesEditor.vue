@@ -292,7 +292,7 @@ function sideHint(line: EditLine, side: 'front' | 'rear'): { ok: boolean; text: 
     const tyre = readTyre(text)
 
     if (tyre === null) {
-        return { ok: false, text: whyUnread(text) ?? 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 245/45R18 100 oder 235/50R18.' }
+        return { ok: false, text: whyUnread(text) ?? 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 305/70 R22.5 160F oder 235/50R18.' }
     }
 
     const refused = line.refused[side]
