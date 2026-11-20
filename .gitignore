@@ -52,3 +52,7 @@ Thumbs.db
 
 # Human QA evidence (screenshots, exports, the meeting PDF): never committed while the repository is public.
 /storage/qa-evidence/
+
+# The client's own vehicle dataset (pkwliste_demo, D-478): third-party data, never committed — tests use made-up rows.
+/pkwliste_demo/
+/pkwliste_demo.zip

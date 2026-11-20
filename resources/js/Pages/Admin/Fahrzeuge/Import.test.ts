@@ -34,4 +34,16 @@ describe('Fahrzeuge › Import', () => {
         expect(page(runs, 23).find('.fi-more').text()).toBe('Hier stehen die letzten 20 von 23 Läufen.')
         expect(page(runs, 20).find('.fi-more').exists()).toBe(false)
     })
+
+    // His dataset comes as a zip (D-478): the field takes it, and a SQL dump is answered as the server answers it.
+    it('takes a zip and answers a SQL file in words', () => {
+        const wrapper = page([], 0)
+        const pick = wrapper.findComponent({ name: 'FilePick' })
+
+        expect(pick.attributes('accept')).toContain('.zip')
+        expect(wrapper.find('#fi-file-label').text()).toBe('Datei (CSV, Excel oder ZIP)')
+        const vm = wrapper.vm as unknown as { refusedFile: (name: string) => string }
+        expect(vm.refusedFile('pkwliste_demo.sql')).toContain('SQL-Dateien lesen wir nicht')
+        expect(vm.refusedFile('bild.png')).toBe('„bild.png“ nimmt dieses Feld nicht – nur CSV, Excel (.xlsx) oder ein ZIP-Archiv mit einer davon.')
+    })
 })
