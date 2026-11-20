@@ -40296,7 +40296,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Admin/Einstellungen/Versand.vue": () => import("./assets/Versand-34pBewLy.js"),
 		"./Pages/Admin/Einstellungen/Zahlung.vue": () => import("./assets/Zahlung-CTapj6nb.js"),
 		"./Pages/Admin/Fahrzeuge/IdentityForm.vue": () => import("./assets/IdentityForm-DNPePgG-.js").then((n) => n.n),
-		"./Pages/Admin/Fahrzeuge/Import.vue": () => import("./assets/Import-C5nOpWvq.js"),
+		"./Pages/Admin/Fahrzeuge/Import.vue": () => import("./assets/Import-_91rAWwA.js"),
 		"./Pages/Admin/Fahrzeuge/ImportRun.vue": () => import("./assets/ImportRun-C1KbCzM8.js"),
 		"./Pages/Admin/Fahrzeuge/Index.vue": () => import("./assets/Index-DfoWqECM.js"),
 		"./Pages/Admin/Fahrzeuge/Neu.vue": () => import("./assets/Neu-whqoUZgs.js"),

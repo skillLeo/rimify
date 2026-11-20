@@ -74,9 +74,9 @@ class VehicleImportRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.*' => 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).',
+            'name.*' => 'Bitte wähl eine Datei aus: CSV, Excel (.xlsx) oder ein ZIP-Archiv mit einer davon.',
             'size.min' => 'Die Datei ist leer. Wähl bitte die Datei mit den Fahrzeugen aus.',
-            'size.*' => 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).',
+            'size.*' => 'Bitte wähl eine Datei aus: CSV, Excel (.xlsx) oder ein ZIP-Archiv mit einer davon.',
             'offset.*' => 'Ein Teil der Datei ist nicht vollständig angekommen. Lad die Datei bitte noch einmal hoch.',
             'part.*' => 'Ein Teil der Datei ist nicht vollständig angekommen. Lad die Datei bitte noch einmal hoch.',
             'quelle.*' => 'Bitte wähl, woher die Fahrzeugdaten kommen.',

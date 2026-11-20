@@ -122,7 +122,7 @@ async function submit(): Promise<void> {
     }
 
     if (upload.file === null) {
-        upload.setError('file', 'Bitte wähl eine Datei aus: CSV oder Excel (.xlsx).')
+        upload.setError('file', 'Bitte wähl eine Datei aus: CSV, Excel (.xlsx) oder ein ZIP-Archiv mit einer davon.')
         focus.request('fi-file-button')
 
         return
@@ -173,6 +173,13 @@ function counts(run: Run): string {
 
 const required = props.fields.filter((field) => field.required)
 const optional = props.fields.filter((field) => !field.required)
+
+/* A file the field does not take, said with what it does take (D-478); a SQL dump with the server's own words. */
+function refusedFile(name: string): string {
+    return name.toLowerCase().endsWith('.sql')
+        ? 'Das ist eine SQL-Datei. SQL-Dateien lesen wir nicht. Nimm die Tabelle als CSV- oder Excel-Datei (.csv, .xlsx) – im Datensatz liegt sie im Ordner „CSV“ oder „XLSX“.'
+        : `„${name}“ nimmt dieses Feld nicht – nur CSV, Excel (.xlsx) oder ein ZIP-Archiv mit einer davon.`
+}
 </script>
 
 <template>
@@ -205,17 +212,17 @@ const optional = props.fields.filter((field) => !field.required)
 
             <form class="fi-form" @submit.prevent="submit">
                 <div class="form-field">
-                    <span id="fi-file-label" class="form-field__label">Datei (CSV oder Excel)</span>
+                    <span id="fi-file-label" class="form-field__label">Datei (CSV, Excel oder ZIP)</span>
                     <FilePick
                         id="fi-file"
                         v-model="upload.file"
-                        accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        accept=".csv,.txt,.xlsx,.zip,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/x-zip-compressed"
                         :invalid="!!upload.errors.file"
                         :disabled="sending"
                         describedby="fi-file-label fi-file-help fi-file-err"
-                        @refused="(name: string) => upload.setError('file', `„${name}“ nimmt dieses Feld nicht – nur CSV oder Excel (.xlsx).`)"
+                        @refused="(name: string) => upload.setError('file', refusedFile(name))"
                     />
-                    <p id="fi-file-help" class="form-field__help">Auch große Dateien sind möglich – sie werden in Teilen hochgeladen und danach auf dem Server geprüft.</p>
+                    <p id="fi-file-help" class="form-field__help">Auch große Dateien sind möglich – sie werden in Teilen hochgeladen und danach auf dem Server geprüft. Ein ZIP-Archiv, wie der Fahrzeugdatensatz es liefert, wird geöffnet und seine CSV-Datei gelesen.</p>
                     <p id="fi-file-err" class="form-field__error">{{ upload.errors.file ?? failure }}</p>
                 </div>
                 <div class="form-field">
