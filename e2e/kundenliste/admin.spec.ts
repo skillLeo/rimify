@@ -167,6 +167,51 @@ test('load index and speed symbol read apart — a size pasted as printed settle
     await shotAround(page, [page.locator('.ef-line').last()], 209, info)
 })
 
+// The deep check of 21.11.2026 (1.2, D-481): any load index and any symbol, typed and pasted, saved and read back after a reload.
+// The paper is for the 19-inch wheel, so the brief's odd figures stand on 19-inch sizes; its 22,5 and 19,5 are proven in Pest.
+const ODD = [
+    ['245/35 R19 160F', '245/35 R19 160F'],
+    ['255/30R19 156/150L', '255/30 R19 156/150L'],
+    ['245/35 ZR19 (91Y)', '245/35 R19 91(Y)'],
+    ['225/35 R19 94 A8', '225/35 R19 94A8'],
+] as const
+
+test('any load index and symbol, typed and pasted, stand after a reload as they were read (D-481)', { tag: '@admin-209' }, async ({ page }, info) => {
+    await admin(page)
+    await draftOf55255(page)
+    await car(page, 'X3')
+
+    // Typed, one line, then the rest pasted as a list: both ways the browser reads, the server stores.
+    await page.getByRole('button', { name: 'Kombination', exact: true }).click()
+    const front = page.locator('[id^=ef-front-]').last()
+    const saved = stored(page)
+    await front.fill(ODD[0][0])
+    await front.blur()
+    await expect(front).toHaveValue(ODD[0][1])
+    await saved
+
+    await page.getByRole('button', { name: 'Mehrere einfügen' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.locator('#ef-paste').fill(ODD.slice(1).map(([typed]) => `${typed} – ${typed}`).join('\n'))
+    await expect(dialog.locator('.ef-paste__line')).toHaveCount(ODD.length - 1)
+    const pasted = stored(page)
+    await dialog.getByRole('button', { name: `${ODD.length - 1} Zeilen übernehmen` }).click()
+    await pasted
+
+    await page.reload({ waitUntil: 'networkidle' })
+    await car(page, 'X3')
+    await expect(page.locator('[id^=ef-front-]').first()).toBeVisible({ timeout: 15_000 })
+    const shown = await lines(page)
+
+    for (const [, read] of ODD) {
+        expect(shown.some((line) => line.startsWith(`${read} |`)), `${read} after the reload`).toBe(true)
+    }
+
+    // No line says it could not be read.
+    await expect(page.locator('.ef-line .form-field__error:not(:empty)')).toHaveCount(0)
+    await shotAround(page, [page.locator('.ef-editor')], 209, info)
+})
+
 /** The released document of that number: the list may hold a new Fassung of it, which opens on the steps. */
 async function openReleased(page: Page, number: string): Promise<void> {
     await page.goto(`${ABNAHME}/admin/gutachten`, { waitUntil: 'networkidle' })
