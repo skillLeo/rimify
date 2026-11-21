@@ -287,7 +287,10 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     await expect(panel).toContainText(/freigegeben/i)
     // The Auflage as a sentence, in the panel's list or its overview of the wording below — never „Keine Eintragung erforderlich.“,
     // which stood here until D-486 and counted as a line.
-    await expect(panel.locator('.fit__conditions li, .fit__entry, .fit__overview, .fit__notes, [data-condition-groups] li').first()).toBeVisible()
+    // The answer and its sizes in sight. The golden paper asks nothing of the car: no Auflage and no Eintragung, so no line
+    // for them — never „Keine Eintragung erforderlich.“, which stood here until D-486.
+    await expect(panel.locator('.rcheck-panel__vehicle')).toContainText(/freigegeben/i)
+    await expect(panel.locator('.fit__tyres')).toContainText(/R18/)
     await expect(panel).not.toContainText('Keine Eintragung')
 
     const pdf = panel.locator('.fit__pdf a')
