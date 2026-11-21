@@ -31,6 +31,7 @@ const LABELS = ['Gutachten', 'Nachtrag', 'Anlage', 'Ältere Fassung']
 
 const upload = usePresignedUpload()
 const file = ref<File | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 const label = ref('Nachtrag')
 const datedOn = ref('')
 const error = ref('')
@@ -62,7 +63,8 @@ async function add(): Promise<void> {
     }
 
     busy.value = true
-    const key = await upload.upload(file.value)
+    const sent = file.value
+    const key = await upload.upload(sent)
 
     if (key === null) {
         error.value = upload.error.value ?? 'Die Datei konnte nicht hochgeladen werden.'
@@ -74,7 +76,16 @@ async function add(): Promise<void> {
     router.post(`/admin/gutachten/${props.documentId}/pdfs`, { upload_key: key, label: label.value.trim(), dated_on: datedOn.value || null }, {
         preserveScroll: true,
         onSuccess: () => {
-            file.value = null
+            // The field empties with the file it sent (D-497): no name left standing over a form that holds none, the same
+            // file can be chosen again, and one chosen while this one went up stays chosen.
+            if (file.value === sent) {
+                file.value = null
+
+                if (fileInput.value) {
+                    fileInput.value.value = ''
+                }
+            }
+
             datedOn.value = ''
         },
         onError: (errors) => {
@@ -164,7 +175,7 @@ function move(index: number, by: -1 | 1): void {
         <form v-if="can" class="dp__add" novalidate @submit.prevent="add">
             <div class="form-field">
                 <label class="form-field__label" for="dp-file">Weiteres PDF</label>
-                <input id="dp-file" class="input" type="file" accept="application/pdf,.pdf" aria-describedby="dp-file-help dp-err" @change="pick">
+                <input id="dp-file" ref="fileInput" class="input" type="file" accept="application/pdf,.pdf" aria-describedby="dp-file-help dp-err" @change="pick">
                 <p id="dp-file-help" class="form-field__help">Nur PDF, bis {{ maxMb }} MB.</p>
             </div>
             <div class="form-field">

@@ -611,7 +611,7 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                     class="kf-check"
                     :data-set-answer="mode === 'mixed' ? '' : undefined"
                     :answer="checkFor.answer"
-                    :vehicle="shared.vehicle.short"
+                    :vehicle="shared.vehicle.label"
                     :sizes="checkFor.sizes"
                     :papers-exempt="config.verdict?.papersExempt === true"
                     :document="checkDocument"
