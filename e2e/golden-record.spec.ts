@@ -285,8 +285,10 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
 
     const panel = page.locator('.rcheck-panel').first()
     await expect(panel).toContainText(/freigegeben/i)
-    // The Auflage as a sentence — or, where it only repeats it, the entry line the panel says once.
-    await expect(panel.locator('.fit__conditions li, .fit__entry').first()).toBeVisible()
+    // The Auflage as a sentence, in the panel's list or its overview of the wording below — never „Keine Eintragung erforderlich.“,
+    // which stood here until D-486 and counted as a line.
+    await expect(panel.locator('.fit__conditions li, .fit__entry, .fit__overview, [data-condition-groups] li').first()).toBeVisible()
+    await expect(panel).not.toContainText('Keine Eintragung')
 
     const pdf = panel.locator('.fit__pdf a')
     await expect(pdf).toHaveAttribute('href', new RegExp(`#page=${PAGE}$`))
