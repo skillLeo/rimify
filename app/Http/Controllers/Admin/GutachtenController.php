@@ -414,7 +414,7 @@ class GutachtenController extends Controller
     /** The count of the Verwendungsbereich, before the rows are entered, each figure with its page (ADMIN-GEFUNDEN 511). */
     public function release(ApprovalReleaseRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
-        $result = $release->release($document, $request->admin(), null, $request->declaration());
+        $result = $release->release($document, $request->admin());
         $toast = match ($result['rows']) {
             // A base without rows of its own (DocumentRelease): its facts now reach the shop through its Nachträge.
             0 => 'Freigegeben: Der Shop übernimmt die Angaben dieses Grundgutachtens jetzt für seine Nachträge.',
@@ -430,12 +430,14 @@ class GutachtenController extends Controller
         return back()->with('toast', $toast);
     }
 
-    /** The completeness question answered for a released document (D-227): recorded, in the Protokoll, read by the shop. */
+    /** The switch „Alle Fahrzeuge dieses Gutachtens sind erfasst“ (D-485): recorded, in the Protokoll, read by the shop. */
     public function completeness(ApprovalCompletenessRequest $request, ApprovalDocument $document, DocumentRelease $release): RedirectResponse
     {
-        $release->answerCompleteness($document, $request->admin(), (string) $request->validated('completeness'), $request->validated('missing') === null ? null : (string) $request->validated('missing'));
+        $release->switchCompleteness($document, $request->admin(), $request->complete());
 
-        return back()->with('toast', 'Gespeichert: '.$document->refresh()->completenessDe().'.');
+        return back()->with('toast', $request->complete()
+            ? 'Gespeichert: Alle Fahrzeuge sind erfasst. Ein Fahrzeug, das hier nicht steht, ist im Shop jetzt „nicht freigegeben“.'
+            : 'Gespeichert: Nicht bestätigt, dass alle Fahrzeuge erfasst sind. Ein Fahrzeug, das hier nicht steht, ist im Shop „noch nicht bestätigt“.');
     }
 
     /** @return array{path: string, sha256: string} */

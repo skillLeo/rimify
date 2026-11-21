@@ -11,6 +11,7 @@ import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
 import { cancelReload, freshReload } from '../../../../lib/freshReload'
+import CompletenessSwitch from '../CompletenessSwitch.vue'
 import ReleaseDialog from '../ReleaseDialog.vue'
 import CodeDefine from './CodeDefine.vue'
 import LegendDialog from './LegendDialog.vue'
@@ -298,6 +299,17 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
 
         <PreviewSection />
 
+        <!-- D-485: outside the release, optional, off until someone turns it on. -->
+        <CompletenessSwitch
+            class="ef-complete"
+            :document-id="doc.id"
+            :completeness="doc.completeness ?? null"
+            :by="doc.completenessBy"
+            :at="doc.completenessAt"
+            :can="page.props.can.answer === true"
+            id-prefix="ef"
+        />
+
         <p v-if="releaseError" class="adm-alert" role="alert">{{ releaseError }}</p>
 
         <div class="ef-actions">
@@ -309,12 +321,16 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
             </button>
         </div>
 
-        <ReleaseDialog v-if="page.props.can.release" v-model:open="releaseOpen" mode="release" :document="doc" :rows="rows" :note="releaseBody" />
+        <ReleaseDialog v-if="page.props.can.release" v-model:open="releaseOpen" :document="doc" :rows="rows" :note="releaseBody" />
         <LegendDialog v-if="state.editable" v-model:open="legendOpen" />
     </section>
 </template>
 
 <style scoped>
+.ef-complete {
+    margin-top: var(--sp-24);
+}
+
 .ef-gap {
     display: flex;
     flex-wrap: wrap;

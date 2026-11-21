@@ -50,14 +50,12 @@ final class ApprovalDocumentPolicy
     }
 
     /**
-     * „Sind alle Anlagen und alle Fahrzeuge erfasst?“ answered for a document already released (D-227): who may release
-     * may answer it — on the released revision. Until 16.10.2026 the answer asked `publish`, which only a draft passes,
-     * so no released document could be answered and the go-live check waited for nothing anyone could give
-     * (ADMIN-GEFUNDEN 513).
+     * The switch „Alle Fahrzeuge dieses Gutachtens sind erfasst“ (D-485): who may release may set it — on a draft, before
+     * its release, or on the released revision. Never on a revision the shop no longer reads (ADMIN-GEFUNDEN 513).
      */
     public function answerCompleteness(AdminUser $user, ApprovalDocument $document): bool
     {
-        return $document->status === DocumentStatus::Published && $user->may(PermissionModule::Approvals, PermissionAction::Publish);
+        return in_array($document->status, [DocumentStatus::Draft, DocumentStatus::Published], true) && $user->may(PermissionModule::Approvals, PermissionAction::Publish);
     }
 
     /**

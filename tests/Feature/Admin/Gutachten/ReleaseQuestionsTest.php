@@ -18,16 +18,19 @@ use App\Models\WheelModel;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\Gutachten\EntryDriver;
 
 /*
- * Step 5 „Freigeben“ after the client's round of 08.11.2026, §3: the count of the Verwendungsbereich — Auflagen-Codes and Reifengrößen,
- * each with its page (D-440) — and the Achslastgrenze (D-441) are no longer asked, shown or compared. „Ist das Gutachten vollständig
- * erfasst?“ stays (D-227: it decides what the shop says about a car the paper does not list), and so does the Abnahme question, which
- * he did not ask to remove. An axle-load limit the paper prints still works through its codes of kind Tragfähigkeit (5KA, 5MK).
+ * Step 5 „Freigeben“. After the client's round of 08.11.2026, §3, the count of the Verwendungsbereich (D-440) and the
+ * Achslastgrenze (D-441) were no longer asked; since his round of 18.11.2026, item 2 (D-485), the release asks nothing at all.
+ * „Sind alle Fahrzeuge erfasst?“ is the optional switch on the paper's page — unswitched, a car the paper does not name is
+ * „noch nicht bestätigt“, never „nicht freigegeben“ — and the Abnahme a combination needs comes from its codes alone. Every
+ * other protection stays: an undescribed code still blocks the release. An axle-load limit the paper prints still works
+ * through its codes of kind Tragfähigkeit (5KA, 5MK).
  */
 
 beforeEach(function (): void {
@@ -47,7 +50,7 @@ function questionsAdmin(): AdminUser
 /** A draft with one car on one wheel: one line, and these codes on it. */
 function questionsDraft(array $codes = [], array $document = []): ApprovalDocument
 {
-    $paper = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 8, ...$document]);
+    $paper = ApprovalDocument::factory()->draft()->unanswered()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 8, ...$document]);
 
     foreach ($codes as $code => [$kind, $text]) {
         DocumentCondition::factory()->kind($kind, $text)->create(['approval_document_id' => $paper->id, 'code' => $code]);
@@ -67,16 +70,19 @@ function questionsDraft(array $codes = [], array $document = []): ApprovalDocume
 }
 
 describe('§3.1: the count of codes and sizes (D-440)', function (): void {
-    it('releases on the completeness and the Abnahme alone: no Auflagen-Codes, no Reifengrößen, no pages asked', function (): void {
+    it('releases with nothing asked: no Auflagen-Codes, no Reifengrößen, no pages — and keeps what was entered in the Protokoll', function (): void {
         $paper = questionsDraft();
 
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'none'])
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben")
             ->assertSessionHasNoErrors();
 
+        $entry = AuditLog::query()->where('description', 'approval.released')->sole()->properties;
+
         expect($paper->refresh()->status->value)->toBe('published')
-            ->and(AuditLog::query()->where('description', 'approval.released')->sole()->properties['declared'])
+            ->and($entry)->not->toHaveKey('declared')
+            ->and($entry['completeness'])->toBeNull()
             // By key and value: MySQL's JSON column orders an object's keys its own way.
-            ->toEqual(['completeness' => 'complete', 'missing' => null, 'abnahme' => 'none']);
+            ->and($entry['entered'])->toEqual(['codes' => 0, 'sizes' => 1, 'withoutLoad' => 1, 'maxLoadKg' => null, 'withoutAbnahme' => 1, 'withAbnahme' => 0]);
     });
 
     it('no longer compares a count taken earlier with the entry, on the page or at the door', function (): void {
@@ -88,7 +94,7 @@ describe('§3.1: the count of codes and sizes (D-440)', function (): void {
             ->where('blockers', fn ($blockers): bool => collect($blockers)->filter(fn (string $b): bool => str_contains($b, 'laut Verwendungsbereich'))->isEmpty())
             ->missing('document.count'));
 
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'none'])
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben")
             ->assertSessionHasNoErrors();
 
         expect($paper->refresh()->status->value)->toBe('published');
@@ -111,7 +117,7 @@ describe('§3.2: the Achslastgrenze (D-441)', function (): void {
         $paper = questionsDraft();
         $paper->forceFill(['counted_codes' => 0, 'counted_codes_page' => 1, 'counted_sizes' => 1, 'counted_sizes_page' => 1, 'counted_axle_limit_kg' => 1160, 'counted_axle_limit_page' => 3, 'counted_abnahme' => 'none', 'counted_at' => now()])->save();
 
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'none'])
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben")
             ->assertSessionHasNoErrors();
 
         expect($paper->refresh()->status->value)->toBe('published');
@@ -135,7 +141,7 @@ describe('§3.2: the Achslastgrenze (D-441)', function (): void {
             ])->assertOk();
         }
 
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'none'])
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben")
             ->assertSessionHasNoErrors();
 
         $axles = static fn (Vehicle $car): array => FitmentTyreSize::query()->whereIn('fitment_id', Fitment::query()->where('vehicle_id', $car->id)->select('id'))
@@ -150,33 +156,54 @@ describe('§3.2: the Achslastgrenze (D-441)', function (): void {
     });
 });
 
-describe('what stays', function (): void {
-    it('asks whether the paper is entered completely, as before (D-227)', function (): void {
+describe('D-485: the release asks nothing', function (): void {
+    it('releases without the completeness, and reads the paper as partial: a car it does not name is „noch nicht bestätigt“', function (): void {
         $paper = questionsDraft();
+        $wheel = (int) Fitment::query()->where('approval_document_id', $paper->id)->value('wheel_config_id');
+        $other = Vehicle::factory()->create(['max_speed_kmh' => 200]);
 
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['abnahme' => 'none'])
-            ->assertSessionHasErrors('completeness');
-    });
-
-    it('asks the Abnahme, and still refuses where the answer and the entry differ', function (): void {
-        $paper = questionsDraft(['A1' => [ConditionKind::Abnahme, 'Abnahme durch eine Prüfstelle erforderlich.']]);
-
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete'])
-            ->assertSessionHasErrors('abnahme');
-
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'none'])
-            ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: Der Verwendungsbereich verlangt keine Abnahme, aber bei einer Zeile ist eine erfasst. Prüf die Codes.']);
-
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'all', 'abnahme_page' => 4])
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete', 'abnahme' => 'all'])
             ->assertSessionHasNoErrors();
 
-        expect($paper->refresh()->status->value)->toBe('published');
+        // What a client posts is not read: the paper stays unswitched.
+        expect($paper->refresh()->status->value)->toBe('published')
+            ->and($paper->completeness)->toBeNull()
+            ->and(app(FitmentResolver::class)->resolve($other->id, $wheel)->status->value)->toBe('UNKNOWN');
+
+        // Switched on, the stronger answer: „nicht freigegeben“.
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/vollstaendigkeit", ['complete' => true])->assertSessionHasNoErrors();
+
+        expect(app(FitmentResolver::class)->resolve($other->id, $wheel)->status->value)->toBe('NOT_PERMITTED');
     });
 
-    it('asks a paper without rows only the completeness: no Abnahme', function (): void {
-        $paper = ApprovalDocument::factory()->draft()->create();
+    it('takes the Abnahme from the codes alone: a combination with one needs it, without one it does not', function (): void {
+        $with = questionsDraft(['A1' => [ConditionKind::Abnahme, 'Abnahme durch eine Prüfstelle erforderlich.']]);
+        $without = questionsDraft();
 
-        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben", ['completeness' => 'complete'])
-            ->assertSessionDoesntHaveErrors(['abnahme', 'abnahme_page', 'completeness']);
+        foreach ([$with, $without] as $paper) {
+            $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben")->assertSessionHasNoErrors();
+        }
+
+        $row = static fn (ApprovalDocument $paper): Fitment => Fitment::query()->where('approval_document_id', $paper->id)->sole();
+
+        expect($row($with)->requires_entry)->toBeTrue()
+            ->and($row($without)->requires_entry)->toBeFalse()
+            ->and(app(FitmentResolver::class)->resolve($row($with)->vehicle_id, $row($with)->wheel_config_id)->requiresEntry)->toBeTrue();
+    });
+
+    it('still refuses a paper whose code has no description', function (): void {
+        $paper = questionsDraft();
+        $entry = (int) DB::table('document_car_entries')->where('approval_document_id', $paper->id)->value('id');
+
+        $this->actingAs(questionsAdmin(), 'admin')->putJson("/admin/gutachten/{$paper->id}/erfassung/fahrzeuge/{$entry}", [
+            'lines' => [['id' => null, 'front' => '225/40 R18 92Y', 'rear' => '225/40 R18 92Y', 'kw' => '', 'codes' => ['Q7']]],
+            'codes' => [],
+            'source_page' => 2,
+        ])->assertOk();
+
+        $this->actingAs(questionsAdmin(), 'admin')->post("/admin/gutachten/{$paper->id}/freigeben")
+            ->assertSessionHasErrors('release');
+
+        expect($paper->refresh()->status->value)->toBe('draft');
     });
 });

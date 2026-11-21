@@ -35,13 +35,13 @@ function instructionAdmin(string $role = 'super-admin'): AdminUser
 }
 
 /** A draft with one row the button could release. */
-function releasableDraft(): ApprovalDocument
+function releasableDraft(string $number = 'TG-ANWEISUNG'): ApprovalDocument
 {
     $vehicle = Vehicle::factory()->create();
     $model = WheelModel::factory()->create(['is_demo' => false]);
     $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
     $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => 18.0, 'width_in' => 8.0, 'et_mm' => 35]);
-    $draft = ApprovalDocument::factory()->draft()->create(['report_number' => 'TG-ANWEISUNG', 'issued_on' => '2025-05-01']);
+    $draft = ApprovalDocument::factory()->draft()->unanswered()->create(['report_number' => $number, 'issued_on' => '2025-05-01']);
 
     EntryDriver::enter(test(), instructionAdmin(), $draft->id, [
         'vehicle_ids' => [$vehicle->id],
@@ -57,7 +57,7 @@ function releasableDraft(): ApprovalDocument
 }
 
 /**
- * The declaration matches releasableDraft(): complete, no Abnahme (D-227; the count and the limit are no longer asked, D-440, D-441).
+ * The operator's word that every vehicle is entered (D-227), optional since D-485; the Abnahme is no longer an option at all.
  *
  * @param  array<string, string>  $options
  */
@@ -68,7 +68,6 @@ function releaseOnInstruction(ApprovalDocument $document, array $options = []): 
         '--anweisung' => RELEASE_INSTRUCTION,
         '--konto' => 'super-admin@rimify.test',
         '--erfasst' => 'alle',
-        '--abnahme' => 'keine',
         ...$options,
     ]);
 }
@@ -118,19 +117,25 @@ it('releases nothing without the instruction in words, or for an account without
         ->and(AuditLog::query()->where('description', 'approval.released')->count())->toBe(0);
 });
 
-it('releases nothing without the completeness answer, or on an Abnahme the entry does not match (D-227; D-440, D-441)', function (): void {
+it('records the completeness where the instruction gives it, releases without it as the browser does, and refuses a word it does not know (D-227, D-485)', function (): void {
     $draft = releasableDraft();
 
-    expect(releaseOnInstruction($draft, ['--erfasst' => '']))->toBe(1)
-        ->and(Artisan::output())->toContain('--erfasst=alle, teilweise oder unbekannt');
-
-    // The count and the axle limit are no longer options; the Abnahme is still compared with the entry.
-    expect(releaseOnInstruction($draft, ['--abnahme' => 'alle']))->toBe(1);
-    $said = Artisan::output();
-
-    expect($said)->toContain('Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei einer Zeile fehlt sie.')
-        ->and($said)->not->toContain('laut Verwendungsbereich')
+    expect(releaseOnInstruction($draft, ['--erfasst' => 'vielleicht']))->toBe(1)
+        ->and(Artisan::output())->toContain('--erfasst kennt nur alle, teilweise oder unbekannt.')
         ->and($draft->refresh()->status)->toBe(DocumentStatus::Draft);
+
+    // The Abnahme is no option any more: the codes say it.
+    expect(fn () => releaseOnInstruction($draft, ['--abnahme' => 'alle']))->toThrow(InvalidArgumentException::class);
+
+    expect(releaseOnInstruction($draft, ['--erfasst' => 'alle']))->toBe(0)
+        ->and($draft->refresh()->completeness)->toBe(ApprovalDocument::COMPLETE);
+
+    $plain = releasableDraft('TG-OHNE-ANTWORT');
+
+    // Without --erfasst: released, and read as partial — a car it does not name is „noch nicht bestätigt“.
+    expect(Artisan::call('rimify:gutachten-freigeben', ['document' => $plain->id, '--anweisung' => RELEASE_INSTRUCTION, '--konto' => 'super-admin@rimify.test']))->toBe(0)
+        ->and($plain->refresh()->status)->toBe(DocumentStatus::Published)
+        ->and($plain->completeness)->toBeNull();
 });
 
 it('stops where the button stops, with the same sentences', function (): void {

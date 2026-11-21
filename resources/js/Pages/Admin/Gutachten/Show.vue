@@ -17,6 +17,7 @@ import type { AdminGutachtenShowProps } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import DocumentExtras from './DocumentExtras.vue'
 import PreviewSection from './Erfassung/PreviewSection.vue'
+import CompletenessSwitch from './CompletenessSwitch.vue'
 import ReleaseDialog from './ReleaseDialog.vue'
 
 defineOptions({ layout: AdminLayout, inheritAttrs: false })
@@ -83,8 +84,6 @@ const more = computed<AdminPageAction[]>(() => (props.document.pdfUrl ? [{ label
 /* ── Freigabe, for who may release and not edit ──────────────────────────────── */
 
 const releaseOpen = ref(false)
-/* „Ist alles erfasst?“ for a released document (D-227): answered once, read by the shop and the go-live check. */
-const answerOpen = ref(false)
 
 const releaseNote = computed(() => {
     if (rowsTotal.value === 0) {
@@ -172,13 +171,17 @@ watch(
             <p v-else-if="document.status === 'superseded'" class="adm-note">Eine neuere Fassung hat dieses Dokument ersetzt. Seine Zeilen sind nicht mehr im Shop; Bestellungen darauf bleiben erklärbar.</p>
             <p v-else-if="revisionDraft" class="adm-note">Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern. Fassung {{ revisionDraft.revision }} ist schon als Entwurf angelegt; sobald sie freigegeben ist, ersetzt sie diese Fassung.</p>
             <p v-else class="adm-note">Angaben, Codes und Zeilen eines freigegebenen Gutachtens lassen sich nicht mehr ändern. Änderungen gehen über eine neue Fassung: Sie bringt alle Zeilen und Codes mit; sobald sie freigegeben ist, ersetzt sie diese Fassung.</p>
-            <!-- D-227: a released document is read as partial until someone says what was entered — and the go-live check waits for it. -->
-            <div v-if="document.status === 'published'" class="gs-complete" :class="{ 'gs-complete--open': !document.completeness }">
-                <p class="adm-note">
-                    <strong>Erfasst:</strong> {{ document.completenessLabel }}<template v-if="document.completenessBy || document.completenessAt"> · {{ [document.completenessBy, document.completenessAt].filter(Boolean).join(', ') }}</template>
-                </p>
-                <button v-if="can.answer" class="btn btn--secondary" type="button" @click="answerOpen = true">{{ document.completeness ? 'Antwort ändern' : 'Jetzt beantworten' }}</button>
-            </div>
+            <!-- D-485: read as partial until someone switches it on — optional, never in the way of a release. -->
+            <CompletenessSwitch
+                v-if="document.status === 'published' || draft"
+                class="gs-complete"
+                :document-id="document.id"
+                :completeness="document.completeness ?? null"
+                :by="document.completenessBy"
+                :at="document.completenessAt"
+                :can="can.answer === true"
+                id-prefix="gs"
+            />
             <p v-if="openConflicts" class="adm-note">
                 {{ openConflicts === 1 ? 'Eine Zeile widerspricht' : `${decimal(openConflicts, 0)} Zeilen widersprechen` }} einem anderen Gutachten. Bis unter
                 <a href="/admin/konflikte">Konflikte</a> entschieden ist, sagt der Shop dort „Noch nicht bestätigt“.
@@ -291,8 +294,7 @@ watch(
 
         <PreviewSection />
 
-        <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" mode="release" :document="document" :rows="rowsTotal" :note="releaseBody" @done="focusState" />
-        <ReleaseDialog v-if="can.answer" v-model:open="answerOpen" mode="answer" :document="document" :rows="rowsTotal" />
+        <ReleaseDialog v-if="can.release" v-model:open="releaseOpen" :document="document" :rows="rowsTotal" :note="releaseBody" @done="focusState" />
 
         <AdminConfirm
             v-if="can.revise"
@@ -335,15 +337,7 @@ watch(
 }
 
 .gs-complete {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-8) var(--sp-16);
-}
-
-.gs-complete--open .adm-note {
-    color: var(--c-warn);
+    padding-top: var(--sp-8);
 }
 
 .gs-state .adm-alert {

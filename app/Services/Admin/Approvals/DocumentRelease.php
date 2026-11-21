@@ -208,9 +208,9 @@ final class DocumentRelease
     }
 
     /**
-     * Where the declaration and the entry differ, in sentences — a refusal, never a warning (the operator's brief of
-     * 14.10.2026, §4: an entry that misses the Abnahme errs the permissive way). The count of codes and sizes (D-440) and the
-     * axle-load limit (D-441) are no longer compared: the client's round of 08.11.2026, §3.
+     * What the command line's answer lacks (ReleaseOnInstruction, D-227): since D-485 the release itself asks nothing, but an
+     * operator's written instruction may still say whether every vehicle is entered — then in one of the three words, and a
+     * partial one with what is missing. The Abnahme is no longer asked or compared: the codes say it (D-485).
      *
      * @return list<string>
      */
@@ -226,28 +226,6 @@ final class DocumentRelease
             $blockers[] = 'Nenn die Anlagen oder Bereiche, die noch fehlen.';
         }
 
-        // A base without rows of its own: its Verwendungsbereich is its Nachträge'; there is nothing to compare here.
-        if (! Fitment::query()->where('approval_document_id', $document->id)->whereNot('status', FitmentStatus::Retired->value)->exists()) {
-            return $blockers;
-        }
-
-        if (! in_array($declaration->abnahme, ReleaseDeclaration::ABNAHME, true)) {
-            $blockers[] = 'Sag, ob der Verwendungsbereich eine Abnahme verlangt.';
-
-            return $blockers;
-        }
-
-        $entered = $this->entered($document);
-        $rowsSaid = static fn (int $n): string => $n === 1 ? 'einer Zeile' : $n.' Zeilen';
-
-        if ($declaration->abnahme === ReleaseDeclaration::ABNAHME_ALL && $entered['withoutAbnahme'] > 0) {
-            $blockers[] = sprintf('Der Verwendungsbereich verlangt bei jeder Kombination eine Abnahme, aber bei %s fehlt sie. Erfass den Code, der sie verlangt.', $rowsSaid($entered['withoutAbnahme']));
-        } elseif ($declaration->abnahme === ReleaseDeclaration::ABNAHME_SOME && $entered['withAbnahme'] === 0) {
-            $blockers[] = 'Der Verwendungsbereich verlangt bei einigen Kombinationen eine Abnahme, erfasst ist sie bei keiner Zeile. Erfass den Code, der sie verlangt.';
-        } elseif ($declaration->abnahme === ReleaseDeclaration::ABNAHME_NONE && $entered['withAbnahme'] > 0) {
-            $blockers[] = sprintf('Der Verwendungsbereich verlangt keine Abnahme, aber bei %s ist eine erfasst. Prüf die Codes.', $rowsSaid($entered['withAbnahme']));
-        }
-
         return $blockers;
     }
 
@@ -255,9 +233,9 @@ final class DocumentRelease
      * `$instruction` is set only by ReleaseOnInstruction, outside the live shop: the operator's written word, kept on
      * the entry so the Protokoll says who decided instead of suggesting a person pressed „Freigeben“.
      *
-     * `$declaration` is what the person read off the PDF (D-227, D-228), asked at every release in the browser and on the
-     * command line; it is checked against the entry and recorded with the release. Without one — the seeders, which
-     * enter whole documents of their own — the document must already carry an answer to the completeness question.
+     * `$declaration` is the command line's answer to whether every vehicle is entered, where the operator's instruction gives
+     * one; it is recorded with the release. The browser's release asks nothing since D-485: a document nobody has switched
+     * to „alle erfasst“ is read as partial — a car it does not name is „noch nicht bestätigt“, never „nicht freigegeben“.
      *
      * @return array{rows: int, conflicts: int}
      */
@@ -272,15 +250,14 @@ final class DocumentRelease
 
         if ($declaration !== null) {
             $blockers = [...$blockers, ...$this->declarationBlockers($document, $declaration)];
-        } elseif ($document->completeness === null) {
-            $blockers[] = 'Sag vor der Freigabe, ob alle Anlagen und alle Fahrzeuge dieses Gutachtens erfasst sind.';
         }
 
         if ($blockers !== []) {
             throw ValidationException::withMessages(['release' => 'Noch nicht freigebbar: '.implode(' ', $blockers)]);
         }
 
-        $entered = $declaration === null ? null : $this->entered($document);
+        // What was entered, kept in the Protokoll beside the release: the codes, sizes and rows with and without an Abnahme.
+        $entered = $this->entered($document);
 
         return DB::transaction(function () use ($document, $admin, $instruction, $declaration, $entered): array {
             $conflicts = $this->conflicts->detect($document, $admin);
@@ -307,7 +284,8 @@ final class DocumentRelease
                 'rows' => $rows,
                 'conflicts' => count($conflicts),
                 'completeness' => $document->completeness,
-                ...($declaration === null ? [] : ['declared' => $declaration->toArray(), 'entered' => $entered]),
+                'entered' => $entered,
+                ...($declaration === null ? [] : ['declared' => $declaration->toArray()]),
                 ...($instruction === null ? [] : [
                     self::ON_INSTRUCTION => $instruction,
                     'environment' => (string) app()->environment(),
@@ -319,29 +297,43 @@ final class DocumentRelease
     }
 
     /**
-     * The completeness question answered for a document already released (D-227): every document released before the
-     * question existed must be answered, and until it is the shop reads it as partial and the go-live check holds live
-     * mode. Recorded like the release's own answer — who, when, against which revision — and in the Protokoll.
+     * The switch „Alle Fahrzeuge dieses Gutachtens sind erfasst“ (D-485, in place of D-227's question at release): on, a car
+     * the document does not name is „nicht freigegeben“; off, it is „noch nicht bestätigt“ — as for a document nobody has
+     * switched. It never blocks a release and never changes the missing Anlagen under „Angaben“, which customers may read:
+     * while some are named there, it cannot be turned on. Off is written as the partial answer where Anlagen are named,
+     * else as „unknown“ — both read as partial. Recorded like an answer: who, when, against which revision, in the Protokoll.
      */
-    public function answerCompleteness(ApprovalDocument $document, AdminUser $admin, string $completeness, ?string $missing): void
+    public function switchCompleteness(ApprovalDocument $document, AdminUser $admin, bool $complete): void
     {
-        if (! in_array($completeness, ApprovalDocument::COMPLETENESS, true)) {
-            throw ValidationException::withMessages(['completeness' => 'Sag, ob alle Anlagen und alle Fahrzeuge dieses Gutachtens erfasst sind.']);
-        }
+        $missing = trim((string) $document->missing_annexes);
 
-        if ($completeness === ApprovalDocument::PARTIAL && trim((string) $missing) === '') {
-            throw ValidationException::withMessages(['missing' => 'Nenn die Anlagen oder Bereiche, die noch fehlen.']);
+        if ($complete && $missing !== '') {
+            throw ValidationException::withMessages(['complete' => "Unter „Angaben“ stehen noch fehlende Anlagen ({$missing}). Solange sie fehlen, sind nicht alle Fahrzeuge erfasst – trag sie nach oder lösch die Angabe."]);
         }
 
         $before = $document->completeness;
+        $after = match (true) {
+            $complete => ApprovalDocument::COMPLETE,
+            $missing !== '' => ApprovalDocument::PARTIAL,
+            default => ApprovalDocument::UNKNOWN,
+        };
 
-        DB::transaction(static function () use ($document, $admin, $completeness, $missing, $before): void {
-            self::recordCompleteness($document, $admin, $completeness, $missing);
-            $document->save();
+        // Off on a document nobody has switched yet, or the state it already has: nothing to record.
+        if ($after === $before || (! $complete && $before === null)) {
+            return;
+        }
+
+        DB::transaction(static function () use ($document, $admin, $after, $before): void {
+            $document->forceFill([
+                'completeness' => $after,
+                'completeness_by' => $admin->id,
+                'completeness_at' => now(),
+                'completeness_revision' => $document->revision,
+            ])->save();
 
             AuditTrail::record($admin, 'approval.completeness_answered', [
                 'document' => FitmentRows::label($document),
-                'completeness' => $completeness,
+                'completeness' => $after,
                 'missing' => $document->missing_annexes,
                 'before' => $before,
                 'revision' => $document->revision,

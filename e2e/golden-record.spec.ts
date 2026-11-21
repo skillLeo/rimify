@@ -231,9 +231,9 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
     if (await release.isVisible()) {
         await expect(release).toBeEnabled({ timeout: 20_000 })
         await release.click()
+        // D-485: the release asks nothing — what goes live, and one button.
         const dialog = page.getByRole('dialog')
-        await dialog.locator('#rd-c-complete').check()
-        await dialog.locator('input[name="rd-a"][value="none"]').check()
+        await expect(dialog.locator('input[type="radio"]')).toHaveCount(0)
         await dialog.locator('button[type="submit"]').click()
         await expect(page.locator('.adm-page__context')).toContainText('Freigegeben', { timeout: 20_000 })
     }

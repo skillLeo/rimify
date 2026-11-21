@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**69 sentences: 1 open, 17 backed by a recorded field, 47 about the shop itself, 4 not sentences.**
+**68 sentences: 1 open, 17 backed by a recorded field, 46 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -90,7 +90,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Name, Anschrift und Kontakt des Herstellers gehören zusammen – trag alle drei ein oder lass alle drei leer.“ | admin | `Http/Requests/Admin/BrandManufacturerRequest.php` | a form rule: the manufacturer's name, address and contact go together |
 | „die E-Mails an alle Anfragen, auf die ein neues Gutachten passt“ | customer / operator | `Listeners/FailedJobAlert.php` | names a queue job of ours in an alert |
 | „Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN, mit den Gutachten, die sie nennen.“ | admin | `Services/Admin/Review/ReviewBoard.php` | describes an admin screen and the rows we hold per vehicle |
-| „Vollständigkeit jedes freigegebenen Gutachtens beantwortet“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | names our own recorded answer (D-227), not the document |
 | „Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.“ | customer / operator | `Services/Reset/ResetLevel.php` | what a reset level removes |
 | „passt nicht zu dem, was du aus dem Gutachten eingetragen hast.“ | admin | `Services/Admin/Approvals/Entry/EntryView.php` | compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen |
 

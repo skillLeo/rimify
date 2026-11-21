@@ -104,12 +104,19 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
         await expect(unproven).toHaveCount(left - 1, { timeout: 15_000 })
     }
 
+    // D-485: whether every vehicle is entered is a switch outside the release, off until someone turns it on.
+    const complete = page.locator('#ef-complete')
+    await expect(complete).not.toBeChecked()
+    await complete.check()
+    await expect(page.locator('#ef-complete-effect')).toContainText('„nicht freigegeben“', { timeout: 15_000 })
+
     await expect(page.locator('.ef-actions').getByRole('button', { name: 'Freigeben', exact: true })).toBeEnabled({ timeout: 20_000 })
     await page.locator('.ef-actions').getByRole('button', { name: 'Freigeben', exact: true }).click()
 
+    // The release asks nothing: what goes live, and one button.
     const dialog = page.getByRole('dialog')
-    await dialog.locator('#rd-c-complete').check()
-    await dialog.locator('input[name="rd-a"][value="none"]').check()
+    await expect(dialog.locator('input[type="radio"]')).toHaveCount(0)
+    await expect(dialog).toContainText('„nicht freigegeben“')
     await dialog.locator('button[type="submit"]').click()
 
     // Released: a compact read view, the code a tag with its text on hover, and the way back.
@@ -437,8 +444,7 @@ test('after the release the keyboard stays on the page, and taking a code out of
     await release.focus()
     await page.keyboard.press('Enter')
     const dialog = page.getByRole('dialog')
-    await dialog.locator('#rd-c-complete').check()
-    await dialog.locator('input[name="rd-a"][value="none"]').check()
+    await expect(dialog.locator('#rd-go')).toBeFocused()
     await dialog.locator('button[type="submit"]').focus()
     await page.keyboard.press('Enter')
     await expect(page.locator('.adm-page__context')).toContainText('Freigegeben', { timeout: 30_000 })

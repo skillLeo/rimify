@@ -115,15 +115,9 @@ final class GoLiveChecks
             return null;
         }
 
+        // A released Gutachten nobody has switched to „alle erfasst“ no longer holds live mode (D-485): it is read as partial,
+        // so a car it does not name is „noch nicht bestätigt“ — the safe answer, which needs no assertion behind it.
         $failing = array_values(array_filter($this->legalChecks(), static fn (GoLiveCheck $c): bool => ! $c->ok()));
-
-        // A released Gutachten nobody has answered the completeness question for holds live mode too (D-227).
-        $unanswered = self::unanswered();
-
-        if ($unanswered !== []) {
-            $failing[] = $this->check('anlagen-beantwortet', self::WHEEL, 'Vollständigkeit jedes freigegebenen Gutachtens beantwortet', GoLiveCheck::CLIENT, GoLiveCheck::MISSING,
-                'Noch nicht beantwortet, ob alle Anlagen und alle Fahrzeuge erfasst sind: '.implode(', ', $unanswered).'. Bis dahin nimmt der Shop keine echte Zahlung an.', '/admin/gutachten');
-        }
 
         return $failing === [] ? null : $failing;
     }
@@ -444,10 +438,10 @@ final class GoLiveChecks
     }
 
     /**
-     * „Anlagen vollständig“ reads the assertion, never the absence of a note (EIGENE-FUNDE 119, D-227): it passes only
-     * where a person said of every released document that every Anlage and every vehicle is entered. A check that
-     * cannot fail is worse than none, because it is quoted — this one fails on every document nobody has answered for,
-     * and names each partial one with what it lacks.
+     * „Anlagen vollständig“ reads the switch, never the absence of a note (EIGENE-FUNDE 119, D-227): it says of every
+     * released document whether a person switched it to „alle erfasst“, and names each other one with what it lacks. Since
+     * D-485 the switch is optional — a document left off is read as partial, which is safe — so the check is met as soon as
+     * a document is released, and the list says where the stronger „nicht freigegeben“ is not in force.
      *
      * @param  list<ApprovalDocument>  $released
      */
@@ -465,28 +459,15 @@ final class GoLiveChecks
             $gaps[] = $name.': '.match ($document->completeness) {
                 ApprovalDocument::PARTIAL => $missing === null ? 'teilweise erfasst' : 'teilweise erfasst, es fehlen '.$missing,
                 ApprovalDocument::UNKNOWN => 'nicht bekannt, ob alles erfasst ist',
-                default => 'nicht beantwortet, ob alles erfasst ist',
+                default => 'nicht bestätigt, dass alles erfasst ist',
             };
         }
 
-        return $this->check('anlagen', self::WHEEL, 'Anlagen und Fahrzeuge der Gutachten vollständig erfasst', GoLiveCheck::CLIENT, $gaps === [] && $released !== [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
+        return $this->check('anlagen', self::WHEEL, 'Anlagen und Fahrzeuge der Gutachten vollständig erfasst', GoLiveCheck::CLIENT, $released !== [] ? GoLiveCheck::OK : GoLiveCheck::MISSING, match (true) {
             $released === [] => 'Noch ist kein Gutachten freigegeben.',
             $gaps === [] => 'Zu jedem freigegebenen Gutachten ist bestätigt, dass alle Anlagen und alle Fahrzeuge erfasst sind.',
-            default => implode('; ', $gaps).'. Ein Fahrzeug, das dort nicht steht, ist im Shop „noch nicht bestätigt“, nie „nicht freigegeben“.',
+            default => implode('; ', $gaps).'. Ein Fahrzeug, das dort nicht steht, ist im Shop „noch nicht bestätigt“, nie „nicht freigegeben“. Der Schalter „Alle Fahrzeuge dieses Gutachtens sind erfasst“ auf der Seite des Gutachtens ändert das, wo es stimmt.',
         }, '/admin/gutachten');
-    }
-
-    /**
-     * The released documents nobody has answered the completeness question for (D-227): while there is one, live mode
-     * waits — every verdict on it stands on an assertion that was never made.
-     *
-     * @return list<string>
-     */
-    public static function unanswered(): array
-    {
-        return ApprovalDocument::query()->currentlyValid()->whereNull('completeness')->orderBy('id')->get()
-            ->map(static fn (ApprovalDocument $d): string => trim($d->kind->labelDe().' '.($d->number() ?? '')))
-            ->values()->all();
     }
 
     /** `1–15` → 15, `3, 5–7` → 4: how many Anlagen a document's gap names. */

@@ -39,9 +39,8 @@ final class ReleaseOnInstruction extends Command
         {document : Die Nummer des Entwurfs (Admin › Gutachten › Dokumente, in der Adresse)}
         {--anweisung= : Die schriftliche Anweisung des Betreibers, im Wortlaut fürs Protokoll}
         {--konto= : E-Mail des Admin-Kontos, unter dem die Freigabe im Protokoll steht}
-        {--erfasst= : Sind alle Anlagen und alle Fahrzeuge erfasst? alle, teilweise oder unbekannt (D-227)}
-        {--fehlt= : Bei „teilweise“: welche Anlagen oder Bereiche fehlen}
-        {--abnahme= : Ob der Verwendungsbereich eine Abnahme verlangt: alle (bei jeder Kombination), einige oder keine}';
+        {--erfasst= : Wahlweise: Sind alle Anlagen und alle Fahrzeuge erfasst? alle, teilweise oder unbekannt (D-227, D-485)}
+        {--fehlt= : Bei „teilweise“: welche Anlagen oder Bereiche fehlen}';
 
     /** The command's words for the three answers. */
     private const ANSWERS = ['alle' => ApprovalDocument::COMPLETE, 'teilweise' => ApprovalDocument::PARTIAL, 'unbekannt' => ApprovalDocument::UNKNOWN];
@@ -82,24 +81,19 @@ final class ReleaseOnInstruction extends Command
         }
 
         $label = FitmentRows::label($document);
-        $answer = self::ANSWERS[(string) $this->option('erfasst')] ?? null;
+        // Since D-485 the release asks nothing: without --erfasst the document is read as partial, as in the browser.
+        $given = $this->option('erfasst');
+        $answer = $given === null ? null : (self::ANSWERS[(string) $given] ?? null);
 
-        if ($answer === null) {
-            $this->error('Ohne die Antwort, ob alle Anlagen und alle Fahrzeuge erfasst sind (--erfasst=alle, teilweise oder unbekannt), wird nichts freigegeben.');
+        if ($given !== null && $answer === null) {
+            $this->error('--erfasst kennt nur alle, teilweise oder unbekannt.');
 
             return self::FAILURE;
         }
 
-        // The count of codes and sizes and the axle limit are no longer asked (D-440, D-441).
-        $declaration = new ReleaseDeclaration(
+        $declaration = $answer === null ? null : new ReleaseDeclaration(
             completeness: $answer,
             missing: $this->option('fehlt') === null ? null : trim((string) $this->option('fehlt')),
-            abnahme: match ((string) $this->option('abnahme')) {
-                'alle' => ReleaseDeclaration::ABNAHME_ALL,
-                'einige' => ReleaseDeclaration::ABNAHME_SOME,
-                'keine' => ReleaseDeclaration::ABNAHME_NONE,
-                default => null,
-            },
         );
 
         try {

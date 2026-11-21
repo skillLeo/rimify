@@ -94,7 +94,6 @@ return [
     'trag alle drei ein oder lass alle drei leer' => ['ours', 'a form rule: the manufacturer\'s name, address and contact go together'],
     'die E-Mails an alle Anfragen, auf die ein neues Gutachten passt' => ['ours', 'names a queue job of ours in an alert'],
     'Alle Fahrzeugvarianten, suchbar nach Name und HSN/TSN' => ['ours', 'describes an admin screen and the rows we hold per vehicle'],
-    'Vollständigkeit jedes freigegebenen Gutachtens beantwortet' => ['ours', 'names our own recorded answer (D-227), not the document'],
     'Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen' => ['ours', 'what a reset level removes'],
 
     // ── The five steps: staff read the paper, and these ask them to say what it prints ──────────────────────
