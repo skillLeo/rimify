@@ -39,8 +39,8 @@ final class DocumentPdfs
         if ($document->pdf_key !== null) {
             $list[] = [
                 'id' => $main?->id,
-                'label' => $main?->label ?? 'Gutachten',
-                'datedOn' => ($main?->dated_on ?? $document->issued_on)?->format('Y-m-d'),
+                'label' => $main->label ?? 'Gutachten',
+                'datedOn' => ($main->dated_on ?? $document->issued_on)?->format('Y-m-d'),
                 'key' => (string) $document->pdf_key,
                 'sha256' => $document->pdf_sha256,
                 'main' => true,
@@ -136,7 +136,7 @@ final class DocumentPdfs
     {
         DB::transaction(function () use ($document, $admin, $order): void {
             $known = array_map(static fn (array $f): ?int => $f['id'], self::of($document, withHidden: true));
-            $given = array_values($order);
+            $given = $order;
             sort($known);
             $sorted = $given;
             sort($sorted);

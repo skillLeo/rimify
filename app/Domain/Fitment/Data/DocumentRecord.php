@@ -173,13 +173,13 @@ final readonly class DocumentRecord
             isDemo: ($data['isDemo'] ?? false) === true,
             tyreIndexSource: $data['tyreIndexSource'] ?? null,
             axleLimitKg: isset($data['axleLimitKg']) ? (int) $data['axleLimitKg'] : null,
-            files: array_values(array_map(static fn (array $f): array => [
+            files: array_map(static fn (array $f): array => [
                 'label' => (string) $f['label'],
                 'datedOn' => $f['datedOn'] ?? null,
                 'key' => (string) $f['key'],
                 'sha256' => $f['sha256'] ?? null,
-                'main' => ($f['main'] ?? false) === true,
-            ], $data['files'] ?? [])),
+                'main' => $f['main'] === true,
+            ], $data['files'] ?? []),
         );
     }
 }

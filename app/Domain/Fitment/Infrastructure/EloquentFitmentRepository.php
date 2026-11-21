@@ -482,7 +482,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
         if ($document->pdf_key !== null) {
             $list[] = ['at' => $main === null ? 0 : (int) $main->position, 'file' => [
                 'label' => $main === null ? 'Gutachten' : (string) $main->label,
-                'datedOn' => ($main?->dated_on ?? $document->issued_on)?->format('Y-m-d'),
+                'datedOn' => ($main->dated_on ?? $document->issued_on)?->format('Y-m-d'),
                 'key' => (string) $document->pdf_key,
                 'sha256' => $document->pdf_sha256,
                 'main' => true,
@@ -505,7 +505,7 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         usort($list, static fn (array $a, array $b): int => $a['at'] <=> $b['at']);
 
-        return array_values(array_map(static fn (array $item): array => $item['file'], $list));
+        return array_map(static fn (array $item): array => $item['file'], $list);
     }
 
     /**

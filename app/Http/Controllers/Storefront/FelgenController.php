@@ -902,13 +902,6 @@ class FelgenController extends Controller
     }
 
     /**
-     * A set of two versions as the Komplettrad's steps ask for it, shaped as a row of one version so its steps need nothing else: the
-     * set's name, its price for four, the answer for the set and the tyres across both wheels. Null where the car's papers do not name
-     * the two together, or no car is chosen.
-     *
-     * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}|null
-     */
-    /**
      * The rim dimensions of this wheel, in this finish, the car may have — each size on its own and each set of two
      * versions its papers name — for the Komplettrad's tyre step to switch between (D-488, the client's review of
      * 19.11.2026): the same verdicts and the same sets as the product page, so the two never disagree. A size the car may only
@@ -968,6 +961,13 @@ class FelgenController extends Controller
         return $choices;
     }
 
+    /**
+     * A set of two versions as the Komplettrad's steps ask for it, shaped as a row of one version so its steps need nothing else: the
+     * set's name, its price for four, the answer for the set and the tyres across both wheels. Null where the car's papers do not name
+     * the two together, or no car is chosen.
+     *
+     * @return array{config: array<string, mixed>, komplettradOptions: array<string, mixed>|null}|null
+     */
     public function setAnswerFor(Request $request, WheelConfig $front, WheelConfig $rear): ?array
     {
         $vehicleId = $this->vehicleId($request);
