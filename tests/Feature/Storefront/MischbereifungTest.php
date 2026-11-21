@@ -161,7 +161,8 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
 
     expect($frozen[0])->toMatchArray(['axle' => 'FRONT', 'size' => $front->labelDe(), 'partnerSize' => $rear->labelDe(), 'pairing' => 1, 'sourcePage' => 12])
         ->and($frozen[1])->toMatchArray(['axle' => 'REAR', 'size' => $rear->labelDe(), 'partnerSize' => $front->labelDe(), 'pairing' => 1])
-        ->and($frozen[0]['minLoadIndex'])->toBeInt()
+        // D-481: nothing derived from the car — the paper prints no index beside these sizes, so none is frozen.
+        ->and($frozen[0]['minLoadIndex'])->toBeNull()
         ->and($frozen[1]['axleLoadKg'])->toBe($fx->vehicle->axle_load_rear_kg);
 });
 

@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**70 sentences: 1 open, 17 backed by a recorded field, 48 about the shop itself, 4 not sentences.**
+**69 sentences: 1 open, 17 backed by a recorded field, 47 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -93,7 +93,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Vollständigkeit jedes freigegebenen Gutachtens beantwortet“ | customer / operator | `Services/GoLive/GoLiveChecks.php` | names our own recorded answer (D-227), not the document |
 | „Alles andere, auch deine eigenen Felgen, Gutachten und Bestellungen.“ | customer / operator | `Services/Reset/ResetLevel.php` | what a reset level removes |
 | „passt nicht zu dem, was du aus dem Gutachten eingetragen hast.“ | admin | `Services/Admin/Approvals/Entry/EntryView.php` | compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen |
-| „Die Werte der Tabelle trägst du nicht ein: Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | what the shop computes the load at speed with: ETRTO's table in code, the same for every document, nothing typed (D-459) |
 
 ## Not a sentence
 

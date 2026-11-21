@@ -17,7 +17,7 @@ census showed. The reasons are in `docs/decisions.md`, D-479 and D-481.
 | `TyreEligibility` | Rule 5 (no usable minimum, no Komplettrad) and the minimum sentence under the tyre list (`minimumSentenceDe`). |
 | `MixedPair`, `WheelSet` | The per-axle minimum sentence of a mixed set. |
 | `Komplettrad/Index.vue` | The two lines that printed those sentences in step 2. |
-| `TyreVariantRequest` (Reifen › Katalog) | The ranges of width, aspect ratio, rim, load index (70–120) and the fixed list of symbols. Only the form of a size is checked now: width 100–999, aspect 10–99, rim `NN` or `NN,5`, load index 1–999, symbol one letter with an optional digit, optionally in brackets. |
+| `TyreVariantRequest` (Reifen › Katalog) | The ranges of width, aspect ratio, rim, load index (70–120) and the fixed list of symbols. Only the form of a size is checked now: width 100–999, aspect 10–99, rim `NN` or `NN,5`, load index 1–999, symbol one letter with an optional digit, optionally in brackets. A symbol the shop's table does not rank is stored with rank 0 (D-484). |
 | Entry (D-479) | Plausibility checks of a size's figures in the five entry steps; a size like `305/70 R22.5 160F` is saved as written. |
 | `DocumentRelease` (D-483) | The release question „Wie gibt das Gutachten Lastindex und Geschwindigkeitssymbol an?“ and its blocker, including „bei jeder Reifengröße“ held to both figures at every size. The question is gone from step 5 and from „Angaben“, with its suggestion and its route. |
 | `LoadLimitCheck` (D-483) | A load-index Auflage (T88 „bis 1.125 kg“) held to twice the capacity of its index from ETRTO's table: the warning, the release blocker, the confirm form and its route. |

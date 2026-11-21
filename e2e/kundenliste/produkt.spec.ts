@@ -249,18 +249,21 @@ test('Nur Felgen or Komplettrad: switching keeps the rest, the tyres are chosen 
     await expect(page.locator('.kf-step .fit__entry--verdict')).not.toHaveText(/^Keine/)
     await shot(page.locator('.kf-step'), 18, info)
 
-    // A combination the shop cannot answer cannot be bought: the E46 at 18 Zoll, with papers that say 310 km/h — above the
-    // table of tyre load at speed, which reaches 300 km/h (D-459, D-468). Its speed is back as it was after.
+    // The top speed decides nothing any more (D-481): until then the E46 at 18 Zoll with papers that say 310 km/h — above the
+    // table of tyre load at speed (D-459, D-468) — had no answer and nothing to buy. Now it gets the answer it gets at 226 km/h.
+    // Its speed is back as it was after.
+    await withCar(page, 'e46', PRODUCT)
+    await onSize(page, 18, 'Schwarz matt')
+    const at226 = (await onScreen(page)).verdict?.status
+    const buy226 = await page.locator('button.pdp__add').isEnabled()
+    expect(at226, 'precondition: the E46 has an answer at 18 Zoll').toBeTruthy()
     await topSpeed(page, 'e46', 310)
 
     try {
         await withCar(page, 'e46', PRODUCT)
         await onSize(page, 18, 'Schwarz matt')
-        expect((await onScreen(page)).verdict?.status).toBe('UNKNOWN')
-        await expect(page.locator('button.pdp__add')).toBeDisabled()
-        await mode(page, 'Komplettrad')
-        await expect(page.locator('button.pdp__add')).toBeDisabled()
-        await expect(page.locator('button.pdp__add')).toHaveText('Komplettrad gerade nicht möglich')
+        expect((await onScreen(page)).verdict?.status).toBe(at226)
+        expect(await page.locator('button.pdp__add').isEnabled()).toBe(buy226)
     } finally {
         await topSpeed(page, 'e46', 226)
     }
@@ -312,7 +315,7 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await expect(page.locator('.cart')).not.toContainText('Wuchtgewichte')
 })
 
-test('front and rear only in the pairs the Gutachten lists, each axle on its own load and the axle that asks more named', { tag: '@kunde-20' }, async ({ page }, info) => {
+test('front and rear only in the pairs the Gutachten lists, each with its number — and no minimum of our own beside them (D-481)', { tag: '@kunde-20' }, async ({ page }, info) => {
     await withCar(page, 'e46', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await mode(page, 'Komplettrad')
@@ -333,12 +336,12 @@ test('front and rear only in the pairs the Gutachten lists, each axle on its own
     const chips = page.locator('.kf-pairs .kf-pair')
     await expect(chips).toHaveText(pairs.map((p) => new RegExp(`vorne ${p.front.replace(/[/]/g, '\\/')} · hinten ${p.rear.replace(/[/]/g, '\\/')}`)))
 
-    // Each pair: front and rear on their own axle load, the axle that asks more named, the table's number and page.
+    // Each pair: the table's number. Until D-481 each axle's minimum from its own axle load stood beside it; the client struck
+    // it (19.11.2026) — the shop works out no minimum of its own any more.
     for (const [i] of pairs.entries()) {
         await chips.nth(i).click()
-        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/vorne \(880\skg\) mindestens Tragfähigkeitsindex \d+ .* hinten \(1\.020\skg\) mindestens Tragfähigkeitsindex \d+/)
-        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/(Mehr verlangt die (Vorderachse|Hinterachse)|Beide Achsen verlangen denselben Tragfähigkeitsindex)\.$/)
         await expect(page.locator('.kf-source')).toContainText(/Kombination Nr\.\s\d+/)
+        await expect(page.locator('.kf-step')).not.toContainText(/Wir prüfen jede Achse|eigenen Achslast|\(\d[\d.]*\skg\) mindestens|Mehr verlangt die|Beide Achsen verlangen/)
     }
 
     const mix = page.locator('.kf-step')

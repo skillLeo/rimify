@@ -134,9 +134,7 @@ test('the golden record, from the supplier file to the frozen proof in Verkauf',
         await page.locator('#gn-issuer').fill('Platzhalter – kein echtes Gutachten')
         await page.locator('.gn-more__summary').click()
         await page.locator('#gn-pages').fill('4')
-        // How it gives its tyres' index, asked before release (D-277): a placeholder prints nothing, so the answer that
-        // asks the most of a car — the papers.
-        await page.locator('input[name="gn-index"][value="papers"]').check()
+        // How it gives its tyres' index is no longer asked (D-483): the tyres rest on what the paper prints beside each size.
         await shot(page, '03-gutachten-neu')
         await page.getByRole('button', { name: 'Gutachten anlegen' }).click()
         await page.waitForURL(/\/admin\/gutachten\/\d+/, { timeout: 30_000 })

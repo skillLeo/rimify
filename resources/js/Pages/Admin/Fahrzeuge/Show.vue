@@ -227,7 +227,7 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                         </template>
                         <!-- D-483: since D-481 the tyres rest on what the Gutachten gives beside each size, never on the top speed. -->
                         <p v-else class="fs-why__lead">
-                            Für die Reifen nicht nötig: Der Shop richtet sich bei den Reifen nach den Angaben des Gutachtens zu jeder Reifengröße, nicht nach der Höchstgeschwindigkeit.
+                            Für die Reifen nicht nötig: Der Shop prüft die Reifen nur an dem, was zu jeder Reifengröße hinterlegt ist.
                         </p>
                     </div>
                     <p id="fs-speed-err" class="form-field__error">{{ errors.max_speed_kmh }}</p>

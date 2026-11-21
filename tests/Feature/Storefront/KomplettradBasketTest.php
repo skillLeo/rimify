@@ -406,8 +406,9 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
         ->and($config['verdict']['tyreLayout'])->toBe('SAME')
         ->and($config['verdict']['tyreSizesFront'])->toBe($config['verdict']['tyreSizes'])
         ->and($config['verdict']['tyreSizesFront'])->toContain($set->size->labelDe())
-        ->and($config['verdict']['minLoadIndex'])->toBeInt()
-        ->and($config['verdict']['minSpeedSymbol'])->toBeString()
+        // The fixture's paper prints no index beside the size: nothing is derived from the car in its place (D-481).
+        ->and($config['verdict']['minLoadIndex'])->toBeNull()
+        ->and($config['verdict']['minSpeedSymbol'])->toBeNull()
         ->and($config['verdict']['minSentence'])->toBe($offer['minSentence']);
 
     $card = offeredTyre($offer, $tyre->id);

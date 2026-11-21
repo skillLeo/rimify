@@ -146,7 +146,7 @@ it('moves no verdict and no offered tyre or pair, whatever level any Auflage of 
     // unknown, keeps the proof running over answers that are not (D-289, still fail-closed under D-481), whatever any level says.
     $e90 = Vehicle::query()->where('demo_ref', 'abnahme:vehicle:e90')->firstOrFail();
     $e90->forceFill(['axle_load_front_kg' => null, 'axle_load_rear_kg' => null])->save();
-    DB::table('approval_documents')->whereIn('id', DB::table('fitments')->where('vehicle_id', $e90->id)->select('approval_document_id'))->update(['counted_axle_limit_kg' => 1160]);
+    DB::table('approval_documents')->whereIn('id', DB::table('fitments')->where('vehicle_id', $e90->id)->select('approval_document_id'))->update(['counted_axle_limit_kg' => 1160, 'counted_axle_limit_page' => 1]);
     $baseline = levelsAnswers(listing: false);
 
     // The proof means something only over answers that differ: sellable and not, offered and refused.

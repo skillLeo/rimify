@@ -174,13 +174,23 @@ it('refuses what does not read, under its own field, and never guesses @admin-21
     'a noise class D' => [['eu_noise_class' => 'D'], 'eu_noise_class'],
     'a noise no tyre makes' => [['eu_noise_db' => '120'], 'eu_noise_db'],
     'an EPREL number with letters' => [['eprel_id' => 'EU-381090'], 'eprel_id'],
-    'a load index beyond the table (Regulation No 30 prints up to 120, D-310)' => [['load_index' => '121'], 'load_index'],
-    'a speed symbol not on the list' => [['speed_symbol' => 'Z'], 'speed_symbol'],
-    'an aspect between the steps' => [['aspect' => '42'], 'aspect'],
-    'a diameter in halves' => [['diameter_in' => '16,5'], 'diameter_in'],
     'a price that does not read' => [['price' => 'teuer'], 'price'],
     'no season' => [['season' => ''], 'season'],
     'no brand at all' => [['brand_new' => ''], 'brand_id'],
+]);
+
+// D-481: the form of a size is checked, not its figures — the client's „305/70 R22.5 160F“ among them. A symbol the shop's
+// table does not rank (F, Z) is kept with rank 0 and matched exactly, never by rank (D-484).
+it('takes any figure in the form of a size, and keeps a symbol it cannot rank with rank 0 (D-481, D-484)', function (array $override, array $stored): void {
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload($override))->assertSessionHasNoErrors();
+
+    expect(TyreVariant::query()->sole()->only(array_keys($stored)))->toEqual($stored);
+})->with([
+    'a load index above 120' => [['load_index' => '121'], ['load_index' => 121]],
+    'a symbol the table does not rank' => [['speed_symbol' => 'Z'], ['speed_symbol' => 'Z', 'speed_rank' => 0]],
+    'an aspect between the steps' => [['aspect' => '42'], ['aspect' => 42]],
+    'a rim in halves, written with a comma' => [['diameter_in' => '16,5'], ['diameter_in' => 16.5]],
+    'the client\'s truck size' => [['width_mm' => '305', 'aspect' => '70', 'diameter_in' => '22.5', 'load_index' => '160', 'speed_symbol' => 'F'], ['width_mm' => 305, 'aspect' => 70, 'diameter_in' => 22.5, 'load_index' => 160, 'speed_symbol' => 'F', 'speed_rank' => 0]],
 ]);
 
 it('takes a tyre with a load index above 109, as a heavy car needs, up to the 120 the table prints (D-310) @admin-210', function (): void {

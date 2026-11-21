@@ -99,5 +99,4 @@ return [
 
     // ── The five steps: staff read the paper, and these ask them to say what it prints ──────────────────────
     'was du aus dem Gutachten eingetragen hast' => ['ours', 'compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen'],
-    'Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle' => ['ours', 'what the shop computes the load at speed with: ETRTO\'s table in code, the same for every document, nothing typed (D-459)'],
 ];

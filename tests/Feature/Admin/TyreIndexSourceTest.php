@@ -117,9 +117,11 @@ it('releases a document nobody has answered it for: the answer decides nothing s
     expect($document->refresh()->status->value)->toBe('published')
         ->and($document->tyre_index_source)->toBeNull();
 
-    // The step's own way to answer it is gone with the question.
-    $this->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/lastindex", ['tyre_index_source' => 'papers'])
-        ->assertStatus(404);
+    // The step's own way to answer it is gone with the question: 404, or 405 where another route claims the address.
+    $gone = $this->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/lastindex", ['tyre_index_source' => 'papers']);
+
+    expect($gone->status())->toBeIn([404, 405])
+        ->and($document->refresh()->tyre_index_source)->toBeNull();
 });
 
 it('releases „Tabelle“ with no table typed: the shop reads ETRTO\'s for every document (D-459)', function (): void {

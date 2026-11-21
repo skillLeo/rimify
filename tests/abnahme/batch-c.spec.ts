@@ -241,7 +241,7 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await expect(page.locator('.cart')).not.toContainText('Wuchtgewichte')
 })
 
-test('front and rear only in the pairs the Gutachten lists, each axle on its own load and the axle that asks more named', { tag: '@kunde-20' }, async ({ page }, info) => {
+test('front and rear only in the pairs the Gutachten lists, each with its number — and no minimum of our own beside them (D-481)', { tag: '@kunde-20' }, async ({ page }, info) => {
     await withCar(page, 'e46', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await mode(page, 'Komplettrad')
@@ -262,12 +262,12 @@ test('front and rear only in the pairs the Gutachten lists, each axle on its own
     const chips = page.locator('.kf-pairs .kf-pair')
     await expect(chips).toHaveText(pairs.map((p) => new RegExp(`vorne ${p.front.replace(/[/]/g, '\\/')} · hinten ${p.rear.replace(/[/]/g, '\\/')}`)))
 
-    // Each pair: front and rear on their own axle load, the axle that asks more named, the table's number and page.
+    // Each pair: the table's number. Until D-481 each axle's minimum from its own axle load stood beside it; the client struck
+    // it (19.11.2026) — the shop works out no minimum of its own any more.
     for (const [i] of pairs.entries()) {
         await chips.nth(i).click()
-        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/vorne \(880\skg\) mindestens Tragfähigkeitsindex \d+ .* hinten \(1\.020\skg\) mindestens Tragfähigkeitsindex \d+/)
-        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/(Mehr verlangt die (Vorderachse|Hinterachse)|Beide Achsen verlangen denselben Tragfähigkeitsindex)\.$/)
         await expect(page.locator('.kf-source')).toContainText(/Kombination Nr\.\s\d+/)
+        await expect(page.locator('.kf-step')).not.toContainText(/Wir prüfen jede Achse|eigenen Achslast|\(\d[\d.]*\skg\) mindestens|Mehr verlangt die|Beide Achsen verlangen/)
     }
 
     const mix = page.locator('.kf-step')
