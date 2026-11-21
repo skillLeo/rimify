@@ -45,7 +45,7 @@ function pdfsAdmin(string $role = 'super-admin'): AdminUser
 }
 
 /** A pending upload, as the browser leaves it (PdfUpload): its key for the form. */
-function pendingPdf(string $body = "%PDF-1.4\n% Nachtrag\n%%EOF\n"): string
+function pendingFurtherPdf(string $body = "%PDF-1.4\n% Nachtrag\n%%EOF\n"): string
 {
     $key = 'pending/'.Str::lower((string) Str::ulid()).'.pdf';
     Storage::disk('docs_private')->put($key, $body);
@@ -54,7 +54,7 @@ function pendingPdf(string $body = "%PDF-1.4\n% Nachtrag\n%%EOF\n"): string
 }
 
 /** A released paper with its own PDF on the disk, one car on one wheel. @return array{ApprovalDocument, Vehicle, WheelConfig} */
-function releasedWithPdf(): array
+function releasedWithOwnPdf(): array
 {
     $document = ApprovalDocument::factory()->abe()->create(['kba_number' => '55255', 'issued_on' => '2025-07-16']);
     Storage::disk(GutachtenController::DISK)->put((string) $document->pdf_key, "%PDF-1.4\n");
@@ -69,9 +69,9 @@ function releasedWithPdf(): array
 }
 
 it('adds a further PDF to a released paper, checked and hashed, and lists it after the paper’s own — in the Protokoll, in words', function (): void {
-    [$document] = releasedWithPdf();
+    [$document] = releasedWithOwnPdf();
 
-    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingPdf(), 'label' => 'Nachtrag 1', 'dated_on' => '2025-07-02'])
+    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingFurtherPdf(), 'label' => 'Nachtrag 1', 'dated_on' => '2025-07-02'])
         ->assertSessionHasNoErrors()
         ->assertSessionHas('toast', 'PDF hinzugefügt: Nachtrag 1. Im Shop steht es ab jetzt zur Auswahl.');
 
@@ -92,17 +92,17 @@ it('adds a further PDF to a released paper, checked and hashed, and lists it aft
 });
 
 it('refuses a file that is no PDF by its first bytes, whatever it is called', function (): void {
-    [$document] = releasedWithPdf();
+    [$document] = releasedWithOwnPdf();
 
-    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingPdf("MZ\x90\x00 not a pdf"), 'label' => 'Anlage'])
+    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingFurtherPdf("MZ\x90\x00 not a pdf"), 'label' => 'Anlage'])
         ->assertSessionHasErrors(['upload_key' => 'Das ist keine PDF-Datei. Ein Gutachten wird nur im PDF-Format angenommen.']);
 
     expect(ApprovalDocumentFile::query()->where('is_main', false)->count())->toBe(0);
 });
 
 it('hides a further PDF from the shop and shows it again — never the paper’s own, never deleted', function (): void {
-    [$document] = releasedWithPdf();
-    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingPdf(), 'label' => 'Anlage 3'])->assertSessionHasNoErrors();
+    [$document] = releasedWithOwnPdf();
+    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingFurtherPdf(), 'label' => 'Anlage 3'])->assertSessionHasNoErrors();
     $file = ApprovalDocumentFile::query()->where('is_main', false)->sole();
 
     $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs/{$file->id}/sichtbar", ['visible' => false])->assertSessionHasNoErrors();
@@ -127,10 +127,10 @@ it('hides a further PDF from the shop and shows it again — never the paper’s
 });
 
 it('sets the order the customer reads them in, the paper’s own included', function (): void {
-    [$document] = releasedWithPdf();
+    [$document] = releasedWithOwnPdf();
 
     foreach (['Nachtrag', 'Anlage'] as $label) {
-        $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingPdf(), 'label' => $label])->assertSessionHasNoErrors();
+        $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingFurtherPdf(), 'label' => $label])->assertSessionHasNoErrors();
     }
 
     [$nachtrag, $anlage] = ApprovalDocumentFile::query()->where('is_main', false)->orderBy('id')->pluck('id')->all();
@@ -144,22 +144,22 @@ it('sets the order the customer reads them in, the paper’s own included', func
 });
 
 it('lets only who may edit Gutachten change them, and never on a revision the shop no longer reads', function (): void {
-    [$document] = releasedWithPdf();
+    [$document] = releasedWithOwnPdf();
     $old = ApprovalDocument::factory()->abe()->create(['status' => 'superseded']);
 
-    $this->actingAs(pdfsAdmin('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingPdf(), 'label' => 'Nachtrag'])->assertForbidden();
-    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$old->id}/pdfs", ['upload_key' => pendingPdf(), 'label' => 'Nachtrag'])->assertForbidden();
+    $this->actingAs(pdfsAdmin('support-agent'), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingFurtherPdf(), 'label' => 'Nachtrag'])->assertForbidden();
+    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$old->id}/pdfs", ['upload_key' => pendingFurtherPdf(), 'label' => 'Nachtrag'])->assertForbidden();
 
     expect(ApprovalDocumentFile::query()->where('is_main', false)->count())->toBe(0);
 });
 
 it('shows the customer every visible PDF beside the answer, the paper’s own at its row’s page — and one link where there is only that one', function (): void {
-    [$document, $vehicle, $config] = releasedWithPdf();
+    [$document, $vehicle, $config] = releasedWithOwnPdf();
     $one = app(FitmentResolver::class)->resolve($vehicle->id, $config->id);
 
     expect(GutachtenPdfLink::files($one->document))->toBe([]);
 
-    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingPdf(), 'label' => 'Nachtrag', 'dated_on' => '2025-07-02'])->assertSessionHasNoErrors();
+    $this->actingAs(pdfsAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/pdfs", ['upload_key' => pendingFurtherPdf(), 'label' => 'Nachtrag', 'dated_on' => '2025-07-02'])->assertSessionHasNoErrors();
     $two = app(FitmentResolver::class)->resolve($vehicle->id, $config->id);
     $links = GutachtenPdfLink::files($two->document);
 
@@ -174,7 +174,7 @@ it('shows the customer every visible PDF beside the answer, the paper’s own at
 });
 
 it('lists the paper’s PDFs on its admin page, the hidden ones marked, with the right to change them', function (): void {
-    [$document] = releasedWithPdf();
+    [$document] = releasedWithOwnPdf();
 
     $this->actingAs(pdfsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page

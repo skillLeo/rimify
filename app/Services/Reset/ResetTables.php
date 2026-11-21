@@ -85,6 +85,7 @@ final class ResetTables
         'catalogue_imports',
         // The Gutachten and their rows.
         'approval_documents',
+        'approval_document_files',
         'document_conditions',
         'document_condition_reworks',
         'document_fasteners',
