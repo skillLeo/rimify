@@ -6,18 +6,23 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\HintColour;
 use App\Domain\Fitment\Verdict\VerdictStatus;
+use App\Domain\Storefront\VehicleContext;
 use App\Enums\TyreIndexSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\DocumentCarEntry;
 use App\Models\DocumentCondition;
+use App\Models\TyreVariant;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
 use App\Models\WheelModel;
+use App\Services\Commerce\KomplettradSettings;
 use App\Services\Storage\StorageSettings;
 use Database\Seeders\AccessSeeder;
+use Database\Seeders\CommerceSeeder;
+use Database\Seeders\KomplettradOptionsSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -254,4 +259,31 @@ describe('„Rot“ (the client\'s round of 08.11.2026, §6, D-439)', function (
 
         expect(fn () => DB::table('document_conditions')->where('id', $code->id)->update(['shop_colour' => 'blue']))->toThrow(QueryException::class);
     });
+});
+
+// The deep check of 21.11.2026 (1.5.4): the RIMIFY-Check of the Komplettrad's tyre step (D-488) wears the colour the admin gives
+// the code — changed in the admin, the next page shows the new one; its words stay „Mit Auflagen“.
+it('dresses the tyre step\'s RIMIFY-Check in the code\'s colour, and follows a change made in the admin', function (): void {
+    $this->seed([CommerceSeeder::class, KomplettradOptionsSeeder::class]);
+    app(KomplettradSettings::class)->setMountingPerWheelCents(2_500);
+    ['document' => $document, 'car' => $car, 'wheel' => $wheel] = colourPaper(['K1' => [ConditionKind::Karosseriearbeit, 'Bördeln der Radläufe erforderlich.']]);
+    WheelConfig::query()->whereKey($wheel->id)->update(['stock_qty' => 8]);
+    // A tyre of the paper's size in stock: the step has something to answer for.
+    TyreVariant::factory()->size(225, 40, 18.0)->withSpeedSymbol('Y')->create(['load_index' => 95, 'stock_qty' => 8, 'price_cents' => 12_000, 'currency' => 'EUR', 'is_demo' => false]);
+    $url = "/admin/gutachten/{$document->id}/auflagen/".colourOf($document, 'K1')->id.'/farbe';
+    $cookie = [VehicleContext::COOKIE => (new VehicleContext($car->id, true))->encode()];
+    /** The answers the tyre step dresses its check in: each size's and combination's colour. @return list<string|null> */
+    $hints = function () use ($wheel, $cookie): array {
+        $props = $this->withCookies($cookie)->get('/komplettraeder?groesse='.$wheel->id)->assertOk()->viewData('page')['props'];
+        $offer = $props['config']['komplettrad'] ?? [];
+        $answers = [...array_map(static fn (array $c): mixed => $c['answer'] ?? null, $offer['combinations'] ?? []), ...array_map(static fn (array $t): mixed => $t['answer'] ?? null, $offer['tyres'] ?? [])];
+
+        return array_values(array_unique(array_map(static fn (mixed $a): ?string => is_array($a) ? ($a['hint'] ?? null) : null, array_filter($answers))));
+    };
+
+    foreach (['red', 'yellow', 'green'] as $colour) {
+        $this->actingAs(colourAdmin(), 'admin')->put($url, ['shop_colour' => $colour])->assertSessionHasNoErrors();
+
+        expect($hints())->toBe([$colour]);
+    }
 });
