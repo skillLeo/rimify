@@ -51,6 +51,7 @@ use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\AvailabilityEnquiry;
 use App\Support\GermanFormat;
+use App\Support\GutachtenPdfLink;
 use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
@@ -1340,23 +1341,9 @@ class FelgenController extends Controller
      */
     private static function pdfLink(DocumentRecord $document): ?array
     {
-        if ($document->pdfKey === null) {
-            return null;
-        }
+        $link = GutachtenPdfLink::of($document);
 
-        $url = app(DocumentFiles::class)->locate($document->pdfKey)['url'];
-
-        if ($url === null) {
-            return null;
-        }
-
-        // An example document opens through the page that marks it (decision 6, D-239): the file itself carries no mark,
-        // so the shop never hands out its address bare.
-        if ($document->isDemo) {
-            return ['url' => route('gutachten.beispiel', ['document' => $document->id, ...($document->sourcePage === null ? [] : ['seite' => $document->sourcePage])]), 'page' => $document->sourcePage];
-        }
-
-        return ['url' => $url.($document->sourcePage === null ? '' : '#page='.$document->sourcePage), 'page' => $document->sourcePage];
+        return $link === null ? null : ['url' => $link['url'], 'page' => $link['page']];
     }
 
     /** @return list<string> `245/45 R18` per permitted size on this axle. */

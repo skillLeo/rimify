@@ -6,6 +6,7 @@ use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\PapersWording;
 use App\Enums\DocumentStatus;
+use App\Http\Controllers\Admin\GutachtenController;
 use App\Mail\OrderConfirmationMail;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -24,6 +25,7 @@ use App\Services\Commerce\OrderWriter;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -129,6 +131,27 @@ it('says the papers as the purchase said them — in the order, on the order pag
     expect(OrderLineFitment::query()->where('order_line_id', $plain->lines()->value('id'))->sole()->papersExempt())->toBeFalse();
     $this->actingAs(detailAdmin(), 'admin')->get('/admin/bestellungen/'.$plain->id)
         ->assertInertia(fn (AssertableInertia $page) => $page->where('lines.0.snapshot.papersLine', null));
+});
+
+// D-491, the client's review of 19.11.2026: the confirmation mail names every Auflage of the line and links the Gutachten the
+// answer rests on, at its row's page — the document the order froze, never a newer one.
+it('lists the line’s Auflagen in the confirmation mail and links its Gutachten at the row’s page', function (): void {
+    [$order, $document] = soldWithSnapshot();
+    // A link is only built to where the file is (D-229), so the file is there.
+    Storage::fake(GutachtenController::DISK)->put((string) $document->pdf_key, "%PDF-1.4\n");
+
+    $line = (new OrderConfirmationMail($order, null))->content()->with['lines'][0];
+    $page = OrderLineFitment::query()->sole()->verdict['document']['sourcePage'] ?? null;
+
+    expect($line['document'])->toMatchArray(['label' => 'ABE 53810', 'example' => false])
+        ->and($line['document']['url'])->toContain((string) $document->pdf_key)
+        ->and($line['document']['url'])->toStartWith('http')
+        ->and($page === null || str_ends_with($line['document']['url'], '#page='.$page))->toBeTrue();
+
+    $html = (new OrderConfirmationMail($order, null))->render();
+
+    expect($html)->toContain('ABE 53810 öffnen (PDF')
+        ->and($html)->toContain('Bördeln der Radläufe erforderlich.');
 });
 
 it('says when the Gutachten was replaced since, and keeps the snapshot as it was', function (): void {

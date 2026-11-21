@@ -47,6 +47,10 @@ Nur bei {{ $pair['pair'] }}:
 - {{ $condition }}
 @endforeach
 @endforeach
+@if ($line['document'] ?? null)
+
+[{{ $line['document']['label'] }} öffnen ({{ $line['document']['example'] ? 'Beispiel, ' : '' }}PDF{{ $line['document']['page'] ? ', Seite '.$line['document']['page'] : '' }})]({{ $line['document']['url'] }})
+@endif
 @endif
 
 @endforeach
