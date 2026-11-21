@@ -1,0 +1,92 @@
+erDiagram
+    approval_documents ||--o{ document_wheel_sizes : "approval_document_id"
+    wheel_models ||--o{ document_wheel_sizes : "wheel_model_id"
+    approval_documents ||--o{ document_wheel_combinations : "approval_document_id"
+    document_wheel_sizes ||--o{ document_wheel_combinations : "front_wheel_size_id"
+    document_wheel_sizes ||--o{ document_wheel_combinations : "rear_wheel_size_id"
+    approval_documents ||--o{ document_car_entries : "approval_document_id"
+    document_car_entries ||--o{ document_car_entries : "copied_from_id"
+    document_wheel_combinations ||--o{ document_car_entries : "document_wheel_combination_id"
+    vehicles ||--o{ document_car_entries : "vehicle_id"
+    wheel_configs ||--o{ document_car_entries : "wheel_config_id"
+    document_car_entries ||--o{ document_car_entry_codes : "document_car_entry_id"
+    document_car_entries ||--o{ document_tyre_lines : "document_car_entry_id"
+    document_tyre_lines ||--o{ document_tyre_line_codes : "document_tyre_line_id"
+    approval_documents ||--o{ document_tyre_combinations : "approval_document_id"
+    vehicles ||--o{ document_tyre_combinations : "vehicle_id"
+    document_tyre_combinations ||--o{ document_tyre_combination_conditions : "document_tyre_combination_id"
+    wheel_configs ||--o{ document_tyre_combination_conditions : "wheel_config_id"
+    approval_documents ||--o{ document_kept_combinations : "approval_document_id"
+    vehicles ||--o{ document_kept_combinations : "vehicle_id"
+    document_wheel_sizes {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint wheel_model_id FK
+    }
+    document_wheel_combinations {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint front_wheel_size_id FK
+        bigint rear_wheel_size_id FK
+    }
+    document_car_entries {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint copied_from_id FK
+        bigint document_wheel_combination_id FK
+        bigint vehicle_id FK
+        bigint wheel_config_id FK
+        smallint source_page
+        date build_from
+        date build_to
+    }
+    document_car_entry_codes {
+        bigint id PK
+        bigint document_car_entry_id FK
+        string code
+    }
+    document_tyre_lines {
+        bigint id PK
+        bigint document_car_entry_id FK
+        smallint front_width_mm
+        smallint front_aspect
+        decimal front_diameter_in
+        smallint front_load_index
+        string front_speed_symbol
+        smallint list_page
+    }
+    document_tyre_line_codes {
+        bigint id PK
+        bigint document_tyre_line_id FK
+        string code
+    }
+    document_tyre_combinations {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint vehicle_id FK
+        smallint number
+        smallint source_page
+    }
+    document_tyre_combination_conditions {
+        bigint id PK
+        bigint document_tyre_combination_id FK
+        bigint wheel_config_id FK
+    }
+    document_kept_combinations {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint vehicle_id FK
+        smallint source_page
+    }
+    approval_documents {
+        bigint id PK
+    }
+    vehicles {
+        bigint id PK
+    }
+    wheel_configs {
+        bigint id PK
+    }
+    wheel_models {
+        bigint id PK
+    }

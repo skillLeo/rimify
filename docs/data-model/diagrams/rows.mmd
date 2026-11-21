@@ -1,0 +1,97 @@
+erDiagram
+    approval_documents ||--o{ vehicles : "source_document_id"
+    approval_documents ||--o{ fitments : "approval_document_id"
+    vehicles ||--o{ fitments : "vehicle_id"
+    wheel_configs ||--o{ fitments : "wheel_config_id"
+    fitments ||--o{ fitment_tyre_sizes : "fitment_id"
+    fitment_tyre_sizes ||--o{ fitment_tyre_size_conditions : "fitment_tyre_size_id"
+    fitments ||--o{ fitment_conditions : "fitment_id"
+    fitments ||--o{ fitment_wheel_sets : "front_fitment_id"
+    fitments ||--o{ fitment_wheel_sets : "rear_fitment_id"
+    fitments ||--o{ fitment_conflicts : "candidate_fitment_id"
+    fitments ||--o{ fitment_conflicts : "existing_fitment_id"
+    approval_documents ||--o{ fitment_conflicts : "prevailing_document_id"
+    vehicles ||--o{ fitment_conflicts : "vehicle_id"
+    wheel_configs ||--o{ fitment_conflicts : "wheel_config_id"
+    approval_documents ||--o{ fitment_subscriptions : "notified_document_id"
+    vehicles ||--o{ fitment_subscriptions : "vehicle_id"
+    vehicles {
+        bigint id PK
+        bigint source_document_id FK
+        string hsn
+        string tsn
+        string vsn
+        string make
+        string model
+        string variant
+        date build_from
+        date build_to
+        int axle_load_front_kg
+        int axle_load_rear_kg
+        int max_speed_kmh
+        timestamp deleted_at
+    }
+    fitments {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint vehicle_id FK
+        bigint wheel_config_id FK
+        date build_from
+        date build_to
+        tinyint requires_entry
+        smallint source_page
+        string status
+    }
+    fitment_tyre_sizes {
+        bigint id PK
+        bigint fitment_id FK
+        smallint width_mm
+        smallint aspect
+        decimal diameter_in
+        smallint min_load_index
+        string min_speed_symbol
+        string axle
+    }
+    fitment_tyre_size_conditions {
+        bigint fitment_tyre_size_id FK
+        string code
+    }
+    fitment_conditions {
+        bigint fitment_id FK
+        string code
+    }
+    fitment_wheel_sets {
+        bigint id PK
+        bigint front_fitment_id FK
+        bigint rear_fitment_id FK
+    }
+    fitment_conflicts {
+        bigint id PK
+        bigint candidate_fitment_id FK
+        bigint existing_fitment_id FK
+        bigint prevailing_document_id FK
+        bigint vehicle_id FK
+        bigint wheel_config_id FK
+        string status
+    }
+    fitment_subscriptions {
+        bigint id PK
+        bigint notified_document_id FK
+        bigint vehicle_id FK
+        timestamp confirmed_at
+        timestamp notified_at
+    }
+    check_results {
+        bigint id PK
+        string token
+        string verdict_status
+        json verdict
+        int document_revision
+        timestamp computed_at
+    }
+    approval_documents {
+        bigint id PK
+    }
+    wheel_configs {
+        bigint id PK
+    }

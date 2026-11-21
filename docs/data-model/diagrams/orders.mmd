@@ -1,0 +1,98 @@
+erDiagram
+    customers ||--o{ addresses : "customer_id"
+    addresses ||--o{ orders : "billing_address_id"
+    customers ||--o{ orders : "customer_id"
+    addresses ||--o{ orders : "delivery_address_id"
+    shipping_methods ||--o{ orders : "shipping_method_id"
+    orders ||--o{ order_lines : "order_id"
+    order_lines ||--o{ order_line_fitments : "order_line_id"
+    invoices ||--o{ invoices : "corrects_invoice_id"
+    orders ||--o{ invoices : "order_id"
+    refunds ||--o{ invoices : "refund_id"
+    invoices ||--o{ refunds : "credit_note_id"
+    orders ||--o{ refunds : "order_id"
+    orders ||--o{ disputes : "order_id"
+    orders ||--o{ payment_events : "order_id"
+    orders ||--o{ reviews : "order_id"
+    order_lines ||--o{ reviews : "order_line_id"
+    wheel_models ||--o{ reviews : "wheel_model_id"
+    customers {
+        bigint id PK
+        string email
+        tinyint is_demo
+    }
+    addresses {
+        bigint id PK
+        bigint customer_id FK
+    }
+    orders {
+        bigint id PK
+        bigint billing_address_id FK
+        bigint customer_id FK
+        bigint delivery_address_id FK
+        bigint shipping_method_id FK
+        string order_number
+        string status
+        int total_cents
+        string currency
+        string origin
+    }
+    order_lines {
+        bigint id PK
+        bigint order_id FK
+        smallint quantity
+        int unit_price_cents
+        string currency
+    }
+    order_line_fitments {
+        bigint order_line_id FK
+        bigint approval_document_id
+        int document_revision
+        json verdict
+        string verdict_status
+        tinyint requires_entry
+        string pdf_sha256
+        string engine_version
+        timestamp computed_at
+    }
+    invoices {
+        bigint id PK
+        bigint corrects_invoice_id FK
+        bigint order_id FK
+        bigint refund_id FK
+        string number
+        string kind
+        int gross_cents
+        string currency
+        string pdf_sha256
+    }
+    refunds {
+        bigint id PK
+        bigint credit_note_id FK
+        bigint order_id FK
+        int amount_cents
+        string currency
+    }
+    disputes {
+        bigint id PK
+        bigint order_id FK
+        int amount_cents
+        string currency
+    }
+    payment_events {
+        bigint id PK
+        bigint order_id FK
+    }
+    reviews {
+        bigint id PK
+        bigint order_id FK
+        bigint order_line_id FK
+        bigint wheel_model_id FK
+    }
+    shipping_methods {
+        bigint id PK
+        int price_cents
+    }
+    wheel_models {
+        bigint id PK
+    }

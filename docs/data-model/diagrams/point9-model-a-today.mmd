@@ -1,0 +1,22 @@
+erDiagram
+    approval_documents ||--o{ document_vehicle_codes : "approval_document_id"
+    vehicles ||--o{ document_vehicle_codes : "vehicle_id"
+    approval_documents ||--o{ fitments : "approval_document_id"
+    vehicles ||--o{ fitments : "vehicle_id"
+    document_vehicle_codes {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint vehicle_id FK
+        string hsn
+        string tsn
+        string code
+    }
+    vehicles {
+        bigint id PK
+    }
+    approval_documents {
+        bigint id PK
+    }
+    fitments {
+        bigint id PK
+    }
