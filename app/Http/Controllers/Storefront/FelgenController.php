@@ -23,6 +23,7 @@ use App\Domain\Fitment\Verdict\ConditionGroups;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\HintColour;
 use App\Domain\Fitment\Verdict\MinSource;
+use App\Domain\Fitment\Verdict\SetAnswerFloor;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
@@ -742,7 +743,8 @@ class FelgenController extends Controller
                 })->values()->all(),
                 'label' => Basket::euLabel($variant),
                 'isDemo' => $variant->refusedAsDemo(),
-                'answer' => $groups->toArray(TyreSize::keyOf((int) $variant->width_mm, (int) $variant->aspect, (float) $variant->diameter_in)),
+                // The answer the basket, the Kasse and the order give for this line, the stricter one (D-501).
+                'answer' => SetAnswerFloor::answer($groups->toArray($sizeKey = TyreSize::keyOf((int) $variant->width_mm, (int) $variant->aspect, (float) $variant->diameter_in)), $groups->forSet($sizeKey, null), $verdict),
             ];
         }
 
@@ -1105,7 +1107,7 @@ class FelgenController extends Controller
                 'minSentence' => null,
                 // Why there is no set: the axle we have no tyre for, by name — never another size in its stead (D-335).
                 'noSet' => $pair->noSetSentenceDe(),
-                'answer' => self::pairAnswer($pair, $groups, $verdict->requiresEntry),
+                'answer' => SetAnswerFloor::answer(self::pairAnswer($pair, $groups, $verdict->requiresEntry), $groups->forPair($pair->front->key(), $pair->rear->key()), $verdict),
                 'sets' => $sets,
             ];
         }

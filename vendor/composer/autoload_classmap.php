@@ -132,6 +132,7 @@ return array(
     'App\\Domain\\Fitment\\Verdict\\MinSource' => $baseDir . '/app/Domain/Fitment/Verdict/MinSource.php',
     'App\\Domain\\Fitment\\Verdict\\PairConditions' => $baseDir . '/app/Domain/Fitment/Verdict/PairConditions.php',
     'App\\Domain\\Fitment\\Verdict\\PapersWording' => $baseDir . '/app/Domain/Fitment/Verdict/PapersWording.php',
+    'App\\Domain\\Fitment\\Verdict\\SetAnswerFloor' => $baseDir . '/app/Domain/Fitment/Verdict/SetAnswerFloor.php',
     'App\\Domain\\Fitment\\Verdict\\Severity' => $baseDir . '/app/Domain/Fitment/Verdict/Severity.php',
     'App\\Domain\\Fitment\\Verdict\\TyreCheck' => $baseDir . '/app/Domain/Fitment/Verdict/TyreCheck.php',
     'App\\Domain\\Fitment\\Verdict\\VerdictReason' => $baseDir . '/app/Domain/Fitment/Verdict/VerdictReason.php',

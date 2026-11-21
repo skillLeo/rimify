@@ -14,6 +14,7 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionGroups;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
+use App\Domain\Fitment\Verdict\SetAnswerFloor;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\CatalogueStatus;
@@ -1568,6 +1569,8 @@ final readonly class Basket
     {
         $documents = $verdict->documents !== [] ? $verdict->documents : array_filter([$verdict->document]);
         $groups = $verdict->conditionGroups();
+        // A Komplettrad's set says what the order freezes: never „mit Auflagen“ with nothing to read (D-501).
+        $set = $chosenSize === null ? $verdict->conditions : SetAnswerFloor::conditions($groups->forSet($chosenSize, $partner), $verdict);
         // Mischbereifung is never „nur Hinweise“: the pairing table asks for one maker and a confirmation in the car (D-105).
         $notesOnly = $verdict->notesOnly() && ! $mixed;
 
@@ -1595,11 +1598,11 @@ final readonly class Basket
             // (CheckoutShown) — what the customer reads is `conditionGroups`.
             'conditions' => array_map(
                 static fn (Condition $condition): string => $condition->sentenceDe(),
-                $chosenSize === null ? $verdict->conditions : $groups->forSet($chosenSize, $partner),
+                $set,
             ),
             // The Auflagen as the document hangs them: the combination's once, each tyre size's with that size — or,
             // for a Komplettrad, what applies to its tyre, on a set per axle under that axle's name (ConditionGroups).
-            'conditionGroups' => $groups->toArray($chosenSize, $axle, $partner),
+            'conditionGroups' => $chosenSize === null ? $groups->toArray(null, $axle, $partner) : SetAnswerFloor::answer($groups->toArray($chosenSize, $axle, $partner), $groups->forSet($chosenSize, $partner), $verdict),
         ];
     }
 
@@ -1612,7 +1615,8 @@ final readonly class Basket
     {
         $groups ??= $verdict->conditionGroups();
         $bySize = $chosenSize === null && ($groups->differBySize() || $groups->entryDiffers());
-        $count = count($chosenSize === null ? $groups->all() : $groups->forSet($chosenSize, $partner));
+        // Counted as the line shows them: a Komplettrad's set with the line's Auflagen where its own ask for none (D-501).
+        $count = count($chosenSize === null ? $groups->all() : SetAnswerFloor::conditions($groups->forSet($chosenSize, $partner), $verdict));
         $sentence = match ($verdict->status) {
             VerdictStatus::Permitted => 'Für dein Fahrzeug freigegeben.',
             // The rim sold alone (D-289): what makes it conditional is the tyre sizes — said first —, then the document's.

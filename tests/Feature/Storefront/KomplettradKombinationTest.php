@@ -394,7 +394,7 @@ it('confirms no tyres for a car whose field K no entry takes in — never a neig
     expect(session(Basket::SESSION_KEY) ?? [])->toBe([]);
 });
 
-it('says a combination\'s own Auflage with that combination, on both its axles, and never with the one that shares its size (D-451, E) @admin-451', function (): void {
+it('says a combination\'s own Auflage with that combination, on both its axles — and, until the client decides, with the other combination too (D-451, D-501) @admin-451', function (): void {
     [$fx, $front, $rear, $nr1, $nr2] = kombiShopSetup();
     DocumentCondition::query()->create([
         'approval_document_id' => $fx->document->id,
@@ -412,9 +412,12 @@ it('says a combination\'s own Auflage with that combination, on both its axles, 
 
     $combinations = collect(kombiShopRow($fx)['komplettrad']['combinations']);
 
-    // Nr. 1 shares the front size with Nr. 2 and says nothing of it; Nr. 2 says it once, for both axles, under neither axle alone.
+    // Nr. 2 says it once, for both axles, under neither axle alone. Nr. 1 says it too since D-501 (the operator's answer of
+    // 21.11.2026): the order freezes every Auflage of the line, so every place says them all until the client decides whether
+    // an Auflage counts only for the combination it names.
     expect($verdict->pairConditions)->toHaveCount(1)
-        ->and($said($combinations[0]['answer']))->not->toContain($bördeln)
+        ->and($said($combinations[0]['answer']))->toContain($bördeln)
+        ->and($combinations[0]['answer']['standing'])->toBe('auflagen')
         ->and($combinations[1]['answer']['combination'])->toContain($bördeln)
         ->and(collect($combinations[1]['answer']['sizes'])->flatMap(static fn (array $s): array => $s['conditions'])->all())->not->toContain($bördeln);
 

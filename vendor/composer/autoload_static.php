@@ -911,6 +911,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Domain\\Fitment\\Verdict\\MinSource' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/MinSource.php',
         'App\\Domain\\Fitment\\Verdict\\PairConditions' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/PairConditions.php',
         'App\\Domain\\Fitment\\Verdict\\PapersWording' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/PapersWording.php',
+        'App\\Domain\\Fitment\\Verdict\\SetAnswerFloor' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/SetAnswerFloor.php',
         'App\\Domain\\Fitment\\Verdict\\Severity' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/Severity.php',
         'App\\Domain\\Fitment\\Verdict\\TyreCheck' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/TyreCheck.php',
         'App\\Domain\\Fitment\\Verdict\\VerdictReason' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/VerdictReason.php',

@@ -157,6 +157,7 @@ final class VehicleImporter
         'model' => 'model',
         'type_designation' => 'typeDesignation',
         'eg_nummer_raw' => 'egNumber',
+        'abe_nummer_raw' => 'abeNumber',
         'power_kw' => 'powerKw',
         'build_from' => 'buildFrom',
         'build_to' => 'buildTo',
@@ -183,7 +184,7 @@ final class VehicleImporter
      */
     public const FINGERPRINT_COLUMNS = [
         'id', 'source_vehicle_id', 'source', 'source_document_id', 'source_page', 'hsn', 'tsn', 'vsn', 'make', 'model', 'variant',
-        'type_designation', 'eg_nummer_raw', 'eg_nummer_norm', 'body_form', 'drive_axle', 'build_from', 'build_to',
+        'type_designation', 'eg_nummer_raw', 'eg_nummer_norm', 'abe_nummer_raw', 'body_form', 'drive_axle', 'build_from', 'build_to',
         'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh', 'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
         'needs_review', 'imported_at', 'created_at', 'updated_at', 'deleted_at', 'is_demo', 'demo_ref',
     ];

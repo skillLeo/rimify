@@ -47,7 +47,7 @@ class Vehicle extends Model
 
     protected $fillable = [
         'source_vehicle_id', 'hsn', 'tsn', 'vsn', 'make', 'model', 'variant', 'type_designation',
-        'eg_nummer_raw', 'body_form', 'drive_axle', 'build_from', 'build_to',
+        'eg_nummer_raw', 'abe_nummer_raw', 'body_form', 'drive_axle', 'build_from', 'build_to',
         'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh',
         'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
         'needs_review', 'raw', 'imported_at',
