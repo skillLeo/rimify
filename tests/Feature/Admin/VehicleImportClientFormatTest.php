@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Models\Vehicle;
 use App\Models\VehicleImport;
+use App\Services\Admin\Vehicles\Import\ImportUpload;
 use App\Services\Admin\Vehicles\Import\VehicleImportWork;
 use App\Services\Admin\Vehicles\VehicleImporter;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /*
  * The client's own vehicle list, in his own format (19.11.2026, D-478). Our earlier tests used files we made ourselves, so
@@ -250,7 +252,7 @@ function clientFinish(object $test, string $bytes, string $name): array
     $test->actingAs($admin, 'admin')->post('/admin/fahrzeuge/import/'.$id.'/teil', ['offset' => 0, 'part' => UploadedFile::fake()->createWithContent('teil', $bytes)], ['Accept' => 'application/json'])->assertOk();
 
     // The part stands on the disk before „fertig“: what the run's end must take away.
-    expect(Illuminate\Support\Facades\Storage::disk('local')->exists((string) VehicleImport::query()->findOrFail($id)->stored_as))->toBeTrue();
+    expect(Storage::disk('local')->exists((string) VehicleImport::query()->findOrFail($id)->stored_as))->toBeTrue();
 
     return [$test->actingAs($admin, 'admin')->postJson('/admin/fahrzeuge/import/'.$id.'/fertig'), VehicleImport::query()->findOrFail($id)];
 }
@@ -263,7 +265,7 @@ it('ends a refused file\'s run at once, with its own reason, and keeps no part o
     expect($import->status)->toBe(VehicleImport::FAILED)
         ->and($import->error)->toBe($reason)
         ->and($import->stored_as)->toBeNull()
-        ->and(array_values(array_filter(Illuminate\Support\Facades\Storage::disk('local')->files(ImportUploadPath()), static fn (string $f): bool => str_starts_with(basename($f), $import->id.'.'))))->toBe([]);
+        ->and(array_values(array_filter(Storage::disk('local')->files(ImportUploadPath()), static fn (string $f): bool => str_starts_with(basename($f), $import->id.'.'))))->toBe([]);
 })->with([
     'a picture named .csv' => ["\x89PNG\r\n\x1a\n".str_repeat("\0", 64), 'fahrzeuge.csv', 'Das ist keine Tabelle, sondern ein Bild oder eine andere Datei, die sich nicht als Text lesen lässt. Lad bitte die Fahrzeugliste als CSV- oder Excel-Datei hoch (.csv, .xlsx) oder das ZIP-Archiv des Datensatzes.'],
     'a PDF' => ["%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", 'liste.pdf', 'Das ist keine Tabelle, sondern ein Bild oder eine andere Datei, die sich nicht als Text lesen lässt. Lad bitte die Fahrzeugliste als CSV- oder Excel-Datei hoch (.csv, .xlsx) oder das ZIP-Archiv des Datensatzes.'],
@@ -273,7 +275,7 @@ it('ends a refused file\'s run at once, with its own reason, and keeps no part o
 /** Where ImportUpload keeps its parts, as the disk names it. */
 function ImportUploadPath(): string
 {
-    return App\Services\Admin\Vehicles\Import\ImportUpload::directory();
+    return ImportUpload::directory();
 }
 
 it('still reads UTF-16 text, NUL bytes and all, as Excel\'s „Unicode-Text“ writes it', function (): void {

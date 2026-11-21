@@ -17,6 +17,7 @@ use App\Models\TyreVariant;
 use App\Models\WheelModel;
 use App\Services\Commerce\KomplettradSettings;
 use App\Services\Storefront\Basket;
+use App\Support\CatalogueVersion;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
 use Illuminate\Support\Facades\DB;
@@ -213,4 +214,25 @@ it('says nothing about Mischbereifung on a product page whose document prints no
     $page = $this->withCookies($fx->cookies())->get('/felgen/'.$fx->config->wheelModel?->slug)->assertOk()->viewData('page');
 
     expect(collect($page['props']['configs'])->firstWhere('id', $fx->config->id)['mischbereifung'])->toBeNull();
+});
+
+// The client's answer of 21.11.2026 („keep the logic for load and speed index minimums“): a pair takes each axle's printed
+// figures — a rear tyre below the rear size's minimum is refused at the basket, the same pair with a strong enough rear sells.
+it('refuses a listed pair whose rear tyre is below the rear size\'s printed minimum, and sells it with one that reaches it', function (): void {
+    [$fx, $front, $rear] = mixedSetup();
+    FitmentTyreSize::query()->whereIn('fitment_id', Fitment::query()->where('vehicle_id', $fx->vehicle->id)->where('wheel_config_id', $fx->config->id)->pluck('id'))
+        ->where('width_mm', $rear->widthMm)->where('aspect', $rear->aspect)->update(['min_load_index' => 100, 'min_speed_symbol' => 'Y']);
+    CatalogueVersion::changed();
+    $frontTyre = mixedTyreOf($front);
+    $weakRear = mixedTyreOf($rear, ['brand_id' => $frontTyre->brand_id, 'load_index' => 99]);
+    $rearTyre = mixedTyreOf($rear, ['brand_id' => $frontTyre->brand_id, 'load_index' => 100]);
+    $post = fn (int $b) => $this->withCookies($fx->cookies())->from('/felgen')->post('/warenkorb', [
+        'kind' => 'WHEEL', 'wheelConfigId' => $fx->config->id, 'tyreVariantId' => $frontTyre->id, 'rearTyreVariantId' => $b, 'quantity' => 2,
+    ]);
+
+    $post($weakRear->id)->assertSessionHasErrors('tyreVariantId');
+    expect(session(Basket::SESSION_KEY, []))->toBe([]);
+
+    $post($rearTyre->id)->assertSessionHasNoErrors();
+    expect(session(Basket::SESSION_KEY, []))->not->toBe([]);
 });
