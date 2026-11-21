@@ -305,3 +305,17 @@ it('reads a file whose lines all end in a delimiter: an empty cell after the las
 
     expect($import->lines()->where('status', 'refused')->count())->toBe(0);
 });
+
+// D-502, the operator's answer of 21.11.2026: field K's national ABE number is kept on the car, information only.
+it('keeps field K\'s national ABE number on the car, and no EG number is made of it', function (): void {
+    $import = clientRun($this, clientCsv(), 'pkwliste.csv');
+    clientApply($this, $import);
+
+    $beta = Vehicle::query()->where('variant', 'like', 'Beta 1.6%')->firstOrFail();
+    $alpha = Vehicle::query()->where('variant', 'Alpha Avant Quattro')->where('hsn', '1860')->orderBy('id')->firstOrFail();
+
+    expect($beta->abe_nummer_raw)->toBe('C640*')
+        ->and($beta->eg_nummer_raw)->toBeNull()
+        ->and($alpha->abe_nummer_raw)->toBeNull()
+        ->and($alpha->eg_nummer_raw)->toBe('e1*2001/116*0447*11');
+});

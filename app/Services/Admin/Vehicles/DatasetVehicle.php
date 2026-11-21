@@ -37,6 +37,8 @@ final readonly class DatasetVehicle
         public string $variant,
         public ?string $typeDesignation,
         public ?string $egNumber,
+        /** Field K where it is no EG number: the national ABE number („C640*“), information only (D-502). */
+        public ?string $abeNumber,
         public ?DateTimeImmutable $buildFrom,
         public ?DateTimeImmutable $buildTo,
         public ?int $axleLoadFrontKg,
@@ -118,6 +120,8 @@ final readonly class DatasetVehicle
             // Kept only where it reads as one, and fits the columns that hold it: an EG number that does not is no key to a
             // Gutachten.
             egNumber: $eg !== null && EgNumber::parse($eg) !== null && mb_strlen($eg) <= 255 && mb_strlen((string) Vehicle::normaliseEcNumber($eg)) <= 64 ? $eg : null,
+            // Not an EG number, but what field K holds for an older car: kept as read, never a key to a Gutachten (D-502).
+            abeNumber: $eg !== null && EgNumber::parse($eg) === null && mb_strlen($eg) <= 64 ? $eg : null,
             buildFrom: $date('baubeginn', false),
             buildTo: $date('bauende', true),
             axleLoadFrontKg: $number('achslast_vorn_kg', self::AXLE_MIN_KG, self::AXLE_MAX_KG),
