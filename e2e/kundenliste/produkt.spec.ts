@@ -296,7 +296,9 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     const auflagen = line.locator('details[data-auflagen]')
     await expect(auflagen.locator('summary')).toHaveText(/^\s*\d+ Auflagen und Hinweise aus dem Gutachten anzeigen\s*$/)
     expect(await auflagen.getAttribute('open')).toBeNull()
-    await expect(line.locator('.bl__entry').first()).toBeVisible()
+    // The verdict stays in sight; the papers' line only where a code asks for the Eintragung — never a „Keine …“ (D-486).
+    await expect(line.locator('.tag').first()).toBeVisible()
+    await expect(line).not.toContainText(/Keine (Eintragung|Abnahme)/)
     expect((await box(page.locator('.cart'))).height, 'the basket runs far past the window').toBeLessThan((page.viewportSize()?.height ?? 0) * 3)
     await auflagen.locator('summary').click()
     await expect(auflagen.locator('li').first()).toBeVisible()
