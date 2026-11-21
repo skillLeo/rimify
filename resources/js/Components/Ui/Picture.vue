@@ -124,8 +124,9 @@ function onLoad(): void {
 
 <template>
     <!-- A transparent cut-out gets no blurred placeholder: an opaque square behind it would
-         show as a box until the file paints. -->
-    <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' ? undefined : { backgroundImage: `url(${image.placeholder})` }">
+         show as a box until the file paints. Once the file has painted the placeholder goes: behind a photograph that does
+         not fill its frame (a 4:3 shot in a square well) it stood as two coloured bars (D-492). -->
+    <picture class="picture" :class="{ 'picture--loaded': loaded }" :style="fallbackExt === 'png' || loaded ? undefined : { backgroundImage: `url(${image.placeholder})` }">
         <source v-for="format in formats" :key="format" :type="`image/${format}`" :srcset="srcset(format)" :sizes="sizes">
         <img
             ref="img"

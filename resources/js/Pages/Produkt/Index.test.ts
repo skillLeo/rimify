@@ -264,7 +264,17 @@ describe('Produkt page', () => {
         const apart = mountPage({ product: { ...base, typeDesignation: 'KBA 49121', manufacturer: { name: 'Beispiel Räder GmbH', address: 'Werkstraße 1', contact: 'info@beispiel-raeder.test', euResponsible: null, safetyNote: null } } })
 
         expect(apart.find('.pdp__gpsr').text()).toContain('MOTEC MCR4 Ultimate · Radtypenbezeichnung KBA 49121')
-        expect(apart.find('.pdp__type').text()).toBe('Radtypenbezeichnung KBA 49121')
+        // One line under the name (D-493): „Felge …“, never „Radtypenbezeichnung …“ and no line of counts beside it.
+        expect(apart.find('.pdp__type').text()).toBe('Felge KBA 49121')
+        expect(apart.find('.pdp__proof').exists()).toBe(false)
+        expect(apart.text()).not.toContain('Freigabe vor dem Kauf geprüft')
+    })
+
+    it('labels the colours just „Farbe“: the name stands on its button (D-493)', () => {
+        const wrapper = mountPage()
+        const label = wrapper.findAll('.pdp__block .label').find((l) => l.text().startsWith('Farbe'))!
+
+        expect(label.text()).toBe('Farbe')
     })
 
     // The client's #19 as promised (D-344): stars typed in the admin stand under the name beside the sentence that says

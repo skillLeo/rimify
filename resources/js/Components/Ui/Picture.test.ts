@@ -36,4 +36,17 @@ describe('Picture', () => {
         expect(wrapper.find('img').attributes('src')).toBe('/storage/demo/placeholders/nordfelge-fjord-silber-1080.svg')
         expect(wrapper.find('img').attributes('srcset')).toBe('/storage/demo/placeholders/nordfelge-fjord-silber-1080.svg 1080w')
     })
+
+    // D-492: the blurred placeholder goes once the file has painted — behind a 4:3 shot in a square frame it stood as two bars.
+    it('paints the placeholder only until the photograph has loaded', async () => {
+        const shot: ImageManifest = { ...photo, width: 1080, height: 813, fallback: 'webp' }
+        const wrapper = mount(Picture, { props: { image: shot, alt: 'Felge, schräg' } })
+
+        expect(wrapper.find('picture').attributes('style') ?? '').toContain('background-image')
+
+        await wrapper.find('img').trigger('load')
+
+        expect(wrapper.find('picture').attributes('style') ?? '').not.toContain('background-image')
+        expect(wrapper.find('picture').classes()).toContain('picture--loaded')
+    })
 })
