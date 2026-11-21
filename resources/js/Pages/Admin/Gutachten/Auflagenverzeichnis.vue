@@ -429,8 +429,8 @@ function uses(condition: DocumentConditionView): string {
         <!-- „Im Shop“ (#23, D-104): what each level does there — the label of the answer, no colour of a sentence (D-247) —
              and the one rule that cannot be chosen away. -->
         <p v-if="levels && conditions.length" class="adm-note av__levels-note">
-            „Im Shop“ entscheidet über das Etikett der Antwort: Sind alle ihre Auflagen Hinweise, ist keine Eintragung nötig und sind
-            auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“. Schon ein Code auf „Auflage“ oder
+            „Im Shop“ entscheidet über das Etikett der Antwort: Sind alle ihre Auflagen Hinweise, verlangt kein Code eine Eintragung
+            und sind auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“. Schon ein Code auf „Auflage“ oder
             „Nicht zulässig“ verhindert den Wechsel. Am Urteil des Gutachtens ändert das nichts.
             <template v-if="conditions.some((c) => c.levelFloor === 'auflage')">{{ ' ' + levelFloorSentence }}</template>
         </p>

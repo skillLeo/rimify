@@ -84,6 +84,18 @@ const chosenSet = computed(() => config.selectedSet.value)
 const offerNow = computed(() => chosenSet.value ?? selected.value)
 
 /*
+ * D-487 (the client's round of 18.11.2026, item 3): with „Kompletträder“ chosen, the rim's plain green answer is not what
+ * the customer buys — the combination with its tyres is, and the steps say that one in full before anything is added. So
+ * the box makes way for its two links. Anything but plain green stays: an Auflage, a colour, an open half, a no.
+ */
+const plainGreenForSet = computed(() => {
+    const verdict = offerNow.value?.verdict
+
+    return isSet.value && shared.value.vehicle !== null && verdict?.status === 'PERMITTED'
+        && (verdict.conditions ?? []).length === 0 && !verdict.hint && verdict.notesOnly !== true
+})
+
+/*
  * The version a person chose stays in the address, beside the car (the Gutachten rework §8): a link opens on it and Back
  * finds it. Only then, so the address names a choice and never the page's own opening size. Through Inertia, or Back would
  * restore the address the page opened with (useEtRechner).
@@ -849,6 +861,7 @@ claimBottomEdge(() => stickyShown.value)
                         :vehicle="shared.vehicle"
                         :config-id="chosenSet ? null : (selected?.id ?? null)"
                         :ask-href="askAboutTyres"
+                        :links-only="plainGreenForSet"
                     >
                         <Link v-if="!hasVehicle" :href="carHref" class="btn btn--secondary btn--sm pdp__fit-cta">
                             Fahrzeug wählen

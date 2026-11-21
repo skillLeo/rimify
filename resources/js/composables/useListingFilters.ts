@@ -17,7 +17,6 @@ export type FilterState = Record<string, FilterValue>
 export interface ListingFilters {
     readonly current: ComputedRef<FilterState>
     toggle(facet: string, value: string): void
-    toggleEntry(): void
     reset(): void
     goToPage(page: number): void
 }
@@ -72,20 +71,6 @@ export function useListingFilters(
         visit(next)
     }
 
-    function toggleEntry(): void {
-        const next = { ...latest() }
-
-        if (next.ohne_eintragung === true) {
-            delete next.ohne_eintragung
-        } else {
-            next.ohne_eintragung = 1
-        }
-
-        delete next.seite
-
-        visit(next)
-    }
-
     function reset(): void {
         visit({})
     }
@@ -102,5 +87,5 @@ export function useListingFilters(
         router.get(path, next, { preserveState: true })
     }
 
-    return { current, toggle, toggleEntry, reset, goToPage }
+    return { current, toggle, reset, goToPage }
 }

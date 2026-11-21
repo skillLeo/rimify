@@ -171,13 +171,15 @@ test('Nur Felgen or Komplettrad: switching keeps the rest, the tyres are chosen 
 
     await throughExtras(page, page.locator(`[data-tyre-card="t${free?.id}"]`))
     await expect(page.locator('.kf-step .fit__overview-h')).toContainText(`mit ${free?.answer?.chosen}`)
-    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveText(/^Keine (Eintragung|Abnahme)/)
+    // D-486: no „Keine Eintragung“ of ours — where no code asks one, the line is simply not there.
+    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveCount(0)
+    await expect(page.locator('.kf-step')).not.toContainText(/Keine (Eintragung|Abnahme)/)
 
     await page.goBack()
     await page.goBack()
     await throughExtras(page, page.locator(`[data-tyre-card="t${strict?.id}"]`))
     await expect(page.locator('.kf-step .fit__overview-h')).toContainText(`mit ${strict?.answer?.chosen}`)
-    await expect(page.locator('.kf-step .fit__entry--verdict')).not.toHaveText(/^Keine/)
+    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveText(/(Eintragung|Abnahme).* erforderlich/)
     await evidence(page.locator('.kf-step'), 18, info)
 
     // A combination the Gutachten does not answer cannot be bought: the E46 at 18 Zoll (no table above 210 km/h).

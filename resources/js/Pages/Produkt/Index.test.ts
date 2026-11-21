@@ -24,6 +24,8 @@ const replaced = vi.hoisted(() => [] as Array<{ url: string; preserveState?: boo
 
 // The way on to the papers form (lib/papersForm): what the page's button calls where the tyres wait for the car's papers.
 const focusPapers = vi.hoisted(() => vi.fn())
+/* The car chosen in the header, as the shared props carry it: none unless a test sets one. */
+const sharedVehicle = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }))
 
 vi.mock('../../lib/papersForm', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../../lib/papersForm')>()),
@@ -40,7 +42,9 @@ vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({
         url: current.url,
         props: {
-            vehicle: null,
+            get vehicle() {
+                return sharedVehicle.value
+            },
             routeName: current.routeName,
             contact: { email: 'hallo@beispiel.de', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9–17 Uhr' },
         },
@@ -908,6 +912,40 @@ describe('Produkt page', () => {
     async function chooseSet(wrapper: VueWrapper): Promise<void> {
         await wrapper.find('input[name="pdp-mode"][value="komplettrad"]').setValue()
     }
+
+    // D-487, the client's round of 18.11.2026, item 3: the rim's plain green answer is not what a Komplettrad buyer buys.
+    it('hides the plain green RIMIFY-Check with Kompletträder, keeps its PDF and share link, and brings it back with Nur Felgen', async () => {
+        sharedVehicle.value = { id: 3, label: 'BMW 3er E46 330Ci', short: 'BMW 330Ci' }
+
+        try {
+            const document = { number: '53810', issuer: 'KBA', kind: 'ABE', pdf: { url: '/storage/a.pdf#page=2', page: 2 } }
+            const green = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: verdict({ document } as Partial<ConfigVerdict>) })] })
+
+            expect(green.find('.rcheck-panel').exists()).toBe(true)
+
+            await chooseSet(green)
+
+            expect(green.find('.rcheck-panel').exists()).toBe(false)
+            expect(green.find('[data-fit-links] a').text()).toBe('Gutachten öffnen (PDF, Seite 2)')
+            expect(green.find('[data-fit-links] .fit__issue').text()).toBe('RIMIFY-Check drucken oder teilen')
+
+            await green.find('input[name="pdp-mode"][value="felgen"]').setValue()
+
+            expect(green.find('.rcheck-panel').exists()).toBe(true)
+
+            // Anything but plain green stays in Komplettrad mode too: an Auflage, a colour, a no.
+            for (const other of [verdict({ status: 'CONDITIONAL', conditions: ['Bördeln der Radläufe erforderlich.'] }), verdict({ status: 'CONDITIONAL', hint: 'red', conditions: ['x'] } as Partial<ConfigVerdict>), verdict({ status: 'NOT_PERMITTED', sellable: false })]) {
+                const page = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: other })] })
+
+                await chooseSet(page)
+
+                expect(page.find('.rcheck-panel').exists()).toBe(true)
+                expect(page.find('[data-fit-links]').exists()).toBe(false)
+            }
+        } finally {
+            sharedVehicle.value = null
+        }
+    })
 
     it('asks Nur Felgen or Komplettrad, and starts with the rims alone @kunde-18', () => {
         const wrapper = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad() })] })

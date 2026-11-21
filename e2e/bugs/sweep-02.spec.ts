@@ -8,7 +8,7 @@ test.use({ baseURL: SWEEP });
  * SWEEP-02 (S2) — storefront sweep of 01.10.2026: the Warenkorb is the one purchase surface that says nothing about
  * the papers. For the BMW X3 X83 on the 19″ the product page, the Kasse (the server's `sentence`), the order page,
  * the order mail and the printable RIMIFY-Check all say „Eintragung in die Fahrzeugpapiere erforderlich mit
- * 255/40 R19, nicht mit 235/45 R19 und 245/40 R19.“ (PapersWording::entryBySize / fitment/papers.ts). Warenkorb/Index.vue
+ * 255/40 R19.“ (PapersWording::entryBySize / fitment/papers.ts; since D-486 without „nicht mit …“ for the others). Warenkorb/Index.vue
  * renders the verdict's label tag and the ConditionGroups only — neither `verdict.sentence` nor entryBySize(), and
  * no other Eintragung or Abnahme line for any wheel (grep: no „Eintragung“, „Abnahme“ or `papers` in the page).
  * The A01 sentence does stand under „Nur mit 255/40 R19“, as the document's long Änderungsabnahme text — the plain

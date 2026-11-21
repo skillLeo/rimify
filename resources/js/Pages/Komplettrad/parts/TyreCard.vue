@@ -11,7 +11,7 @@ import Icon from '../../../Components/Ui/Icon.vue'
 import Picture from '../../../Components/Ui/Picture.vue'
 import SeasonMark from '../../../Components/Ui/SeasonMark.vue'
 import TyreSilhouette from '../../../Components/Ui/TyreSilhouette.vue'
-import { entryLineOrNone } from '../../../fitment/papers'
+import { entryLine } from '../../../fitment/papers'
 import { withUnit } from '../../../format'
 import type { TyreCardView } from '../komplettradFlow'
 
@@ -53,7 +53,7 @@ const failed = ref(false)
                     <span v-if="side.eu!.snowGrip" class="tc__label-item"><Icon name="snow" :size="16" /> Schnee</span>
                 </span>
 
-                <span v-if="card.answer?.entry" class="tc__entry">{{ entryLineOrNone(true, papersExempt === true) }}</span>
+                <span v-if="card.answer?.entry" class="tc__entry">{{ entryLine(true, papersExempt === true) }}</span>
 
                 <span class="tc__price">
                     <span class="tc__set" translate="no">{{ card.set }}</span>

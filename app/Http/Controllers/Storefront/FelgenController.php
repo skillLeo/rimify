@@ -209,7 +209,8 @@ class FelgenController extends Controller
             'unfiltered' => $filters === [] ? null : $this->cards->forVehicle($vehicleId, [], perPage: 1, page: 1)['total'],
             // Counts carry the OTHER filters but not the facet's own, so "18 Zoll (312)" means
             // "312 results if you add this" rather than a number that only holds in isolation.
-            'facets' => $this->listing->facets($vehicleId, $filters),
+            // Without „Ohne Abnahme und Eintragung“ (D-486); FitmentCount still reads that count for itself.
+            'facets' => array_diff_key($this->listing->facets($vehicleId, $filters), ['ohne_eintragung' => true]),
             'filters' => $filters,
             'page' => $page,
             'demo' => $this->demo(),
@@ -1366,11 +1367,9 @@ class FelgenController extends Controller
                 continue;
             }
 
+            // „Ohne Abnahme und Eintragung“ is gone (D-486): the absence of a code is no statement we can stand behind, so
+            // neither the filter nor an old bookmark of it narrows the listing any more.
             if ($facet === 'ohne_eintragung') {
-                if ($request->boolean($facet)) {
-                    $filters[$facet] = true;
-                }
-
                 continue;
             }
 
