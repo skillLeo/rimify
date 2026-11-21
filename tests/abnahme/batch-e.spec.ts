@@ -83,10 +83,11 @@ test.describe('as a visitor', () => {
 
             if (product?.ratingCount === 0) {
                 await expect(page.locator('.pdp__rating')).toHaveCount(0)
-                await expect(page.locator('.pdp__proof')).toHaveText(/^\d+ Gutachten · für \d+ Fahrzeugvarianten? freigegeben · Freigabe vor dem Kauf geprüft$/)
+                // No proof line in their place since D-493 (the client's D item 2).
+                await expect(page.locator('.pdp__proof')).toHaveCount(0)
             }
 
-            await evidenceAround(page, [name, page.locator('.pdp__proof, .pdp__rating').first()], 19, info)
+            await evidenceAround(page, [name], 19, info)
         }
     })
 

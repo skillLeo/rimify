@@ -14,6 +14,7 @@ use App\Services\Commerce\PackageTyreSizes;
 use App\Services\Content\LegalPdf;
 use App\Services\Content\LegalTexts;
 use App\Support\GermanFormat;
+use App\Support\GutachtenPdfLink;
 use App\Support\OwnInvoices;
 use App\Support\Seller;
 use App\Support\Shipping;
@@ -76,12 +77,19 @@ class OrderConfirmationMail extends Mailable
         foreach ($order->lines as $line) {
             $snapshot = $line->fitmentSnapshot;
             $groups = null;
+            $document = null;
+            $files = [];
 
             if ($snapshot !== null) {
                 try {
+                    $frozen = FitmentVerdict::fromArray((array) $snapshot->verdict);
                     // As the order page says them: the combination's once, each tyre size's with that size — on a set per
                     // axle under that axle's name (D-335).
-                    $groups = FitmentVerdict::fromArray((array) $snapshot->verdict)->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
+                    $groups = $frozen->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
+                    // The Gutachten the answer rests on, at its row's page — the very document the order froze (D-491).
+                    $document = GutachtenPdfLink::of($frozen->document, absolute: true);
+                    // Every PDF the purchase was shown with, as frozen (D-494): the paper's own first.
+                    $files = GutachtenPdfLink::files($frozen->document, absolute: true);
                 } catch (Throwable) {
                     $groups = null;
                 }
@@ -131,6 +139,9 @@ class OrderConfirmationMail extends Mailable
                     'pair' => $p['pair'],
                     'conditions' => $p['conditions'],
                 ], $groups['pairs'] ?? []),
+                // Where to read it all in the document itself (the client's review of 19.11.2026, D-491).
+                'document' => $document,
+                'files' => $files,
             ];
         }
 

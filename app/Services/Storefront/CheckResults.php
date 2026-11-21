@@ -14,6 +14,7 @@ use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
 use App\Models\CheckResult;
 use App\Support\GermanFormat;
+use App\Support\GutachtenPdfLink;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Throwable;
@@ -110,6 +111,8 @@ final readonly class CheckResults
                 'page' => $document->sourcePage,
                 // An example document, as the frozen answer holds it: marked here as wherever it is shown (D-239).
                 'example' => $document->isDemo,
+                // Every PDF the answer was shown with (D-494), the paper's own first — on the page, its print and its link.
+                'files' => GutachtenPdfLink::files($document, absolute: true),
             ],
             // The frozen answer stands as it was; where the document has changed since, the page says so.
             'documentToday' => match ($today) {

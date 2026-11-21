@@ -16,6 +16,7 @@ import { decimal } from '../../../format'
 import type { AdminGutachtenShowProps } from '../../../types/admin/gutachten'
 import Auflagenverzeichnis from './Auflagenverzeichnis.vue'
 import DocumentExtras from './DocumentExtras.vue'
+import DocumentPdfs from './DocumentPdfs.vue'
 import PreviewSection from './Erfassung/PreviewSection.vue'
 import ReleaseDialog from './ReleaseDialog.vue'
 
@@ -185,6 +186,9 @@ watch(
             </p>
             <p v-if="releaseError" class="adm-alert" role="alert">{{ releaseError }}</p>
         </section>
+
+        <!-- ── The PDFs the customer may open (D-494) ─────────────────── -->
+        <DocumentPdfs v-if="props.pdfs" :document-id="document.id" :pdfs="props.pdfs" :can="can.files === true" :max-mb="props.pdfMaxMb ?? 100" />
 
         <!-- ── Facts ─────────────────────────────────────────────────── -->
         <section class="adm-section" aria-labelledby="gs-facts-h">

@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\GutachtenAuflagenController;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Http\Controllers\Admin\GutachtenErfassungController;
 use App\Http\Controllers\Admin\GutachtenFahrzeugController;
+use App\Http\Controllers\Admin\GutachtenPdfsController;
 use App\Http\Controllers\Admin\GutachtenSucheController;
 use App\Http\Controllers\Admin\KatalogImportController;
 use App\Http\Controllers\Admin\KonflikteController;
@@ -353,6 +354,11 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
         // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ for a released document (D-227).
         Route::post('/gutachten/{document}/vollstaendigkeit', [GutachtenController::class, 'completeness'])->whereNumber('document')->name('gutachten.vollstaendigkeit');
+        // The paper's PDFs (D-494): a further one, a label and date, hidden or shown, the order — on a released paper too.
+        Route::post('/gutachten/{document}/pdfs', [GutachtenPdfsController::class, 'store'])->whereNumber('document')->middleware('throttle:30,1,gutachten-pdfs')->name('gutachten.pdfs.store');
+        Route::put('/gutachten/{document}/pdfs/{file?}', [GutachtenPdfsController::class, 'update'])->whereNumber(['document', 'file'])->name('gutachten.pdfs.update');
+        Route::post('/gutachten/{document}/pdfs/{file}/sichtbar', [GutachtenPdfsController::class, 'visible'])->whereNumber(['document', 'file'])->name('gutachten.pdfs.visible');
+        Route::put('/gutachten/{document}/pdfs-reihenfolge', [GutachtenPdfsController::class, 'order'])->whereNumber('document')->name('gutachten.pdfs.order');
         // The way back into a released document: a draft revision holding all it holds (ADMIN-GEFUNDEN 510).
         Route::post('/gutachten/{document}/neue-fassung', [GutachtenController::class, 'revise'])->whereNumber('document')->name('gutachten.neue-fassung');
         // A car exactly as the document names it — no HSN or TSN, none made up (Block C, item 7).

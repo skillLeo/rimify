@@ -1,8 +1,13 @@
 <script setup lang="ts">
 /**
- * The Komplettrad, step by step (the Gutachten rework §9): 1 Felge — the version from the product page —, 2 Reifen, as tiles with
- * pictures, filters and more on request, 3 Extras, nothing chosen for the customer, 4 Warenkorb. The address names the step, so Back
- * goes one step back and a link opens the step it names. What was chosen stays for this version in this browser's session.
+ * The Komplettrad, step by step (the Gutachten rework §9): 1 Reifen, as tiles with pictures, filters and more on request, 2 Extras,
+ * nothing chosen for the customer, 3 Warenkorb. The address names the step, so Back goes one step back and a link opens the step it
+ * names. What was chosen stays for this version in this browser's session.
+ *
+ * Since D-489 (the client's round of 18.11.2026, item 5) there is no step „Felge“: it only repeated the rim chosen on the product
+ * page. What it held moved into the tyre step — the rim in one line with its photo and price, the other dimensions to switch to
+ * (D-488), „Andere Ausführung wählen“, a refusal with its way on — and „Zurück“ there leads to the product page, the rim in the
+ * address. The RIMIFY-Check for the sizes chosen stands right above „Weiter“ (D-488), and again, whole, in the last step.
  *
  * Nothing here decides whether a tyre may be fitted: only what the server sent is a card (TyreEligibility, R-13), and the basket asks
  * the engine again on the add (R-11). Every figure is the server's.
@@ -14,13 +19,11 @@ import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
 import KomplettradRefusal from '../../Components/Product/KomplettradRefusal.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
-import ConditionGroups from '../../Components/Fitment/ConditionGroups.vue'
 import Icon from '../../Components/Ui/Icon.vue'
 import Picture, { type ImageManifest } from '../../Components/Ui/Picture.vue'
 import StepBar from '../../Components/Ui/StepBar.vue'
 import { usePriceTerms } from '../../composables/usePriceTerms'
 import { claimBottomEdge } from '../../composables/useShell'
-import { LINE_ROOM, countedDe, fitsWhole } from '../../fitment/auflagen'
 import { ABNAHME_REQUIRED, ENTRY_REQUIRED } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
 import { OFFLINE_ADD } from '../../lib/basketAdd'
@@ -29,6 +32,7 @@ import { formatMoney } from '../../lib/num'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import type { KomplettradOptionsProp, ProduktConfig } from '../../types/pages'
 import { extrasHint, filterCards, flowSum, freeStandardColour, initialExtras, offerOf, priceBands, sortCards, type Rdks, type TyreCardView, type TyreMode, type TyreSort } from './komplettradFlow'
+import ChosenCheck from './parts/ChosenCheck.vue'
 import TyreCard from './parts/TyreCard.vue'
 import TyreDetails from './parts/TyreDetails.vue'
 
@@ -51,9 +55,13 @@ const props = defineProps<{
     schritt: number | null
     /** What the basket holds already, of Kompletträder: its wheels, for the one answer on the sensors, and its lines. */
     inBasket: { wheels: number; keys: string[] }
+    /** The rim dimensions of this finish the car may have, sizes and sets, to switch to (D-488). Empty without a car. */
+    rimChoices?: { label: string; href: string; current: boolean; set: boolean }[]
 }>()
 
-const STEPS = ['Felge', 'Reifen', 'Extras', 'Warenkorb']
+const STEPS = ['Reifen', 'Extras', 'Warenkorb']
+/* The step by name in the address (KomplettradRequest::STEPS): an old number keeps the step it named. */
+const STEP_NAMES = ['reifen', 'extras', 'warenkorb'] as const
 /* Six in sight; the rest one press away, so the next step never drifts below a long list. */
 const FIRST = 6
 /* A combination per tile while they stay short of the tyres; a paper can list dozens (ABE 55255's V19 names 27). */
@@ -81,13 +89,6 @@ const pairKey = ref<string | null>(offer.value.pairs.find((pair) => pair.cards.l
 const pair = computed(() => offer.value.pairs.find((item) => item.key === pairKey.value) ?? null)
 /* The minimum as the tyre step named it for this choice: the last step says the same, never the version's general one, which asks less (D-426). */
 const chosenMinimum = computed(() => (mode.value === 'same' ? offer.value.minSentence : pair.value?.minSentence) ?? null)
-/* A real Gutachten's sentences run to paragraphs (D-197): printed whole they stood 4.000 px between a phone's customer and the tyres. */
-const pairConditions = computed(() => {
-    const answer = pair.value?.answer
-
-    return answer ? [...answer.combination, ...answer.sizes.flatMap((size) => size.conditions)] : []
-})
-const pairFolded = computed(() => !fitsWhole(pairConditions.value, LINE_ROOM))
 const inMode = computed<TyreCardView[]>(() => (mode.value === 'same' ? offer.value.same : (pair.value?.cards ?? [])))
 const allCards = computed<TyreCardView[]>(() => [...offer.value.same, ...offer.value.pairs.flatMap((item) => item.cards)])
 const chosen = computed(() => allCards.value.find((card) => card.key === chosenKey.value) ?? null)
@@ -97,7 +98,59 @@ const standardColour = computed(() => freeStandardColour(colours.value))
 const shownColour = computed(() => colour.value ?? standardColour.value)
 const extrasOpen = computed(() => extrasHint(tpms.value, rdks.value, colours.value, colourId.value))
 
-/* ── Step 2: the list ────────────────────────────────────────────────────────── */
+/* ── Step 1: the rim, and the check of the sizes chosen ─────────────────────── */
+
+const rimChoices = computed(() => props.rimChoices ?? [])
+const currentRim = computed(() => rimChoices.value.find((choice) => choice.current) ?? null)
+
+/* Another dimension of the same rim: its own steps, from its tyres (D-488). */
+function switchRim(href: string): void {
+    if (href !== currentRim.value?.href) {
+        router.visit(href)
+    }
+}
+
+/*
+ * What the check above „Weiter“ is for (D-488): the combination chosen, or the tyre chosen's size — before a tyre is chosen, the one size
+ * every tyre on offer has, if they share it. Null: nothing chosen yet that the answer could be for.
+ */
+const checkFor = computed<{ answer: NonNullable<TyreCardView['answer']>; sizes: string } | null>(() => {
+    if (mode.value === 'mixed') {
+        return pair.value?.answer ? { answer: pair.value.answer, sizes: pairLine(pair.value) } : null
+    }
+
+    const card = chosen.value?.mode === 'same' ? chosen.value : null
+    const sizes = [...new Set(offer.value.same.map((item) => item.answer?.chosen ?? ''))]
+    const only = sizes.length === 1 ? offer.value.same[0] ?? null : null
+    const shown = card ?? only
+
+    return shown?.answer ? { answer: shown.answer, sizes: shown.answer.chosen ?? '' } : null
+})
+const checkDocument = computed(() => {
+    const document = props.config.verdict?.document
+
+    return document?.pdf ? { url: document.pdf.url, page: document.pdf.page ?? null, example: document.example === true } : null
+})
+
+/* The label on a combination's tile: whether the Gutachten asks anything of it (D-488). */
+const STANDING_WORD = { auflagen: 'Mit Auflagen', hinweise: 'Mit Hinweisen', keine: 'Ohne Auflagen' } as const
+
+function standingOf(answer: TyreCardView['answer']): keyof typeof STANDING_WORD | null {
+    return answer?.standing ?? null
+}
+
+/* The label's colour: the admin's for the codes behind it (D-439), green where nothing is asked, quiet for Hinweise. */
+function toneOf(answer: TyreCardView['answer']): 'red' | 'yellow' | 'green' | 'quiet' {
+    const standing = standingOf(answer)
+
+    if (standing === 'auflagen') {
+        return answer?.hint ?? 'yellow'
+    }
+
+    return standing === 'keine' ? 'green' : 'quiet'
+}
+
+/* ── Step 1: the list ────────────────────────────────────────────────────────── */
 
 const filter = reactive({ seasons: [] as string[], brands: [] as string[], band: '' })
 /* On a phone the filters are one press away, so the first tyre stands near the top. Only there: from 600 px up they simply stand. */
@@ -177,17 +230,13 @@ function more(): void {
 
 /* ── The steps, in the address ───────────────────────────────────────────────── */
 
-/* A step needs the ones before it: without an offer there are no tyres, without a tyre no extras, without an answer on the sensors no basket. */
+/* A step needs the ones before it: without an offer and a tyre no extras, without an answer on the sensors no basket. */
 function allowed(to: number): number {
-    if (to >= 1 && !canGoOn.value) {
+    if (to >= 1 && (!canGoOn.value || chosen.value === null)) {
         return 0
     }
 
-    if (to >= 2 && chosen.value === null) {
-        return 1
-    }
-
-    return to >= 3 && extrasOpen.value !== null ? 2 : to
+    return to >= 2 && extrasOpen.value !== null ? 1 : to
 }
 
 /* From the address, on the server too: what is chosen comes from the session after hydration, and the step follows it there. */
@@ -195,7 +244,7 @@ const step = ref(allowed((props.schritt ?? 1) - 1))
 const reached = ref(step.value)
 
 /* A later step waits on its first frame until the session is read: what is chosen is known only in the browser. */
-const settled = ref((props.schritt ?? 1) <= 2)
+const settled = ref((props.schritt ?? 1) <= 1)
 
 /* What moves under a step — the car removed in the header, a tyre gone from the shelf, an answer that no longer holds —: the first step that can be shown. */
 watch(() => allowed(step.value), (fit) => {
@@ -251,7 +300,7 @@ function go(to: number): void {
 
     const url = new URL(window.location.href)
 
-    url.searchParams.set('schritt', String(step.value + 1))
+    url.searchParams.set('schritt', STEP_NAMES[step.value] ?? 'reifen')
     router.push({
         url: url.pathname + url.search,
         preserveScroll: true,
@@ -319,7 +368,7 @@ function otherTyre(): void {
     colourId.value = null
     rdks.value = null
     forgetChoices()
-    go(1)
+    go(0)
 }
 
 /*
@@ -423,51 +472,49 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
             </header>
 
             <!-- A refusal of the add that came back to another step than the last. -->
-            <p v-if="addError && step !== 3" class="notice notice--bad" role="alert">
+            <p v-if="addError && step !== 2" class="notice notice--bad" role="alert">
                 <Icon name="warning" :size="20" />
                 <span>{{ addError }}</span>
             </p>
 
             <p v-if="!settled" class="kf-loading" role="status">Wird geladen …</p>
 
-            <!-- 1 Felge -->
-            <section v-else-if="step === 0" class="kf-step" aria-labelledby="kf-wheel-h">
-                <h2 id="kf-wheel-h" class="h3 kf-step__title" tabindex="-1">{{ config.rearId ? 'Deine Felgen' : 'Deine Felge' }}</h2>
-                <div class="kf-wheel">
-                    <div class="well kf-wheel__well">
-                        <Picture v-if="product.image" :image="product.image" :alt="`${product.brandName} ${product.modelName} in ${product.finishName}`" sizes="220px" />
-                        <ProductPhoto v-else :spokes="product.art.spokes" :finish="product.art.finish" :size="220" :note="false" />
+            <!-- 1 Reifen: since D-489 the first step, with the rim from the product page in one line above it. -->
+            <section v-else-if="step === 0" class="kf-step" aria-labelledby="kf-tyres-h">
+                <div class="kf-rim" data-kf-rim>
+                    <div class="well kf-rim__well">
+                        <Picture v-if="product.image" :image="product.image" :alt="`${product.brandName} ${product.modelName} in ${product.finishName}`" sizes="64px" />
+                        <ProductPhoto v-else :spokes="product.art.spokes" :finish="product.art.finish" :size="64" :note="false" />
                     </div>
-                    <div class="kf-wheel__facts">
-                        <p class="kf-wheel__name" translate="no">{{ product.brandName }} {{ product.modelName }} · {{ product.finishName }}</p>
-                        <template v-if="config.setAxles">
-                            <p v-for="axle in config.setAxles" :key="axle" class="kf-wheel__spec kf-wheel__spec--axle" translate="no">{{ axle }}</p>
-                            <p class="kf-wheel__spec" translate="no">{{ config.setBolt }}</p>
-                            <p class="kf-wheel__spec" translate="no">{{ config.setBore }}</p>
+                    <div class="kf-rim__facts">
+                        <p class="kf-rim__name" translate="no">{{ product.brandName }} {{ product.modelName }} · {{ product.finishName }}</p>
+                        <!-- The other dimensions of this rim the car may have, sizes and sets, one press away (D-488). -->
+                        <div v-if="rimChoices.length > 1" class="kf-rim__choice">
+                            <label class="kf-rim__label" for="kf-rim">Felge</label>
+                            <select id="kf-rim" class="input kf-rim__select" :value="currentRim?.href ?? ''" @change="switchRim(($event.target as HTMLSelectElement).value)">
+                                <option v-if="currentRim === null" value="" disabled>{{ config.setAxles ? config.setAxles.join(' · ') : config.sizeLabel }}</option>
+                                <option v-for="choice in rimChoices" :key="choice.href" :value="choice.href">{{ choice.set ? `Satz: ${choice.label}` : choice.label }}</option>
+                            </select>
+                        </div>
+                        <template v-else>
+                            <p v-for="axle in config.setAxles ?? []" :key="axle" class="kf-rim__spec" translate="no">{{ axle }}</p>
+                            <p v-if="!config.setAxles" class="kf-rim__spec" translate="no">{{ config.fullLabel }}</p>
                         </template>
-                        <p v-else class="kf-wheel__spec" translate="no">{{ config.fullLabel }}</p>
-                        <p v-if="config.priceForFour" class="kf-wheel__spec"><span translate="no">{{ config.priceForFour }}</span> für 4 Felgen<template v-if="config.setPriceNote">: <span translate="no">{{ config.setPriceNote }}</span></template></p>
-                        <Link class="link kf-link" :href="productHref">Andere Ausführung wählen</Link>
+                        <p v-if="config.priceForFour" class="kf-rim__spec"><span translate="no">{{ config.priceForFour }}</span> für 4 Felgen<template v-if="config.setPriceNote">: <span translate="no">{{ config.setPriceNote }}</span></template></p>
                     </div>
+                    <Link class="link kf-link kf-rim__other" :href="productHref">Andere Ausführung wählen</Link>
                 </div>
 
-                <FitmentPanel v-if="shared.vehicle" class="kf-panel" :verdict="config.verdict ?? null" :vehicle="shared.vehicle" :config-id="config.rearId ? null : config.id" :chosen="null" :ask-href="askHref" />
-
-                <KomplettradRefusal v-if="offer.refusal" :sentence="offer.refusal" :code="offer.refusalCode" />
-
-                <div class="kf-actions kf-actions--measure">
-                    <button class="btn btn--primary" type="button" :disabled="!canGoOn" @click="go(1)">Weiter: Reifen <Icon name="arrow-right" :size="20" /></button>
-                </div>
-
-                <!-- What the panel's „alle Auflagen im Wortlaut“ leads to, as on the product page. -->
-                <FitmentDetail v-if="config.verdict?.detail && shared.vehicle" :detail="config.verdict.detail" :vehicle-label="shared.vehicle.label" :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]" />
-            </section>
-
-            <!-- 2 Reifen -->
-            <section v-else-if="step === 1" class="kf-step" aria-labelledby="kf-tyres-h">
                 <div class="kf-step__head">
                     <h2 id="kf-tyres-h" class="h3 kf-step__title" tabindex="-1">Reifen wählen</h2>
                 </div>
+
+                <!-- Why there is no Komplettrad on this rim, with the way on — what the step „Felge“ said before D-489. -->
+                <KomplettradRefusal v-if="offer.refusal" :sentence="offer.refusal" :code="offer.refusalCode" />
+                <p v-else-if="!config.inStock" class="notice" role="status" data-rim-out>
+                    <Icon name="info" :size="20" />
+                    <span>Diese Felge ist gerade nicht lieferbar. Ein Komplettrad darauf können wir dir im Moment nicht anbieten.</span>
+                </p>
 
                 <p v-if="tyreGone" class="notice notice--bad" role="alert" data-tyre-gone>
                     <Icon name="warning" :size="20" />
@@ -498,13 +545,14 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                         <input class="visually-hidden" type="radio" name="kf-pair" :value="item.key" :checked="item.key === pairKey" @change="choosePair(item.key)">
                         <span class="kf-opt__name" translate="no">{{ pairLine(item) }}</span>
                         <span class="kf-opt__sub">Kombination Nr.&nbsp;{{ item.number }}</span>
+                        <span v-if="standingOf(item.answer)" class="kf-opt__tag" :class="`kf-opt__tag--${toneOf(item.answer)}`" data-standing>{{ STANDING_WORD[standingOf(item.answer)!] }}</span>
                         <span class="kf-opt__check" aria-hidden="true"><Icon name="check" :size="20" /></span>
                     </label>
                 </fieldset>
                 <div v-else-if="mode === 'mixed' && offer.pairs.length > PAIR_TILES" class="kf-pairlist">
                     <label class="label" for="kf-pair">Kombination aus dem Gutachten</label>
                     <select id="kf-pair" class="input" :value="pairKey" @change="choosePair(($event.target as HTMLSelectElement).value)">
-                        <option v-for="item in offer.pairs" :key="item.key" :value="item.key">Nr. {{ item.number }} · {{ pairLine(item) }}</option>
+                        <option v-for="item in offer.pairs" :key="item.key" :value="item.key">Nr. {{ item.number }} · {{ pairLine(item) }}<template v-if="standingOf(item.answer)"> · {{ STANDING_WORD[standingOf(item.answer)!] }}</template></option>
                     </select>
                 </div>
                 <p v-else-if="mode === 'mixed' && pair" class="kf-onepair">
@@ -556,12 +604,18 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                     <button v-if="list.length > shown.length" class="btn btn--secondary kf-more" type="button" @click="more">Mehr anzeigen ({{ list.length - shown.length }})</button>
                 </template>
 
-                <!-- Each axle's Auflagen under its name: both are fitted (D-335). After the tyres, folded where they run long (D-197). -->
-                <component :is="pairFolded ? 'details' : 'div'" v-if="mode === 'mixed' && pair?.answer" class="kf-answer" data-set-answer>
-                    <summary v-if="pairFolded" class="kf-answer__toggle">{{ countedDe(pairConditions.length) }} anzeigen</summary>
-                    <p v-else class="label">Das verlangt das Gutachten je Achse</p>
-                    <ConditionGroups :groups="pair.answer" />
-                </component>
+                <!-- The RIMIFY-Check for the sizes chosen (D-488): its Auflagen or „Keine Auflagen.“, in the colour the admin gave its codes,
+                     right above „Weiter“ — each axle's under its name where both are fitted (D-335), folded where they run long (D-197). -->
+                <ChosenCheck
+                    v-if="checkFor && shared.vehicle"
+                    class="kf-check"
+                    :data-set-answer="mode === 'mixed' ? '' : undefined"
+                    :answer="checkFor.answer"
+                    :vehicle="shared.vehicle.short"
+                    :sizes="checkFor.sizes"
+                    :papers-exempt="config.verdict?.papersExempt === true"
+                    :document="checkDocument"
+                />
 
                 <!-- The table's own conditions, quoted: what the customer must keep in the car. -->
                 <figure v-if="mode === 'mixed' && offer.rules" class="kf-rules">
@@ -570,17 +624,21 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                 </figure>
 
                 <div class="kf-actions">
-                    <button class="btn btn--secondary kf-actions__left" type="button" @click="go(0)">Zurück</button>
+                    <!-- The first step's way back: the product page, the rim in the address (D-489). -->
+                    <Link class="btn btn--secondary kf-actions__left" :href="productHref">Zurück</Link>
                     <span class="kf-pick small" role="status">{{ chosen ? `Gewählt: ${[chosen.brands.join(' · '), chosen.name].filter(Boolean).join(' ')} · ${held ? 'liegt schon im Warenkorb' : chosen.set}` : 'Wähl zuerst einen Reifen.' }}</span>
                     <Link v-if="held" href="/warenkorb" class="btn btn--primary">Zum Warenkorb <Icon name="arrow-right" :size="20" /></Link>
-                    <button v-else class="btn btn--primary" type="button" :disabled="!chosen" @click="go(2)">Weiter: Extras <Icon name="arrow-right" :size="20" /></button>
+                    <button v-else class="btn btn--primary" type="button" :disabled="!chosen || !canGoOn" @click="go(1)">Weiter: Extras <Icon name="arrow-right" :size="20" /></button>
                 </div>
 
                 <TyreDetails v-model:open="detailsOpen" :card="details" :chosen="details?.key === chosenKey" @choose="chosenKey = detailsKey" />
+
+                <!-- Every Auflage in its own words, as the product page has it — what the step „Felge“ ended with before D-489. -->
+                <FitmentDetail v-if="config.verdict?.detail && shared.vehicle" :detail="config.verdict.detail" :vehicle-label="shared.vehicle.label" :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]" />
             </section>
 
-            <!-- 3 Extras -->
-            <section v-else-if="step === 2" class="kf-step" aria-labelledby="kf-extras-h">
+            <!-- 2 Extras -->
+            <section v-else-if="step === 1" class="kf-step" aria-labelledby="kf-extras-h">
                 <div class="kf-step__head">
                     <h2 id="kf-extras-h" class="h3 kf-step__title" tabindex="-1">Extras</h2>
                     <p class="small quiet kf-measure">
@@ -632,13 +690,13 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                 </fieldset>
 
                 <div class="kf-actions kf-actions--measure">
-                    <button class="btn btn--secondary kf-actions__left" type="button" @click="go(1)">Zurück</button>
+                    <button class="btn btn--secondary kf-actions__left" type="button" @click="go(0)">Zurück</button>
                     <span v-if="extrasOpen" id="kf-rdks-hint" class="kf-pick small" role="status">{{ extrasOpen }}</span>
-                    <button class="btn btn--primary" type="button" :disabled="extrasOpen !== null" :aria-describedby="extrasOpen ? 'kf-rdks-hint' : undefined" @click="go(3)">Weiter: Warenkorb <Icon name="arrow-right" :size="20" /></button>
+                    <button class="btn btn--primary" type="button" :disabled="extrasOpen !== null" :aria-describedby="extrasOpen ? 'kf-rdks-hint' : undefined" @click="go(2)">Weiter: Warenkorb <Icon name="arrow-right" :size="20" /></button>
                 </div>
             </section>
 
-            <!-- 4 Warenkorb -->
+            <!-- 3 Warenkorb -->
             <section v-else class="kf-step" aria-labelledby="kf-basket-h">
                 <h2 id="kf-basket-h" class="h3 kf-step__title" tabindex="-1">Dein Komplettrad</h2>
                 <!-- In the basket by now: the way there, never a second set under one Summe. -->
@@ -682,13 +740,13 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
                     </p>
                     <div class="kf-actions kf-actions--measure">
                         <!-- Shut while the add is on its way: its answer would bring this step back. -->
-                        <button class="btn btn--secondary kf-actions__left" type="button" :disabled="basket.processing" @click="go(2)">Zurück</button>
+                        <button class="btn btn--secondary kf-actions__left" type="button" :disabled="basket.processing" @click="go(1)">Zurück</button>
                         <button class="btn btn--primary kf-add" type="button" :aria-busy="basket.processing ? 'true' : undefined" @click="addToBasket"><Icon name="cart" :size="20" /> {{ basket.processing ? 'Wird hinzugefügt …' : 'In den Warenkorb' }}</button>
                     </div>
 
                     <FitmentDetail v-if="config.verdict?.detail && shared.vehicle" :detail="config.verdict.detail" :vehicle-label="shared.vehicle.label" :omit="[ENTRY_REQUIRED, ABNAHME_REQUIRED]" />
                 </template>
-                <p v-else class="kf-empty">Noch kein Reifen gewählt. <button class="link" type="button" @click="go(1)">Reifen wählen</button></p>
+                <p v-else class="kf-empty">Noch kein Reifen gewählt. <button class="link" type="button" @click="go(0)">Reifen wählen</button></p>
             </section>
         </div>
     </section>
@@ -743,27 +801,96 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
     }
 }
 
-.kf-wheel {
+/* The rim from the product page, in one line above the tyres (D-489): what it is, its dimension to switch, its price. */
+.kf-rim {
     display: grid;
-    grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
-    gap: var(--sp-24);
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: var(--sp-8) var(--sp-16);
     align-items: center;
+    padding: var(--sp-12) var(--sp-16);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-tile);
+    background: var(--c-surface);
 }
 
-.kf-wheel__facts {
+.kf-rim__well {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--r-control);
+    overflow: hidden;
+}
+
+.kf-rim__facts {
     display: grid;
-    justify-items: start;
-    gap: var(--sp-8);
+    gap: var(--sp-4);
+    min-width: 0;
 }
 
-.kf-wheel__name {
+.kf-rim__name {
     margin: 0;
     font-weight: 700;
 }
 
-.kf-wheel__spec {
+.kf-rim__spec {
     margin: 0;
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
     font-variant-numeric: tabular-nums;
+}
+
+.kf-rim__choice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-4) var(--sp-8);
+}
+
+.kf-rim__label {
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+}
+
+.kf-rim__select {
+    width: auto;
+    max-width: 100%;
+    min-height: 44px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Whether a combination asks anything (D-488): a word, in the colour of the codes behind it. */
+.kf-opt__tag {
+    justify-self: start;
+    margin-top: var(--sp-4);
+    padding: 2px var(--sp-8);
+    border-radius: var(--r-round);
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.kf-opt__tag--red {
+    background: var(--c-bad-tint);
+    color: var(--c-bad);
+}
+
+.kf-opt__tag--yellow {
+    background: var(--c-warn-tint);
+    color: var(--c-warn);
+}
+
+.kf-opt__tag--green {
+    background: var(--c-ok-tint);
+    color: var(--c-ok);
+}
+
+.kf-opt__tag--quiet {
+    background: var(--c-band);
+    color: var(--c-ink-2);
+}
+
+.kf-check {
+    max-width: calc(72 * var(--ch-text));
 }
 
 .kf-link {
@@ -967,33 +1094,6 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
     white-space: nowrap;
 }
 
-.kf-answer {
-    display: grid;
-    gap: var(--sp-8);
-    max-width: calc(72 * var(--ch-text));
-}
-
-.kf-answer__toggle {
-    cursor: pointer;
-    font-size: var(--fs-small);
-    color: var(--c-blue);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-}
-
-.kf-answer__toggle:focus-visible {
-    outline: 2px solid var(--c-blue);
-    outline-offset: 2px;
-}
-
-/* Under a finger the toggle is a 44 px row, as every other control. */
-@media (pointer: coarse) {
-    .kf-answer__toggle {
-        display: flex;
-        align-items: center;
-        min-height: 44px;
-    }
-}
 
 .kf-noset {
     max-width: calc(54 * var(--ch-text));
@@ -1174,12 +1274,13 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
 }
 
 @media (max-width: 599px) {
-    .kf-wheel {
-        grid-template-columns: minmax(0, 1fr);
+    /* On a phone the way to another finish takes the line under the rim. */
+    .kf-rim {
+        grid-template-columns: 64px minmax(0, 1fr);
     }
 
-    .kf-wheel__well {
-        max-width: 220px;
+    .kf-rim__other {
+        grid-column: 1 / -1;
     }
 
     .kf-filter__label {

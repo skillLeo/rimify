@@ -79,11 +79,11 @@ it('opens the rim’s step on the page itself, with the product and the version,
     $set = KomplettradFixture::permitted();
 
     $this->withCookies($set->cookies())
-        ->get('/komplettraeder?groesse='.$set->config->id.'&schritt=2')
+        ->get('/komplettraeder?groesse='.$set->config->id.'&schritt=reifen')
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Komplettrad/Index')
-            ->where('schritt', 2)
+            ->where('schritt', 1)
             ->where('config.id', $set->config->id)
             ->where('config.versionLabel', fn (string $label): bool => str_starts_with($label, 'Breite'.GermanFormat::NBSP))
             ->where('product.slug', $set->config->wheelModel->slug)
@@ -93,7 +93,41 @@ it('opens the rim’s step on the page itself, with the product and the version,
 
 it('reads a step that is none as none: the page opens where it can', function (string $step): void {
     expect(flowProps($this, KomplettradFixture::permitted(), '&schritt='.$step)['schritt'])->toBeNull();
-})->with(['5', '0', 'x', '2; DROP']);
+})->with(['5', '0', 'x', '2; DROP', 'felge']);
+
+// D-489: three steps, named in the address; a number from the four steps before keeps the step it named, never one further.
+it('reads the steps by name, and an old number as the step it named', function (string $step, int $now): void {
+    expect(flowProps($this, KomplettradFixture::permitted(), '&schritt='.$step)['schritt'])->toBe($now);
+})->with([
+    'reifen' => ['reifen', 1],
+    'extras' => ['extras', 2],
+    'warenkorb' => ['warenkorb', 3],
+    'old 1, Felge: the tyres' => ['1', 1],
+    'old 2, Reifen' => ['2', 1],
+    'old 3, Extras' => ['3', 2],
+    'old 4, Warenkorb' => ['4', 3],
+]);
+
+// D-488: the other dimensions of the rim, to switch to from the tyre step — the same verdicts as the product page.
+it('lists the rim’s dimensions the car may have, the one on screen marked, each leading to its own steps', function (): void {
+    $set = KomplettradFixture::permitted();
+    $choices = flowProps($this, $set, '')['rimChoices'];
+
+    expect($choices)->toBeArray()->not->toBeEmpty()
+        ->and(collect($choices)->where('current', true)->pluck('href')->all())->toBe(['/komplettraeder?groesse='.$set->config->id])
+        ->and(collect($choices)->every(fn (array $c): bool => str_starts_with($c['href'], '/komplettraeder?groesse=')))->toBeTrue();
+});
+
+// D-488: each tyre's answer says what its size asks, and in which colour.
+it('says with each tyre what its size asks — standing and colour — for the tyre step’s RIMIFY-Check', function (): void {
+    $set = KomplettradFixture::permitted();
+    $set->tyre();
+    $answer = flowProps($this, $set, '')['config']['komplettrad']['tyres'][0]['answer'];
+
+    expect($answer['standing'])->toBeIn(['auflagen', 'hinweise', 'keine'])
+        ->and($answer)->toHaveKey('hint')
+        ->and($answer['hint'])->toBe($answer['standing'] === 'auflagen' ? $answer['hint'] : null);
+});
 
 it('offers exactly what the product page offers for the same size: one row, so the two can never disagree @kunde-18', function (): void {
     $set = KomplettradFixture::permitted();

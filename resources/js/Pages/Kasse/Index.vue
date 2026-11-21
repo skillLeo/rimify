@@ -817,8 +817,10 @@ function verdictSentence(line: BasketLine): string {
                                     <p v-if="line.demo !== false" class="ko__line-flag">
                                         <span class="tag tag--unknown">Beispielsortiment</span>
                                     </p>
-                                    <!-- The verdict in one sentence on every step; its Auflagen one tap away, in full (R-15). -->
-                                    <template v-if="line.verdict">
+                                    <!-- The verdict in one sentence, its Auflagen one tap away, in full (R-15) — on every step but „Optionen & Versand“,
+                                         where the client wants none (D-490): there the page asks about sensors and shipping alone. The last step lists
+                                         every verdict with its Auflagen again before anything is paid. -->
+                                    <template v-if="line.verdict && step !== 2">
                                         <p class="ko__verdict"><VerdictBadge :status="line.verdict.status" :notes-only="line.verdict.notesOnly === true" /> <span>{{ verdictSentence(line) }}</span></p>
                                         <!-- A rim sold alone (D-289): the sizes it may only be fitted with, ours — in the open, not in the Auflagen. -->
                                         <p v-if="line.verdict.rimAloneNote" class="ko__rim" data-rim-alone>{{ line.verdict.rimAloneNote }}</p>
@@ -1312,9 +1314,10 @@ function verdictSentence(line: BasketLine): string {
                                     <span id="ko-versand-err" class="field-error" role="alert">{{ errors.versandart ?? '' }}</span>
                                 </fieldset>
 
+                                <!-- „Zurück“ on the left, the way on on the right, as in the Komplettrad's steps (D-490); on a phone the way on stays on top. -->
                                 <div class="ko__actions">
-                                    <button class="btn btn--primary btn--lg" type="submit">Weiter zur Zahlung</button>
                                     <button class="btn btn--secondary btn--lg" type="button" @click="goTo(1)">Zurück</button>
+                                    <button class="btn btn--primary btn--lg" type="submit">Weiter zur Zahlung</button>
                                 </div>
                             </template>
 
@@ -2196,6 +2199,10 @@ function verdictSentence(line: BasketLine): string {
     flex: 1 1 100%;
 }
 
+.ko__actions .btn--primary {
+    order: -1;
+}
+
 /* A phone: the street takes its own row, Hausnummer and PLZ share the next — nothing squeezed to a sliver. */
 @media (max-width: 639px) {
     .ko__street,
@@ -2220,6 +2227,11 @@ function verdictSentence(line: BasketLine): string {
 
     .ko__actions .btn {
         flex: 0 0 auto;
+    }
+
+    /* Side by side, in reading order: „Zurück“ first, the way on after it (D-490). */
+    .ko__actions .btn--primary {
+        order: 0;
     }
 }
 

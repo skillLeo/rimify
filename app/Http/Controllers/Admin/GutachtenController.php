@@ -28,6 +28,7 @@ use App\Models\Vehicle;
 use App\Models\WheelModel;
 use App\Services\Admin\AdminNavigation;
 use App\Services\Admin\Approvals\DocumentConditions;
+use App\Services\Admin\Approvals\DocumentPdfs;
 use App\Services\Admin\Approvals\DocumentPreview;
 use App\Services\Admin\Approvals\DocumentRelease;
 use App\Services\Admin\Approvals\DocumentRevision;
@@ -44,6 +45,7 @@ use App\Support\EditStamp;
 use App\Support\GermanFormat;
 use App\Support\SearchTerm;
 use App\Support\VehicleName;
+use DateTimeImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -157,7 +159,7 @@ class GutachtenController extends Controller
                 'kbaNumber' => $row->report_number === null ? null : $row->kba_number,
                 'issuedOn' => $row->issued_on === null
                     ? null
-                    : GermanFormat::date(new \DateTimeImmutable((string) $row->issued_on)),
+                    : GermanFormat::date(new DateTimeImmutable((string) $row->issued_on)),
                 'revision' => (int) $row->revision,
                 'status' => (string) $row->status,
                 'pageCount' => $row->page_count === null ? null : (int) $row->page_count,
@@ -322,7 +324,20 @@ class GutachtenController extends Controller
                 'revise' => $admin->canQuietly('revise', $document),
                 // „Ist alles erfasst?“ for a released document (D-227, ADMIN-GEFUNDEN 513).
                 'answer' => $admin->canQuietly('answerCompleteness', $document),
+                // The paper's PDFs, on a released one too (D-494).
+                'files' => $admin->canQuietly('manageFiles', $document),
             ],
+            // The PDFs the customer may open, the paper's own first, the hidden ones marked (D-494).
+            'pdfs' => array_map(static fn (array $f): array => [
+                'id' => $f['id'],
+                'label' => $f['label'],
+                'datedOn' => $f['datedOn'],
+                'dateLabel' => $f['datedOn'] === null ? null : GermanFormat::date(new DateTimeImmutable($f['datedOn'])),
+                'main' => $f['main'],
+                'hidden' => $f['hidden'],
+                'url' => $f['main'] ? route('admin.gutachten.pdf', ['document' => $document->id]) : app(DocumentFiles::class)->locate($f['key'])['url'],
+            ], DocumentPdfs::of($document, withHidden: true)),
+            'pdfMaxMb' => (int) config('media.upload.pdf_max_mb'),
             // A revision of it already started: „Neue Fassung öffnen“ instead of a second copy.
             'revisionDraft' => $started === null ? null : ['id' => (int) $started->id, 'label' => FitmentRows::label($started), 'revision' => (int) $started->revision],
             'levels' => array_map(static fn (ConditionLevel $l): array => ['value' => $l->value, 'label' => $l->labelDe()], ConditionLevel::cases()),
@@ -438,8 +453,13 @@ class GutachtenController extends Controller
         return back()->with('toast', 'Gespeichert: '.$document->refresh()->completenessDe().'.');
     }
 
-    /** @return array{path: string, sha256: string} */
-    private function confirmPdf(PdfUpload $uploads, string $key): array
+    /**
+     * The upload confirmed (a PDF, within the limit, scanned) and hashed — for the paper's own file and for its further PDFs
+     * (GutachtenPdfsController, D-494) alike.
+     *
+     * @return array{path: string, sha256: string, bytes: int}
+     */
+    public static function confirmPdf(PdfUpload $uploads, string $key): array
     {
         try {
             $stored = $uploads->confirm($key, self::DISK, self::DIRECTORY);
@@ -462,7 +482,7 @@ class GutachtenController extends Controller
             throw ValidationException::withMessages(['upload_key' => UploadRejected::storageDown()->getMessage()]);
         }
 
-        return ['path' => $stored['path'], 'sha256' => $sha];
+        return ['path' => $stored['path'], 'sha256' => $sha, 'bytes' => (int) $stored['bytes']];
     }
 
     /**

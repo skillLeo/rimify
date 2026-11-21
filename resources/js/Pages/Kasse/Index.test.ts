@@ -311,6 +311,33 @@ describe('Kasse', () => {
         expect(wrapper.text()).not.toContain('MwSt. und Versand')
     })
 
+    // D-490, the client's review of 19.11.2026: „Optionen & Versand“ asks about sensors and shipping alone — no Auflagen beside it —
+    // and its way on stands on the right of „Zurück“. The verdicts come back, whole, on the last step before anything is paid.
+    it('says no verdict and no Auflagen beside „Optionen & Versand“, puts „Zurück“ first, and says them again before paying', async () => {
+        const wrapper = mountKasse()
+
+        expect(wrapper.find('.ko__sum .ko__verdict').exists()).toBe(true)
+
+        await wrapper.find('#ko-mail').setValue('kunde@beispiel.de')
+        await wrapper.find('#ko-name').setValue('Erika Mustermann')
+        await wrapper.find('#ko-street').setValue('Hauptstraße')
+        await wrapper.find('#ko-nr').setValue('12')
+        await wrapper.find('#ko-zip').setValue('50667')
+        await wrapper.find('#ko-city').setValue('Köln')
+        await wrapper.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(wrapper.find('[data-step-title]').text()).toBe('Optionen & Versand')
+        expect(wrapper.find('.ko__sum .ko__verdict').exists()).toBe(false)
+        expect(wrapper.find('.ko__sum .ko__auflagen').exists()).toBe(false)
+        expect(wrapper.findAll('.ko__actions .btn').map((b) => b.text())).toEqual(['Zurück', 'Weiter zur Zahlung'])
+
+        await wrapper.find('form').trigger('submit')
+        await flushPromises()
+
+        expect(wrapper.find('.ko__verdict').exists()).toBe(true)
+    })
+
     it('marks a demo line and the Eintragung on the line itself', () => {
         const wrapper = mountKasse()
         const item = wrapper.find('.ko__line')

@@ -264,7 +264,17 @@ describe('Produkt page', () => {
         const apart = mountPage({ product: { ...base, typeDesignation: 'KBA 49121', manufacturer: { name: 'Beispiel Räder GmbH', address: 'Werkstraße 1', contact: 'info@beispiel-raeder.test', euResponsible: null, safetyNote: null } } })
 
         expect(apart.find('.pdp__gpsr').text()).toContain('MOTEC MCR4 Ultimate · Radtypenbezeichnung KBA 49121')
-        expect(apart.find('.pdp__type').text()).toBe('Radtypenbezeichnung KBA 49121')
+        // One line under the name (D-493): „Felge …“, never „Radtypenbezeichnung …“ and no line of counts beside it.
+        expect(apart.find('.pdp__type').text()).toBe('Felge KBA 49121')
+        expect(apart.find('.pdp__proof').exists()).toBe(false)
+        expect(apart.text()).not.toContain('Freigabe vor dem Kauf geprüft')
+    })
+
+    it('labels the colours just „Farbe“: the name stands on its button (D-493)', () => {
+        const wrapper = mountPage()
+        const label = wrapper.findAll('.pdp__block .label').find((l) => l.text().startsWith('Farbe'))!
+
+        expect(label.text()).toBe('Farbe')
     })
 
     // The client's #19 as promised (D-344): stars typed in the admin stand under the name beside the sentence that says
@@ -914,12 +924,14 @@ describe('Produkt page', () => {
     }
 
     // D-487, the client's round of 18.11.2026, item 3: the rim's plain green answer is not what a Komplettrad buyer buys.
+    // `hint: 'yellow'` as the server sends it for every verdict without a coded Auflage — the preview showed the box
+    // while the fixture had no hint.
     it('hides the plain green RIMIFY-Check with Kompletträder, keeps its PDF and share link, and brings it back with Nur Felgen', async () => {
         sharedVehicle.value = { id: 3, label: 'BMW 3er E46 330Ci', short: 'BMW 330Ci' }
 
         try {
             const document = { number: '53810', issuer: 'KBA', kind: 'ABE', pdf: { url: '/storage/a.pdf#page=2', page: 2 } }
-            const green = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: verdict({ document } as Partial<ConfigVerdict>) })] })
+            const green = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: verdict({ document, hint: 'yellow' } as Partial<ConfigVerdict>) })] })
 
             expect(green.find('.rcheck-panel').exists()).toBe(true)
 

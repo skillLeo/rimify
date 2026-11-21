@@ -12,6 +12,7 @@ import type { KomplettradOptionsProp, KomplettradTyreProp, ProduktConfig } from 
 const post = vi.fn()
 const pushed = vi.hoisted(() => [] as { url: string; props?: (c: Record<string, unknown>) => Record<string, unknown> }[])
 const car = vi.hoisted(() => ({ id: 5 }))
+const visited = vi.hoisted(() => [] as string[])
 let forms: Record<string, unknown>[] = []
 
 vi.mock('@inertiajs/vue3', () => ({
@@ -20,7 +21,7 @@ vi.mock('@inertiajs/vue3', () => ({
         props: { href: { type: String, required: true } },
         setup: (props, { slots }) => () => h('a', { href: props.href }, slots.default?.()),
     }),
-    router: { push: (visit: never) => pushed.push(visit) },
+    router: { push: (visit: never) => pushed.push(visit), visit: (url: string) => visited.push(url) },
     usePage: () => ({ url: '/komplettraeder?groesse=11', props: { vehicle: { id: car.id, short: 'BMW X3', label: 'BMW X3 2.0d' }, contact: { email: 'x', phone: null, phoneIntl: null, whatsapp: null, hours: '' } } }),
     useForm: <T extends object>(data: T) => {
         const form = reactive({ ...data, errors: {} as Record<string, string>, processing: false, post: (...args: unknown[]) => post(...args), clearErrors: () => { form.errors = {} } })
@@ -73,7 +74,7 @@ function flow(over: Record<string, unknown> = {}): VueWrapper {
             options: OPTIONS,
             photos: {},
             mounting: { each: '25,00 €', total: '100,00 €' },
-            schritt: 2,
+            schritt: 1,
             inBasket: { wheels: 0, keys: [] },
             ...over,
         } as never,
@@ -109,31 +110,61 @@ async function toExtras(wrapper: VueWrapper): Promise<void> {
     await flushPromises()
 }
 
-describe('step 1, the rim', () => {
-    it('names the whole version, leads back to choose another, and goes on to the tyres', async () => {
+// D-489 (the client's round of 18.11.2026, item 5): no step „Felge“ — the flow opens on the tyres, the rim in one line above them.
+describe('step 1, the tyres, with the rim above them', () => {
+    it('opens on the tyres with three steps, the rim named in one line, and goes back to the product page', async () => {
         const wrapper = flow({ schritt: null })
 
         await flushPromises()
 
-        expect(wrapper.find('.kf-wheel__spec').text()).toBe('8,5J × 19 · ET 45 · 5 × 112 · 66,5 mm')
-        expect(wrapper.find('.kf-link').attributes('href')).toBe('/felgen/motec-mcr4?ausfuehrung=1&groesse=11')
+        expect(wrapper.find('#kf-tyres-h').exists()).toBe(true)
+        expect(wrapper.find('#kf-wheel-h').exists()).toBe(false)
+        expect(wrapper.text()).not.toContain('Felge wählen')
+        expect(wrapper.find('[data-kf-rim] .kf-rim__spec').text()).toBe('8,5J × 19 · ET 45 · 5 × 112 · 66,5 mm')
+        expect(wrapper.find('[data-kf-rim] .kf-link').attributes('href')).toBe('/felgen/motec-mcr4?ausfuehrung=1&groesse=11')
+        expect(wrapper.findAll('.kf-actions a').find((a) => a.text() === 'Zurück')!.attributes('href')).toBe('/felgen/motec-mcr4?ausfuehrung=1&groesse=11')
+    })
 
-        await button(wrapper, /Weiter: Reifen/).trigger('click')
+    it('names the step in the address by its name', async () => {
+        const wrapper = flow()
+
+        await toExtras(wrapper)
+
+        expect(pushed.at(-1)!.url).toContain('schritt=extras')
+    })
+
+    it('offers the other dimensions of the rim, sizes and sets, and goes to the one chosen (D-488)', async () => {
+        const rimChoices = [
+            { label: '8,5J × 19 · ET 45', href: '/komplettraeder?groesse=11', current: true, set: false },
+            { label: '9J × 20 · ET 40', href: '/komplettraeder?groesse=12', current: false, set: false },
+            { label: 'vorne 8,5J × 19 · ET 45 · hinten 9,5J × 19 · ET 40', href: '/komplettraeder?groesse=11&hinten=13', current: false, set: true },
+        ]
+        const wrapper = flow({ rimChoices })
+
         await flushPromises()
 
-        expect(wrapper.find('#kf-tyres-h').exists()).toBe(true)
-        expect(pushed.at(-1)!.url).toContain('schritt=2')
+        const select = wrapper.find('select#kf-rim')
+
+        expect(select.findAll('option').map((o) => o.text())).toEqual(['8,5J × 19 · ET 45', '9J × 20 · ET 40', 'Satz: vorne 8,5J × 19 · ET 45 · hinten 9,5J × 19 · ET 40'])
+        expect((select.element as HTMLSelectElement).value).toBe('/komplettraeder?groesse=11')
+
+        await select.setValue('/komplettraeder?groesse=11&hinten=13')
+
+        expect(visited.at(-1)).toBe('/komplettraeder?groesse=11&hinten=13')
+
+        // One dimension only: no list to choose from, the dimension named.
+        expect(flow({ rimChoices: rimChoices.slice(0, 1) }).find('select#kf-rim').exists()).toBe(false)
     })
 
     it('says why there is no Komplettrad, with a way on, and goes no further @kunde-25', async () => {
-        const wrapper = flow({ schritt: 3, config: config({ komplettrad: { refusal: 'Zuerst dein Fahrzeug.', refusalCode: 'NO_VEHICLE', minSentence: null, priceOpen: false, quantity: 4, tyres: [] } }) })
+        const wrapper = flow({ schritt: 2, config: config({ komplettrad: { refusal: 'Zuerst dein Fahrzeug.', refusalCode: 'NO_VEHICLE', minSentence: null, priceOpen: false, quantity: 4, tyres: [] } }) })
 
         await flushPromises()
 
-        expect(wrapper.find('#kf-wheel-h').exists()).toBe(true)
+        expect(wrapper.find('#kf-tyres-h').exists()).toBe(true)
         expect(wrapper.find('.kr-refusal').text()).toContain('Zuerst dein Fahrzeug.')
         expect(wrapper.find('.kr-refusal a[href="/felgen-suchen"]').text()).toBe('Fahrzeug wählen')
-        expect(button(wrapper, /Weiter: Reifen/).attributes('disabled')).toBeDefined()
+        expect(button(wrapper, /Weiter: Extras/).attributes('disabled')).toBeDefined()
     })
 })
 
@@ -272,7 +303,7 @@ describe('step 2, the tyres', () => {
 
         await flushPromises()
 
-        const folded = long.find('details[data-set-answer]')
+        const folded = long.find('[data-set-answer] details')
 
         expect(folded.find('summary').text()).toBe('9 Auflagen und Hinweise aus dem Gutachten anzeigen')
         // After the tyres, in the page's order.
@@ -282,8 +313,8 @@ describe('step 2, the tyres', () => {
 
         await flushPromises()
 
-        expect(short.find('details[data-set-answer]').exists()).toBe(false)
-        expect(short.find('div[data-set-answer]').text()).toContain('Nur mit den Radschrauben der Felge.')
+        expect(short.find('[data-set-answer] details').exists()).toBe(false)
+        expect(short.find('[data-set-answer]').text()).toContain('Nur mit den Radschrauben der Felge.')
     })
 
     it('keeps the filters out of the way of a reset: the focus lands on the count', async () => {
@@ -484,7 +515,7 @@ describe('what moves under a step', () => {
         wrappers = []
         car.id = 6
 
-        const other = flow({ schritt: 3 })
+        const other = flow({ schritt: 2 })
 
         await flushPromises()
 
@@ -497,7 +528,7 @@ describe('what moves under a step', () => {
         // The first car's answer is still its own.
         car.id = 5
 
-        const again = flow({ schritt: 3 })
+        const again = flow({ schritt: 2 })
 
         await flushPromises()
 
@@ -514,7 +545,7 @@ describe('what moves under a step', () => {
         wrapper.unmount()
         wrappers = []
 
-        const next = flow({ schritt: 3 })
+        const next = flow({ schritt: 2 })
 
         await flushPromises()
 
@@ -528,7 +559,7 @@ describe('what moves under a step', () => {
         await wrapper.setProps({ config: config({ komplettrad: { refusal: 'Zuerst dein Fahrzeug.', refusalCode: 'NO_VEHICLE', minSentence: null, priceOpen: false, quantity: 4, tyres: [] } }) })
         await flushPromises()
 
-        expect(wrapper.find('#kf-wheel-h').exists()).toBe(true)
+        expect(wrapper.find('#kf-tyres-h').exists()).toBe(true)
         expect(wrapper.find('.kr-refusal').text()).toContain('Zuerst dein Fahrzeug.')
     })
 
@@ -557,7 +588,7 @@ describe('what moves under a step', () => {
         await wrapper.setProps({ config: config({ inStock: false }) })
         await flushPromises()
 
-        expect(wrapper.find('#kf-wheel-h').exists()).toBe(true)
+        expect(wrapper.find('#kf-tyres-h').exists()).toBe(true)
         expect(wrapper.find('[role="alert"]').text()).toContain('Diese Felge ist zurzeit nicht verfügbar.')
     })
 
@@ -594,7 +625,7 @@ describe('what moves under a step', () => {
     })
 
     it('says so where the set is in the basket already, and leads there: never a second set under one Summe', async () => {
-        const wrapper = flow({ schritt: 4, inBasket: { wheels: 4, keys: ['wheel:11:tyre:7'] } })
+        const wrapper = flow({ schritt: 3, inBasket: { wheels: 4, keys: ['wheel:11:tyre:7'] } })
 
         await toExtras(wrapper).catch(() => undefined)
         await flushPromises()
@@ -741,7 +772,7 @@ describe('what moves under a step', () => {
             options: OPTIONS,
             photos: {},
             mounting: null,
-            schritt: 4,
+            schritt: 3,
             inBasket: { wheels: 0, keys: [] },
         }))
 
@@ -807,7 +838,7 @@ describe('step 4, the basket', () => {
     })
 
     it('never opens on a step whose choice is missing: the address asks for more than there is', async () => {
-        const wrapper = flow({ schritt: 4 })
+        const wrapper = flow({ schritt: 3 })
 
         await flushPromises()
 
@@ -823,17 +854,84 @@ describe('step 4, the basket', () => {
         first.unmount()
         wrappers = []
 
-        const again = flow({ schritt: 4 })
+        const again = flow({ schritt: 3 })
 
         await flushPromises()
 
         expect(again.find('#kf-basket-h').exists()).toBe(true)
         expect(again.find('.kf-basket').text()).toContain('Bridgestone Potenza Sport')
 
-        const other = flow({ schritt: 4, config: config({ id: 12 }) })
+        const other = flow({ schritt: 3, config: config({ id: 12 }) })
 
         await flushPromises()
 
         expect(other.find('#kf-tyres-h').exists()).toBe(true)
+    })
+})
+
+/* D-488, the client's review of 19.11.2026: whether a combination asks anything, on its tile; and for the sizes chosen, a RIMIFY-Check
+ * with their Auflagen or „Keine Auflagen.“, in the colour the admin gave their codes. */
+describe('the RIMIFY-Check of the sizes chosen', () => {
+    const set = { key: 's', frontTyreId: 7, rearTyreId: 8, brandName: 'B', name: 'P', season: 'sommer' as const, seasonLabel: 'Sommerreifen', frontTyrePrice: '140,00 €', rearTyrePrice: '160,00 €', tyreSetCents: 60_000, tyreSet: '600,00 €', frontFacts: '', rearFacts: '', frontLabel: '225/35 R19 88Y', rearLabel: '255/30 R19 92Y', perWheelFront: '950,00 €', perWheelRear: '990,00 €', forFourCents: 388_000, forFour: '3.880,00 €', isDemo: false }
+    const answer = (over: Record<string, unknown>) => ({ combination: [], sizes: [], chosen: null, entry: false, perAxle: true, ...over })
+    const pairs = [
+        { key: '1', number: 1, front: '225/35 R19', rear: '255/30 R19', minSentence: null, sets: [{ ...set, key: 's1' }], answer: answer({ combination: ['Nur mit Distanzscheiben.'], standing: 'auflagen', hint: 'red' }) },
+        { key: '2', number: 2, front: '235/35 R19', rear: '265/30 R19', minSentence: null, sets: [{ ...set, key: 's2' }], answer: answer({ standing: 'keine', hint: null }) },
+    ]
+    const page = () => flow({ config: config({ komplettrad: { refusal: null, refusalCode: null, minSentence: null, priceOpen: false, quantity: 4, tyres: [], combinations: pairs, perAxle: 2 } }) })
+
+    it('labels each combination with what it asks, in the colour of its codes', async () => {
+        const wrapper = page()
+
+        await flushPromises()
+
+        const tags = wrapper.findAll('.kf-pair [data-standing]')
+
+        expect(tags.map((t) => t.text())).toEqual(['Mit Auflagen', 'Ohne Auflagen'])
+        expect(tags[0]!.classes()).toContain('kf-opt__tag--red')
+        expect(tags[1]!.classes()).toContain('kf-opt__tag--green')
+    })
+
+    it('says the chosen combination’s Auflagen in its colour, or „Keine Auflagen.“, right above „Weiter“', async () => {
+        const wrapper = page()
+
+        await flushPromises()
+
+        const check = wrapper.find('[data-chosen-check]')
+
+        expect(check.classes()).toContain('rcheck-panel--danger')
+        expect(check.find('.rcheck-panel__vehicle').text()).toBe('Mit Auflagen freigegeben für BMW X3')
+        expect(check.text()).toContain('vorne 225/35 R19 · hinten 255/30 R19')
+        expect(check.text()).toContain('Nur mit Distanzscheiben.')
+        // Before the way on: nothing is chosen past it unseen.
+        expect(check.element.compareDocumentPosition(wrapper.find('.kf-actions').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+        await wrapper.findAll('input[name="kf-pair"]')[1]!.setValue()
+
+        const none = wrapper.find('[data-chosen-check]')
+
+        expect(none.classes()).not.toContain('rcheck-panel--danger')
+        expect(none.classes()).not.toContain('rcheck-panel--warn')
+        expect(none.find('.rcheck-panel__vehicle').text()).toBe('Freigegeben für BMW X3')
+        expect(none.find('.cc__none').text()).toBe('Keine Auflagen.')
+    })
+
+    it('waits for the tyre where four alike come in several sizes, and then says that size’s answer with its Eintragung', async () => {
+        const narrow = tyre({ answer: { combination: [], sizes: [], chosen: '235/45 R19', entry: false, standing: 'keine', hint: null } })
+        const wide = tyre({ id: 8, answer: { combination: ['Radlauf bördeln.'], sizes: [], chosen: '255/40 R19', entry: true, standing: 'auflagen', hint: 'yellow' } })
+        const wrapper = flow({ config: config({ komplettrad: { refusal: null, refusalCode: null, minSentence: null, priceOpen: false, quantity: 4, tyres: [narrow, wide] } }) })
+
+        await flushPromises()
+
+        expect(wrapper.find('[data-chosen-check]').exists()).toBe(false)
+
+        await wrapper.find('[data-tyre-card="t8"] input').setValue()
+
+        const check = wrapper.find('[data-chosen-check]')
+
+        expect(check.classes()).toContain('rcheck-panel--warn')
+        expect(check.text()).toContain('255/40 R19')
+        expect(check.find('.cc__entry').text()).toBe('Eintragung in die Fahrzeugpapiere erforderlich.')
+        expect(check.text()).toContain('Radlauf bördeln.')
     })
 })

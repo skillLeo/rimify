@@ -21,6 +21,7 @@ use App\Enums\ConflictStatus;
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
 use App\Models\ApprovalDocument;
+use App\Models\ApprovalDocumentFile;
 use App\Models\DocumentCondition;
 use App\Models\DocumentTyreCombination;
 use App\Models\Fitment;
@@ -456,7 +457,55 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
             tyreIndexSource: $document->tyre_index_source?->value,
             // „nur für Fahrzeuge mit maximaler Achslast 1160 kg“, as declared at release: the wheel's approval rests on it (D-289).
             axleLimitKg: $document->counted_axle_limit_kg,
+            files: $this->filesOf($document),
         );
+    }
+
+    /**
+     * The PDFs the customer may open (D-494), once per document and request: the paper's own first — its row, where it has
+     * one, gives its label, date and place —, then the further ones by position, hidden ones left out.
+     *
+     * @return list<array{label: string, datedOn: string|null, key: string, sha256: string|null, main: bool}>
+     */
+    private function filesOf(ApprovalDocument $document): array
+    {
+        // Read once onto the document, which the rows of a request share (eager loading): never once per row.
+        if (! $document->relationLoaded('files')) {
+            $document->setRelation('files', $document->files()->get());
+        }
+
+        /** @var Collection<int, ApprovalDocumentFile> $rows */
+        $rows = $document->getRelation('files');
+        $main = $rows->first(static fn (ApprovalDocumentFile $r): bool => $r->is_main);
+        $list = [];
+
+        if ($document->pdf_key !== null) {
+            $list[] = ['at' => $main === null ? 0 : (int) $main->position, 'file' => [
+                'label' => $main === null ? 'Gutachten' : (string) $main->label,
+                'datedOn' => ($main->dated_on ?? $document->issued_on)?->format('Y-m-d'),
+                'key' => (string) $document->pdf_key,
+                'sha256' => $document->pdf_sha256,
+                'main' => true,
+            ]];
+        }
+
+        foreach ($rows as $row) {
+            if ($row->is_main || $row->file_key === null || ! $row->isVisible()) {
+                continue;
+            }
+
+            $list[] = ['at' => (int) $row->position, 'file' => [
+                'label' => (string) $row->label,
+                'datedOn' => $row->dated_on?->format('Y-m-d'),
+                'key' => (string) $row->file_key,
+                'sha256' => $row->sha256 === null ? null : (string) $row->sha256,
+                'main' => false,
+            ]];
+        }
+
+        usort($list, static fn (array $a, array $b): int => $a['at'] <=> $b['at']);
+
+        return array_map(static fn (array $item): array => $item['file'], $list);
     }
 
     /**

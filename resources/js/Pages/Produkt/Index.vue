@@ -88,11 +88,13 @@ const offerNow = computed(() => chosenSet.value ?? selected.value)
  * the customer buys — the combination with its tyres is, and the steps say that one in full before anything is added. So
  * the box makes way for its two links. Anything but plain green stays: an Auflage, a colour, an open half, a no.
  */
+// No Auflage, no Hinweis: plain green. `hint` is not read — the server sends „yellow“ for every verdict without a coded
+// Auflage (FitmentVerdict::hintColour), PERMITTED ones included, so it cannot tell plain green apart (D-487).
 const plainGreenForSet = computed(() => {
     const verdict = offerNow.value?.verdict
 
     return isSet.value && shared.value.vehicle !== null && verdict?.status === 'PERMITTED'
-        && (verdict.conditions ?? []).length === 0 && !verdict.hint && verdict.notesOnly !== true
+        && (verdict.conditions ?? []).length === 0 && verdict.notesOnly !== true
 })
 
 /*
@@ -259,24 +261,6 @@ watch(
         shotIndex.value = 0
     }
 )
-
-/*
- * Under the name, while the wheel has no reviews (#19, D-103): its released documents and the vehicle variants they
- * approve it for — counts the shop can prove — and that the approval is checked before the purchase. Nothing where
- * there is no document.
- */
-const proofLine = computed(() => {
-    const proof = props.product.proof
-
-    if (!proof || proof.gutachten === 0) {
-        return null
-    }
-
-    const documents = proof.gutachten === 1 ? '1 Gutachten' : `${decimal(proof.gutachten, 0)} Gutachten`
-    const cars = proof.variants === 1 ? 'für 1 Fahrzeugvariante freigegeben' : `für ${decimal(proof.variants, 0)} Fahrzeugvarianten freigegeben`
-
-    return `${documents} · ${cars} · Freigabe vor dem Kauf geprüft`
-})
 
 const reviews = computed(() => props.reviews ?? [])
 
@@ -610,7 +594,8 @@ claimBottomEdge(() => stickyShown.value)
 <template>
     <Head :title="`${product.brandName} ${product.modelName}`" />
 
-    <section class="section-dense">
+    <!-- D-493 (the client's annotated release 43): the content starts higher — less room above the crumbs and under them. -->
+    <section class="section-dense pdp-page">
         <div class="wrap">
             <nav class="pdp__crumbs t-small" aria-label="Brotkrumen">
                 <Link href="/">Startseite</Link>
@@ -626,7 +611,7 @@ claimBottomEdge(() => stickyShown.value)
                      finish without a photograph is drawn, alone. The finish is chosen once, with
                      the swatches in the purchase panel. -->
                 <div class="pdp__gallery">
-                    <div class="well pdp__well">
+                    <div class="well pdp__well" :class="{ 'pdp__well--photo': shot }">
                         <!-- The photograph is its own button: it opens the large view. -->
                         <button
                             v-if="shot"
@@ -703,8 +688,8 @@ claimBottomEdge(() => stickyShown.value)
                     <!-- The brand, the model and the type designation are names and codes, never
                          words: a page translator would turn them into English. -->
                     <h1 class="t-h1" translate="no">{{ product.brandName }} {{ product.modelName }}</h1>
-                    <!-- Only where the name does not hold it already (a title typed otherwise): never said twice. -->
-                    <p v-if="designationApart" class="data pdp__type">Radtypenbezeichnung <ValueText :text="product.typeDesignation ?? ''" whole /></p>
+                    <!-- One line under the name (D-493): „Felge DB8GT2-8518“ — only where the name does not hold it already (D-298). -->
+                    <p v-if="designationApart" class="data pdp__type">Felge <ValueText :text="product.typeDesignation ?? ''" whole /></p>
                     <!-- Stars typed in the admin (#19, D-344, D-345), only ever beside the shop's sentence about them: no
                          link, for there are no reviews here to lead to, and never called a checked purchase.
                          Otherwise the buyers' stars, computed from their reviews alone (D-103), leading to them; until
@@ -718,10 +703,10 @@ claimBottomEdge(() => stickyShown.value)
                         <span class="stars__glyph" aria-hidden="true">★</span>
                         <span class="tabular"><ValueText :text="product.ratingLabel ?? ''" /></span>
                     </a>
-                    <p v-else-if="proofLine" class="t-small pdp__proof">{{ proofLine }}</p>
 
                     <div class="pdp__block">
-                        <span class="label">Farbe · <span translate="no">{{ finish?.name }}</span></span>
+                        <!-- The colour's name stands on its button; the label says what the buttons are (D-493). -->
+                        <span class="label">Farbe</span>
                         <div class="pdp__swatches">
                             <button
                                 v-for="item in finishes"
@@ -1164,12 +1149,17 @@ claimBottomEdge(() => stickyShown.value)
     white-space: pre-line;
 }
 
+/* The content starts higher (D-493): 16 px under the header instead of the dense section's 48, 8 px under the crumbs. */
+.pdp-page {
+    padding-top: var(--sp-16);
+}
+
 .pdp__crumbs {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-2);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--sp-8);
     color: var(--ink3);
 }
 
@@ -1194,6 +1184,13 @@ claimBottomEdge(() => stickyShown.value)
 .pdp__well {
     max-width: min(100%, 56vh);
     margin-inline: auto;
+}
+
+/* A photograph stands on the studio white it was taken on: where it is not square (a 4:3 shot), the well around it is that
+   white, never the field's grey or the placeholder's colour as two bars (D-492). A drawn wheel keeps the field. */
+.pdp__well--photo,
+.pdp-zoom__frame {
+    background: var(--c-surface);
 }
 
 /* The photograph fills the square well; the cut-out is framed in the pipeline, so no padding. */
@@ -1271,7 +1268,8 @@ claimBottomEdge(() => stickyShown.value)
     padding: var(--sp-4);
     border: 1px solid var(--c-line);
     border-radius: var(--r-tile);
-    background: var(--c-band);
+    /* The photographs' own white, as the well (D-492): a 4:3 thumbnail has no bars above and below. */
+    background: var(--c-surface);
     cursor: pointer;
 }
 
@@ -1564,11 +1562,6 @@ button.pdp__version:focus-visible {
 
 .pdp__price {
     margin-top: var(--space-5);
-}
-
-.pdp__proof {
-    margin: var(--space-1) 0 0;
-    color: var(--ink2);
 }
 
 a.pdp__rating {

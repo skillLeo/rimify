@@ -25,16 +25,14 @@ test('steps in the address: rim, tyres, extras, basket — Back goes one back, a
     await expect(page.locator('.pdp__total')).toHaveText(/^ab /)
     await page.locator('.pdp__next').click()
 
-    // 1 Felge: the whole version, and the way back to another.
+    // 1 Reifen — since D-489 the first step: the rim in one line above the tyres, its way back to another, and no step „Felge“.
     await page.waitForURL(/\/komplettraeder\?/)
-    await expect(page.locator('#kf-wheel-h')).toBeVisible()
-    await expect(page.locator('.kf-wheel__spec').first()).toHaveText(/ET.*mm/)
-    await expect(page.locator('.kf-link')).toHaveAttribute('href', /ausfuehrung=\d+&groesse=\d+/)
-    await noSidewaysScroll(page)
-
-    // 2 Reifen: no tyre chosen, and the next step waits for one.
-    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
-    await expect(page).toHaveURL(/schritt=2/)
+    await expect(page.locator('#kf-tyres-h')).toBeVisible()
+    await expect(page.locator('#kf-wheel-h')).toHaveCount(0)
+    await expect(page.locator('[data-kf-rim]')).toContainText('Schwarz matt')
+    await expect(page.locator('[data-kf-rim] .kf-link')).toHaveAttribute('href', /ausfuehrung=\d+&groesse=\d+/)
+    await expect(page.locator('.kf-actions').getByRole('link', { name: 'Zurück' })).toHaveAttribute('href', /\/felgen\/.*groesse=\d+/)
+    // No tyre chosen, and the next step waits for one.
     await expect(page.locator('.tc--on')).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Weiter: Extras' })).toBeDisabled()
     await noSidewaysScroll(page)
@@ -45,9 +43,9 @@ test('steps in the address: rim, tyres, extras, basket — Back goes one back, a
     // The step's one action stays in sight, however long the list: on a phone it stood 1.300 px below the tile.
     await expect(page.getByRole('button', { name: 'Weiter: Extras' })).toBeInViewport()
 
-    // 3 Extras: nothing preselected, and the basket waits for the answer on the sensors.
+    // 2 Extras: nothing preselected, and the basket waits for the answer on the sensors.
     await page.getByRole('button', { name: 'Weiter: Extras' }).click()
-    await expect(page).toHaveURL(/schritt=3/)
+    await expect(page).toHaveURL(/schritt=extras/)
     await expect(page.locator('input[name="kf-rdks"]:checked')).toHaveCount(0)
     await expect(page.locator('input[name="kf-weights"]:checked')).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Weiter: Warenkorb' })).toBeDisabled()
@@ -61,8 +59,8 @@ test('steps in the address: rim, tyres, extras, basket — Back goes one back, a
     await expect(page.locator('#kf-rdks-hint')).toHaveCount(0)
     await page.getByRole('button', { name: 'Weiter: Warenkorb' }).click()
 
-    // 4 Warenkorb: every line and the sum.
-    await expect(page).toHaveURL(/schritt=4/)
+    // 3 Warenkorb: every line and the sum.
+    await expect(page).toHaveURL(/schritt=warenkorb/)
     await expect(page.locator('.kf-basket__label').first()).toHaveText('4 Felgen')
     await expect(page.locator('.kf-basket tfoot td')).toHaveText(/\d,\d\d\s€$/)
     await noSidewaysScroll(page)
@@ -102,8 +100,9 @@ test('front and rear different on a phone: the tyres stand within a few screens,
     const step = await box(page.locator('.kf-step'))
 
     expect(card.y - step.y, 'the first tyre stands far down the page').toBeLessThan(1_400)
-    await expect(page.locator('details[data-set-answer] summary')).toHaveText(/Auflagen und Hinweise aus dem Gutachten anzeigen$/)
-    expect(await page.locator('details[data-set-answer]').getAttribute('open')).toBeNull()
+    // Since D-488 in the RIMIFY-Check for the chosen sizes, folded there as before (D-197).
+    await expect(page.locator('[data-set-answer] details.cc__fold summary')).toHaveText(/Auflagen und Hinweise aus dem Gutachten anzeigen$/)
+    expect(await page.locator('[data-set-answer] details.cc__fold').getAttribute('open')).toBeNull()
 })
 
 // The interaction review of Phase 4: the second set's „Mit“ charged the first set's sensors unasked, and the same set could go in twice.
@@ -158,7 +157,7 @@ test('another car on the way: nothing chosen for the last one stands, and nothin
     await page.getByRole('button', { name: 'Weiter: Extras' }).click()
     await page.locator('.kf-opt', { hasText: 'Mit RDKS-Sensoren' }).click()
 
-    await open(page, `/komplettraeder?groesse=${id}&schritt=3&fahrzeug=${CARS.e46.key}`)
+    await open(page, `/komplettraeder?groesse=${id}&schritt=extras&fahrzeug=${CARS.e46.key}`)
 
     await expect(page.locator('#kf-tyres-h')).toBeVisible()
     await expect(page.locator('.tc--on')).toHaveCount(0)
@@ -170,7 +169,7 @@ test('a step asked for without what it needs opens the first that can be shown',
 
     const id = await onSize(page, 19, 'Schwarz matt')
 
-    await open(page, `/komplettraeder?groesse=${id}&schritt=4`)
+    await open(page, `/komplettraeder?groesse=${id}&schritt=warenkorb`)
     await expect(page.locator('#kf-tyres-h')).toBeVisible()
     await expect(page.locator('.kf-basket')).toHaveCount(0)
 })
@@ -291,7 +290,7 @@ test('without a car: the reason and the way to one, which comes back to this rim
     const refusal = page.locator('.kr-refusal')
 
     await expect(refusal).toContainText('zuerst dein Fahrzeug')
-    await expect(page.getByRole('button', { name: 'Weiter: Reifen' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Weiter: Extras' })).toBeDisabled()
     await expect(refusal.getByRole('link', { name: 'Fahrzeug wählen' })).toHaveAttribute('href', new RegExp(`^/felgen-suchen\\?zurueck=.*groesse%3D${id}`))
 })
 
@@ -305,5 +304,6 @@ test('the steps stay within a phone’s width with the whole page laid out', { t
 
     expect(first.x).toBeGreaterThanOrEqual(0)
     expect(first.x + first.width).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0)
-    expect((await pageProps<{ schritt: number | null }>(page)).schritt).toBe(2)
+    // The tyres are the first step since D-489: the product page's link names no step, and the page opens on them.
+    expect((await pageProps<{ schritt: number | null }>(page)).schritt).toBeNull()
 })

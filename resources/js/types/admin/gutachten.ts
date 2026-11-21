@@ -189,7 +189,10 @@ export interface AdminGutachtenShowProps {
     /** `levels`: may set how loud each Auflage is in the shop (#23, D-104) — on a released document too. */
     /** `revise`: may start a new revision of this released document (ADMIN-GEFUNDEN 510). */
     /** `answer`: may say whether a released document is entered in full (D-227). */
-    can: { edit: boolean; release: boolean; levels?: boolean; revise?: boolean; answer?: boolean }
+    can: { edit: boolean; release: boolean; levels?: boolean; revise?: boolean; answer?: boolean; files?: boolean }
+    /** The PDFs the customer may open, the paper's own first, hidden ones marked (D-494). */
+    pdfs?: { id: number | null; label: string; datedOn: string | null; dateLabel: string | null; main: boolean; hidden: boolean; url: string | null }[]
+    pdfMaxMb?: number
     /** A new revision of this released document, already started as a draft: opened, never copied twice. */
     revisionDraft?: { id: number; label: string; revision: number } | null
     levels?: { value: string; label: string }[]

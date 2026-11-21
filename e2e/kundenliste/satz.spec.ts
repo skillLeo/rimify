@@ -146,12 +146,11 @@ test('a Komplettrad on the set: both tyres named per axle, RDKS asked, nothing p
     await expect(page.locator('.pdp__next')).toHaveText(/Weiter zum Komplettrad/)
     await page.locator('.pdp__next').click()
     await page.waitForURL(/hinten=\d+/)
-    await expect(page.locator('#kf-wheel-h')).toHaveText('Deine Felgen')
-    await expect(page.locator('.kf-wheel__spec').first()).toContainText(FRONT)
-    await expect(page.locator('.kf-wheel__spec').nth(1)).toContainText(REAR)
-    await expect(page.locator('[data-sizes-axle="rear"]').first()).toContainText('R19')
+    // Since D-489 the set stands in one line above the tyres, each axle on its own (no step „Felge“).
+    await expect(page.locator('#kf-tyres-h')).toBeVisible()
+    await expect(page.locator('[data-kf-rim]')).toContainText(FRONT)
+    await expect(page.locator('[data-kf-rim]')).toContainText(REAR)
 
-    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
     const card = page.locator('[data-tyre-card]').first()
     await expect(card).toBeVisible()
     // No minimum of our own from the car's axle loads (D-481, the client's review of 19.11.2026).
@@ -160,6 +159,8 @@ test('a Komplettrad on the set: both tyres named per axle, RDKS asked, nothing p
     await expect(card.locator('.tc__sizes')).toContainText('R18')
     await expect(card.locator('.tc__sizes')).toContainText('R19')
     await card.locator('.tc__pick').click()
+    // The sizes per axle: in the RIMIFY-Check for the chosen sizes above „Weiter“ (D-488), no longer in the step „Felge“ (D-489).
+    await expect(page.locator('[data-chosen-check] .cc__sizes')).toContainText('R19')
 
     await page.getByRole('button', { name: 'Weiter: Extras' }).click()
     await expect(page.locator('input[name="kf-rdks"]:checked')).toHaveCount(0)

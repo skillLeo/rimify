@@ -162,6 +162,12 @@ const papersLine = computed<string | null>(() => {
                             {{ result.document.label }}, Fassung {{ result.document.revision }}<template v-if="result.document.issuer"> ({{ result.document.issuer }})</template><template v-if="result.document.page">, Seite {{ result.document.page }}</template>
                             <!-- An example document carries its mark wherever it is shown (D-239). -->
                             <template v-if="result.document.example"> · <span class="tag tag--unknown">Beispieldaten</span></template>
+                            <!-- Every PDF the answer was shown with, the paper's own first (D-494): links on screen, named in print. -->
+                            <ul v-if="result.document.files?.length" class="res__files" data-document-files>
+                                <li v-for="file in result.document.files" :key="file.url">
+                                    <a class="link" :href="file.url" target="_blank" rel="noopener">{{ file.label }}<template v-if="file.date"> vom {{ file.date }}</template> (PDF<template v-if="file.page">, Seite {{ file.page }}</template>)</a>
+                                </li>
+                            </ul>
                         </dd>
                     </div>
                     <div v-if="papersLine">

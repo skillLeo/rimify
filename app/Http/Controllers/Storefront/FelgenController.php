@@ -21,6 +21,7 @@ use App\Domain\Fitment\Verdict\AxleRequirement;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionGroups;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\HintColour;
 use App\Domain\Fitment\Verdict\MinSource;
 use App\Domain\Fitment\Verdict\VerdictReason;
 use App\Domain\Fitment\Verdict\VerdictStatus;
@@ -50,6 +51,7 @@ use App\Services\Storefront\RecentlyViewed;
 use App\Services\Storefront\VehicleTree;
 use App\Support\AvailabilityEnquiry;
 use App\Support\GermanFormat;
+use App\Support\GutachtenPdfLink;
 use App\Support\LinePrice;
 use App\Support\Money;
 use App\Support\Shipping;
@@ -900,6 +902,66 @@ class FelgenController extends Controller
     }
 
     /**
+     * The rim dimensions of this wheel, in this finish, the car may have — each size on its own and each set of two
+     * versions its papers name — for the Komplettrad's tyre step to switch between (D-488, the client's review of
+     * 19.11.2026): the same verdicts and the same sets as the product page, so the two never disagree. A size the car may only
+     * have within a set is offered as that set. Nothing is decided here: the step it leads to asks the engine again.
+     *
+     * @return list<array{label: string, href: string, current: bool, set: bool}>
+     */
+    public function rimChoices(Request $request, WheelConfig $config, ?WheelConfig $rear): array
+    {
+        $vehicleId = $this->vehicleId($request);
+
+        if ($vehicleId === null) {
+            return [];
+        }
+
+        $configs = WheelConfig::query()
+            ->where('wheel_model_id', $config->wheel_model_id)
+            ->where('wheel_finish_id', $config->wheel_finish_id)
+            ->orderBy('diameter_in')->orderBy('width_in')->orderBy('et_mm')->orderBy('id')
+            ->get()
+            ->keyBy('id');
+        $verdicts = $this->resolver->resolveMany($vehicleId, $configs->keys()->map(static fn (mixed $id): int => (int) $id)->values()->all());
+        $offer = $this->wheelSets->of($vehicleId, $verdicts);
+        $choices = [];
+
+        foreach ($configs as $id => $size) {
+            $verdict = $verdicts[$id] ?? null;
+
+            if ($verdict === null || ! $verdict->isSellable() || $offer->onlyInSet((int) $id)) {
+                continue;
+            }
+
+            $choices[] = [
+                'label' => GermanFormat::wheelSize((float) $size->width_in, (float) $size->diameter_in, (int) $size->et_mm),
+                'href' => '/komplettraeder?'.http_build_query(['groesse' => (int) $id]),
+                'current' => $rear === null && (int) $id === (int) $config->id,
+                'set' => false,
+            ];
+        }
+
+        foreach ($offer->sets as $set) {
+            $front = $configs->get($set->frontConfigId);
+            $back = $configs->get($set->rearConfigId);
+
+            if (! $front instanceof WheelConfig || ! $back instanceof WheelConfig) {
+                continue;
+            }
+
+            $choices[] = [
+                'label' => GermanFormat::wheelSet((float) $front->width_in, (float) $front->diameter_in, (int) $front->et_mm, (float) $back->width_in, (float) $back->diameter_in, (int) $back->et_mm),
+                'href' => '/komplettraeder?'.http_build_query(['groesse' => (int) $front->id, 'hinten' => (int) $back->id]),
+                'current' => $rear !== null && (int) $front->id === (int) $config->id && (int) $back->id === (int) $rear->id,
+                'set' => true,
+            ];
+        }
+
+        return $choices;
+    }
+
+    /**
      * A set of two versions as the Komplettrad's steps ask for it, shaped as a row of one version so its steps need nothing else: the
      * set's name, its price for four, the answer for the set and the tyres across both wheels. Null where the car's papers do not name
      * the two together, or no car is chosen.
@@ -1073,14 +1135,18 @@ class FelgenController extends Controller
             ? [$axle($pair->front, 'Vorder- und Hinterachse', $groups->forSize($pair->front->key()))]
             : [$axle($pair->front, 'Vorderachse', $groups->ownFor($pair->front->key())), $axle($pair->rear, 'Hinterachse', $groups->ownFor($pair->rear->key()))];
 
+        $entry = array_filter($axles, static fn (array $a): bool => $a['entry']) !== [] || (! $same && $groups->entryForSet($pair->front->key(), $pair->rear->key()));
+
         return [
             // The combination's own Auflagen (D-451) stand with the wheel's, „Für beide Achsen“: they are the set's, never one axle's.
             'combination' => $same ? [] : $sentences(Condition::sorted(Condition::union($groups->combination, $groups->pairOwn($pair->front->key(), $pair->rear->key())))),
             'sizes' => $axles,
             'chosen' => null,
-            'entry' => array_filter($axles, static fn (array $a): bool => $a['entry']) !== [] || (! $same && $groups->entryForSet($pair->front->key(), $pair->rear->key())),
+            'entry' => $entry,
             // Said per axle: „Für beide Achsen“, then „Vorderachse · 235/45 R19“ — never „Nur bei …“, both are fitted.
             'perAxle' => true,
+            // What the combination asks, and in which colour (D-488): its tile's label and the tyre step's RIMIFY-Check.
+            ...HintColour::standingOf($groups->forPair($pair->front->key(), $pair->rear->key()), $entry),
         ];
     }
 
@@ -1214,6 +1280,8 @@ class FelgenController extends Controller
                 'example' => $verdict->document->isDemo,
                 // The Gutachten itself, opened at the page the answer stands on.
                 'pdf' => self::pdfLink($verdict->document),
+                // Its further PDFs too, the paper's own first (D-494): empty where it has no more than that one.
+                'files' => GutachtenPdfLink::files($verdict->document),
                 // Every further document the answer rests on, named (the corrections memo §3).
                 'others' => array_map(
                     static fn (DocumentRecord $d): string => trim(ApprovalKind::tryFrom($d->kind)?->labelDe().' '.($d->number ?? '')),
@@ -1275,23 +1343,9 @@ class FelgenController extends Controller
      */
     private static function pdfLink(DocumentRecord $document): ?array
     {
-        if ($document->pdfKey === null) {
-            return null;
-        }
+        $link = GutachtenPdfLink::of($document);
 
-        $url = app(DocumentFiles::class)->locate($document->pdfKey)['url'];
-
-        if ($url === null) {
-            return null;
-        }
-
-        // An example document opens through the page that marks it (decision 6, D-239): the file itself carries no mark,
-        // so the shop never hands out its address bare.
-        if ($document->isDemo) {
-            return ['url' => route('gutachten.beispiel', ['document' => $document->id, ...($document->sourcePage === null ? [] : ['seite' => $document->sourcePage])]), 'page' => $document->sourcePage];
-        }
-
-        return ['url' => $url.($document->sourcePage === null ? '' : '#page='.$document->sourcePage), 'page' => $document->sourcePage];
+        return $link === null ? null : ['url' => $link['url'], 'page' => $link['page']];
     }
 
     /** @return list<string> `245/45 R18` per permitted size on this axle. */

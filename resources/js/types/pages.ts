@@ -433,6 +433,15 @@ export interface ProduktSet {
     komplettrad?: ProduktConfig['komplettrad']
 }
 
+/** One PDF of a Gutachten as the customer opens it (D-494): its label, its date, where it opens. */
+export interface DocumentFileLink {
+    label: string
+    date: string | null
+    url: string
+    page: number | null
+    main: boolean
+}
+
 export interface ProduktConfig {
     /** The car may have this version on one axle, or only beside another: no chip of its own, never four of it. */
     onlyInSet?: boolean
@@ -559,6 +568,8 @@ export interface ConfigVerdict {
         issuer: string | null
         kind: string
         pdf?: { url: string; page: number | null } | null
+        /** Every PDF the customer may open, the paper's own first (D-494); empty or absent where it has only that one. */
+        files?: DocumentFileLink[]
         others?: string[]
         notes?: string[]
         /** An example document (decision 6, D-239): marked where it is shown, opened through its marked page. */
@@ -837,7 +848,7 @@ export interface CheckResultView {
     papers: { axleFrontKg: number | null; axleRearKg: number | null; topSpeedKmh: number | null; powerKw?: number | null } | null
     /** What the answer assumed that the vehicle data does not hold, and from where (G-02). Additive. */
     build?: { fact: string; value: string; source: string }[]
-    document: { label: string; issuer: string | null; revision: number; page: number | null; example?: boolean } | null
+    document: { label: string; issuer: string | null; revision: number; page: number | null; example?: boolean; files?: DocumentFileLink[] } | null
     /** Said only when the document has changed since the result was issued. */
     documentToday: string | null
     issuedAt: string | null

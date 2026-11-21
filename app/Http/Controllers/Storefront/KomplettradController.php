@@ -103,6 +103,8 @@ class KomplettradController extends Controller
                 'each' => Money::fromMinor($mounting, is_string($currency) ? $currency : 'EUR')->format(),
                 'total' => LinePrice::total(Money::fromMinor($mounting, is_string($currency) ? $currency : 'EUR'), self::SET_OF)->format(),
             ],
+            // The other rim dimensions of this finish the car may have, to switch to from the tyre step (D-488).
+            'rimChoices' => $this->felgen->rimChoices($request, $config, $rear),
             'schritt' => $request->step(),
         ]);
     }
