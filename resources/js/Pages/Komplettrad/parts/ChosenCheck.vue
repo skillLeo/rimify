@@ -15,7 +15,7 @@ import type { ConditionGroupsView } from '../../../types/rimify'
 
 const props = defineProps<{
     answer: ConditionGroupsView
-    /** `BMW 330Ci` — whom the answer is for. */
+    /** `BMW 330CI` — whom the answer is for, by the same name as the product page's RIMIFY-Check (D-497), never the short `BMW 3er`. */
     vehicle: string
     /** `225/40 R18`, or `vorne 225/35 R19 · hinten 255/30 R19`. */
     sizes: string

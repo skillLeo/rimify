@@ -900,7 +900,7 @@ describe('the RIMIFY-Check of the sizes chosen', () => {
         const check = wrapper.find('[data-chosen-check]')
 
         expect(check.classes()).toContain('rcheck-panel--danger')
-        expect(check.find('.rcheck-panel__vehicle').text()).toBe('Mit Auflagen freigegeben für BMW X3')
+        expect(check.find('.rcheck-panel__vehicle').text()).toBe('Mit Auflagen freigegeben für BMW X3 2.0d')
         expect(check.text()).toContain('vorne 225/35 R19 · hinten 255/30 R19')
         expect(check.text()).toContain('Nur mit Distanzscheiben.')
         // Before the way on: nothing is chosen past it unseen.
@@ -912,7 +912,7 @@ describe('the RIMIFY-Check of the sizes chosen', () => {
 
         expect(none.classes()).not.toContain('rcheck-panel--danger')
         expect(none.classes()).not.toContain('rcheck-panel--warn')
-        expect(none.find('.rcheck-panel__vehicle').text()).toBe('Freigegeben für BMW X3')
+        expect(none.find('.rcheck-panel__vehicle').text()).toBe('Freigegeben für BMW X3 2.0d')
         expect(none.find('.cc__none').text()).toBe('Keine Auflagen.')
     })
 
