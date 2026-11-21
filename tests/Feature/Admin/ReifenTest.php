@@ -259,6 +259,43 @@ it('keeps a sold tyre’s size, load index and symbol as sold — the order name
     expect($tyre->refresh()->price_cents)->toBe(13_900);
 });
 
+// D-496, found by the click-through of release 46: the form showed 22,5 as „22“, so the next save would have cut the half inch.
+it('keeps a half inch as written — in the form, the sold lock, the duplicate check, the list, its filter and its search (D-496)', function (): void {
+    $truck = ['width_mm' => '305', 'aspect' => '70', 'diameter_in' => '22,5', 'load_index' => '160', 'speed_symbol' => 'F', 'eprel_id' => ''];
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload($truck))->assertSessionHasNoErrors();
+    $tyre = TyreVariant::query()->sole();
+
+    $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen/'.$tyre->id)
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('tyre.diameter', '22,5'));
+
+    // One tyre twice is one tyre twice at 22,5 too; 22 is another size.
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload($truck + ['brand_id' => $tyre->brand_id, 'brand_new' => '']))
+        ->assertSessionHasErrors(['name' => TyreVariantRequest::DUPLICATE]);
+    $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload(['diameter_in' => '22'] + $truck + ['brand_id' => $tyre->brand_id, 'brand_new' => '']))
+        ->assertSessionHasNoErrors();
+
+    // Sold: the form's own „22,5“ (or „22.5“) changes nothing; „22“ is a change of size, refused.
+    OrderLine::factory()->create(['order_id' => Order::factory()->create()->id, 'wheel_config_id' => null, 'tyre_variant_id' => $tyre->id, 'quantity' => 4]);
+    $kept = ['brand_id' => $tyre->brand_id, 'brand_new' => ''];
+
+    foreach (['22,5', '22.5'] as $same) {
+        $this->actingAs(reifenAdmin(), 'admin')->put('/admin/reifen/'.$tyre->id, reifenPayload($kept + ['diameter_in' => $same] + $truck))->assertSessionHasNoErrors();
+    }
+
+    $this->actingAs(reifenAdmin(), 'admin')->put('/admin/reifen/'.$tyre->id, reifenPayload($kept + ['diameter_in' => '22'] + $truck))
+        ->assertSessionHasErrors(['diameter_in' => TyreVariantRequest::SOLD]);
+
+    expect((float) $tyre->refresh()->diameter_in)->toBe(22.5);
+
+    $page = fn (string $query): array => $this->actingAs(reifenAdmin(), 'admin')->get('/admin/reifen'.$query)->assertOk()->viewData('page')['props'];
+
+    expect(collect($page('')['models'])->pluck('diameters')->all())->toBe(["22–22,5\u{00A0}Zoll"])
+        ->and(collect($page('')['options']['diameters'])->pluck('label')->all())->toBe(['22 Zoll', '22,5 Zoll'])
+        ->and($page('?zoll=22,5')['models'])->toHaveCount(1)
+        ->and($page('?q=305%2F70+R22,5')['models'])->toHaveCount(1)
+        ->and($page('?q=305%2F70+R22.5')['models'])->toHaveCount(1);
+});
+
 it('changes a tyre, names what changed in the Protokoll, and stops offering one marked not available @admin-210', function (): void {
     $this->actingAs(reifenAdmin(), 'admin')->post('/admin/reifen', reifenPayload())->assertSessionHasNoErrors();
     $tyre = TyreVariant::query()->sole();

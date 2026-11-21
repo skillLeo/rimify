@@ -9,6 +9,7 @@ use App\Enums\TyreSeason;
 use App\Models\AdminUser;
 use App\Models\Brand;
 use App\Models\TyreVariant;
+use App\Support\GermanFormat;
 use App\Support\Money;
 use App\Support\TyreText;
 use Illuminate\Foundation\Http\FormRequest;
@@ -197,13 +198,16 @@ class TyreVariantRequest extends FormRequest
         $stored = [
             'width_mm' => (string) (int) $tyre->width_mm,
             'aspect' => (string) (int) $tyre->aspect,
-            'diameter_in' => (string) (int) $tyre->diameter_in,
+            'diameter_in' => GermanFormat::trimmedDecimal((string) $tyre->diameter_in, 1),
             'load_index' => (string) (int) $tyre->load_index,
             'speed_symbol' => (string) $tyre->speed_symbol,
         ];
 
         foreach (self::SOLD_FIELDS as $field) {
             $given = $this->input($field);
+
+            // The diameter as the form may write it: `22,5` or `22.5`, `18` or `18,0`.
+            $given = $field === 'diameter_in' && is_scalar($given) ? GermanFormat::trimmedDecimal(self::inches((string) $given), 1) : $given;
 
             if (! is_scalar($given) || trim((string) $given) !== $stored[$field]) {
                 return $field;
@@ -232,7 +236,7 @@ class TyreVariantRequest extends FormRequest
             ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) $this->input('name'))])
             ->where('width_mm', (int) $this->input('width_mm'))
             ->where('aspect', (int) $this->input('aspect'))
-            ->where('diameter_in', (int) $this->input('diameter_in'))
+            ->where('diameter_in', self::inches((string) $this->input('diameter_in')))
             ->where('load_index', (int) $this->input('load_index'))
             ->where('speed_symbol', (string) $this->input('speed_symbol'))
             ->whereKeyNot($this->tyre()->id ?? 0)
@@ -265,7 +269,7 @@ class TyreVariantRequest extends FormRequest
             'season' => (string) $this->validated('season'),
             'width_mm' => (int) $this->validated('width_mm'),
             'aspect' => (int) $this->validated('aspect'),
-            'diameter_in' => (float) str_replace(',', '.', (string) $this->validated('diameter_in')),
+            'diameter_in' => self::inches((string) $this->validated('diameter_in')),
             'load_index' => (int) $this->validated('load_index'),
             'speed_symbol' => $symbol,
             'speed_rank' => $rank,
@@ -297,5 +301,11 @@ class TyreVariantRequest extends FormRequest
         $tyre = $this->route('tyre');
 
         return $tyre instanceof TyreVariant ? $tyre : null;
+    }
+
+    /** A diameter in inches as typed, German or not: `22,5` → 22.5 (D-496). */
+    public static function inches(string $typed): float
+    {
+        return (float) str_replace(',', '.', trim($typed));
     }
 }

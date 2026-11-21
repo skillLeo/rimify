@@ -194,7 +194,8 @@ class ReifenController extends Controller
                 'season' => (string) $tyre->season,
                 'width' => (string) $tyre->width_mm,
                 'aspect' => (string) $tyre->aspect,
-                'diameter' => (string) (int) $tyre->diameter_in,
+                // 22,5 stays 22,5: an integer here would cut the half inch, and saving the form would store it (D-496).
+                'diameter' => GermanFormat::trimmedDecimal((string) $tyre->diameter_in, 1),
                 'loadIndex' => (string) $tyre->load_index,
                 'speedSymbol' => (string) $tyre->speed_symbol,
                 'fuel' => $tyre->eu_fuel_class ?? '',

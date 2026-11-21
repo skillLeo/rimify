@@ -37,7 +37,8 @@ class TyreFilterRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:80'],
             'marke' => ['nullable', 'integer', 'min:1'],
             'saison' => ['nullable', Rule::in(TyreSeason::values())],
-            'zoll' => ['nullable', 'integer', 'between:13,24'],
+            // Whole or half inches, `22,5` as the list writes it (D-496).
+            'zoll' => ['nullable', 'regex:/^(1[3-9]|2[0-4])(?:[.,]5)?$/'],
             'stand' => ['nullable', Rule::in(array_keys(TyreList::STANDS))],
             'sort' => ['nullable', Rule::in(TyreList::SORTS)],
             'richtung' => ['nullable', 'in:auf,ab'],
@@ -70,7 +71,7 @@ class TyreFilterRequest extends FormRequest
             'q' => $q === '' ? null : $q,
             'marke' => $this->filled('marke') ? (int) $this->validated('marke') : null,
             'saison' => $text('saison'),
-            'zoll' => $this->filled('zoll') ? (int) $this->validated('zoll') : null,
+            'zoll' => $this->filled('zoll') ? (float) str_replace(',', '.', (string) $this->validated('zoll')) : null,
             'stand' => $text('stand'),
             'sort' => $text('sort') ?? 'reifen',
             'richtung' => $text('richtung') ?? 'auf',

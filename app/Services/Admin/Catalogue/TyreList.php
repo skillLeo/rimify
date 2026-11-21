@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Parameter binding only (R-14).
  *
- * @phpstan-type Filters array{q: string|null, marke: int|null, saison: string|null, zoll: int|null, stand: string|null, sort: string, richtung: string}
+ * @phpstan-type Filters array{q: string|null, marke: int|null, saison: string|null, zoll: float|null, stand: string|null, sort: string, richtung: string}
  */
 final class TyreList
 {
@@ -142,7 +142,7 @@ final class TyreList
     /** A size as a tyre's wall prints it — `225/45`, `225/45 R18`, `22545` — or words: brand, model, EPREL number. */
     private function search(QueryBuilder $size, string $term): void
     {
-        if (preg_match('#^(\d{3})\s*/?\s*(\d{2})?\s*(?:Z?R\s*(\d{2}))?#i', $term, $parts) === 1) {
+        if (preg_match('#^(\d{3})\s*/?\s*(\d{2})?\s*(?:Z?R\s*(\d{2}(?:[.,]5)?))?#i', $term, $parts) === 1) {
             // Digits alone may as well be an EPREL number (`381090`): both are looked for.
             $eprel = ctype_digit($term) ? '%'.$term.'%' : null;
 
@@ -155,7 +155,7 @@ final class TyreList
                     }
 
                     if (($parts[3] ?? '') !== '') {
-                        $match->where('f.diameter_in', (int) $parts[3]);
+                        $match->where('f.diameter_in', (float) str_replace(',', '.', $parts[3]));
                     }
                 });
 
@@ -223,7 +223,8 @@ final class TyreList
             $own = $sizes->get($key((int) $model->brand_id, (string) $model->name, (string) $model->season)) ?? collect();
             $photos = $images->get($model->id) ?? collect();
             $cover = $photos->first();
-            $diameters = $own->map(static fn (TyreVariant $tyre): int => (int) $tyre->diameter_in)->unique()->sort()->values();
+            $diameters = $own->map(static fn (TyreVariant $tyre): float => (float) $tyre->diameter_in)->unique()->sort()->values()
+                ->map(static fn (float $d): string => GermanFormat::trimmedDecimal($d, 1));
             $real = $own->reject(static fn (TyreVariant $tyre): bool => (bool) $tyre->is_demo);
 
             return [
@@ -287,7 +288,7 @@ final class TyreList
             ->distinct()
             ->orderBy('diameter_in')
             ->pluck('diameter_in')
-            ->map(static fn (mixed $d): array => ['value' => (string) (int) $d, 'label' => (int) $d.' Zoll'])
+            ->map(static fn (mixed $d): array => ['value' => GermanFormat::trimmedDecimal((string) $d, 1), 'label' => GermanFormat::trimmedDecimal((string) $d, 1).' Zoll'])
             ->values()
             ->all();
 
