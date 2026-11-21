@@ -354,8 +354,9 @@ it('ranks every gap but shows fifty to a page, and asks the catalogue for all ty
     expect($props['demand']['counts']['alle'])->toBe(130)
         ->and($props['demand']['rows'])->toHaveCount(50)
         ->and($props['pagination'])->toMatchArray(['current' => 1, 'last' => 3, 'total' => 130, 'next' => '/admin/nachfrage?zeitraum=30&seite=2'])
-        // One page view, a handful of queries — never one or two per key number.
-        ->and($queries)->toBeLessThan(60);
+        // One page view, a handful of queries — never one or two per key number (130 here). The admin frame's demo count asks
+        // one query per demo table (DemoCatalogue::TABLES, one more with D-494's PDFs), so the bound leaves room for a table.
+        ->and($queries)->toBeLessThan(65);
 
     expect($this->actingAs(nfAdmin(), 'admin')->get('/admin/nachfrage?zeitraum=30&seite=3')->viewData('page')['props']['demand']['rows'])->toHaveCount(30);
 });
