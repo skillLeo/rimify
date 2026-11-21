@@ -924,12 +924,14 @@ describe('Produkt page', () => {
     }
 
     // D-487, the client's round of 18.11.2026, item 3: the rim's plain green answer is not what a Komplettrad buyer buys.
+    // `hint: 'yellow'` as the server sends it for every verdict without a coded Auflage — the preview showed the box
+    // while the fixture had no hint.
     it('hides the plain green RIMIFY-Check with Kompletträder, keeps its PDF and share link, and brings it back with Nur Felgen', async () => {
         sharedVehicle.value = { id: 3, label: 'BMW 3er E46 330Ci', short: 'BMW 330Ci' }
 
         try {
             const document = { number: '53810', issuer: 'KBA', kind: 'ABE', pdf: { url: '/storage/a.pdf#page=2', page: 2 } }
-            const green = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: verdict({ document } as Partial<ConfigVerdict>) })] })
+            const green = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: verdict({ document, hint: 'yellow' } as Partial<ConfigVerdict>) })] })
 
             expect(green.find('.rcheck-panel').exists()).toBe(true)
 

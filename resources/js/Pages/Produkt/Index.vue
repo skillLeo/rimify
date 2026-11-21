@@ -88,11 +88,13 @@ const offerNow = computed(() => chosenSet.value ?? selected.value)
  * the customer buys — the combination with its tyres is, and the steps say that one in full before anything is added. So
  * the box makes way for its two links. Anything but plain green stays: an Auflage, a colour, an open half, a no.
  */
+// No Auflage, no Hinweis: plain green. `hint` is not read — the server sends „yellow“ for every verdict without a coded
+// Auflage (FitmentVerdict::hintColour), PERMITTED ones included, so it cannot tell plain green apart (D-487).
 const plainGreenForSet = computed(() => {
     const verdict = offerNow.value?.verdict
 
     return isSet.value && shared.value.vehicle !== null && verdict?.status === 'PERMITTED'
-        && (verdict.conditions ?? []).length === 0 && !verdict.hint && verdict.notesOnly !== true
+        && (verdict.conditions ?? []).length === 0 && verdict.notesOnly !== true
 })
 
 /*
