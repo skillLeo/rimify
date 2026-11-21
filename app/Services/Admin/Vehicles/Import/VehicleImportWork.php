@@ -198,7 +198,7 @@ final class VehicleImportWork
                 }
 
                 $row = VehicleImporter::mapped($raw, $mapping, $line);
-                $decided = VehicleImporter::readRow($row, $source);
+                $decided = self::shape(VehicleImporter::readRow($row, $source), $cells, $headers);
                 $tally->add($row, $index++, $decided['car']);
                 $batch[] = [...$decided, 'line' => $line, 'row' => $row];
 
@@ -259,6 +259,38 @@ final class VehicleImportWork
         } catch (Throwable $error) {
             return $this->stumbled($import, $error, 'Die Datei ließ sich nicht zu Ende lesen.');
         }
+    }
+
+    /**
+     * A line cut short, or with more filled cells than the first line has columns, said as what it is (D-498). Short and
+     * refused: the reason names the line's width, not the field it leaves empty. Run over: refused, for its values may stand
+     * a column away from their names — read as they come, a wrong HSN or build window would be imported. Empty cells after
+     * the last column (a delimiter at the end of each line) are no cells.
+     *
+     * @template T of array{status: string, reason: string|null}
+     *
+     * @param  T  $decided
+     * @param  list<string|null>  $cells
+     * @param  list<string>  $headers
+     * @return T
+     */
+    private static function shape(array $decided, array $cells, array $headers): array
+    {
+        $width = count($headers);
+        $filled = count($cells);
+
+        while ($filled > $width && trim((string) $cells[$filled - 1]) === '') {
+            $filled--;
+        }
+
+        if ($filled > $width) {
+            $decided['status'] = VehicleImporter::REFUSED;
+            $decided['reason'] = sprintf('Die Zeile hat %d Spalten, die erste Zeile der Datei %d. Wahrscheinlich steht ein Komma oder Semikolon im Text ohne Anführungszeichen – die Werte stünden sonst unter der falschen Spalte.', $filled, $width);
+        } elseif ($filled < $width && $decided['status'] === VehicleImporter::REFUSED) {
+            $decided['reason'] = sprintf('Die Zeile hat nur %d von %d Spalten – sie ist abgeschnitten, oder ein Anführungszeichen fehlt. %s', $filled, $width, (string) $decided['reason']);
+        }
+
+        return $decided;
     }
 
     /**
