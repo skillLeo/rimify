@@ -399,7 +399,8 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
         ->and($ids)->toContain($tyre->id)
         ->and($ids)->not->toContain($short->id)
         ->and($ids)->not->toContain($unavailable->id)
-        ->and($offer['minSentence'])->toStartWith('Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex')
+        // D-481: no minimum of our own is said any more (the client struck it, 19.11.2026).
+        ->and($offer['minSentence'])->toBeNull()
         // While the mounting fee is unconfigured the figure is the known sum, and the page says so.
         ->and($offer['priceOpen'])->toBeTrue()
         ->and($config['verdict']['tyreLayout'])->toBe('SAME')

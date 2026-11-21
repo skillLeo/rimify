@@ -9,7 +9,7 @@ breath. It is written from `tests/Support/on-record-ledger.php` and the scan by 
 `tests/Unit/OnRecordTest.php` fails when a sentence of this shape appears that is not on the list, when an entry is
 no longer written anywhere, and when this file is not the list as it stands.
 
-**72 sentences: 1 open, 19 backed by a recorded field, 48 about the shop itself, 4 not sentences.**
+**70 sentences: 1 open, 17 backed by a recorded field, 48 about the shop itself, 4 not sentences.**
 
 What the scan cannot see: a claim worded with neither a word for the document nor a word of denial („So steht es im
 Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the two that matter are in finding 118.
@@ -41,8 +41,6 @@ Gutachten“, „Wörtlich aus dem Gutachten“). Those were read by eye; the tw
 | „Wähl eine Karosserie aus der Liste oder „Nennt das Gutachten nicht“.“ | admin | `Http/Requests/Admin/VehicleFromDocumentRequest.php`, `Pages/Admin/Gutachten/VehicleFromDocument.vue` | this choice is the recorded absence: the person entering the document says it names none |
 | „Steht nicht im Dokument“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | this choice is the recorded absence |
 | „Eine Felge, die davor gefertigt wurde, deckt das Dokument nicht – der Shop sagt das dazu.“ | admin | `Pages/Admin/Gutachten/RecordFields.vue` | the field being filled in: valid_from_production |
-| „Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs, der Geschwindigkeitsindex steht so im Gutachten.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the speed symbol recorded as the document's own minimum (source „document“, R-06) |
-| „Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.“ | customer / operator | `Domain/Fitment/Tyres/TyreEligibility.php` | the load index recorded as the document's own minimum (source „document“, R-06) |
 
 ## About the shop — what it does, holds or requires, not what a document contains
 

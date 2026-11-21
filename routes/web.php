@@ -349,7 +349,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::delete('/gutachten/{document}/erfassung/fahrzeuge/{entry}', [GutachtenErfassungController::class, 'removeCar'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.entfernen');
         Route::post('/gutachten/{document}/erfassung/fahrzeuge/{entry}/kopieren', [GutachtenErfassungController::class, 'copy'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.kopieren');
         Route::post('/gutachten/{document}/erfassung/fahrzeuge/{entry}/geprueft', [GutachtenErfassungController::class, 'confirmCar'])->whereNumber(['document', 'entry'])->name('gutachten.erfassung.fahrzeug.geprueft');
-        Route::put('/gutachten/{document}/erfassung/lastindex', [GutachtenErfassungController::class, 'indexSource'])->whereNumber('document')->name('gutachten.erfassung.lastindex');
         Route::put('/gutachten/{document}', [GutachtenController::class, 'update'])->whereNumber('document')->name('gutachten.update');
         Route::post('/gutachten/{document}/freigeben', [GutachtenController::class, 'release'])->whereNumber('document')->name('gutachten.freigeben');
         // „Sind alle Anlagen und alle Fahrzeuge erfasst?“ for a released document (D-227).
@@ -367,7 +366,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::put('/gutachten/{document}/auflagen/{condition}/stufe', [GutachtenAuflagenController::class, 'level'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.stufe');
         Route::delete('/gutachten/{document}/auflagen/{condition}', [GutachtenAuflagenController::class, 'destroy'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.entfernen');
         // A load-index limit that differs from the table, confirmed as printed with a reason.
-        Route::post('/gutachten/{document}/auflagen/{condition}/grenze', [GutachtenAuflagenController::class, 'confirmLimit'])->whereNumber(['document', 'condition'])->name('gutachten.auflage.grenze');
         // What it states beside its codes (the corrections memo §4): Befestigungsmittel, Pflichthinweise, Nacharbeit mit Maßen.
         Route::post('/gutachten/{document}/befestigungsmittel', [GutachtenAngabenController::class, 'store'])->whereNumber('document')->name('gutachten.befestigungsmittel.store');
         Route::delete('/gutachten/{document}/befestigungsmittel/{fastener}', [GutachtenAngabenController::class, 'destroyFastener'])->whereNumber(['document', 'fastener'])->name('gutachten.befestigungsmittel.entfernen');

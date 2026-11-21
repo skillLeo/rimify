@@ -56,7 +56,6 @@ final class FitmentServiceProvider extends ServiceProvider implements Deferrable
         $this->app->singleton(FitmentResolver::class, static fn ($app): FitmentResolver => new FitmentResolver(
             vehicles: $app->make(VehicleRepository::class),
             fitments: $app->make(FitmentRepository::class),
-            loadIndex: $app->make(LoadIndexDeriver::class),
             speedSymbol: $app->make(SpeedSymbolDeriver::class),
             clock: $app->make(Clock::class),
         ));

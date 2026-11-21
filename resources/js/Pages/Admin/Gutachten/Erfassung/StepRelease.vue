@@ -55,14 +55,6 @@ const codes = computed(() => state.entry.undescribed)
 const rows = computed(() => page.props.rowsTotal ?? 0)
 const blockers = computed(() => page.props.blockers ?? [])
 
-const LI_SOURCES = [
-    { value: 'document', label: 'Bei jeder Reifengröße' },
-    { value: 'papers', label: 'Mit einem Verweis auf die Fahrzeugpapiere' },
-    { value: 'table', label: 'In einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit' },
-] as const
-
-const liSource = computed(() => doc.value.shape.tyre_index_source || null)
-
 /* What the door says, fresh: the rows may have changed in the steps before this one. A save calls off the reload
    still on its way, whose answer it makes old (freshReload). */
 const REFRESH = 'erfassung-freigabe'
@@ -165,18 +157,6 @@ async function confirm(car: CarView): Promise<void> {
         failure.value = error instanceof Error ? error.message : 'Das hat nicht geklappt.'
     } finally {
         busy.value = null
-    }
-}
-
-async function answerIndex(value: string): Promise<void> {
-    cancelReload(REFRESH)
-    failure.value = ''
-
-    try {
-        await store.save('PUT', '/lastindex', { tyre_index_source: value })
-        refresh()
-    } catch (error) {
-        failure.value = error instanceof Error ? error.message : 'Das hat nicht geklappt.'
     }
 }
 
@@ -314,17 +294,6 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
                     </li>
                 </ul>
             </section>
-
-            <fieldset class="ef-fieldset ef-check">
-                <legend class="ef-check__title">Wie gibt das Gutachten Lastindex und Geschwindigkeitssymbol an?</legend>
-                <label v-for="option in LI_SOURCES" :key="option.value" class="check ef-check__radio">
-                    <input type="radio" name="ef-li-release" :value="option.value" :checked="liSource === option.value" @change="answerIndex(option.value)">
-                    {{ option.label }}
-                    <span v-if="state.entry.suggestion === option.value" class="adm-tag adm-tag--neutral">Vorschlag</span>
-                </label>
-                <p v-if="state.entry.suggestion" class="form-field__help">Der Vorschlag kommt aus den eingetragenen Reifen. Entscheidend ist, was im Gutachten steht.</p>
-            </fieldset>
-
         </div>
 
         <PreviewSection />

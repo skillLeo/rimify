@@ -225,11 +225,9 @@ const STATUS: Record<string, string> = { draft: 'Entwurf', published: 'Freigegeb
                                 </li>
                             </ul>
                         </template>
-                        <p v-else-if="topSpeed.released > 0" class="fs-why__lead">
-                            Für die Reifen nicht nötig: Bei jedem freigegebenen Gutachten zu diesem Fahrzeug sind Lastindex und Geschwindigkeitssymbol bei jeder Reifengröße erfasst.
-                        </p>
+                        <!-- D-483: since D-481 the tyres rest on what the Gutachten gives beside each size, never on the top speed. -->
                         <p v-else class="fs-why__lead">
-                            Bei uns ist noch kein Gutachten zu diesem Fahrzeug freigegeben. Ob die Höchstgeschwindigkeit für die Reifen nötig ist, hängt davon ab, wie ein Gutachten Lastindex und Geschwindigkeitssymbol angibt.
+                            Für die Reifen nicht nötig: Der Shop richtet sich bei den Reifen nach den Angaben des Gutachtens zu jeder Reifengröße, nicht nach der Höchstgeschwindigkeit.
                         </p>
                     </div>
                     <p id="fs-speed-err" class="form-field__error">{{ errors.max_speed_kmh }}</p>

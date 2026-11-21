@@ -24,9 +24,9 @@ use Tests\Support\Gutachten\ReleaseAnswers;
 
 /*
  * How a Gutachten gives its tyres' load index and speed symbol (the operator's brief of 17.10.2026, D-277): at every size,
- * through the vehicle's papers, or through its table of tyre load at speed. Read off the document, kept with its facts,
- * asked before release — and an answer the entry does not bear out stops the release, because the answer decides whether
- * a car's top speed is needed at all.
+ * through the vehicle's papers, or through its table of tyre load at speed. Kept with the document's facts where it was
+ * answered. Since D-481 the tyres rest on what the document prints beside each size, so the answer decides nothing: the
+ * release neither asks it nor holds the entry to it (D-483).
  */
 
 beforeEach(function (): void {
@@ -37,8 +37,6 @@ beforeEach(function (): void {
     Storage::fake('docs_private');
     Storage::fake('docs_public');
 });
-
-const INDEX_UNANSWERED = 'Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.';
 
 function indexAdmin(): AdminUser
 {
@@ -111,18 +109,17 @@ it('shows the answer in the form and on the record — and nothing where there i
             ->where('document.header', fn ($header): bool => ! collect($header)->contains('label', 'Lastindex und Geschwindigkeitssymbol')));
 });
 
-it('does not release a document nobody has answered it for, and says where to answer', function (): void {
+it('releases a document nobody has answered it for: the answer decides nothing since D-481 (D-483)', function (): void {
     $document = indexDraft(null);
-
-    expect(app(DocumentRelease::class)->check($document))->toBe([INDEX_UNANSWERED]);
-    $this->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
-        ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: '.INDEX_UNANSWERED]);
-
-    $document->forceFill(['tyre_index_source' => TyreIndexSource::Papers])->save();
 
     expect(app(DocumentRelease::class)->check($document))->toBe([]);
     $this->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertSessionHasNoErrors();
-    expect($document->refresh()->status->value)->toBe('published');
+    expect($document->refresh()->status->value)->toBe('published')
+        ->and($document->tyre_index_source)->toBeNull();
+
+    // The step's own way to answer it is gone with the question.
+    $this->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/lastindex", ['tyre_index_source' => 'papers'])
+        ->assertStatus(404);
 });
 
 it('releases „Tabelle“ with no table typed: the shop reads ETRTO\'s for every document (D-459)', function (): void {
@@ -133,15 +130,9 @@ it('releases „Tabelle“ with no table typed: the shop reads ETRTO\'s for ever
     expect($document->refresh()->status->value)->toBe('published');
 });
 
-it('holds „bei jeder Reifengröße“ to both figures at every size — load index and symbol (D-285)', function (): void {
-    $sentence = fn (string $sizes): string => "{$sizes} der Lastindex oder das Geschwindigkeitssymbol, obwohl das Gutachten laut den Angaben beide bei jeder Größe nennt. Trag sie nach oder ändere die Angabe.";
-
-    expect(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '', ''])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '93W', ''])))->toBe([$sentence('Bei einer Reifengröße fehlt')])
-        // A symbol without its load index, or a load index without its symbol, is half the answer.
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', 'W', '93'])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '93W'])))->toBe([])
-        // The papers ask nothing of the sizes: an index printed at some of them is a minimum, not the answer.
+it('holds „bei jeder Reifengröße“ to nothing: a size without its figures asks nothing, as the verdict does (D-481, D-483)', function (): void {
+    expect(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '', ''])))->toBe([])
+        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', 'W', '93'])))->toBe([])
         ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Papers, ['Y', ''])))->toBe([]);
 });
 

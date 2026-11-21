@@ -14,9 +14,6 @@ use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
 use App\Domain\Fitment\Data\WheelConfigRecord;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
-use App\Domain\Fitment\Derivation\SpeedLoadLookup;
-use App\Domain\Fitment\Derivation\SpeedLoadTable;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\EngineVersion;
 use App\Domain\Fitment\Exceptions\ReferenceDataMissing;
@@ -70,7 +67,6 @@ final readonly class FitmentResolver
     public function __construct(
         private VehicleRepository $vehicles,
         private FitmentRepository $fitments,
-        private LoadIndexDeriver $loadIndex,
         private SpeedSymbolDeriver $speedSymbol,
         private Clock $clock,
     ) {}
@@ -408,11 +404,10 @@ final readonly class FitmentResolver
             $combination = Condition::union($combination, $row->conditions);
         }
 
-        // Every covering document prints the index beside every size: the car's top speed is not needed for the tyres (D-277).
-        $speedFromDocument = self::indexAtEverySize($covering);
-
-        [$front, $frontCheck] = $this->axleRequirement($covering, $vehicle->axleLoadFrontKg, $vehicle->maxSpeedKmh, 'FRONT', $vehicle->powerKw, $vehicle->papersIndex?->forAxle('FRONT'), self::provenance($vehicle, 'FRONT'), $speedFromDocument);
-        [$rear, $rearCheck] = $this->axleRequirement($covering, $vehicle->axleLoadRearKg, $vehicle->maxSpeedKmh, 'REAR', $vehicle->powerKw, $vehicle->papersIndex?->forAxle('REAR'), self::provenance($vehicle, 'REAR'), $speedFromDocument);
+        // D-481 (the client's message of 19.11.2026; R-03 and R-06 as amended on 21.11.2026): the tyres' minimum is what the
+        // documents print beside each size — nothing is derived from the car's axle loads, its top speed or ETRTO's table.
+        [$front] = $this->axleRequirement($covering, 'FRONT', $vehicle->powerKw);
+        [$rear] = $this->axleRequirement($covering, 'REAR', $vehicle->powerKw);
 
         // A size the document gives only for a kW band, on a car whose power is not known: kept, never
         // PERMITTED — the band is said, with the field of the papers to compare it with (Block D).
@@ -508,26 +503,13 @@ final readonly class FitmentResolver
         // the covering rows, so a reissue is what the customer is shown.
         $document = $this->governingDocument($covering);
 
-        // ── The tyre half, and the answer: the weaker of the two, never PERMITTED while the tyres
-        // are open (R-03).
-        $tyre = $this->tyreCheck($vehicle, $wheel, $conditions, $front, $rear, $frontCheck, $rearCheck, $document, $speedFromDocument);
-
-        // The customer's own figures laid over the car (C10): did they make the answer stricter than the
-        // vehicle data alone? Then the sum is owed at once, not behind a click (the decision of 29.09.2026).
-        if ($vehicle->beforePapers !== null) {
-            $before = $vehicle->beforePapers;
-            [$beforeFront, $beforeFrontCheck] = $this->axleRequirement($covering, $before->axleLoadFrontKg, $before->maxSpeedKmh, 'FRONT', $before->powerKw, speedFromDocument: $speedFromDocument);
-            [$beforeRear, $beforeRearCheck] = $this->axleRequirement($covering, $before->axleLoadRearKg, $before->maxSpeedKmh, 'REAR', $before->powerKw, speedFromDocument: $speedFromDocument);
-            $beforeTyre = $this->tyreCheck($before, $wheel, $conditions, $beforeFront, $beforeRear, $beforeFrontCheck, $beforeRearCheck, $document, $speedFromDocument);
-            $tyre = $tyre->withStricterByPapers($this->stricter($tyre, $front, $rear, $beforeTyre, $beforeFront, $beforeRear));
-        }
+        // ── The tyre half, and the answer: the weaker of the two, never PERMITTED while the tyres are open.
+        $tyre = $this->tyreCheck($vehicle, $wheel, $covering, $conditions, $front, $rear, $document);
 
         $status = VerdictStatus::weaker($wheelStatus, $tyre->status);
 
-        // The rim alone (the operator's brief of 18.10.2026, §1, D-289): the axle loads decide the tyres' load index, not
-        // whether the wheel is approved. Where the tyres wait only for the papers, the rim is sold alone — unless the
-        // wheel's own approval waits for them too, gated as the top speed is (D-284): on what the document itself limits.
-        $sellsAlone = $tyre->awaitsPapers() && self::wheelOwed($vehicle, $covering, $conditions, $front, $rear) === [];
+        // Since D-481 the tyres wait for nothing of the car: the rim is never sold alone for their sake (D-289 had it so).
+        $sellsAlone = false;
 
         // Where the tyres decide against the wheel, the answer says why in the tyres' own words.
         $reason = match ($tyre->status) {
@@ -688,22 +670,20 @@ final readonly class FitmentResolver
     }
 
     /**
-     * The tyre half of the verdict (R-03 as amended on 28.09.2026 and 18.10.2026; the operator's review of C9).
+     * The tyre half of the verdict (D-481: the client's message of 19.11.2026, „remove all validation logic for load and speed
+     * indices … we will manually ensure that the combinations are valid“; R-03 and R-06 as amended on 21.11.2026).
      *
-     * Without the car's axle loads, or without its top speed where a covering document needs it (D-284), it is
-     * UNKNOWN — „Noch nicht bestätigt“, the absence of a grant, never a grant with conditions (D-286) — names the
-     * fields of the papers it waits for, and says which threshold the document sets — its `reifen_tragfaehigkeit`
-     * Auflagen, T88 → 1.120 kg — and which fields of the papers to compare it with. With them it is decided per
-     * axle the wheel may go on: the document's own load-index limit and the derated requirement are stated
-     * separately and the stricter is named; the load at speed is ETRTO's, the same for every document (D-459), and a
-     * speed or a symbol that table does not hold is UNKNOWN. A tyre rule the document writes that no figure can settle
-     * keeps it CONDITIONAL.
+     * Nothing is derived from the car any more — not from its axle loads, not from its top speed, not from ETRTO's table —,
+     * and nothing waits for its papers on the tyres' account. What stays is the documents' own word: the sizes they permit
+     * (matched exactly), the figures they print beside a size — a tyre offered meets them (TyreEligibility) —, and their
+     * Auflagen about tyres, which keep the answer CONDITIONAL. Two things still keep it „Noch nicht bestätigt“, both about
+     * the wheel's approval itself, never about an index: a combination the documents list for no type of this car (D-358),
+     * and a document that limits the wheel by axle load where the car's axle load is not known (D-289).
      *
+     * @param  list<FitmentRow>  $covering
      * @param  list<Condition>  $conditions
-     * @param  array<string, mixed>  $frontCheck
-     * @param  array<string, mixed>  $rearCheck
      */
-    private function tyreCheck(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, array $conditions, AxleRequirement $front, AxleRequirement $rear, array $frontCheck, array $rearCheck, DocumentRecord $document, bool $speedFromDocument = false): TyreCheck
+    private function tyreCheck(VehicleRecord $vehicle, ?WheelConfigRecord $wheel, array $covering, array $conditions, AxleRequirement $front, AxleRequirement $rear, DocumentRecord $document): TyreCheck
     {
         $thresholds = [];
 
@@ -715,121 +695,72 @@ final readonly class FitmentResolver
 
         // The document lists its combinations per vehicle type, and none takes in this car's EG number (his admin item 19,
         // D-358): what is not on record with us is the combination itself, so the tyres are „Noch nicht bestätigt“ — and
-        // the car's papers cannot change that, so they are not asked for. The wheel's own verdict stands (R-03).
+        // the car's papers cannot change that, so they are not asked for. The wheel's own verdict stands.
         if ($document->tyreCombinations?->unmatched === true) {
             return new TyreCheck(VerdictStatus::Unknown, [self::NO_COMBINATION_ENTRY], $thresholds, summary: self::NO_COMBINATION_ENTRY);
         }
 
-        // What the tyres need of the car (R-03 as amended on 18.10.2026): its axle loads, always; its top speed, unless every
-        // covering document prints load index and symbol beside every size and that index stood for every axle the wheel may
-        // go on (D-284) — then the document has named the tyre for this car, and the top speed is neither asked nor used.
-        $documentStands = static fn (AxleRequirement $axle, array $check): bool => ! $axle->hasPermittedSizes() || ($check['speedFromDocument'] ?? false) === true;
-        $speedNeeded = ! ($speedFromDocument && $documentStands($front, $frontCheck) && $documentStands($rear, $rearCheck));
-        // Each axle on its own: where the data knows 8.1 and not 8.2, only 8.2 is asked for (D-291).
-        $axleKnown = static fn (?int $kg): bool => ! $vehicle->isDeleted && $kg !== null && $kg > 0;
-        $owed = [
-            ...($axleKnown($vehicle->axleLoadFrontKg) ? [] : ['8.1']),
-            ...($axleKnown($vehicle->axleLoadRearKg) ? [] : ['8.2']),
-            ...($speedNeeded && ! $vehicle->hasTopSpeed() ? ['T'] : []),
-        ];
+        // The wheel's approval waits for an axle load where a document limits it by one (D-289) — the one figure of the car
+        // still asked for, and only there.
+        $owed = self::wheelOwed($vehicle, $covering, $conditions, $front, $rear);
 
-        // Without what they need the tyres are „Noch nicht bestätigt“: the absence of a grant, never a grant with conditions
-        // (D-286). The reason is ours — what is not on record with us —, then what the document sets, then the way on.
         if ($owed !== []) {
-            return new TyreCheck(VerdictStatus::Unknown, self::papersOwedLines($owed, $document, $thresholds, $wheel), $thresholds, papersOwed: $owed);
+            return new TyreCheck(VerdictStatus::Unknown, self::papersOwedLines($owed, $thresholds, $wheel), $thresholds, papersOwed: $owed);
         }
 
-        $lines = [];
-        $status = VerdictStatus::Permitted;
-
-        foreach ([['Vorderachse', $front, $frontCheck], ['Hinterachse', $rear, $rearCheck]] as [$name, $axle, $check]) {
-            if (! $axle->hasPermittedSizes()) {
-                continue;
-            }
-
-            [$axleStatus, $axleLines] = $this->axleLines($name, $axle, $check, $wheel);
-
-            // The papers' index where our own computation is missing: said, and never taken alone (R-03, D-242).
-            if ($axleStatus === VerdictStatus::Unknown && is_array($check['papers'] ?? null)) {
-                $axleLines[] = sprintf(
-                    'Deine Angabe aus Feld %s – Tragfähigkeitsindex %d, Geschwindigkeitsindex %s – bestätigt die Reifen allein nicht: Wir nehmen sie nur zusammen mit unserer eigenen Berechnung aus Achslast und Höchstgeschwindigkeit.',
-                    $check['papers']['field'],
-                    $check['papers']['loadIndex'],
-                    $check['papers']['speedSymbol'],
-                );
-            }
-
-            $status = VerdictStatus::weaker($status, $axleStatus);
-            $lines = [...$lines, ...$axleLines];
-        }
-
-        if ($status !== VerdictStatus::Permitted) {
-            // The first line of a failing axle is the reason; keep it first.
-            usort($lines, static fn (string $a, string $b): int => (int) str_starts_with($b, '!') <=> (int) str_starts_with($a, '!'));
-
-            // A sentence both axles give — „Für 310 km/h ist bei uns keine Tragfähigkeit hinterlegt …“ — is said once.
-            $lines = array_values(array_unique(array_map(static fn (string $l): string => ltrim($l, '!'), $lines)));
-
-            // Always shown: why not, and the document it rests on.
-            return new TyreCheck($status, $lines, $thresholds, true, $lines[0] ?? null, self::basis($document, $front->hasPermittedSizes() ? $frontCheck : $rearCheck));
-        }
-
-        // Always shown, whatever folds the sum away: the axle that binds and what it asks for, and the
-        // document it came from (the operator's decision of 29.09.2026).
-        [$summary, $bindingCheck] = $this->bindingSummary($vehicle, $front, $rear, $frontCheck, $rearCheck);
-        $basis = self::basis($document, $bindingCheck);
-
-        // Four identical tyres meet the stricter axle, and the line says which one bound.
-        if ($front->hasPermittedSizes() && $rear->hasPermittedSizes() && $this->sameSizes($front, $rear)) {
-            $frontLoad = (int) $vehicle->axleLoadFrontKg;
-            $rearLoad = (int) $vehicle->axleLoadRearKg;
-            $frontIndex = (int) $front->minLoadIndex;
-            $rearIndex = (int) $rear->minLoadIndex;
-            $bindingIndex = max($frontIndex, $rearIndex);
-            // The axle that asks for more binds; where both ask for the same index, the heavier one (C-09).
-            $rearBinds = $rearIndex !== $frontIndex ? $rearIndex > $frontIndex : $rearLoad > $frontLoad;
-            $lines[] = $frontLoad === $rearLoad
-                ? sprintf('Beide Achsen tragen %s: vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex %d.', GermanFormat::kilograms($frontLoad), $bindingIndex)
-                : sprintf(
-                    'Für vier gleiche Reifen maßgeblich ist die %s mit %s: mindestens Tragfähigkeitsindex %d.',
-                    $rearBinds ? 'Hinterachse' : 'Vorderachse',
-                    GermanFormat::kilograms($rearBinds ? $rearLoad : $frontLoad),
-                    $bindingIndex,
-                );
-        }
-
-        $restricting = array_filter(
-            $conditions,
-            static fn (Condition $c): bool => $c->affectsTyreChoice && $c->kind !== ConditionKind::ReifenTragfaehigkeit,
-        );
+        $summary = self::printedSummary($front, $rear);
+        $basis = 'Grundlage: Gutachten '.($document->number ?? '').'.';
+        $restricting = array_filter($conditions, static fn (Condition $c): bool => $c->affectsTyreChoice);
 
         if ($restricting !== []) {
-            $lines[] = 'Das Gutachten schreibt außerdem vor, welche Reifen du fahren darfst – die Auflagen unter „Reifen“ gelten zusätzlich.';
+            $lines = ['Das Gutachten schreibt außerdem vor, welche Reifen du fahren darfst – die Auflagen unter „Reifen“ gelten zusätzlich.'];
 
-            // Settled on the figures, every axle: what is left is the document's written rule (D-105).
-            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, true, $summary, $basis, figuresPermitted: true);
+            return new TyreCheck(VerdictStatus::Conditional, $lines, $thresholds, false, $summary, $basis, figuresPermitted: true);
         }
 
-        return new TyreCheck(VerdictStatus::Permitted, $lines, $thresholds, true, $summary, $basis, figuresPermitted: true);
+        return new TyreCheck(VerdictStatus::Permitted, [], $thresholds, false, $summary, $basis, figuresPermitted: true);
     }
 
     /**
-     * The tyres' answer where fields of the car's papers are missing (D-286), in reading order: why — as ours, what is not
-     * on record with us, and where the top speed is owed, why the document needs it, as recorded with it (D-277) —; the
-     * document's own axle limits and the wheel's tested load, each with the fields to compare (R-03); then the way on.
-     * Where nobody has answered how the document gives the index, its reason is left out: nothing is said of the document
-     * that is not on record (R-17).
+     * What the documents print beside the sizes of the axles, as one line (D-481): `Laut Gutachten mindestens
+     * Tragfähigkeitsindex 88, Geschwindigkeitsindex W.` — per axle where the axles differ; null where nothing is printed.
+     */
+    public static function printedSummary(AxleRequirement $front, AxleRequirement $rear, bool $perAxle = false): ?string
+    {
+        $says = static function (AxleRequirement $axle): ?string {
+            $parts = array_filter([
+                $axle->minLoadIndex === null ? null : 'Tragfähigkeitsindex '.$axle->minLoadIndex,
+                $axle->minSpeedSymbol === null ? null : 'Geschwindigkeitsindex '.$axle->minSpeedSymbol,
+            ]);
+
+            return $parts === [] ? null : 'mindestens '.implode(', ', $parts);
+        };
+
+        $f = $front->hasPermittedSizes() ? $says($front) : null;
+        $r = $rear->hasPermittedSizes() ? $says($rear) : null;
+
+        return match (true) {
+            $f === null && $r === null => null,
+            ! $perAxle && ($f === $r || $r === null) => 'Laut Gutachten '.$f.'.',
+            $f === null => 'Laut Gutachten an der Hinterachse '.$r.'.',
+            $r === null => 'Laut Gutachten an der Vorderachse '.$f.'.',
+            default => 'Laut Gutachten an der Vorderachse '.$f.'; an der Hinterachse '.$r.'.',
+        };
+    }
+
+    /**
+     * The answer where the car's axle loads are missing and a covering document limits the wheel by axle load (D-289), in
+     * reading order: what is not on record with us; the document's own axle limits and the wheel's tested load, each with
+     * the fields to compare (R-03); then the way on. Never the top speed: since D-481 nothing about the tyres asks for it.
      *
-     * @param  list<string>  $owed  `8.1`, `8.2`, `T`
+     * @param  list<string>  $owed  `8.1`, `8.2`
      * @param  list<array{textDe: string, maxAxleLoadKg: int}>  $thresholds
      * @return list<string>
      */
-    private static function papersOwedLines(array $owed, DocumentRecord $document, array $thresholds, ?WheelConfigRecord $wheel): array
+    private static function papersOwedLines(array $owed, array $thresholds, ?WheelConfigRecord $wheel): array
     {
         $front = in_array('8.1', $owed, true);
         $rear = in_array('8.2', $owed, true);
-        $axles = $front || $rear;
-        $speed = in_array('T', $owed, true);
         // Each axle on its own where the data knows the other (D-291).
         [$axleWords, $axleFields] = match (true) {
             $front && $rear => ['die zulässigen Achslasten', 'Felder 8.1 und 8.2'],
@@ -837,59 +768,28 @@ final readonly class FitmentResolver
             default => ['die zulässige Achslast hinten', 'Feld 8.2'],
         };
 
-        // „Fahrzeugpapiere“ is also the answer where the document prints the symbol at only some sizes (RecordFields): the
-        // sentence says where the index comes from, never that the document refers to the papers in so many words.
-        $why = ! $speed ? '' : match ($document->tyreIndexSource) {
-            'papers' => ' Bei diesem Gutachten ist hinterlegt, dass sich der Geschwindigkeitsindex nach den Fahrzeugpapieren richtet.',
-            'table' => ' Bei diesem Gutachten ist hinterlegt, dass es eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit enthält – welche Zeile gilt, entscheidet die Höchstgeschwindigkeit.',
-            default => '',
-        };
+        $lines = ['Für die Reifen '.($front && $rear ? 'fehlen' : 'fehlt')." uns {$axleWords} deines Fahrzeugs ({$axleFields})."];
 
-        $lines = [match (true) {
-            $axles && $speed => "Für die Reifen fehlen uns {$axleWords} ({$axleFields}) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.",
-            $axles => 'Für die Reifen '.($front && $rear ? 'fehlen' : 'fehlt')." uns {$axleWords} deines Fahrzeugs ({$axleFields}).",
-            default => 'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).',
-        }.$why];
+        foreach ($thresholds as $threshold) {
+            $lines[] = sprintf(
+                '%s Vergleiche die %s mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
+                rtrim($threshold['textDe']),
+                GermanFormat::kilograms($threshold['maxAxleLoadKg']),
+            );
+        }
 
-        if ($axles) {
-            foreach ($thresholds as $threshold) {
-                $lines[] = sprintf(
-                    '%s Vergleiche die %s mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
-                    rtrim($threshold['textDe']),
-                    GermanFormat::kilograms($threshold['maxAxleLoadKg']),
-                );
-            }
-
-            if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
-                $lines[] = sprintf(
-                    'Die Felge ist für %s je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens %s betragen.',
-                    GermanFormat::kilograms($wheel->maxLoadKg),
-                    GermanFormat::kilograms($wheel->maxLoadKg * 2),
-                );
-            }
+        if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
+            $lines[] = sprintf(
+                'Die Felge ist für %s je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens %s betragen.',
+                GermanFormat::kilograms($wheel->maxLoadKg),
+                GermanFormat::kilograms($wheel->maxLoadKg * 2),
+            );
         }
 
         // One way on whatever is missing: the papers' form, which asks for what is missing and shows what is known (D-291).
         $lines[] = 'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.';
 
         return $lines;
-    }
-
-    /**
-     * Whether every covering document prints the index beside every size (D-277): only then is a car's top speed not
-     * needed — one document that needs it is enough to need it.
-     *
-     * @param  list<FitmentRow>  $covering
-     */
-    private static function indexAtEverySize(array $covering): bool
-    {
-        foreach ($covering as $row) {
-            if (! $row->document->statesIndexAtEverySize()) {
-                return false;
-            }
-        }
-
-        return $covering !== [];
     }
 
     /**
@@ -933,272 +833,12 @@ final readonly class FitmentResolver
         return $out;
     }
 
-    /**
-     * The one line the customer always sees: `Hinterachse mit 1.235 kg: mindestens Tragfähigkeitsindex 93,
-     * Geschwindigkeitsindex Y.` — the axle that asks for more (a tie: the heavier), or each axle where the
-     * document permits different sizes on them. With the check of the axle it names, for its basis.
-     *
-     * @param  array<string, mixed>  $frontCheck
-     * @param  array<string, mixed>  $rearCheck
-     * @return array{0: string, 1: array<string, mixed>}
-     */
-    private function bindingSummary(VehicleRecord $vehicle, AxleRequirement $front, AxleRequirement $rear, array $frontCheck, array $rearCheck): array
-    {
-        $frontLoad = (int) $vehicle->axleLoadFrontKg;
-        $rearLoad = (int) $vehicle->axleLoadRearKg;
-        $says = static fn (string $axle, int $load, int $index, string $symbol): string => sprintf(
-            '%s mit %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s',
-            $axle,
-            GermanFormat::kilograms($load),
-            $index,
-            $symbol,
-        );
-
-        if (! $rear->hasPermittedSizes()) {
-            return [$says('Vorderachse', $frontLoad, (int) $front->minLoadIndex, (string) $front->minSpeedSymbol).'.', $frontCheck];
-        }
-
-        if (! $front->hasPermittedSizes()) {
-            return [$says('Hinterachse', $rearLoad, (int) $rear->minLoadIndex, (string) $rear->minSpeedSymbol).'.', $rearCheck];
-        }
-
-        if (! $this->sameSizes($front, $rear)) {
-            return [
-                $says('Vorderachse', $frontLoad, (int) $front->minLoadIndex, (string) $front->minSpeedSymbol).'; '
-                    .$says('Hinterachse', $rearLoad, (int) $rear->minLoadIndex, (string) $rear->minSpeedSymbol).'.',
-                $rearCheck,
-            ];
-        }
-
-        // Four identical tyres meet both axles: the higher index, the higher symbol.
-        $frontIndex = (int) $front->minLoadIndex;
-        $rearIndex = (int) $rear->minLoadIndex;
-        $rearBinds = $rearIndex !== $frontIndex ? $rearIndex > $frontIndex : $rearLoad > $frontLoad;
-        $symbol = ($this->speedSymbol->rankOf($rear->minSpeedSymbol) ?? 0) > ($this->speedSymbol->rankOf($front->minSpeedSymbol) ?? 0)
-            ? (string) $rear->minSpeedSymbol
-            : (string) $front->minSpeedSymbol;
-
-        if ($frontLoad === $rearLoad) {
-            return [$says('Beide Achsen', $frontLoad, max($frontIndex, $rearIndex), $symbol).'.', $rearCheck];
-        }
-
-        return $rearBinds
-            ? [$says('Hinterachse', $rearLoad, $rearIndex, $symbol).'.', $rearCheck]
-            : [$says('Vorderachse', $frontLoad, $frontIndex, $symbol).'.', $frontCheck];
-    }
-
-    /**
-     * What the tyre answer rests on: the document — and, where the load at speed was read above 210 km/h, ETRTO's table with
-     * it, the same for every document (D-459).
-     *
-     * @param  array<string, mixed>  $check
-     */
-    private static function basis(DocumentRecord $document, array $check): string
-    {
-        $lookup = $check['lookup'] ?? null;
-        $etrto = $lookup instanceof SpeedLoadLookup && $lookup->rowKmh !== null && ($check['speedFromDocument'] ?? false) !== true;
-
-        return 'Grundlage: Gutachten '.($document->number ?? '').($etrto ? ' und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit' : '').'.';
-    }
-
-    /**
-     * Whether the customer's figures made the tyre answer stricter than the vehicle data alone: a weaker
-     * status, or a higher load index or speed symbol on an axle the wheel may go on.
-     */
-    private function stricter(TyreCheck $now, AxleRequirement $front, AxleRequirement $rear, TyreCheck $before, AxleRequirement $beforeFront, AxleRequirement $beforeRear): bool
-    {
-        if ($now->status !== $before->status && VerdictStatus::weaker($now->status, $before->status) === $now->status) {
-            return true;
-        }
-
-        foreach ([[$front, $beforeFront], [$rear, $beforeRear]] as [$axle, $was]) {
-            if (! $axle->hasPermittedSizes()) {
-                continue;
-            }
-
-            if ($axle->minLoadIndex !== null && $was->minLoadIndex !== null && $axle->minLoadIndex > $was->minLoadIndex) {
-                return true;
-            }
-
-            $rank = $this->speedSymbol->rankOf($axle->minSpeedSymbol);
-            $wasRank = $this->speedSymbol->rankOf($was->minSpeedSymbol);
-
-            if ($rank !== null && $wasRank !== null && $rank > $wasRank) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * One axle, as the customer can follow it — the load per wheel, the document's own load-index limit and
-     * the derated requirement each on its own, and which of them binds:
-     * `Hinterachse: 1.180 kg ÷ 2 = 590 kg je Rad. Laut Auflage T91 genügt … Bei 250 km/h trägt … Maßgeblich …`
-     *
-     * A line that is the reason an axle fails starts with `!` (removed by the caller).
-     *
-     * @param  array<string, mixed>  $check
-     * @return array{0: VerdictStatus, 1: list<string>}
-     */
-    private function axleLines(string $name, AxleRequirement $axle, array $check, ?WheelConfigRecord $wheel): array
-    {
-        $load = (int) $check['load'];
-        $speed = (int) $check['speed'];
-        $lead = sprintf('%s: %s ÷ 2 = %s je Rad.', $name, GermanFormat::kilograms($load), self::halfKg($load));
-
-        /** @var SpeedLoadLookup|null $lookup */
-        $lookup = $check['lookup'];
-
-        // The table we compute with holds no load for this speed and symbol — above 300 km/h, or a symbol in brackets: not on record
-        // with us, so never estimated (D-459). Said as what we hold, never as what ETRTO itself does or does not say (R-17).
-        if ($lookup === null || $lookup->percent === null) {
-            return [VerdictStatus::Unknown, [$lookup !== null && $lookup->rowKmh !== null && $check['symbol'] !== null
-                ? sprintf('!Für Geschwindigkeitsindex %s ist bei uns keine Tragfähigkeit bei %s km/h hinterlegt: Die Tabelle, nach der wir rechnen, gilt für V, W und Y, nicht für (W) und (Y). Die Reifen können wir deshalb nicht bestätigen.', $check['symbol'], GermanFormat::integer($speed))
-                : sprintf('!Für eine Höchstgeschwindigkeit von %s km/h ist bei uns keine Tragfähigkeit hinterlegt: Die Tabelle, nach der wir rechnen, reicht nur bis 300 km/h. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::integer($speed))]];
-        }
-
-        if ($check['limitsUncovered'] !== null) {
-            return [VerdictStatus::Unknown, [sprintf(
-                '!Zu den Auflagen dieses Gutachtens sind Tragfähigkeitsindizes nur bis %s Achslast hinterlegt; die %s trägt %s. Die Reifen können wir deshalb nicht bestätigen.',
-                GermanFormat::kilograms((int) $check['limitsUncovered']),
-                $name,
-                GermanFormat::kilograms($load),
-            )]];
-        }
-
-        // The documents print an index the shop holds no capacity for (D-442; the table ends at 120, D-310): which tyre carries it is
-        // not on record with us — „Noch nicht bestätigt“, never an error and never a guess.
-        if (($check['indexUnheld'] ?? null) !== null) {
-            return [VerdictStatus::Unknown, [sprintf(
-                '!Das Gutachten verlangt bei der Reifengröße Tragfähigkeitsindex %d. Für diesen Index ist bei uns keine Tragfähigkeit hinterlegt; die Reifen können wir deshalb noch nicht bestätigen.',
-                (int) $check['indexUnheld'],
-            )]];
-        }
-
-        if ($check['derived'] === null || ! $axle->hasUsableMinimum()) {
-            return [VerdictStatus::Unknown, [sprintf('!Für eine Achslast von %s ist bei uns kein ausreichend hoher Tragfähigkeitsindex hinterlegt. Die Reifen können wir deshalb nicht bestätigen.', GermanFormat::kilograms($load))]];
-        }
-
-        // An axle-load note of the document this axle is above: said, and the answer stays open.
-        if ($check['axleNote'] !== null) {
-            return [VerdictStatus::Conditional, [sprintf(
-                '!Die Auflage %s nennt eine zulässige Achslast bis %s; die %s trägt laut Fahrzeugpapieren %s. Lies die Auflage im Gutachten – ob sie für dein Fahrzeug gilt, klären wir gern mit dir.',
-                $check['axleNote']['code'],
-                GermanFormat::kilograms((int) $check['axleNote']['kg']),
-                $name,
-                GermanFormat::kilograms($load),
-            )]];
-        }
-
-        $lines = [$lead];
-
-        // A size the axle lost to its own limits (D-434): said, as what is on record (R-17).
-        foreach ($check['sizesUncovered'] ?? [] as $gone) {
-            $lines[] = sprintf(
-                'Für %s sind zu den Auflagen dieses Gutachtens Tragfähigkeitsindizes nur bis %s Achslast hinterlegt; die %s trägt %s. Diese Größe können wir deshalb nicht bestätigen.',
-                $gone['size'],
-                GermanFormat::kilograms($gone['kg']),
-                $name,
-                GermanFormat::kilograms($load),
-            );
-        }
-
-        if ($wheel?->maxLoadKg !== null && $wheel->maxLoadKg > 0) {
-            $lines[] = sprintf('Die Felge ist für %s je Rad geprüft – das reicht.', GermanFormat::kilograms($wheel->maxLoadKg));
-        }
-
-        // The document's own stated limit, on its own.
-        if ($check['limit'] !== null) {
-            $lines[] = sprintf(
-                'Laut Auflage %s genügt Tragfähigkeitsindex %d bis %s Achslast.',
-                $check['limit']['code'],
-                $check['limit']['index'],
-                GermanFormat::kilograms($check['limit']['kg']),
-            );
-        }
-
-        // ETRTO's „–“ for the lower symbol, and the symbol its row asks for instead.
-        if ($check['raisedFrom'] !== null) {
-            $lines[] = sprintf('Bei %s km/h ist ein %s-Reifen nach unserer Tabelle nicht zulässig, erforderlich ist %s.', GermanFormat::integer($speed), $check['raisedFrom'], $check['symbol']);
-        }
-
-        // The derated requirement, on its own — or, where the document's symbol stood without the top speed (D-277), the
-        // axle load's own requirement and the symbol as the document gives it.
-        $derived = $check['derived'];
-        $percent = (int) $lookup->percent;
-        $fromDocument = ($check['speedFromDocument'] ?? false) === true;
-
-        if ($fromDocument) {
-            $lines[] = sprintf('Die Achslast verlangt Tragfähigkeitsindex %d (%s).', $derived->index, GermanFormat::kilograms($derived->capacityKg));
-            $lines[] = sprintf('Bei der Reifengröße gibt das Gutachten Tragfähigkeitsindex %d und Geschwindigkeitsindex %s an.', (int) $check['documentLoadIndex'], $check['symbol']);
-        } else {
-            $lines[] = $percent === 100
-                ? sprintf('Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s seine volle Last: das verlangt Tragfähigkeitsindex %d (%s).', GermanFormat::integer($speed), $check['symbol'], $derived->index, GermanFormat::kilograms($derived->capacityKg))
-                : sprintf(
-                    'Bei %s km/h trägt ein Reifen mit Geschwindigkeitsindex %s nach unserer Tabelle nur %d %% der Last seines Tragfähigkeitsindex: %s ÷ %s = %s – das verlangt Tragfähigkeitsindex %d (%s).',
-                    GermanFormat::integer($speed),
-                    $check['symbol'],
-                    $percent,
-                    self::halfKg($load),
-                    GermanFormat::trimmedDecimal($percent / 100, 2),
-                    // Display only: the decision was taken in whole numbers (LoadIndexDeriver::forAxleAt()).
-                    GermanFormat::trimmedDecimal(round($load * 50 / $percent, 1), 1).GermanFormat::NBSP.'kg',
-                    $derived->index,
-                    GermanFormat::kilograms($derived->capacityKg),
-                );
-        }
-
-        // The papers' own index, where the customer typed it (D-242): said whether or not it governs.
-        if (is_array($check['papers'] ?? null)) {
-            $lines[] = sprintf('Nach deinen Angaben aus Feld %s: Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $check['papers']['field'], $check['papers']['loadIndex'], $check['papers']['speedSymbol']);
-        }
-
-        $binding = match ($check['binding']) {
-            'limit' => sprintf('die Auflage %s', $check['limit']['code'] ?? ''),
-            'size' => 'die Reifengröße im Gutachten',
-            'papers' => sprintf('deine Angabe aus Feld %s', $check['papers']['field'] ?? '15.1'),
-            // Without the top speed nothing was derated (D-277): the axle load itself set the index.
-            default => $fromDocument ? 'die Achslast' : 'die Minderung bei hoher Geschwindigkeit',
-        };
-
-        // Each half credited to what set it: where the papers set one half and not the other, the line says so (D-242);
-        // where the document's symbol stood without the top speed, the symbol is its own sentence (D-284).
-        $speedByPapers = $axle->minSpeedSource === MinSource::Papers;
-        $lines[] = match (true) {
-            $fromDocument && ! $speedByPapers => sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d. Der Geschwindigkeitsindex muss mindestens %s sein.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol),
-            $speedByPapers && $check['binding'] !== 'papers' => sprintf(
-                'Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d. Den Geschwindigkeitsindex %s verlangt deine Angabe aus Feld %s.',
-                $binding,
-                (int) $axle->minLoadIndex,
-                $axle->minSpeedSymbol,
-                $check['papers']['field'] ?? '15.1',
-            ),
-            ! $speedByPapers && $check['binding'] === 'papers' => sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d. Der Geschwindigkeitsindex muss mindestens %s sein.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol),
-            default => sprintf('Maßgeblich ist %s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s.', $binding, (int) $axle->minLoadIndex, $axle->minSpeedSymbol),
-        };
-
-        return [VerdictStatus::Permitted, $lines];
-    }
-
     /** Half an axle load, as read: `550 kg`, `617,5 kg` — display only, never a decision. */
     private static function halfKg(int $axleLoadKg): string
     {
         return $axleLoadKg % 2 === 0
             ? GermanFormat::kilograms(intdiv($axleLoadKg, 2))
             : GermanFormat::integer(intdiv($axleLoadKg, 2)).',5'.GermanFormat::NBSP.'kg';
-    }
-
-    private function sameSizes(AxleRequirement $front, AxleRequirement $rear): bool
-    {
-        $keys = static function (AxleRequirement $axle): array {
-            $out = array_map(static fn (TyreSize $s): string => $s->key(), $axle->sizes);
-            sort($out);
-
-            return $out;
-        };
-
-        return $keys($front) === $keys($rear);
     }
 
     /**
@@ -1240,70 +880,33 @@ final readonly class FitmentResolver
     }
 
     /**
-     * The permitted sizes and the governing minima for one axle — and, beside them, how they were reached,
-     * for the sentences the tyre half shows (tyreCheck()).
-     *
-     * The load index is the stricter of three: half the axle load raised by the document's own table of
-     * tyre load at speed (read at the speed rounded up to its row, for the symbol that governs; a „–“ raises
-     * the symbol to the one the row requires); the document's `reifen_tragfaehigkeit` limits (the smallest
-     * index whose limit reaches this axle); and a size's own stated minimum (R-06).
-     *
-     * The papers' own index (15.1, 15.2 — D-242) is a fourth floor, and the only one that cannot stand alone: it raises a
-     * minimum the car's axle load and top speed already produced, and is not read without them (R-03).
-     *
-     * Without the top speed, where every covering document prints the index beside every size (`$speedFromDocument`,
-     * D-277): the speed symbol is the documents', no table is read, and the axle's load index is derived at full load —
-     * the floor under the index the document set for the combination.
+     * What one axle may carry (D-481): the sizes the covering documents permit on it — scoped to the axle, inside the car's kW
+     * band where one is printed, merged where a document prints one size twice, and only those every document permits —, and
+     * as its minimum only what the documents print beside those sizes: the highest load index, the strictest speed symbol.
+     * Nothing is derived from the car. Where a document prints nothing beside a size, the size has no minimum; a symbol the
+     * shop cannot rank is kept as printed, and a tyre must then carry exactly it (TyreEligibility).
      *
      * @param  list<FitmentRow>  $covering
-     * @param  array{loadIndex: int, speedSymbol: string, field: string}|null  $papers
-     * @param  array{axleLoadFrom: string|null, topSpeedFrom: string|null}|null  $provenance  where the figures came from, where the customer's own took part
-     * @param  TyreSize|null  $only  this size's own minimum (D-431): what the documents print beside it, its own Auflagen and
-     *                               its rows', and the axle's figures — never what they print beside another size
-     * @param  list<string>  $without  sizes (keys) left off this axle because their own limits stop below its load (D-434)
+     * @param  TyreSize|null  $only  this size alone: what the documents print beside it (D-431), never beside another size
      * @return array{0: AxleRequirement, 1: array<string, mixed>}
      */
-    private function axleRequirement(
-        array $covering,
-        ?int $axleLoadKg,
-        ?int $maxSpeedKmh,
-        string $axle,
-        ?int $powerKw = null,
-        ?array $papers = null,
-        ?array $provenance = null,
-        bool $speedFromDocument = false,
-        ?TyreSize $only = null,
-        array $without = [],
-    ): array {
+    private function axleRequirement(array $covering, string $axle, ?int $powerKw = null, ?TyreSize $only = null): array
+    {
         $sizes = null;
-        $sizeLoadIndex = null;
-        $documentSpeedSymbol = null;
-        // A size offered without both its printed figures — load index and symbol, „93Y“: then the documents' index does
-        // not stand for the axle alone (D-284). A symbol without its load index says nothing of the derating at speed.
-        $sizeWithoutIndex = false;
-        $limits = [];
+        $printedLoadIndex = null;
+        $printedSpeedSymbol = null;
 
         foreach ($covering as $row) {
             if (! $this->rowCoversAxle($row, $axle)) {
                 continue;
             }
 
-            // Only the sizes the document permits on THIS axle: a size scoped to `FRONT` never
-            // lands on the rear, so a staggered line reads as MIXED rather than as four identical
-            // wheels the document does not permit.
-            // And only the sizes whose kW band covers the car's power (Block D): a size the document gives
-            // only at 85–125 kW is not offered to a 150 kW car. Power unknown: kept, and the verdict says
-            // which band to compare with field P.2 (buildPositiveVerdict()).
-            // A size the document prints more than once for the car — at two kW bands, with two load
-            // indexes — is one size to the customer, carrying what every entry asks (mergeSameSizes()).
+            // Only the sizes the document permits on THIS axle, inside the car's kW band (Block D; power unknown: kept, and the
+            // verdict says which band to compare with field P.2), one size printed twice merged into one (mergeSameSizes()).
             $rowSizes = $this->mergeSameSizes(array_values(array_filter($row->tyreSizesForAxle($axle), static fn (TyreSize $size): bool => $size->allowsPower($powerKw))));
 
             if ($only !== null) {
                 $rowSizes = array_values(array_filter($rowSizes, static fn (TyreSize $size): bool => $size->matches($only)));
-            }
-
-            if ($without !== []) {
-                $rowSizes = array_values(array_filter($rowSizes, static fn (TyreSize $size): bool => ! in_array($size->key(), $without, true)));
             }
 
             // Intersection across documents: a size only one of them permits is not offered.
@@ -1311,181 +914,27 @@ final readonly class FitmentResolver
 
             foreach ($rowSizes as $size) {
                 if ($size->documentMinLoadIndex !== null) {
-                    $sizeLoadIndex = max($sizeLoadIndex ?? 0, $size->documentMinLoadIndex);
+                    $printedLoadIndex = max($printedLoadIndex ?? 0, $size->documentMinLoadIndex);
                 }
 
-                // The strictest symbol any offered size prints binds the axle: the 18″ Nachtrag gives one
-                // car 89Y beside 91W, and the axle's line must not read W.
-                $documentSpeedSymbol = $this->stricterPrinted($documentSpeedSymbol, $size->documentMinSpeedSymbol);
-                $sizeWithoutIndex = $sizeWithoutIndex || $size->documentMinSpeedSymbol === null || $size->documentMinLoadIndex === null;
-            }
-
-            // The document's load-index limits that reach this axle: on the row, and on its sizes here.
-            foreach ([$row->conditions, ...array_map(static fn (TyreSize $s): array => $s->conditions, $rowSizes)] as $list) {
-                foreach ($list as $condition) {
-                    if ($condition->kind === ConditionKind::ReifenTragfaehigkeit && $condition->maxAxleLoadKg !== null) {
-                        $limits[$condition->code."\u{0}".$condition->maxAxleLoadKg] = $condition;
-                    }
-                }
+                // The strictest symbol any offered size prints is the axle's: one the shop cannot rank never wins over one it
+                // can, and stands alone where it is the only one printed.
+                $printedSpeedSymbol = $this->stricterPrinted($printedSpeedSymbol, $size->documentMinSpeedSymbol);
             }
         }
 
-        // A load-index limit printed beside one size is that size's alone (D-434). A size whose own limits — its own and its
-        // rows' — all stop below this axle's load has no index on record for it here: it leaves the axle, and the other sizes
-        // are judged by their own rules. Where every size is so — a limit on the row reaches them all — nothing is left to
-        // judge, and the axle reads as before: „Noch nicht bestätigt“.
-        if ($only === null && $without === [] && $sizes !== null && count($sizes) > 1 && $axleLoadKg !== null && $axleLoadKg > 0 && $limits !== []) {
-            $uncovered = [];
-
-            foreach ($sizes as $size) {
-                [, $ownCheck] = $this->axleRequirement($covering, $axleLoadKg, $maxSpeedKmh, $axle, $powerKw, $papers, $provenance, $speedFromDocument, $size);
-
-                if ($ownCheck['limitsUncovered'] !== null) {
-                    $uncovered[$size->key()] = ['size' => $size->labelDe(), 'kg' => (int) $ownCheck['limitsUncovered']];
-                }
-            }
-
-            if ($uncovered !== [] && count($uncovered) < count($sizes)) {
-                [$requirement, $check] = $this->axleRequirement($covering, $axleLoadKg, $maxSpeedKmh, $axle, $powerKw, $papers, $provenance, $speedFromDocument, null, array_keys($uncovered));
-                $check['sizesUncovered'] = array_values($uncovered);
-
-                return [$requirement, $check];
-            }
-        }
-
-        $derivedSpeedSymbol = $this->speedSymbol->forTopSpeed($maxSpeedKmh);
-
-        // R-06: the stricter of document and derivation governs, and the verdict records which.
-        [$minSpeedSymbol, $speedSource] = $this->stricterSpeedSymbol(
-            $derivedSpeedSymbol?->symbol,
-            $documentSpeedSymbol,
-        );
-
-        // The load at speed is ETRTO's, the same for every document (D-459), read at the speed rounded up; a „–“ for the
-        // governing symbol raises it to the one the row asks for, and says so. A speed or a symbol the table does not hold:
-        // nothing is derived.
-        $lookup = null;
-        $raisedFrom = null;
-        $fromDocument = false;
-        // D-284: every size carries the documents' index, load and symbol, set for the combination.
-        $printedStands = $speedFromDocument && $documentSpeedSymbol !== null && ! $sizeWithoutIndex
-            && $this->speedSymbol->rankOf($documentSpeedSymbol) !== null;
-        // With the top speed known, ETRTO's table is read as every document's own (D-459) — before, the table typed into it, and
-        // without one D-438 let the printed figures stand: R-06, the stricter governs. Where a printed symbol covers the speed and there
-        // is nothing at speed to read — up to 210 km/h no tyre loses load, and ETRTO holds no column for a symbol in brackets, (W) or
-        // (Y) — the printed figures stand alone, as D-438 had them (the client's round of 08.11.2026, §3.3).
-        $etrto = $maxSpeedKmh !== null && $minSpeedSymbol !== null ? SpeedLoadTable::etrto()->lookup($maxSpeedKmh, $minSpeedSymbol) : null;
-        $printedCovers = $printedStands && $etrto !== null && $minSpeedSymbol === $documentSpeedSymbol
-            && ($etrto->isAbsent() || $maxSpeedKmh <= SpeedLoadTable::FULL_LOAD_UP_TO_KMH);
-
-        if ($etrto !== null && ! $printedCovers) {
-            $lookup = $etrto;
-
-            if ($lookup->isNotPermitted() && $lookup->required !== null) {
-                $raisedFrom = $minSpeedSymbol;
-                $minSpeedSymbol = $lookup->required;
-                $speedSource = MinSource::Derived;
-                $lookup = SpeedLoadTable::etrto()->lookup($maxSpeedKmh, $minSpeedSymbol);
-            }
-        } elseif ($printedStands && ($maxSpeedKmh === null || $printedCovers)) {
-            // The symbol governs alone (one the table does not know never does), and the load at full load is the floor under its
-            // load index.
-            $minSpeedSymbol = $documentSpeedSymbol;
-            $speedSource = MinSource::Document;
-            $lookup = SpeedLoadLookup::percent(100);
-            $fromDocument = true;
-        }
-
-        // The symbol the table was read for: the computation stands exactly as it would without the papers (D-242).
-        $tableSymbol = $minSpeedSymbol;
-
-        // The papers' symbol (15.1/15.2): stricter wins, never the weaker — and only on top of a symbol the top speed
-        // already gave (R-03). After the table, so the index computed for the slower symbol is kept: that is the stricter.
-        if ($papers !== null && $minSpeedSymbol !== null) {
-            $papersRank = $this->speedSymbol->rankOf($papers['speedSymbol']);
-            $ownRank = $this->speedSymbol->rankOf($minSpeedSymbol);
-
-            if ($papersRank !== null && $ownRank !== null && $papersRank > $ownRank) {
-                $minSpeedSymbol = $papers['speedSymbol'];
-                $speedSource = MinSource::Papers;
-            }
-        }
-
-        $derivedLoadIndex = $axleLoadKg === null || $axleLoadKg <= 0 || $lookup === null || $lookup->percent === null
-            ? null
-            : $this->loadIndex->forAxleAt($axleLoadKg, $lookup->percent);
-
-        // The load-index limits: only codes that name an index (T88 → 88), read as the document states them —
-        // the index the code names, up to the axle load it prints; the document wins even where that is not
-        // exactly twice the index's capacity (the second review of C9, §3). The smallest index whose limit
-        // reaches this axle binds; limits that all stop below it say nothing for it. Any other code with a
-        // kilogram figure is an axle-load note: this axle above it is said, never read as a load index.
-        $limit = null;
-        $limitsUncovered = null;
-        $axleNote = null;
-
-        if ($axleLoadKg !== null && $axleLoadKg > 0 && $limits !== []) {
-            $maxKg = 0;
-            $named = 0;
-
-            foreach ($limits as $condition) {
-                $kg = (int) $condition->maxAxleLoadKg;
-                $index = LoadIndexCode::indexNamedBy($condition->code);
-
-                if ($index === null) {
-                    if ($axleLoadKg > $kg) {
-                        $axleNote ??= ['code' => $condition->code, 'kg' => $kg];
-                    }
-
-                    continue;
-                }
-
-                $named++;
-                $maxKg = max($maxKg, $kg);
-
-                if ($kg >= $axleLoadKg && ($limit === null || $index < $limit['index'])) {
-                    $limit = ['code' => $condition->code, 'kg' => $kg, 'index' => $index];
-                }
-            }
-
-            if ($limit === null && $named > 0) {
-                $limitsUncovered = $maxKg;
-            }
-        }
-
-        $documentLoadIndex = max($sizeLoadIndex ?? 0, $limit['index'] ?? 0) ?: null;
-
-        [$minLoadIndex, $loadSource] = $this->stricterLoadIndex(
-            $derivedLoadIndex?->index,
-            $documentLoadIndex,
-        );
-
-        // The papers' load index: stricter wins, never the weaker, never in place of a computation (R-03).
-        if ($papers !== null && $minLoadIndex !== null && $papers['loadIndex'] > $minLoadIndex) {
-            $minLoadIndex = $papers['loadIndex'];
-            $loadSource = MinSource::Papers;
-        }
-
-        $binding = match (true) {
-            $loadSource === MinSource::Papers => 'papers',
-            $loadSource !== MinSource::Document => 'derived',
-            $limit !== null && $limit['index'] === $minLoadIndex => 'limit',
-            default => 'size',
-        };
-
-        // Each size's own minimum beside the axle's strictest (D-431): the same rules, read from that size alone. Never
-        // where the axle has one size — its own is the axle's.
+        // Each size's own printed figures beside the axle's strictest (D-431): never where the axle has one size.
         $bySize = [];
 
         if ($only === null && $sizes !== null && count($sizes) > 1) {
             foreach ($sizes as $size) {
-                [$own] = $this->axleRequirement($covering, $axleLoadKg, $maxSpeedKmh, $axle, $powerKw, $papers, $provenance, $speedFromDocument, $size);
+                [$own] = $this->axleRequirement($covering, $axle, $powerKw, $size);
                 $bySize[] = [
                     'key' => $size->key(),
                     'minLoadIndex' => $own->minLoadIndex,
                     'minSpeedSymbol' => $own->minSpeedSymbol,
-                    'minLoadSource' => $own->minLoadSource->value,
-                    'minSpeedSource' => $own->minSpeedSource->value,
+                    'minLoadSource' => MinSource::Document->value,
+                    'minSpeedSource' => MinSource::Document->value,
                 ];
             }
         }
@@ -1493,109 +942,15 @@ final readonly class FitmentResolver
         return [
             new AxleRequirement(
                 sizes: $sizes ?? [],
-                minLoadIndex: $minLoadIndex,
-                minSpeedSymbol: $minSpeedSymbol,
-                // If either half came from the document, the reasoning is "the document said so" —
-                // and each half records its own source, so a sentence about the load index can never
-                // credit a Gutachten that only stated a speed symbol.
-                minSource: ($loadSource === MinSource::Document || $speedSource === MinSource::Document)
-                    ? MinSource::Document
-                    : MinSource::Derived,
-                minLoadSource: $loadSource,
-                minSpeedSource: $speedSource,
-                // Where the figures came from, frozen with the answer — written where the customer's own took part;
-                // absent, every figure is our vehicle data's (D-242).
-                provenance: $provenance === null ? null : [
-                    ...$provenance,
-                    ...($papers === null ? [] : ['papersLoadIndex' => $papers['loadIndex'], 'papersSpeedSymbol' => $papers['speedSymbol']]),
-                ],
+                minLoadIndex: $printedLoadIndex,
+                minSpeedSymbol: $printedSpeedSymbol,
+                minSource: MinSource::Document,
+                minLoadSource: MinSource::Document,
+                minSpeedSource: MinSource::Document,
                 bySize: $bySize,
             ),
-            [
-                'axle' => $axle,
-                'papers' => $papers,
-                'load' => $axleLoadKg,
-                'speed' => $maxSpeedKmh,
-                // The documents' index stood alone, without the car's top speed (D-284), and what it printed for the axle.
-                'speedFromDocument' => $fromDocument,
-                'documentLoadIndex' => $sizeLoadIndex,
-                'symbol' => $tableSymbol,
-                'lookup' => $lookup,
-                'raisedFrom' => $raisedFrom,
-                'derived' => $derivedLoadIndex,
-                'limit' => $limit,
-                'axleNote' => $axleNote,
-                'limitsUncovered' => $limitsUncovered,
-                // A load index the documents print that the table holds no capacity for (D-442): what it asks of a tyre is not on record.
-                'indexUnheld' => $sizeLoadIndex !== null && $sizeLoadIndex === $minLoadIndex && $this->loadIndex->capacityOf($sizeLoadIndex) === null ? $sizeLoadIndex : null,
-                // The sizes left off this axle for want of an index at its load (D-434), each with its limits' reach.
-                'sizesUncovered' => [],
-                'binding' => $binding,
-            ],
+            ['axle' => $axle, 'documentLoadIndex' => $printedLoadIndex, 'symbol' => $printedSpeedSymbol],
         ];
-    }
-
-    /**
-     * Where an axle's figures came from, where the customer's own took part (D-242): `customer` where his figure raised
-     * the vehicle data's (PapersFigures::applyTo() takes the larger), `dataset` where ours stood. Null where he typed
-     * nothing — then every figure is our vehicle data's.
-     *
-     * @return array{axleLoadFrom: string|null, topSpeedFrom: string|null}|null
-     */
-    private static function provenance(VehicleRecord $vehicle, string $axle): ?array
-    {
-        $before = $vehicle->beforePapers;
-
-        if ($before === null) {
-            return null;
-        }
-
-        $load = $axle === 'REAR' ? $vehicle->axleLoadRearKg : $vehicle->axleLoadFrontKg;
-        $loadBefore = $axle === 'REAR' ? $before->axleLoadRearKg : $before->axleLoadFrontKg;
-
-        return [
-            'axleLoadFrom' => $load === null ? null : ((int) $load > (int) $loadBefore ? 'customer' : 'dataset'),
-            'topSpeedFrom' => $vehicle->maxSpeedKmh === null ? null : ((int) $vehicle->maxSpeedKmh > (int) $before->maxSpeedKmh ? 'customer' : 'dataset'),
-        ];
-    }
-
-    /** @return array{0: int|null, 1: MinSource} */
-    private function stricterLoadIndex(?int $derived, ?int $document): array
-    {
-        if ($derived === null) {
-            // R-03 outranks R-06: without a derivation we cannot state a floor, and a document
-            // minimum alone does not tell us the car can carry it.
-            return [null, MinSource::Derived];
-        }
-
-        if ($document === null || $document <= $derived) {
-            return [$derived, MinSource::Derived];
-        }
-
-        return [$document, MinSource::Document];
-    }
-
-    /** @return array{0: string|null, 1: MinSource} */
-    private function stricterSpeedSymbol(?string $derived, ?string $document): array
-    {
-        if ($derived === null) {
-            return [null, MinSource::Derived];
-        }
-
-        if ($document === null) {
-            return [$derived, MinSource::Derived];
-        }
-
-        $derivedRank = $this->speedSymbol->rankOf($derived);
-        $documentRank = $this->speedSymbol->rankOf($document);
-
-        // An unrecognised document symbol is ignored rather than trusted: it would otherwise rank
-        // as nothing and silently relax the requirement.
-        if ($documentRank === null || $derivedRank === null || $documentRank <= $derivedRank) {
-            return [$derived, MinSource::Derived];
-        }
-
-        return [$document, MinSource::Document];
     }
 
     /**

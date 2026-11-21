@@ -70,7 +70,8 @@ export interface PairView {
     front: string
     rear: string
     sameSize: boolean
-    minSentence: string
+    /** Since D-481 none is said: null. */
+    minSentence: string | null
     noSet: string | null
     answer: ConditionGroupsView | null
     cards: TyreCardView[]

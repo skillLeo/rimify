@@ -288,12 +288,12 @@ it('answers BMW 1er 187 at 85–195 kW on 235/35R19 with exactly the codes ABE 5
     $f20->forceFill(['power_kw' => 100, 'body_form' => 'Schrägheck', 'drive_axle' => 'Hinterachse'])->save();
 
     // One answer, both documents: the 5-door 1er the owner calls a Schrägheck passes 55255's Y85 and the
-    // Nachtrag's „Kombilimousine“ alike — neither word rewritten, each mapped once. The wheel is answered; the tyres
-    // wait for 8.1, 8.2 and T, which a car typed from the document does not have (D-286).
+    // Nachtrag's „Kombilimousine“ alike — neither word rewritten, each mapped once. The wheel is answered, and since D-481
+    // the tyres too, from the paper alone: nothing of the car is asked for them.
     expect(borbetVerdict($f20, 'BOR-DB8GT2-8519-SM')->reason?->code)->not->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
         ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->reason?->code)->not->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
         ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->wheelStatus)->toBe(VerdictStatus::Conditional)
-        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T']);
+        ->and(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->tyre?->papersOwed)->toBe([]);
     $f20->forceFill(['body_form' => 'Kombi'])->save();
     expect(borbetVerdict($f20, 'BOR-DB8GT2-8518-SM')->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED);
     $f20->forceFill(['body_form' => 'Schrägheck'])->save();
@@ -367,9 +367,9 @@ it('asks for exactly the body style and drive a row needs, answers from the owne
     $page = $this->withCookies($vehicleCookie)->withUnencryptedCookie(PapersBook::COOKIE, (string) $papers)->get('/felgen/'.GoldenRecordSeeder::SLUG);
     $answered = collect($page->viewData('page')['props']['configs'])->firstWhere('id', $eighteen->id)['verdict'];
 
-    // The question is gone and the wheel answered; what is left are the tyres, which wait for the papers' figures (D-286).
+    // The question is gone and the wheel answered — and the tyres with it, from the paper (D-481): nothing is owed.
     expect($answered['wheelStatus'])->toBe('CONDITIONAL')
-        ->and($answered['tyre']['owed'])->toBe(['8.1', '8.2', 'T'])
+        ->and($answered['tyre']['owed'] ?? [])->toBe([])
         ->and($answered['missing'])->toBe([])
         ->and($page->viewData('page')['props']['vehicle']['build'])->toMatchArray(['bodyForm' => 'Schrägheck', 'bodySource' => 'customer', 'driveAxle' => 'Hinterachse', 'driveSource' => 'customer']);
 
@@ -392,11 +392,11 @@ it('asks for exactly the body style and drive a row needs, answers from the owne
 /*
  * The Nachtrag prints no table of tyre load at speed (pages 7–17: Auflage 10B sends the speed rating to the car's
  * papers and caps the axle at twice the 650 kg Radlast; 725 asks for metal valves above 210 km/h — neither is a
- * table). Until D-459 every car faster than 210 km/h answered UNKNOWN for the tyres on the 18″ for want of one, and
- * the coverage matrix named the gap. Now every document reads ETRTO's table: the same car at 250 km/h is answered on
- * the 18″ as on the 19″ — less strict than before, from ETRTO's 250 km/h row (W 95 %), which the Nachtrag held none of.
+ * table). Until D-459 every car faster than 210 km/h answered UNKNOWN for the tyres on the 18″; from D-459 to D-481 both
+ * documents were read with ETRTO's table. Since D-481 nothing is derived from the car: the same car at 250 km/h is
+ * answered on the 18″ as on the 19″ from the paper alone — its sizes and what it prints beside them, its Auflagen.
  */
-it('answers every car over 210 km/h on the 18″ from ETRTO\'s table, as on the 19″ — and the coverage matrix names no gap', function (): void {
+it('answers every car over 210 km/h on the 18″ from the paper alone, as on the 19″ — and the coverage matrix names no gap (D-481)', function (): void {
     $f20 = $this->entry->vehicle('1er-1K4-04');
     $f20->forceFill(['power_kw' => 100, 'body_form' => 'Schrägheck', 'drive_axle' => 'Hinterachse', 'axle_load_front_kg' => 1000, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => 250, 'needs_review' => false])->save();
 
@@ -404,14 +404,14 @@ it('answers every car over 210 km/h on the 18″ from ETRTO\'s table, as on the 
     $lines = implode(' ', $fast->tyre?->lines ?? []);
 
     expect($fast->tyre?->status)->not->toBe(VerdictStatus::Unknown)
-        ->and($lines)->toContain('Bei 250 km/h trägt ein Reifen mit Geschwindigkeitsindex W nach unserer Tabelle nur 95 % der Last seines Tragfähigkeitsindex')
+        ->and($lines)->not->toContain('km/h')
         ->and($lines)->not->toContain('Tragfähigkeitstabelle')
-        ->and($fast->tyre?->basis)->toEndWith('und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.')
+        ->and($fast->tyre?->basis)->not->toContain('ETRTO')
         // The wheel itself stays approved by the Nachtrag, with its Auflagen.
         ->and($fast->wheelStatus)->toBe(VerdictStatus::Conditional);
 
-    // The 19″ ABE answers the same car from the same table.
-    expect(implode(' ', borbetVerdict($f20, 'BOR-DB8GT2-8519-SM')->tyre?->lines ?? []))->toContain('nach unserer Tabelle nur 95 % der Last seines Tragfähigkeitsindex');
+    // The 19″ ABE answers the same car the same way: no sum at speed, the paper's word.
+    expect(implode(' ', borbetVerdict($f20, 'BOR-DB8GT2-8519-SM')->tyre?->lines ?? []))->not->toContain('km/h');
 
     $this->actingAs(AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail(), 'admin')
         ->get('/admin/abdeckung')
@@ -450,12 +450,12 @@ it('refuses a Limousine a row the document gives the Coupé only — NOT_PERMITT
     $paceman->forceFill(['body_form' => 'Coupe'])->save();
     $coupe = borbetVerdict($paceman, 'BOR-DB8GT2-8519-SM');
 
-    // The Coupé is answered on the wheel; its tyres wait for the car's papers, which this car from the document lacks (D-286).
+    // The Coupé is answered on the wheel, and its tyres from the paper (D-481) — this car from the document lacks its papers' figures.
     expect($limousine->status)->toBe(VerdictStatus::NotPermitted)
         ->and($limousine->reason?->code)->toBe(VerdictReason::BODY_OR_DRIVE_EXCLUDED)
         ->and($coupe->status)->not->toBe(VerdictStatus::NotPermitted)
         ->and($coupe->wheelStatus)->toBeIn([VerdictStatus::Permitted, VerdictStatus::Conditional])
-        ->and($coupe->tyreUnconfirmed())->toBeTrue();
+        ->and($coupe->tyreUnconfirmed())->toBeFalse();
 
     // The cars one approval names twice keep their own rows.
     // ABE 55255, page 4: 5L „ohne“ and „mit Allradlenkung“ — L05 and L04, never both on one car. Both rows print

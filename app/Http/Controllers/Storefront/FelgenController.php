@@ -1039,7 +1039,7 @@ class FelgenController extends Controller
                 'front' => $pair->front->labelDe(),
                 'rear' => $pair->rear->labelDe(),
                 'sameSize' => $pair->pairing->sameSize(),
-                'minSentence' => $pair->minimumSentenceDe(),
+                'minSentence' => null,
                 // Why there is no set: the axle we have no tyre for, by name — never another size in its stead (D-335).
                 'noSet' => $pair->noSetSentenceDe(),
                 'answer' => self::pairAnswer($pair, $groups, $verdict->requiresEntry),
@@ -1236,7 +1236,7 @@ class FelgenController extends Controller
             'minSource' => $this->either($verdict->front->minSource, $verdict->rear->minSource),
             'minLoadSource' => $minimum['loadSource'] ?? $this->either($verdict->front->minLoadSource, $verdict->rear->minLoadSource),
             'minSpeedSource' => $minimum['speedSource'] ?? $this->either($verdict->front->minSpeedSource, $verdict->rear->minSpeedSource),
-            'minSentence' => $this->eligibility->minimumSentenceDe($verdict),
+            'minSentence' => null,
             // The two halves (R-03 as amended): the wheel from the document, the tyres from the car's
             // figures — each with its own word, the tyres with their sentences and the document's limits.
             'wheelStatus' => $verdict->wheelStatus?->value,

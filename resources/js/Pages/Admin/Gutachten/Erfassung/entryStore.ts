@@ -102,7 +102,6 @@ export interface EntryView {
     keptCombinations: number
     unread: { car: string; entryId: number; text: string }[]
     undescribed: string[]
-    suggestion: 'document' | 'papers' | 'table' | null
 }
 
 export interface ServerLine {

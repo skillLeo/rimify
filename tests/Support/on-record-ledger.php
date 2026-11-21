@@ -90,8 +90,6 @@ return [
     'Für keine Lücke wurde bisher ein Gutachten angefordert' => ['ours', 'the state of our requests'],
 
     // ── The second pattern: a document word beside „wörtlich“, „vollständig“, „alle“, „immer“ (D-236) ─────────────────
-    'der Geschwindigkeitsindex steht so im Gutachten' => ['backed', 'the speed symbol recorded as the document\'s own minimum (source „document“, R-06)'],
-    'Der Tragfähigkeitsindex steht so im Gutachten' => ['backed', 'the load index recorded as the document\'s own minimum (source „document“, R-06)'],
     'bis unter Konflikte entschieden ist, sagt der Shop dort' => ['ours', 'what the shop answers while two documents disagree — the fourth answer (D-234)'],
     'trag alle drei ein oder lass alle drei leer' => ['ours', 'a form rule: the manufacturer\'s name, address and contact go together'],
     'die E-Mails an alle Anfragen, auf die ein neues Gutachten passt' => ['ours', 'names a queue job of ours in an alert'],

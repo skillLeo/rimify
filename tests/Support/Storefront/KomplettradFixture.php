@@ -42,7 +42,7 @@ final class KomplettradFixture
     {
         $resolver = app(FitmentResolver::class);
 
-        // A sellable verdict with a size both axles share, a usable minimum on each, and nothing
+        // A sellable verdict with a size both axles share (a minimum is no longer needed, D-481), and nothing
         // that refuses a Komplettrad before a tyre is even looked at — on a rim with stock for four.
         $found = Fitment::query()
             ->visibleToCustomers()
@@ -63,8 +63,6 @@ final class KomplettradFixture
                     && $verdict->isSellable()
                     && $verdict->tyreLayout() === 'SAME'
                     && $verdict->front->hasPermittedSizes()
-                    && $verdict->front->hasUsableMinimum()
-                    && $verdict->rear->hasUsableMinimum()
                     && ! collect($verdict->conditions)->contains(
                         static fn (Condition $condition): bool => $condition->affectsTyreChoice,
                     );

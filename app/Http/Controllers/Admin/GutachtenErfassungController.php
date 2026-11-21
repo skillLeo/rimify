@@ -13,7 +13,6 @@ use App\Http\Requests\Admin\Erfassung\EntryCodeDeleteRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCodeUsageRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCombinationRequest;
 use App\Http\Requests\Admin\Erfassung\EntryCopyRequest;
-use App\Http\Requests\Admin\Erfassung\EntryIndexSourceRequest;
 use App\Http\Requests\Admin\Erfassung\EntryLinesRequest;
 use App\Http\Requests\Admin\Erfassung\EntryRequest;
 use App\Http\Requests\Admin\Erfassung\EntryWheelRequest;
@@ -25,8 +24,6 @@ use App\Services\Admin\Approvals\DocumentConditions;
 use App\Services\Admin\Approvals\Entry\EntryEditor;
 use App\Services\Admin\Approvals\Entry\EntryView;
 use App\Services\Admin\Approvals\Entry\VehicleSearch;
-use App\Services\Admin\Approvals\FitmentRows;
-use App\Services\Admin\AuditTrail;
 use App\Services\Storage\DocumentFiles;
 use App\Support\EditStamp;
 use Illuminate\Http\JsonResponse;
@@ -190,16 +187,6 @@ class GutachtenErfassungController extends Controller
         abort_unless($request->admin()->can('update', $car), 403);
 
         $this->editor->confirmCar($document, $car, $request->admin());
-
-        return $this->state($document);
-    }
-
-    public function indexSource(EntryIndexSourceRequest $request, ApprovalDocument $document): JsonResponse
-    {
-        DB::transaction(static function () use ($request, $document): void {
-            $document->forceFill(['tyre_index_source' => $request->source()->value])->save();
-            AuditTrail::record($request->admin(), 'approval.index_source_answered', ['document' => FitmentRows::label($document), 'source' => $request->source()->value], $document);
-        });
 
         return $this->state($document);
     }

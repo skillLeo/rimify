@@ -105,7 +105,7 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
         ->and($mixed['pairs'])->toHaveCount(1)
         ->and($mixed['pairs'][0]['front'])->toBe($front->labelDe())
         ->and($mixed['pairs'][0]['rear'])->toBe($rear->labelDe())
-        ->and($mixed['pairs'][0]['minSentence'])->toStartWith('Bei Mischbereifung prüfen wir jede Achse mit ihrer eigenen Achslast')
+        ->and($mixed['pairs'][0]['minSentence'])->toBeNull()
         ->and($mixed['pairs'][0]['sets'])->toHaveCount(1)
         ->and($mixed['pairs'][0]['sets'][0]['frontTyreId'])->toBe($frontTyre->id)
         ->and($mixed['pairs'][0]['sets'][0]['rearTyreId'])->toBe($rearTyre->id);

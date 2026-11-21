@@ -51,19 +51,6 @@ it('asks for a tick only where a condition needs one', function (): void {
         ->and($arch->requiresAcknowledgement())->toBeTrue();
 });
 
-it('names the one axle a rim sold alone may go on, with its sizes, where its tyres wait for the papers (D-289)', function (string $axle, string $says): void {
-    // The C 43 without axle loads or top speed: the wheel is approved, the tyres wait for fields 8.1, 8.2 and T.
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 8, axle: $axle)])->resolve(8, FitmentFixtures::WHEEL_CONFIG_ID);
-    $alone = $verdict->forRimAlone();
-
-    expect($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($alone?->rimAloneNoteDe)->toStartWith("Die Felge ist für dein Fahrzeug {$says}, mit Reifen der Größe 245/45 R18.")
-        ->and($alone?->rimAloneNoteDe)->toContain('fehlten uns die Felder 8.1, 8.2 und T');
-})->with([
-    'front only' => ['FRONT', 'nur an der Vorderachse zulässig'],
-    'rear only' => ['REAR', 'nur an der Hinterachse zulässig'],
-]);
-
 it('gives a size the answer does not name every size’s own Auflagen — the cautious reading, never fewer', function (): void {
     $a = Condition::ofKind('A01', ConditionKind::Hinweis, 'Hinweis zu 245/45.');
     $b = Condition::ofKind('A02', ConditionKind::Hinweis, 'Hinweis zu 255/40.');
@@ -139,17 +126,6 @@ it('answers a front/rear wheel set with no tyre half and no row Auflagen where o
         ->and($set->combinationConditions)->toBeNull()
         ->and($both->tyre?->status)->toBe($live->tyre?->status)
         ->and($both->combinationConditions)->toBe($live->combinationConditions);
-});
-
-it('ignores a speed symbol a document prints that the table does not know, and keeps the size’s own (D-027)', function (): void {
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(sizes: [
-        new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'Y'),
-        new TyreSize(255, 40, 18.0, documentMinSpeedSymbol: 'Q9'),
-    ])])->resolve(1, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    // The RS 4 derives Y at 280 km/h: the unknown „Q9“ neither lowers that nor stands in for it.
-    expect($verdict->front->minSpeedSymbol)->toBe('Y')
-        ->and($verdict->front->minimumFor(new TyreSize(255, 40, 18.0))['speedSymbol'])->toBe('Y');
 });
 
 it('reads one size printed twice, once for a power band and once for any power, as any power — with the stricter figures of both', function (): void {

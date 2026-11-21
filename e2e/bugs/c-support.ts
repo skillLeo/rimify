@@ -1,8 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { SHOP } from '../shop';
 import { consentGiven, open } from '../support';
-import { chooseFirstWheel, freshNumber, newPaper, postAdmin, searchCars } from '../gutachten-erfassung-support';
-import { waitForApp } from './gutachten-support';
 
 /*
  * Shared steps of the Block C interaction bug tests (docs/qa/BUGS.md, C-xx): the papers form in the
@@ -100,60 +98,4 @@ async function findProductWithPapers(page: Page): Promise<string> {
 /** Where the keyboard is, as an element path the failure message can name; `<body>` when it fell. */
 export async function keyboardIsIn(page: Page, selector: string): Promise<boolean> {
     return page.evaluate((s) => document.activeElement !== null && document.activeElement !== document.body && document.activeElement.closest(s) !== null, selector);
-}
-
-/* ── The load-index confirmation (Auflagenverzeichnis) ─────────────────────────────────────────────── */
-
-/**
- * A T-code whose kilograms are not twice its index's capacity (T88 → 2 × 560 kg = 1.120 kg; entered 1.125 kg),
- * shaped as GutachtenController::conditionView ships it. It exists only in the browser.
- */
-export const T88 = {
-    id: 990_088,
-    code: 'T88',
-    kind: 'reifen_tragfaehigkeit',
-    kindLabel: 'Reifen: Tragfähigkeit',
-    section: 'Reifen',
-    text: 'Reifen mit Tragfähigkeitsindex 88 sind bis zu einer zulässigen Achslast von 1.125 kg zulässig.',
-    page: 4,
-    bodyForms: [] as string[],
-    drive: null,
-    maxAxleLoadKg: 1125,
-    axle: null,
-    uses: 0,
-    limitWarning:
-        'T88 steht für Tragfähigkeitsindex 88: das wären 2 × 560 kg = 1.120 kg, eingetragen sind 1.125 kg. Stimmt die Zahl mit dem Gutachten überein, bestätige sie mit einem Satz.',
-};
-
-export const REASON = 'So steht die Zahl auf Seite 4 des Gutachtens gedruckt.';
-
-/**
- * A draft of its own whose Auflagenverzeichnis carries the unconfirmed T88, the list open. Returns every confirmation POST the
- * page sent, in order.
- */
-export async function openWithLimitWarning(page: Page): Promise<{ posts: string[] }> {
-    const url = await newPaper(page, freshNumber('E2E-T88'));
-    await postAdmin(page, `${url}/auflagen`, { code: T88.code, kind: T88.kind, text_de: T88.text, source_page: 1, max_axle_load_kg: T88.maxAxleLoadKg });
-
-    const posts: string[] = [];
-
-    page.on('request', (request) => {
-        if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/grenze')) {
-            posts.push(request.postData() ?? '');
-        }
-    });
-
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await waitForApp(page);
-    await chooseFirstWheel(page);
-    await page.getByRole('button', { name: 'Weiter: Fahrzeuge' }).click();
-    await searchCars(page, 'BMW');
-    await page.locator('.ef-hit input').first().check();
-    await expect(page.locator('.ef-chosen__car')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Weiter: Reifen' }).click();
-    await page.getByRole('tab', { name: /Auflagen/ }).click();
-    await page.getByRole('button', { name: 'Ganze Legende einfügen' }).click();
-    await expect(page.locator('textarea[id^=av-limit-]'), 'the confirm form of T88 is not on the page').toBeVisible();
-
-    return { posts };
 }

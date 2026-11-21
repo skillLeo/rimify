@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Domain\Fitment\Contracts\FitmentRepository;
 use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\WheelConfigRecord;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Verdict\VerdictReason;
@@ -169,7 +168,6 @@ it('reads the rows and the configurations once for the whole batch', function ()
     $resolver = new FitmentResolver(
         vehicles: VehicleFixtures::repository(),
         fitments: $counting,
-        loadIndex: new LoadIndexDeriver(FitmentFixtures::tables()),
         speedSymbol: new SpeedSymbolDeriver(FitmentFixtures::tables()),
         clock: new FixedClock,
     );

@@ -9,12 +9,9 @@ use App\Http\Requests\Admin\ConditionColourRequest;
 use App\Http\Requests\Admin\ConditionLevelRequest;
 use App\Http\Requests\Admin\DocumentConditionBatchRequest;
 use App\Http\Requests\Admin\DocumentConditionRequest;
-use App\Http\Requests\Admin\LoadLimitConfirmRequest;
 use App\Models\ApprovalDocument;
 use App\Models\DocumentCondition;
 use App\Services\Admin\Approvals\DocumentConditions;
-use App\Services\Admin\Approvals\FitmentRows;
-use App\Services\Admin\AuditTrail;
 use App\Support\EditStamp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -90,41 +87,5 @@ class GutachtenAuflagenController extends Controller
         $this->conditions->delete($condition, $request->admin());
 
         return back()->with('toast', self::REMOVED);
-    }
-
-    /**
-     * A load-index limit that differs from twice its index's capacity, confirmed as printed with a reason —
-     * shown on the record, audited, and lifting that one release blocker (the second review of C9, §3).
-     */
-    public function confirmLimit(LoadLimitConfirmRequest $request, ApprovalDocument $document, DocumentCondition $condition): RedirectResponse
-    {
-        $reason = trim((string) $request->validated('reason'));
-
-        // Once, however often it is sent: a double click or a second tab finds it confirmed under the row
-        // lock, and writes neither the reason nor a second Protokoll entry (the Block C QA, C-04).
-        $confirmed = DB::transaction(static function () use ($condition, $document, $request, $reason): bool {
-            $locked = DocumentCondition::query()->lockForUpdate()->findOrFail($condition->id);
-
-            if ($locked->limit_confirmed_at !== null) {
-                return false;
-            }
-
-            $locked->forceFill([
-                'limit_confirmed_reason' => $reason,
-                'limit_confirmed_by' => $request->admin()->id,
-                'limit_confirmed_at' => now(),
-            ])->save();
-
-            AuditTrail::record($request->admin(), 'approval.limit_confirmed', [
-                'document' => FitmentRows::label($document),
-                'code' => $locked->code,
-                'kg' => $locked->max_axle_load_kg,
-                'reason' => $reason,
-            ], $document);
-
-            return true;
-        });
-
-        return back()->with('toast', $confirmed ? 'Zahl bestätigt.' : 'Die Zahl war schon bestätigt.');
     }
 }

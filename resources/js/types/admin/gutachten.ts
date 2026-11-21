@@ -124,10 +124,6 @@ export interface DocumentConditionView {
     levelFloor?: string
     /** Rows and tyre sizes of this document that carry the code. */
     uses: number
-    /** A load-index limit that is not twice its index's capacity: the warning, in words; null otherwise. */
-    limitWarning?: string | null
-    /** Confirmed as the document prints it, with the reason — shown on the record, lifts the release blocker. */
-    limitConfirmed?: { reason: string; by: string | null; at: string } | null
     /** The code as the page was loaded (EditStamp): its form sends it, a save against an older state is refused. */
     stamp?: string
 }

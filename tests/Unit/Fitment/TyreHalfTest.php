@@ -87,7 +87,6 @@ function decideFor(VehicleRecord $vehicle, array $conditions = [], ?WheelConfigR
     return (new FitmentResolver(
         vehicles: new InMemoryVehicleRepository([$vehicle]),
         fitments: new InMemoryFitmentRepository([$row], [$wheel ?? db8gt2()]),
-        loadIndex: new LoadIndexDeriver($tables),
         speedSymbol: new SpeedSymbolDeriver($tables),
         clock: new FixedClock,
     ))->resolve($vehicle->id, FitmentFixtures::WHEEL_CONFIG_ID);
@@ -95,189 +94,9 @@ function decideFor(VehicleRecord $vehicle, array $conditions = [], ?WheelConfigR
 
 /* ── Without the figures: the wheel answers, the tyres are „Noch nicht bestätigt“ until the papers are in ─── */
 
-it('gives the BMW 4er 3C a positive wheel verdict without axle data, and tyres „Noch nicht bestätigt“ naming 1.120 kg', function (): void {
-    $verdict = decideFor(bmw4er3C(), [tCode(88, 1120)]);
-
-    // The operator's answer of 18.10.2026 (D-286): a missing input produces the absence of a grant, never a grant with
-    // conditions — and nothing is sold on an unconfirmed tyre (R-03).
-    expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
-        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->tyreUnconfirmed())->toBeTrue()
-        ->and($verdict->isSellable())->toBeFalse()
-        ->and($verdict->tyre?->thresholds)->toBe([[
-            'textDe' => 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.120 kg zulässig.',
-            'maxAxleLoadKg' => 1120,
-        ]]);
-
-    // The reason first, as ours; then what the document sets, with the fields to compare; then the way on.
-    expect($verdict->tyre->lines ?? [])->toBe([
-        'Für die Reifen fehlen uns die zulässigen Achslasten (Felder 8.1 und 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.',
-        'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.120 kg zulässig. Vergleiche die '.kg('1.120').' mit den Feldern 8.1 (vorn) und 8.2 (hinten) deiner Zulassungsbescheinigung Teil I – im alten Fahrzeugschein Ziffer 16.',
-        'Die Felge ist für '.kg('700').' je Rad geprüft: Die zulässige Achslast in den Feldern 8.1 und 8.2 darf höchstens '.kg('1.400').' betragen.',
-        'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.',
-    ]);
-});
-
-it('asks only for what is missing: the axle loads where only they are, the top speed where only it is', function (): void {
-    $axles = decideFor(bmw4er3C(speed: 250), [tCode(88, 1120)])->tyre;
-    $speed = decideFor(bmw4er3C(1100, 1100), [tCode(88, 1120)])->tyre;
-
-    expect($axles?->papersOwed)->toBe(['8.1', '8.2'])
-        ->and($axles->lines[0] ?? null)->toBe('Für die Reifen fehlen uns die zulässigen Achslasten deines Fahrzeugs (Felder 8.1 und 8.2).')
-        ->and($speed?->papersOwed)->toBe(['T'])
-        // The axle loads are on record: no threshold to compare by hand, only the one field and the way on.
-        ->and($speed->lines ?? [])->toBe([
-            'Für die Reifen fehlt uns die Höchstgeschwindigkeit deines Fahrzeugs (Feld T der Zulassungsbescheinigung Teil I).',
-            // One way on: the papers' form, which asks for what is missing (D-291).
-            'Trag die Werte aus deiner Zulassungsbescheinigung Teil I ein, dann zeigen wir dir, welche Reifen du fahren darfst.',
-        ]);
-
-    // Each axle on its own (D-291): where the data knows 8.1, only 8.2 is asked for — with T, where T is missing too.
-    $rear = decideFor(bmw4er3C(front: 1100, speed: 250))->tyre;
-    $rearAndSpeed = decideFor(bmw4er3C(front: 1100))->tyre;
-
-    expect($rear?->papersOwed)->toBe(['8.2'])
-        ->and($rear->lines[0] ?? null)->toBe('Für die Reifen fehlt uns die zulässige Achslast hinten deines Fahrzeugs (Feld 8.2).')
-        ->and($rearAndSpeed?->papersOwed)->toBe(['8.2', 'T'])
-        ->and($rearAndSpeed->lines[0] ?? null)->toBe('Für die Reifen fehlen uns die zulässige Achslast hinten (Feld 8.2) und die Höchstgeschwindigkeit (Feld T) deines Fahrzeugs.');
-});
-
-/*
- * D-289 (the operator's brief of 18.10.2026, §1): the axle loads decide the tyres' load index, not whether the wheel is
- * approved — unless the document itself limits by axle load, declared at release or as an Auflage that names a load and
- * no index. Gated as the top speed is (D-284): on whether the document's own approval depends on the missing figure.
- */
-it('sells the rim alone while only the tyres wait for the papers — never where the document itself limits the axle load', function (): void {
-    // A load-index Auflage is the tyres' rule: the rim still sells alone, with the sizes it may only be fitted with.
-    $free = decideFor(bmw4er3C(), [tCode(88, 1120)]);
-    $rim = $free->forRimAlone();
-
-    expect($free->sellsAlone)->toBeTrue()
-        ->and($free->isSellable())->toBeFalse()
-        ->and($rim?->status)->toBe(VerdictStatus::Conditional)
-        ->and($rim?->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($rim?->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($rim?->rimAlone)->toBeTrue()
-        // Ours, beside the document's Auflagen and never among them (R-17).
-        ->and($rim?->conditions)->toEqual($free->conditions)
-        ->and($rim?->rimAloneNoteDe)
-        ->toBe('Die Felge ist für dein Fahrzeug nur mit Reifen der Größe 225/40 R19 zulässig. Welche Reifen dein Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung fehlten uns die Felder 8.1, 8.2 und T deiner Zulassungsbescheinigung Teil I.');
-
-    // Frozen and read back as it was, word for word.
-    $restored = FitmentVerdict::fromArray($rim?->toArray() ?? []);
-    expect($restored->rimAlone)->toBeTrue()
-        ->and($restored->status)->toBe(VerdictStatus::Conditional)
-        ->and($restored->rimAloneNoteDe)->toBe($rim?->rimAloneNoteDe);
-
-    // One field missing: named alone.
-    expect(decideFor(bmw4er3C(1100, 1100), [tCode(88, 1120)])->forRimAlone()?->rimAloneNoteDe)
-        ->toEndWith('Bei der Prüfung fehlte uns Feld T deiner Zulassungsbescheinigung Teil I.');
-
-    // The document limits the axle load — declared at release, or an Auflage naming a load and no index: nothing sells.
-    $declared = decideFor(bmw4er3C(), [tCode(88, 1120)], axleLimitKg: 1160);
-    $note = decideFor(bmw4er3C(), [Condition::ofKind('140', ConditionKind::ReifenTragfaehigkeit, 'Das Sonderrad ist in Verbindung mit dieser Reifengröße nur bis zu einer zulässigen Achslast von 1.400 kg zulässig.', null, 7, 1400)]);
-
-    expect($declared->sellsAlone)->toBeFalse()
-        ->and($declared->forRimAlone())->toBeNull()
-        ->and($note->sellsAlone)->toBeFalse()
-        ->and($note->forRimAlone())->toBeNull();
-
-    // The axle loads known, T owed: the wheel's approval does not wait for T, whatever the document limits.
-    $speedOnly = decideFor(bmw4er3C(1100, 1100), [tCode(88, 1120)], axleLimitKg: 1160);
-
-    expect($speedOnly->tyre?->papersOwed)->toBe(['T'])
-        ->and($speedOnly->sellsAlone)->toBeTrue();
-
-    // With every figure in, the answer itself sells: nothing is sold „alone“ then.
-    expect(decideFor(bmw4er3C(1100, 1100, 200), [tCode(88, 1120)])->sellsAlone)->toBeFalse();
-});
-
-it('is never PERMITTED while the tyre half is CONDITIONAL or UNKNOWN', function (): void {
-    foreach (VerdictStatus::cases() as $wheel) {
-        foreach (VerdictStatus::cases() as $tyre) {
-            $combined = VerdictStatus::weaker($wheel, $tyre);
-
-            expect($combined === VerdictStatus::Permitted)->toBe($wheel === VerdictStatus::Permitted && $tyre === VerdictStatus::Permitted);
-
-            if (in_array($tyre, [VerdictStatus::Conditional, VerdictStatus::Unknown], true)) {
-                expect($combined)->not->toBe(VerdictStatus::Permitted);
-            }
-        }
-    }
-
-    // And through the resolver: a document with no Auflage at all, on a car without figures.
-    $verdict = decideFor(bmw4er3C());
-
-    expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->status)->toBe(VerdictStatus::Unknown);
-});
-
 /* ── With the figures: a definite answer, both constraints shown, the binding one named ────────── */
 
-it('gives a definite answer once the figures from the papers are entered, and shows the sum', function (): void {
-    // 8.1 and 8.2: 1.100 kg each; T: 250 km/h → W, which carries 95 % at 250 (ABE 55255, p. 6).
-    $verdict = decideFor(bmw4er3C(1100, 1100, 250), [tCode(88, 1120)]);
-
-    expect($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->status)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->front->minLoadIndex)->toBe(89)
-        ->and($verdict->front->minSpeedSymbol)->toBe('W')
-        ->and(array_slice($verdict->tyre->lines ?? [], 0, 5))->toBe([
-            'Vorderachse: '.kg('1.100').' ÷ 2 = '.kg('550').' je Rad.',
-            'Die Felge ist für '.kg('700').' je Rad geprüft – das reicht.',
-            // The document's own stated limit, on its own …
-            'Laut Auflage T88 genügt Tragfähigkeitsindex 88 bis '.kg('1.120').' Achslast.',
-            // … the derated requirement, on its own: 550 ÷ 0,95 = 578,9 → LI 89 (580 kg) …
-            'Bei 250 km/h trägt ein Reifen mit Geschwindigkeitsindex W nach unserer Tabelle nur 95 % der Last seines Tragfähigkeitsindex: '
-                .kg('550').' ÷ 0,95 = '.kg('578,9').' – das verlangt Tragfähigkeitsindex 89 ('.kg('580').').',
-            // … and which one binds.
-            'Maßgeblich ist die Minderung bei hoher Geschwindigkeit: mindestens Tragfähigkeitsindex 89, Geschwindigkeitsindex W.',
-        ])
-        ->and(array_slice($verdict->tyre->lines ?? [], -1))->toBe(['Beide Achsen tragen '.kg('1.100').': vier gleiche Reifen brauchen mindestens Tragfähigkeitsindex 89.']);
-});
-
 /* ── Always shown: the answer and its document; the sum on one click (the decision of 29.09.2026) ─── */
-
-it('says the binding axle and what it asks for in one line, and the document it came from — the RS 4 at 280 km/h', function (): void {
-    // 1.210 kg front, 1.235 kg rear, 280 km/h: Y at 95 % — LI 93 on both, the rear the heavier.
-    $tyre = decideFor(bmw4er3C(1210, 1235, 280))->tyre;
-
-    expect($tyre?->summary)->toBe('Hinterachse mit '.kg('1.235').': mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.')
-        ->and($tyre?->basis)->toBe('Grundlage: Gutachten 55255 und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.')
-        // The whole sum stays in the lines, for the disclosure, the snapshot and the printable check.
-        ->and(count($tyre->lines ?? []))->toBeGreaterThan(5)
-        ->and($tyre?->stricterByPapers)->toBeFalse();
-});
-
-it('names the document alone where no load at speed was read, both axles where they carry the same, and why not where not', function (): void {
-    $slow = decideFor(bmw4er3C(1100, 1100, 200))->tyre;
-
-    // 200 km/h: no derating — 550 kg a wheel asks for LI 88 (560 kg).
-    expect($slow?->summary)->toBe('Beide Achsen mit '.kg('1.100').': mindestens Tragfähigkeitsindex 88, Geschwindigkeitsindex U.')
-        ->and($slow?->basis)->toBe('Grundlage: Gutachten 55255.');
-
-    // Above ETRTO's last row the tyre's maker states the load: not on record (D-459).
-    $unknown = decideFor(bmw4er3C(1100, 1100, 310))->tyre;
-
-    expect($unknown?->summary)->toBe('Für eine Höchstgeschwindigkeit von 310 km/h ist bei uns keine Tragfähigkeit hinterlegt: Die Tabelle, nach der wir rechnen, reicht nur bis 300 km/h. Die Reifen können wir deshalb nicht bestätigen.')
-        ->and($unknown?->basis)->toBe('Grundlage: Gutachten 55255.');
-});
-
-it('says when the customer’s own figures made the answer stricter than the vehicle data, and only then', function (): void {
-    $data = bmw4er3C(1100, 1100, 250);
-    $figures = static fn (int $front, int $rear, int $speed) => PapersFigures::tryFrom($front, $rear, $speed)?->applyTo($data) ?? $data;
-
-    // A heavier axle from the papers: LI 89 becomes LI 91 — stricter.
-    expect(decideFor($figures(1180, 1180, 250))->tyre?->stricterByPapers)->toBeTrue()
-        // A faster T: W at 95 % becomes Y — stricter.
-        ->and(decideFor($figures(1100, 1100, 280))->tyre?->stricterByPapers)->toBeTrue()
-        // The same figures as the data: nothing changed.
-        ->and(decideFor($figures(1100, 1100, 250))->tyre?->stricterByPapers)->toBeFalse()
-        // Figures that only fill a gap never make an answer „stricter“ than the „check your papers“ before.
-        ->and(decideFor(PapersFigures::tryFrom(1100, 1100, 250)?->applyTo(bmw4er3C()) ?? bmw4er3C())->tyre?->stricterByPapers)->toBeFalse();
-});
 
 it('keeps the summary, the basis and the flag in the frozen verdict', function (): void {
     $verdict = decideFor(bmw4er3C(1210, 1235, 280));
@@ -286,33 +105,6 @@ it('keeps the summary, the basis and the flag in the frozen verdict', function (
     expect($restored->tyre?->summary)->toBe($verdict->tyre?->summary)
         ->and($restored->tyre?->basis)->toBe($verdict->tyre?->basis)
         ->and($restored->tyre?->lines)->toBe($verdict->tyre?->lines);
-});
-
-it('names the heavier axle for four identical tyres when both axles ask for the same load index', function (): void {
-    // 1.190 kg front → 595 kg a wheel, 1.180 kg rear → 590 kg: both need LI 90 (600 kg); the front is heavier.
-    $lines = decideFor(bmw4er3C(1190, 1180, 200))->tyre->lines ?? [];
-
-    expect(array_slice($lines, -1))->toBe(['Für vier gleiche Reifen maßgeblich ist die Vorderachse mit '.kg('1.190').': mindestens Tragfähigkeitsindex 90.']);
-});
-
-it('lets the document’s own load-index limit bind where it is stricter, and says so', function (): void {
-    // 1.180 kg at 200 km/h: no derating, 590 kg → LI 90 (600 kg). The document's limits: LI 88 to 1.120,
-    // LI 89 to 1.160, LI 91 to 1.230 — the smallest that reaches 1.180 is 91, and 91 binds.
-    $verdict = decideFor(bmw4er3C(1180, 1180, 200), [tCode(88, 1120), tCode(89, 1160), tCode(91, 1230)]);
-
-    expect($verdict->front->minLoadIndex)->toBe(91)
-        ->and($verdict->tyre?->lines)->toContain('Laut Auflage T91 genügt Tragfähigkeitsindex 91 bis '.kg('1.230').' Achslast.')
-        ->and($verdict->tyre?->lines)->toContain('Bei 200 km/h trägt ein Reifen mit Geschwindigkeitsindex U seine volle Last: das verlangt Tragfähigkeitsindex 90 ('.kg('600').').')
-        ->and($verdict->tyre?->lines)->toContain('Maßgeblich ist die Auflage T91: mindestens Tragfähigkeitsindex 91, Geschwindigkeitsindex U.');
-});
-
-it('does not know what the tyres need where the document’s limits all stop below the axle', function (): void {
-    $verdict = decideFor(bmw4er3C(1300, 1300, 200), [tCode(88, 1120), tCode(89, 1160)]);
-
-    expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->reason?->code)->toBe(VerdictReason::TYRE_UNKNOWN)
-        ->and($verdict->reason?->textDe)->toBe('Zu den Auflagen dieses Gutachtens sind Tragfähigkeitsindizes nur bis '.kg('1.160').' Achslast hinterlegt; die Vorderachse trägt '.kg('1.300').'. Die Reifen können wir deshalb nicht bestätigen.');
 });
 
 /* ── The wheel's tested load, per axle, the binding axle named ─────────────────────────────────── */
@@ -335,16 +127,6 @@ it('refuses the wheel when half an axle it may go on is more than its tested loa
         ->and($typed->reason?->textDe)->toBe('Die Felge ist für '.kg('700').' je Rad geprüft. Maßgeblich ist die zulässige Achslast der Vorderachse: '.kg('1.610').' nach deiner Angabe aus Feld 8.1, also '.kg('805').' je Rad – mehr, als die Felge tragen darf.');
 });
 
-it('judges a rear-only size against the rear axle alone', function (): void {
-    // A front axle the wheel would overload does not matter where the document puts the wheel on the rear only.
-    $verdict = decideFor(bmw4er3C(1500, 1300, 250), sizes: [new TyreSize(255, 35, 19.0, axle: 'REAR')]);
-
-    expect($verdict->status)->not->toBe(VerdictStatus::NotPermitted)
-        ->and($verdict->front->hasPermittedSizes())->toBeFalse()
-        ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('Hinterachse: '.kg('1.300'))
-        ->and(implode(' ', $verdict->tyre->lines ?? []))->not->toContain('Vorderachse');
-});
-
 /* ── ETRTO's table (D-459): a share, a „–“, nothing — three answers ──────────────────────────────── */
 
 it('reads the table three ways: a share applies, a dash is not permitted, a missing cell is unknown', function (): void {
@@ -357,35 +139,6 @@ it('reads the table three ways: a share applies, a dash is not permitted, a miss
     expect($share->percent)->toBe(95)->and($share->isNotPermitted())->toBeFalse()->and($share->isAbsent())->toBeFalse()
         ->and($dash->isNotPermitted())->toBeTrue()->and($dash->required)->toBe('Y')
         ->and($absent->isAbsent())->toBeTrue();
-});
-
-it('rounds the top speed up to the next row, never down and never between rows', function (): void {
-    $table = SpeedLoadTable::etrto();
-
-    // Up to 210 km/h no tyre loses load; 211 reads the 220 row; 235 reads 240 (91 %, not 94 % and not 92,5 %).
-    expect($table->lookup(210, 'V')->percent)->toBe(100)
-        ->and($table->lookup(180, 'H')->percent)->toBe(100)
-        ->and($table->lookup(211, 'V')->percent)->toBe(97)
-        ->and($table->lookup(235, 'V')->percent)->toBe(91)
-        ->and($table->lookup(300, 'Y')->percent)->toBe(85)
-        ->and($table->lookup(301, 'Y')->isAbsent())->toBeTrue();
-
-    // Through the engine: 235 km/h → V at 91 %: 1.000 kg → 500 ÷ 0,91 = 549,5 kg → LI 88 (560 kg).
-    expect(decideFor(bmw4er3C(1000, 1000, 235))->front->minLoadIndex)->toBe(88);
-});
-
-it('answers UNKNOWN above ETRTO\'s table, and every document at 250 km/h from it (D-459)', function (): void {
-    $above = decideFor(bmw4er3C(1100, 1100, 310));
-    $fast = decideFor(bmw4er3C(1100, 1100, 250));
-    $slow = decideFor(bmw4er3C(1100, 1100, 200));
-
-    expect($above->status)->toBe(VerdictStatus::Unknown)
-        ->and($above->reason?->textDe)->toBe('Für eine Höchstgeschwindigkeit von 310 km/h ist bei uns keine Tragfähigkeit hinterlegt: Die Tabelle, nach der wir rechnen, reicht nur bis 300 km/h. Die Reifen können wir deshalb nicht bestätigen.')
-        // No document needs a table of its own any more: 250 km/h reads W at 95 % — 550 ÷ 0,95 = 578,9 kg → LI 89.
-        ->and($fast->status)->toBe(VerdictStatus::Permitted)
-        ->and($fast->front->minLoadIndex)->toBe(89)
-        // Up to 210 km/h no tyre loses load.
-        ->and($slow->status)->toBe(VerdictStatus::Permitted);
 });
 
 /* ── The free cross-check: every load-index limit is twice a capacity from the table ─────────────── */
@@ -403,51 +156,7 @@ it('finds every load-index Auflage of ABE 55255 exactly twice the capacity of it
     }
 });
 
-it('reads a load-index limit as the document states it, even where it is not twice the capacity', function (): void {
-    // The document wins (the second review of C9, §3): T88 up to 1.125 kg is LI 88 up to 1.125 kg — the
-    // person who typed it confirmed it with a reason before the document could be released.
-    $verdict = decideFor(bmw4er3C(1122, 1122, 200), [Condition::ofKind('T88', ConditionKind::ReifenTragfaehigkeit, 'Reifen mit Tragfähigkeitsindex 88 sind nur bis zu einer zulässigen Achslast von 1.125 kg zulässig.', null, 6, 1125)]);
-
-    // 1.122 kg at 200 km/h derives LI 89 (561 kg a tyre > 560); the limit says 88: the derivation binds.
-    expect($verdict->status)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->tyre?->lines)->toContain('Laut Auflage T88 genügt Tragfähigkeitsindex 88 bis '.kg('1.125').' Achslast.')
-        ->and($verdict->front->minLoadIndex)->toBe(89);
-});
-
-it('never reads an axle-load note as a load index, and says so when the axle is above it', function (): void {
-    // ABE 55255's code 140 states 1.400 kg — no load index at all (LI 98 carries 750 kg a tyre).
-    $note = Condition::ofKind('140', ConditionKind::ReifenTragfaehigkeit, 'Das Sonderrad ist in Verbindung mit dieser Reifengröße nur bis zu einer zulässigen Achslast von 1.400 kg zulässig.', null, 7, 1400);
-
-    $within = decideFor(bmw4er3C(1300, 1300, 200), [$note]);
-    $above = decideFor(bmw4er3C(1300, 1500, 200), [$note], new WheelConfigRecord(
-        id: FitmentFixtures::WHEEL_CONFIG_ID, wheelModelId: 23, wheelFinishId: 44, diameterIn: 19.0, widthIn: 8.5, etMm: 35,
-        boltHoles: 5, boltCircleMm: 120.0, centreBoreMm: 72.6, priceCents: 0, stockQty: 0, maxLoadKg: 800,
-    ));
-
-    expect($within->status)->toBe(VerdictStatus::Permitted)
-        ->and(implode(' ', $within->tyre->lines ?? []))->not->toContain('Laut Auflage 140')
-        ->and($above->tyre?->status)->toBe(VerdictStatus::Conditional)
-        ->and($above->tyre?->lines[0])->toBe('Die Auflage 140 nennt eine zulässige Achslast bis '.kg('1.400').'; die Hinterachse trägt laut Fahrzeugpapieren '.kg('1.500').'. Lies die Auflage im Gutachten – ob sie für dein Fahrzeug gilt, klären wir gern mit dir.');
-});
-
 /* ── Whole numbers only: no float decides a tyre ──────────────────────────────────────────────── */
-
-it('decides exactly on the boundary: 1.235 kg at 95 % is carried by LI 93, on every machine', function (): void {
-    $deriver = new LoadIndexDeriver(FitmentFixtures::tables());
-
-    // 2 × 650 × 95 = 123.500 = 100 × 1.235: equal, so 93 — not 94, whatever 617,5 ÷ 0,95 comes to in IEEE 754.
-    expect($deriver->forAxleAt(1235, 95)?->index)->toBe(93)
-        // One kilogram more is over the edge.
-        ->and($deriver->forAxleAt(1236, 95)?->index)->toBe(94)
-        // 2 × 630 × 95 = 119.700 < 121.000 = 100 × 1.210: the front needs 93.
-        ->and($deriver->forAxleAt(1210, 95)?->index)->toBe(93)
-        // No derating: exactly twice a capacity is carried (1.120 kg → LI 88), a kilogram more is not.
-        ->and($deriver->forAxleAt(1120, 100)?->index)->toBe(88)
-        ->and($deriver->forAxleAt(1121, 100)?->index)->toBe(89)
-        ->and($deriver->forAxle(1231)?->index)->toBe(92)
-        // And through the engine, the RS 4's rear: LI 93.
-        ->and(FitmentFixtures::resolver([FitmentFixtures::row()])->resolve(1, FitmentFixtures::WHEEL_CONFIG_ID)->rear->minLoadIndex)->toBe(93);
-});
 
 it('takes the decision in integers — no float, no division, no rounding in the path', function (): void {
     $method = new ReflectionMethod(LoadIndexDeriver::class, 'forAxleAt');
@@ -474,28 +183,6 @@ it('takes the decision in integers — no float, no division, no rounding in the
 
 /* ── ETRTO's row boundaries, as ABE 55255 prints them too ──────────────────────────────────────── */
 
-it('reads the rows at 270 and 280 km/h as ETRTO states them', function (): void {
-    $table = SpeedLoadTable::etrto();
-
-    // 270 km/h: V –, W 85 %, Y 100 %. A W tyre IS permitted there, derated; the V is not.
-    expect($table->lookup(270, 'W')->percent)->toBe(85)
-        ->and($table->lookup(270, 'V')->isNotPermitted())->toBeTrue()
-        ->and($table->lookup(270, 'V')->required)->toBe('W')
-        ->and($table->lookup(270, 'Y')->percent)->toBe(100)
-        // 280 km/h: V –, W –, Y 95 %. The W is not permitted, Y is required.
-        ->and($table->lookup(280, 'W')->isNotPermitted())->toBeTrue()
-        ->and($table->lookup(280, 'W')->required)->toBe('Y')
-        ->and($table->lookup(280, 'Y')->percent)->toBe(95);
-
-    // Through the engine at 270 km/h: the car needs W (rated to 270), at 85 % — never "not permitted".
-    $verdict = decideFor(bmw4er3C(1100, 1100, 270));
-
-    expect($verdict->front->minSpeedSymbol)->toBe('W')
-        ->and($verdict->status)->toBe(VerdictStatus::Permitted)
-        ->and(implode(' ', $verdict->tyre->lines ?? []))->toContain('Geschwindigkeitsindex W nach unserer Tabelle nur 85 % der Last seines Tragfähigkeitsindex')
-        ->and(implode(' ', $verdict->tyre->lines ?? []))->not->toContain('nicht zulässig');
-});
-
 /* ── The rest ─────────────────────────────────────────────────────────────────────────────────── */
 
 it('keeps the tyre half conditional where the document restricts the tyre choice itself', function (): void {
@@ -505,53 +192,6 @@ it('keeps the tyre half conditional where the document restricts the tyre choice
     expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
         ->and($verdict->tyre?->status)->toBe(VerdictStatus::Conditional)
         ->and($verdict->status)->toBe(VerdictStatus::Conditional);
-});
-
-it('carries both halves through the snapshot, and reads an older snapshot without them', function (): void {
-    $verdict = decideFor(bmw4er3C(), [tCode(88, 1120)]);
-    $restored = FitmentVerdict::fromArray($verdict->toArray());
-
-    expect($restored->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($restored->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($restored->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
-        ->and($restored->tyreUnconfirmed())->toBeTrue()
-        ->and($restored->tyre?->lines)->toBe($verdict->tyre?->lines)
-        ->and($restored->conditions[0]->maxAxleLoadKg)->toBe(1120);
-
-    $old = $verdict->toArray();
-    unset($old['wheelStatus'], $old['tyreCheck']);
-
-    expect(FitmentVerdict::fromArray($old)->tyre)->toBeNull()
-        ->and(FitmentVerdict::fromArray($old)->wheelStatus)->toBeNull();
-
-    // A snapshot from before D-286 has no list of owed fields: it reads as none, and a field it never named is not read.
-    $before = $verdict->toArray();
-    unset($before['tyreCheck']['papersOwed']);
-    $forged = $verdict->toArray();
-    $forged['tyreCheck']['papersOwed'] = ['8.1', 'P.2'];
-
-    expect(FitmentVerdict::fromArray($before)->tyre?->papersOwed)->toBe([])
-        ->and(FitmentVerdict::fromArray($forged)->tyre?->papersOwed)->toBe(['8.1']);
-});
-
-it('calls an answer stricter by the papers where their top speed leaves the tyres unconfirmed that the data confirmed', function (): void {
-    // 250 km/h from the data reads the table; 310 km/h from the papers is past its last row — „Noch nicht bestätigt“.
-    $data = bmw4er3C(1100, 1100, 250);
-    $typed = decideFor((PapersFigures::tryFrom(1100, 1100, 310) ?? throw new LogicException)->applyTo($data));
-
-    expect(decideFor($data)->tyre?->status)->not->toBe(VerdictStatus::Unknown)
-        ->and($typed->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($typed->tyre?->stricterByPapers)->toBeTrue();
-});
-
-it('weighs the papers only on an axle the wheel may go on — a heavier rear says nothing about a front-only size', function (): void {
-    $sizes = [new TyreSize(225, 40, 19.0, axle: 'FRONT')];
-    $data = bmw4er3C(1100, 1100, 250);
-    $heavierRear = (PapersFigures::tryFrom(1100, 1400, 250) ?? throw new LogicException)->applyTo($data);
-    $heavierFront = (PapersFigures::tryFrom(1180, 1100, 250) ?? throw new LogicException)->applyTo($data);
-
-    expect(decideFor($heavierRear, sizes: $sizes)->tyre?->stricterByPapers)->toBeFalse()
-        ->and(decideFor($heavierFront, sizes: $sizes)->tyre?->stricterByPapers)->toBeTrue();
 });
 
 it('asks four identical tyres for the higher speed symbol where the document prints a stricter one for the rear', function (): void {

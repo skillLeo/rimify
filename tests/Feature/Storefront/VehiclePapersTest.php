@@ -217,12 +217,12 @@ it('takes no figures for a car the shop no longer offers', function (): void {
     $this->post("/fahrzeug/{$vehicle->id}/papiere", papersPost())->assertNotFound();
 });
 
-it('answers the tyre half from the typed figures on every surface, and never in the admin panel', function (): void {
+it('lays the typed figures over the car on the storefront, never in the admin panel — and takes nothing from them for the tyres (D-481)', function (): void {
     $this->seed(CommerceSeeder::class);
     $this->seed(KomplettradOptionsSeeder::class);
     $fixture = KomplettradFixture::permitted();
 
-    // The car the fixture found, now without its legal data: the tyre half waits for the papers.
+    // The car the fixture found, now without its legal data: since D-481 its tyres are answered from the paper all the same.
     Vehicle::query()->whereKey($fixture->vehicle->id)->update(['axle_load_front_kg' => null, 'axle_load_rear_kg' => null, 'max_speed_kmh' => null, 'needs_review' => true]);
     $resolve = fn () => app(FitmentResolver::class)->resolve((int) $fixture->vehicle->id, (int) $fixture->config->id);
     $as = function (string $path, ?string $papers): void {
@@ -230,13 +230,16 @@ it('answers the tyre half from the typed figures on every surface, and never in 
     };
 
     $as('/felgen', null);
-    expect($resolve()->tyre?->fromVehicleData)->toBeFalse();
+    $without = $resolve();
+    expect($without->tyre?->fromVehicleData)->toBeFalse()
+        ->and($without->tyre?->papersOwed)->toBe([]);
 
     $as('/felgen', "{$fixture->vehicle->id}.1100.1100.200");
     $verdict = $resolve();
-    expect($verdict->tyre?->fromVehicleData)->toBeTrue()
-        ->and($verdict->tyre?->lines)->toContain('Vorderachse: 1.100'.GermanFormat::NBSP.'kg ÷ 2 = 550'.GermanFormat::NBSP.'kg je Rad.')
-        ->and(app(VehicleRepository::class)->find((int) $fixture->vehicle->id)?->maxSpeedKmh)->toBe(200);
+    // The figures reach the car (the wheel's own checks read them), never the tyres' answer.
+    expect(app(VehicleRepository::class)->find((int) $fixture->vehicle->id)?->maxSpeedKmh)->toBe(200)
+        ->and($verdict->tyre?->toArray())->toBe($without->tyre?->toArray())
+        ->and($verdict->front->minLoadIndex)->toBe($without->front->minLoadIndex);
 
     // Another car's figures answer nothing for this one.
     $as('/felgen', '999999.1100.1100.200');

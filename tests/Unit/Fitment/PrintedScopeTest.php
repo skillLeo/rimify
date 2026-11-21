@@ -6,7 +6,6 @@ use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\VehicleRecord;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Support\BuildWindow;
@@ -62,7 +61,6 @@ function psResolve(VehicleRecord $vehicle, FitmentRow $row): FitmentVerdict
     return (new FitmentResolver(
         vehicles: new InMemoryVehicleRepository([$vehicle]),
         fitments: new InMemoryFitmentRepository([$row], [FitmentFixtures::wheel()]),
-        loadIndex: new LoadIndexDeriver($tables),
         speedSymbol: new SpeedSymbolDeriver($tables),
         clock: new FixedClock,
     ))->resolve($vehicle->id, FitmentFixtures::WHEEL_CONFIG_ID);

@@ -6,7 +6,6 @@ namespace App\Domain\Fitment\Tyres;
 
 use App\Domain\Fitment\Data\TyreRecord;
 use App\Domain\Fitment\Data\TyreSize;
-use App\Support\GermanFormat;
 
 /**
  * One front/rear pair the document permits for this car on this wheel (#20, D-105): the two sizes as the car's row
@@ -17,7 +16,7 @@ use App\Support\GermanFormat;
  * axles included — the Komplettrad is the combination, never four of one size (D-335). An axle the shop has no tyre for
  * in its size is named (`missing`): the combination then has no set, and nothing fills the gap.
  *
- * @phpstan-type AxleMinimum array{loadIndex: int, speedSymbol: string, axleLoadKg: int|null}
+ * @phpstan-type AxleMinimum array{loadIndex: int|null, speedSymbol: string|null, axleLoadKg: int|null}
  */
 final readonly class MixedPair
 {
@@ -59,47 +58,6 @@ final readonly class MixedPair
         }
 
         return ($this->frontMinimum['axleLoadKg'] ?? 0) > ($this->rearMinimum['axleLoadKg'] ?? 0) ? 'FRONT' : 'REAR';
-    }
-
-    /**
-     * `Bei Mischbereifung prüfen wir jede Achse mit ihrer eigenen Achslast: vorne (1.210 kg) mindestens
-     * Tragfähigkeitsindex 93 und Geschwindigkeitsindex Y, hinten (1.235 kg) mindestens Tragfähigkeitsindex 95 und
-     * Geschwindigkeitsindex Y. Mehr verlangt die Hinterachse.` — for a combination of the document's list, which may name
-     * one size on both axles and gets each axle's tyre on its own (D-335), each axle as the tyre verdict says it
-     * (FitmentResolver::bindingSummary): `Wir prüfen jede Achse mit ihrer eigenen Achslast. Vorderachse mit 1.210 kg:
-     * mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y; Hinterachse mit 1.235 kg: …` — no axle „asks for more“
-     * where each has its own tyre.
-     */
-    public function minimumSentenceDe(): string
-    {
-        if ($this->listed) {
-            $says = static fn (string $name, array $min): string => sprintf(
-                '%s%s: mindestens Tragfähigkeitsindex %d, Geschwindigkeitsindex %s',
-                $name,
-                $min['axleLoadKg'] === null ? '' : ' mit '.GermanFormat::kilograms($min['axleLoadKg']),
-                $min['loadIndex'],
-                $min['speedSymbol'],
-            );
-
-            return 'Wir prüfen jede Achse mit ihrer eigenen Achslast. '.$says('Vorderachse', $this->frontMinimum).'; '.$says('Hinterachse', $this->rearMinimum).'.';
-        }
-
-        $axle = static fn (string $name, array $min): string => sprintf(
-            '%s%s mindestens Tragfähigkeitsindex %d und Geschwindigkeitsindex %s',
-            $name,
-            $min['axleLoadKg'] === null ? '' : ' ('.GermanFormat::kilograms($min['axleLoadKg']).')',
-            $min['loadIndex'],
-            $min['speedSymbol'],
-        );
-
-        $sentence = 'Bei Mischbereifung prüfen wir jede Achse mit ihrer eigenen Achslast: '
-            .$axle('vorne', $this->frontMinimum).', '.$axle('hinten', $this->rearMinimum).'.';
-
-        if ($this->frontMinimum['loadIndex'] === $this->rearMinimum['loadIndex']) {
-            return $sentence.' Beide Achsen verlangen denselben Tragfähigkeitsindex.';
-        }
-
-        return $sentence.' Mehr verlangt die '.($this->bindingAxle() === 'FRONT' ? 'Vorderachse' : 'Hinterachse').'.';
     }
 
     /**
