@@ -325,7 +325,8 @@ export async function box(locator: Locator): Promise<{ x: number; y: number; wid
 /** From a product page with „Kompletträder“ chosen: on to its steps, as far as the tyres, every one on the page. */
 export async function toTyres(page: Page): Promise<void> {
     await page.locator('a.pdp__next').click()
-    await page.getByRole('button', { name: 'Weiter: Reifen' }).click()
+    // Since D-489 the steps open on the tyres: no step „Felge“ in between.
+    await expect(page.locator('#kf-tyres-h')).toBeVisible()
 
     const more = page.getByRole('button', { name: /^Mehr anzeigen/ })
 

@@ -289,6 +289,12 @@ export interface ConditionGroupsView {
      * its name, never „Nur bei …“; `entry` is the set's. Additive.
      */
     perAxle?: boolean
+    /**
+     * With a size or a combination chosen (D-488): what it asks — `auflagen`, only `hinweise`, or `keine` — and the colour its codes
+     * carry in the admin (D-439), loudest first; null where nothing asks for one. Additive: older answers carry neither.
+     */
+    standing?: 'auflagen' | 'hinweise' | 'keine'
+    hint?: 'green' | 'yellow' | 'red' | null
 }
 
 export interface CardFitment {

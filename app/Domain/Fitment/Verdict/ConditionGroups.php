@@ -321,13 +321,18 @@ final readonly class ConditionGroups
 
         foreach ($this->sizes as $size) {
             if ($chosenKey !== null && $size['size']->key() === $chosenKey) {
+                $chosen = $this->forSet($chosenKey, $partnerKey, $axle);
+                $entry = $partnerKey === null ? $this->entryFor($chosenKey, $size['entry']) : $this->entryForSet($chosenKey, $partnerKey);
+
                 return [
-                    'combination' => $sentences($this->forSet($chosenKey, $partnerKey, $axle)),
+                    'combination' => $sentences($chosen),
                     'sizes' => [],
                     'pairs' => [],
                     'chosen' => $size['size']->labelDe(),
-                    'entry' => $partnerKey === null ? $this->entryFor($chosenKey, $size['entry']) : $this->entryForSet($chosenKey, $partnerKey),
+                    'entry' => $entry,
                     ...($axle === null ? [] : ['axle' => $axle]),
+                    // What this size asks, and in which colour (D-488): the tyre step's RIMIFY-Check for it.
+                    ...HintColour::standingOf($chosen, $entry),
                 ];
             }
         }
