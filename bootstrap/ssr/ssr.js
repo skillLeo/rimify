@@ -40383,7 +40383,7 @@ var render = (page) => createInertiaApp({
 		"./Pages/Felgenrechner/Desktop.vue": () => import("./assets/Desktop-Ccf0znpO.js"),
 		"./Pages/Felgenrechner/Mobile.vue": () => import("./assets/Mobile-DvkXlumd.js"),
 		"./Pages/Gutachten/Beispiel.vue": () => import("./assets/Beispiel-B_kU21n9.js"),
-		"./Pages/Kasse/Index.vue": () => import("./assets/Index-fZUR8cUj.js"),
+		"./Pages/Kasse/Index.vue": () => import("./assets/Index-Cab57iyF.js"),
 		"./Pages/Kasse/Testzahlung.vue": () => import("./assets/Testzahlung-BilwONgV.js"),
 		"./Pages/Komplettrad/Index.vue": () => import("./assets/Index-BULzdVPg.js"),
 		"./Pages/Komplettrad/parts/ChosenCheck.vue": () => import("./assets/ChosenCheck-5_eQfO-H.js").then((n) => n.n),

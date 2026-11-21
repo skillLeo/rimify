@@ -1,0 +1,68 @@
+erDiagram
+    approval_documents ||--o{ approval_documents : "supersedes_id"
+    approval_documents ||--o{ approval_documents : "supplement_to_id"
+    approval_documents ||--o{ approval_document_files : "approval_document_id"
+    approval_documents ||--o{ document_conditions : "approval_document_id"
+    document_conditions ||--o{ document_condition_reworks : "document_condition_id"
+    approval_documents ||--o{ document_fasteners : "approval_document_id"
+    approval_documents ||--o{ document_notices : "approval_document_id"
+    approval_documents ||--o{ document_vehicle_codes : "approval_document_id"
+    vehicles ||--o{ document_vehicle_codes : "vehicle_id"
+    approval_documents {
+        bigint id PK
+        bigint supersedes_id FK
+        bigint supplement_to_id FK
+        string kind
+        string kba_number
+        int revision
+        string status
+        string pdf_key
+        string pdf_sha256
+        smallint page_count
+        string completeness
+    }
+    approval_document_files {
+        bigint id PK
+        bigint approval_document_id FK
+        string label
+        date dated_on
+        string sha256
+        timestamp hidden_at
+        tinyint is_main
+    }
+    document_conditions {
+        bigint id PK
+        bigint approval_document_id FK
+        string code
+        string kind
+        string level
+        text text_de
+        smallint source_page
+        string shop_colour
+    }
+    document_condition_reworks {
+        bigint id PK
+        bigint document_condition_id FK
+    }
+    document_fasteners {
+        bigint id PK
+        bigint approval_document_id FK
+        smallint torque_nm
+        smallint source_page
+    }
+    document_notices {
+        bigint id PK
+        bigint approval_document_id FK
+        smallint source_page
+    }
+    document_vehicle_codes {
+        bigint id PK
+        bigint approval_document_id FK
+        bigint vehicle_id FK
+        string hsn
+        string tsn
+        string code
+    }
+    vehicles {
+        bigint id PK
+    }

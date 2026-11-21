@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Models\AdminUser;
 use App\Models\Vehicle;
 use App\Models\VehicleImport;
+use App\Services\Admin\Vehicles\Import\ImportUpload;
 use App\Services\Admin\Vehicles\Import\VehicleImportWork;
 use App\Services\Admin\Vehicles\VehicleImporter;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /*
  * The client's own vehicle list, in his own format (19.11.2026, D-478). Our earlier tests used files we made ourselves, so
@@ -235,4 +237,71 @@ it('says which tables a zip holds when it holds none, or several', function (): 
         $this->actingAs($admin, 'admin')->postJson('/admin/fahrzeuge/import/'.$id.'/fertig')->assertStatus(422)->assertJsonPath('errors.file.0', $sentence);
     }
 
+});
+
+/*
+ * D-498, from the deep check of 21.11.2026 on the preview: a refused file stood „uploading“ for a day; a picture was read as
+ * one line of CSV; a cut-off line was refused for the field it left empty, not for being cut off.
+ */
+
+/** Sends a file as the page does, up to „fertig“: the answer to „fertig“, and the run as it stands then. @return array{0: Illuminate\Testing\TestResponse<Symfony\Component\HttpFoundation\Response>, 1: VehicleImport} */
+function clientFinish(object $test, string $bytes, string $name): array
+{
+    $admin = AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail();
+    $id = (int) $test->actingAs($admin, 'admin')->postJson('/admin/fahrzeuge/import/hochladen', ['name' => $name, 'size' => strlen($bytes), 'quelle' => 'import_kba'])->assertCreated()->json('id');
+    $test->actingAs($admin, 'admin')->post('/admin/fahrzeuge/import/'.$id.'/teil', ['offset' => 0, 'part' => UploadedFile::fake()->createWithContent('teil', $bytes)], ['Accept' => 'application/json'])->assertOk();
+
+    // The part stands on the disk before „fertig“: what the run's end must take away.
+    expect(Storage::disk('local')->exists((string) VehicleImport::query()->findOrFail($id)->stored_as))->toBeTrue();
+
+    return [$test->actingAs($admin, 'admin')->postJson('/admin/fahrzeuge/import/'.$id.'/fertig'), VehicleImport::query()->findOrFail($id)];
+}
+
+it('ends a refused file\'s run at once, with its own reason, and keeps no part of the file (D-498)', function (string $bytes, string $name, string $reason): void {
+    [$response, $import] = clientFinish($this, $bytes, $name);
+
+    $response->assertStatus(422)->assertJsonPath('errors.file.0', $reason);
+
+    expect($import->status)->toBe(VehicleImport::FAILED)
+        ->and($import->error)->toBe($reason)
+        ->and($import->stored_as)->toBeNull()
+        ->and(array_values(array_filter(Storage::disk('local')->files(ImportUploadPath()), static fn (string $f): bool => str_starts_with(basename($f), $import->id.'.'))))->toBe([]);
+})->with([
+    'a picture named .csv' => ["\x89PNG\r\n\x1a\n".str_repeat("\0", 64), 'fahrzeuge.csv', 'Das ist keine Tabelle, sondern ein Bild oder eine andere Datei, die sich nicht als Text lesen lässt. Lad bitte die Fahrzeugliste als CSV- oder Excel-Datei hoch (.csv, .xlsx) oder das ZIP-Archiv des Datensatzes.'],
+    'a PDF' => ["%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", 'liste.pdf', 'Das ist keine Tabelle, sondern ein Bild oder eine andere Datei, die sich nicht als Text lesen lässt. Lad bitte die Fahrzeugliste als CSV- oder Excel-Datei hoch (.csv, .xlsx) oder das ZIP-Archiv des Datensatzes.'],
+    'his SQL dump' => ["-- MySQL dump\nCREATE TABLE `fahrzeuge` (id int);\n", 'pkwliste_demo.sql', 'Das ist eine SQL-Datei. SQL-Dateien lesen wir nicht. Nimm die Tabelle als CSV- oder Excel-Datei (.csv, .xlsx) – im Datensatz liegt sie im Ordner „CSV“ oder „XLSX“.'],
+]);
+
+/** Where ImportUpload keeps its parts, as the disk names it. */
+function ImportUploadPath(): string
+{
+    return ImportUpload::directory();
+}
+
+it('still reads UTF-16 text, NUL bytes and all, as Excel\'s „Unicode-Text“ writes it', function (): void {
+    $csv = clientCsv();
+    $import = clientRun($this, "\xFF\xFE".mb_convert_encoding($csv, 'UTF-16LE', 'UTF-8'), 'unicode.txt');
+
+    expect($import->status)->toBe(VehicleImport::PREVIEWED)
+        ->and($import->lines()->where('status', 'refused')->count())->toBe(0);
+});
+
+it('says a cut-off line is cut off, and refuses a line with more filled cells than the header — never a value a column away (D-498)', function (): void {
+    $lines = explode("\r\n", trim(clientCsv()));
+    $cut = implode(',', array_slice(explode(',', $lines[1]), 0, 7));
+    $over = $lines[2].',"überzählig"';
+    $import = clientRun($this, implode("\r\n", [$lines[0], $cut, $over, $lines[3]])."\r\n", 'kaputt.csv');
+
+    $reasons = $import->lines()->orderBy('line')->pluck('reason', 'line')->all();
+
+    expect($reasons[2])->toStartWith('Die Zeile hat nur 7 von 46 Spalten – sie ist abgeschnitten, oder ein Anführungszeichen fehlt.')
+        ->and($reasons[3])->toBe('Die Zeile hat 47 Spalten, die erste Zeile der Datei 46. Wahrscheinlich steht ein Komma oder Semikolon im Text ohne Anführungszeichen – die Werte stünden sonst unter der falschen Spalte.')
+        ->and($reasons[4])->toBeNull();
+});
+
+it('reads a file whose lines all end in a delimiter: an empty cell after the last column is none', function (): void {
+    $lines = explode("\r\n", trim(clientCsv()));
+    $import = clientRun($this, implode("\r\n", array_map(static fn (string $l): string => $l.',', $lines))."\r\n", 'mit-komma.csv');
+
+    expect($import->lines()->where('status', 'refused')->count())->toBe(0);
 });

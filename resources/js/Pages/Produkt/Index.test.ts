@@ -946,7 +946,8 @@ describe('Produkt page', () => {
             expect(green.find('.rcheck-panel').exists()).toBe(true)
 
             // Anything but plain green stays in Komplettrad mode too: an Auflage, a colour, a no.
-            for (const other of [verdict({ status: 'CONDITIONAL', conditions: ['Bördeln der Radläufe erforderlich.'] }), verdict({ status: 'CONDITIONAL', hint: 'red', conditions: ['x'] } as Partial<ConfigVerdict>), verdict({ status: 'NOT_PERMITTED', sellable: false })]) {
+            // The deep check of 21.11.2026 (1.4): „Noch nicht bestätigt“ too — no warning is hidden in either mode.
+            for (const other of [verdict({ status: 'CONDITIONAL', conditions: ['Bördeln der Radläufe erforderlich.'] }), verdict({ status: 'CONDITIONAL', hint: 'red', conditions: ['x'] } as Partial<ConfigVerdict>), verdict({ status: 'NOT_PERMITTED', sellable: false }), verdict({ status: 'UNKNOWN', sellable: false, label: 'Noch nicht bestätigt' } as Partial<ConfigVerdict>)]) {
                 const page = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: other })] })
 
                 await chooseSet(page)
@@ -954,6 +955,31 @@ describe('Produkt page', () => {
                 expect(page.find('.rcheck-panel').exists()).toBe(true)
                 expect(page.find('[data-fit-links]').exists()).toBe(false)
             }
+        } finally {
+            sharedVehicle.value = null
+        }
+    })
+
+    // The deep check of 21.11.2026 (1.3, D-494): with several PDFs the dropdown stays one press away in „Kompletträder“, where the
+    // plain green box makes way.
+    it('keeps the dropdown of several PDFs where the plain green box makes way', async () => {
+        sharedVehicle.value = { id: 3, label: 'BMW 3er E46 330Ci', short: 'BMW 330Ci' }
+
+        try {
+            const files = [
+                { label: 'Gutachten', date: '02.07.2025', url: '/storage/a.pdf#page=2', page: 2, main: true },
+                { label: 'Nachtrag 1', date: '01.08.2025', url: '/storage/b.pdf', page: null, main: false },
+                { label: 'Anlage', date: null, url: '/storage/c.pdf', page: null, main: false },
+            ]
+            const document = { number: '53810', issuer: 'KBA', kind: 'ABE', pdf: { url: '/storage/a.pdf#page=2', page: 2 }, files }
+            const page = mountPage({ hasVehicle: true, configs: [config({ komplettrad: komplettrad(), verdict: verdict({ document, hint: 'yellow' } as Partial<ConfigVerdict>) })] })
+
+            await chooseSet(page)
+
+            const list = page.find('[data-fit-links] details[data-document-files]')
+            expect(list.find('summary').text()).toBe('Gutachten öffnen (3 PDFs)')
+            expect(list.findAll('a').map((a) => a.attributes('target'))).toEqual(['_blank', '_blank', '_blank'])
+            expect(list.findAll('a').map((a) => a.find('span').text())).toEqual(['Gutachten', 'Nachtrag 1', 'Anlage'])
         } finally {
             sharedVehicle.value = null
         }

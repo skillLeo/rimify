@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\TyreIndexSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentCarEntry;
 use App\Models\Vehicle;
 use App\Models\WheelConfig;
 use App\Models\WheelFinish;
@@ -226,4 +227,63 @@ it('saves every size the client types in step 4, with any load index and any sym
     'C, dual, T' => ['195/65 R15 C 99/97 T', '195/65 R15 C 99/97T', 15.0, 99, 'T'],
     'half rim 19.5, M' => ['265/70 R19.5 140/138 M', '265/70 R19.5 140/138M', 19.5, 140, 'M'],
     'A8' => ['205/55 R16 94 A8', '205/55 R16 94A8', 16.0, 94, 'A8'],
+    // The deep check of 21.11.2026: a German comma in the rim, as a person types it.
+    'comma 22,5' => ['305/70 R22,5 160F', '305/70 R22.5 160F', 22.5, 160, 'F'],
+    'comma 19,5, dual' => ['265/70 R19,5 140/138 M', '265/70 R19.5 140/138M', 19.5, 140, 'M'],
+]);
+
+/** One draft paper on a rim of that diameter, two cars on it, the first one's lines as typed. @return array{0: ApprovalDocument, 1: DocumentCarEntry, 2: DocumentCarEntry} */
+function halfInchPaper(object $test, float $rim, string $typed): array
+{
+    $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 12]);
+    $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
+    $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
+    $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => $rim]);
+    $from = EntryDriver::car($test, indexAdmin(), $document->id, Vehicle::factory()->create()->id, $config->id);
+    $to = EntryDriver::car($test, indexAdmin(), $document->id, Vehicle::factory()->create()->id, $config->id);
+
+    $test->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$from->id}", [
+        'lines' => [['id' => null, 'front' => $typed, 'rear' => $typed, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
+    ])->assertOk();
+
+    return [$document, $from, $to];
+}
+
+// D-496 for the Gutachten rows, the deep check of 21.11.2026: a half inch saved, shown, saved again as shown — never cut.
+it('keeps a half inch through save, reopen and save again in the entry', function (string $typed, float $rim, string $shown): void {
+    [$document, $entry] = halfInchPaper($this, $rim, $typed);
+    $url = "/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}";
+
+    $reopened = $this->actingAs(indexAdmin(), 'admin')->getJson($url)->assertOk();
+    expect($reopened->json('lines.0.front'))->toBe($shown);
+
+    $this->actingAs(indexAdmin(), 'admin')->putJson($url, [
+        'lines' => [['id' => $reopened->json('lines.0.id'), 'front' => $shown, 'rear' => $shown, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4, 'stamp' => $reopened->json('stamp'),
+    ])->assertOk()->assertJsonPath('car.lines.0.front', $shown);
+
+    $sizes = DB::table('fitment_tyre_sizes')->get();
+
+    expect($sizes->pluck('diameter_in')->map(static fn (mixed $d): float => (float) $d)->unique()->values()->all())->toBe([$rim]);
+})->with([
+    '22,5' => ['305/70 R22,5 160F', 22.5, '305/70 R22.5 160F'],
+    '19,5' => ['265/70 R19,5 140/138 M', 19.5, '265/70 R19.5 140/138M'],
+]);
+
+// „Kopieren nach“, the deep check of 21.11.2026: the lines arrive on the other car as they stand on the first, figures and all.
+it('copies the client\'s sizes to another car as they stand — half inch, dual index, any symbol', function (string $typed, float $rim, string $shown, int $li, string $si): void {
+    [$document, $from, $to] = halfInchPaper($this, $rim, $typed);
+
+    $this->actingAs(indexAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$from->id}/kopieren", ['ziele' => [$to->id], 'modus' => 'hinzufuegen'])->assertOk();
+
+    $copied = $this->actingAs(indexAdmin(), 'admin')->getJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$to->id}")->assertOk();
+    $rows = DB::table('fitment_tyre_sizes')->join('fitments', 'fitments.id', '=', 'fitment_tyre_sizes.fitment_id')->where('fitments.vehicle_id', $to->vehicle_id)->get(['fitment_tyre_sizes.*']);
+
+    expect($copied->json('lines.0.front'))->toBe($shown)
+        ->and($copied->json('lines.0.rear'))->toBe($shown)
+        ->and($rows)->not->toBeEmpty()
+        ->and($rows->every(static fn (object $r): bool => (float) $r->diameter_in === $rim && (int) $r->min_load_index === $li && $r->min_speed_symbol === $si))->toBeTrue();
+})->with([
+    'the screenshot' => ['305/70 R22.5 160F', 22.5, '305/70 R22.5 160F', 160, 'F'],
+    'dual index, L' => ['315/80R22.5 156/150L', 22.5, '315/80 R22.5 156/150L', 156, 'L'],
+    'comma, dual, M' => ['265/70 R19,5 140/138 M', 19.5, '265/70 R19.5 140/138M', 140, 'M'],
 ]);

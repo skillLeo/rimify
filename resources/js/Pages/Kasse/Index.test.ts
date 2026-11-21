@@ -317,6 +317,9 @@ describe('Kasse', () => {
         const wrapper = mountKasse()
 
         expect(wrapper.find('.ko__sum .ko__verdict').exists()).toBe(true)
+        // D-499: the first step's buttons in the same order — its way back goes to the Warenkorb.
+        expect(wrapper.findAll('.ko__actions .btn').map((b) => b.text())).toEqual(['Zurück', 'Weiter zu Optionen & Versand'])
+        expect(wrapper.find('.ko__actions a.btn').attributes('href')).toBe('/warenkorb')
 
         await wrapper.find('#ko-mail').setValue('kunde@beispiel.de')
         await wrapper.find('#ko-name').setValue('Erika Mustermann')

@@ -145,7 +145,9 @@ final class ImportUpload
     /** The whole file is there: it is checked against its announced size and handed to the Probelauf. */
     public function finish(VehicleImport $import): VehicleImport
     {
-        return DB::transaction(function () use ($import): VehicleImport {
+        $refused = null;
+
+        $finished = DB::transaction(function () use ($import, &$refused): VehicleImport {
             $import = VehicleImport::query()->lockForUpdate()->findOrFail($import->id);
 
             if ($import->status !== VehicleImport::UPLOADING) {
@@ -159,13 +161,25 @@ final class ImportUpload
                 throw self::refuse('Die Datei ist nicht vollständig angekommen. Lad sie bitte noch einmal hoch.');
             }
 
-            $format = self::format($path);
+            try {
+                $format = self::format($path);
 
-            // A zip that is no workbook is a folder of files, as the dataset comes: the one table in it is taken out and
-            // read in its place (D-478) — the CSV first, else the workbook.
-            if ($format === 'zip') {
-                [$path, $format] = self::unpack($path, (string) $import->stored_as);
-                $import->bytes_total = (int) filesize($path);
+                // A zip that is no workbook is a folder of files, as the dataset comes: the one table in it is taken out and
+                // read in its place (D-478) — the CSV first, else the workbook.
+                if ($format === 'zip') {
+                    [$path, $format] = self::unpack($path, (string) $import->stored_as);
+                    $import->bytes_total = (int) filesize($path);
+                }
+            } catch (ValidationException $notTable) {
+                // A file that is no table goes no further: the run says why and its file goes (D-498). Before, it stood
+                // „uploading“ for a day, until the sweep closed it with a sentence that was not its own. A file not yet
+                // complete (above) stays open: its missing parts may still come.
+                $refused = $notTable;
+                $reason = collect($notTable->errors())->flatten()->first();
+                self::forget($import);
+                $import->forceFill(['status' => VehicleImport::FAILED, 'error' => is_string($reason) ? $reason : 'Die Datei lässt sich nicht lesen.', 'stored_as' => null])->save();
+
+                return $import;
             }
 
             $import->forceFill([
@@ -178,6 +192,12 @@ final class ImportUpload
 
             return $import;
         });
+
+        if ($refused !== null) {
+            throw $refused;
+        }
+
+        return $finished;
     }
 
     /**
@@ -201,6 +221,14 @@ final class ImportUpload
             $zip->close();
 
             return $workbook ? 'xlsx' : 'zip';
+        }
+
+        // A picture, a PDF or any other binary file is no table (D-498): before, it was read as one line of CSV. UTF-16 text
+        // has NUL bytes too, and comes with its byte order mark (DatasetFile).
+        $utf16 = str_starts_with($head, "\xFF\xFE") || str_starts_with($head, "\xFE\xFF");
+
+        if (preg_match('/^(?:\x89PNG|GIF8|%PDF|\xFF\xD8\xFF)/', $head) === 1 || (! $utf16 && str_contains($head, "\0"))) {
+            throw self::refuse('Das ist keine Tabelle, sondern ein Bild oder eine andere Datei, die sich nicht als Text lesen lässt. Lad bitte die Fahrzeugliste als CSV- oder Excel-Datei hoch (.csv, .xlsx) oder das ZIP-Archiv des Datensatzes.');
         }
 
         if (preg_match('/^(?:\xEF\xBB\xBF)?\s*(?:--|\/\*!|CREATE\s+TABLE|INSERT\s+INTO|DROP\s+TABLE|SET\s+(?:NAMES|SQL_MODE))/i', $head) === 1) {

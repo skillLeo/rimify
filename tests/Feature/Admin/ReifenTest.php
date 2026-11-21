@@ -191,6 +191,12 @@ it('takes any figure in the form of a size, and keeps a symbol it cannot rank wi
     'an aspect between the steps' => [['aspect' => '42'], ['aspect' => 42]],
     'a rim in halves, written with a comma' => [['diameter_in' => '16,5'], ['diameter_in' => 16.5]],
     'the client\'s truck size' => [['width_mm' => '305', 'aspect' => '70', 'diameter_in' => '22.5', 'load_index' => '160', 'speed_symbol' => 'F'], ['width_mm' => 305, 'aspect' => 70, 'diameter_in' => 22.5, 'load_index' => 160, 'speed_symbol' => 'F', 'speed_rank' => 0]],
+    // The rest of the brief's table, the deep check of 21.11.2026: as the catalogue holds a tyre — one index, one symbol.
+    'his truck size with a comma' => [['width_mm' => '305', 'aspect' => '70', 'diameter_in' => '22,5', 'load_index' => '160', 'speed_symbol' => 'F'], ['diameter_in' => 22.5, 'load_index' => 160, 'speed_symbol' => 'F']],
+    '315/80 R22.5 156 L' => [['width_mm' => '315', 'aspect' => '80', 'diameter_in' => '22.5', 'load_index' => '156', 'speed_symbol' => 'L'], ['width_mm' => 315, 'aspect' => 80, 'diameter_in' => 22.5, 'load_index' => 156, 'speed_symbol' => 'L']],
+    '225/45 R17 91 (Y)' => [['width_mm' => '225', 'aspect' => '45', 'diameter_in' => '17', 'load_index' => '91', 'speed_symbol' => '(Y)'], ['width_mm' => 225, 'aspect' => 45, 'diameter_in' => 17.0, 'load_index' => 91, 'speed_symbol' => '(Y)']],
+    '205/55 R16 94 A8' => [['width_mm' => '205', 'aspect' => '55', 'diameter_in' => '16', 'load_index' => '94', 'speed_symbol' => 'A8'], ['load_index' => 94, 'speed_symbol' => 'A8', 'speed_rank' => 0]],
+    '265/70 R19,5 140 M' => [['width_mm' => '265', 'aspect' => '70', 'diameter_in' => '19,5', 'load_index' => '140', 'speed_symbol' => 'M'], ['diameter_in' => 19.5, 'load_index' => 140, 'speed_symbol' => 'M']],
 ]);
 
 it('takes a tyre with a load index above 109, as a heavy car needs, up to the 120 the table prints (D-310) @admin-210', function (): void {

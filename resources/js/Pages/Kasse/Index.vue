@@ -1171,7 +1171,10 @@ function verdictSentence(line: BasketLine): string {
                                 </div>
                             </fieldset>
 
+                            <!-- „Zurück“ first, the way on after it, as on „Optionen & Versand“ (D-490, D-499): the first step's way back is the
+                                 Warenkorb. On a phone the way on stays on top. -->
                             <div class="ko__actions">
+                                <Link href="/warenkorb" class="btn btn--secondary btn--lg">Zurück</Link>
                                 <button class="btn btn--primary btn--lg" type="submit">Weiter zu Optionen &amp; Versand</button>
                             </div>
                         </template>

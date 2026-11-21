@@ -1,0 +1,62 @@
+erDiagram
+    brands ||--o{ wheel_models : "brand_id"
+    wheel_models ||--o{ wheel_finishes : "wheel_model_id"
+    wheel_finishes ||--o{ wheel_finish_images : "wheel_finish_id"
+    wheel_finishes ||--o{ wheel_configs : "wheel_finish_id"
+    wheel_models ||--o{ wheel_configs : "wheel_model_id"
+    brands ||--o{ tyre_models : "brand_id"
+    tyre_models ||--o{ tyre_model_images : "tyre_model_id"
+    brands ||--o{ tyre_variants : "brand_id"
+    brands {
+        bigint id PK
+        string name
+        tinyint is_wheel_brand
+    }
+    wheel_models {
+        bigint id PK
+        bigint brand_id FK
+        string slug
+        string status
+        tinyint is_demo
+    }
+    wheel_finishes {
+        bigint id PK
+        bigint wheel_model_id FK
+        string name_de
+    }
+    wheel_finish_images {
+        bigint id PK
+        bigint wheel_finish_id FK
+    }
+    wheel_configs {
+        bigint id PK
+        bigint wheel_finish_id FK
+        bigint wheel_model_id FK
+        decimal width_in
+        decimal diameter_in
+        smallint et_mm
+        int price_cents
+        string currency
+        int stock_qty
+    }
+    tyre_models {
+        bigint id PK
+        bigint brand_id FK
+        string name
+        string season
+    }
+    tyre_model_images {
+        bigint id PK
+        bigint tyre_model_id FK
+    }
+    tyre_variants {
+        bigint id PK
+        bigint brand_id FK
+        smallint width_mm
+        smallint aspect
+        decimal diameter_in
+        smallint load_index
+        string speed_symbol
+        smallint speed_rank
+        int price_cents
+    }

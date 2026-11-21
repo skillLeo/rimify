@@ -1,0 +1,9 @@
+flowchart LR
+    V[Vehicles<br/>car variants, key numbers,<br/>build window, axle loads] --> R
+    G[Gutachten<br/>one revision of one paper,<br/>its PDFs and Auflagen-Codes] --> E[Entry<br/>cars, wheel versions,<br/>tyre lines, codes] --> R[Approval rows<br/>fitments + tyre sizes + codes]
+    W[Wheels and tyres<br/>models, finishes, versions,<br/>tyre sizes, prices] --> R
+    R --> X((Verdict engine))
+    X --> S[Shop<br/>product page, RIMIFY-Check,<br/>Komplettrad, basket]
+    S --> O[Orders<br/>lines, frozen verdict,<br/>invoices, payments]
+    C[Customers] --> O
+    P[Admin users, roles<br/>and the Protokoll] -.records every change.-> G
