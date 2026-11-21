@@ -351,7 +351,17 @@ const openLead = computed(() => {
 <template>
     <div v-if="linksOnly && verdict" class="fit-links" data-fit-links>
         <!-- D-487: the plain green box makes way where the page says so; what the customer takes away stays one press off. -->
-        <p v-if="verdict.document?.pdf" class="fit__pdf">
+        <details v-if="(verdict.document?.files?.length ?? 0) > 1" class="fit__files" data-document-files>
+            <summary class="link fit__files-toggle">Gutachten öffnen ({{ verdict.document?.files?.length }} PDFs)</summary>
+            <ul class="fit__files-list">
+                <li v-for="file in verdict.document?.files ?? []" :key="file.url">
+                    <a class="link fit__files-link" :href="file.url" target="_blank" rel="noopener">
+                        <span>{{ file.label }}</span>{{ ' ' }}<span v-if="file.date || file.page" class="fit__files-meta">{{ [file.date, file.page ? `Seite ${file.page}` : null].filter(Boolean).join(' · ') }}</span>
+                    </a>
+                </li>
+            </ul>
+        </details>
+        <p v-else-if="verdict.document?.pdf" class="fit__pdf">
             <a class="link" :href="verdict.document.pdf.url" target="_blank" rel="noopener">
                 Gutachten öffnen (<template v-if="verdict.document.example">Beispiel, </template>PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
             </a>
@@ -466,8 +476,19 @@ const openLead = computed(() => {
             </p>
             <!-- What the document itself limits: a Nachtrag without its base, the month a wheel must be made from. -->
             <p v-for="note in verdict.document?.notes ?? []" :key="note" class="fit__note">{{ note }}</p>
+            <!-- Several PDFs (D-494): one press opens the list — label and date, each in its own tab —, another press closes it. -->
+            <details v-if="(verdict.document?.files?.length ?? 0) > 1" class="fit__files" data-document-files>
+                <summary class="link fit__files-toggle">Gutachten öffnen ({{ verdict.document?.files?.length }} PDFs)</summary>
+                <ul class="fit__files-list">
+                    <li v-for="file in verdict.document?.files ?? []" :key="file.url">
+                        <a class="link fit__files-link" :href="file.url" target="_blank" rel="noopener">
+                            <span>{{ file.label }}<template v-if="verdict.document?.example && file.main"> (Beispiel)</template></span>{{ ' ' }}<span v-if="file.date || file.page" class="fit__files-meta">{{ [file.date, file.page ? `Seite ${file.page}` : null].filter(Boolean).join(' · ') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </details>
             <!-- The document itself, opened where the answer stands: the customer can check it. -->
-            <p v-if="verdict.document?.pdf" class="fit__pdf">
+            <p v-else-if="verdict.document?.pdf" class="fit__pdf">
                 <!-- A control, not a word in a sentence: `.link`, 44 px tall on touch, as the check's button below. -->
                 <a class="link" :href="verdict.document.pdf.url" target="_blank" rel="noopener">
                     Gutachten öffnen (<template v-if="verdict.document.example">Beispiel, </template>PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
@@ -494,6 +515,50 @@ const openLead = computed(() => {
 </template>
 
 <style scoped>
+/* The paper's PDFs as one control (D-494): a disclosure, so the keyboard and a screen reader know it without a script. */
+.fit__files {
+    margin-top: var(--sp-8);
+}
+
+.fit__files-toggle {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    cursor: pointer;
+    list-style-position: inside;
+}
+
+.fit__files-toggle:focus-visible {
+    outline: 2px solid var(--c-blue);
+    outline-offset: 2px;
+}
+
+.fit__files-list {
+    display: grid;
+    gap: var(--sp-4);
+    margin: var(--sp-4) 0 0;
+    padding: var(--sp-8);
+    list-style: none;
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+}
+
+.fit__files-link {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--sp-4) var(--sp-12);
+    min-height: 44px;
+    align-items: center;
+}
+
+.fit__files-meta {
+    color: var(--c-ink-2);
+    font-size: var(--fs-small);
+    font-variant-numeric: tabular-nums;
+}
+
 .fit-links {
     display: flex;
     flex-wrap: wrap;

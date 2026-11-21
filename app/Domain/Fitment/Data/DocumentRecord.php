@@ -75,6 +75,14 @@ final readonly class DocumentRecord
          * approval rests on the car's axle loads, not only its tyres' (D-289). Frozen with the verdict where set.
          */
         public ?int $axleLimitKg = null,
+        /**
+         * The PDFs the customer may open (D-494): the paper's own first, then its Nachträge, Anlagen or older versions, as the
+         * admin labelled, dated and ordered them, hidden ones left out. Frozen with the verdict where there is more than the
+         * paper's own: which files — label and hash — a purchase was shown. One file is the paper's own, already frozen above.
+         *
+         * @var list<array{label: string, datedOn: string|null, key: string, sha256: string|null, main: bool}>
+         */
+        public array $files = [],
     ) {}
 
     public const COMPLETE = 'complete';
@@ -99,7 +107,8 @@ final readonly class DocumentRecord
      *     id: string, kind: string, number: string|null, revision: int,
      *     issuedOn: string|null, pdfUrl: string|null, pdfSha256: string|null, sourcePage: int|null,
      *     notes?: list<string>, papersCorrectionRequired?: bool, missingAnnexes?: string, completeness?: string, isDemo?: true,
-     *     tyreIndexSource?: string, axleLimitKg?: int
+     *     tyreIndexSource?: string, axleLimitKg?: int,
+     *     files?: list<array{label: string, datedOn: string|null, key: string, sha256: string|null, main: bool}>
      * }
      */
     public function toArray(): array
@@ -124,6 +133,8 @@ final readonly class DocumentRecord
             ...($this->isDemo ? ['isDemo' => true] : []),
             ...($this->tyreIndexSource === null ? [] : ['tyreIndexSource' => $this->tyreIndexSource]),
             ...($this->axleLimitKg === null ? [] : ['axleLimitKg' => $this->axleLimitKg]),
+            // More than the paper's own PDF only: a paper with one file keeps the record it always had (D-494).
+            ...(count($this->files) > 1 ? ['files' => $this->files] : []),
         ];
     }
 
@@ -138,7 +149,8 @@ final readonly class DocumentRecord
      *     id: string|int, kind: string, number: string|null, revision: int,
      *     issuedOn?: string|null, pdfUrl?: string|null, pdfSha256?: string|null, sourcePage?: int|null,
      *     notes?: list<string>, papersCorrectionRequired?: bool|null, missingAnnexes?: string|null, completeness?: string|null,
-     *     isDemo?: bool, tyreIndexSource?: string|null, axleLimitKg?: int|null
+     *     isDemo?: bool, tyreIndexSource?: string|null, axleLimitKg?: int|null,
+     *     files?: list<array{label: string, datedOn: string|null, key: string, sha256: string|null, main: bool}>
      * } $data
      */
     public static function fromArray(array $data): self
@@ -161,6 +173,13 @@ final readonly class DocumentRecord
             isDemo: ($data['isDemo'] ?? false) === true,
             tyreIndexSource: $data['tyreIndexSource'] ?? null,
             axleLimitKg: isset($data['axleLimitKg']) ? (int) $data['axleLimitKg'] : null,
+            files: array_values(array_map(static fn (array $f): array => [
+                'label' => (string) $f['label'],
+                'datedOn' => $f['datedOn'] ?? null,
+                'key' => (string) $f['key'],
+                'sha256' => $f['sha256'] ?? null,
+                'main' => ($f['main'] ?? false) === true,
+            ], $data['files'] ?? [])),
         );
     }
 }

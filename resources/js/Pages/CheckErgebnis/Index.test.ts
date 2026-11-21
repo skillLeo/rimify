@@ -168,3 +168,19 @@ describe('CheckErgebnis — "no document" leads to the contact form (#26)', () =
         expect(primary.attributes('data-inertia')).toBe('link')
     })
 })
+
+// D-494: every PDF the answer was shown with, on the page, its print and its link — the paper's own first, at its page.
+describe('the PDFs of the Gutachten', () => {
+    it('lists them under the Gutachten, each opening in its own tab, and none where there is only the paper’s own', () => {
+        const files = [
+            { label: 'Gutachten', date: '16.07.2025', url: 'https://shop.test/a.pdf#page=4', page: 4, main: true },
+            { label: 'Nachtrag 1', date: null, url: 'https://shop.test/b.pdf', page: null, main: false },
+        ]
+        const wrapper = mountResult('PERMITTED', { document: { label: 'ABE 55255', issuer: 'Kraftfahrt-Bundesamt', revision: 1, page: 4, files } })
+        const links = wrapper.findAll('[data-document-files] a')
+
+        expect(links.map((a) => a.text().replace(/\s+/g, ' '))).toEqual(['Gutachten vom 16.07.2025 (PDF, Seite 4)', 'Nachtrag 1 (PDF)'])
+        expect(links.every((a) => a.attributes('target') === '_blank')).toBe(true)
+        expect(mountResult('PERMITTED').find('[data-document-files]').exists()).toBe(false)
+    })
+})

@@ -44,6 +44,15 @@ final class ApprovalDocumentPolicy
         return $user->may(PermissionModule::Approvals, PermissionAction::Edit);
     }
 
+    /**
+     * The paper's PDFs (D-494): add one, describe, hide or show, reorder — on a draft and on the released revision, without a
+     * new one, for no verdict rests on them. Who may edit Gutachten may; never on a revision the shop no longer reads.
+     */
+    public function manageFiles(AdminUser $user, ApprovalDocument $document): bool
+    {
+        return in_array($document->status, [DocumentStatus::Draft, DocumentStatus::Published], true) && $user->may(PermissionModule::Approvals, PermissionAction::Edit);
+    }
+
     public function publish(AdminUser $user, ApprovalDocument $document): bool
     {
         return $document->status === DocumentStatus::Draft && $user->may(PermissionModule::Approvals, PermissionAction::Publish);

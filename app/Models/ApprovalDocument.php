@@ -182,6 +182,12 @@ class ApprovalDocument extends Model
         return $this->belongsTo(self::class, 'supersedes_id');
     }
 
+    /** @return HasMany<ApprovalDocumentFile, $this> the paper's PDFs beyond its own, and its own entry (D-494) */
+    public function files(): HasMany
+    {
+        return $this->hasMany(ApprovalDocumentFile::class)->orderBy('position')->orderBy('id');
+    }
+
     /** @return HasMany<ApprovalDocument, $this> */
     public function supersededBy(): HasMany
     {

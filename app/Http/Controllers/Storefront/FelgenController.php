@@ -1280,6 +1280,8 @@ class FelgenController extends Controller
                 'example' => $verdict->document->isDemo,
                 // The Gutachten itself, opened at the page the answer stands on.
                 'pdf' => self::pdfLink($verdict->document),
+                // Its further PDFs too, the paper's own first (D-494): empty where it has no more than that one.
+                'files' => GutachtenPdfLink::files($verdict->document),
                 // Every further document the answer rests on, named (the corrections memo §3).
                 'others' => array_map(
                     static fn (DocumentRecord $d): string => trim(ApprovalKind::tryFrom($d->kind)?->labelDe().' '.($d->number ?? '')),

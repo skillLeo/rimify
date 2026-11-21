@@ -425,6 +425,32 @@ describe('FitmentPanel', () => {
         expect(wrapper.find('.fit__doc').text()).toBe('TG-123')
     })
 
+    // D-494: several PDFs — the paper's own at the row's page, then its Nachträge and Anlagen — as one list, each in its own tab.
+    it('lists every PDF of the Gutachten in one control where there are several, and keeps the one link where there is one', async () => {
+        const files = [
+            { label: 'Gutachten', date: '16.07.2025', url: '/storage/gutachten/a.pdf#page=6', page: 6, main: true },
+            { label: 'Nachtrag 1', date: '02.07.2025', url: '/storage/gutachten/b.pdf', page: null, main: false },
+            { label: 'Anlage 16', date: null, url: '/storage/gutachten/c.pdf', page: null, main: false },
+        ]
+        const several = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ document: { number: '53841', issuer: 'KBA', kind: 'ABE', pdf: { url: files[0]!.url, page: 6 }, files } }) } })
+        const list = several.find('[data-document-files]')
+
+        expect(list.element.tagName).toBe('DETAILS')
+        expect(list.find('summary').text()).toBe('Gutachten öffnen (3 PDFs)')
+        expect(list.findAll('a').map((a) => [a.attributes('href'), a.attributes('target'), a.text().replace(/\s+/g, ' ')])).toEqual([
+            ['/storage/gutachten/a.pdf#page=6', '_blank', 'Gutachten 16.07.2025 · Seite 6'],
+            ['/storage/gutachten/b.pdf', '_blank', 'Nachtrag 1 02.07.2025'],
+            ['/storage/gutachten/c.pdf', '_blank', 'Anlage 16'],
+        ])
+        // The one link of a single PDF is not drawn beside the list.
+        expect(several.find('.fit__pdf a[href="/storage/gutachten/a.pdf#page=6"]').exists()).toBe(false)
+
+        const one = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ document: { number: '53841', issuer: 'KBA', kind: 'ABE', pdf: { url: files[0]!.url, page: 6 }, files: [] } }) } })
+
+        expect(one.find('[data-document-files]').exists()).toBe(false)
+        expect(one.find('.fit__pdf a').text()).toBe('Gutachten öffnen (PDF, Seite 6)')
+    })
+
     it('opens the Gutachten at the page the answer stands on, and says the entry once @kunde-21 @kunde-28', () => {
         const wrapper = mount(FitmentPanel, {
             props: {

@@ -11,6 +11,7 @@ import AdminConfirm from '../../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../../Components/Admin/AdminIcon.vue'
 import { decimal } from '../../../../format'
 import { cancelReload, freshReload } from '../../../../lib/freshReload'
+import DocumentPdfs from '../DocumentPdfs.vue'
 import ReleaseDialog from '../ReleaseDialog.vue'
 import CodeDefine from './CodeDefine.vue'
 import LegendDialog from './LegendDialog.vue'
@@ -297,6 +298,9 @@ const releaseError = computed(() => ((page.props.errors ?? {}) as Record<string,
         </div>
 
         <PreviewSection />
+
+        <!-- What the customer may open beside the answer, before the release too (D-494). -->
+        <DocumentPdfs v-if="page.props.pdfs" class="ef-pdfs" :document-id="doc.id" :pdfs="page.props.pdfs" :can="page.props.can.files === true" :max-mb="page.props.pdfMaxMb ?? 100" />
 
         <p v-if="releaseError" class="adm-alert" role="alert">{{ releaseError }}</p>
 

@@ -78,6 +78,7 @@ class OrderConfirmationMail extends Mailable
             $snapshot = $line->fitmentSnapshot;
             $groups = null;
             $document = null;
+            $files = [];
 
             if ($snapshot !== null) {
                 try {
@@ -87,6 +88,8 @@ class OrderConfirmationMail extends Mailable
                     $groups = $frozen->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
                     // The Gutachten the answer rests on, at its row's page — the very document the order froze (D-491).
                     $document = GutachtenPdfLink::of($frozen->document, absolute: true);
+                    // Every PDF the purchase was shown with, as frozen (D-494): the paper's own first.
+                    $files = GutachtenPdfLink::files($frozen->document, absolute: true);
                 } catch (Throwable) {
                     $groups = null;
                 }
@@ -138,6 +141,7 @@ class OrderConfirmationMail extends Mailable
                 ], $groups['pairs'] ?? []),
                 // Where to read it all in the document itself (the client's review of 19.11.2026, D-491).
                 'document' => $document,
+                'files' => $files,
             ];
         }
 

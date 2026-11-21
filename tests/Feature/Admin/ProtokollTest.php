@@ -843,6 +843,12 @@ describe('putting every entry into words', function (): void {
                 'Die Versandart „Express“ wurde gelöscht ('.$euro(5990).', 1–2 Werktage). Bestellungen behalten, womit sie verschickt werden.',
                 [],
             ],
+            // The paper's PDFs (D-494).
+            'approval.file_added' => [['document' => 'ABE 55255', 'label' => 'Nachtrag 1', 'sha256' => str_repeat('a', 64)], 'Zu „ABE 55255“ wurde das PDF „Nachtrag 1“ hinzugefügt.', []],
+            'approval.file_described' => [['document' => 'ABE 55255', 'before' => 'Nachtrag', 'label' => 'Nachtrag 1'], 'Ein PDF zu „ABE 55255“ heißt jetzt „Nachtrag 1“ (vorher „Nachtrag“).', []],
+            'approval.file_hidden' => [['document' => 'ABE 55255', 'label' => 'Anlage 3'], 'Das PDF „Anlage 3“ zu „ABE 55255“ wurde im Shop ausgeblendet. Es bleibt gespeichert.', []],
+            'approval.file_shown' => [['document' => 'ABE 55255', 'label' => 'Anlage 3'], 'Das PDF „Anlage 3“ zu „ABE 55255“ ist im Shop wieder zu sehen.', []],
+            'approval.files_reordered' => [['document' => 'ABE 55255', 'count' => 3], 'Die Reihenfolge der PDFs zu „ABE 55255“ wurde geändert.', []],
             'review.hidden' => [['review' => 7, 'order' => 'RMF-2026-1001', 'reason' => 'Werbung.'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde ausgeblendet: „Werbung.“.', []],
             'review.shown' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Eine Bewertung zur Bestellung „RMF-2026-1001“ wurde wieder eingeblendet.', []],
             'review.replied' => [['review' => 7, 'order' => 'RMF-2026-1001'], 'Auf eine Bewertung zur Bestellung „RMF-2026-1001“ wurde geantwortet.', []],

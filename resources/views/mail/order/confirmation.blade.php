@@ -47,7 +47,13 @@ Nur bei {{ $pair['pair'] }}:
 - {{ $condition }}
 @endforeach
 @endforeach
-@if ($line['document'] ?? null)
+@if (($line['files'] ?? []) !== [])
+
+{{ $line['document']['label'] ?? 'Gutachten' }}:
+@foreach ($line['files'] as $file)
+- [{{ $file['label'] }}{{ $file['date'] ? ' vom '.$file['date'] : '' }} (PDF{{ $file['page'] ? ', Seite '.$file['page'] : '' }})]({{ $file['url'] }})
+@endforeach
+@elseif ($line['document'] ?? null)
 
 [{{ $line['document']['label'] }} öffnen ({{ $line['document']['example'] ? 'Beispiel, ' : '' }}PDF{{ $line['document']['page'] ? ', Seite '.$line['document']['page'] : '' }})]({{ $line['document']['url'] }})
 @endif

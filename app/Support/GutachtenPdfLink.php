@@ -39,4 +39,47 @@ final class GutachtenPdfLink
 
         return ['url' => $url.($document->sourcePage === null ? '' : '#page='.$document->sourcePage), 'page' => $document->sourcePage, 'label' => $label, 'example' => false];
     }
+
+    /**
+     * Every PDF the customer may open (D-494), as links: the paper's own at the row's page (of()), then its further ones from
+     * their first page, each with its label and date. Empty where there is no more than the paper's own — the one link above
+     * stands for it. A file that is not there is left out, never linked to nothing (D-229).
+     *
+     * @return list<array{label: string, date: string|null, url: string, page: int|null, main: bool}>
+     */
+    public static function files(?DocumentRecord $document, bool $absolute = false): array
+    {
+        if ($document === null || count($document->files) < 2) {
+            return [];
+        }
+
+        $links = [];
+
+        foreach ($document->files as $file) {
+            if ($file['main']) {
+                $main = self::of($document, $absolute);
+
+                if ($main !== null) {
+                    $links[] = ['label' => $file['label'], 'date' => self::date($file['datedOn']), 'url' => $main['url'], 'page' => $main['page'], 'main' => true];
+                }
+
+                continue;
+            }
+
+            $url = app(DocumentFiles::class)->locate($file['key'])['url'];
+
+            if ($url === null) {
+                continue;
+            }
+
+            $links[] = ['label' => $file['label'], 'date' => self::date($file['datedOn']), 'url' => $absolute && str_starts_with($url, '/') ? url($url) : $url, 'page' => null, 'main' => false];
+        }
+
+        return count($links) > 1 ? $links : [];
+    }
+
+    private static function date(?string $ymd): ?string
+    {
+        return $ymd === null ? null : GermanFormat::date(new \DateTimeImmutable($ymd));
+    }
 }
