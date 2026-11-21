@@ -401,7 +401,8 @@ describe('FitmentPanel', () => {
 
         const noAbnahme = mount(FitmentPanel, { props: { vehicle, verdict: verdict({ papersExempt: true }) } })
 
-        expect(noAbnahme.findAll('.fit__entry').map((p) => p.text())).toEqual(['Keine Abnahme durch einen Prüfer erforderlich.', PAPERS_EXEMPT])
+        // D-486: no „Keine Abnahme …“ of ours; the document's own § 15 FZV line stays.
+        expect(noAbnahme.findAll('.fit__entry').map((p) => p.text())).toEqual([PAPERS_EXEMPT])
     })
 
     it('says nothing about the papers for a wheel that may not go on the car, even where the document frees them', () => {
@@ -493,9 +494,10 @@ describe('FitmentPanel', () => {
         expect(wide.find('.fit__overview-h').text()).toBe('Das verlangt das Gutachten mit 245/35 R18')
         expect(wide.find('.fit__overview-line').text()).toBe(`Abnahme beim Prüfer · 2 Arbeiten am Fahrzeug · ${KEGEL} · alle Auflagen im Wortlaut`)
 
-        // The other: no Eintragung, and only the work every size needs.
+        // The other: no Eintragung line at all (D-486: never „Keine Eintragung erforderlich.“), and only the work every size needs.
         const narrow = panel('255/35 R18', false)
-        expect(narrow.find('.fit__entry--verdict').text()).toBe('Keine Eintragung erforderlich.')
+        expect(narrow.find('.fit__entry--verdict').exists()).toBe(false)
+        expect(narrow.text()).not.toContain('Keine Eintragung')
         expect(narrow.find('.fit__overview-line').text()).toBe(`1 Arbeit am Fahrzeug · ${KEGEL} · alle Auflagen im Wortlaut`)
         // The verdict itself stays the combination's: „Mit Auflagen“, never upgraded by the choice of a tyre.
         expect(narrow.find('.rcheck-panel__vehicle').text()).toBe('Mit Auflagen freigegeben für BMW 3er Coupe')

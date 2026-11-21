@@ -47,43 +47,6 @@ final readonly class TyreEligibility
     /** A mixed set is two wheels on each axle. */
     public const MIXED_PER_AXLE = 2;
 
-    private const MINIMUM_LEAD = 'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex %d und Geschwindigkeitsindex %s.';
-
-    /* Sizes whose papers print different figures, each with its own (D-431). */
-    private const MINIMUM_LEAD_BY_SIZE = 'Für dein Fahrzeug brauchen die Reifen je nach Größe mindestens: %s.';
-
-    private const MINIMUM_ONE_SIZE = '%s Tragfähigkeitsindex %d und Geschwindigkeitsindex %s';
-
-    private const MINIMUM_SOURCES_BY_SIZE = 'Die Mindestwerte stehen für jede Größe so im Gutachten oder ergeben sich aus den Daten deines Fahrzeugs.';
-
-    /* The same, where for one of the sizes the papers' own index governed (15.1, 15.2 — D-242). */
-    private const MINIMUM_SOURCES_BY_SIZE_PAPERS = 'Die Mindestwerte stehen für jede Größe so im Gutachten, nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2) oder ergeben sich aus den Daten deines Fahrzeugs.';
-
-    private const MINIMUM_BOTH_DERIVED = 'Diese Mindestwerte ergeben sich aus Achslast und Höchstgeschwindigkeit deines Fahrzeugs.';
-
-    private const MINIMUM_BOTH_DOCUMENT = 'Diese Mindestwerte stehen so im Gutachten.';
-
-    private const MINIMUM_LOAD_DERIVED_SPEED_DOCUMENT = 'Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs, der Geschwindigkeitsindex steht so im Gutachten.';
-
-    private const MINIMUM_LOAD_DOCUMENT_SPEED_DERIVED = 'Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.';
-
-    /* The papers' own index, where it was the stricter (15.1, 15.2, as the customer typed them — D-242). */
-    private const MINIMUM_BOTH_PAPERS = 'Diese Mindestwerte stehen nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).';
-
-    private const MINIMUM_LOAD_PAPERS = 'Der Tragfähigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2), %s';
-
-    private const MINIMUM_SPEED_PAPERS = '%s, der Geschwindigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).';
-
-    private const SPEED_FROM = [
-        'DERIVED' => 'der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.',
-        'DOCUMENT' => 'der Geschwindigkeitsindex steht so im Gutachten.',
-    ];
-
-    private const LOAD_FROM = [
-        'DERIVED' => 'Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs',
-        'DOCUMENT' => 'Der Tragfähigkeitsindex steht so im Gutachten',
-    ];
-
     public function __construct(
         private TyreCatalogue $catalogue,
         private SpeedSymbolDeriver $speedSymbol,
@@ -118,7 +81,8 @@ final readonly class TyreEligibility
         return new KomplettradOffer(
             tyres: $tyres,
             refusal: $tyres === [] ? KomplettradRefusal::NoTyreAvailable : null,
-            minimumSentenceDe: $this->minimumSentenceDe($verdict),
+            // D-481: no minimum is said any more; the client's review of 19.11.2026 struck the sentence.
+            minimumSentenceDe: null,
             minSource: $minimum !== null
                 && ($minimum['loadSource'] === MinSource::Document || $minimum['speedSource'] === MinSource::Document)
                 ? MinSource::Document
@@ -167,11 +131,6 @@ final readonly class TyreEligibility
         foreach ($this->listedPairs($verdict, $table, $listed) as [$pairing, $front, $rear]) {
             $frontMinimum = $this->sizeMinimum($verdict, 'FRONT', $verdict->front, $front);
             $rearMinimum = $this->sizeMinimum($verdict, 'REAR', $verdict->rear, $rear);
-
-            // A size the axle's load rules out is not a pair this car may have.
-            if (! is_array($frontMinimum) || ! is_array($rearMinimum)) {
-                continue;
-            }
 
             $fronts = [];
             $rears = [];
@@ -332,72 +291,6 @@ final readonly class TyreEligibility
         return null;
     }
 
-    /**
-     * `Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und
-     * Geschwindigkeitsindex Y. …` — never a bare number pair, and the second sentence credits
-     * each half to the source that actually governed it (R-06), never to the combined flag.
-     */
-    public function minimumSentenceDe(FitmentVerdict $verdict): ?string
-    {
-        $minimum = $this->governingMinimum($verdict);
-
-        if ($minimum === null) {
-            return null;
-        }
-
-        // Each size its own minimum (D-431): where the sizes four identical tyres may have differ in it, each is named.
-        $bySize = [];
-
-        foreach ($this->sameSizes($verdict) as $size) {
-            $own = $this->governingMinimum($verdict, $size);
-
-            if ($own !== null) {
-                $bySize[] = ['size' => $size, 'minimum' => $own];
-            }
-        }
-
-        $figures = array_unique(array_map(static fn (array $e): string => $e['minimum']['loadIndex'].'|'.$e['minimum']['speedSymbol'], $bySize));
-
-        if (count($figures) > 1) {
-            $tails = array_unique(array_map(fn (array $e): string => $this->minimumTail($e['minimum']), $bySize));
-
-            return sprintf(self::MINIMUM_LEAD_BY_SIZE, implode('; ', array_map(
-                static fn (array $e): string => sprintf(self::MINIMUM_ONE_SIZE, $e['size']->labelDe(), $e['minimum']['loadIndex'], $e['minimum']['speedSymbol']),
-                $bySize,
-            ))).' '.match (true) {
-                count($tails) === 1 => $tails[0],
-                // The papers are named wherever they set a figure: „Gutachten oder Daten“ alone would leave them out.
-                array_filter($bySize, static fn (array $e): bool => $e['minimum']['loadSource'] === MinSource::Papers || $e['minimum']['speedSource'] === MinSource::Papers) !== [] => self::MINIMUM_SOURCES_BY_SIZE_PAPERS,
-                default => self::MINIMUM_SOURCES_BY_SIZE,
-            };
-        }
-
-        // One figure for every size: that one — a size's own, never above what the paper prints beside it.
-        $minimum = $bySize[0]['minimum'] ?? $minimum;
-
-        return sprintf(self::MINIMUM_LEAD, $minimum['loadIndex'], $minimum['speedSymbol']).' '.$this->minimumTail($minimum);
-    }
-
-    /** @param  array{loadIndex: int, loadSource: MinSource, speedSymbol: string, speedSource: MinSource}  $minimum */
-    private function minimumTail(array $minimum): string
-    {
-        $load = $minimum['loadSource'];
-        $speed = $minimum['speedSource'];
-
-        $tail = match (true) {
-            // Where the papers governed a half, it is credited to them — and the other half to its own source.
-            $load === MinSource::Papers && $speed === MinSource::Papers => self::MINIMUM_BOTH_PAPERS,
-            $load === MinSource::Papers => sprintf(self::MINIMUM_LOAD_PAPERS, self::SPEED_FROM[$speed->value]),
-            $speed === MinSource::Papers => sprintf(self::MINIMUM_SPEED_PAPERS, self::LOAD_FROM[$load->value]),
-            $load === MinSource::Document && $speed === MinSource::Document => self::MINIMUM_BOTH_DOCUMENT,
-            $load === MinSource::Document => self::MINIMUM_LOAD_DOCUMENT_SPEED_DERIVED,
-            $speed === MinSource::Document => self::MINIMUM_LOAD_DERIVED_SPEED_DOCUMENT,
-            default => self::MINIMUM_BOTH_DERIVED,
-        };
-
-        return $tail;
-    }
-
     /** Rules 1–5 — about the verdict as a whole, before any tyre is looked at. */
     private function verdictRefusal(FitmentVerdict $verdict): ?KomplettradRefusal
     {
@@ -433,10 +326,7 @@ final readonly class TyreEligibility
             return KomplettradRefusal::NoPermittedSizes;
         }
 
-        // Rule 5 — a null minimum is not "no minimum" (R-03).
-        if (! $verdict->front->hasUsableMinimum() || ! $verdict->rear->hasUsableMinimum()) {
-            return KomplettradRefusal::NoUsableMinimum;
-        }
+        // Rule 5 is gone (D-481): a size the paper prints no figures beside has no minimum — any tyre of that exact size.
 
         return null;
     }
@@ -480,15 +370,14 @@ final readonly class TyreEligibility
      */
     private function hasUnreadTyreRule(FitmentVerdict $verdict): bool
     {
-        $figures = $verdict->tyre?->figuresPermitted === true;
-
         foreach ($verdict->conditions as $condition) {
             if (! $condition->affectsTyreChoice) {
                 continue;
             }
 
             $read = match ($condition->kind) {
-                ConditionKind::ReifenTragfaehigkeit => $figures && $condition->maxAxleLoadKg !== null && LoadIndexCode::indexNamedBy($condition->code) !== null,
+                // D-481: a load-index Auflage is said to the customer and kept by him, never computed — it stops no offer.
+                ConditionKind::ReifenTragfaehigkeit => true,
                 ConditionKind::ReifenKombination => self::combinationRead($condition),
                 ConditionKind::ReifenAchse => $condition->axle !== null,
                 default => false,
@@ -565,7 +454,7 @@ final readonly class TyreEligibility
             $refusal = $this->axleTyreRefusal($verdict, $name, $tyre, 0);
             $tyreStatus = match ($refusal) {
                 null => VerdictStatus::Permitted,
-                KomplettradRefusal::NoUsableMinimum, KomplettradRefusal::AxleLoadAboveLimit => VerdictStatus::Unknown,
+                KomplettradRefusal::NoUsableMinimum => VerdictStatus::Unknown,
                 default => VerdictStatus::NotPermitted,
             };
         }
@@ -580,7 +469,7 @@ final readonly class TyreEligibility
             tyre: $tyre,
             status: VerdictStatus::weaker($verdict->status, $tyreStatus),
             refusal: $refusal,
-            minimum: is_array($minimum) ? self::minimum($minimum, $name === 'FRONT' ? $verdict->vehicle->axleLoadFrontKg : $verdict->vehicle->axleLoadRearKg) : null,
+            minimum: self::minimum($minimum, $name === 'FRONT' ? $verdict->vehicle->axleLoadFrontKg : $verdict->vehicle->axleLoadRearKg),
             conditions: Condition::sorted(Condition::union($groups->forSize($size->key()), $own)),
             requiresEntry: $pairing === null
                 ? $groups->entryFor($size->key(), $verdict->requiresEntry)
@@ -597,121 +486,59 @@ final readonly class TyreEligibility
             return KomplettradRefusal::SizeNotPermitted;
         }
 
-        // Rule 8 — R-06, refined per listed size (sizeMinimum()).
+        // Rule 8 — what the paper prints beside the listed size (sizeMinimum(), D-481).
         $minimum = $this->sizeMinimum($verdict, $name, $axle, $listed);
 
-        if (! is_array($minimum)) {
-            return $minimum;
-        }
-
-        // The tyre's own symbol must be one we know: an unrecognised symbol has no rank, and no
-        // rank is not "fast enough". Symbols are never compared as letters — H sits between U
-        // and V.
-        $tyreRank = $this->speedSymbol->rankOf($tyre->speedSymbol);
-
-        if ($tyreRank === null || $tyre->loadIndex < $minimum['loadIndex'] || $tyreRank < $minimum['speedRank']) {
-            return KomplettradRefusal::BelowMinimum;
-        }
-
-        return null;
+        return self::meets($tyre, $minimum, $this->speedSymbol->rankOf($tyre->speedSymbol)) ? null : KomplettradRefusal::BelowMinimum;
     }
 
     /**
-     * What a tyre of this listed size must carry on this axle — R-06, per size. The base is the size's own minimum
-     * (D-431: what the documents print beside this size and the axle's own figures, never a neighbour's); every further
-     * figure is a max() against it, so it can only RAISE it:
+     * Whether a tyre carries what the paper prints beside its size (D-481): a load index at least as high, a speed symbol at
+     * least as fast — ranked, never compared as letters (H sits between U and V) —, and where the paper prints a symbol the
+     * shop cannot rank (`F`, `A8`), exactly that symbol: what cannot be compared is matched, never guessed (fail-closed).
+     * A figure the paper does not print asks nothing.
      *
-     * - the size's own printed index and symbol (the axle's speed merge keeps the strictest printed symbol, but the
-     *   listed size's own is compared here too, from the safe side);
-     * - the document's load-index limits that apply to THIS size — the row's and its own, never another size's —
-     *   read at this axle's load (D-105): the smallest index whose limit reaches it. The axle requirement merges the
-     *   limits of every size on the axle, which for one size can be a lower index than its own codes allow.
-     *
-     * @return array{loadIndex: int, speedSymbol: string, speedRank: int}|KomplettradRefusal
+     * @param  array{loadIndex: int|null, speedSymbol: string|null, speedRank: int|null}  $minimum
      */
-    private function sizeMinimum(FitmentVerdict $verdict, string $name, AxleRequirement $axle, TyreSize $listed): array|KomplettradRefusal
+    private static function meets(TyreRecord $tyre, array $minimum, ?int $tyreRank): bool
     {
-        $axleRank = $this->speedSymbol->rankOf($axle->minSpeedSymbol);
-
-        if ($axle->minLoadIndex === null || $axle->minSpeedSymbol === null || $axleRank === null) {
-            // A minimum that cannot be stated is not "no minimum" (R-03).
-            return KomplettradRefusal::NoUsableMinimum;
+        if ($minimum['loadIndex'] !== null && $tyre->loadIndex < $minimum['loadIndex']) {
+            return false;
         }
 
-        $limit = $this->sizeLimitIndex($verdict, $name, $listed);
-
-        if ($limit instanceof KomplettradRefusal) {
-            return $limit;
+        if ($minimum['speedSymbol'] === null) {
+            return true;
         }
 
-        // The size's own minimum, never a neighbour's (D-431); a size whose own cannot be stated is not sold (R-03).
+        if ($minimum['speedRank'] === null) {
+            return mb_strtoupper(trim($tyre->speedSymbol)) === mb_strtoupper(trim($minimum['speedSymbol']));
+        }
+
+        return $tyreRank !== null && $tyreRank >= $minimum['speedRank'];
+    }
+
+    /**
+     * What a tyre of this listed size must carry on this axle (D-481): what the documents print beside this size — its own,
+     * never a neighbour's (D-431) —, the strictest where the size is printed more than once. Nothing derived, nothing
+     * computed from the car; a figure not printed is null and asks nothing.
+     *
+     * @return array{loadIndex: int|null, speedSymbol: string|null, speedRank: int|null}
+     */
+    private function sizeMinimum(FitmentVerdict $verdict, string $name, AxleRequirement $axle, TyreSize $listed): array
+    {
         $own = $axle->minimumFor($listed);
-        $ownRank = $this->speedSymbol->rankOf($own['speedSymbol']);
-
-        if ($own['loadIndex'] === null || $own['speedSymbol'] === null || $ownRank === null) {
-            return KomplettradRefusal::NoUsableMinimum;
-        }
-
-        $loadIndex = max($own['loadIndex'], $listed->documentMinLoadIndex ?? 0, $limit ?? 0);
-
-        // An unrecognised document symbol is ignored rather than trusted (D-027): it would rank
-        // as nothing, and the size's own minimum still stands beneath it.
+        $loadIndex = max($own['loadIndex'] ?? 0, $listed->documentMinLoadIndex ?? 0) ?: null;
+        $symbol = $own['speedSymbol'] ?? $listed->documentMinSpeedSymbol;
+        $rank = $symbol === null ? null : $this->speedSymbol->rankOf($symbol);
         $printed = $listed->documentMinSpeedSymbol;
-        $documentRank = $printed === null ? null : $this->speedSymbol->rankOf($printed);
+        $printedRank = $printed === null ? null : $this->speedSymbol->rankOf($printed);
 
-        return $printed !== null && $documentRank !== null && $documentRank > $ownRank
-            ? ['loadIndex' => $loadIndex, 'speedSymbol' => $printed, 'speedRank' => $documentRank]
-            : ['loadIndex' => $loadIndex, 'speedSymbol' => $own['speedSymbol'], 'speedRank' => $ownRank];
-    }
-
-    /**
-     * The load index this size's own limits (and its row's) ask for at this axle's load: null where none applies; a
-     * refusal where they exist and the axle's load is unknown, or above every one of them.
-     */
-    private function sizeLimitIndex(FitmentVerdict $verdict, string $name, TyreSize $listed): int|KomplettradRefusal|null
-    {
-        // Live verdicts carry the row's own Auflagen apart; without them a size's limits cannot be told from another
-        // size's, and the blended list could hand this size a lower index than its own codes allow.
-        $row = $verdict->combinationConditions;
-        $limits = array_values(array_filter(
-            [...($row ?? []), ...$listed->conditions],
-            static fn (Condition $c): bool => $c->kind === ConditionKind::ReifenTragfaehigkeit
-                && $c->maxAxleLoadKg !== null
-                && LoadIndexCode::indexNamedBy($c->code) !== null,
-        ));
-
-        if ($limits === []) {
-            return $row === null && $this->anyLimit($verdict) ? KomplettradRefusal::NoUsableMinimum : null;
+        // The size's own printed symbol, where it asks for more than the axle's record of it.
+        if ($printed !== null && $printedRank !== null && ($rank === null || $printedRank > $rank)) {
+            [$symbol, $rank] = [$printed, $printedRank];
         }
 
-        $load = $name === 'FRONT' ? $verdict->vehicle->axleLoadFrontKg : $verdict->vehicle->axleLoadRearKg;
-
-        if ($load === null || $load <= 0) {
-            return KomplettradRefusal::NoUsableMinimum;
-        }
-
-        $index = null;
-
-        foreach ($limits as $limit) {
-            $named = (int) LoadIndexCode::indexNamedBy($limit->code);
-
-            if ((int) $limit->maxAxleLoadKg >= $load && ($index === null || $named < $index)) {
-                $index = $named;
-            }
-        }
-
-        return $index ?? KomplettradRefusal::AxleLoadAboveLimit;
-    }
-
-    private function anyLimit(FitmentVerdict $verdict): bool
-    {
-        foreach ($verdict->conditions as $condition) {
-            if ($condition->kind === ConditionKind::ReifenTragfaehigkeit) {
-                return true;
-            }
-        }
-
-        return false;
+        return ['loadIndex' => $loadIndex, 'speedSymbol' => $symbol, 'speedRank' => $rank];
     }
 
     /**
@@ -736,12 +563,6 @@ final readonly class TyreEligibility
 
         if (! $table->isRead()) {
             return [$table, KomplettradRefusal::NoMixedPairing, $source];
-        }
-
-        // The load calculation runs per axle, from the car's own axle loads and top speed — never on the
-        // document's minimum alone (R-03).
-        if ($verdict->tyre?->figuresPermitted !== true) {
-            return [$table, KomplettradRefusal::NoUsableMinimum, $source];
         }
 
         return [$table, null, $source];
@@ -905,7 +726,7 @@ final readonly class TyreEligibility
     }
 
     /**
-     * @param  array{loadIndex: int, speedSymbol: string, speedRank: int}  $minimum
+     * @param  array{loadIndex: int|null, speedSymbol: string|null, speedRank: int|null}  $minimum
      * @return AxleMinimum
      */
     private static function minimum(array $minimum, ?int $axleLoadKg = null): array

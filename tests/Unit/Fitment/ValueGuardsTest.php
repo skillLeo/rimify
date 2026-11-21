@@ -110,11 +110,15 @@ it('makes a row conditional only through a condition that downgrades the verdict
         ->and(FitmentFixtures::row()->hasPurchaseAffectingCondition())->toBeFalse();
 });
 
-it('says the papers line either way, and one line per size only where the sizes disagree', function (): void {
-    expect(PapersWording::entryLineOrNone(true, false))->toBe(PapersWording::ENTRY_REQUIRED)
-        ->and(PapersWording::entryLineOrNone(true, true))->toBe(PapersWording::ABNAHME_REQUIRED)
-        ->and(PapersWording::entryLineOrNone(false, false))->toBe(PapersWording::NO_ENTRY)
-        ->and(PapersWording::entryLineOrNone(false, true))->toBe(PapersWording::NO_ABNAHME)
+// D-486 (the client's round of 18.11.2026, item 4): only what a code requires is said, never its opposite.
+it('says the papers line only where a code requires it, and one line per size only where the sizes disagree', function (): void {
+    expect(PapersWording::entryLine(true, false))->toBe(PapersWording::ENTRY_REQUIRED)
+        ->and(PapersWording::entryLine(true, true))->toBe(PapersWording::ABNAHME_REQUIRED)
+        ->and(PapersWording::entryLine(false, false))->toBeNull()
+        ->and(PapersWording::entryLine(false, true))->toBeNull()
+        ->and(defined(PapersWording::class.'::NO_ENTRY'))->toBeFalse()
+        ->and(method_exists(PapersWording::class, 'entryLineOrNone'))->toBeFalse()
+        ->and(PapersWording::entryBySize([['size' => '255/40 R19', 'entry' => true], ['size' => '235/45 R19', 'entry' => false]], false))->toBe('Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19.')
         ->and(PapersWording::entryBySize([['size' => '245/45 R18', 'entry' => true], ['size' => '255/40 R18', 'entry' => true]], false))->toBeNull()
         ->and(PapersWording::entryBySize([['size' => '245/45 R18', 'entry' => false]], false))->toBeNull();
 });

@@ -22,15 +22,15 @@ final class PapersWording
 {
     public const ENTRY_REQUIRED = 'Eintragung in die Fahrzeugpapiere erforderlich.';
 
-    public const NO_ENTRY = 'Keine Eintragung erforderlich.';
-
     public const ABNAHME_REQUIRED = "Abnahme durch einen Prüfer erforderlich (§\u{00A0}19 Abs.\u{00A0}3 StVZO).";
-
-    public const NO_ABNAHME = 'Keine Abnahme durch einen Prüfer erforderlich.';
 
     public const PAPERS_EXEMPT = "Keine Berichtigung der Fahrzeugpapiere nötig (§\u{00A0}15 FZV).";
 
-    /** The Auflagen's line: said only where it is required — the product page adds the „keine“ form itself. */
+    /**
+     * The Auflagen's line: said only where a code requires it. Its opposite, „Keine Eintragung erforderlich.“ and „Keine
+     * Abnahme durch einen Prüfer erforderlich.“, is gone since D-486 (the client's round of 18.11.2026, item 4): the absence
+     * of a code is no statement the shop can stand behind. The § 15 FZV line stays — it rests on the document's own field.
+     */
     public static function entryLine(bool $requiresEntry, bool $papersExempt): ?string
     {
         if (! $requiresEntry) {
@@ -40,23 +40,17 @@ final class PapersWording
         return $papersExempt ? self::ABNAHME_REQUIRED : self::ENTRY_REQUIRED;
     }
 
-    /** The document's line: only where it frees the papers. */
-    /** The line said either way — for one tyre size beside another that differs (papers.ts entryLineOrNone). */
-    public static function entryLineOrNone(bool $requiresEntry, bool $papersExempt): string
-    {
-        return self::entryLine($requiresEntry, $papersExempt) ?? ($papersExempt ? self::NO_ABNAHME : self::NO_ENTRY);
-    }
-
     /**
-     * Where one tyre size needs the Abnahme or Eintragung and another does not (ConditionGroups), one line names them —
-     * never one answer for all sizes. Null where they agree. The TypeScript twin is papers.ts entryBySize().
+     * Where one tyre size needs the Abnahme or Eintragung and another does not (ConditionGroups), one line names the sizes
+     * that need it — never one answer for all sizes, and never a „nicht mit“ for the others (D-486). Null where they agree.
+     * The TypeScript twin is papers.ts entryBySize().
      *
      * @param  list<array{size: string, entry: bool}>  $sizes
      */
     public static function entryBySize(array $sizes, bool $papersExempt): ?string
     {
         $yes = array_values(array_map(static fn (array $s): string => $s['size'], array_filter($sizes, static fn (array $s): bool => $s['entry'])));
-        $no = array_values(array_map(static fn (array $s): string => $s['size'], array_filter($sizes, static fn (array $s): bool => ! $s['entry'])));
+        $no = array_filter($sizes, static fn (array $s): bool => ! $s['entry']);
 
         if ($yes === [] || $no === []) {
             return null;
@@ -64,9 +58,10 @@ final class PapersWording
 
         $listed = static fn (array $list): string => count($list) === 1 ? $list[0] : implode(', ', array_slice($list, 0, -1)).' und '.$list[count($list) - 1];
 
-        return ($papersExempt ? 'Abnahme durch einen Prüfer' : 'Eintragung in die Fahrzeugpapiere').' erforderlich mit '.$listed($yes).', nicht mit '.$listed($no).'.';
+        return ($papersExempt ? 'Abnahme durch einen Prüfer' : 'Eintragung in die Fahrzeugpapiere').' erforderlich mit '.$listed($yes).'.';
     }
 
+    /** The document's line: only where it frees the papers. */
     public static function papersLine(bool $papersExempt): ?string
     {
         return $papersExempt ? self::PAPERS_EXEMPT : null;

@@ -67,7 +67,7 @@ enum ConditionLevel: string
     public function shopEffectDe(): string
     {
         return match ($this) {
-            self::Hinweis => 'Sind alle Auflagen einer Antwort Hinweise, ist keine Eintragung nötig und sind auch die Reifen ohne Auflagen bestätigt, steht im Shop „Freigegeben“ statt „Mit Auflagen“.',
+            self::Hinweis => 'Sind alle Auflagen einer Antwort Hinweise, verlangt kein Code eine Eintragung und sind auch die Reifen ohne Auflagen bestätigt, steht im Shop „Freigegeben“ statt „Mit Auflagen“.',
             self::Auflage => 'Bei einer Antwort mit diesem Code wird im Shop aus „Mit Auflagen“ nie „Freigegeben“.',
             self::NichtZulaessig => 'Im Shop wirkt das wie eine Auflage: Aus „Mit Auflagen“ wird nie „Freigegeben“, und der Satz bekommt keine eigene Farbe.',
         };

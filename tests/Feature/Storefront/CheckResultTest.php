@@ -23,7 +23,7 @@ beforeEach(function (): void {
     $this->seed(KomplettradOptionsSeeder::class);
 });
 
-it('freezes the answer for the chosen car and wheel, and shows every line of the tyre sum', function (): void {
+it('freezes the answer for the chosen car and wheel, and shows the tyre answer as it was given', function (): void {
     $fixture = KomplettradFixture::permitted();
 
     $response = $this->withCookies($fixture->cookies())
@@ -35,7 +35,8 @@ it('freezes the answer for the chosen car and wheel, and shows every line of the
     expect($result->token)->toMatch('/^[A-Za-z0-9]{32}$/')
         ->and($result->vehicle_id)->toBe($fixture->vehicle->id)
         ->and($result->wheel_config_id)->toBe($fixture->config->id)
-        ->and($result->verdict['tyreCheck']['lines'] ?? [])->not->toBeEmpty();
+        // D-481: the tyre answer rests on the paper — its basis is said, and no sum of our own.
+        ->and($result->verdict['tyreCheck']['basis'] ?? null)->toStartWith('Grundlage: Gutachten');
 
     $this->get('/rimify-check/ergebnis/'.$result->token)
         ->assertOk()

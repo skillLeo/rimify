@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Admin\Approvals\Entry;
 
-use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Http\Controllers\Admin\GutachtenController;
 use App\Models\ApprovalDocument;
@@ -51,7 +50,6 @@ final readonly class EntryView
             'keptCombinations' => $model->kept->count(),
             'unread' => $this->unread($model),
             'undescribed' => self::undescribed($document, $model),
-            'suggestion' => self::suggestion($model),
         ];
     }
 
@@ -393,37 +391,5 @@ final readonly class EntryView
         }
 
         return $out;
-    }
-
-    /**
-     * What step 5 suggests for how the paper gives its tyres' load index and speed symbol — never a silent default (D-382). Read
-     * from what was entered: both figures beside every size, the paper names the tyre itself (a table of load at speed is never
-     * typed: the shop reads ETRTO's, D-459).
-     * Otherwise the speeds come from the car's papers — also where it prints the load index alone (the second real paper:
-     * „255/35R20 105“ and its 10B): the printed index then stands as the stricter floor (R-06).
-     */
-    public static function suggestion(EntryModel $model): ?string
-    {
-        $sides = 0;
-        $full = 0;
-
-        foreach ($model->entries as $entry) {
-            foreach ($entry->lines as $line) {
-                foreach (['front', 'rear'] as $side) {
-                    if ($line->getAttribute("{$side}_width_mm") === null) {
-                        continue;
-                    }
-
-                    $sides++;
-                    $full += $line->getAttribute("{$side}_load_index") !== null && $line->getAttribute("{$side}_speed_symbol") !== null ? 1 : 0;
-                }
-            }
-        }
-
-        if ($sides === 0) {
-            return null;
-        }
-
-        return $full === $sides ? TyreIndexSource::Document->value : TyreIndexSource::Papers->value;
     }
 }

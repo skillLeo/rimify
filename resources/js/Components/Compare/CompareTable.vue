@@ -24,7 +24,7 @@ import ValueText from '../Ui/ValueText.vue'
 import VerdictBadge from '../Ui/VerdictBadge.vue'
 import WheelOutline from '../Ui/WheelOutline.vue'
 import { priceTerms } from '../../composables/usePriceTerms'
-import { entryLineOrNone, papersLine } from '../../fitment/papers'
+import { entryLine, papersLine } from '../../fitment/papers'
 import { useShared } from '../../composables/useShared'
 import { formatMoney } from '../../lib/num'
 import { useCompare, type CompareEntry } from '../../stores/compare'
@@ -154,7 +154,8 @@ function entryLines(verdict: ConfigVerdict | null): Cell {
         return lines(papers === null ? [ENTRY_VARIES] : [ENTRY_VARIES, papers])
     }
 
-    return lines(papers === null ? [entryLineOrNone(verdict.requiresEntry, exempt)] : [entryLineOrNone(verdict.requiresEntry, exempt), papers])
+    // Only what a code requires is said, never its opposite (D-486).
+    return lines([entryLine(verdict.requiresEntry, exempt), papers].filter((line): line is string => line !== null))
 }
 
 const perWheel = (item: CompareItem): string => formatMoney(item.fromPriceCents)

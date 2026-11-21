@@ -65,6 +65,20 @@ it('takes no Eintragung filter without a car — it is a statement about one @ku
         ->assertInertia(fn (AssertableInertia $page) => $page->missing('filters.ohne_eintragung'));
 });
 
+// D-486, the client's round of 18.11.2026, item 4: „Ohne Abnahme und Eintragung“ is gone — the absence of a code is no
+// statement the shop can stand behind. With a car, neither the filter nor an old bookmark of it narrows the listing.
+it('offers and takes no Eintragung filter with a car either (D-486)', function (): void {
+    $vehicle = Vehicle::query()->orderBy('id')->firstOrFail();
+    $this->from('/felgen-suchen')->post('/fahrzeug', ['fahrzeug' => $vehicle->id])->assertRedirect();
+
+    $plain = $this->get('/felgen')->assertOk()->viewData('page')['props'];
+    $bookmarked = $this->get('/felgen?ohne_eintragung=1')->assertOk()->viewData('page')['props'];
+
+    expect($plain['facets'])->not->toHaveKey('ohne_eintragung')
+        ->and($bookmarked['filters'])->not->toHaveKey('ohne_eintragung')
+        ->and($bookmarked['total'])->toBe($plain['total']);
+});
+
 it('reads a brand from the homepage’s brand wall by its slug as the brand itself', function (): void {
     $brand = Brand::query()->whereColumn('slug', '!=', 'name')->orderBy('id')->firstOrFail();
 

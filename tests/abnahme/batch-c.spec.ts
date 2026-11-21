@@ -171,13 +171,15 @@ test('Nur Felgen or Komplettrad: switching keeps the rest, the tyres are chosen 
 
     await throughExtras(page, page.locator(`[data-tyre-card="t${free?.id}"]`))
     await expect(page.locator('.kf-step .fit__overview-h')).toContainText(`mit ${free?.answer?.chosen}`)
-    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveText(/^Keine (Eintragung|Abnahme)/)
+    // D-486: no „Keine Eintragung“ of ours — where no code asks one, the line is simply not there.
+    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveCount(0)
+    await expect(page.locator('.kf-step')).not.toContainText(/Keine (Eintragung|Abnahme)/)
 
     await page.goBack()
     await page.goBack()
     await throughExtras(page, page.locator(`[data-tyre-card="t${strict?.id}"]`))
     await expect(page.locator('.kf-step .fit__overview-h')).toContainText(`mit ${strict?.answer?.chosen}`)
-    await expect(page.locator('.kf-step .fit__entry--verdict')).not.toHaveText(/^Keine/)
+    await expect(page.locator('.kf-step .fit__entry--verdict')).toHaveText(/(Eintragung|Abnahme).* erforderlich/)
     await evidence(page.locator('.kf-step'), 18, info)
 
     // A combination the Gutachten does not answer cannot be bought: the E46 at 18 Zoll (no table above 210 km/h).
@@ -219,7 +221,9 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     const auflagen = line.locator('details[data-auflagen]')
     await expect(auflagen.locator('summary')).toHaveText(/^\s*\d+ Auflagen und Hinweise aus dem Gutachten anzeigen\s*$/)
     expect(await auflagen.getAttribute('open')).toBeNull()
-    await expect(line.locator('.bl__entry').first()).toBeVisible()
+    // The verdict stays in sight; the papers' line only where a code asks for the Eintragung — never a „Keine …“ (D-486).
+    await expect(line.locator('.tag').first()).toBeVisible()
+    await expect(line).not.toContainText(/Keine (Eintragung|Abnahme)/)
     expect((await box(page.locator('.cart'))).height, 'the basket runs far past the window').toBeLessThan((page.viewportSize()?.height ?? 0) * 3)
     await auflagen.locator('summary').click()
     await expect(auflagen.locator('li').first()).toBeVisible()
@@ -241,7 +245,7 @@ test('Komplettrad: Wuchtgewichte and RDKS sensors as lines of their own with the
     await expect(page.locator('.cart')).not.toContainText('Wuchtgewichte')
 })
 
-test('front and rear only in the pairs the Gutachten lists, each axle on its own load and the axle that asks more named', { tag: '@kunde-20' }, async ({ page }, info) => {
+test('front and rear only in the pairs the Gutachten lists, each with its number — and no minimum of our own beside them (D-481)', { tag: '@kunde-20' }, async ({ page }, info) => {
     await withCar(page, 'e46', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await mode(page, 'Komplettrad')
@@ -262,12 +266,12 @@ test('front and rear only in the pairs the Gutachten lists, each axle on its own
     const chips = page.locator('.kf-pairs .kf-pair')
     await expect(chips).toHaveText(pairs.map((p) => new RegExp(`vorne ${p.front.replace(/[/]/g, '\\/')} · hinten ${p.rear.replace(/[/]/g, '\\/')}`)))
 
-    // Each pair: front and rear on their own axle load, the axle that asks more named, the table's number and page.
+    // Each pair: the table's number. Until D-481 each axle's minimum from its own axle load stood beside it; the client struck
+    // it (19.11.2026) — the shop works out no minimum of its own any more.
     for (const [i] of pairs.entries()) {
         await chips.nth(i).click()
-        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/vorne \(880\skg\) mindestens Tragfähigkeitsindex \d+ .* hinten \(1\.020\skg\) mindestens Tragfähigkeitsindex \d+/)
-        await expect(page.locator('.kf-step .kf-measure').first()).toHaveText(/(Mehr verlangt die (Vorderachse|Hinterachse)|Beide Achsen verlangen denselben Tragfähigkeitsindex)\.$/)
         await expect(page.locator('.kf-source')).toContainText(/Kombination Nr\.\s\d+/)
+        await expect(page.locator('.kf-step')).not.toContainText(/Wir prüfen jede Achse|eigenen Achslast|\(\d[\d.]*\skg\) mindestens|Mehr verlangt die|Beide Achsen verlangen/)
     }
 
     const mix = page.locator('.kf-step')

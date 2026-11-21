@@ -467,8 +467,6 @@ const askHref = computed(() => contactHref({ subject: `Frage zum Komplettrad: ${
             <section v-else-if="step === 1" class="kf-step" aria-labelledby="kf-tyres-h">
                 <div class="kf-step__head">
                     <h2 id="kf-tyres-h" class="h3 kf-step__title" tabindex="-1">Reifen wählen</h2>
-                    <p v-if="mode === 'same' && offer.minSentence" class="muted kf-measure">{{ offer.minSentence }}</p>
-                    <p v-else-if="pair" class="muted kf-measure">{{ pair.minSentence }}</p>
                 </div>
 
                 <p v-if="tyreGone" class="notice notice--bad" role="alert" data-tyre-gone>

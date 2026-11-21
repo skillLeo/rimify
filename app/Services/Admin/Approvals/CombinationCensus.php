@@ -7,7 +7,6 @@ namespace App\Services\Admin\Approvals;
 use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Data\TyreRecord;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
@@ -30,7 +29,6 @@ final class CombinationCensus
 {
     public function __construct(
         private readonly VehicleRepository $vehicles,
-        private readonly LoadIndexDeriver $loadIndex,
         private readonly SpeedSymbolDeriver $speedSymbol,
         private readonly Clock $clock,
         private readonly TyreEligibility $eligibility,
@@ -44,7 +42,7 @@ final class CombinationCensus
      */
     public function take(EloquentFitmentRepository $fitments, bool $listedOnly = false, ?array $vehicleIds = null): array
     {
-        $resolver = new FitmentResolver($this->vehicles, $fitments, $this->loadIndex, $this->speedSymbol, $this->clock);
+        $resolver = new FitmentResolver($this->vehicles, $fitments, $this->speedSymbol, $this->clock);
         $pairs = Fitment::query()
             ->when($listedOnly, static fn ($q) => $q->whereIn('approval_document_id', DocumentTyreCombination::query()->select('approval_document_id')))
             ->when($vehicleIds !== null, static fn ($q) => $q->whereIn('vehicle_id', (array) $vehicleIds))

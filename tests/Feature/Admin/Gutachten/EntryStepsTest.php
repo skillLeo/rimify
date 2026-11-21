@@ -611,7 +611,7 @@ describe('the RC200 paper\'s cases (D-390), its second real example', function (
             ->and(DB::table('fitment_tyre_size_conditions')->where('code', '5MK')->count())->toBeGreaterThan(0);
     });
 
-    it('changes no answer but the tyre\'s: within the cap the rim sells with the sentence, and the Komplettrad waits, as for every load code without an index', function (): void {
+    it('says the cap within it, never settles it on the car\'s figures: CONDITIONAL with the sentence, and the Komplettrad offered with it said (D-481)', function (): void {
         $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Papers)->create();
         stepsCode($document, '5MK', 'reifen_tragfaehigkeit', 'Die Verwendung dieser Reifengröße ist nur zulässig an Fahrzeugausführungen bis zu einer zulässigen Achslast von 1850kg.', 1850);
         $wheel = stepsWheel();
@@ -622,44 +622,27 @@ describe('the RC200 paper\'s cases (D-390), its second real example', function (
 
         $verdict = app(FitmentResolver::class)->resolve($car->id, $wheel->id);
 
-        expect($verdict->status->value)->toBe('PERMITTED')
+        // Until D-481 the car's axle loads (1.600/1.800 kg, within 1.850 kg) settled the Auflage and the answer was PERMITTED
+        // (D-105). Nothing about a tyre is computed from the car any more: the Auflage is said, and keeps the answer open.
+        expect($verdict->status->value)->toBe('CONDITIONAL')
+            ->and($verdict->tyre?->status->value)->toBe('CONDITIONAL')
             ->and(array_map(static fn ($condition): string => $condition->sentenceDe(), $verdict->conditions))->toContain('Die Verwendung dieser Reifengröße ist nur zulässig an Fahrzeugausführungen bis zu einer zulässigen Achslast von 1850kg.')
-            ->and(app(TyreEligibility::class)->offerFor($verdict, false)->refusal?->value)->toBe('TYRE_CHOICE_RESTRICTED');
+            // D-481: a load code is said to the customer and kept by him, never computed — it stops no offer.
+            ->and(app(TyreEligibility::class)->offerFor($verdict, false)->refusal?->value)->not->toBe('TYRE_CHOICE_RESTRICTED');
     });
 
-    it('suggests „aus den Fahrzeugpapieren“ where the paper prints the load index and no symbol (10B), and keeps the printed index as the floor (R-06)', function (): void {
+    it('keeps the printed index as typed where the paper prints the load index and no symbol (10B), and suggests no answer: the question is gone (D-483)', function (): void {
         $document = ApprovalDocument::factory()->draft()->create(['tyre_index_source' => null]);
         $entry = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create()->id, stepsWheel()->id);
 
         stepsSave($entry, [stepsLine('255/45 R20 105'), stepsLine('255/50 R20 109')]);
 
         $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.suggestion', TyreIndexSource::Papers->value));
+            ->assertInertia(fn (AssertableInertia $page) => $page->missing('entry.suggestion'));
 
         expect(FitmentTyreSize::query()->orderBy('id')->get()->take(2)->map(fn (FitmentTyreSize $s): array => [$s->min_load_index, $s->min_speed_symbol])->all())
-            ->toBe([[105, null], [109, null]]);
-
-        // Answered, the suggestion is only that: nothing was set by itself until someone answers.
-        expect($document->refresh()->tyre_index_source)->toBeNull();
-
-        $this->actingAs(stepsAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/lastindex", ['tyre_index_source' => 'papers'])->assertOk();
-
-        expect($document->refresh()->tyre_index_source)->toBe(TyreIndexSource::Papers);
-    });
-
-    it('suggests „bei jeder Reifengröße“ where every side has both figures, and the papers where one lacks its symbol — never a table, none is typed (D-459)', function (): void {
-        $document = ApprovalDocument::factory()->draft()->create();
-        $entry = EntryDriver::car($this, stepsAdmin(), $document->id, Vehicle::factory()->create()->id, stepsWheel()->id);
-
-        stepsSave($entry, [stepsLine('225/40 R18 88W')]);
-
-        $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.suggestion', TyreIndexSource::Document->value));
-
-        stepsSave($entry, [stepsLine('225/40 R18 88')]);
-
-        $this->actingAs(stepsAdmin(), 'admin')->get("/admin/gutachten/{$document->id}")
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('entry.suggestion', TyreIndexSource::Papers->value));
+            ->toBe([[105, null], [109, null]])
+            ->and($document->refresh()->tyre_index_source)->toBeNull();
     });
 
     it('keeps „ab e1*2007/46*0130*16“ a condition staff define: never a range on the row\'s own number', function (): void {

@@ -399,14 +399,16 @@ it('offers on the product page exactly what the basket takes, priced per wheel, 
         ->and($ids)->toContain($tyre->id)
         ->and($ids)->not->toContain($short->id)
         ->and($ids)->not->toContain($unavailable->id)
-        ->and($offer['minSentence'])->toStartWith('Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex')
+        // D-481: no minimum of our own is said any more (the client struck it, 19.11.2026).
+        ->and($offer['minSentence'])->toBeNull()
         // While the mounting fee is unconfigured the figure is the known sum, and the page says so.
         ->and($offer['priceOpen'])->toBeTrue()
         ->and($config['verdict']['tyreLayout'])->toBe('SAME')
         ->and($config['verdict']['tyreSizesFront'])->toBe($config['verdict']['tyreSizes'])
         ->and($config['verdict']['tyreSizesFront'])->toContain($set->size->labelDe())
-        ->and($config['verdict']['minLoadIndex'])->toBeInt()
-        ->and($config['verdict']['minSpeedSymbol'])->toBeString()
+        // The fixture's paper prints no index beside the size: nothing is derived from the car in its place (D-481).
+        ->and($config['verdict']['minLoadIndex'])->toBeNull()
+        ->and($config['verdict']['minSpeedSymbol'])->toBeNull()
         ->and($config['verdict']['minSentence'])->toBe($offer['minSentence']);
 
     $card = offeredTyre($offer, $tyre->id);

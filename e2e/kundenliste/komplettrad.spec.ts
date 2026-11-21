@@ -200,7 +200,9 @@ test('the order: by price either way and by brand, and the count says how many f
     expect(await brands()).toEqual([...(await brands())].sort((a, b) => a.localeCompare(b, 'de')))
 })
 
-test('the last step says the minimum of the pair chosen, as the tyre step does: never the version’s general one, which asks less', { tag: '@kunde-20' }, async ({ page }) => {
+// D-481 (the client's review of 19.11.2026): the shop works out no minimum of its own from the car's axle loads any more —
+// neither the tyre step nor the last step says one, for any pair. What the paper prints beside a size is all there is.
+test('neither the tyre step nor the last step says a minimum of our own for the pair chosen (D-481)', { tag: '@kunde-20' }, async ({ page }) => {
     await withCar(page, 'e90', PRODUCT)
     await onSize(page, 19, 'Schwarz matt')
     await komplettrad(page)
@@ -211,12 +213,13 @@ test('the last step says the minimum of the pair chosen, as the tyre step does: 
     expect(pairs, 'precondition: this car has more than one pair to choose from').toBeGreaterThan(1)
 
     await chips.nth(pairs - 1).click()
-    const tyreStep = (await page.locator('.kf-step .kf-measure').first().innerText()).trim()
-    expect(tyreStep, 'precondition: the tyre step names both axles').toMatch(/vorne .* hinten /)
+    await expect(page.locator('[data-tyre-card]').first()).toBeVisible()
+    await expect(page.locator('.kf-step')).not.toContainText(/Wir prüfen jede Achse|eigenen Achslast|\(\d[\d.]*\skg\) mindestens|Mehr verlangt die|Beide Achsen verlangen/)
 
     await throughExtras(page, page.locator('[data-tyre-card]').first())
 
-    await expect(page.locator('.kf-panel .fit__tyre-summary')).toHaveText(tyreStep)
+    await expect(page.locator('.kf-panel')).toBeVisible()
+    await expect(page.locator('.kf-panel')).not.toContainText(/Wir prüfen jede Achse|eigenen Achslast|\(\d[\d.]*\skg\) mindestens|Mehr verlangt die|Beide Achsen verlangen/)
 })
 
 test('„Details“ shows all about a tyre without choosing it, and fits a phone: no line cut off, no sideways scroll', { tag: '@kunde-15' }, async ({ page }) => {

@@ -77,12 +77,3 @@ it('confirms no tyres where the document lists its combinations by vehicle type 
         ->and($verdict->status)->not->toBe(VerdictStatus::Conditional)
         ->and($verdict->tyre?->papersOwed)->toBe([]);
 });
-
-it('confirms no tyres for an axle heavier than the load-index table reaches — never a guessed index', function (): void {
-    // 3.600 kg on the front axle is 1.800 kg a tyre, beyond the passenger-car table.
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row()])->resolveForVehicle(fcCar(front: 3600), FitmentFixtures::WHEEL_CONFIG_ID);
-
-    expect($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and(implode(' ', $verdict->tyre?->lines ?? []))->toContain("Für eine Achslast von 3.600\u{00A0}kg ist bei uns kein ausreichend hoher Tragfähigkeitsindex hinterlegt");
-});

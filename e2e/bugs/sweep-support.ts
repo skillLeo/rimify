@@ -33,7 +33,7 @@ export const NO_CHAINS = 'Die Verwendung von Schneeketten ist nicht zulässig';
 
 /** The papers line the brief asks for (fitment/papers.ts entryBySize). */
 export const ENTRY_BY_SIZE =
-    'Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19, nicht mit 235/45 R19 und 245/40 R19.';
+    'Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19.';
 
 /** Non-breaking spaces and runs of white space as one space: texts are compared as a reader sees them. */
 const NO_BREAK = new RegExp(`[${String.fromCharCode(0xa0, 0x202f)}]`, 'g');

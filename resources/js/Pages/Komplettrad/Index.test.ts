@@ -146,7 +146,8 @@ describe('step 2, the tyres', () => {
         const cards = wrapper.findAll('[data-tyre-card]')
 
         expect(cards).toHaveLength(2)
-        expect(wrapper.text()).toContain('Mindestens 100Y.')
+        // D-481: the client's review of 19.11.2026 struck the minimum sentence; whatever the server sends, it is not printed.
+        expect(wrapper.text()).not.toContain('Mindestens 100Y.')
         // The cheapest first.
         expect(cards[0]!.text()).toContain('Turanza')
 
@@ -257,7 +258,7 @@ describe('step 2, the tyres', () => {
         expect(card).toContain('hinten 255/30 R19 92Y')
         expect(card).toContain('600,00 €')
         expect(card).toContain('für 2 vorne und 2 hinten')
-        expect(wrapper.text()).toContain('Vorne 88Y, hinten 92Y.')
+        expect(wrapper.text()).not.toContain('Vorne 88Y, hinten 92Y.')
         expect(wrapper.find('.kf-rules').text()).toContain('Nur ein Hersteller je Achse.')
         expect(wrapper.find('.kf-rules').text()).toContain('Seite 13')
     })
@@ -365,7 +366,7 @@ describe('step 2, the tyres', () => {
 
         await radios[1]!.setValue()
 
-        expect(tiles.find('.kf-measure').text()).toBe('Mindestens für Nr. 2.')
+        expect(tiles.text()).not.toContain('Mindestens für Nr. 2.')
 
         const many = page(9)
 
@@ -379,7 +380,9 @@ describe('step 2, the tyres', () => {
 
         await list.setValue('7')
 
-        expect(many.find('.kf-measure').text()).toBe('Mindestens für Nr. 7.')
+        // The chosen combination's own set is what the cards now show; the minimum sentence stays struck (D-481).
+        expect(many.findAll('[data-tyre-card]').map((card) => card.attributes('data-tyre-card'))).toEqual(['7:s6'])
+        expect(many.text()).not.toContain('Mindestens für Nr. 7.')
     })
 
     it('opens everything about a tyre without choosing it, and chooses it from there', async () => {

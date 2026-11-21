@@ -757,7 +757,7 @@ export interface MischbereifungPairProp {
     /** One size on both axles: a combination of the Gutachten's list (D-335). Additive. */
     sameSize?: boolean
     /** Each axle against its own load, and the axle that asks for more. */
-    minSentence: string
+    minSentence: string | null
     /** Why there is no set: the axle we have no tyre for, by name (D-335). Null where there are sets. Additive. */
     noSet?: string | null
     /** The Auflagen for each axle under its name, the Eintragung the set needs (ConditionGroups). Additive. */

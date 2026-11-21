@@ -6,7 +6,6 @@ namespace App\Services\Admin\Approvals;
 
 use App\Domain\Fitment\Contracts\Clock;
 use App\Domain\Fitment\Contracts\VehicleRepository;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Infrastructure\EloquentFitmentRepository;
 use App\Domain\Fitment\Resolver\FitmentResolver;
@@ -28,7 +27,6 @@ final class DocumentPreview
 {
     public function __construct(
         private readonly VehicleRepository $vehicles,
-        private readonly LoadIndexDeriver $loadIndex,
         private readonly SpeedSymbolDeriver $speedSymbol,
         private readonly Clock $clock,
     ) {}
@@ -46,7 +44,7 @@ final class DocumentPreview
             return [];
         }
 
-        $resolver = new FitmentResolver($this->vehicles, EloquentFitmentRepository::forPreviewOf($document), $this->loadIndex, $this->speedSymbol, $this->clock);
+        $resolver = new FitmentResolver($this->vehicles, EloquentFitmentRepository::forPreviewOf($document), $this->speedSymbol, $this->clock);
         $pages = Fitment::query()->where('approval_document_id', $document->id)->where('vehicle_id', $vehicleId)->pluck('source_page', 'wheel_config_id');
         // Named by the catalogue, whatever the verdict: a refusal carries no wheel label of its own.
         $names = WheelConfig::query()->with('wheelModel.brand')->whereIn('id', $configIds)->get()

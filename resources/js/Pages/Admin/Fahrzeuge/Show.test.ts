@@ -111,7 +111,9 @@ describe('Fahrzeuge › Show', () => {
 
         const none = page()
 
-        expect(none.find('[data-speed-why]').text()).toContain('Bei uns ist noch kein Gutachten zu diesem Fahrzeug freigegeben.')
+        // D-483: no Gutachten needs it, released or not — the tyres rest on what the paper gives beside each size.
+        expect(none.find('[data-speed-why]').text()).toContain('Für die Reifen nicht nötig')
+        expect(none.find('[data-speed-why]').text()).not.toContain('Lastindex')
         // Read only, without the edit right: never „fehlt“ beside a top speed nothing needs.
         expect(page({ topSpeed: { needed: false, released: 1, documents: [] }, can: { edit: false } }).text()).toContain('nicht eingetragen – für die Reifen nicht nötig')
     })

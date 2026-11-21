@@ -113,9 +113,10 @@ describe('ConditionGroups', () => {
 })
 
 describe('entryBySize', () => {
-    it('names the sizes that need the Abnahme and those that do not — never one answer for all', () => {
-        expect(entryBySize(x3.sizes, false)).toBe('Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19, nicht mit 235/45 R19 und 245/40 R19.')
-        expect(entryBySize(x3.sizes, true)).toBe('Abnahme durch einen Prüfer erforderlich mit 255/40 R19, nicht mit 235/45 R19 und 245/40 R19.')
+    // D-486: the sizes that need it, never a „nicht mit“ for the others — the absence of a code is no statement of ours.
+    it('names the sizes that need the Abnahme — never one answer for all, never the ones that do not', () => {
+        expect(entryBySize(x3.sizes, false)).toBe('Eintragung in die Fahrzeugpapiere erforderlich mit 255/40 R19.')
+        expect(entryBySize(x3.sizes, true)).toBe('Abnahme durch einen Prüfer erforderlich mit 255/40 R19.')
         expect(entryBySize(x3.sizes.map((s) => ({ ...s, entry: true })), false)).toBeNull()
         expect(entryBySize(undefined, false)).toBeNull()
     })

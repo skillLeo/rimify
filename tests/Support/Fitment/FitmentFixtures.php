@@ -10,7 +10,6 @@ use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
 use App\Domain\Fitment\Derivation\IndexTables;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Support\BuildWindow;
@@ -167,7 +166,6 @@ final class FitmentFixtures
         return new FitmentResolver(
             vehicles: VehicleFixtures::repository(),
             fitments: $repository ?? new InMemoryFitmentRepository($rows, [self::wheel()]),
-            loadIndex: new LoadIndexDeriver($tables),
             speedSymbol: new SpeedSymbolDeriver($tables),
             clock: new FixedClock,
         );

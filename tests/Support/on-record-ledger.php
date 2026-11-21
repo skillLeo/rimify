@@ -90,8 +90,6 @@ return [
     'Für keine Lücke wurde bisher ein Gutachten angefordert' => ['ours', 'the state of our requests'],
 
     // ── The second pattern: a document word beside „wörtlich“, „vollständig“, „alle“, „immer“ (D-236) ─────────────────
-    'der Geschwindigkeitsindex steht so im Gutachten' => ['backed', 'the speed symbol recorded as the document\'s own minimum (source „document“, R-06)'],
-    'Der Tragfähigkeitsindex steht so im Gutachten' => ['backed', 'the load index recorded as the document\'s own minimum (source „document“, R-06)'],
     'bis unter Konflikte entschieden ist, sagt der Shop dort' => ['ours', 'what the shop answers while two documents disagree — the fourth answer (D-234)'],
     'trag alle drei ein oder lass alle drei leer' => ['ours', 'a form rule: the manufacturer\'s name, address and contact go together'],
     'die E-Mails an alle Anfragen, auf die ein neues Gutachten passt' => ['ours', 'names a queue job of ours in an alert'],
@@ -101,5 +99,4 @@ return [
 
     // ── The five steps: staff read the paper, and these ask them to say what it prints ──────────────────────
     'was du aus dem Gutachten eingetragen hast' => ['ours', 'compares two recorded values: what staff typed from the paper (approval_documents.printed_wheels) and the version chosen'],
-    'Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle' => ['ours', 'what the shop computes the load at speed with: ETRTO\'s table in code, the same for every document, nothing typed (D-459)'],
 ];

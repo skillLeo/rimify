@@ -12,7 +12,7 @@
 
 import { router, usePage } from '@inertiajs/vue3'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from 'reka-ui'
-import { computed, inject, nextTick, reactive, ref, type Ref } from 'vue'
+import { computed, inject, reactive, ref, type Ref } from 'vue'
 import AdminConfirm from '../../../Components/Admin/AdminConfirm.vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { MENU_ROOM } from '../../../composables/admin/menu'
@@ -329,40 +329,6 @@ function parameter(condition: DocumentConditionView): string {
 function uses(condition: DocumentConditionView): string {
     return condition.uses === 0 ? '–' : formatNumber(condition.uses)
 }
-
-/* ── A load-index limit that differs from the table: confirmed as printed, with a reason ── */
-
-const limitWarnings = computed(() => props.conditions.filter((condition) => Boolean(condition.limitWarning)))
-const limitReasons = reactive<Record<number, string>>({})
-const limitErrors = reactive<Record<number, string>>({})
-/** The condition whose confirmation is on its way: its button shows it. */
-const limitBusy = ref<number | null>(null)
-
-function confirmLimit(condition: DocumentConditionView): void {
-    // One confirmation on its way at a time: a double click sends it once (C-04; the server holds it too).
-    if (limitBusy.value !== null) {
-        return
-    }
-
-    limitBusy.value = condition.id
-    router.post(`/admin/gutachten/${props.documentId}/auflagen/${condition.id}/grenze`, { reason: limitReasons[condition.id] ?? '' }, {
-        preserveScroll: true,
-        preserveState: true,
-        errorBag: 'auflagen',
-        onError: (errors) => {
-            limitErrors[condition.id] = (errors as Record<string, string>).reason ?? ''
-            document.getElementById(`av-limit-${condition.id}`)?.focus()
-        },
-        onSuccess: () => {
-            limitErrors[condition.id] = ''
-            // The form gives way to the confirmed note: the keyboard goes there, never to the page (C-05).
-            void nextTick(() => document.getElementById(`av-limit-done-${condition.id}`)?.focus())
-        },
-        onFinish: () => {
-            limitBusy.value = null
-        },
-    })
-}
 </script>
 
 <template>
@@ -463,48 +429,12 @@ function confirmLimit(condition: DocumentConditionView): void {
         <!-- „Im Shop“ (#23, D-104): what each level does there — the label of the answer, no colour of a sentence (D-247) —
              and the one rule that cannot be chosen away. -->
         <p v-if="levels && conditions.length" class="adm-note av__levels-note">
-            „Im Shop“ entscheidet über das Etikett der Antwort: Sind alle ihre Auflagen Hinweise, ist keine Eintragung nötig und sind
-            auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“. Schon ein Code auf „Auflage“ oder
+            „Im Shop“ entscheidet über das Etikett der Antwort: Sind alle ihre Auflagen Hinweise, verlangt kein Code eine Eintragung
+            und sind auch die Reifen ohne Auflagen bestätigt, steht „Freigegeben“ statt „Mit Auflagen“. Schon ein Code auf „Auflage“ oder
             „Nicht zulässig“ verhindert den Wechsel. Am Urteil des Gutachtens ändert das nichts.
             <template v-if="conditions.some((c) => c.levelFloor === 'auflage')">{{ ' ' + levelFloorSentence }}</template>
         </p>
         <p v-if="levelError" class="adm-alert" role="alert">{{ levelError }}</p>
-
-        <!-- A load-index limit that is not twice its index's capacity: kept as printed, confirmed with a reason. -->
-        <div v-for="condition in limitWarnings" :key="`limit-${condition.id}`" class="av-limit">
-            <!-- Open, it is an alert; confirmed, it is a note on the record — no longer red. -->
-            <p :class="condition.limitConfirmed ? 'adm-note' : 'adm-alert'" :role="condition.limitConfirmed ? undefined : 'alert'">
-                <span translate="no">{{ condition.code }}</span>: {{ condition.limitWarning }}
-            </p>
-            <p v-if="condition.limitConfirmed" :id="`av-limit-done-${condition.id}`" class="adm-note av-limit__done" tabindex="-1">
-                Bestätigt{{ condition.limitConfirmed.by ? ` von ${condition.limitConfirmed.by}` : '' }} am {{ condition.limitConfirmed.at }}: „{{ condition.limitConfirmed.reason }}“
-            </p>
-            <form v-else-if="editable" class="av-limit__form" novalidate @submit.prevent="confirmLimit(condition)">
-                <div class="form-field">
-                    <label class="form-field__label" :for="`av-limit-${condition.id}`">Warum steht die Zahl so im Gutachten?</label>
-                    <textarea
-                        :id="`av-limit-${condition.id}`"
-                        v-model="limitReasons[condition.id]"
-                        class="input"
-                        rows="2"
-                        maxlength="500"
-                        :aria-invalid="limitErrors[condition.id] ? 'true' : undefined"
-                        :aria-describedby="`av-limit-${condition.id}-err`"
-                    />
-                    <p :id="`av-limit-${condition.id}-err`" class="form-field__error">{{ limitErrors[condition.id] }}</p>
-                </div>
-                <div>
-                    <button
-                        class="btn btn--secondary btn--sm"
-                        type="submit"
-                        :disabled="busy || limitBusy === condition.id"
-                        :aria-busy="limitBusy === condition.id ? 'true' : undefined"
-                    >
-                        Zahl bestätigen
-                    </button>
-                </div>
-            </form>
-        </div>
 
         <div v-if="editable && !formOpen && !pasteOpen" class="av__actions">
             <button id="av-new" class="btn btn--secondary" type="button" :disabled="busy" @click="openNew">
@@ -663,27 +593,6 @@ function confirmLimit(condition: DocumentConditionView): void {
 }
 
 /* One column as wide as a form: the alert, the note and the reason line up on the same edges. */
-.av-limit {
-    display: grid;
-    gap: var(--sp-8);
-    max-width: var(--adm-form-max);
-}
-
-.av-limit .adm-alert,
-.av-limit .adm-note {
-    margin: 0;
-    max-width: none;
-}
-
-.av-limit__form {
-    display: grid;
-    gap: var(--sp-8);
-}
-
-.av-limit__form .form-field__error:empty {
-    display: none;
-}
-
 .av__code {
     font-variant-numeric: tabular-nums;
 }

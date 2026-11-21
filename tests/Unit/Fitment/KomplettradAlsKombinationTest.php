@@ -17,7 +17,6 @@ use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\Severity;
 use App\Domain\Fitment\Verdict\VerdictStatus;
-use App\Support\GermanFormat;
 use Tests\Support\Fitment\FitmentFixtures;
 use Tests\Support\Fitment\InMemoryFitmentRepository;
 use Tests\Support\Fitment\InMemoryTyreCatalogue;
@@ -134,16 +133,15 @@ it('offers the combination with one size on both axles as that combination, 2 + 
         // One tyre on both axles, two of it on each.
         ->and(alsKombiSets($pair->sets ?? []))->toBe([[11, 11]])
         ->and($pair?->missing)->toBe([])
-        ->and($pair?->minimumSentenceDe())->toBe('Wir prüfen jede Achse mit ihrer eigenen Achslast. Vorderachse mit 1.210'.GermanFormat::NBSP.'kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y; Hinterachse mit 1.235'.GermanFormat::NBSP.'kg: mindestens Tragfähigkeitsindex 93, Geschwindigkeitsindex Y.')
         ->and($engine->permitsMixed($verdict, $t235, $t235))->toBeNull();
 
-    // Each axle against its own load — 8.1 at the front, 8.2 at the rear — and the top speed: 93 Y on both at 280 km/h.
+    // D-481: each axle carries what the paper prints beside its size — here nothing —, never a figure derived from the car.
     $answer = $engine->combinationVerdict($verdict, $t235, $t235);
 
     expect($answer?->status())->toBe(VerdictStatus::Permitted)
         ->and([$answer?->front->axle, $answer?->front->minimum, $answer?->rear->axle, $answer?->rear->minimum])->toBe([
-            'FRONT', ['loadIndex' => 93, 'speedSymbol' => 'Y', 'axleLoadKg' => 1210],
-            'REAR', ['loadIndex' => 93, 'speedSymbol' => 'Y', 'axleLoadKg' => 1235],
+            'FRONT', ['loadIndex' => null, 'speedSymbol' => null, 'axleLoadKg' => 1210],
+            'REAR', ['loadIndex' => null, 'speedSymbol' => null, 'axleLoadKg' => 1235],
         ])
         ->and($answer?->toArray())->toMatchArray(['id' => 701, 'number' => 1, 'sourcePage' => 5, 'status' => 'PERMITTED'])
         ->and($answer?->toArray()['front']['tyre'])->toMatchArray(['id' => 11, 'label' => '235/45 R19 95Y'])
@@ -220,35 +218,6 @@ it('offers no Komplettrad for a combination the shop has no tyre for on one axle
         ->and($bare->noSetSentenceDe())->toBe('Für die Vorderachse (245/40 R19) und die Hinterachse (255/40 R19) können wir dir gerade keine passenden Reifen anbieten – ein Komplettrad gibt es in dieser Kombination deshalb nicht. Die Felge allein kannst du bestellen.');
 });
 
-it('answers a set NOT_PERMITTED where its rear axle fails above 210 km/h and its front passes — the weaker axle, never CONDITIONAL @admin-208', function (): void {
-    // At 280 km/h a Y tyre carries 95 % of its load (the document's table, ABE 55255 page 6): the rear's 1.235 kg ÷ 2 =
-    // 617,5 kg ask 650 kg, index 93 — at full load a 92 (630 kg) would have carried it. The front asks 93 too.
-    $front = alsKombiTyre(11, 235, 45, 93);
-    $rear = alsKombiTyre(12, 255, 40, 92);
-    $engine = alsKombiEngine($front, $rear);
-    $verdict = alsKombiVerdict(alsKombiBbs(), [FitmentFixtures::specificBolts()]);
-    $answer = $engine->combinationVerdict($verdict, $front, $rear);
-
-    expect($verdict->vehicle->maxSpeedKmh)->toBe(280)
-        ->and((FitmentFixtures::tables()->loadIndex(92)->capacityKg ?? 0) * 2)->toBeGreaterThanOrEqual(1235)
-        // The wheel's answer is CONDITIONAL (its Auflage) — and the front axle with it.
-        ->and($verdict->status)->toBe(VerdictStatus::Conditional)
-        ->and($answer?->front->status)->toBe(VerdictStatus::Conditional)
-        ->and($answer?->front->refusal)->toBeNull()
-        ->and($answer?->rear->minimum)->toBe(['loadIndex' => 93, 'speedSymbol' => 'Y', 'axleLoadKg' => 1235])
-        ->and($answer?->rear->status)->toBe(VerdictStatus::NotPermitted)
-        ->and($answer?->rear->refusal)->toBe(KomplettradRefusal::BelowMinimum)
-        // The set: the weaker axle — never lifted to „mit Auflagen“ by the front that passes.
-        ->and($answer?->status())->toBe(VerdictStatus::NotPermitted)
-        ->and($answer?->isSellable())->toBeFalse()
-        ->and($answer?->refusal())->toBe(KomplettradRefusal::BelowMinimum)
-        ->and($answer?->toArray())->toMatchArray(['number' => 2, 'status' => 'NOT_PERMITTED'])
-        // Not offered on the page, refused at the basket's gate (R-11).
-        ->and(alsKombiPairs($engine, $verdict)[2]->sets)->toBe([])
-        ->and(alsKombiPairs($engine, $verdict)[2]->missing)->toBe(['REAR'])
-        ->and($engine->permitsMixed($verdict, $front, $rear))->toBe(KomplettradRefusal::BelowMinimum);
-});
-
 it('answers no axle on its tyre where the offer itself refuses — a tyre rule the engine does not read, the car\'s papers missing (R-03)', function (): void {
     $t235 = alsKombiTyre(11, 235, 45, 95);
     $engine = alsKombiEngine($t235);
@@ -283,10 +252,10 @@ it('answers no axle on its tyre where the offer itself refuses — a tyre rule t
     $papers = FitmentFixtures::resolver([], new InMemoryFitmentRepository([$row], [$wheel]))->resolve(8, FitmentFixtures::WHEEL_CONFIG_ID);
     $waiting = $engine->combinationVerdict($papers, $t235, $t235);
 
-    expect($papers->tyre?->awaitsPapers())->toBeTrue()
-        ->and($waiting?->status())->toBe(VerdictStatus::Unknown)
-        ->and($waiting?->refusal())->toBe(KomplettradRefusal::TyresAwaitPapers)
-        ->and($waiting?->isSellable())->toBeFalse();
+    // D-481: a car without its axle loads no longer waits for them on the tyres' account — the set is answered on the paper.
+    expect($papers->tyre?->awaitsPapers())->toBeFalse()
+        ->and($waiting?->refusal())->toBeNull()
+        ->and($waiting?->isSellable())->toBeTrue();
 });
 
 it('answers nothing for a frozen verdict: a snapshot is never the input to a sale', function (): void {

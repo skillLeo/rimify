@@ -296,15 +296,21 @@ test('RIMIFY-Check: one car, one wheel, one answer with its Auflagen, document a
 
     await shot(answer, 28, info)
 
-    // The E46 and the 18-inch rim, with papers that say 310 km/h — above the table of tyre load at speed (D-459, D-468): no
-    // answer we can stand behind, so nothing to buy — the refusal is the product. Its speed is back as it was after.
+    // The E46 and the 18-inch rim with papers that say 310 km/h — above the table of tyre load at speed (D-459, D-468). Until
+    // D-481 there was no answer and nothing to buy; the top speed decides nothing any more, so the answer is the one at 226 km/h.
+    // Its speed is back as it was after.
+    await withCar(page, 'e46', '/rimify-check')
+    await wheel(18)
+    await expect(answer.locator('.rcheck-panel__vehicle')).toBeVisible()
+    const vehicle226 = (await answer.locator('.rcheck-panel__vehicle').innerText()).trim()
+    const go226 = await answer.locator('.chk__go').count()
     await topSpeed(page, 'e46', 310)
 
     try {
         await withCar(page, 'e46', '/rimify-check')
         await wheel(18)
-        await expect(answer.locator('.chk__go')).toHaveCount(0)
-        await expect(answer.locator('.chk__nosale')).toContainText('bis sie hinterlegt sind, bieten wir die Felge dafür nicht an')
+        await expect(answer.locator('.rcheck-panel__vehicle')).toHaveText(vehicle226)
+        await expect(answer.locator('.chk__go')).toHaveCount(go226)
     } finally {
         await topSpeed(page, 'e46', 226)
     }

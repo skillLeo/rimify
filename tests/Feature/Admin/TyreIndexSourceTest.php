@@ -24,9 +24,9 @@ use Tests\Support\Gutachten\ReleaseAnswers;
 
 /*
  * How a Gutachten gives its tyres' load index and speed symbol (the operator's brief of 17.10.2026, D-277): at every size,
- * through the vehicle's papers, or through its table of tyre load at speed. Read off the document, kept with its facts,
- * asked before release — and an answer the entry does not bear out stops the release, because the answer decides whether
- * a car's top speed is needed at all.
+ * through the vehicle's papers, or through its table of tyre load at speed. Kept with the document's facts where it was
+ * answered. Since D-481 the tyres rest on what the document prints beside each size, so the answer decides nothing: the
+ * release neither asks it nor holds the entry to it (D-483).
  */
 
 beforeEach(function (): void {
@@ -37,8 +37,6 @@ beforeEach(function (): void {
     Storage::fake('docs_private');
     Storage::fake('docs_public');
 });
-
-const INDEX_UNANSWERED = 'Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.';
 
 function indexAdmin(): AdminUser
 {
@@ -111,18 +109,19 @@ it('shows the answer in the form and on the record — and nothing where there i
             ->where('document.header', fn ($header): bool => ! collect($header)->contains('label', 'Lastindex und Geschwindigkeitssymbol')));
 });
 
-it('does not release a document nobody has answered it for, and says where to answer', function (): void {
+it('releases a document nobody has answered it for: the answer decides nothing since D-481 (D-483)', function (): void {
     $document = indexDraft(null);
-
-    expect(app(DocumentRelease::class)->check($document))->toBe([INDEX_UNANSWERED]);
-    $this->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))
-        ->assertSessionHasErrors(['release' => 'Noch nicht freigebbar: '.INDEX_UNANSWERED]);
-
-    $document->forceFill(['tyre_index_source' => TyreIndexSource::Papers])->save();
 
     expect(app(DocumentRelease::class)->check($document))->toBe([]);
     $this->actingAs(indexAdmin(), 'admin')->post("/admin/gutachten/{$document->id}/freigeben", ReleaseAnswers::for($document))->assertSessionHasNoErrors();
-    expect($document->refresh()->status->value)->toBe('published');
+    expect($document->refresh()->status->value)->toBe('published')
+        ->and($document->tyre_index_source)->toBeNull();
+
+    // The step's own way to answer it is gone with the question: 404, or 405 where another route claims the address.
+    $gone = $this->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/lastindex", ['tyre_index_source' => 'papers']);
+
+    expect($gone->status())->toBeIn([404, 405])
+        ->and($document->refresh()->tyre_index_source)->toBeNull();
 });
 
 it('releases „Tabelle“ with no table typed: the shop reads ETRTO\'s for every document (D-459)', function (): void {
@@ -133,15 +132,9 @@ it('releases „Tabelle“ with no table typed: the shop reads ETRTO\'s for ever
     expect($document->refresh()->status->value)->toBe('published');
 });
 
-it('holds „bei jeder Reifengröße“ to both figures at every size — load index and symbol (D-285)', function (): void {
-    $sentence = fn (string $sizes): string => "{$sizes} der Lastindex oder das Geschwindigkeitssymbol, obwohl das Gutachten laut den Angaben beide bei jeder Größe nennt. Trag sie nach oder ändere die Angabe.";
-
-    expect(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '', ''])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '93W', ''])))->toBe([$sentence('Bei einer Reifengröße fehlt')])
-        // A symbol without its load index, or a load index without its symbol, is half the answer.
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', 'W', '93'])))->toBe([$sentence('Bei 2 Reifengrößen fehlt')])
-        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '93W'])))->toBe([])
-        // The papers ask nothing of the sizes: an index printed at some of them is a minimum, not the answer.
+it('holds „bei jeder Reifengröße“ to nothing: a size without its figures asks nothing, as the verdict does (D-481, D-483)', function (): void {
+    expect(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', '', ''])))->toBe([])
+        ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Document, ['91Y', 'W', '93'])))->toBe([])
         ->and(app(DocumentRelease::class)->check(indexDraft(TyreIndexSource::Papers, ['Y', ''])))->toBe([]);
 });
 
@@ -183,18 +176,54 @@ it('reads load index and speed symbol apart, and keeps a line neither stands in 
         'lines' => [['id' => null, 'front' => $tyre, 'rear' => $tyre, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
     ])->assertOk();
 
-    // A tyre that does not read — no ETRTO index above 279 — is kept as typed, said, and writes nothing; the release waits for it.
-    $line('245/35 R19 999Y')->assertJsonPath('car.lines.0.frontWhy', 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 245/45R18 100 oder 235/50R18.');
+    // A tyre that does not read — no size in it — is kept as typed, said, and writes nothing; the release waits for it. A figure is
+    // never why (D-479): the form of the size is all that is checked.
+    $line('Winterreifen 245')->assertJsonPath('car.lines.0.frontWhy', 'Nicht lesbar. Schreib die Größe etwa so: 225/40 R18 88W, 305/70 R22.5 160F oder 235/50R18.');
     expect(DB::table('fitment_tyre_sizes')->count())->toBe(0)
         ->and(implode(' ', app(DocumentRelease::class)->check($document)))->toContain('nicht lesbar');
     // Past 120 Regulation No 30 prints no capacity (D-310): entered as the paper prints it all the same, since the client's round of
     // 08.11.2026, §4 (D-442) — the shop answers its tyres „Noch nicht bestätigt“ (TopSpeedByDocumentTest), never an estimate.
     $line('245/35 R19 121Y')->assertJsonPath('car.lines.0.frontWhy', null);
     expect(DB::table('fitment_tyre_sizes')->orderByDesc('id')->value('min_load_index'))->toBe(121);
-    $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X');
+    // Any symbol is kept as typed (D-479); the exact size is what the shop then offers.
+    $line('245/35 R19 93X')->assertJsonPath('car.lines.0.front', '245/35 R19 93X')->assertJsonPath('car.lines.0.frontWhy', null);
     $line('245/35 R19 93Y')->assertJsonPath('car.lines.0.frontWhy', null);
 
     $size = DB::table('fitment_tyre_sizes')->orderByDesc('id')->first();
     expect($size?->min_load_index)->toBe(93)
         ->and($size?->min_speed_symbol)->toBe('Y');
 });
+
+// The client's message of 19.11.2026 (D-479): „remove all restrictions completely … only keep the normal string format validation“.
+// Each string he and the brief name is saved by the step-4 entry as typed, written with its figures, and shown back.
+it('saves every size the client types in step 4, with any load index and any symbol, and shows it back as typed (D-479)', function (string $typed, string $shown, float $rim, ?int $li, ?string $si): void {
+    $document = ApprovalDocument::factory()->draft()->tyreIndex(TyreIndexSource::Document)->create(['page_count' => 12]);
+    $model = WheelModel::factory()->draft()->create(['is_demo' => false]);
+    $finish = WheelFinish::factory()->create(['wheel_model_id' => $model->id]);
+    $config = WheelConfig::factory()->create(['wheel_model_id' => $model->id, 'wheel_finish_id' => $finish->id, 'diameter_in' => $rim]);
+    $entry = EntryDriver::car(test(), indexAdmin(), $document->id, Vehicle::factory()->create()->id, $config->id);
+
+    test()->actingAs(indexAdmin(), 'admin')->putJson("/admin/gutachten/{$document->id}/erfassung/fahrzeuge/{$entry->id}", [
+        'lines' => [['id' => null, 'front' => $typed, 'rear' => $typed, 'kw' => '', 'codes' => []]], 'codes' => [], 'source_page' => 4,
+    ])->assertOk()
+        ->assertJsonPath('car.lines.0.front', $shown)->assertJsonPath('car.lines.0.rear', $shown)
+        ->assertJsonPath('car.lines.0.frontWhy', null)->assertJsonPath('car.lines.0.rearWhy', null);
+
+    $size = DB::table('fitment_tyre_sizes')->orderByDesc('id')->first();
+
+    expect($size)->not->toBeNull()
+        ->and((float) $size->diameter_in)->toBe($rim)
+        ->and($size->min_load_index)->toBe($li)
+        ->and($size->min_speed_symbol)->toBe($si);
+})->with([
+    'the screenshot' => ['305/70 R22.5 160F', '305/70 R22.5 160F', 22.5, 160, 'F'],
+    'dual index, L' => ['315/80R22.5 156/150L', '315/80 R22.5 156/150L', 22.5, 156, 'L'],
+    'W' => ['225/40 R18 88W', '225/40 R18 88W', 18.0, 88, 'W'],
+    'no symbol' => ['245/45R18 100', '245/45 R18 100', 18.0, 100, null],
+    'no figures' => ['235/50R18', '235/50 R18', 18.0, null, null],
+    'ZR, bracket Y' => ['225/45 ZR17 (91Y)', '225/45 R17 91(Y)', 17.0, 91, '(Y)'],
+    'index and symbol apart' => ['205/55 R16 91 V', '205/55 R16 91V', 16.0, 91, 'V'],
+    'C, dual, T' => ['195/65 R15 C 99/97 T', '195/65 R15 C 99/97T', 15.0, 99, 'T'],
+    'half rim 19.5, M' => ['265/70 R19.5 140/138 M', '265/70 R19.5 140/138M', 19.5, 140, 'M'],
+    'A8' => ['205/55 R16 94 A8', '205/55 R16 94A8', 16.0, 94, 'A8'],
+]);

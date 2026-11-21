@@ -78,19 +78,18 @@ it('flags a workshop condition as needing explicit acknowledgement', function ()
  * UNKNOWN — we do not know. Distinct from "we checked and the answer is no".
  */
 
-it('gives a vehicle whose legal data could not be parsed its wheel verdict, and never a positive tyre half', function (): void {
-    // R-03 as amended on 28.09.2026: the wheel rests on the document; the tyres wait for the papers. A missing input is
-    // the absence of a grant, never a grant with conditions (D-286): „Noch nicht bestätigt“, and nothing is sold.
+it('gives a vehicle whose legal data could not be parsed its wheel verdict, and the tyres the paper names — nothing of the car is asked for them (D-481)', function (): void {
+    // R-03 as amended on 21.11.2026 (D-481): the tyres rest on the paper alone, so a car without axle loads or top speed
+    // is answered as any other — the minimum is what the paper prints, here nothing.
     $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: NEEDS_REVIEW)])
         ->resolve(NEEDS_REVIEW, FitmentFixtures::WHEEL_CONFIG_ID);
 
     expect($verdict->wheelStatus)->toBe(VerdictStatus::Permitted)
-        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->tyre?->papersOwed)->toBe(['8.1', '8.2', 'T'])
-        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->tyreUnconfirmed())->toBeTrue()
-        ->and($verdict->isSellable())->toBeFalse()
-        // No minimum is stated without the figures, so no tyre can be offered on it.
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->tyre?->papersOwed)->toBe([])
+        ->and($verdict->status)->toBe(VerdictStatus::Permitted)
+        ->and($verdict->tyreUnconfirmed())->toBeFalse()
+        ->and($verdict->isSellable())->toBeTrue()
         ->and($verdict->front->minLoadIndex)->toBeNull()
         ->and($verdict->front->minSpeedSymbol)->toBeNull();
 });
@@ -270,18 +269,6 @@ it('matches an open-ended approval window against a car still in production', fu
  * R-06 — the stricter of document and derivation governs, and the verdict says which.
  */
 
-it('derives the minimum when the document is silent', function (): void {
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row()])
-        ->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    // 280 km/h → Y, and at 280 km/h a Y tyre carries 95 % of its load (ABE 55255, p. 6).
-    // 1210 kg front → 605,0 per tyre ÷ 0,95 = 636,8 → 93 (650); 1235 kg rear → 617,5 ÷ 0,95 = 650,0 → 93.
-    expect($verdict->front->minLoadIndex)->toBe(93)
-        ->and($verdict->rear->minLoadIndex)->toBe(93)
-        ->and($verdict->front->minSpeedSymbol)->toBe('Y')
-        ->and($verdict->front->minSource)->toBe(MinSource::Derived);
-});
-
 it('lets a stricter document minimum govern, and records that it did', function (): void {
     $verdict = FitmentFixtures::resolver([
         FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinLoadIndex: 95)]),
@@ -289,34 +276,6 @@ it('lets a stricter document minimum govern, and records that it did', function 
 
     expect($verdict->front->minLoadIndex)->toBe(95)
         ->and($verdict->front->minSource)->toBe(MinSource::Document);
-});
-
-it('ignores a laxer document minimum — the derivation is the floor', function (): void {
-    $verdict = FitmentFixtures::resolver([
-        FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinLoadIndex: 80)]),
-    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    expect($verdict->front->minLoadIndex)->toBe(93)
-        ->and($verdict->front->minSource)->toBe(MinSource::Derived);
-});
-
-it('ignores a document speed symbol it does not recognise, rather than relaxing', function (): void {
-    // An unrecognised symbol would otherwise rank as nothing and silently weaken the requirement.
-    $verdict = FitmentFixtures::resolver([
-        FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'ZR')]),
-    ])->resolve(RS4_FIRST, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    expect($verdict->front->minSpeedSymbol)->toBe('Y')
-        ->and($verdict->front->minSource)->toBe(MinSource::Derived);
-});
-
-it('derives front and rear separately', function (): void {
-    // The BMW 3er, 225 km/h → V at 94 %: 900 kg → 450 ÷ 0,94 = 478,7 → 83; 1020 kg → 510 ÷ 0,94 = 542,6 → 87.
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3)])
-        ->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    expect($verdict->front->minLoadIndex)->toBe(83)
-        ->and($verdict->rear->minLoadIndex)->toBe(87);
 });
 
 /*
@@ -467,7 +426,7 @@ it('renders the verdict in the shape the order line stores', function (): void {
         ->and($payload['document']['pdfSha256'])->not->toBeNull()
         ->and($payload['requiresEntry'])->toBeTrue()
         ->and($payload['tyres']['perAxle'])->toBe('SAME')
-        ->and($payload['tyres']['front']['minSource'])->toBe('DERIVED')
+        ->and($payload['tyres']['front']['minSource'])->toBe('DOCUMENT')
         ->and($payload['reason'])->toBeNull()
         // R-15: what reaches the customer is a sentence, never the code.
         ->and($payload['conditions'][0]['textDe'])->toBe('Eintragung in die Fahrzeugpapiere erforderlich.');

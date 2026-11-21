@@ -8,8 +8,6 @@ use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Tyres\KomplettradRefusal;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\AxleRequirement;
-use App\Domain\Fitment\Verdict\Condition;
-use App\Domain\Fitment\Verdict\ConditionKind;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\MinSource;
 use Tests\Support\Fitment\FitmentFixtures;
@@ -79,16 +77,6 @@ it('keeps the axle\'s strictest figure for the verdict, and each size\'s own bes
         ->and($front->minimumFor(new TyreSize(225, 40, 18.0)))->toBe(['loadIndex' => 98, 'speedSymbol' => 'Y']);
 });
 
-it('says the minimum per size where the sizes differ, and once where they agree', function (): void {
-    expect(smEligibility()->minimumSentenceDe(smVerdict()))->toBe(
-        'Für dein Fahrzeug brauchen die Reifen je nach Größe mindestens: 245/45 R18 Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y; '
-        .'255/40 R18 Tragfähigkeitsindex 98 und Geschwindigkeitsindex Y. Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.'
-    )
-        ->and(smEligibility()->minimumSentenceDe(smResolve([
-            new TyreSize(245, 45, 18.0, documentMinLoadIndex: 95, documentMinSpeedSymbol: 'Y'),
-        ])))->toBe('Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.');
-});
-
 it('freezes each size\'s minimum with the answer, and an answer frozen without them falls back to the strictest', function (): void {
     $front = smVerdict()->front;
     $old = $front->toArray();
@@ -96,42 +84,6 @@ it('freezes each size\'s minimum with the answer, and an answer frozen without t
 
     expect(AxleRequirement::fromArray($front->toArray())->minimumFor(new TyreSize(245, 45, 18.0)))->toBe(['loadIndex' => 95, 'speedSymbol' => 'Y'])
         ->and(AxleRequirement::fromArray($old)->minimumFor(new TyreSize(245, 45, 18.0)))->toBe(['loadIndex' => 98, 'speedSymbol' => 'Y']);
-});
-
-it('refuses a size whose own minimum cannot be stated, though the axle has one — it fails closed (R-03)', function (): void {
-    $sizes = [new TyreSize(245, 45, 18.0), new TyreSize(255, 40, 18.0)];
-    $axle = new AxleRequirement($sizes, 98, 'Y', MinSource::Document, MinSource::Document, MinSource::Derived, bySize: [
-        ['key' => '245/45/18', 'minLoadIndex' => null, 'minSpeedSymbol' => 'Y', 'minLoadSource' => 'DOCUMENT', 'minSpeedSource' => 'DERIVED'],
-        ['key' => '255/40/18', 'minLoadIndex' => 98, 'minSpeedSymbol' => 'Y', 'minLoadSource' => 'DOCUMENT', 'minSpeedSource' => 'DERIVED'],
-    ]);
-    $live = smVerdict();
-    $verdict = new FitmentVerdict(
-        status: $live->status, vehicle: $live->vehicle, wheel: $live->wheel, document: $live->document,
-        requiresEntry: $live->requiresEntry, entryNoteDe: $live->entryNoteDe, conditions: $live->conditions,
-        front: $axle, rear: $axle, reason: $live->reason, snapshot: $live->snapshot,
-    );
-
-    expect(smEligibility()->permits($verdict, smTyre(loadIndex: 120)))->toBe(KomplettradRefusal::NoUsableMinimum)
-        ->and(smEligibility()->permits($verdict, smTyre(widthMm: 255, aspect: 40, loadIndex: 98)))->toBeNull();
-});
-
-it('names the papers among the sources where they set one size\'s figure and the Gutachten another\'s', function (): void {
-    $sizes = [new TyreSize(245, 45, 18.0), new TyreSize(255, 40, 18.0)];
-    $axle = new AxleRequirement($sizes, 98, 'Y', MinSource::Document, MinSource::Document, MinSource::Derived, bySize: [
-        ['key' => '245/45/18', 'minLoadIndex' => 96, 'minSpeedSymbol' => 'Y', 'minLoadSource' => 'PAPERS', 'minSpeedSource' => 'DERIVED'],
-        ['key' => '255/40/18', 'minLoadIndex' => 98, 'minSpeedSymbol' => 'Y', 'minLoadSource' => 'DOCUMENT', 'minSpeedSource' => 'DERIVED'],
-    ]);
-    $live = smVerdict();
-    $verdict = new FitmentVerdict(
-        status: $live->status, vehicle: $live->vehicle, wheel: $live->wheel, document: $live->document,
-        requiresEntry: $live->requiresEntry, entryNoteDe: $live->entryNoteDe, conditions: $live->conditions,
-        front: $axle, rear: $axle, reason: $live->reason, snapshot: $live->snapshot,
-    );
-
-    expect(smEligibility()->minimumSentenceDe($verdict))->toEndWith(
-        '255/40 R18 Tragfähigkeitsindex 98 und Geschwindigkeitsindex Y. Die Mindestwerte stehen für jede Größe so im Gutachten, '
-        .'nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2) oder ergeben sich aus den Daten deines Fahrzeugs.'
-    );
 });
 
 it('raises a size’s minimum to the symbol printed beside it where its own minimum asks for less', function (): void {
@@ -143,22 +95,4 @@ it('raises a size’s minimum to the symbol printed beside it where its own mini
 
     expect(smEligibility()->permits($verdict, smTyre(loadIndex: 95, speedSymbol: 'W')))->toBe(KomplettradRefusal::BelowMinimum)
         ->and(smEligibility()->permits($verdict, smTyre(loadIndex: 95, speedSymbol: 'Y')))->toBeNull();
-});
-
-it('sells no tyre against a size’s own load-index limit while the load on its axle is unknown (R-03)', function (): void {
-    $live = smResolve([new TyreSize(245, 45, 18.0, conditions: [Condition::ofKind('T95', ConditionKind::ReifenTragfaehigkeit, 'Reifen mit Tragfähigkeitsindex 95 bis 1.380 kg Achslast.', maxAxleLoadKg: 1380)])]);
-    $noLoad = Rebuild::of($live, ['vehicle' => Rebuild::of($live->vehicle, ['axleLoadFrontKg' => null])]);
-
-    expect(smEligibility()->permits($live, smTyre(loadIndex: 95)))->toBeNull()
-        ->and(smEligibility()->permits($noLoad, smTyre(loadIndex: 120)))->toBe(KomplettradRefusal::NoUsableMinimum);
-});
-
-it('sells no tyre on an answer frozen without its row’s own Auflagen, where the document limits by load index', function (): void {
-    // Without them a size's limits cannot be told from another size's — and a blended list could hand it a lower index.
-    $limit = Condition::ofKind('T95', ConditionKind::ReifenTragfaehigkeit, 'Reifen mit Tragfähigkeitsindex 95 bis 1.380 kg Achslast.', maxAxleLoadKg: 1380);
-    $live = FitmentFixtures::resolver([FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0)], conditions: [$limit])])->resolve(1, FitmentFixtures::WHEEL_CONFIG_ID);
-    $frozenWithout = Rebuild::of($live, ['combinationConditions' => null]);
-
-    expect(smEligibility()->permits($live, smTyre(loadIndex: 95)))->toBeNull()
-        ->and(smEligibility()->permits($frozenWithout, smTyre(loadIndex: 120)))->toBe(KomplettradRefusal::NoUsableMinimum);
 });

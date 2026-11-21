@@ -196,7 +196,8 @@ it('offers the Komplettrad as the Gutachten\'s combinations, holds a set as 2 + 
             ->and($combination['rear']['conditions'])->toContain('Die Verwendung von Schneeketten ist nicht zulässig.')
             ->and(array_diff($combination['front']['conditions'], $combination['rear']['conditions']))->toBe([])
             ->and($combination['rear']['tyre']['id'])->toBe($rearTyre->id)
-            ->and($combination['rear']['minLoadIndex'])->toBeInt();
+            // What the paper prints beside the rear size, or nothing (D-481) — never a figure derived from the car.
+            ->and($combination['rear'])->toHaveKey('minLoadIndex');
     }
 
     // The admin's order: what went on which axle, and each axle's Auflagen under its name — never the rear's at the front.

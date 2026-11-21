@@ -90,14 +90,14 @@ class TyreVariantRequest extends FormRequest
             'name' => ['required', 'string', 'max:80'],
             'season' => ['required', Rule::in(TyreSeason::values())],
 
-            // What passenger tyres measure: a figure outside is a typo, not a product.
-            'width_mm' => ['required', 'integer', 'between:125,355'],
-            'aspect' => ['required', 'integer', 'between:25,85', 'multiple_of:5'],
-            'diameter_in' => ['required', 'integer', 'between:13,24'],
-            // The load index from the shop's own table (70 to 120, Annex IV of UN/ECE Regulation No 30 — D-310): a tyre
-            // beyond it has no capacity on record, so it could never be compared and is not offered.
-            'load_index' => ['required', 'integer', Rule::in(array_keys(ReferenceTables::LOAD_INDEX_CAPACITY_KG))],
-            'speed_symbol' => ['required', 'string', Rule::in(array_column(ReferenceTables::SPEED_SYMBOLS, 'symbol'))],
+            // D-481 (the client's message of 19.11.2026: „only keep the normal string format validation“): the form of a
+            // tyre, never a range of its figures — three digits of width, two of aspect, the rim in whole or half inches, a
+            // load index of one to three digits, any speed symbol as printed (`F`, `A8`, `(W)`).
+            'width_mm' => ['required', 'integer', 'between:100,999'],
+            'aspect' => ['required', 'integer', 'between:10,99'],
+            'diameter_in' => ['required', 'regex:/^\d{2}(?:[.,][05])?$/'],
+            'load_index' => ['required', 'integer', 'between:1,999'],
+            'speed_symbol' => ['required', 'string', 'max:4', 'regex:/^(?:\([A-Z]\d?\)|[A-Z]\d?)$/'],
 
             'eu_fuel_class' => ['nullable', Rule::in(self::CLASSES)],
             'eu_wet_grip_class' => ['nullable', Rule::in(self::CLASSES)],
@@ -123,14 +123,14 @@ class TyreVariantRequest extends FormRequest
             'name.max' => 'Das Profil darf höchstens 80 Zeichen lang sein.',
             'season.*' => 'Bitte wähl die Saison.',
             'width_mm.required' => 'Bitte gib die Breite in Millimetern an, zum Beispiel 225.',
-            'width_mm.*' => 'Die Breite bitte in Millimetern, zwischen 125 und 355.',
+            'width_mm.*' => 'Die Breite bitte in Millimetern, dreistellig, zum Beispiel 225.',
             'aspect.required' => 'Bitte gib den Querschnitt an, zum Beispiel 45.',
-            'aspect.*' => 'Den Querschnitt bitte in Prozent, in Fünferschritten zwischen 25 und 85.',
+            'aspect.*' => 'Den Querschnitt bitte als zweistellige Zahl, zum Beispiel 45.',
             'diameter_in.required' => 'Bitte gib den Durchmesser in Zoll an, zum Beispiel 18.',
-            'diameter_in.*' => 'Den Durchmesser bitte in ganzen Zoll, zwischen 13 und 24.',
+            'diameter_in.*' => 'Den Durchmesser bitte in Zoll, ganz oder halb, zum Beispiel 18 oder 22,5.',
             'load_index.required' => 'Bitte gib den Lastindex an, zum Beispiel 95.',
-            'load_index.*' => 'Der Shop rechnet mit den Lastindizes 70 bis 120. Prüf die Zahl auf der Reifenflanke. Für einen Lastindex über 120 hat der Shop keine Tragfähigkeit hinterlegt, deshalb lässt sich ein solcher Reifen hier nicht anlegen.',
-            'speed_symbol.*' => 'Dieses Geschwindigkeitssymbol lesen wir nicht. Schreib es wie gedruckt: J bis Y, (W) oder (Y), auch mit Lastindex wie 97(W).',
+            'load_index.*' => 'Den Lastindex bitte als Zahl mit einer bis drei Ziffern, wie auf der Reifenflanke, zum Beispiel 95.',
+            'speed_symbol.*' => 'Das Geschwindigkeitssymbol bitte so, wie es gedruckt ist: ein Buchstabe, etwa Y, F oder A8, auch in Klammern wie (W) – gern mit Lastindex wie 97(W).',
             'eu_fuel_class.*' => 'Die Kraftstoffeffizienz hat eine Klasse von A bis E.',
             'eu_wet_grip_class.*' => 'Die Nasshaftung hat eine Klasse von A bis E.',
             'eu_noise_db.*' => 'Das externe Rollgeräusch bitte in Dezibel, als ganze Zahl zwischen 50 und 90.',
@@ -249,6 +249,7 @@ class TyreVariantRequest extends FormRequest
         $text = fn (string $key): ?string => is_string($this->validated($key)) && $this->validated($key) !== '' ? (string) $this->validated($key) : null;
         $flag = fn (string $key): ?bool => $this->validated($key) === null || $this->validated($key) === '' ? null : $this->boolean($key);
         $symbol = (string) $this->validated('speed_symbol');
+        // A symbol the shop's table does not rank keeps rank 0 and is matched exactly (D-481, TyreEligibility::meets()).
         $rank = 0;
 
         foreach (ReferenceTables::SPEED_SYMBOLS as $row) {
@@ -264,7 +265,7 @@ class TyreVariantRequest extends FormRequest
             'season' => (string) $this->validated('season'),
             'width_mm' => (int) $this->validated('width_mm'),
             'aspect' => (int) $this->validated('aspect'),
-            'diameter_in' => (float) $this->validated('diameter_in'),
+            'diameter_in' => (float) str_replace(',', '.', (string) $this->validated('diameter_in')),
             'load_index' => (int) $this->validated('load_index'),
             'speed_symbol' => $symbol,
             'speed_rank' => $rank,

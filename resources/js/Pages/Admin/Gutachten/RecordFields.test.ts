@@ -5,8 +5,8 @@ import type { RecordShape } from '../../../types/admin/gutachten'
 import RecordFields from './RecordFields.vue'
 
 /*
- * How the document gives its tyres' load index and speed symbol (the operator's brief of 17.10.2026, D-277): asked with
- * the document's facts, outside the folded header — the release asks for it — with the three answers the brief names.
+ * How the document gives its tyres' load index and speed symbol was asked here (D-277). Since D-481 the tyres rest on what
+ * the document prints beside each size, so the answer decides nothing and the question is gone (D-483).
  */
 
 function blank(): RecordShape {
@@ -28,34 +28,12 @@ function blank(): RecordShape {
 }
 
 describe('RecordFields — the tyres\' index', () => {
-    it('asks it outside the folded header, with the three answers, and keeps the one chosen', async () => {
-        const shape = reactive(blank())
-        const wrapper = mount(RecordFields, { props: { kind: 'ABE', errors: {}, supplementable: [], idPrefix: 'gn', shape } })
-        const group = wrapper.find('fieldset.rsf-group')
+    it('no longer asks how the document gives load index and speed symbol (D-483)', () => {
+        const wrapper = mount(RecordFields, { props: { kind: 'ABE', errors: {}, supplementable: [], idPrefix: 'gn', shape: reactive(blank()) } })
 
-        expect(group.find('legend').text()).toBe('Wie gibt das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen an?')
-        expect(wrapper.find('details.rsf-more fieldset.rsf-group').exists()).toBe(false)
-
-        const radios = group.findAll('input[type="radio"]')
-
-        expect(radios.map((radio) => (radio.element as HTMLInputElement).value)).toEqual(['document', 'papers', 'table'])
-        expect(radios.every((radio) => !(radio.element as HTMLInputElement).checked)).toBe(true)
-
-        await radios[2]!.setValue(true)
-
-        expect(shape.tyre_index_source).toBe('table')
-    })
-
-    it('shows an answer already given, and the server’s refusal beside the question, tied to every answer', () => {
-        const wrapper = mount(RecordFields, {
-            props: { kind: 'NACHTRAG', errors: { tyre_index_source: 'Bitte wähl, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt.' }, supplementable: [], idPrefix: 'fd', shape: reactive<RecordShape>({ ...blank(), tyre_index_source: 'papers' }) },
-        })
-
-        expect((wrapper.find('fieldset.rsf-group input[value="papers"]').element as HTMLInputElement).checked).toBe(true)
-        expect(wrapper.find('#fd-index-err').text()).toBe('Bitte wähl, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt.')
-
-        for (const radio of wrapper.findAll('fieldset.rsf-group input[type="radio"]')) {
-            expect(radio.attributes('aria-describedby')).toBe('fd-index-help fd-index-err')
-        }
+        expect(wrapper.text()).not.toContain('Lastindex')
+        expect(wrapper.find('input[name="gn-index"]').exists()).toBe(false)
+        // The rest of the facts are still asked.
+        expect(wrapper.find('details.rsf-more').exists()).toBe(true)
     })
 })

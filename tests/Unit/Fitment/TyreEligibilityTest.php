@@ -256,39 +256,18 @@ it('refuses when the axles permit no size at all — rule 4', function (): void 
     expect(eligibilityOver()->permits($verdict, permittedTyre()))->toBe(KomplettradRefusal::NoPermittedSizes);
 });
 
-it('treats a null minimum as unusable, never as no minimum — rule 5', function (): void {
-    $live = liveVerdict(FitmentFixtures::row());
-    $sizes = [new TyreSize(245, 45, 18.0)];
-
-    $noLoad = withAxles(
-        $live,
-        new AxleRequirement($sizes, null, 'Y', MinSource::Derived),
-        new AxleRequirement($sizes, 92, 'Y', MinSource::Derived),
-    );
-    $noSpeed = withAxles(
-        $live,
-        new AxleRequirement($sizes, 91, 'Y', MinSource::Derived),
-        new AxleRequirement($sizes, 92, null, MinSource::Derived),
-    );
-
-    expect(eligibilityOver()->permits($noLoad, permittedTyre(loadIndex: 120, speedSymbol: '(Y)')))->toBe(KomplettradRefusal::NoUsableMinimum)
-        ->and(eligibilityOver()->permits($noSpeed, permittedTyre(loadIndex: 120, speedSymbol: '(Y)')))->toBe(KomplettradRefusal::NoUsableMinimum)
-        ->and(eligibilityOver()->minimumSentenceDe($noLoad))->toBeNull()
-        ->and(eligibilityOver()->minimumSentenceDe($noSpeed))->toBeNull();
-});
-
-it('refuses when an axle carries a speed symbol the table does not know', function (): void {
-    // Non-null, so rule 5 passes; unrankable, so nothing can be compared against it.
+it('matches a speed symbol the table does not know exactly, on the axle that carries it (D-481)', function (): void {
+    // Unrankable, so nothing can be compared against it: only a tyre carrying exactly that symbol passes — never one ranked
+    // above or below it on a guess.
     $verdict = withAxles(
         liveVerdict(FitmentFixtures::row()),
-        new AxleRequirement([new TyreSize(245, 45, 18.0)], 91, 'ZR', MinSource::Derived),
-        new AxleRequirement([new TyreSize(245, 45, 18.0)], 92, 'Y', MinSource::Derived),
+        new AxleRequirement([new TyreSize(245, 45, 18.0)], 91, 'ZR', MinSource::Document),
+        new AxleRequirement([new TyreSize(245, 45, 18.0)], 92, 'Y', MinSource::Document),
     );
 
     $offer = eligibilityOver(permittedTyre(speedSymbol: '(Y)'))->offerFor($verdict);
 
-    expect(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::NoUsableMinimum)
-        ->and(eligibilityOver()->minimumSentenceDe($verdict))->toBeNull()
+    expect(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::BelowMinimum)
         ->and($offer->tyres)->toBe([])
         ->and($offer->refusal)->toBe(KomplettradRefusal::NoTyreAvailable)
         ->and($offer->minimumSentenceDe)->toBeNull();
@@ -328,10 +307,10 @@ it('checks the size on both axles, so a size listed on the front only is refused
  * Rule 8 — R-06, the stricter governs, per axle, by rank and never by letter.
  */
 
-it('refuses a tyre below the axle minimum — rule 8', function (): void {
-    $verdict = liveVerdict(FitmentFixtures::row());
+it('refuses a tyre below the minimum the paper prints — rule 8 (D-481)', function (): void {
+    $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, 93, 'Y')]));
 
-    // Both axles need 93 at 280 km/h: a 92 fails, a 93 passes.
+    // The paper prints 93Y beside the size: a 92 fails, a 93 passes, a W is below Y.
     expect(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 92)))->toBe(KomplettradRefusal::BelowMinimum)
         ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 93)))->toBeNull()
         ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'W')))->toBe(KomplettradRefusal::BelowMinimum);
@@ -352,201 +331,34 @@ it('ranks speed symbols and never compares them as letters', function (): void {
         ->and(eligibilityOver()->permits(liveVerdict(FitmentFixtures::row()), permittedTyre(speedSymbol: '(Y)')))->toBeNull();
 });
 
-it('offers a (W) tyre where W is asked and never where Y is: above 270 km/h, to a limit only its maker states (D-453)', function (): void {
-    // The RS 4 at 280 km/h needs Y; the BMW 3er under a document asking W, W.
-    $needsY = liveVerdict(FitmentFixtures::row());
-    $needsW = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3, sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'W')])])
-        ->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    expect(eligibilityOver()->permits($needsY, permittedTyre(speedSymbol: '(W)')))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and(eligibilityOver()->permits($needsY, permittedTyre(speedSymbol: 'Y')))->toBeNull()
-        ->and(eligibilityOver()->permits($needsW, permittedTyre(speedSymbol: '(W)')))->toBeNull()
-        ->and(eligibilityOver()->permits($needsW, permittedTyre(speedSymbol: 'V')))->toBe(KomplettradRefusal::BelowMinimum);
-});
-
-it('lets a document load index above the derived one govern, and credits the document for that half only', function (): void {
-    $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinLoadIndex: 95)]));
-
-    expect($verdict->front->minLoadIndex)->toBe(95)
-        ->and($verdict->front->minLoadSource)->toBe(MinSource::Document)
-        ->and($verdict->front->minSpeedSource)->toBe(MinSource::Derived)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 94)))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 95)))->toBeNull()
-        ->and(eligibilityOver()->minimumSentenceDe($verdict))->toBe(
-            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. '
-            .'Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.'
-        );
-});
-
-it('lets a document speed symbol above the derived one govern, and credits the document for that half only', function (): void {
-    // The BMW 3er, 225 km/h (V derived); the document asks W. At 225 km/h a W tyre loses nothing, so the
-    // load index is half the axle load: 450 kg → 80, 510 kg → 85.
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3, sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'W')])])
-        ->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    expect($verdict->front->minSpeedSymbol)->toBe('W')
-        ->and($verdict->front->minSpeedSource)->toBe(MinSource::Document)
-        ->and($verdict->front->minLoadSource)->toBe(MinSource::Derived)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'V')))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'W')))->toBeNull()
-        ->and(eligibilityOver()->minimumSentenceDe($verdict))->toBe(
-            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 85 und Geschwindigkeitsindex W. '
-            .'Der Tragfähigkeitsindex ergibt sich aus den Daten deines Fahrzeugs, der Geschwindigkeitsindex steht so im Gutachten.'
-        );
-});
-
-it('states no minimum for a symbol the derating table does not list, and offers no tyre on it', function (): void {
-    // The RS 4 at 280 km/h under a document asking (Y): its table (ABE 55255, p. 6) has columns V, W and Y
-    // only — the document does not say what a (Y) tyre carries there, so the tyre half is UNKNOWN.
-    $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: '(Y)')]));
-
-    expect($verdict->front->minSpeedSymbol)->toBe('(Y)')
-        ->and($verdict->front->minLoadIndex)->toBeNull()
-        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and($verdict->status)->toBe(VerdictStatus::Unknown)
-        // The wheel is approved; only the tyres are open — never „kein Gutachten“ (R-03 split).
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::TyresUnknown)
-        ->and(eligibilityOver()->minimumSentenceDe($verdict))->toBeNull();
-});
-
-it('names both halves as documented when both came from the Gutachten', function (): void {
-    $verdict = FitmentFixtures::resolver([FitmentFixtures::row(vehicleId: 3, sizes: [
-        new TyreSize(245, 45, 18.0, documentMinLoadIndex: 95, documentMinSpeedSymbol: 'W'),
-    ])])->resolve(3, FitmentFixtures::WHEEL_CONFIG_ID);
-
-    $offer = eligibilityOver(permittedTyre(loadIndex: 95, speedSymbol: 'W'))->offerFor($verdict);
-
-    expect(eligibilityOver()->minimumSentenceDe($verdict))->toBe(
-        'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex W. '
-        .'Diese Mindestwerte stehen so im Gutachten.'
-    )
-        ->and($offer->minSource)->toBe(MinSource::Document)
-        ->and($offer->tyres)->toHaveCount(1);
-});
-
-it('names both halves as derived when the document is silent, using the stricter axle', function (): void {
-    $verdict = liveVerdict(FitmentFixtures::row());
-
-    // Front and rear 93 (the speed derating at 280 km/h): what four identical tyres must meet.
-    expect(eligibilityOver()->minimumSentenceDe($verdict))->toBe(
-        'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 93 und Geschwindigkeitsindex Y. '
-        .'Diese Mindestwerte ergeben sich aus Achslast und Höchstgeschwindigkeit deines Fahrzeugs.'
-    )
-        ->and(eligibilityOver()->offerFor($verdict)->minSource)->toBe(MinSource::Derived);
-});
-
-it('does not let a document minimum below the derived one relax anything', function (): void {
-    $verdict = liveVerdict(FitmentFixtures::row(sizes: [
-        new TyreSize(245, 45, 18.0, documentMinLoadIndex: 80, documentMinSpeedSymbol: 'V'),
-    ]));
-
-    expect($verdict->rear->minLoadIndex)->toBe(93)
-        ->and($verdict->rear->minSpeedSymbol)->toBe('Y')
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 92)))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'V')))->toBe(KomplettradRefusal::BelowMinimum)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 93, speedSymbol: 'Y')))->toBeNull()
-        ->and(eligibilityOver()->minimumSentenceDe($verdict))->toContain('Tragfähigkeitsindex 93 und Geschwindigkeitsindex Y.')
-        ->and(eligibilityOver()->minimumSentenceDe($verdict))->toContain('ergeben sich aus Achslast');
-});
-
-it('ignores a document symbol it does not recognise, but refuses a tyre symbol it does not recognise', function (): void {
+it('keeps a document symbol it cannot rank as printed and matches it exactly; a tyre symbol it cannot rank meets only that (D-481)', function (): void {
     $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'ZR')]));
 
-    // D-027: the unknown document symbol is ignored and the derived Y still stands beneath it.
-    expect($verdict->front->minSpeedSymbol)->toBe('Y')
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'Y')))->toBeNull()
-        // A tyre we cannot rank is not "fast enough".
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 120, speedSymbol: 'ZR')))->toBe(KomplettradRefusal::BelowMinimum);
+    expect($verdict->front->minSpeedSymbol)->toBe('ZR')
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'Y')))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(loadIndex: 120, speedSymbol: 'ZR')))->toBeNull();
+
+    // Where the paper prints a symbol it can rank, a tyre it cannot rank is not "fast enough".
+    $ranked = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: 'Y')]));
+    expect(eligibilityOver()->permits($ranked, permittedTyre(loadIndex: 120, speedSymbol: 'ZR')))->toBe(KomplettradRefusal::BelowMinimum);
 });
 
 it('binds the axle to the strictest symbol any listed size prints, never to the last one printed', function (): void {
-    // The axle once took the LAST size's symbol, so 255/40's V overwrote 245/45's (Y) and the derived Y
-    // governed an axle whose document asks (Y) of one of its sizes (Block D: engine 1.1.0). The axle now binds
-    // to (Y): what the customer is told is never below what the document asks of a size they may buy. This
-    // document's table (ABE 55255's) prints no (Y) column, so no load at that speed can be read from it: the
-    // tyres are open, and no Komplettrad is put together on a guess.
+    // The axle once took the LAST size's symbol, so 255/40's V overwrote 245/45's (Y) (Block D: engine 1.1.0). The axle
+    // binds to (Y): what the customer is told is never below what the document asks of a size they may buy — and each size
+    // is offered against its own printed symbol (D-431, D-481).
     $verdict = liveVerdict(FitmentFixtures::row(sizes: [
         new TyreSize(245, 45, 18.0, documentMinSpeedSymbol: '(Y)'),
         new TyreSize(255, 40, 18.0, documentMinSpeedSymbol: 'V'),
     ]));
 
     expect($verdict->front->minSpeedSymbol)->toBe('(Y)')
-        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Unknown)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBe(KomplettradRefusal::TyresUnknown)
-        ->and(eligibilityOver()->permits($verdict, permittedTyre(widthMm: 255, aspect: 40, speedSymbol: 'Y')))->toBe(KomplettradRefusal::TyresUnknown);
-});
-
-it('takes the stricter axle for each half of the minimum, with the source that governed that half', function (): void {
-    $live = liveVerdict(FitmentFixtures::row());
-    $sizes = [new TyreSize(245, 45, 18.0)];
-
-    // Load: front 95 from the document. Speed: rear (Y) from the document.
-    $split = withAxles(
-        $live,
-        new AxleRequirement($sizes, 95, 'Y', MinSource::Document, MinSource::Document, MinSource::Derived),
-        new AxleRequirement($sizes, 92, '(Y)', MinSource::Document, MinSource::Derived, MinSource::Document),
-    );
-
-    // A tie on the number where one axle wrote it down: the document is credited, because the
-    // statement "steht so im Gutachten" is true of that number.
-    $tie = withAxles(
-        $live,
-        new AxleRequirement($sizes, 95, 'Y', MinSource::Document, MinSource::Document, MinSource::Derived),
-        new AxleRequirement($sizes, 95, 'Y', MinSource::Derived),
-    );
-
-    expect(eligibilityOver()->minimumSentenceDe($split))->toBe(
-        'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex (Y). '
-        .'Diese Mindestwerte stehen so im Gutachten.'
-    )
-        ->and(eligibilityOver()->minimumSentenceDe($tie))->toBe(
-            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. '
-            .'Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.'
-        );
-});
-
-it('credits the papers for the half they set, and the other half to its own source (D-242)', function (): void {
-    $live = liveVerdict(FitmentFixtures::row());
-    $sizes = [new TyreSize(245, 45, 18.0)];
-
-    // Both halves from 15.1/15.2: the front's 95 is the stricter index; on the tied Y the papers outrank the computation.
-    $both = withAxles(
-        $live,
-        new AxleRequirement($sizes, 95, 'Y', MinSource::Derived, MinSource::Papers, MinSource::Papers),
-        new AxleRequirement($sizes, 93, 'Y', MinSource::Derived),
-    );
-
-    $loadOnly = withAxles(
-        $live,
-        new AxleRequirement($sizes, 95, 'Y', MinSource::Derived, MinSource::Papers, MinSource::Derived),
-        new AxleRequirement($sizes, 93, 'Y', MinSource::Derived),
-    );
-
-    // The index tied and written in the Gutachten; the symbol (Y) from the papers.
-    $speedOnly = withAxles(
-        $live,
-        new AxleRequirement($sizes, 93, '(Y)', MinSource::Document, MinSource::Document, MinSource::Papers),
-        new AxleRequirement($sizes, 93, 'Y', MinSource::Derived),
-    );
-
-    expect(eligibilityOver()->minimumSentenceDe($both))->toBe(
-        'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. '
-        .'Diese Mindestwerte stehen nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).'
-    )
-        ->and(eligibilityOver()->minimumSentenceDe($loadOnly))->toBe(
-            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 95 und Geschwindigkeitsindex Y. '
-            .'Der Tragfähigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2), der Geschwindigkeitsindex ergibt sich aus den Daten deines Fahrzeugs.'
-        )
-        ->and(eligibilityOver()->minimumSentenceDe($speedOnly))->toBe(
-            'Für dein Fahrzeug brauchen die Reifen mindestens Tragfähigkeitsindex 93 und Geschwindigkeitsindex (Y). '
-            .'Der Tragfähigkeitsindex steht so im Gutachten, der Geschwindigkeitsindex steht nach deinen Angaben so in deinen Fahrzeugpapieren (Felder 15.1 und 15.2).'
-        )
-        // A tyre below the papers' floor is refused like any other below the minimum.
-        ->and(eligibilityOver()->permits($both, permittedTyre(loadIndex: 94)))->toBe(KomplettradRefusal::BelowMinimum);
-});
-
-it('returns no minimum sentence for a verdict that has none to state', function (): void {
-    expect(eligibilityOver()->minimumSentenceDe(liveVerdict()))->toBeNull();
+        ->and($verdict->tyre?->status)->toBe(VerdictStatus::Permitted)
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: '(Y)')))->toBeNull()
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(speedSymbol: 'Y')))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and(eligibilityOver()->permits($verdict, permittedTyre(widthMm: 255, aspect: 40, speedSymbol: 'V')))->toBeNull()
+        ->and($verdict->front->minimumFor(new TyreSize(245, 45, 18.0))['speedSymbol'])->toBe('(Y)')
+        ->and($verdict->front->minimumFor(new TyreSize(255, 40, 18.0))['speedSymbol'])->toBe('V');
 });
 
 /*
@@ -568,8 +380,8 @@ it('refuses a tyre the shop does not sell now, whatever the quantity — rule 9'
  * The offer — every permitted tyre, cheapest first, or the one sentence saying why there is none.
  */
 
-it('offers every permitted tyre cheapest first, with the minimum sentence', function (): void {
-    $verdict = liveVerdict(FitmentFixtures::row());
+it('offers every permitted tyre cheapest first — and says no minimum of its own (D-481)', function (): void {
+    $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, 93, 'Y')]));
 
     $offer = eligibilityOver(
         permittedTyre(id: 1, priceCents: 20_000),
@@ -582,8 +394,8 @@ it('offers every permitted tyre cheapest first, with the minimum sentence', func
 
     expect(array_map(static fn (TyreRecord $t): int => $t->id, $offer->tyres))->toBe([2, 3, 1])
         ->and($offer->refusal)->toBeNull()
-        ->and($offer->minimumSentenceDe)->toContain('Tragfähigkeitsindex 93 und Geschwindigkeitsindex Y')
-        ->and($offer->minSource)->toBe(MinSource::Derived);
+        ->and($offer->minimumSentenceDe)->toBeNull()
+        ->and($offer->minSource)->toBe(MinSource::Document);
 });
 
 it('lists what the shop does not sell now only when asked to', function (): void {
@@ -597,8 +409,8 @@ it('lists what the shop does not sell now only when asked to', function (): void
         ->and(array_map(static fn (TyreRecord $t): int => $t->id, $eligibility->offerFor($verdict, sellableOnly: false)->tyres))->toBe([2, 1]);
 });
 
-it('says so when nothing in the catalogue fits, and still states the minimum', function (): void {
-    $verdict = liveVerdict(FitmentFixtures::row());
+it('says so when nothing in the catalogue fits', function (): void {
+    $verdict = liveVerdict(FitmentFixtures::row(sizes: [new TyreSize(245, 45, 18.0, 93, 'Y')]));
 
     foreach ([
         eligibilityOver(),
@@ -610,7 +422,7 @@ it('says so when nothing in the catalogue fits, and still states the minimum', f
 
         expect($offer->tyres)->toBe([])
             ->and($offer->refusal)->toBe(KomplettradRefusal::NoTyreAvailable)
-            ->and($offer->minimumSentenceDe)->toContain('Tragfähigkeitsindex 93');
+            ->and($offer->minimumSentenceDe)->toBeNull();
     }
 });
 

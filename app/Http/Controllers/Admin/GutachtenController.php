@@ -34,7 +34,6 @@ use App\Services\Admin\Approvals\DocumentRevision;
 use App\Services\Admin\Approvals\Entry\DocumentEntryReader;
 use App\Services\Admin\Approvals\Entry\EntryView;
 use App\Services\Admin\Approvals\FitmentRows;
-use App\Services\Admin\Approvals\LoadLimitCheck;
 use App\Services\Admin\Approvals\SamePdf;
 use App\Services\Admin\AuditTrail;
 use App\Services\Admin\Lists\ListPaging;
@@ -664,12 +663,6 @@ class GutachtenController extends Controller
             'stamp' => EditStamp::of(DocumentConditions::state($condition)),
             // A load-index limit that differs from twice its index's capacity: said, and confirmed with a
             // reason before release — the document is kept as it stands (the second review of C9, §3).
-            'limitWarning' => app(LoadLimitCheck::class)->warningFor($condition),
-            'limitConfirmed' => $condition->limit_confirmed_at === null ? null : [
-                'reason' => (string) $condition->limit_confirmed_reason,
-                'by' => AdminUser::query()->whereKey($condition->limit_confirmed_by)->value('name'),
-                'at' => $condition->limit_confirmed_at->timezone('Europe/Berlin')->format('d.m.Y'),
-            ],
         ];
     }
 

@@ -3,8 +3,8 @@
  * The filter panel: one vertical list of facets, used as the desktop sidebar and, unchanged,
  * inside the phone's filter sheet — one component, so the two can never offer different filters.
  *
- * `Ohne Eintragung` comes first and stands on its own: for many German buyers whether the wheel
- * needs an entry in the vehicle papers is the deciding attribute of the purchase.
+ * „Ohne Abnahme und Eintragung“ is gone (D-486, the client's round of 18.11.2026, item 4): the absence of a code is no
+ * statement the shop can stand behind. Whether a wheel needs an Eintragung stands on its product page, from its codes.
  *
  * An option that would return nothing is DISABLED, never hidden. Disabling teaches the shape of
  * the catalogue; hiding makes the panel change length every time it is opened.
@@ -25,7 +25,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'toggle', facet: string, value: string): void
-    (e: 'toggle-entry'): void
     (e: 'reset'): void
 }>()
 
@@ -36,9 +35,6 @@ const FACETS = [
     { key: 'et', label: 'Einpresstiefe (ET)' },
     { key: 'farbe', label: 'Farbe' },
 ] as const
-
-const entryOn = computed(() => props.filters.ohne_eintragung === true)
-const entryCount = computed(() => props.facets.ohne_eintragung?.[0]?.count ?? null)
 
 const anyApplied = computed(
     () => Object.keys(props.filters).filter((key) => key !== 'seite').length > 0
@@ -84,13 +80,6 @@ function optionLabel(facet: string, value: string): string {
                 Zurücksetzen
             </button>
         </div>
-
-        <!-- A statement about a car: offered only with one (#30, D-118). -->
-        <label v-if="facets.ohne_eintragung" class="fpanel__opt fpanel__opt--entry">
-            <input type="checkbox" :checked="entryOn" @change="emit('toggle-entry')" />
-            <span class="fpanel__label">Ohne Abnahme und Eintragung</span>
-            <span v-if="entryCount !== null" class="data fpanel__count">{{ entryCount }}</span>
-        </label>
 
         <fieldset v-for="facet in FACETS" :key="facet.key" class="fpanel__group">
             <legend class="label fpanel__legend">{{ facet.label }}</legend>
@@ -150,13 +139,6 @@ function optionLabel(facet: string, value: string): string {
     flex: none;
     margin: 0;
     accent-color: var(--blue);
-}
-
-.fpanel__opt--entry {
-    padding: var(--space-2) var(--space-3);
-    background: var(--c-band);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
 }
 
 .fpanel__label {

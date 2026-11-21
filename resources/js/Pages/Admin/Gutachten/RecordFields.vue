@@ -91,28 +91,7 @@ watch(refused, (value) => {
             <p :id="`${id('base')}-err`" class="form-field__error">{{ err('supplement_to_id') || err('supplement_to_number') }}</p>
         </div>
 
-        <!-- D-277: read off the document, asked before release — it decides whether a car's top speed is needed. A table it
-             prints is never typed: every Gutachten reads ETRTO's (D-459). -->
-        <fieldset class="rsf-group">
-            <legend class="form-field__label">Wie gibt das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen an?</legend>
-            <label class="check">
-                <input :id="id('index-document')" v-model="shape.tyre_index_source" type="radio" :name="id('index')" value="document" :aria-describedby="`${id('index')}-help ${id('index')}-err`">
-                <span>Bei jeder Reifengröße, etwa 245/35 R19 93Y</span>
-            </label>
-            <label class="check">
-                <input v-model="shape.tyre_index_source" type="radio" :name="id('index')" value="papers" :aria-describedby="`${id('index')}-help ${id('index')}-err`">
-                <span>Mit einem Verweis auf die Fahrzeugpapiere, etwa „Der erforderliche Geschwindigkeits-/Lastindex ist den Fahrzeugpapieren zu entnehmen.“</span>
-            </label>
-            <label class="check">
-                <input v-model="shape.tyre_index_source" type="radio" :name="id('index')" value="table" :aria-describedby="`${id('index')}-help ${id('index')}-err`">
-                <span>In einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit, etwa 210 bis 300&nbsp;km/h für V, W und Y</span>
-            </label>
-            <p :id="`${id('index')}-help`" class="form-field__help">
-                Steht im Verwendungsbereich oder in den Auflagen. Ohne Antwort ist keine Freigabe möglich. Druckt das Gutachten eine solche Tabelle, wähl die Tabelle – auch wenn es zusätzlich auf die Fahrzeugpapiere verweist. Die Werte der Tabelle trägst du nicht ein: Der Shop rechnet bei jedem Gutachten mit der ETRTO-Tabelle. Steht das Geschwindigkeitssymbol nur bei manchen Größen, wähl den Verweis auf die Fahrzeugpapiere.
-            </p>
-            <p :id="`${id('index')}-err`" class="form-field__error">{{ err('tyre_index_source') }}</p>
-        </fieldset>
-
+        <!-- D-483: how the document gives the tyres' index is no longer asked; since D-481 it decides nothing. -->
         <details ref="more" class="rsf-more">
             <summary class="rsf-more__summary">Weitere Angaben von Seite 1</summary>
             <div class="rsf-pair">

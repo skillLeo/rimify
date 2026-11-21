@@ -7,16 +7,14 @@ use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Models\Vehicle;
-use App\Services\Admin\Approvals\FitmentRows;
 use App\Support\EditStamp;
 use Database\Seeders\AccessSeeder;
 use Inertia\Testing\AssertableInertia;
 
 /*
- * D-287, the operator's answers of 18.10.2026: the vehicle form asks for field T only where a released Gutachten naming
- * the car needs it for the tyres — every one that does not give load index and symbol beside every size, an unanswered
- * one included — and names each with what is recorded; elsewhere T is optional and the page says why. A draft asks
- * nothing. The review stays R-03's: a vehicle without its top speed stays under „Zur Prüfung“.
+ * D-287 asked for field T where a released Gutachten naming the car needed it for the tyres. Since D-481 none does: the
+ * tyres rest on what the document prints beside each size, never on the car's top speed, so T is optional everywhere and
+ * the page says why (D-483). The review stays R-03's: a vehicle without its top speed stays under „Zur Prüfung“.
  */
 
 beforeEach(function (): void {
@@ -44,45 +42,36 @@ function topSpeedVehicle(array $figures = []): Vehicle
     return Vehicle::factory()->create([...['axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1100, 'max_speed_kmh' => null, 'needs_review' => true], ...$figures]);
 }
 
-it('asks for field T where a released Gutachten needs it, naming each and why — never for a draft, nor for one that gives the index at every size', function (): void {
+it('asks for field T for no released Gutachten, however it gives the index — tables, papers and unanswered alike (D-483)', function (): void {
     $vehicle = topSpeedVehicle();
-    $table = namedBy($vehicle, TyreIndexSource::Table);
-    $papers = namedBy($vehicle, TyreIndexSource::Papers);
+    namedBy($vehicle, TyreIndexSource::Table);
+    namedBy($vehicle, TyreIndexSource::Papers);
     namedBy($vehicle, TyreIndexSource::Document);
+    namedBy($vehicle, null);
     namedBy($vehicle, TyreIndexSource::Papers, released: false);
 
     $this->actingAs(topSpeedAdmin(), 'admin')->get("/admin/fahrzeuge/{$vehicle->id}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Admin/Fahrzeuge/Show')
-            ->where('topSpeed.needed', true)
-            ->where('topSpeed.released', 3)
-            ->where('topSpeed.documents', [
-                ['id' => $table->id, 'label' => FitmentRows::label($table), 'href' => "/admin/gutachten/{$table->id}", 'why' => 'Laut den Angaben druckt das Gutachten eine Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.'],
-                ['id' => $papers->id, 'label' => FitmentRows::label($papers), 'href' => "/admin/gutachten/{$papers->id}", 'why' => 'Laut den Angaben verweist das Gutachten für Lastindex und Geschwindigkeitssymbol auf die Fahrzeugpapiere.'],
-            ])
-            // What the shop waits for of this car, as its answer names it to the customer (D-286).
-            ->where('owed', ['T']));
+            ->where('topSpeed', ['needed' => false, 'released' => 4, 'documents' => []])
+            // What the shop waits for of this car, as its answer names it to the customer (D-286): nothing, its axle loads are known.
+            ->where('owed', []));
 });
 
-it('marks T optional where every released Gutachten gives load index and symbol at every size, and says so on save — still under review', function (): void {
+it('says on save that the tyres do not need the top speed — still under review', function (): void {
     $vehicle = topSpeedVehicle();
-    namedBy($vehicle, TyreIndexSource::Document);
-
-    $this->actingAs(topSpeedAdmin(), 'admin')->get("/admin/fahrzeuge/{$vehicle->id}")
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('topSpeed', ['needed' => false, 'released' => 1, 'documents' => []])
-            ->where('owed', []));
+    namedBy($vehicle, TyreIndexSource::Papers);
 
     $this->actingAs(topSpeedAdmin(), 'admin')->put("/admin/fahrzeuge/{$vehicle->id}", ['axle_load_front_kg' => '1100', 'axle_load_rear_kg' => '1050', 'max_speed_kmh' => ''])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('toast', 'Gespeichert. Die Höchstgeschwindigkeit fehlt noch – das Fahrzeug bleibt unter „Zur Prüfung“. Für die Reifen braucht der Shop sie bei diesem Fahrzeug nicht.');
+        ->assertSessionHas('toast', 'Gespeichert. Die Höchstgeschwindigkeit fehlt noch – das Fahrzeug bleibt unter „Zur Prüfung“. Für die Reifen braucht der Shop sie nicht.');
 
     // The review is R-03's: the top speed is missing all the same.
     expect($vehicle->refresh()->needs_review)->toBeTrue();
 });
 
-it('names no reason it does not have: without a released Gutachten T is optional; an unanswered one asks for it', function (): void {
+it('waits for the axle loads alone where they are missing, never for T', function (): void {
     $vehicle = topSpeedVehicle(['axle_load_front_kg' => null, 'axle_load_rear_kg' => null]);
 
     $this->actingAs(topSpeedAdmin(), 'admin')->get("/admin/fahrzeuge/{$vehicle->id}")
@@ -90,14 +79,12 @@ it('names no reason it does not have: without a released Gutachten T is optional
             ->where('topSpeed', ['needed' => false, 'released' => 0, 'documents' => []])
             ->where('owed', ['8.1', '8.2']));
 
-    $unanswered = namedBy($vehicle, null);
+    namedBy($vehicle, null);
 
     $this->actingAs(topSpeedAdmin(), 'admin')->get("/admin/fahrzeuge/{$vehicle->id}")
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('topSpeed.needed', true)
-            ->where('topSpeed.documents.0.id', $unanswered->id)
-            ->where('topSpeed.documents.0.why', 'Wie das Gutachten Lastindex und Geschwindigkeitssymbol angibt, ist unter „Angaben“ noch nicht erfasst.')
-            ->where('owed', ['8.1', '8.2', 'T']));
+            ->where('topSpeed.needed', false)
+            ->where('owed', ['8.1', '8.2']));
 });
 
 it('refuses the papers\' figures saved from a page opened before the last save, and keeps that save (the admin audit\'s F-25)', function (): void {

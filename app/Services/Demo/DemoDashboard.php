@@ -6,7 +6,6 @@ namespace App\Services\Demo;
 
 use App\Domain\Fitment\Contracts\FitmentRepository;
 use App\Domain\Fitment\Contracts\VehicleRepository;
-use App\Domain\Fitment\Derivation\LoadIndexDeriver;
 use App\Domain\Fitment\Derivation\SpeedSymbolDeriver;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Tyres\TyreEligibility;
@@ -230,7 +229,6 @@ final class DemoDashboard
         $this->resolver = new FitmentResolver(
             vehicles: app(VehicleRepository::class),
             fitments: app(FitmentRepository::class),
-            loadIndex: app(LoadIndexDeriver::class),
             speedSymbol: app(SpeedSymbolDeriver::class),
             clock: $this->clock,
         );

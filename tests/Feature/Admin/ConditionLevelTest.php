@@ -57,7 +57,7 @@ it('says, once saved, what the level does in the shop — the answer\'s label, n
     $this->actingAs(levelAdmin(), 'admin')->put("/admin/gutachten/{$document->id}/auflagen/{$bolts->id}/stufe", ['level' => $level])
         ->assertSessionHasNoErrors()->assertSessionHas('toast', $said);
 })->with([
-    'Hinweis' => ['hinweis', 'Gespeichert: S03 ist jetzt „Hinweis – nichts zu tun“. Sind alle Auflagen einer Antwort Hinweise, ist keine Eintragung nötig und sind auch die Reifen ohne Auflagen bestätigt, steht im Shop „Freigegeben“ statt „Mit Auflagen“.'],
+    'Hinweis' => ['hinweis', 'Gespeichert: S03 ist jetzt „Hinweis – nichts zu tun“. Sind alle Auflagen einer Antwort Hinweise, verlangt kein Code eine Eintragung und sind auch die Reifen ohne Auflagen bestätigt, steht im Shop „Freigegeben“ statt „Mit Auflagen“.'],
     'Auflage' => ['auflage', 'Gespeichert: S03 ist jetzt „Auflage – etwas ist zu tun oder eingeschränkt“. Bei einer Antwort mit diesem Code wird im Shop aus „Mit Auflagen“ nie „Freigegeben“.'],
     'Nicht zulässig' => ['nicht_zulaessig', 'Gespeichert: S03 ist jetzt „Nicht zulässig“. Im Shop wirkt das wie eine Auflage: Aus „Mit Auflagen“ wird nie „Freigegeben“, und der Satz bekommt keine eigene Farbe.'],
 ]);

@@ -61,7 +61,7 @@ final readonly class WheelSet
             documentCentreBoreMm: null,
             documents: self::documents($front, $rear),
             wheelStatus: $front->wheelStatus === null || $rear->wheelStatus === null ? null : VerdictStatus::weaker($front->wheelStatus, $rear->wheelStatus),
-            tyre: self::tyres($front->tyre, $rear->tyre),
+            tyre: self::tyres($front->tyre, $rear->tyre, FitmentResolver::printedSummary($front->front, $rear->rear, perAxle: true)),
             missingFacts: array_values(array_unique([...$front->missingFacts, ...$rear->missingFacts])),
             combinationConditions: $front->combinationConditions === null || $rear->combinationConditions === null
                 ? null
@@ -126,7 +126,8 @@ final readonly class WheelSet
         return $front === null || $rear === null || $front === $rear ? ($front ?? $rear) : $front.' '.$rear;
     }
 
-    private static function tyres(?TyreCheck $front, ?TyreCheck $rear): ?TyreCheck
+    /** @param  string|null  $summary  what the documents print on each axle, the front version's front and the rear version's rear (D-481) */
+    private static function tyres(?TyreCheck $front, ?TyreCheck $rear, ?string $summary = null): ?TyreCheck
     {
         if ($front === null || $rear === null) {
             return null;
@@ -137,7 +138,8 @@ final readonly class WheelSet
             array_values(array_unique([...$front->lines, ...$rear->lines])),
             [...$front->thresholds, ...$rear->thresholds],
             $front->fromVehicleData && $rear->fromVehicleData,
-            self::both($front->summary, $rear->summary),
+            // Each version on its own axle: the front version's printed figures at the front, the rear's at the rear (D-481).
+            $front->status === VerdictStatus::Unknown || $rear->status === VerdictStatus::Unknown ? self::both($front->summary, $rear->summary) : $summary,
             self::both($front->basis, $rear->basis),
             $front->stricterByPapers || $rear->stricterByPapers,
             $front->figuresPermitted && $rear->figuresPermitted,

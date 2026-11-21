@@ -66,8 +66,9 @@ it('preserves the tyre-choice flag, the document minima, the axle and both sourc
         ->and($restored->rear->sizes[0]->axle)->toBe('REAR')
         ->and($restored->front->minLoadSource)->toBe(MinSource::Document)
         ->and($restored->front->minSpeedSource)->toBe(MinSource::Document)
-        ->and($restored->rear->minLoadSource)->toBe(MinSource::Derived)
-        ->and($restored->rear->minSpeedSource)->toBe(MinSource::Derived)
+        // D-481: every minimum is the document's, printed or not.
+        ->and($restored->rear->minLoadSource)->toBe(MinSource::Document)
+        ->and($restored->rear->minSpeedSource)->toBe(MinSource::Document)
         // The per-vehicle bore survives too: an order has to be able to show which number the
         // customer was given, for the car they gave it for.
         ->and($restored->documentCentreBoreMm)->toBe(66.5)
@@ -120,8 +121,9 @@ it('reads a snapshot written before the fields were carried with the documented 
         ->and($restored->front->minSource)->toBe(MinSource::Document)
         ->and($restored->front->minLoadSource)->toBe(MinSource::Document)
         ->and($restored->front->minSpeedSource)->toBe(MinSource::Document)
-        ->and($restored->rear->minLoadSource)->toBe(MinSource::Derived)
-        ->and($restored->rear->minSpeedSource)->toBe(MinSource::Derived)
+        // D-481: every minimum is the document's, printed or not.
+        ->and($restored->rear->minLoadSource)->toBe(MinSource::Document)
+        ->and($restored->rear->minSpeedSource)->toBe(MinSource::Document)
         // An old order said nothing about the bore, so it reads back as nothing — never as the
         // rim's own figure, which that order never showed.
         ->and($restored->documentCentreBoreMm)->toBeNull()

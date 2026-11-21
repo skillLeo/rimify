@@ -6,7 +6,6 @@ namespace App\Services\Admin\Approvals;
 
 use App\Enums\DocumentStatus;
 use App\Enums\FitmentStatus;
-use App\Enums\TyreIndexSource;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
@@ -60,11 +59,6 @@ final class DocumentRelease
             $blockers[] = 'Das PDF des Gutachtens fehlt.';
         }
 
-        // A load-index limit that differs from twice its index's capacity stands as the document states it,
-        // once a person has confirmed it with a reason (the second review of C9, §3).
-        foreach (app(LoadLimitCheck::class)->unconfirmedIn($document) as $code) {
-            $blockers[] = "Die Achslast bei {$code} passt nicht zum Tragfähigkeitsindex. Bestätige die Zahl im Auflagenverzeichnis mit einem Satz.";
-        }
         $rows = Fitment::query()->where('approval_document_id', $document->id)->where('status', FitmentStatus::Draft->value);
         $count = (clone $rows)->count();
 
@@ -88,8 +82,6 @@ final class DocumentRelease
                 ? 'Bei einem Fahrzeug fehlen noch die Reifen. Ohne sie kann der Shop für dieses Fahrzeug keine Reifengröße nennen.'
                 : "Bei {$sizeless} Fahrzeugen fehlen noch die Reifen. Ohne sie kann der Shop für diese Fahrzeuge keine Reifengröße nennen.";
         }
-
-        array_push($blockers, ...self::tyreIndexBlockers($document, $rows));
 
         $gone = (clone $rows)->whereHas('vehicle', static fn ($q) => $q->onlyTrashed())->count()
             + (clone $rows)->whereDoesntHave('vehicle')->count();
@@ -181,39 +173,6 @@ final class DocumentRelease
         }
 
         return [...$blockers, ...PairListCheck::sentences((new PairListCheck(new DocumentEntryWriter))->of($model)['conflicts'])];
-    }
-
-    /**
-     * How the document gives its tyres' load index and speed symbol (D-277) — answered, and borne out by the entry: the
-     * index it prints beside every size — load index and symbol — is entered at every size (D-285). A table of tyre load at
-     * speed it prints is not typed: the shop reads ETRTO's, the same for every document (D-459). Without the answer the
-     * shop reads it the safe way and needs the car's top speed; the question is asked all the same, because the answer
-     * decides whether a car without one can be answered at all.
-     *
-     * @param  Builder<Fitment>  $rows  the rows to be released
-     * @return list<string>
-     */
-    private static function tyreIndexBlockers(ApprovalDocument $document, Builder $rows): array
-    {
-        $source = $document->tyre_index_source;
-
-        if ($source === null) {
-            return ['Sag noch, wie das Gutachten Lastindex und Geschwindigkeitssymbol der Reifen angibt: bei jeder Reifengröße, mit einem Verweis auf die Fahrzeugpapiere oder in einer Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.'];
-        }
-
-        if ($source === TyreIndexSource::Document) {
-            // „93Y“: both figures at every size, as the question asks them — a symbol without its load index says nothing
-            // of the tyre's load at speed (D-285).
-            $open = DB::table('fitment_tyre_sizes')->whereIn('fitment_id', (clone $rows)->select('id'))
-                ->where(static fn ($q) => $q->whereNull('min_speed_symbol')->orWhereNull('min_load_index'))->count();
-
-            if ($open > 0) {
-                return [($open === 1 ? 'Bei einer Reifengröße fehlt' : "Bei {$open} Reifengrößen fehlt")
-                    .' der Lastindex oder das Geschwindigkeitssymbol, obwohl das Gutachten laut den Angaben beide bei jeder Größe nennt. Trag sie nach oder ändere die Angabe.'];
-            }
-        }
-
-        return [];
     }
 
     /**

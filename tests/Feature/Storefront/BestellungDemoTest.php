@@ -100,8 +100,7 @@ it('pairs a seeded Komplettrad through TyreEligibility, the rule every surface a
     $resolver = app(FitmentResolver::class);
     $eligibility = app(TyreEligibility::class);
 
-    // A sellable verdict with a size both axles share, a usable minimum on each, and nothing
-    // that refuses a Komplettrad before a tyre is even looked at.
+    // A sellable verdict with a size both axles share, and nothing that refuses a Komplettrad before a tyre is even looked at.
     $found = Fitment::query()->visibleToCustomers()->with('wheelConfig')->lazyById(50)
         ->map(fn (Fitment $f): array => [$f, $resolver->resolve($f->vehicle_id, $f->wheel_config_id)])
         ->first(function (array $pair): bool {
@@ -110,7 +109,7 @@ it('pairs a seeded Komplettrad through TyreEligibility, the rule every surface a
             return $verdict->isSellable()
                 && $verdict->tyreLayout() === 'SAME'
                 && $verdict->front->hasPermittedSizes()
-                && $verdict->front->hasUsableMinimum() && $verdict->rear->hasUsableMinimum()
+                // A minimum is no longer needed (D-481): the paper's printed figures, where any, are what a tyre meets.
                 && collect($verdict->conditions)->doesntContain(fn ($condition): bool => $condition->affectsTyreChoice);
         });
 
@@ -135,23 +134,24 @@ it('pairs a seeded Komplettrad through TyreEligibility, the rule every surface a
         $rankOf($verdict->rear->minSpeedSymbol),
         ...array_map(fn (?TyreSize $s): int => $rankOf($s?->documentMinSpeedSymbol), $listed),
     );
-    $minSymbol = (string) array_search($minRank, $ranks, true);
+    // Since D-481 the minimum is what the paper prints, if anything: without a printed symbol any symbol meets it.
+    $minSymbol = $minRank === 0 ? 'Y' : (string) array_search($minRank, $ranks, true);
     $slower = collect($ranks)->filter(fn (int $rank): bool => $rank < $minRank)->sortDesc()->keys()->first();
 
     $tyre = fn (array $attributes): TyreRecord => EloquentTyreCatalogue::toRecord(
         TyreVariant::factory()
             ->size($size->widthMm, $size->aspect, $size->diameterIn)
             ->withSpeedSymbol($minSymbol)
-            ->make(['load_index' => $minLoad, 'stock_qty' => 4, ...$attributes]),
+            ->make(['load_index' => max($minLoad, 91), 'stock_qty' => 4, ...$attributes]),
     );
 
     expect($eligibility->permits($verdict, $tyre([]), 4))->toBeNull()
         ->and($eligibility->permits($verdict, $tyre(['diameter_in' => $size->diameterIn + 1])))->toBe(KomplettradRefusal::DiameterMismatch)
         ->and($eligibility->permits($verdict, $tyre(['width_mm' => $size->widthMm + 100])))->toBe(KomplettradRefusal::SizeNotPermitted)
-        ->and($eligibility->permits($verdict, $tyre(['load_index' => $minLoad - 1])))->toBe(KomplettradRefusal::BelowMinimum)
+        ->and($minLoad === 0 || $eligibility->permits($verdict, $tyre(['load_index' => $minLoad - 1])) === KomplettradRefusal::BelowMinimum)->toBeTrue()
         ->and($eligibility->permits($verdict, $tyre(['available' => false]), 4))->toBe(KomplettradRefusal::OutOfStock);
 
-    if ($slower !== null) {
+    if ($slower !== null && $minRank > 0) {
         expect($eligibility->permits($verdict, $tyre(['speed_symbol' => $slower, 'speed_rank' => $ranks[$slower]])))
             ->toBe(KomplettradRefusal::BelowMinimum);
     }

@@ -1176,7 +1176,7 @@ final readonly class Basket
                 'minSpeedSymbol' => $minimum['speedSymbol'] ?? null,
                 'axleLoadKg' => $minimum['axleLoadKg'] ?? null,
                 'bindingAxle' => $pair?->bindingAxle(),
-                'minimumSentence' => $pair?->minimumSentenceDe(),
+                'minimumSentence' => null,
             ];
             $lines[] = $rendered;
         }
@@ -1285,7 +1285,7 @@ final readonly class Basket
                 'minSpeedSymbol' => $minimum['speedSymbol'] ?? null,
                 'axleLoadKg' => $minimum['axleLoadKg'] ?? null,
                 'bindingAxle' => $pair?->bindingAxle(),
-                'minimumSentence' => $pair?->minimumSentenceDe(),
+                'minimumSentence' => null,
             ];
             $lines[] = $rendered;
         }

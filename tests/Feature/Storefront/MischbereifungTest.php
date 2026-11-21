@@ -105,7 +105,7 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
         ->and($mixed['pairs'])->toHaveCount(1)
         ->and($mixed['pairs'][0]['front'])->toBe($front->labelDe())
         ->and($mixed['pairs'][0]['rear'])->toBe($rear->labelDe())
-        ->and($mixed['pairs'][0]['minSentence'])->toStartWith('Bei Mischbereifung prüfen wir jede Achse mit ihrer eigenen Achslast')
+        ->and($mixed['pairs'][0]['minSentence'])->toBeNull()
         ->and($mixed['pairs'][0]['sets'])->toHaveCount(1)
         ->and($mixed['pairs'][0]['sets'][0]['frontTyreId'])->toBe($frontTyre->id)
         ->and($mixed['pairs'][0]['sets'][0]['rearTyreId'])->toBe($rearTyre->id);
@@ -161,7 +161,8 @@ it('offers the listed pair on the product page, sells it as two axle lines and f
 
     expect($frozen[0])->toMatchArray(['axle' => 'FRONT', 'size' => $front->labelDe(), 'partnerSize' => $rear->labelDe(), 'pairing' => 1, 'sourcePage' => 12])
         ->and($frozen[1])->toMatchArray(['axle' => 'REAR', 'size' => $rear->labelDe(), 'partnerSize' => $front->labelDe(), 'pairing' => 1])
-        ->and($frozen[0]['minLoadIndex'])->toBeInt()
+        // D-481: nothing derived from the car — the paper prints no index beside these sizes, so none is frozen.
+        ->and($frozen[0]['minLoadIndex'])->toBeNull()
         ->and($frozen[1]['axleLoadKg'])->toBe($fx->vehicle->axle_load_rear_kg);
 });
 

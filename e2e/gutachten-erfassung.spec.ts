@@ -92,14 +92,10 @@ test('from the PDF to a released paper: five steps, the rear prefilled, a pair, 
     await copy.getByRole('button', { name: 'Kopieren', exact: true }).click()
     await expect(page.getByText('2 von 2 erledigt')).toBeVisible({ timeout: 15_000 })
 
-    // Step 5: every car at a glance, the copy said, the question asked with its suggestion.
+    // Step 5: every car at a glance, the copy said. How the paper gives its tyres' index is no longer asked (D-483).
     await page.getByRole('button', { name: /weiter zur Freigabe/ }).click()
     await expect(page.locator('.ef-cellbtn', { hasText: 'kopiert von' })).toBeVisible()
-    // What the door would hold back: not every size has both figures, so „bei jeder Reifengröße“ is not what these lines say.
-    await page.locator('input[name="ef-li-release"][value="document"]').check()
-    await expect(page.locator('.ef-blockers')).toContainText('Lastindex', { timeout: 15_000 })
-    await page.locator('input[name="ef-li-release"][value="papers"]').check()
-    await expect(page.locator('.ef-blockers', { hasText: 'Lastindex' })).toHaveCount(0, { timeout: 15_000 })
+    await expect(page.locator('input[name="ef-li-release"]')).toHaveCount(0)
 
     const unproven = page.getByRole('button', { name: 'Daten geprüft' })
 
@@ -428,7 +424,6 @@ test('after the release the keyboard stays on the page, and taking a code out of
     await page.keyboard.press('Escape')
 
     await goToStep(page, 'Freigeben')
-    await page.locator('input[name="ef-li-release"][value="papers"]').check()
 
     const unproven = page.getByRole('button', { name: 'Daten geprüft' })
 

@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Domain\Fitment\Resolver\FitmentResolver;
-use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Models\ApprovalDocument;
 use App\Models\Fitment;
 use App\Services\Demo\PlaceholderPdf;
@@ -38,20 +36,6 @@ function fastRowOf(string $reportNumber): Fitment
 it('seeds no table of tyre load at speed: there is none to seed', function (): void {
     expect(Schema::hasTable('document_speed_deratings'))->toBeFalse()
         ->and(ApprovalDocument::query()->where('report_number', 'like', 'DEMO-%')->count())->toBeGreaterThan(1);
-});
-
-it('answers a fast car on DEMO-0007 as on any other example document: from ETRTO\'s table, and says so', function (): void {
-    $resolver = app(FitmentResolver::class);
-
-    foreach (['DEMO-0007', 'DEMO-0001'] as $number) {
-        $row = fastRowOf($number);
-        $verdict = $resolver->resolve((int) $row->vehicle_id, (int) $row->wheel_config_id);
-
-        expect($verdict->tyre?->status)->not->toBe(VerdictStatus::Unknown, $number)
-            ->and($verdict->tyre?->basis)->toEndWith('und die bei uns hinterlegte ETRTO-Tabelle zur Tragfähigkeit bei hoher Geschwindigkeit.')
-            ->and(implode(' ', $verdict->tyre?->lines ?? []))->not->toContain('Beispieltabelle')
-            ->and(implode(' ', $verdict->tyre?->lines ?? []))->not->toContain('Tragfähigkeitstabelle');
-    }
 });
 
 it('puts the walkthrough’s placeholder PDF back where a released placeholder expects it — those bytes only, and never a real document’s', function (): void {

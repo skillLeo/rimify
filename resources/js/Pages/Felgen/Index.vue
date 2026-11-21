@@ -305,7 +305,6 @@ onBeforeUnmount(() => {
                         :filters="filters.current.value"
                         :total="total"
                         @toggle="filters.toggle"
-                        @toggle-entry="filters.toggleEntry"
                         @reset="filters.reset"
                     />
                 </aside>
@@ -405,7 +404,6 @@ onBeforeUnmount(() => {
                 :filters="filters.current.value"
                 :total="total"
                 @toggle="filters.toggle"
-                @toggle-entry="filters.toggleEntry"
                 @reset="filters.reset"
             />
             <div class="plp__apply">

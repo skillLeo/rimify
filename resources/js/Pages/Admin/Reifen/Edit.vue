@@ -317,7 +317,7 @@ const more = computed<AdminPageAction[]>(() => {
                         </div>
                         <div class="form-field">
                             <label class="form-field__label" for="rf-diameter">Durchmesser in Zoll</label>
-                            <input id="rf-diameter" v-model="form.diameter_in" class="input num" type="text" inputmode="numeric" maxlength="2" placeholder="18" :readonly="sizeLocked" :aria-invalid="err('diameter_in') ? 'true' : undefined" aria-describedby="rf-diameter-err">
+                            <input id="rf-diameter" v-model="form.diameter_in" class="input num" type="text" inputmode="decimal" maxlength="4" placeholder="18" :readonly="sizeLocked" :aria-invalid="err('diameter_in') ? 'true' : undefined" aria-describedby="rf-diameter-err">
                             <p id="rf-diameter-err" class="form-field__error">{{ err('diameter_in') }}</p>
                         </div>
                     </div>

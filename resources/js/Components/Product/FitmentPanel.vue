@@ -19,7 +19,7 @@ import BuildForm from './BuildForm.vue'
 import PapersForm from './PapersForm.vue'
 import type { IconName } from '../../art'
 import ConditionGroups from '../Fitment/ConditionGroups.vue'
-import { ABNAHME_REQUIRED, ENTRY_REQUIRED, entryBySize, entryLineOrNone, papersLine } from '../../fitment/papers'
+import { ABNAHME_REQUIRED, ENTRY_REQUIRED, entryBySize, entryLine as requiredLine, papersLine } from '../../fitment/papers'
 import type { ConfigVerdict } from '../../types/pages'
 import type { ConditionGroupsView, VehicleProp } from '../../types/rimify'
 
@@ -46,8 +46,13 @@ const props = withDefaults(
          * the subject and this page as where they wrote from — the car is ticked there by itself. Null: no such offer.
          */
         askHref?: string | null
+        /**
+         * The box itself hidden, its two links kept: the Gutachten's PDF and „RIMIFY-Check drucken oder teilen“ (D-487, the
+         * client's round of 18.11.2026, item 3 — Kompletträder chosen and the rim's answer plain green). The page decides.
+         */
+        linksOnly?: boolean
     }>(),
-    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null, tyreSummary: null, askHref: null }
+    { configId: null, issueLabel: 'RIMIFY-Check drucken oder teilen', chosen: null, tyreSummary: null, askHref: null, linksOnly: false }
 )
 
 /* `255/40 R19` — the size of the tyre chosen, where the server answered for it. */
@@ -126,28 +131,38 @@ const owed = computed(() => (tyreOpen.value ? props.verdict?.tyre?.owed ?? [] : 
  * wheel that cannot legally go on the car, entry or not. A wheel approved with its tyres unconfirmed may be fitted:
  * its verdict is said in full (D-286).
  */
+const sayable = computed(() => {
+    const verdict = props.verdict
+
+    return verdict !== null && (verdict.status === 'PERMITTED' || verdict.status === 'CONDITIONAL' || tyreOpen.value)
+})
+
+/*
+ * The papers' line where a code requires the Abnahme or Eintragung — never its opposite: „Keine Eintragung erforderlich“
+ * is gone since D-486 (the client's round of 18.11.2026, item 4). The absence of a code is no statement we can stand behind.
+ */
 const entryLine = computed(() => {
     const verdict = props.verdict
 
-    if (verdict === null || (verdict.status !== 'PERMITTED' && verdict.status !== 'CONDITIONAL' && !tyreOpen.value)) {
+    if (verdict === null || !sayable.value) {
         return null
     }
 
-    // A tyre chosen: that size's own answer — with 255/40 R19 the Abnahme, with 235/45 R19 none (#18). A set per axle: the
+    // A tyre chosen: that size's own answer — with 255/40 R19 the Abnahme, with 235/45 R19 nothing (#18). A set per axle: the
     // set's — needed where either axle's size needs it, for both are fitted (D-335).
     if (chosenSize.value !== null || setView.value !== null) {
-        return entryLineOrNone(props.chosen?.entry ?? verdict.requiresEntry, verdict.papersExempt === true)
+        return requiredLine(props.chosen?.entry ?? verdict.requiresEntry, verdict.papersExempt === true)
     }
 
-    // One size needs the Abnahme, another does not (ABE 55255, X3 X83: A01 with 255/40R19 alone): the line names them.
-    return entryBySize(verdict.conditionGroups?.sizes, verdict.papersExempt === true) ?? entryLineOrNone(verdict.requiresEntry, verdict.papersExempt === true)
+    // One size needs the Abnahme, another does not (ABE 55255, X3 X83: A01 with 255/40R19 alone): the line names it.
+    return entryBySize(verdict.conditionGroups?.sizes, verdict.papersExempt === true) ?? requiredLine(verdict.requiresEntry, verdict.papersExempt === true)
 })
 
 /*
  * The document's own word on the papers (§ 15 FZV — ABE 53841, point 10): its own line, because for many buyers that
  * is the question they hesitate over. Beside the Auflagen's line, never instead of it: two questions (PapersWording).
  */
-const papersExemptLine = computed(() => (entryLine.value === null ? null : papersLine(props.verdict?.papersExempt === true)))
+const papersExemptLine = computed(() => (sayable.value ? papersLine(props.verdict?.papersExempt === true) : null))
 
 /*
  * The papers are said once, in the verdict, right under its headline (the client's #21). Where the admin's note on the
@@ -160,10 +175,15 @@ const noteRepeats = computed(() => /eintragung|abnahme/i.test(props.verdict?.ent
 const verdictEntry = computed(() => {
     const note = props.verdict?.entryNoteDe ?? null
 
-    return entryLine.value === ENTRY_REQUIRED && note !== null && noteRepeats.value ? note : entryLine.value
+    if (entryLine.value === ENTRY_REQUIRED && note !== null && noteRepeats.value) {
+        return note
+    }
+
+    // No code requires it, and the admin's note speaks of the Eintragung: the note itself, never a „keine“ of ours.
+    return entryLine.value ?? (sayable.value && note !== null && noteRepeats.value ? note : null)
 })
 
-const entryNote = computed(() => (entryLine.value !== null && props.verdict?.entryNoteDe && !noteRepeats.value ? props.verdict.entryNoteDe : null))
+const entryNote = computed(() => (sayable.value && props.verdict?.entryNoteDe && !noteRepeats.value ? props.verdict.entryNoteDe : null))
 
 /* What the lists below leave out, because the verdict line says it. */
 const said = computed(() => (entryLine.value === null ? [] : [entryLine.value, verdictEntry.value ?? '', ENTRY_REQUIRED, ABNAHME_REQUIRED]))
@@ -329,7 +349,20 @@ const openLead = computed(() => {
 </script>
 
 <template>
-    <div class="rcheck-panel" :class="tone.cls">
+    <div v-if="linksOnly && verdict" class="fit-links" data-fit-links>
+        <!-- D-487: the plain green box makes way where the page says so; what the customer takes away stays one press off. -->
+        <p v-if="verdict.document?.pdf" class="fit__pdf">
+            <a class="link" :href="verdict.document.pdf.url" target="_blank" rel="noopener">
+                Gutachten öffnen (<template v-if="verdict.document.example">Beispiel, </template>PDF<template v-if="verdict.document.pdf.page">, Seite {{ verdict.document.pdf.page }}</template>)
+            </a>
+        </p>
+        <p v-if="vehicle && configId" class="fit__pdf">
+            <button class="link fit__issue" type="button" :disabled="issuing" :aria-busy="issuing ? 'true' : undefined" @click="issueCheck">
+                {{ issueLabel }}
+            </button>
+        </p>
+    </div>
+    <div v-else class="rcheck-panel" :class="tone.cls">
         <p class="rcheck-panel__head">
             <Icon :name="tone.icon" :size="20" /> RIMIFY-Check
         </p>
@@ -341,8 +374,8 @@ const openLead = computed(() => {
         <p v-if="notesOnly" class="fit__notes">Mit Hinweisen aus dem Gutachten – nichts davon musst du tun.</p>
 
         <!-- The papers, once, in the verdict (#21): the Eintragung under the headline, nowhere else in the panel. -->
-        <template v-if="verdict && verdictEntry">
-            <p class="fit__entry fit__entry--verdict">{{ verdictEntry }}</p>
+        <template v-if="verdict && (verdictEntry || entryNote || papersExemptLine)">
+            <p v-if="verdictEntry" class="fit__entry fit__entry--verdict">{{ verdictEntry }}</p>
             <p v-if="entryNote" class="quiet fit__note">{{ entryNote }}</p>
             <p v-if="papersExemptLine" class="fit__entry fit__papers">{{ papersExemptLine }}</p>
         </template>
@@ -461,6 +494,12 @@ const openLead = computed(() => {
 </template>
 
 <style scoped>
+.fit-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4) var(--sp-24);
+}
+
 .fit__halves {
     display: grid;
     gap: var(--space-1);

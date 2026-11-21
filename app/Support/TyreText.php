@@ -21,7 +21,7 @@ use App\Domain\Fitment\Derivation\ReferenceTables;
  * The browser reads the same notations the same way (Erfassung/tyreInput.ts); both tests read one list of them
  * (tests/Fixtures/tyre-notations.json).
  *
- * @phpstan-type Tyre array{width: int, aspect: int, diameter: int, li: int|null, li2: int|null, si: string|null, marker: string|null}
+ * @phpstan-type Tyre array{width: int, aspect: int, diameter: int|float, li: int|null, li2: int|null, si: string|null, marker: string|null}
  */
 final class TyreText
 {
@@ -51,33 +51,27 @@ final class TyreText
             $normal = $suffix[1];
         }
 
-        $size = '(\d{3})\s*\/\s*(\d{2})\s*(?:Z?\s*R|-)\s*(\d{2})(\s*C\b)?';
-        // (92Y) · 92(Y) · 92 (W) · 115/113R · 92 · (Y) · Y
-        $minimum = '(?:\s*-?\s*(?:\(\s*(\d{1,3})\s*([A-Z])\s*\)|(\d{1,3})(?:\s*\/\s*(\d{1,3}))?\s*(\(\s*[A-Z]\s*\)|[A-Z])?|(\(\s*[A-Z]\s*\)|[A-Z])))?';
+        // The rim in whole or half inches — `18`, `19.5`, `22,5` (D-479).
+        $size = '(\d{3})\s*\/\s*(\d{2})\s*(?:Z?\s*R|-)\s*(\d{2}(?:[.,]\d)?)(\s*C\b)?';
+        // (92Y) · 92(Y) · 92 (W) · 115/113R · 92 · (Y) · Y · 94 A8 — any letter, one digit after it for A1 to A8.
+        $minimum = '(?:\s*-?\s*(?:\(\s*(\d{1,3})\s*([A-Z]\d?)\s*\)|(\d{1,3})(?:\s*\/\s*(\d{1,3}))?\s*(\(\s*[A-Z]\d?\s*\)|[A-Z]\d?)?|(\(\s*[A-Z]\d?\s*\)|[A-Z]\d?)))?';
 
         if (preg_match('/^'.$size.$minimum.'$/', $normal, $m, PREG_UNMATCHED_AS_NULL) !== 1) {
             return null;
         }
 
-        // In brackets, the service description says the open category above it: above 300 km/h for Y, above 270 km/h for W (D-453).
-        // No other letter is ever so printed.
-        if ($m[5] !== null && $m[6] !== 'Y' && $m[6] !== 'W') {
-            return null;
-        }
-
+        // Only the form is checked (D-479): any letter in brackets, any symbol, any index of one to three digits. What a
+        // figure means is the Gutachten's and the person typing it from the paper; the shop keeps it as it was typed.
         $symbol = $m[5] !== null ? '('.$m[6].')' : (($m[9] ?? $m[10]) === null ? null : (string) preg_replace('/\s+/', '', (string) ($m[9] ?? $m[10])));
         $index = $m[5] ?? $m[7] ?? null;
         $dual = $m[8] ?? null;
-
-        if (($symbol !== null && ! in_array($symbol, self::SYMBOLS, true))
-            || ($index !== null && (int) $index > self::MAX_LOAD_INDEX) || ($dual !== null && (int) $dual > self::MAX_LOAD_INDEX)) {
-            return null;
-        }
+        $diameter = (float) str_replace(',', '.', (string) $m[3]);
 
         return [
             'width' => (int) $m[1],
             'aspect' => (int) $m[2],
-            'diameter' => (int) $m[3],
+            // Whole inches stay whole (18), a half size keeps its half (19.5).
+            'diameter' => $diameter === floor($diameter) ? (int) $diameter : $diameter,
             'li' => $index === null ? null : (int) $index,
             'li2' => $dual === null ? null : (int) $dual,
             'si' => $symbol,

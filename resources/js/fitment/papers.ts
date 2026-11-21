@@ -9,24 +9,22 @@
  * papers, the Abnahme is named as what it is, so the two lines never contradict each other.
  */
 
+/*
+ * Only what a code requires is said: „Keine Eintragung erforderlich.“ and „Keine Abnahme durch einen Prüfer erforderlich.“
+ * are gone (D-486, the client's round of 18.11.2026, item 4) — the absence of a code is no statement the shop can stand
+ * behind. The § 15 FZV line stays: it rests on the document's own recorded field.
+ */
 export const ENTRY_REQUIRED = 'Eintragung in die Fahrzeugpapiere erforderlich.'
-export const NO_ENTRY = 'Keine Eintragung erforderlich.'
 export const ABNAHME_REQUIRED = 'Abnahme durch einen Prüfer erforderlich (§ 19 Abs. 3 StVZO).'
-export const NO_ABNAHME = 'Keine Abnahme durch einen Prüfer erforderlich.'
 export const PAPERS_EXEMPT = 'Keine Berichtigung der Fahrzeugpapiere nötig (§ 15 FZV).'
 
-/** The Auflagen's line where it is required; null otherwise (the product page adds its own „keine“ form). */
+/** The Auflagen's line where a code requires it; null otherwise — never a „keine“ (D-486). */
 export function entryLine(requiresEntry: boolean, papersExempt: boolean): string | null {
     if (!requiresEntry) {
         return null
     }
 
     return papersExempt ? ABNAHME_REQUIRED : ENTRY_REQUIRED
-}
-
-/** The product page's line, said either way for a wheel that may go on the car. */
-export function entryLineOrNone(requiresEntry: boolean, papersExempt: boolean): string {
-    return entryLine(requiresEntry, papersExempt) ?? (papersExempt ? NO_ABNAHME : NO_ENTRY)
 }
 
 /** The document's line: only where it frees the papers. */
@@ -53,10 +51,9 @@ export function papersLines(verdict: PapersOf | null | undefined): string[] {
 
     const exempt = verdict.papersExempt === true
     const entry = entryBySize(verdict.conditionGroups?.sizes, exempt)
-        ?? entryLineOrNone(verdict.conditionGroups?.entry ?? verdict.requiresEntry, exempt)
-    const papers = papersLine(exempt)
+        ?? entryLine(verdict.conditionGroups?.entry ?? verdict.requiresEntry, exempt)
 
-    return papers === null ? [entry] : [entry, papers]
+    return [entry, papersLine(exempt)].filter((line): line is string => line !== null)
 }
 
 /** The sizes an answer says the Abnahme per (ConditionGroups): only their names and whether each needs it. */
@@ -71,16 +68,16 @@ function listed(sizes: string[]): string {
 
 /**
  * Where one tyre size needs the Abnahme or Eintragung and another does not (ABE 55255, BMW X3 X83: A01 with
- * 255/40R19 alone), one line names them — never one answer for all sizes. Null where they agree. The PHP twin is
- * PapersWording::entryBySize().
+ * 255/40R19 alone), one line names the sizes that need it — never one answer for all sizes, and never a „nicht mit“ for
+ * the others (D-486). Null where they agree. The PHP twin is PapersWording::entryBySize().
  */
 export function entryBySize(sizes: SizeEntry[] | undefined, papersExempt: boolean): string | null {
     const yes = (sizes ?? []).filter((s) => s.entry).map((s) => s.size)
-    const no = (sizes ?? []).filter((s) => !s.entry).map((s) => s.size)
+    const no = (sizes ?? []).filter((s) => !s.entry)
 
     if (yes.length === 0 || no.length === 0) {
         return null
     }
 
-    return `${papersExempt ? 'Abnahme durch einen Prüfer' : 'Eintragung in die Fahrzeugpapiere'} erforderlich mit ${listed(yes)}, nicht mit ${listed(no)}.`
+    return `${papersExempt ? 'Abnahme durch einen Prüfer' : 'Eintragung in die Fahrzeugpapiere'} erforderlich mit ${listed(yes)}.`
 }

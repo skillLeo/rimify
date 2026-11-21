@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
+use App\Models\DocumentTyreCombination;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
 use App\Models\MailSetting;
@@ -289,15 +290,19 @@ it('holds live payments while a released Gutachten has no completeness answer (D
 it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noch nicht bestätigt“ (finding 103, §1.5)', function (): void {
     $this->seed(ReferenceDataSeeder::class);
 
-    // An RS 4 runs 280 km/h. One wheel's Gutachten gives the size a Y; the other's a (Y), which ETRTO's table of tyre load
-    // at speed holds no column for (D-459) — that one is not confirmed.
+    // Since D-481 a size is never open for want of a figure; what stays open is a combination list with no entry for the
+    // car's type (D-358). One wheel's Gutachten lists none; the other's lists its combinations for another EG number only.
     $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
     $confirmed = WheelConfig::factory()->havanna85x18()->create();
     $open = WheelConfig::factory()->havanna85x18()->create();
 
-    foreach ([[$confirmed, 'Y'], [$open, '(Y)']] as [$config, $symbol]) {
+    foreach ([$confirmed, $open] as $config) {
         $fitment = Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => ApprovalDocument::factory()]);
-        FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->create(['min_speed_symbol' => $symbol]);
+        FitmentTyreSize::factory()->for($fitment)->size(245, 40, 18.0)->create(['min_speed_symbol' => 'Y']);
+
+        if ($config === $open) {
+            goLiveListForAnotherType((int) $fitment->approval_document_id);
+        }
     }
 
     $resolver = app(FitmentResolver::class);
@@ -314,8 +319,8 @@ it('counts the pairs of a vehicle and a wheel that stand on „Reifengröße noc
         // The report rimify:go-live-check writes carries the same line.
         ->and(WasFehlt::markdown([$check], now()))->toContain('1 von 2 Kombinationen aus Fahrzeug und Felge steht auf');
 
-    // Once the size reads Y, nothing is open — asked afresh, as the command asks.
-    FitmentTyreSize::query()->whereIn('fitment_id', Fitment::query()->where('wheel_config_id', $open->id)->select('id'))->update(['min_speed_symbol' => 'Y']);
+    // Once the list holds an entry for the car's type, nothing is open — asked afresh, as the command asks.
+    DocumentTyreCombination::query()->update(['eg_number' => $vehicle->eg_nummer_raw, 'eg_number_norm' => $vehicle->eg_nummer_norm]);
     $after = app(TyreConfirmations::class)->count(fresh: true);
 
     expect($after)->toMatchArray(['pairs' => 2, 'open' => 0, 'demo' => 0])
@@ -363,11 +368,12 @@ it('says it cannot answer where the engine\'s reference tables are missing, inst
 it('says so when every open pair comes from example data, and does not call the shop unready for it', function (): void {
     $this->seed(ReferenceDataSeeder::class);
 
-    // A born-demo Gutachten whose size reads (Y), on a car faster than 210 km/h: ETRTO's table holds no column for it (D-459).
+    // A born-demo Gutachten whose combination list holds no entry for the car's type (D-358): its tyres are open.
     $vehicle = Vehicle::factory()->rs4AvantFirst()->create();
     $config = WheelConfig::factory()->havanna85x18()->create();
     $document = ApprovalDocument::factory()->create(['is_demo' => true, 'demo_ref' => 'test:doc:offen']);
-    FitmentTyreSize::factory()->for(Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document->id]))->size(245, 40, 18.0)->create(['min_speed_symbol' => '(Y)']);
+    FitmentTyreSize::factory()->for(Fitment::factory()->create(['vehicle_id' => $vehicle->id, 'wheel_config_id' => $config->id, 'approval_document_id' => $document->id]))->size(245, 40, 18.0)->create(['min_speed_symbol' => 'Y']);
+    goLiveListForAnotherType((int) $document->id);
 
     $check = goLiveById()['reifenbestaetigung'];
 
@@ -502,3 +508,14 @@ it('holds live payments while something is stored in the browser without being s
         app()['env'] = 'testing';
     }
 });
+
+/** A combination list of the document for another type's EG number only (D-358): no entry takes the car in. */
+function goLiveListForAnotherType(int $documentId): void
+{
+    DocumentTyreCombination::query()->create([
+        'approval_document_id' => $documentId, 'vehicle_id' => null, 'eg_number' => 'e1*2001/116*0999*01', 'eg_number_norm' => 'e1*2001/116*0999*01',
+        'carried_over' => false, 'number' => 1,
+        'front_width_mm' => 245, 'front_aspect' => 40, 'front_diameter_in' => 18.0, 'rear_width_mm' => 245, 'rear_aspect' => 40, 'rear_diameter_in' => 18.0,
+        'source_page' => 4,
+    ]);
+}

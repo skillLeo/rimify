@@ -38,9 +38,6 @@ describe('useListingFilters', () => {
         filters.toggle('zoll', '16')
         filters.toggle('zoll', '17')
         expect(visits[1]?.data).toEqual({ zoll: ['16', '17'] })
-
-        filters.toggleEntry()
-        expect(visits[2]?.data).toEqual({ zoll: ['16', '17'], ohne_eintragung: 1 })
     })
 
     it('reads the page again once its answer is on screen', () => {
@@ -67,14 +64,9 @@ describe('useListingFilters', () => {
         expect(visits[0]?.data).toEqual({})
     })
 
-    it('toggles the entry-free flag as a bare 1 and removes it again', () => {
-        const filters = useListingFilters(() => ({}))
-        filters.toggleEntry()
-        expect(visits[0]?.data).toEqual({ ohne_eintragung: 1 })
-
-        const on = useListingFilters(() => ({ ohne_eintragung: true }))
-        on.toggleEntry()
-        expect(visits[1]?.data).toEqual({})
+    // D-486: „Ohne Abnahme und Eintragung“ is gone — no way to set it is left.
+    it('has no way left to filter for wheels without an Eintragung', () => {
+        expect('toggleEntry' in useListingFilters(() => ({}))).toBe(false)
     })
 
     it('writes the page into the query and omits it for page one', () => {
