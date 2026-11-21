@@ -56,6 +56,9 @@
         {"text": "195/65 R15 C 99/97 T", "label": "195/65 R15 C 99/97T", "width": 195, "aspect": 65, "diameter": 15, "li": 99, "li2": 97, "si": "T", "marker": "C"},
         {"text": "265/70 R19.5 140/138 M", "label": "265/70 R19.5 140/138M", "width": 265, "aspect": 70, "diameter": 19.5, "li": 140, "li2": 138, "si": "M", "marker": null},
         {"text": "205/55 R16 94 A8", "label": "205/55 R16 94A8", "width": 205, "aspect": 55, "diameter": 16, "li": 94, "li2": null, "si": "A8", "marker": null},
+        {"text": "205/55 R16 91 V", "label": "205/55 R16 91V", "width": 205, "aspect": 55, "diameter": 16, "li": 91, "li2": null, "si": "V", "marker": null},
+        {"text": "305/70 R22,5 160F", "label": "305/70 R22.5 160F", "width": 305, "aspect": 70, "diameter": 22.5, "li": 160, "li2": null, "si": "F", "marker": null},
+        {"text": "265/70 R19,5 140/138 M", "label": "265/70 R19.5 140/138M", "width": 265, "aspect": 70, "diameter": 19.5, "li": 140, "li2": 138, "si": "M", "marker": null},
         {"text": "245/45 R19,5 99 (X)", "label": "245/45 R19.5 99(X)", "width": 245, "aspect": 45, "diameter": 19.5, "li": 99, "li2": null, "si": "(X)", "marker": null},
         {"text": "225/40R18 280W", "label": "225/40 R18 280W", "width": 225, "aspect": 40, "diameter": 18, "li": 280, "li2": null, "si": "W", "marker": null}
     ],
