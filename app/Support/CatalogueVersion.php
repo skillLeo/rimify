@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\ApprovalDocument;
+use App\Models\ApprovalDocumentFile;
 use App\Models\BalanceWeightColour;
 use App\Models\Brand;
 use App\Models\DocumentCondition;
@@ -58,6 +59,8 @@ final class CatalogueVersion
      */
     public const MODELS = [
         ApprovalDocument::class,
+        // A paper's further PDFs (D-494): added, described, hidden or moved, they change what the answer links to (D-500).
+        ApprovalDocumentFile::class,
         DocumentCondition::class,
         DocumentConditionRework::class,
         DocumentFastener::class,
