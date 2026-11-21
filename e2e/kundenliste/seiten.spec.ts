@@ -105,7 +105,8 @@ test('stars typed in the admin show under the rim\'s name on the listing and the
     // Before: no stars — never an empty row of them, never a number nobody gave — and what the page can prove instead.
     await withCar(page, 'e46', PRODUCT)
     await expect(page.locator('.pdp__rating')).toHaveCount(0)
-    await expect(page.locator('.pdp__proof')).toHaveText(/^\d+ Gutachten · für \d+ Fahrzeugvarianten? freigegeben · Freigabe vor dem Kauf geprüft$/)
+    // The two grey lines under the name are gone since D-493 (the client's D item 2): no proof line instead of stars either.
+    await expect(page.locator('.pdp__proof')).toHaveCount(0)
     const modelId = await page.evaluate(() => (JSON.parse(document.querySelector('script[data-page="app"]')?.textContent ?? '{}') as { props?: { product?: { modelId?: number } } }).props?.product?.modelId ?? 0)
     expect(modelId, 'the acceptance rim has no id on its page').toBeGreaterThan(0)
 
@@ -164,7 +165,7 @@ test('stars typed in the admin show under the rim\'s name on the listing and the
 
     await withCar(page, 'e46', PRODUCT)
     await expect(page.locator('[data-stated-rating]')).toHaveCount(0)
-    await expect(page.locator('.pdp__proof')).toBeVisible()
+    await expect(page.locator('.pdp__proof')).toHaveCount(0)
 })
 
 /** The admin of the acceptance shop, as its full-rights review account (ReviewAccountsSeeder, development password). */

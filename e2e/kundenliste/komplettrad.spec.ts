@@ -100,8 +100,9 @@ test('front and rear different on a phone: the tyres stand within a few screens,
     const step = await box(page.locator('.kf-step'))
 
     expect(card.y - step.y, 'the first tyre stands far down the page').toBeLessThan(1_400)
-    await expect(page.locator('details[data-set-answer] summary')).toHaveText(/Auflagen und Hinweise aus dem Gutachten anzeigen$/)
-    expect(await page.locator('details[data-set-answer]').getAttribute('open')).toBeNull()
+    // Since D-488 in the RIMIFY-Check for the chosen sizes, folded there as before (D-197).
+    await expect(page.locator('[data-set-answer] details.cc__fold summary')).toHaveText(/Auflagen und Hinweise aus dem Gutachten anzeigen$/)
+    expect(await page.locator('[data-set-answer] details.cc__fold').getAttribute('open')).toBeNull()
 })
 
 // The interaction review of Phase 4: the second set's „Mit“ charged the first set's sensors unasked, and the same set could go in twice.
@@ -303,5 +304,6 @@ test('the steps stay within a phone’s width with the whole page laid out', { t
 
     expect(first.x).toBeGreaterThanOrEqual(0)
     expect(first.x + first.width).toBeLessThanOrEqual(page.viewportSize()?.width ?? 0)
-    expect((await pageProps<{ schritt: number | null }>(page)).schritt).toBe(1)
+    // The tyres are the first step since D-489: the product page's link names no step, and the page opens on them.
+    expect((await pageProps<{ schritt: number | null }>(page)).schritt).toBeNull()
 })
