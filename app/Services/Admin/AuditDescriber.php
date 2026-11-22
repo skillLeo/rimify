@@ -75,6 +75,12 @@ final class AuditDescriber
         'admin.sessions_revoked' => 'team',
         'admin.password_reset' => 'team',
         'admin.password_changed' => 'konto',
+        'admin.two_factor_enabled' => 'konto',
+        'admin.two_factor_replaced' => 'konto',
+        'admin.two_factor_disabled' => 'konto',
+        'admin.two_factor_recovery_renewed' => 'konto',
+        'admin.two_factor_recovery_used' => 'konto',
+        'admin.two_factor_reset' => 'team',
         'permission.denied' => 'zugriff',
         'weight_colour.created' => 'katalog',
         'weight_colour.updated' => 'katalog',
@@ -390,6 +396,16 @@ final class AuditDescriber
         return array_keys(array_filter(self::EVENTS, static fn (string $a): bool => $a === $area));
     }
 
+    /** How many recovery codes are left, as the sentence ends (D-514). */
+    private static function recoveryLeft(int $left): string
+    {
+        return match ($left) {
+            0 => 'es ist keiner mehr übrig',
+            1 => 'einer ist noch übrig',
+            default => $left.' sind noch übrig',
+        };
+    }
+
     /** @return list<string> */
     public static function knownEvents(): array
     {
@@ -448,6 +464,20 @@ final class AuditDescriber
                 [],
             ],
             'admin.password_changed' => ['Das eigene Passwort wurde geändert.', []],
+            // Bestätigung in zwei Schritten (D-514): that it happened — never a key or a code.
+            'admin.two_factor_enabled' => ['Die Bestätigung in zwei Schritten wurde eingerichtet.', []],
+            'admin.two_factor_replaced' => ['Die Bestätigung in zwei Schritten wurde auf ein neues Gerät übertragen.', []],
+            'admin.two_factor_disabled' => ['Die Bestätigung in zwei Schritten wurde ausgeschaltet.', []],
+            'admin.two_factor_recovery_renewed' => ['Für die Bestätigung in zwei Schritten wurden neue Wiederherstellungscodes erzeugt.', []],
+            'admin.two_factor_recovery_used' => [
+                'Die Anmeldung wurde mit einem Wiederherstellungscode bestätigt'.(is_int($p['left'] ?? null) ? '; '.self::recoveryLeft((int) $p['left']).'.' : '.'),
+                [],
+            ],
+            'admin.two_factor_reset' => [
+                'Für das Konto '.self::address($p).' wurde die Bestätigung in zwei Schritten entfernt; es wurde auf allen Geräten abgemeldet.'
+                    .(self::text($p, 'reason') === null ? '' : ' Grund: '.self::text($p, 'reason')),
+                [],
+            ],
             'permission.denied' => [self::denied($p), []],
             'weight_colour.created' => [
                 'Die Wuchtgewichte-Farbe '.self::q($this->colourName($p, $entry)).' wurde angelegt.',

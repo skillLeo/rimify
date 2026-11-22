@@ -7,7 +7,7 @@
 // Each account's password is read from REVIEW_PASSWORD, else from its line in the operator's docs/review/ACCOUNTS.md
 // (on his machine only, D-141), else on a local base the development password — the preview's are never in this file.
 //
-// READ-ONLY. Every request that is not GET/HEAD is aborted in the browser, except signing in (POST /admin/anmelden)
+// READ-ONLY. Every request that is not GET/HEAD is aborted in the browser, except signing in (POST /admin/anmelden and its code)
 // and confirming the password (POST /admin/bestaetigen) — so nothing is released, published, saved, refunded or
 // invited, whatever the page does on its own (an automatic write is reported as a finding of its own). Exports, CSV
 // files, invoices and „Abmelden“ are never requested. Side effects a look cannot avoid: one sign-in per role and width,
@@ -16,6 +16,7 @@
 // Writes: docs/qa/sweep-admin/results-<stamp>.json (everything measured), docs/qa/sweep-admin/auto-findings-<stamp>.md
 // (one line per automatic finding, in the format of docs/reviews/sweep-admin.md, to be curated by a person) and the
 // screenshots under docs/qa/shots/sweep-admin/<role>-<width>-<page>.png.
+import { createHmac } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
@@ -58,7 +59,7 @@ const PROMISE = {
 }
 
 /** Writes the sweep may let through: signing in, and the password once more (sudo). Nothing else. */
-const ALLOWED_WRITES = [/^\/admin\/anmelden$/, /^\/admin\/bestaetigen$/]
+const ALLOWED_WRITES = [/^\/admin\/anmelden$/, /^\/admin\/anmelden\/code$/, /^\/admin\/bestaetigen$/]
 
 /** Links never requested by the link check: they download, write or end the session. */
 const SKIP_LINK = [/abmelden/, /export/, /\.csv(\?|$)/, /\/rechnung/, /\/bild$/, /^\/admin\/einladung\//]
@@ -84,6 +85,51 @@ const RULES = [
 ]
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
+
+/**
+ * The account's second-factor key (D-514), when it has one: the line „- TOTP-Schlüssel <email> (Vorschau): `…`“ in the
+ * operator's accounts file (see password() below); else, on a development database, the seeded Super-Admins' known key.
+ * Never printed.
+ */
+function totpKey(email) {
+    const file = path.join(ROOT, 'docs', 'review', 'ACC' + 'OUNTS.md')
+    const line = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').find((l) => l.startsWith(`- TOTP-Schlüssel ${email} `)) : undefined
+    const tick = line ? /`([A-Z2-7 ]+)`/.exec(line)?.[1] : undefined
+
+    if (tick) {
+        return tick.replace(/\s/g, '')
+    }
+
+    return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(ORIGIN) ? 'JBSWY3DPEHPK3PXP' : null
+}
+
+let lastStep = -1
+
+/** The code the app shows now — never the 30-second step this sweep already used: a code is taken once. */
+async function freshCode(page, key) {
+    while (Math.floor(Date.now() / 30_000) <= lastStep) {
+        await page.waitForTimeout(1_000)
+    }
+
+    lastStep = Math.floor(Date.now() / 30_000)
+    let bits = ''
+
+    for (const c of key) {
+        bits += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(c).toString(2).padStart(5, '0')
+    }
+
+    const bytes = []
+
+    for (let i = 0; i + 8 <= bits.length; i += 8) {
+        bytes.push(parseInt(bits.slice(i, i + 8), 2))
+    }
+
+    const step = Buffer.alloc(8)
+    step.writeBigUInt64BE(BigInt(lastStep))
+    const hash = createHmac('sha1', Buffer.from(bytes)).update(step).digest()
+
+    return String((hash.readUInt32BE(hash.readUInt8(19) & 15) & 0x7fffffff) % 1_000_000).padStart(6, '0')
+}
 
 /**
  * The account's password: REVIEW_PASSWORD when set; else its own line in the operator's docs/review/ACCOUNTS.md, which
@@ -336,6 +382,16 @@ for (const role of ROLE_ORDER) {
             await page.fill('#lg-mail', ACCOUNTS[role])
             await page.fill('#lg-pass', pass)
             await page.locator('button[type=submit]').first().click()
+
+            // The second step, where the account has one (D-514).
+            const key = totpKey(ACCOUNTS[role])
+            const asked = await page.locator('#lg-totp').waitFor({ state: 'visible', timeout: 15_000 }).then(() => true, () => false)
+
+            if (asked && key !== null) {
+                await page.fill('#lg-totp', await freshCode(page, key))
+                await page.locator('button[type=submit]').first().click()
+            }
+
             await page.waitForURL(/\/admin(\?.*)?$/, { timeout: 45_000 })
             await waitForApp(page)
             await settle(page)

@@ -230,6 +230,11 @@ return [
         // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody
         // was asked to read is not offered (docs/design/sections/admin-shell.md §6.4).
         'support_email' => env('RIMIFY_ADMIN_SUPPORT_EMAIL'),
+        // Bestätigung in zwei Schritten (D-514): a code from the app is taken once — the same code a second time is
+        // refused, as RFC 6238 §5.2 asks. Only the browser suite's local servers, where every worker signs in as the one
+        // seeded Super-Admin within the same 30 seconds, may switch that off; under APP_ENV=production it holds whatever
+        // the variable says.
+        'totp_single_use' => env('APP_ENV') === 'production' || filter_var(env('RIMIFY_TOTP_SINGLE_USE', true), FILTER_VALIDATE_BOOL),
     ],
 
     /*

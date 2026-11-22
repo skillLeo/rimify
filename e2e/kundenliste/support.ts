@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test'
 import { CONSENT_COOKIE, REVIEW_PASSWORD } from '../support'
+import { answerSecondStep } from '../totp'
 
 /*
  * The client's list as a suite (the operator's brief „THE 34“ §0). Every test carries its item's tag — `@kunde-01` …
@@ -367,6 +368,8 @@ export async function topSpeed(page: Page, car: keyof typeof CARS, kmh: number):
         await admin.fill('#lg-mail', 'admin@rimify.test')
         await admin.fill('#lg-pass', REVIEW_PASSWORD)
         await admin.locator('button[type=submit]').first().click()
+        // The Admin review account is a Super-Admin: its second step (D-514), with the development key.
+        await answerSecondStep(admin)
         await admin.waitForURL(/\/admin(\?.*)?$/, { timeout: 30_000 })
 
         // The list finds a car by HSN and TSN together, as the papers print them.
