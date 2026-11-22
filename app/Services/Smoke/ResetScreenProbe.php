@@ -8,6 +8,7 @@ use App\Enums\AdminUserStatus;
 use App\Http\Middleware\EnsureSudo;
 use App\Models\AdminUser;
 use App\Services\Reset\TestEnvironment;
+use App\Support\Auth\Totp;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -87,7 +88,10 @@ final class ResetScreenProbe
         return $faults;
     }
 
-    /** A signed-in, confirmed account with exactly this role, inside the probe's transaction. */
+    /**
+     * A signed-in, confirmed account with exactly this role, inside the probe's transaction — with its second factor set
+     * up, as every Super-Admin who reaches the panel has it (D-514): a random key nobody holds, rolled back with the rest.
+     */
     private function account(string $role): AdminUser
     {
         $user = AdminUser::query()->forceCreate([
@@ -95,6 +99,8 @@ final class ResetScreenProbe
             'email' => 'smoke-'.Str::lower((string) Str::ulid()).'@rimify.invalid',
             'password' => Str::random(48),
             'status' => AdminUserStatus::Active,
+            'totp_secret' => Totp::newSecret(),
+            'totp_confirmed_at' => now(),
         ]);
         $user->assignRole($role);
 

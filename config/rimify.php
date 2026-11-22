@@ -230,6 +230,11 @@ return [
         // Where the help menu's „Hilfe per E-Mail" writes to. Null by default: an address nobody
         // was asked to read is not offered (docs/design/sections/admin-shell.md §6.4).
         'support_email' => env('RIMIFY_ADMIN_SUPPORT_EMAIL'),
+        // Bestätigung in zwei Schritten (D-514): a code from the app is taken once — the same code a second time is
+        // refused, as RFC 6238 §5.2 asks. Only the browser suite's local servers, where every worker signs in as the one
+        // seeded Super-Admin within the same 30 seconds, may switch that off; under APP_ENV=production it holds whatever
+        // the variable says.
+        'totp_single_use' => env('APP_ENV') === 'production' || filter_var(env('RIMIFY_TOTP_SINGLE_USE', true), FILTER_VALIDATE_BOOL),
     ],
 
     /*
@@ -250,6 +255,13 @@ return [
         // and a car typed from a Gutachten has no key numbers. `on` and `off` force it. While it is closed, the path
         // says so in one sentence and the server answers no lookup (the operator's brief of 05.10.2026, §8).
         'key_numbers' => env('RIMIFY_FEATURE_KEY_NUMBERS', 'auto'),
+        // The three switches of the operator's brief of 22.11.2026, Part A (App\Support\Switches, docs/launch/SWITCHES.md).
+        // Off until the operator writes „release A1“ / „A2“ / „A4“. A1 — one dropdown of dimensions / combinations (D6).
+        'd6_dropdowns' => filter_var(env('RIMIFY_SWITCH_D6_DROPDOWNS', false), FILTER_VALIDATE_BOOL),
+        // A2 — option Q: a Teilegutachten states the Abnahme on every row unless a Prüfer excepts it. Its sentence is a placeholder.
+        'teilegutachten_abnahme' => filter_var(env('RIMIFY_SWITCH_TEILEGUTACHTEN_ABNAHME', false), FILTER_VALIDATE_BOOL),
+        // A4 — a Komplettrad's Auflagen scoped to the sizes chosen (the reverse of D-501's floor). Less strict; the client decides.
+        'scoped_auflagen' => filter_var(env('RIMIFY_SWITCH_SCOPED_AUFLAGEN', false), FILTER_VALIDATE_BOOL),
     ],
 
     /*

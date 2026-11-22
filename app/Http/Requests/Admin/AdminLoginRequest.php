@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
-use App\Http\Middleware\EnsureAdminSessionValid;
 use App\Models\AdminUser;
+use App\Services\Admin\Auth\AdminSignIn;
+use App\Services\Admin\Auth\TwoFactor;
 use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\SessionGuard;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
@@ -31,6 +34,9 @@ class AdminLoginRequest extends FormRequest
     private const ATTEMPTS = 5;
 
     private const DECAY_SECONDS = 60;
+
+    public const CANNOT_SIGN_IN = 'Mit diesem Konto kannst du dich gerade nicht anmelden. '
+        .'Bitte wende dich an eine Person, die im Admin die Benutzer verwaltet.';
 
     /** Anyone may try to sign in; what they may do afterwards is the Policies' business (R-11). */
     public function authorize(): bool
@@ -59,19 +65,21 @@ class AdminLoginRequest extends FormRequest
     }
 
     /**
-     * Signs the admin in, or throws the sentence the screen shows.
+     * Checks the password, or throws the sentence the screen shows. True when the person is signed in; false when the
+     * account asks for its second step (D-514) — then nothing is signed in yet, and the session only remembers who
+     * passed the password, for five minutes (AdminSignIn::PENDING).
      *
      * The throttle is counted per address AND per IP, so one person guessing at one account cannot
      * lock every other admin out of the panel by using their address.
      */
-    public function authenticateOrFail(): void
+    public function authenticateOrFail(TwoFactor $twoFactor): bool
     {
         $this->ensureIsNotRateLimited();
 
-        $ok = Auth::guard('admin')->attempt(
-            ['email' => $this->string('email')->toString(), 'password' => $this->string('password')->toString()],
-            $this->boolean('remember'),
-        );
+        // `once`, not `attempt`: the password is checked for this request only, and no session is started before the
+        // second step has been passed.
+        $guard = Auth::guard('admin');
+        $ok = $guard->once(['email' => $this->string('email')->toString(), 'password' => $this->string('password')->toString()]);
 
         if (! $ok) {
             RateLimiter::hit($this->throttleKey(), self::DECAY_SECONDS);
@@ -88,23 +96,38 @@ class AdminLoginRequest extends FormRequest
          * status first would mean looking the address up, and the answer would tell whoever is
          * guessing which addresses exist. Anyone who reaches this line already knew the password.
          */
-        $user = Auth::guard('admin')->user();
+        $user = $guard->user();
 
         if (! $user instanceof AdminUser || ! $user->canSignIn()) {
-            Auth::guard('admin')->logout();
+            self::forget($guard);
 
             throw ValidationException::withMessages([
-                'email' => 'Mit diesem Konto kannst du dich gerade nicht anmelden. '
-                    .'Bitte wende dich an eine Person, die im Admin die Benutzer verwaltet.',
+                'email' => self::CANNOT_SIGN_IN,
             ]);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
-
         RateLimiter::clear($this->throttleKey());
-        $this->session()->regenerate();
-        // When this session began: *Überall abmelden* ends every session older than its moment.
-        $this->session()->put(EnsureAdminSessionValid::SESSION_KEY, now()->getTimestamp());
+
+        if ($twoFactor->isActive($user)) {
+            // Known for this request only, and not even that beyond this line: nothing is signed in before the code.
+            self::forget($guard);
+            $this->session()->regenerate();
+            $this->session()->put(AdminSignIn::PENDING, ['id' => (int) $user->getKey(), 'remember' => $this->boolean('remember'), 'at' => now()->getTimestamp()]);
+
+            return false;
+        }
+
+        AdminSignIn::complete($this, $user, $this->boolean('remember'));
+
+        return true;
+    }
+
+    /** The user `once()` set, known for this request only — and from here on not even that. */
+    private static function forget(StatefulGuard $guard): void
+    {
+        if ($guard instanceof SessionGuard) {
+            $guard->forgetUser();
+        }
     }
 
     /** How long the lock still holds, in whole seconds, or null while there is no lock. */

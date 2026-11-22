@@ -35,6 +35,7 @@ import AmountStepper from '../../Components/Product/AmountStepper.vue'
 import BuyModeChoice from '../../Components/Product/BuyModeChoice.vue'
 import FitmentDetail from '../../Components/Product/FitmentDetail.vue'
 import FitmentPanel from '../../Components/Product/FitmentPanel.vue'
+import DimensionSelect, { type DimensionGroupView } from '../../Components/Product/DimensionSelect.vue'
 import KomplettradRefusal from '../../Components/Product/KomplettradRefusal.vue'
 import ProductPhoto from '../../Components/Product/ProductPhoto.vue'
 import Icon from '../../Components/Ui/Icon.vue'
@@ -297,6 +298,73 @@ type Mode = 'felgen' | 'komplettrad'
 const kept = useRemember(reactive({ mode: 'felgen' as Mode, amount: 4 }), `produkt-${props.product.modelId}`) as { mode: Mode; amount: number }
 const mode = toRef(kept, 'mode')
 const isSet = computed(() => mode.value === 'komplettrad')
+
+/*
+ * A1 (the operator's brief of 22.11.2026, D-509), behind the D6 switch and off: one dropdown of every dimension for Nur
+ * Felgen and of every combination for Kompletträder, in place of the chips and tiles. It lists what the configurator offers
+ * and calls its own select functions, so the query state, the mode, the verdict, the basket and the Komplettrad flow are the
+ * chips' own; a version the car may not have stands disabled with its reason, a set only whole — never one the paper lacks.
+ */
+const d6 = computed(() => shared.value.switches?.d6 === true)
+const d6Value = computed(() => (chosenSet.value !== null ? `s:${chosenSet.value.key}` : selected.value !== null ? `v:${selected.value.id}` : null))
+const d6Groups = computed<DimensionGroupView[]>(() => {
+    const marks = (inStock: boolean, unconfirmed: boolean): string[] => [inStock ? '' : 'auf Anfrage', unconfirmed ? 'noch nicht bestätigt' : ''].filter((m) => m !== '')
+    // Their own group across every diameter: each names its diameter, as the groups above do.
+    const struck = config.dimensions.value.flatMap((group) => group.others.map((v) => ({ value: `v:${v.id}`, text: `${group.label} Zoll · ${v.label} – ${v.standing ? STANDING_WORD[v.standing] : 'nicht wählbar'}`, disabled: true })))
+    // One unit in one list (D-515): Nur Felgen prices a rim and a set its four rims; a Komplettrad option its lowest four
+    // wheels, and a set of two versions — priced only with its tyres — says so instead of a unit of its own.
+    const sets = config.sets.value.map((set) => ({ value: `s:${set.key}`, text: [set.label, isSet.value ? 'Preis nach der Reifenwahl' : `${set.price} für 4 Felgen`, ...marks(set.inStock, false)].join(' · ') }))
+    const groups: DimensionGroupView[] = []
+
+    if (!isSet.value) {
+        for (const group of config.dimensions.value) {
+            if (group.versions.length > 0) {
+                groups.push({ label: `${group.label} Zoll`, options: group.versions.map((v) => ({ value: `v:${v.id}`, text: [v.label, `${v.config.price} pro Felge`, ...marks(v.config.inStock, v.unconfirmed)].join(' · ') })) })
+            }
+        }
+    } else {
+        // By diameter, as Nur Felgen: a version is named by its width, ET and Lochkreis, and its diameter is the group's.
+        for (const group of config.dimensions.value) {
+            const four = group.versions.map((v) => {
+                const offer = setSummary(v.config)
+
+                return { value: `v:${v.id}`, text: [`4 × ${v.label}`, offer.fromForFour !== null ? `ab ${offer.fromForFour} für 4 Räder` : offer.refusal !== null ? 'kein Komplettrad' : '', ...marks(v.config.inStock, v.unconfirmed)].filter((t) => t !== '').join(' · ') }
+            })
+
+            if (four.length > 0) {
+                groups.push({ label: `${group.label} Zoll · vier gleiche Räder`, options: four })
+            }
+        }
+    }
+
+    if (sets.length > 0) {
+        groups.push({ label: 'Vorne und hinten verschieden', options: sets })
+    }
+
+    if (struck.length > 0) {
+        groups.push({ label: 'Nicht für dein Fahrzeug', options: struck })
+    }
+
+    return groups
+})
+
+function onD6(value: string): void {
+    if (value.startsWith('s:')) {
+        const set = config.sets.value.find((item) => item.key === value.slice(2))
+
+        if (set !== undefined) {
+            config.selectSet(set)
+        }
+
+        return
+    }
+
+    const option = config.dimensions.value.flatMap((group) => group.versions).find((v) => `v:${v.id}` === value)
+
+    if (option !== undefined) {
+        config.selectVariant(option)
+    }
+}
 const setOffer = computed(() => setSummary(offerNow.value as ProduktConfig | null))
 const setFrom = computed(() => setOffer.value.from)
 const setFromUnit = computed(() => setOffer.value.fromUnit)
@@ -728,112 +796,124 @@ claimBottomEdge(() => stickyShown.value)
                         <p v-if="config.colourLacks.value && selected" class="t-small pdp__colour-note" role="status">In <span translate="no">{{ finish?.name }}</span> führen wir <ValueText :text="config.colourLacks.value.fullLabel" /> nicht. Du siehst stattdessen <ValueText :text="selected.fullLabel" />.</p>
                     </div>
 
-                    <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
-                    <div id="groessen" class="pdp__block">
-                        <span class="label">Durchmesser (<span translate="no">Zoll</span>)</span>
-                        <div class="chip-row pdp__chips">
-                            <button
-                                v-for="size in config.sizes.value"
-                                :key="size.diameter"
-                                class="chip"
-                                :class="{
-                                    'chip--on': chosenSet ? chosenSet.diameters.includes(size.diameter) : selected?.id === size.config.id,
-                                    'chip--blocked': size.blocked,
-                                    'chip--unconfirmed': size.unconfirmed,
-                                }"
-                                type="button"
-                                :disabled="size.blocked"
-                                :aria-pressed="chosenSet ? chosenSet.diameters.includes(size.diameter) : selected?.id === size.config.id"
-                                :title="size.reason ?? undefined"
-                                @click="config.selectSize(size)"
-                            >
-                                <!-- The number only: `title` carries the German reason a size is
-                                     blocked, and a marked button would keep that untranslated too. -->
-                                <span translate="no">{{ size.label }}</span>
-                            </button>
-                        </div>
-
-                        <!-- Shown, not hidden: it tells the customer something true about their car. -->
-                        <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
-                        <p v-if="unconfirmedNote" class="t-small quiet pdp__note" data-note="unconfirmed">{{ unconfirmedNote }}</p>
-                    </div>
-
-                    <!-- Two versions a paper names for the car, front and rear (the client's fourth change): one thing to buy, two and two, each at its own price. -->
-                    <div v-if="config.setsHere.value.length" class="pdp__block pdp__sets" data-wheel-sets>
-                        <span id="pdp-sets-label" class="label">Satz, vorne und hinten verschieden</span>
-                        <div class="pdp__versions" role="group" aria-labelledby="pdp-sets-label">
-                            <button
-                                v-for="item in config.setsHere.value"
-                                :key="item.key"
-                                class="pdp__version pdp__version--set"
-                                :class="{ 'pdp__version--on': chosenSet?.key === item.key }"
-                                type="button"
-                                :aria-pressed="chosenSet?.key === item.key"
-                                @click="config.selectSet(item)"
-                            >
-                                <span class="pdp__version-spec" translate="no"><span v-for="axle in item.axles" :key="axle" class="pdp__version-axle">{{ axle }}</span><span class="pdp__version-bolt">{{ item.bolt }}</span></span>
-                                <span class="pdp__version-price" translate="no">{{ item.price }}</span>
-                                <span v-if="!item.inStock" class="tag tag--unknown pdp__version-tag">Auf Anfrage</span>
-                                <span class="pdp__version-check" aria-hidden="true"><Icon name="check" :size="20" /></span>
-                            </button>
-                        </div>
-                        <p class="price-note pdp__version-terms">Preis für 4 Felgen, {{ terms.note }}</p>
-                    </div>
-
-                    <!-- One chip per version of the rim (the Gutachten rework §8, finding 138): width, ET, bolt pattern and
-                         price chosen together, so nothing can combine into a wheel that does not exist. -->
-                    <div v-if="config.variants.value.length" class="pdp__block pdp__variants">
-                        <span id="pdp-variants-label" class="label">Ausführung</span>
-                        <div v-if="config.versions.value.length" class="pdp__versions" role="group" aria-labelledby="pdp-variants-label">
-                            <button
-                                v-for="version in config.versions.value"
-                                :key="version.id"
-                                class="pdp__version"
-                                :class="{ 'pdp__version--on': selected?.id === version.id, 'pdp__version--unconfirmed': version.unconfirmed }"
-                                type="button"
-                                :aria-pressed="selected?.id === version.id"
-                                :title="version.reason ?? undefined"
-                                @click="config.selectVariant(version)"
-                            >
-                                <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
-                                <span class="pdp__version-price" translate="no">{{ version.config.price }}</span>
-                                <span v-if="!version.config.inStock" class="tag tag--unknown pdp__version-tag">Auf Anfrage</span>
-                                <span v-if="version.unconfirmed" class="tag tag--unknown pdp__version-tag">Noch nicht bestätigt</span>
-                                <span class="pdp__version-check" aria-hidden="true"><Icon name="check" :size="20" /></span>
-                            </button>
-                        </div>
-                        <p v-if="config.versions.value.length" class="price-note pdp__version-terms">Preise pro Felge, {{ terms.note }}</p>
-
+                    <!-- A1 (D-509), behind the D6 switch: one dropdown for every dimension or combination; off, the chips and tiles below. -->
+                    <div v-if="d6" id="groessen" class="pdp__block pdp__d6">
+                        <DimensionSelect id="pdp-d6" :label="isSet ? 'Kombination' : 'Ausführung'" :groups="d6Groups" :model-value="d6Value" @update:model-value="onD6" />
+                        <p v-if="!isSet && !chosenSet" class="price-note pdp__version-terms">Preise pro Felge, {{ terms.note }}</p>
                         <p v-if="!hasVehicle" class="t-small pdp__version-hint pdp__version-hint--car">
                             <Icon name="car" :size="20" />
                             <span>Wähle dein Fahrzeug, dann zeigen wir nur die Ausführungen, die dafür freigegeben sind.</span>
                         </p>
-                        <p v-else-if="config.others.value.length" class="t-small pdp__version-hint">
-                            {{ othersLine }}
-                            <button
-                                v-if="!selectedIsOther"
-                                class="link pdp__version-more"
-                                type="button"
-                                :aria-expanded="othersAsked"
-                                @click="othersAsked = !othersAsked"
-                            >
-                                {{ othersAsked ? 'Ausblenden' : 'Anzeigen' }}
-                            </button>
-                        </p>
-                        <div v-if="othersShown && config.others.value.length" class="pdp__versions pdp__versions--others">
-                            <span
-                                v-for="version in config.others.value"
-                                :key="version.id"
-                                class="pdp__version pdp__version--struck"
-                                :class="{ 'pdp__version--on': selected?.id === version.id, 'pdp__version--open': version.standing === 'open' }"
-                            >
-                                <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
-                                <span class="pdp__version-why">{{ version.standing ? STANDING_WORD[version.standing] : '' }}</span>
-                            </span>
-                        </div>
-
                         <p v-if="selected && !chosenSet" class="t-small quiet pdp__chosen">Gewählt: <ValueText :text="selected.fullLabel" /></p>
                     </div>
+                    <template v-else>
+                        <!-- `#groessen`: where the compare page's "Größe wählen" lands. -->
+                        <div id="groessen" class="pdp__block">
+                            <span class="label">Durchmesser (<span translate="no">Zoll</span>)</span>
+                            <div class="chip-row pdp__chips">
+                                <button
+                                    v-for="size in config.sizes.value"
+                                    :key="size.diameter"
+                                    class="chip"
+                                    :class="{
+                                        'chip--on': chosenSet ? chosenSet.diameters.includes(size.diameter) : selected?.id === size.config.id,
+                                        'chip--blocked': size.blocked,
+                                        'chip--unconfirmed': size.unconfirmed,
+                                    }"
+                                    type="button"
+                                    :disabled="size.blocked"
+                                    :aria-pressed="chosenSet ? chosenSet.diameters.includes(size.diameter) : selected?.id === size.config.id"
+                                    :title="size.reason ?? undefined"
+                                    @click="config.selectSize(size)"
+                                >
+                                    <!-- The number only: `title` carries the German reason a size is
+                                     blocked, and a marked button would keep that untranslated too. -->
+                                    <span translate="no">{{ size.label }}</span>
+                                </button>
+                            </div>
+
+                            <!-- Shown, not hidden: it tells the customer something true about their car. -->
+                            <p v-if="blockedNote" class="t-small quiet pdp__note">{{ blockedNote }}</p>
+                            <p v-if="unconfirmedNote" class="t-small quiet pdp__note" data-note="unconfirmed">{{ unconfirmedNote }}</p>
+                        </div>
+
+                        <!-- Two versions a paper names for the car, front and rear (the client's fourth change): one thing to buy, two and two, each at its own price. -->
+                        <div v-if="config.setsHere.value.length" class="pdp__block pdp__sets" data-wheel-sets>
+                            <span id="pdp-sets-label" class="label">Satz, vorne und hinten verschieden</span>
+                            <div class="pdp__versions" role="group" aria-labelledby="pdp-sets-label">
+                                <button
+                                    v-for="item in config.setsHere.value"
+                                    :key="item.key"
+                                    class="pdp__version pdp__version--set"
+                                    :class="{ 'pdp__version--on': chosenSet?.key === item.key }"
+                                    type="button"
+                                    :aria-pressed="chosenSet?.key === item.key"
+                                    @click="config.selectSet(item)"
+                                >
+                                    <span class="pdp__version-spec" translate="no"><span v-for="axle in item.axles" :key="axle" class="pdp__version-axle">{{ axle }}</span><span class="pdp__version-bolt">{{ item.bolt }}</span></span>
+                                    <span class="pdp__version-price" translate="no">{{ item.price }}</span>
+                                    <span v-if="!item.inStock" class="tag tag--unknown pdp__version-tag">Auf Anfrage</span>
+                                    <span class="pdp__version-check" aria-hidden="true"><Icon name="check" :size="20" /></span>
+                                </button>
+                            </div>
+                            <p class="price-note pdp__version-terms">Preis für 4 Felgen, {{ terms.note }}</p>
+                        </div>
+
+                        <!-- One chip per version of the rim (the Gutachten rework §8, finding 138): width, ET, bolt pattern and
+                         price chosen together, so nothing can combine into a wheel that does not exist. -->
+                        <div v-if="config.variants.value.length" class="pdp__block pdp__variants">
+                            <span id="pdp-variants-label" class="label">Ausführung</span>
+                            <div v-if="config.versions.value.length" class="pdp__versions" role="group" aria-labelledby="pdp-variants-label">
+                                <button
+                                    v-for="version in config.versions.value"
+                                    :key="version.id"
+                                    class="pdp__version"
+                                    :class="{ 'pdp__version--on': selected?.id === version.id, 'pdp__version--unconfirmed': version.unconfirmed }"
+                                    type="button"
+                                    :aria-pressed="selected?.id === version.id"
+                                    :title="version.reason ?? undefined"
+                                    @click="config.selectVariant(version)"
+                                >
+                                    <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
+                                    <span class="pdp__version-price" translate="no">{{ version.config.price }}</span>
+                                    <span v-if="!version.config.inStock" class="tag tag--unknown pdp__version-tag">Auf Anfrage</span>
+                                    <span v-if="version.unconfirmed" class="tag tag--unknown pdp__version-tag">Noch nicht bestätigt</span>
+                                    <span class="pdp__version-check" aria-hidden="true"><Icon name="check" :size="20" /></span>
+                                </button>
+                            </div>
+                            <p v-if="config.versions.value.length" class="price-note pdp__version-terms">Preise pro Felge, {{ terms.note }}</p>
+
+                            <p v-if="!hasVehicle" class="t-small pdp__version-hint pdp__version-hint--car">
+                                <Icon name="car" :size="20" />
+                                <span>Wähle dein Fahrzeug, dann zeigen wir nur die Ausführungen, die dafür freigegeben sind.</span>
+                            </p>
+                            <p v-else-if="config.others.value.length" class="t-small pdp__version-hint">
+                                {{ othersLine }}
+                                <button
+                                    v-if="!selectedIsOther"
+                                    class="link pdp__version-more"
+                                    type="button"
+                                    :aria-expanded="othersAsked"
+                                    @click="othersAsked = !othersAsked"
+                                >
+                                    {{ othersAsked ? 'Ausblenden' : 'Anzeigen' }}
+                                </button>
+                            </p>
+                            <div v-if="othersShown && config.others.value.length" class="pdp__versions pdp__versions--others">
+                                <span
+                                    v-for="version in config.others.value"
+                                    :key="version.id"
+                                    class="pdp__version pdp__version--struck"
+                                    :class="{ 'pdp__version--on': selected?.id === version.id, 'pdp__version--open': version.standing === 'open' }"
+                                >
+                                    <span class="pdp__version-spec" translate="no">{{ version.label }}</span>
+                                    <span class="pdp__version-why">{{ version.standing ? STANDING_WORD[version.standing] : '' }}</span>
+                                </span>
+                            </div>
+
+                            <p v-if="selected && !chosenSet" class="t-small quiet pdp__chosen">Gewählt: <ValueText :text="selected.fullLabel" /></p>
+                        </div>
+                    </template>
 
                     <div v-if="chosenSet" class="t-small quiet pdp__chosen pdp__chosen--set" data-set-chosen>
                         <p>Vorne: <ValueText :text="chosenSet.frontFull" /></p>
@@ -924,7 +1004,6 @@ claimBottomEdge(() => stickyShown.value)
                             <span>{{ addError }}</span>
                         </p>
                     </div>
-
                 </div>
             </div>
 

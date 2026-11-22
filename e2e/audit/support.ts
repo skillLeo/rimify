@@ -2,6 +2,7 @@ import { expect, type Page, type Response } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { send } from '../teardown';
+import { totp } from '../totp';
 
 /*
  * The admin audit's shared pieces (docs/review/ADMIN-AUDIT.md). Every step is watched for what the brief names as
@@ -82,6 +83,13 @@ export async function signIn(page: Page): Promise<void> {
 
     await context.request.get('/admin/anmelden', { headers: { 'X-Inertia': 'true', 'X-Requested-With': 'XMLHttpRequest' }, maxRedirects: 0 });
     const status = await send(context, 'POST', '/admin/anmelden', { email: SUPER_ADMIN.email, password: SUPER_ADMIN.password });
+
+    // The Super-Admin's second step (D-514): the code its development key makes now.
+    if (status === 302) {
+        const second = await send(context, 'POST', '/admin/anmelden/code', { code: totp() });
+
+        expect(second, 'the super-admin passes the second step').toBe(302);
+    }
 
     expect(status, 'the super-admin is signed in').toBe(302);
 }

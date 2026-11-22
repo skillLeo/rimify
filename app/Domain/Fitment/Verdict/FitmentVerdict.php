@@ -179,6 +179,45 @@ final readonly class FitmentVerdict
     }
 
     /**
+     * The same answer with the Auflagen, the Eintragung and the status of one chosen set (ScopedAnswer, A4 behind its switch,
+     * D-506). Everything else — the document, the sizes and their own Auflagen, the tyre half — as it is.
+     *
+     * @param  list<Condition>  $conditions
+     */
+    public function scopedTo(array $conditions, VerdictStatus $status, VerdictStatus $wheelStatus, bool $requiresEntry): self
+    {
+        return new self(
+            status: $status,
+            vehicle: $this->vehicle,
+            wheel: $this->wheel,
+            document: $this->document,
+            requiresEntry: $requiresEntry,
+            entryNoteDe: $requiresEntry ? $this->entryNoteDe : null,
+            conditions: $conditions,
+            front: $this->front,
+            rear: $this->rear,
+            reason: $this->reason,
+            snapshot: $this->snapshot,
+            documentCentreBoreMm: $this->documentCentreBoreMm,
+            centreBoreSource: $this->centreBoreSource,
+            vehicleLabel: $this->vehicleLabel,
+            buildWindowLabel: $this->buildWindowLabel,
+            wheelLabel: $this->wheelLabel,
+            restored: $this->restored,
+            documents: $this->documents,
+            wheelStatus: $wheelStatus,
+            tyre: $this->tyre,
+            missingFacts: $this->missingFacts,
+            combinationConditions: $this->combinationConditions,
+            sellsAlone: $this->sellsAlone,
+            rimAlone: $this->rimAlone,
+            rimAloneNoteDe: $this->rimAloneNoteDe,
+            rearWheel: $this->rearWheel,
+            pairConditions: $this->pairConditions,
+        );
+    }
+
+    /**
      * „Die Felge ist für dein Fahrzeug nur mit Reifen der Größe 235/45 R19 oder 245/40 R19 zulässig. Welche Reifen dein
      * Fahrzeug genau braucht, konnten wir nicht bestätigen: Bei der Prüfung fehlte uns Feld T …“ — per axle where they
      * differ. Said in the past: frozen onto an order, it reports the check, and stays true there.

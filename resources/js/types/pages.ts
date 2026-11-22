@@ -416,7 +416,7 @@ export interface ProduktSet {
     rearId: number
     finishId: number
     diameters: number[]
-    /** `Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35`, formatted on the server (R-10). */
+    /** `Vorne 2 × 8,5J × 18 ET 35 · Hinten 2 × 8,5J × 19 ET 35`, formatted on the server (R-10). */
     label: string
     /** The same, one row per axle. */
     axles: string[]
@@ -978,8 +978,27 @@ export interface RechtlichesProps {
 }
 
 export interface AdminAnmeldenProps {
-    stage: string
+    /** `credentials`, or `totp` while a password waits for its second step (D-514, five minutes). */
+    stage: 'credentials' | 'totp'
 }
+
+/** Bestätigung in zwei Schritten (D-514): setting it up, or the recovery codes shown once. */
+export type AdminZweiFaktorProps =
+    | {
+          stage: 'setup'
+          email: string
+          /** The Super-Admin's is required: no way past this page but setting it up or signing out. */
+          required: boolean
+          /** An active one is being moved to a new phone; the old one works until this is confirmed. */
+          replacing: boolean
+          /** One was set up but its key can no longer be read (an earlier APP_KEY). */
+          unreadable: boolean
+          /** The QR code as SVG markup, drawn on the server. */
+          qr: string
+          /** The key in groups of four, for typing it in by hand. */
+          manualKey: string
+      }
+    | { stage: 'codes'; codes: string[]; next: string }
 
 export interface AdminUebersichtProps {
     /** Only the figures of areas the viewer may open; `href` only where the list exists. */
@@ -1133,5 +1152,14 @@ export interface AdminProfilProps {
         /** `26.09.2026, 13:10` in Europe/Berlin, or null before the first sign-in was recorded. */
         lastLogin: string | null
         twoFactor: boolean
+    }
+    /** Bestätigung in zwei Schritten (D-514). */
+    twoFactor: {
+        active: boolean
+        /** Set up once, its key no longer readable: to be set up again. */
+        unreadable: boolean
+        /** The Super-Admin's cannot be switched off. */
+        required: boolean
+        recoveryLeft: number
     }
 }

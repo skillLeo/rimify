@@ -246,7 +246,7 @@ class BestellungController extends Controller
     private static function conditionGroups(array $verdict, ?string $tyreSize, ?string $axle = null, ?string $partner = null): ?array
     {
         try {
-            return SetAnswerFloor::groups(FitmentVerdict::fromArray($verdict), $tyreSize, $axle, $partner);
+            return SetAnswerFloor::frozenGroups(FitmentVerdict::fromArray($verdict), $tyreSize, $axle, $partner);
         } catch (Throwable) {
             return null;
         }

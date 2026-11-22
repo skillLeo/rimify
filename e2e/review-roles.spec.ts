@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './fixtures'
 import { waitForApp } from './bugs/faq-support'
 import { REVIEW_PASSWORD } from './support'
+import { answerSecondStep } from './totp'
 
 /*
  * The three review accounts, shown (the launch release §2, docs/review/ACCOUNTS.md): each signs in and
@@ -23,6 +24,8 @@ async function signInAs(page: Page, email: string): Promise<void> {
     await page.fill('#lg-mail', email)
     await page.fill('#lg-pass', PASSWORD)
     await page.locator('button[type=submit]').first().click()
+    // The Admin account is a Super-Admin: its second step (D-514).
+    await answerSecondStep(page)
     await page.waitForURL(/\/admin$/, { waitUntil: 'domcontentloaded', timeout: 30_000 })
     await waitForApp(page)
 }

@@ -26,6 +26,8 @@ const replaced = vi.hoisted(() => [] as Array<{ url: string; preserveState?: boo
 const focusPapers = vi.hoisted(() => vi.fn())
 /* The car chosen in the header, as the shared props carry it: none unless a test sets one. */
 const sharedVehicle = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }))
+/* The Part A switches the server shares (A1, D-509): off unless a test turns one on. */
+const sharedSwitches = vi.hoisted(() => ({ value: { d6: false } as { d6: boolean } }))
 
 vi.mock('../../lib/papersForm', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../../lib/papersForm')>()),
@@ -44,6 +46,9 @@ vi.mock('@inertiajs/vue3', () => ({
         props: {
             get vehicle() {
                 return sharedVehicle.value
+            },
+            get switches() {
+                return sharedSwitches.value
             },
             routeName: current.routeName,
             contact: { email: 'hallo@beispiel.de', phone: null, phoneIntl: null, whatsapp: null, hours: 'Mo–Fr 9–17 Uhr' },
@@ -1150,5 +1155,99 @@ describe('Produkt page', () => {
 
         expect(wrapper.find('.pdp__add-error').attributes('role')).toBe('alert')
         expect(wrapper.find('.pdp__add-error').text()).toBe('Dieser Reifen ist zurzeit nicht verfügbar.')
+    })
+})
+
+describe('A1: one dropdown of dimensions and combinations, behind the D6 switch (D-509)', () => {
+    const nineteen = config()
+    const eighteen = config({ id: 12, diameterIn: 18, widthIn: 8, etMm: 35, sizeLabel: '8J × 18 · ET 35', versionLabel: 'Breite 8J · ET 35 · Lochkreis 5 × 112', fullLabel: '8J × 18 · ET 35 · LK 5 × 112 · 66,5 mm', priceCents: 69_600, price: '696,00 €' })
+    const rear = config({ id: 13, widthIn: 9.5, etMm: 40, sizeLabel: '9,5J × 19 · ET 40', versionLabel: 'Breite 9,5J · ET 40 · Lochkreis 5 × 112', fullLabel: '9,5J × 19 · ET 40 · LK 5 × 112 · 66,5 mm', onlyInSet: true, priceCents: 89_600, price: '896,00 €' })
+    const refused = config({ id: 14, diameterIn: 20, widthIn: 9, etMm: 30, sizeLabel: '9J × 20 · ET 30', versionLabel: 'Breite 9J · ET 30 · Lochkreis 5 × 112', fullLabel: '9J × 20 · ET 30 · LK 5 × 112 · 66,5 mm', verdict: verdict({ status: 'NOT_PERMITTED', sellable: false, reason: 'Für dein Fahrzeug nicht freigegeben.' }) })
+    const set = {
+        key: '11-13', frontId: 11, rearId: 13, finishId: 1, diameters: [19],
+        label: 'Vorne 2 × 8,5J × 19 ET 45 · Hinten 2 × 9,5J × 19 ET 40', axles: ['Vorne 2 × 8,5J × 19 ET 45', 'Hinten 2 × 9,5J × 19 ET 40'], bolt: '5 × 112',
+        frontFull: '8,5J × 19 · ET 45 · LK 5 × 112', rearFull: '9,5J × 19 · ET 40 · LK 5 × 112',
+        priceCents: 338_400, price: '3.384,00 €', priceNote: '2 × 796,00 € + 2 × 896,00 €', inStock: true, enquiry: null, verdict: null,
+    }
+
+    beforeEach(() => {
+        sharedSwitches.value = { d6: true }
+    })
+    afterEach(() => {
+        sharedSwitches.value = { d6: false }
+    })
+
+    const select = (wrapper: VueWrapper) => wrapper.find('[data-d6-select] select')
+    type Listed = [string | undefined, { text: string; disabled: boolean }[]]
+    const groups = (wrapper: VueWrapper): Listed[] =>
+        select(wrapper)
+            .findAll('optgroup')
+            .map((g): Listed => [g.attributes('label'), g.findAll('option').map((o) => ({ text: o.text(), disabled: o.attributes('disabled') !== undefined }))])
+
+    it('is off by default: the chips and the version tiles, no dropdown', () => {
+        sharedSwitches.value = { d6: false }
+        const wrapper = mountPage({ configs: [nineteen, eighteen] })
+
+        expect(wrapper.find('[data-d6-select]').exists()).toBe(false)
+        expect(wrapper.find('.pdp__chips').exists()).toBe(true)
+    })
+
+    it('lists every dimension at once for Nur Felgen, by diameter, each with its price per rim — and chooses as a chip does', async () => {
+        const wrapper = mountPage({ configs: [nineteen, eighteen] })
+
+        expect(wrapper.find('.pdp__chips').exists()).toBe(false)
+        expect(wrapper.find('[data-d6-select] label').text()).toBe('Ausführung')
+        expect(groups(wrapper)).toEqual([
+            ['18 Zoll', [{ text: 'Breite 8J · ET 35 · Lochkreis 5 × 112 · 696,00 € pro Felge', disabled: false }]],
+            ['19 Zoll', [{ text: 'Breite 8,5J · ET 45 · Lochkreis 5 × 112 · 796,00 € pro Felge', disabled: false }]],
+        ])
+
+        await select(wrapper).setValue('v:12')
+        await nextTick()
+
+        expect((select(wrapper).element as HTMLSelectElement).value).toBe('v:12')
+        expect(wrapper.find('.pdp__chosen').text()).toContain('8J × 18 · ET 35')
+    })
+
+    it('shows a front/rear set as one choice with both axles and its price for four, and never one half of it alone', async () => {
+        const wrapper = mountPage({ configs: [nineteen, rear], wheelSets: [set] } as never)
+        const listed = groups(wrapper)
+
+        expect(listed.map(([label]) => label)).toEqual(['19 Zoll', 'Vorne und hinten verschieden'])
+        expect(listed[1]?.[1]).toEqual([{ text: 'Vorne 2 × 8,5J × 19 ET 45 · Hinten 2 × 9,5J × 19 ET 40 · 3.384,00 € für 4 Felgen', disabled: false }])
+        // The rear version is sold only in the set: no option of its own.
+        expect(JSON.stringify(listed)).not.toContain('9,5J · ET 40 · Lochkreis 5 × 112 · 896,00 €')
+
+        await select(wrapper).setValue('s:11-13')
+        await nextTick()
+
+        expect(wrapper.find('[data-set-chosen]').text()).toContain('Vorne: 8,5J × 19 · ET 45')
+        expect(wrapper.find('[data-set-chosen]').text()).toContain('Hinten: 9,5J × 19 · ET 40')
+    })
+
+    it('reads „Kombination“ for Kompletträder: four alike first, then the sets', async () => {
+        const wrapper = mountPage({ configs: [nineteen, rear], wheelSets: [set] } as never)
+        await wrapper.find('.pdp__mode .bmc-tile:last-child').trigger('click').catch(() => undefined)
+        const tile = wrapper.findAll('.pdp__mode button, .pdp__mode [role="radio"], .pdp__mode label').find((b) => b.text().includes('Kompletträder'))
+        await tile?.trigger('click')
+        await nextTick()
+
+        expect(wrapper.find('[data-d6-select] label').text()).toBe('Kombination')
+        expect(groups(wrapper).map(([label]) => label)).toEqual(['19 Zoll · vier gleiche Räder', 'Vorne und hinten verschieden'])
+        expect(groups(wrapper)[0]?.[1][0]?.text).toMatch(/^4 × Breite 8,5J · ET 45/)
+        // One unit in one list (D-515): never „für 2 + 2“ beside „pro Rad“; a set of two versions waits for its tyres.
+        const texts = groups(wrapper).flatMap(([, options]) => options.map((o) => o.text))
+        expect(texts.filter((t) => /pro Rad|2 \+ 2/.test(t))).toEqual([])
+        expect(groups(wrapper)[1]?.[1][0]?.text).toBe('Vorne 2 × 8,5J × 19 ET 45 · Hinten 2 × 9,5J × 19 ET 40 · Preis nach der Reifenwahl')
+    })
+
+    it('keeps a version the car may not have in the list, disabled, with its reason', () => {
+        sharedVehicle.value = { id: 5, label: 'BMW 330CI' }
+        const wrapper = mountPage({ configs: [nineteen, refused], hasVehicle: true })
+        sharedVehicle.value = null
+        const last = groups(wrapper).at(-1)
+
+        expect(last?.[0]).toBe('Nicht für dein Fahrzeug')
+        expect(last?.[1]).toEqual([{ text: '20 Zoll · Breite 9J · ET 30 · Lochkreis 5 × 112 – nicht freigegeben', disabled: true }])
     })
 })

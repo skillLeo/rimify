@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '../fixtures'
 import { REVIEW_PASSWORD } from '../support'
 import { waitForApp } from './faq-support'
+import { answerSecondStep } from '../totp'
 
 /*
  * SWEEP-ADMIN-02 (S2) — the three review accounts are called „Review Verkauf", „Review Lager" and „Review Admin"
@@ -28,6 +29,8 @@ async function signInAs(page: Page, email: string): Promise<void> {
     await page.fill('#lg-mail', email)
     await page.fill('#lg-pass', reviewPassword())
     await page.locator('button[type=submit]').first().click()
+    // The Super-Admin review account's second step (D-514); nothing for an account without one.
+    await answerSecondStep(page)
     await page.waitForURL(/\/admin$/, { waitUntil: 'domcontentloaded', timeout: 30_000 })
     await waitForApp(page)
 }

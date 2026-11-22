@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CatalogueStatus;
 use App\Enums\DocumentStatus;
+use App\Http\Middleware\EnsureTwoFactorSetUp;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\Vehicle;
@@ -52,6 +53,10 @@ it('puts the released Borbet papers and the published DB8GT2 into the developmen
         app(StorageSettings::class)->flush();
         // A person types a car a minute at most 30 times; this run types 76.
         $this->withoutMiddleware(ThrottleRequests::class);
+        // The Super-Admin's key was written by the seeding under the development shop's APP_KEY, which this run does not
+        // hold: it would read as no second factor and send every write to the setup (D-514). This test enters papers; the
+        // sign-in is ZweiFaktorTest's.
+        $this->withoutMiddleware(EnsureTwoFactorSetUp::class);
 
         (new TranscriptionEntry($this, AdminUser::query()->where('email', 'super-admin@rimify.test')->firstOrFail()))->enterBoth();
     }

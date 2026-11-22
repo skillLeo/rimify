@@ -23,7 +23,10 @@ use Throwable;
  *     unpack into gigabytes is refused unopened;
  *   - it passes the VirusScanner hook;
  *   - it is decoded, turned upright and encoded anew — which drops every EXIF field, GPS position
- *     included: GD writes none. What is stored is never the file as it was sent.
+ *     included: GD writes none. What is stored is never the file as it was sent;
+ *   - it is made light enough for a page (D-513): its longer side brought down to `image_store_px` (never up),
+ *     and a PNG kept as WebP — transparency included — wherever that is the smaller file. A photo the camera
+ *     sent at 6000 pixels, or a cut-out saved as a lossless PNG of a megabyte, no longer reaches the shop as such.
  *
  * Stored under a new ULID name, so its address never changes meaning and a CDN may keep it for good.
  *
@@ -84,12 +87,32 @@ final class ImageUpload
 
         try {
             $image = ImageManager::usingDriver(Driver::class, autoOrientation: true, decodeAnimation: false, strip: true)->decodePath($path);
+            $longest = (int) ($limits['image_store_px'] ?? 2000);
+
+            if ($image->width() > $longest || $image->height() > $longest) {
+                $image->scaleDown($longest, $longest);
+            }
+
             $encoded = (string) $image->encode(match ($mime) {
                 'image/jpeg' => new JpegEncoder(quality: 88, progressive: true, strip: true),
                 'image/png' => new PngEncoder,
                 'image/webp' => new WebpEncoder(quality: 88, strip: true),
                 default => new AvifEncoder(quality: 70, strip: true),
             });
+
+            // A PNG is lossless and, for a photograph, heavy: WebP keeps its transparency at a fraction of the size.
+            // Kept only where it is the smaller file — a flat drawing can be smaller as PNG.
+            if ($mime === 'image/png') {
+                try {
+                    $webp = (string) $image->encode(new WebpEncoder(quality: 88, strip: true));
+                } catch (Throwable) {
+                    $webp = ''; // a GD without WebP: the PNG stands.
+                }
+
+                if ($webp !== '' && strlen($webp) < strlen($encoded)) {
+                    [$encoded, $mime] = [$webp, 'image/webp'];
+                }
+            }
         } catch (Throwable) {
             throw new UploadRejected('Das Bild lässt sich nicht öffnen. Speichere es bitte neu und lad es noch einmal hoch.');
         }

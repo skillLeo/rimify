@@ -14,6 +14,7 @@ use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\ConditionGroups;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
+use App\Domain\Fitment\Verdict\ScopedAnswer;
 use App\Domain\Fitment\Verdict\SetAnswerFloor;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Domain\Storefront\VehicleContext;
@@ -1567,6 +1568,8 @@ final readonly class Basket
      */
     private function verdictArray(FitmentVerdict $verdict, ?string $chosenSize = null, bool $mixed = false, ?string $axle = null, ?string $partner = null): array
     {
+        // A4 (D-506), behind its switch and off: a Komplettrad's answer scoped to the sizes chosen. Off, the verdict as it is.
+        $verdict = ScopedAnswer::of($verdict, $chosenSize, $partner);
         $documents = $verdict->documents !== [] ? $verdict->documents : array_filter([$verdict->document]);
         $groups = $verdict->conditionGroups();
         // A Komplettrad's set says what the order freezes: never „mit Auflagen“ with nothing to read (D-501).

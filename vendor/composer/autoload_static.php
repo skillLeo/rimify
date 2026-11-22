@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
+class ComposerStaticIniteeed489f1af532083a85282d6942e8c5
 {
     public static $files = array (
         '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
@@ -291,6 +291,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
             'Dflydev\\DotAccessData\\' => 22,
             'Database\\Seeders\\' => 17,
             'Database\\Factories\\' => 19,
+            'DASPRiD\\Enum\\' => 13,
         ),
         'C' =>
         array (
@@ -303,6 +304,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         array (
             'Brick\\Math\\' => 11,
             'Barryvdh\\DomPDF\\' => 16,
+            'BaconQrCode\\' => 12,
         ),
         'A' =>
         array (
@@ -750,6 +752,10 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         array (
             0 => __DIR__ . '/../..' . '/database/factories',
         ),
+        'DASPRiD\\Enum\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/dasprid/enum/src',
+        ),
         'Cron\\' =>
         array (
             0 => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron',
@@ -773,6 +779,10 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'Barryvdh\\DomPDF\\' =>
         array (
             0 => __DIR__ . '/..' . '/barryvdh/laravel-dompdf/src',
+        ),
+        'BaconQrCode\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/bacon/bacon-qr-code/src',
         ),
         'Aws\\' =>
         array (
@@ -810,6 +820,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'AWS\\CRT\\Options' => __DIR__ . '/..' . '/aws/aws-crt-php/src/AWS/CRT/Options.php',
         'AllowDynamicProperties' => __DIR__ . '/..' . '/symfony/polyfill-php82/Resources/stubs/AllowDynamicProperties.php',
         'App\\Console\\Commands\\AdminPassword' => __DIR__ . '/../..' . '/app/Console/Commands/AdminPassword.php',
+        'App\\Console\\Commands\\AdminTwoFactorReset' => __DIR__ . '/../..' . '/app/Console/Commands/AdminTwoFactorReset.php',
         'App\\Console\\Commands\\AppendOnlyCheck' => __DIR__ . '/../..' . '/app/Console/Commands/AppendOnlyCheck.php',
         'App\\Console\\Commands\\DemoAcceptanceCommand' => __DIR__ . '/../..' . '/app/Console/Commands/DemoAcceptanceCommand.php',
         'App\\Console\\Commands\\DemoAnchor' => __DIR__ . '/../..' . '/app/Console/Commands/DemoAnchor.php',
@@ -886,6 +897,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Domain\\Fitment\\Resolver\\WheelSet' => __DIR__ . '/../..' . '/app/Domain/Fitment/Resolver/WheelSet.php',
         'App\\Domain\\Fitment\\Resolver\\WheelSetOffer' => __DIR__ . '/../..' . '/app/Domain/Fitment/Resolver/WheelSetOffer.php',
         'App\\Domain\\Fitment\\Resolver\\WheelSets' => __DIR__ . '/../..' . '/app/Domain/Fitment/Resolver/WheelSets.php',
+        'App\\Domain\\Fitment\\Rules\\TeilegutachtenAbnahme' => __DIR__ . '/../..' . '/app/Domain/Fitment/Rules/TeilegutachtenAbnahme.php',
         'App\\Domain\\Fitment\\Support\\BuildWindow' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/BuildWindow.php',
         'App\\Domain\\Fitment\\Support\\RangeSql' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/RangeSql.php',
         'App\\Domain\\Fitment\\Tyres\\AxleVerdict' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/AxleVerdict.php',
@@ -911,6 +923,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Domain\\Fitment\\Verdict\\MinSource' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/MinSource.php',
         'App\\Domain\\Fitment\\Verdict\\PairConditions' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/PairConditions.php',
         'App\\Domain\\Fitment\\Verdict\\PapersWording' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/PapersWording.php',
+        'App\\Domain\\Fitment\\Verdict\\ScopedAnswer' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/ScopedAnswer.php',
         'App\\Domain\\Fitment\\Verdict\\SetAnswerFloor' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/SetAnswerFloor.php',
         'App\\Domain\\Fitment\\Verdict\\Severity' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/Severity.php',
         'App\\Domain\\Fitment\\Verdict\\TyreCheck' => __DIR__ . '/../..' . '/app/Domain/Fitment/Verdict/TyreCheck.php',
@@ -999,6 +1012,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Http\\Controllers\\Admin\\WuchtgewichteController' => __DIR__ . '/../..' . '/app/Http/Controllers/Admin/WuchtgewichteController.php',
         'App\\Http\\Controllers\\Admin\\ZahlungController' => __DIR__ . '/../..' . '/app/Http/Controllers/Admin/ZahlungController.php',
         'App\\Http\\Controllers\\Admin\\ZuruecksetzenController' => __DIR__ . '/../..' . '/app/Http/Controllers/Admin/ZuruecksetzenController.php',
+        'App\\Http\\Controllers\\Admin\\ZweiFaktorController' => __DIR__ . '/../..' . '/app/Http/Controllers/Admin/ZweiFaktorController.php',
         'App\\Http\\Controllers\\Api\\FitmentCountController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/FitmentCountController.php',
         'App\\Http\\Controllers\\Api\\FitmentNotifyController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/FitmentNotifyController.php',
         'App\\Http\\Controllers\\Api\\PlzController' => __DIR__ . '/../..' . '/app/Http/Controllers/Api/PlzController.php',
@@ -1047,6 +1061,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Http\\Middleware\\EnsureResetAvailable' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureResetAvailable.php',
         'App\\Http\\Middleware\\EnsureResetPermitted' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureResetPermitted.php',
         'App\\Http\\Middleware\\EnsureSudo' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureSudo.php',
+        'App\\Http\\Middleware\\EnsureTwoFactorSetUp' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureTwoFactorSetUp.php',
         'App\\Http\\Middleware\\HandleInertiaRequests' => __DIR__ . '/../..' . '/app/Http/Middleware/HandleInertiaRequests.php',
         'App\\Http\\Middleware\\SecurityHeaders' => __DIR__ . '/../..' . '/app/Http/Middleware/SecurityHeaders.php',
         'App\\Http\\Middleware\\VaryByDevice' => __DIR__ . '/../..' . '/app/Http/Middleware/VaryByDevice.php',
@@ -1056,6 +1071,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Http\\Requests\\Admin\\AdminLoginRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AdminLoginRequest.php',
         'App\\Http\\Requests\\Admin\\AdminPasswordRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AdminPasswordRequest.php',
         'App\\Http\\Requests\\Admin\\AdminPreferencesRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AdminPreferencesRequest.php',
+        'App\\Http\\Requests\\Admin\\AdminTwoFactorChallengeRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AdminTwoFactorChallengeRequest.php',
         'App\\Http\\Requests\\Admin\\AlertPreferencesRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/AlertPreferencesRequest.php',
         'App\\Http\\Requests\\Admin\\ApprovalCompletenessRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ApprovalCompletenessRequest.php',
         'App\\Http\\Requests\\Admin\\ApprovalDocumentRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/ApprovalDocumentRequest.php',
@@ -1151,6 +1167,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Http\\Requests\\Admin\\TestResetViewRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TestResetViewRequest.php',
         'App\\Http\\Requests\\Admin\\TpmsDefaultPriceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TpmsDefaultPriceRequest.php',
         'App\\Http\\Requests\\Admin\\TpmsSensorPriceRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TpmsSensorPriceRequest.php',
+        'App\\Http\\Requests\\Admin\\TwoFactorSetupRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TwoFactorSetupRequest.php',
         'App\\Http\\Requests\\Admin\\TyreDeleteRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TyreDeleteRequest.php',
         'App\\Http\\Requests\\Admin\\TyreFilterRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TyreFilterRequest.php',
         'App\\Http\\Requests\\Admin\\TyreModelImageRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/TyreModelImageRequest.php',
@@ -1393,6 +1410,8 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Services\\Admin\\Approvals\\SamePdf' => __DIR__ . '/../..' . '/app/Services/Admin/Approvals/SamePdf.php',
         'App\\Services\\Admin\\AuditDescriber' => __DIR__ . '/../..' . '/app/Services/Admin/AuditDescriber.php',
         'App\\Services\\Admin\\AuditTrail' => __DIR__ . '/../..' . '/app/Services/Admin/AuditTrail.php',
+        'App\\Services\\Admin\\Auth\\AdminSignIn' => __DIR__ . '/../..' . '/app/Services/Admin/Auth/AdminSignIn.php',
+        'App\\Services\\Admin\\Auth\\TwoFactor' => __DIR__ . '/../..' . '/app/Services/Admin/Auth/TwoFactor.php',
         'App\\Services\\Admin\\Catalogue\\BrandLogoStore' => __DIR__ . '/../..' . '/app/Services/Admin/Catalogue/BrandLogoStore.php',
         'App\\Services\\Admin\\Catalogue\\CatalogueBrands' => __DIR__ . '/../..' . '/app/Services/Admin/Catalogue/CatalogueBrands.php',
         'App\\Services\\Admin\\Catalogue\\CatalogueFile' => __DIR__ . '/../..' . '/app/Services/Admin/Catalogue/CatalogueFile.php',
@@ -1559,6 +1578,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Services\\Storefront\\ServiceStatus' => __DIR__ . '/../..' . '/app/Services/Storefront/ServiceStatus.php',
         'App\\Services\\Storefront\\ShelfPicks' => __DIR__ . '/../..' . '/app/Services/Storefront/ShelfPicks.php',
         'App\\Services\\Storefront\\VehicleTree' => __DIR__ . '/../..' . '/app/Services/Storefront/VehicleTree.php',
+        'App\\Support\\Auth\\Totp' => __DIR__ . '/../..' . '/app/Support/Auth/Totp.php',
         'App\\Support\\AvailabilityEnquiry' => __DIR__ . '/../..' . '/app/Support/AvailabilityEnquiry.php',
         'App\\Support\\BrandLogos' => __DIR__ . '/../..' . '/app/Support/BrandLogos.php',
         'App\\Support\\CatalogueVersion' => __DIR__ . '/../..' . '/app/Support/CatalogueVersion.php',
@@ -1603,6 +1623,7 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'App\\Support\\SlowQueries' => __DIR__ . '/../..' . '/app/Support/SlowQueries.php',
         'App\\Support\\Ssr\\BoundedSsrGateway' => __DIR__ . '/../..' . '/app/Support/Ssr/BoundedSsrGateway.php',
         'App\\Support\\Ssr\\SsrFallbacks' => __DIR__ . '/../..' . '/app/Support/Ssr/SsrFallbacks.php',
+        'App\\Support\\Switches' => __DIR__ . '/../..' . '/app/Support/Switches.php',
         'App\\Support\\TyreText' => __DIR__ . '/../..' . '/app/Support/TyreText.php',
         'App\\Support\\VehicleName' => __DIR__ . '/../..' . '/app/Support/VehicleName.php',
         'App\\Support\\WheelTitle' => __DIR__ . '/../..' . '/app/Support/WheelTitle.php',
@@ -2872,6 +2893,68 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'Aws\\mgn\\mgnClient' => __DIR__ . '/..' . '/aws/aws-sdk-php/src/mgn/mgnClient.php',
         'Aws\\signer\\Exception\\signerException' => __DIR__ . '/..' . '/aws/aws-sdk-php/src/signer/Exception/signerException.php',
         'Aws\\signer\\signerClient' => __DIR__ . '/..' . '/aws/aws-sdk-php/src/signer/signerClient.php',
+        'BaconQrCode\\Common\\BitArray' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/BitArray.php',
+        'BaconQrCode\\Common\\BitMatrix' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/BitMatrix.php',
+        'BaconQrCode\\Common\\BitUtils' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/BitUtils.php',
+        'BaconQrCode\\Common\\CharacterSetEci' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/CharacterSetEci.php',
+        'BaconQrCode\\Common\\EcBlock' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/EcBlock.php',
+        'BaconQrCode\\Common\\EcBlocks' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/EcBlocks.php',
+        'BaconQrCode\\Common\\ErrorCorrectionLevel' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/ErrorCorrectionLevel.php',
+        'BaconQrCode\\Common\\FormatInformation' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/FormatInformation.php',
+        'BaconQrCode\\Common\\Mode' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/Mode.php',
+        'BaconQrCode\\Common\\ReedSolomonCodec' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/ReedSolomonCodec.php',
+        'BaconQrCode\\Common\\Version' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/Version.php',
+        'BaconQrCode\\Encoder\\BlockPair' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Encoder/BlockPair.php',
+        'BaconQrCode\\Encoder\\ByteMatrix' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Encoder/ByteMatrix.php',
+        'BaconQrCode\\Encoder\\Encoder' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Encoder/Encoder.php',
+        'BaconQrCode\\Encoder\\MaskUtil' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Encoder/MaskUtil.php',
+        'BaconQrCode\\Encoder\\MatrixUtil' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Encoder/MatrixUtil.php',
+        'BaconQrCode\\Encoder\\QrCode' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Encoder/QrCode.php',
+        'BaconQrCode\\Exception\\ExceptionInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Exception/ExceptionInterface.php',
+        'BaconQrCode\\Exception\\InvalidArgumentException' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Exception/InvalidArgumentException.php',
+        'BaconQrCode\\Exception\\OutOfBoundsException' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Exception/OutOfBoundsException.php',
+        'BaconQrCode\\Exception\\RuntimeException' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Exception/RuntimeException.php',
+        'BaconQrCode\\Exception\\UnexpectedValueException' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Exception/UnexpectedValueException.php',
+        'BaconQrCode\\Exception\\WriterException' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Exception/WriterException.php',
+        'BaconQrCode\\Renderer\\Color\\Alpha' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Color/Alpha.php',
+        'BaconQrCode\\Renderer\\Color\\Cmyk' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Color/Cmyk.php',
+        'BaconQrCode\\Renderer\\Color\\ColorInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Color/ColorInterface.php',
+        'BaconQrCode\\Renderer\\Color\\Gray' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Color/Gray.php',
+        'BaconQrCode\\Renderer\\Color\\Rgb' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Color/Rgb.php',
+        'BaconQrCode\\Renderer\\Eye\\CompositeEye' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Eye/CompositeEye.php',
+        'BaconQrCode\\Renderer\\Eye\\EyeInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Eye/EyeInterface.php',
+        'BaconQrCode\\Renderer\\Eye\\ModuleEye' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Eye/ModuleEye.php',
+        'BaconQrCode\\Renderer\\Eye\\PointyEye' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Eye/PointyEye.php',
+        'BaconQrCode\\Renderer\\Eye\\SimpleCircleEye' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Eye/SimpleCircleEye.php',
+        'BaconQrCode\\Renderer\\Eye\\SquareEye' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Eye/SquareEye.php',
+        'BaconQrCode\\Renderer\\GDLibRenderer' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/GDLibRenderer.php',
+        'BaconQrCode\\Renderer\\ImageRenderer' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/ImageRenderer.php',
+        'BaconQrCode\\Renderer\\Image\\EpsImageBackEnd' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Image/EpsImageBackEnd.php',
+        'BaconQrCode\\Renderer\\Image\\ImageBackEndInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Image/ImageBackEndInterface.php',
+        'BaconQrCode\\Renderer\\Image\\ImagickImageBackEnd' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Image/ImagickImageBackEnd.php',
+        'BaconQrCode\\Renderer\\Image\\SvgImageBackEnd' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Image/SvgImageBackEnd.php',
+        'BaconQrCode\\Renderer\\Image\\TransformationMatrix' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Image/TransformationMatrix.php',
+        'BaconQrCode\\Renderer\\Module\\DotsModule' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Module/DotsModule.php',
+        'BaconQrCode\\Renderer\\Module\\EdgeIterator\\Edge' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Module/EdgeIterator/Edge.php',
+        'BaconQrCode\\Renderer\\Module\\EdgeIterator\\EdgeIterator' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Module/EdgeIterator/EdgeIterator.php',
+        'BaconQrCode\\Renderer\\Module\\ModuleInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Module/ModuleInterface.php',
+        'BaconQrCode\\Renderer\\Module\\RoundnessModule' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Module/RoundnessModule.php',
+        'BaconQrCode\\Renderer\\Module\\SquareModule' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Module/SquareModule.php',
+        'BaconQrCode\\Renderer\\Path\\Close' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/Close.php',
+        'BaconQrCode\\Renderer\\Path\\Curve' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/Curve.php',
+        'BaconQrCode\\Renderer\\Path\\EllipticArc' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/EllipticArc.php',
+        'BaconQrCode\\Renderer\\Path\\Line' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/Line.php',
+        'BaconQrCode\\Renderer\\Path\\Move' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/Move.php',
+        'BaconQrCode\\Renderer\\Path\\OperationInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/OperationInterface.php',
+        'BaconQrCode\\Renderer\\Path\\Path' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/Path/Path.php',
+        'BaconQrCode\\Renderer\\PlainTextRenderer' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/PlainTextRenderer.php',
+        'BaconQrCode\\Renderer\\RendererInterface' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/RendererInterface.php',
+        'BaconQrCode\\Renderer\\RendererStyle\\EyeFill' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/RendererStyle/EyeFill.php',
+        'BaconQrCode\\Renderer\\RendererStyle\\Fill' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/RendererStyle/Fill.php',
+        'BaconQrCode\\Renderer\\RendererStyle\\Gradient' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/RendererStyle/Gradient.php',
+        'BaconQrCode\\Renderer\\RendererStyle\\GradientType' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/RendererStyle/GradientType.php',
+        'BaconQrCode\\Renderer\\RendererStyle\\RendererStyle' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Renderer/RendererStyle/RendererStyle.php',
+        'BaconQrCode\\Writer' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Writer.php',
         'Barryvdh\\DomPDF\\Facade\\Pdf' => __DIR__ . '/..' . '/barryvdh/laravel-dompdf/src/Facade/Pdf.php',
         'Barryvdh\\DomPDF\\PDF' => __DIR__ . '/..' . '/barryvdh/laravel-dompdf/src/PDF.php',
         'Barryvdh\\DomPDF\\ServiceProvider' => __DIR__ . '/..' . '/barryvdh/laravel-dompdf/src/ServiceProvider.php',
@@ -3018,6 +3101,16 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
         'Cron\\HoursField' => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron/HoursField.php',
         'Cron\\MinutesField' => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron/MinutesField.php',
         'Cron\\MonthField' => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron/MonthField.php',
+        'DASPRiD\\Enum\\AbstractEnum' => __DIR__ . '/..' . '/dasprid/enum/src/AbstractEnum.php',
+        'DASPRiD\\Enum\\EnumMap' => __DIR__ . '/..' . '/dasprid/enum/src/EnumMap.php',
+        'DASPRiD\\Enum\\Exception\\CloneNotSupportedException' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/CloneNotSupportedException.php',
+        'DASPRiD\\Enum\\Exception\\ExceptionInterface' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/ExceptionInterface.php',
+        'DASPRiD\\Enum\\Exception\\ExpectationException' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/ExpectationException.php',
+        'DASPRiD\\Enum\\Exception\\IllegalArgumentException' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/IllegalArgumentException.php',
+        'DASPRiD\\Enum\\Exception\\MismatchException' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/MismatchException.php',
+        'DASPRiD\\Enum\\Exception\\SerializeNotSupportedException' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/SerializeNotSupportedException.php',
+        'DASPRiD\\Enum\\Exception\\UnserializeNotSupportedException' => __DIR__ . '/..' . '/dasprid/enum/src/Exception/UnserializeNotSupportedException.php',
+        'DASPRiD\\Enum\\NullValue' => __DIR__ . '/..' . '/dasprid/enum/src/NullValue.php',
         'Database\\Factories\\AddressFactory' => __DIR__ . '/../..' . '/database/factories/AddressFactory.php',
         'Database\\Factories\\AdminUserFactory' => __DIR__ . '/../..' . '/database/factories/AdminUserFactory.php',
         'Database\\Factories\\ApprovalDocumentFactory' => __DIR__ . '/../..' . '/database/factories/ApprovalDocumentFactory.php',
@@ -11219,9 +11312,9 @@ class ComposerStaticInitbb0ff6778a6a757101f7df71bf643004
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitbb0ff6778a6a757101f7df71bf643004::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitbb0ff6778a6a757101f7df71bf643004::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInitbb0ff6778a6a757101f7df71bf643004::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticIniteeed489f1af532083a85282d6942e8c5::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticIniteeed489f1af532083a85282d6942e8c5::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticIniteeed489f1af532083a85282d6942e8c5::$classMap;
 
         }, null, ClassLoader::class);
     }

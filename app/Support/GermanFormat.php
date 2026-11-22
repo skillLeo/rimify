@@ -142,13 +142,16 @@ final class GermanFormat
         ]);
     }
 
-    /** `Vorne 2 × 8,5 × 18 ET 35`: one axle of a set of two versions, two wheels on it (the client's fourth change). */
+    /**
+     * `Vorne 2 × 8,5J × 18 ET 35`: one axle of a set of two versions, two wheels on it (the client's fourth change). The width
+     * with its J, as everywhere else in the shop (R-10, D-515).
+     */
     public static function wheelSetAxle(string $axle, float|int|string $widthIn, float|int|string $diameterIn, int $etMm): string
     {
-        return $axle.self::NBSP.'2'.self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($widthIn).self::NBSP.self::TIMES.self::NBSP.self::trimmedDecimal($diameterIn, 1).self::NBSP.self::offset($etMm);
+        return $axle.self::NBSP.'2'.self::NBSP.self::TIMES.self::NBSP.self::rimSize($widthIn, $diameterIn).self::NBSP.self::offset($etMm);
     }
 
-    /** `Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35`: the set in one line. */
+    /** `Vorne 2 × 8,5J × 18 ET 35 · Hinten 2 × 8,5J × 19 ET 35`: the set in one line. */
     public static function wheelSet(
         float|int|string $frontWidthIn,
         float|int|string $frontDiameterIn,

@@ -11,6 +11,7 @@ use App\Domain\Fitment\Data\FitmentRow;
 use App\Domain\Fitment\Data\RowFilter;
 use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Data\WheelConfigRecord;
+use App\Domain\Fitment\Rules\TeilegutachtenAbnahme;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Domain\Fitment\Tyres\CombinationEntry;
 use App\Domain\Fitment\Tyres\TyrePairing;
@@ -350,6 +351,14 @@ final readonly class EloquentFitmentRepository implements FitmentRepository
 
         $override = $fitment->entry_override;
         $overridden = $override === 'required' ? true : ($override === 'not_required' ? false : null);
+
+        // A2 (D-505), behind its switch and off: a Teilegutachten states the Abnahme from its type on every row, unless a
+        // Prüfer excepted the row with a reason. Read like any Abnahme code on the row, so the Eintragung follows from it.
+        $byType = TeilegutachtenAbnahme::for($document->kind, $override);
+
+        if ($byType !== null) {
+            $rowConditions[] = $byType;
+        }
         // The stored flag is FitmentRows' own derivation; read as a floor only, so a stale one can make
         // the answer stricter, never looser — and a row written by an import or a seed keeps its word.
         // It is the row's AND its sizes' Abnahme in one bit, so where a size's own Abnahme explains it, that

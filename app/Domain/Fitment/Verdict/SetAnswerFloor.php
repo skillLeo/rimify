@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Fitment\Verdict;
 
+use App\Support\Switches;
+
 /**
  * One answer for a Komplettrad, wherever it is read (the operator's answer of 21.11.2026, D-501): the tyre step, its tiles,
  * the basket, the Kasse, the order and its mail say the same. The order freezes the line's whole answer — every Auflage of
@@ -21,7 +23,7 @@ final class SetAnswerFloor
      */
     public static function conditions(array $set, FitmentVerdict $verdict): array
     {
-        if (! self::raises($set, $verdict)) {
+        if (! self::raises($set, $verdict, false)) {
             return $set;
         }
 
@@ -36,9 +38,9 @@ final class SetAnswerFloor
      * @param  list<Condition>  $set  the chosen set's own
      * @return array<string, mixed>
      */
-    public static function answer(array $answer, array $set, FitmentVerdict $verdict): array
+    public static function answer(array $answer, array $set, FitmentVerdict $verdict, bool $frozen = false): array
     {
-        if (! self::raises($set, $verdict)) {
+        if (! self::raises($set, $verdict, $frozen)) {
             return $answer;
         }
 
@@ -74,10 +76,28 @@ final class SetAnswerFloor
         return self::answer($groups->toArray($chosenKey, $axle, $partnerKey), $groups->forSet($chosenKey, $partnerKey), $verdict);
     }
 
-    /** @param list<Condition> $set */
-    private static function raises(array $set, FitmentVerdict $verdict): bool
+    /**
+     * A frozen line's groups (order page, mail, admin order): always with the floor, whatever the A4 switch says now — an order
+     * is read as it was sold. A line frozen scoped (ScopedAnswer) holds only its set's Auflagen, so the floor adds nothing to it.
+     *
+     * @return array<string, mixed>
+     */
+    public static function frozenGroups(FitmentVerdict $verdict, ?string $chosenKey, ?string $axle = null, ?string $partnerKey = null): array
     {
-        if ($verdict->status !== VerdictStatus::Conditional) {
+        $groups = $verdict->conditionGroups();
+
+        if ($chosenKey === null) {
+            return $groups->toArray(null, $axle, $partnerKey);
+        }
+
+        return self::answer($groups->toArray($chosenKey, $axle, $partnerKey), $groups->forSet($chosenKey, $partnerKey), $verdict, frozen: true);
+    }
+
+    /** @param list<Condition> $set */
+    private static function raises(array $set, FitmentVerdict $verdict, bool $frozen): bool
+    {
+        // A4 (D-506), behind its switch: a live answer is scoped to the set, so nothing is raised. A frozen one, as sold.
+        if ($verdict->status !== VerdictStatus::Conditional || (! $frozen && Switches::scopedAuflagen())) {
             return false;
         }
 

@@ -88,7 +88,7 @@ class OrderConfirmationMail extends Mailable
                     // As the order page says them: the combination's once, each tyre size's with that size — on a set per
                     // axle under that axle's name (D-335).
                     // A Komplettrad's set says every Auflage the order froze (D-501, D-504).
-                    $groups = SetAnswerFloor::groups($frozen, PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
+                    $groups = SetAnswerFloor::frozenGroups($frozen, PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
                 } catch (Throwable) {
                     $groups = null;
                 }

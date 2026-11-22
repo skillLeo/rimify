@@ -114,7 +114,8 @@ final class CatalogueVersion
     /** A cache key kept under the current version: `vehicle-tree.makes` becomes `vehicle-tree.makes@lq3x2k1f-9c04e1`. */
     public static function key(string $key): string
     {
-        return $key.'@'.self::current();
+        // A switch flipped is a different answer: its fingerprint is empty while all are off (Switches).
+        return $key.'@'.self::current().Switches::fingerprint();
     }
 
     /** Milliseconds and a random tail: never the value before, even twice in one millisecond. */

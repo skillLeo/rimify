@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Commerce;
 
+use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Infrastructure\EloquentTyreCatalogue;
 use App\Domain\Fitment\Resolver\FitmentResolver;
 use App\Domain\Fitment\Resolver\WheelSet;
@@ -11,6 +12,7 @@ use App\Domain\Fitment\Resolver\WheelSets;
 use App\Domain\Fitment\Tyres\CombinationVerdict;
 use App\Domain\Fitment\Tyres\TyreEligibility;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\ScopedAnswer;
 use App\Domain\Storefront\VehicleContext;
 use App\Enums\OrderLineKind;
 use App\Enums\OrderStatus;
@@ -121,6 +123,12 @@ final class OrderWriter
                     $sets[$i] = $wheelSet;
                     $verdicts[$i] = $wheelSet->combined();
                 }
+            }
+
+            // A4 (D-506), behind its switch and off: a Komplettrad freezes the answer for the sizes chosen, as its basket line said it.
+            if (($line['isSet'] ?? false) === true) {
+                [$sizeKey, $partnerKey] = self::setSizes($line, $mixed);
+                $verdicts[$i] = ScopedAnswer::of($verdicts[$i], $sizeKey, $partnerKey);
             }
         }
 
@@ -274,6 +282,30 @@ final class OrderWriter
             'engine_version' => $verdict->snapshot->engineVersion,
             'computed_at' => $verdict->snapshot->computedAt,
         ])->save();
+    }
+
+    /**
+     * A Komplettrad line's tyre size and, on a set per axle, the other axle's — as the basket line read them (Basket::line()).
+     *
+     * @param  array<string, mixed>  $line
+     * @param  array<string, mixed>|null  $mixed
+     * @return array{0: ?string, 1: ?string}
+     */
+    private static function setSizes(array $line, ?array $mixed): array
+    {
+        $key = static function (mixed $id): ?string {
+            $tyre = is_numeric($id) ? TyreVariant::query()->find((int) $id) : null;
+
+            return $tyre === null ? null : TyreSize::keyOf((int) $tyre->width_mm, (int) $tyre->aspect, (float) $tyre->diameter_in);
+        };
+
+        if ($mixed === null || ($mixed['frontTyreId'] ?? null) === null) {
+            return [$key(is_array($line['tyre'] ?? null) ? ($line['tyre']['id'] ?? null) : null), null];
+        }
+
+        $rear = ($mixed['axle'] ?? null) === 'REAR';
+
+        return [$key($rear ? $mixed['rearTyreId'] : $mixed['frontTyreId']), $key($rear ? $mixed['frontTyreId'] : $mixed['rearTyreId'])];
     }
 
     /**
