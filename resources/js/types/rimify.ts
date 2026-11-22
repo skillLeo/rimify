@@ -177,6 +177,8 @@ export interface SharedProps {
     smallBusiness: boolean
     /** The test environment's ribbon: on staging only, until put away (PreviewRibbon.vue). */
     previewRibbon?: boolean
+    /** The page's search description where the page writes none (App\Support\PageDescription, D-511). */
+    pageDescription?: string | null
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
     /** The catalogue's version the page was computed from (App\Support\CatalogueVersion, D-294; restoredPages.ts). */

@@ -22,6 +22,7 @@ use App\Services\Demo\DemoTables;
 use App\Services\Storefront\Chrome;
 use App\Support\CatalogueVersion;
 use App\Support\KeyNumberSearch;
+use App\Support\PageDescription;
 use App\Support\PreviewRibbon;
 use App\Support\ReleaseStamp;
 use App\Support\Seller;
@@ -105,6 +106,8 @@ class HandleInertiaRequests extends Middleware
             // The page's one address (the client's #8): the shop's own host and the address the browser shows — with the
             // car as its key numbers — written into the first frame as <link rel="canonical"> (StorefrontLayout).
             'canonical' => $request->is('admin', 'admin/*') ? null : rtrim((string) config('app.url'), '/').self::address($request),
+            // The page's search description, where the page does not write its own (PageDescription, D-511).
+            'pageDescription' => static fn (): ?string => $request->is('admin', 'admin/*') ? null : PageDescription::for($request),
             /*
              * Whether photography is layered over the drawn art (config/rimify.php). Shared
              * rather than compiled in, so one env change turns it off without a build.
