@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Middleware\SecurityHeaders;
 use App\Models\WheelModel;
+use App\Support\PageDescription;
 use Database\Seeders\CommerceSeeder;
+use Illuminate\Http\Request;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\LegalFixture;
 
@@ -41,6 +43,17 @@ it('describes a wheel by the admin’s own text, or by its name where there is n
 
     $model->forceFill(['seo_description' => 'Eigener Text für die Suche.'])->save();
     expect($read())->toBe('Eigener Text für die Suche.');
+});
+
+it('says nothing of a wheel that is not published — its address answers 404, and the description stays empty', function (): void {
+    $model = WheelModel::query()->where('status', 'published')->firstOrFail();
+    $model->forceFill(['status' => 'draft', 'seo_description' => 'Geheimer Entwurfstext.'])->save();
+
+    $response = $this->get('/felgen/'.$model->slug);
+
+    expect($response->getStatusCode())->toBe(404)
+        ->and($response->getContent())->not->toContain('Geheimer Entwurfstext')
+        ->and(PageDescription::for(Request::create('/felgen/'.$model->slug)->setRouteResolver(fn () => app('router')->getRoutes()->match(Request::create('/felgen/'.$model->slug)))))->toBeNull();
 });
 
 it('keeps a person’s own pages out of search in the live shop, and opens the catalogue to it', function (): void {

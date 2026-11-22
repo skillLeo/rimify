@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Enums\CatalogueStatus;
 use App\Models\WheelModel;
 use Illuminate\Http\Request;
 
@@ -57,7 +58,13 @@ final class PageDescription
     /** The model's own, where the admin wrote one (`seo_description`); otherwise ours, from its name. */
     private static function wheel(string $slug): ?string
     {
-        $model = WheelModel::query()->with('brand:id,name')->where('slug', $slug)->first(['id', 'brand_id', 'name', 'seo_description']);
+        // Published only, as the page itself (FelgenController::show): a draft's address answers 404, and its name and text
+        // must not reach that answer through this prop.
+        $model = WheelModel::query()->with('brand:id,name')->where('slug', $slug)->where('status', CatalogueStatus::Published->value)->first(['id', 'brand_id', 'name', 'seo_description', 'is_demo', 'demo_ref']);
+
+        if ($model?->refusedAsDemo() === true) {
+            return null;
+        }
 
         if ($model === null) {
             return null;
