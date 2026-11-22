@@ -26,6 +26,7 @@ use App\Support\PageDescription;
 use App\Support\PreviewRibbon;
 use App\Support\ReleaseStamp;
 use App\Support\Seller;
+use App\Support\Switches;
 use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Http\Request;
@@ -119,6 +120,9 @@ class HandleInertiaRequests extends Middleware
             // The test environment says what it is in one slim line, until put away (PreviewRibbon.vue): on staging only,
             // decided here so the first frame already has it — or has not (R-08).
             'previewRibbon' => PreviewRibbon::shown($request),
+            // The switches of the brief of 22.11.2026, Part A, that the page reads (App\Support\Switches): decided here, so the
+            // server's first frame already shows the one dropdown or the chips (R-08). Off everywhere until „release A1“.
+            'switches' => ['d6' => Switches::d6Dropdowns()],
             // Which build this test environment serves, at the foot of every page (ReleaseStamp); null in the live shop.
             'release' => ReleaseStamp::label(),
             // The catalogue's version the page was computed from (CatalogueVersion, D-294): a page brought back by Back or

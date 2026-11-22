@@ -91,6 +91,14 @@ export interface VariantOption {
     readonly reason: string | null
 }
 
+/** One diameter of the one dropdown (A1): what the car may have, and the rest, struck and never a choice. */
+export interface DimensionGroup {
+    readonly diameter: number
+    readonly label: string
+    readonly versions: readonly VariantOption[]
+    readonly others: readonly VariantOption[]
+}
+
 export interface Configurator {
     readonly finishId: Ref<number>
     readonly configId: Ref<number | null>
@@ -102,6 +110,13 @@ export interface Configurator {
     readonly versions: ComputedRef<VariantOption[]>
     /** The versions the car may not have, or that nothing on record approves. Struck through and never a choice. */
     readonly others: ComputedRef<VariantOption[]>
+    /**
+     * Every version of this colour, by diameter (A1, D-509, behind the D6 switch): the one dropdown's rows — the same options,
+     * the same answers and the same blocking as the chips', only all at once.
+     */
+    readonly dimensions: ComputedRef<DimensionGroup[]>
+    /** Every set of this colour, whatever the diameter in view: the one dropdown lists them all. */
+    readonly sets: ComputedRef<ProduktSet[]>
     /** The chosen set, or the one the version in view stands in where it is sold only so. */
     readonly selectedSet: ComputedRef<ProduktSet | null>
     /** The sets of this colour that hold the diameter in view. */
@@ -274,8 +289,12 @@ export function useConfigurator(
             return []
         }
 
-        // A version sold only within a set has no chip of its own: the set's chip stands for it.
-        const row = forFinish.value.filter((c) => c.diameterIn === current.diameterIn && !(c.onlyInSet === true && standsInSet(c)))
+        return optionsOf(current.diameterIn)
+    })
+
+    /** The versions of one diameter as options: a version sold only within a set has none of its own — the set stands for it. */
+    function optionsOf(diameter: number): VariantOption[] {
+        const row = forFinish.value.filter((c) => c.diameterIn === diameter && !(c.onlyInSet === true && standsInSet(c)))
 
         return [...row]
             .sort((a, b) => a.widthIn - b.widthIn || a.etMm - b.etMm || a.versionLabel.localeCompare(b.versionLabel, 'de', { numeric: true }))
@@ -295,7 +314,17 @@ export function useConfigurator(
                     reason: blocked || unconfirmed ? reasonFor([config]) : null,
                 }
             })
-    })
+    }
+
+    const dimensions = computed<DimensionGroup[]>(() =>
+        [...new Set(forFinish.value.map((c) => c.diameterIn))]
+            .sort((a, b) => a - b)
+            .map((diameter) => {
+                const options = optionsOf(diameter)
+
+                return { diameter, label: String(diameter).replace('.', ','), versions: options.filter((v) => !v.blocked), others: options.filter((v) => v.blocked) }
+            }),
+    )
 
     const versions = computed(() => variants.value.filter((v) => !v.blocked))
     const others = computed(() => variants.value.filter((v) => v.blocked))
@@ -414,6 +443,8 @@ export function useConfigurator(
         variants,
         versions,
         others,
+        dimensions,
+        sets: setsOfFinish,
         selectedSet,
         setsHere,
         setKey,

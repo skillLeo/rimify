@@ -179,6 +179,8 @@ export interface SharedProps {
     previewRibbon?: boolean
     /** The page's search description where the page writes none (App\Support\PageDescription, D-511). */
     pageDescription?: string | null
+    /** The Part A switches the page reads (App\Support\Switches); absent or false: off. */
+    switches?: { d6?: boolean }
     /** Staging only: `Testumgebung · Stand 56fc810c vom 01.10.2026, 16:25 Uhr` (App\Support\ReleaseStamp). */
     release?: string | null
     /** The catalogue's version the page was computed from (App\Support\CatalogueVersion, D-294; restoredPages.ts). */
