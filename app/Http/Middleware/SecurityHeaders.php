@@ -56,8 +56,17 @@ final class SecurityHeaders
             $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
         }
 
+        // A person's own pages never stand in a search, in the live shop either (D-511): the basket, the Kasse, an order, an
+        // account, a RIMIFY-Check result, the comparison, a review form, an invoice and a notification link.
+        if (! self::hidden() && $request->is(...self::PRIVATE_PATHS)) {
+            $response->headers->set('X-Robots-Tag', 'noindex');
+        }
+
         return $response;
     }
+
+    /** @var list<string> */
+    public const PRIVATE_PATHS = ['warenkorb', 'warenkorb/*', 'kasse', 'kasse/*', 'bestellung/*', 'konto', 'konto/*', 'rimify-check/ergebnis/*', 'vergleich', 'bewertung/*', 'rechnung/*', 'benachrichtigung/*'];
 
     /** Whether this copy of the shop keeps search engines out — robots.txt asks the same (RobotsController). */
     public static function hidden(): bool

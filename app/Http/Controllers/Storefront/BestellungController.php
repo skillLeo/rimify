@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Storefront;
 
 use App\Domain\Fitment\Verdict\FitmentVerdict;
+use App\Domain\Fitment\Verdict\SetAnswerFloor;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\OrderStatusRequest;
@@ -245,7 +246,7 @@ class BestellungController extends Controller
     private static function conditionGroups(array $verdict, ?string $tyreSize, ?string $axle = null, ?string $partner = null): ?array
     {
         try {
-            return FitmentVerdict::fromArray($verdict)->conditionGroups()->toArray($tyreSize, $axle, $partner);
+            return SetAnswerFloor::groups(FitmentVerdict::fromArray($verdict), $tyreSize, $axle, $partner);
         } catch (Throwable) {
             return null;
         }

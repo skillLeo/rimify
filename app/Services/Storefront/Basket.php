@@ -1602,7 +1602,7 @@ final readonly class Basket
             ),
             // The Auflagen as the document hangs them: the combination's once, each tyre size's with that size — or,
             // for a Komplettrad, what applies to its tyre, on a set per axle under that axle's name (ConditionGroups).
-            'conditionGroups' => $chosenSize === null ? $groups->toArray(null, $axle, $partner) : SetAnswerFloor::answer($groups->toArray($chosenSize, $axle, $partner), $groups->forSet($chosenSize, $partner), $verdict),
+            'conditionGroups' => SetAnswerFloor::groups($verdict, $chosenSize, $axle, $partner),
         ];
     }
 

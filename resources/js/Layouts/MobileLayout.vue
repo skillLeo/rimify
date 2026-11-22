@@ -24,6 +24,7 @@ import SiteHeader from '../Components/Chrome/SiteHeader.vue'
 import ListRow from '../Components/Mobile/ListRow.vue'
 import SearchSheet from '../Components/Mobile/SearchSheet.vue'
 import CanonicalLink from '../Components/Chrome/CanonicalLink.vue'
+import PageDescription from '../Components/Chrome/PageDescription.vue'
 import CookieConsent from '../Components/Chrome/CookieConsent.vue'
 import PreviewRibbon from '../Components/Chrome/PreviewRibbon.vue'
 import SiteFooter from '../Components/Chrome/SiteFooter.vue'
@@ -176,6 +177,7 @@ function fromVehicleSheet(href: string | undefined): void {
         <a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
 
         <CanonicalLink />
+        <PageDescription />
 
         <PreviewRibbon />
 

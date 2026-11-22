@@ -44,7 +44,7 @@ Checked against the migrated schema; each line says which side is right.
 
 | Rule or document | What the schema has | Which is right |
 |---|---|---|
-| R-05 says every foreign key out of `fitments` is RESTRICT | Its links to the paper, the car and the wheel version are RESTRICT; `fitments.created_by` → `admin_users` is SET NULL | **The schema**, by R-05's own reason („compliance data never disappears as a side effect of tidying a catalogue“): an admin account going takes no row with it, only the name of who wrote it. R-05's wording is wider than its intent; changing CLAUDE.md is the operator's to decide. |
+| R-05 (reworded 22.11.2026, D-503) | Links to the paper, the car and the wheel version RESTRICT; `fitments.created_by` → `admin_users` SET NULL | **Both agree now.** R-05 said „every foreign key out of `fitments`“; it now names the three links and the SET NULL to the admin who wrote the row. |
 | §8: every measurement column carries its unit in the name | `fitments.permitted_width_min/max` and `document_car_entries.permitted_width_min/max` (inches), `fitments.permitted_et_min/max` and `document_car_entries.permitted_et_min/max` (mm), `media.size` (bytes) carry none | **The rule.** The values are right and read right; only the names lack the unit. A rename is a migration across the entry, the engine and the tests, not done here. |
 | The count of the Verwendungsbereich (D-249) | `approval_documents.counted_codes_page` and `counted_sizes_page` are still there, not asked, shown or compared since D-440; `counted_axle_limit_page` is stored and never read | **D-440.** The columns are dead data kept for the Protokoll of older releases; nothing reads them. |
 

@@ -13,11 +13,14 @@ use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
+use Illuminate\Events\CallQueuedListener;
 use Illuminate\Queue\Attributes\Backoff;
+use Illuminate\Queue\Attributes\CountCrashesAsExceptions;
 use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
 use Illuminate\Queue\Attributes\FailOnTimeout;
 use Illuminate\Queue\Attributes\MaxExceptions;
 use Illuminate\Queue\Attributes\ReadsQueueAttributes;
+use Illuminate\Queue\Attributes\RetryFor;
 use Illuminate\Queue\Attributes\Timeout;
 use Illuminate\Queue\Attributes\Tries;
 use Illuminate\Queue\Events\JobQueued;
@@ -58,7 +61,7 @@ abstract class Queue
     /**
      * Indicates that jobs should be dispatched after all database transactions have committed.
      *
-     * @var bool
+     * @var bool|null
      */
     protected $dispatchAfterCommit;
 
@@ -180,6 +183,7 @@ abstract class Queue
             'maxTries' => $this->getJobTries($job),
             'maxExceptions' => $this->getAttributeValue($job, MaxExceptions::class, 'maxExceptions'),
             'failOnTimeout' => $this->getAttributeValue($job, FailOnTimeout::class, 'failOnTimeout') ?? false,
+            'countCrashesAsExceptions' => $this->getAttributeValue($job, CountCrashesAsExceptions::class, 'countCrashesAsExceptions') ?? false,
             'backoff' => $this->getJobBackoff($job),
             'timeout' => $this->getAttributeValue($job, Timeout::class, 'timeout'),
             'retryUntil' => $this->getJobExpiration($job),
@@ -274,7 +278,9 @@ abstract class Queue
     public function getJobExpiration($job)
     {
         if (! method_exists($job, 'retryUntil') && ! isset($job->retryUntil)) {
-            return;
+            $retryFor = $this->getAttributeValue($job, RetryFor::class);
+
+            return is_null($retryFor) ? null : $this->availableAt($retryFor);
         }
 
         $expiration = $job->retryUntil ?? $job->retryUntil();
@@ -434,7 +440,8 @@ abstract class Queue
      */
     protected function registerRollbackCallbacksForJobsThatDispatchAfterCommit($job)
     {
-        if ($job instanceof ShouldBeUnique) {
+        if ($job instanceof ShouldBeUnique ||
+            ($job instanceof CallQueuedListener && $job->shouldBeUnique())) {
             $owner = isset(class_uses_recursive($job)[Queueable::class])
                 ? ($job->uniqueLockOwner ?? '')
                 : null;
@@ -462,7 +469,7 @@ abstract class Queue
     /**
      * Raise the job queueing event.
      *
-     * @param  string  $queue
+     * @param  string|null  $queue
      * @param  \Closure|string|object  $job
      * @param  string  $payload
      * @param  \DateTimeInterface|\DateInterval|int|null  $delay
