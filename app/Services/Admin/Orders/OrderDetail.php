@@ -8,6 +8,7 @@ use App\Domain\Fitment\Data\TyreSize;
 use App\Domain\Fitment\Verdict\Condition;
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
+use App\Domain\Fitment\Verdict\SetAnswerFloor;
 use App\Domain\Fitment\Verdict\VerdictStatus;
 use App\Enums\ApprovalKind;
 use App\Enums\DocumentStatus;
@@ -193,7 +194,7 @@ final class OrderDetail
 
         $document = $verdict->document;
         $kind = $document === null ? null : (ApprovalKind::tryFrom($document->kind)?->labelDe() ?? $document->kind);
-        $groups = $verdict->conditionGroups()->toArray($tyreSize, $axle, $partner);
+        $groups = SetAnswerFloor::groups($verdict, $tyreSize, $axle, $partner);
 
         return $base + [
             'readable' => true,

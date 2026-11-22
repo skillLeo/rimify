@@ -57,6 +57,23 @@ final class SetAnswerFloor
         return [...$answer, 'combination' => [...(array) ($answer['combination'] ?? []), ...$extra], ...$standing];
     }
 
+    /**
+     * The line's groups as every page that reads a frozen or live Komplettrad line shows them (basket, order page, mail,
+     * admin order): for a chosen size the set's answer raised as above, otherwise the groups as they stand.
+     *
+     * @return array<string, mixed>
+     */
+    public static function groups(FitmentVerdict $verdict, ?string $chosenKey, ?string $axle = null, ?string $partnerKey = null): array
+    {
+        $groups = $verdict->conditionGroups();
+
+        if ($chosenKey === null) {
+            return $groups->toArray(null, $axle, $partnerKey);
+        }
+
+        return self::answer($groups->toArray($chosenKey, $axle, $partnerKey), $groups->forSet($chosenKey, $partnerKey), $verdict);
+    }
+
     /** @param list<Condition> $set */
     private static function raises(array $set, FitmentVerdict $verdict): bool
     {

@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Domain\Fitment\Verdict\ConditionKind;
+use App\Mail\OrderConfirmationMail;
 use App\Models\DocumentCondition;
 use App\Models\Fitment;
 use App\Models\FitmentTyreSize;
 use App\Models\Order;
 use App\Models\OrderLineFitment;
 use App\Models\WheelModel;
+use App\Services\Admin\Orders\OrderDetail;
 use App\Services\Commerce\KomplettradSettings;
 use App\Services\Storefront\Basket;
 use App\Support\CatalogueVersion;
@@ -74,6 +76,18 @@ it('says the same Auflage in the tyre step, the basket, the Kasse and the order 
     // Every Auflage the order keeps, the step said: the same list, the same order.
     $kept = array_map(static fn (array $c): string => (string) ($c['textDe'] ?? ''), $verdict['conditions']);
     expect(array_values(array_intersect($offered['answer']['combination'], $kept)))->toHaveCount(count($kept));
+
+    // D-504: the order page, the confirmation mail and the admin's order read the frozen answer the same way — the Auflage
+    // stands on each, never only the chosen size's own.
+    $page = collect($this->withCookies($this->fx->cookies())->get('/bestellung/'.$order->public_id)->assertOk()->viewData('page')['props']['lines'])->first();
+    $mail = collect((new OrderConfirmationMail($order, null))->content()->with['lines'])->first();
+    $detail = collect(app(OrderDetail::class)->for($order)['lines'])->first();
+
+    expect($page['verdict']['conditionGroups']['combination'])->toContain('Braucht eine Abnahme.')
+        ->and($page['verdict']['conditionGroups']['standing'])->toBe('auflagen')
+        ->and($mail['conditions'])->toContain('Braucht eine Abnahme.')
+        ->and($mail['verdict'])->toBe('Für dein Fahrzeug freigegeben, mit Auflagen.')
+        ->and($detail['snapshot']['conditionGroups']['combination'])->toContain('Braucht eine Abnahme.');
 });
 
 it('leaves a plain answer plain: no Auflage on the row, „Keine Auflagen.“ in the step and nothing to read in the basket', function (): void {

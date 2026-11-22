@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Domain\Fitment\Verdict\FitmentVerdict;
 use App\Domain\Fitment\Verdict\PapersWording;
+use App\Domain\Fitment\Verdict\SetAnswerFloor;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\Commerce\Invoices;
@@ -85,7 +86,8 @@ class OrderConfirmationMail extends Mailable
                     $frozen = FitmentVerdict::fromArray((array) $snapshot->verdict);
                     // As the order page says them: the combination's once, each tyre size's with that size — on a set per
                     // axle under that axle's name (D-335).
-                    $groups = $frozen->conditionGroups()->toArray(PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
+                    // A Komplettrad's set says every Auflage the order froze (D-501, D-504).
+                    $groups = SetAnswerFloor::groups($frozen, PackageTyreSizes::for($line, $tyres), PackageTyreSizes::axle($line), PackageTyreSizes::partner($line, $tyres));
                     // The Gutachten the answer rests on, at its row's page — the very document the order froze (D-491).
                     $document = GutachtenPdfLink::of($frozen->document, absolute: true);
                     // Every PDF the purchase was shown with, as frozen (D-494): the paper's own first.
