@@ -20,6 +20,9 @@ export const E2E_FEATURES = {
     RIMIFY_E2E_CLOCK: 'on',
     // A vehicle file in parts of 64 KB: a file of a few hundred KB goes through the page in several (D-462).
     RIMIFY_VEHICLE_IMPORT_PART_BYTES: '65536',
+    // Every worker signs in as the one seeded Super-Admin, often inside the same 30 seconds: its code may be taken more
+    // than once here (D-514). Ignored where APP_ENV is production (config/rimify.php).
+    RIMIFY_TOTP_SINGLE_USE: 'false',
 }
 
 /**

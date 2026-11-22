@@ -52,6 +52,12 @@ class ReviewAccountsSeeder extends Seeder
                 $user->forceFill(['password' => self::firstPassword()]);
             }
 
+            // The Super-Admin's second factor is required (D-514): on a development database the known key, so the
+            // suites can sign in; anywhere else none — its owner sets one up at the first sign-in.
+            if ($role === 'super-admin' && self::knownPasswordAllowed() && $user->getRawOriginal('totp_secret') === null) {
+                $user->forceFill(['totp_secret' => AccessSeeder::DEMO_TOTP_KEY, 'totp_confirmed_at' => now()]);
+            }
+
             $user->save();
             $user->syncRoles([Role::query()->where('name', $role)->where('guard_name', 'admin')->firstOrFail()]);
 

@@ -58,6 +58,7 @@ use App\Http\Controllers\Admin\WasFehltController;
 use App\Http\Controllers\Admin\WuchtgewichteController;
 use App\Http\Controllers\Admin\ZahlungController;
 use App\Http\Controllers\Admin\ZuruecksetzenController;
+use App\Http\Controllers\Admin\ZweiFaktorController;
 use App\Http\Controllers\Api\FitmentCountController;
 use App\Http\Controllers\Api\FitmentNotifyController;
 use App\Http\Controllers\Api\PlzController;
@@ -98,6 +99,7 @@ use App\Http\Controllers\Storefront\WiderrufsformularController;
 use App\Http\Middleware\EnsureAdminMay;
 use App\Http\Middleware\EnsureResetPermitted;
 use App\Http\Middleware\EnsureSudo;
+use App\Http\Middleware\EnsureTwoFactorSetUp;
 use App\Http\Requests\Admin\WheelStatusRequest;
 use App\Models\MailSetting;
 use App\Models\PaymentSetting;
@@ -293,6 +295,12 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->middleware('guest:admin')
         ->name('anmelden.store');
 
+    // The second step (D-514): only after the password, which the session remembers for five minutes. Throttled in its
+    // Form Request per account; this one only keeps a flood off the server.
+    Route::post('/anmelden/code', [AdminLoginController::class, 'challenge'])
+        ->middleware(['guest:admin', 'throttle:30,1,anmelden-code'])
+        ->name('anmelden.code');
+
     // Accepting an invitation: the link in the e-mail. Not behind `auth:admin` — the person has no
     // account until they accept — and throttled, because the token is the only thing they present.
     Route::get('/einladung/{token}', [EinladungController::class, 'show'])
@@ -304,8 +312,26 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         ->where('token', '[A-Za-z0-9_-]{20,128}')
         ->name('einladung.annehmen');
 
-    Route::middleware('auth:admin')->group(function (): void {
+    // EnsureTwoFactorSetUp: a Super-Admin without a second factor reaches only its setup and the way out (D-514).
+    Route::middleware(['auth:admin', EnsureTwoFactorSetUp::class])->group(function (): void {
         Route::post('/abmelden', [AdminLoginController::class, 'destroy'])->name('abmelden');
+
+        // Bestätigung in zwei Schritten (D-514): your own, like Profil — nothing here takes an id. Every page and change
+        // asks for the password again (EnsureSudo), the first setup too: a session someone else holds must not set up a
+        // second factor of its own and lock the owner out.
+        Route::middleware(EnsureSudo::class)->group(function (): void {
+            Route::get('/zwei-faktor/einrichten', [ZweiFaktorController::class, 'show'])->name('zwei-faktor.einrichten');
+            Route::post('/zwei-faktor/einrichten', [ZweiFaktorController::class, 'store'])
+                ->middleware('throttle:10,1,zwei-faktor-bestaetigen')
+                ->name('zwei-faktor.bestaetigen');
+            Route::get('/zwei-faktor/neu', [ZweiFaktorController::class, 'replace'])->name('zwei-faktor.neu');
+            Route::post('/zwei-faktor/wiederherstellungscodes', [ZweiFaktorController::class, 'recoveryCodes'])
+                ->middleware('throttle:6,1,zwei-faktor-codes')
+                ->name('zwei-faktor.codes');
+            Route::delete('/zwei-faktor', [ZweiFaktorController::class, 'destroy'])
+                ->middleware('throttle:6,1,zwei-faktor-aus')
+                ->name('zwei-faktor.aus');
+        });
 
         // The signed-in person's own account and panel layout. Every admin may reach their own and
         // nobody else's: nothing here takes an id, so there is nothing to point at another row.

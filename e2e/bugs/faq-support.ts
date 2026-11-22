@@ -1,5 +1,6 @@
 import { expect, type APIResponse, type Page, type Request, type Route } from '@playwright/test';
 import { send } from '../teardown';
+import { totp } from '../totp';
 
 /*
  * Shared steps of the Inhalte › FAQ bug tests (docs/qa/BUGS.md, FAQ-xx).
@@ -47,6 +48,13 @@ export async function signIn(page: Page): Promise<void> {
     // and sets the session and XSRF cookies like any other answer.
     await context.request.get('/admin/anmelden', { headers: { 'X-Inertia': 'true', 'X-Requested-With': 'XMLHttpRequest' }, maxRedirects: 0 });
     const status = await send(context, 'POST', '/admin/anmelden', { email: SUPER_ADMIN.email, password: SUPER_ADMIN.password });
+
+    // The Super-Admin's second step (D-514): the code its development key makes now.
+    if (status === 302) {
+        const second = await send(context, 'POST', '/admin/anmelden/code', { code: totp() });
+
+        expect(second, 'the super-admin passes the second step').toBe(302);
+    }
 
     expect(status, 'rig: the super-admin is signed in — a good password is answered with a redirect').toBe(302);
 }

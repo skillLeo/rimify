@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdminPasswordRequest;
 use App\Models\AdminUser;
 use App\Models\AuditLog;
+use App\Services\Admin\Auth\TwoFactor;
 use App\Support\GermanFormat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,16 +19,17 @@ use Inertia\Response;
  * Profil — the signed-in person's own account: who the panel thinks they are, and their password.
  *
  * It is the user menu's destination, so it has to exist before that menu may point at it. What it
- * does not yet offer — changing the address, two-factor enrolment — is not shown as a disabled
- * control; it is simply not here until it works.
+ * does not offer — changing the address — is not shown as a disabled control; it is simply not here.
+ * Bestätigung in zwei Schritten (D-514) is set up and changed from here, on its own page.
  */
 class AdminProfileController extends Controller
 {
     public const PASSWORD_TOAST = 'Dein Passwort ist geändert.';
 
-    public function show(Request $request): Response
+    public function show(Request $request, TwoFactor $twoFactor): Response
     {
         $admin = self::admin($request);
+        $active = $twoFactor->isActive($admin);
 
         return Inertia::render('Admin/Profil/Index', [
             'profile' => [
@@ -36,6 +38,12 @@ class AdminProfileController extends Controller
                 'role' => $admin->roleLabel(),
                 'lastLogin' => GermanFormat::dateTime($admin->last_login_at),
                 'twoFactor' => $admin->hasTwoFactorEnabled(),
+            ],
+            'twoFactor' => [
+                'active' => $active,
+                'unreadable' => $twoFactor->isUnreadable($admin),
+                'required' => $admin->isSuperAdmin(),
+                'recoveryLeft' => $active ? $twoFactor->recoveryCodesLeft($admin) : 0,
             ],
         ]);
     }

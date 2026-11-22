@@ -4,12 +4,14 @@
  *
  * Name and address are shown, not edited here: they are how the team recognises an account in the
  * Protokoll, so they are changed by whoever manages users, and the page says so instead of offering
- * a field that would be refused. Two-factor sign-in is not mentioned until it can be set up.
+ * a field that would be refused. Bestätigung in zwei Schritten (D-514) has its own section: its state,
+ * and what can be done with it — each change behind the password asked again (EnsureSudo).
  *
  * The password is the page's one form. After a save its fields are emptied — a password is never
  * left on screen — and the toast is the confirmation.
  */
 
+import { Link, router } from '@inertiajs/vue3'
 import { onMounted } from 'vue'
 import AdminLayout from '../../../Layouts/AdminLayout.vue'
 import AdminPage from '../../../Components/Admin/AdminPage.vue'
@@ -30,6 +32,20 @@ const editor = useDirtyForm(
     { method: 'put', url: '/admin/profil/passwort', resetOnSuccess: true }
 )
 const form = editor.form
+
+const twoFactor = props.twoFactor
+
+const recoveryLine = twoFactor.recoveryLeft === 1
+    ? 'Dir bleibt noch 1 Wiederherstellungscode.'
+    : `Dir bleiben noch ${twoFactor.recoveryLeft} Wiederherstellungscodes.`
+
+function renewCodes(): void {
+    router.post('/admin/zwei-faktor/wiederherstellungscodes')
+}
+
+function switchOff(): void {
+    router.delete('/admin/zwei-faktor', { preserveScroll: true })
+}
 
 // Arriving from *Passwort ändern* means the next thing typed is the current password.
 onMounted(() => {
@@ -109,6 +125,42 @@ onMounted(() => {
             </section>
         </form>
 
+        <!-- Outside the password form: these are actions, not fields the save bar keeps. -->
+        <section id="zwei-faktor" class="adm-form adm-form__group" aria-labelledby="profil-zwei-faktor">
+            <h2 id="profil-zwei-faktor" class="adm-form__heading">Bestätigung in zwei Schritten</h2>
+
+            <template v-if="twoFactor.active">
+                <p class="adm-form__note" data-tfa-state="an">
+                    Eingeschaltet. Nach dem Passwort fragt die Anmeldung nach einem Code aus deiner App. {{ recoveryLine }}
+                </p>
+                <div class="profil__actions">
+                    <Link class="btn btn--secondary" href="/admin/zwei-faktor/neu">Auf ein neues Telefon übertragen</Link>
+                    <button class="btn btn--secondary" type="button" @click="renewCodes">Neue Wiederherstellungscodes erzeugen</button>
+                    <button v-if="!twoFactor.required" class="btn btn--secondary" type="button" @click="switchOff">Ausschalten</button>
+                </div>
+                <p v-if="twoFactor.required" class="adm-form__note">Für Super-Admins ist sie Pflicht und lässt sich nicht ausschalten.</p>
+            </template>
+
+            <template v-else>
+                <p class="adm-form__note" data-tfa-state="aus">
+                    {{ twoFactor.unreadable
+                        ? 'Richte sie bitte neu ein: Der gespeicherte Schlüssel lässt sich nicht mehr lesen.'
+                        : 'Ausgeschaltet. Mit einem Code aus einer App auf deinem Telefon kommt niemand mit deinem Passwort allein in dein Konto.' }}
+                </p>
+                <div class="profil__actions">
+                    <Link class="btn btn--primary" href="/admin/zwei-faktor/einrichten">Einrichten</Link>
+                </div>
+            </template>
+        </section>
+
         <AdminSaveBar :editor="editor" />
     </AdminPage>
 </template>
+
+<style scoped>
+.profil__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+</style>
