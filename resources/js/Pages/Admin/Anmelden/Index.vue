@@ -9,14 +9,15 @@
  * The form starts empty — no pre-filled demo credentials — and there is no SSO button because no
  * SSO is configured. A button that leads nowhere is worse than no button.
  *
- * The second factor is part of this screen's design, not an interstitial added later: the Super
- * Admin's TOTP is mandatory, so the `totp` stage renders its own heading and field here.
+ * The second factor is part of this screen's design, not an interstitial added later (D-514): after the
+ * password, an account that has one sees the `totp` stage — six digits from the app, or one of the
+ * recovery codes for a lost phone. Five minutes, then the password is asked again.
  *
  * One page for every width.
  */
 
-import { Head, useForm } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, Link, useForm } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 import type { AdminAnmeldenProps } from '../../../types/pages'
 
 defineOptions({ inheritAttrs: false })
@@ -32,6 +33,22 @@ const form = useForm({ email: '', password: '', remember: false })
  */
 const failure = computed(() => form.errors.email ?? form.errors.password ?? '')
 const busy = computed(() => form.processing)
+
+/* The second step. One field, two kinds of code: the server tells them apart. */
+const code = useForm({ code: '' })
+const recovery = ref(false)
+const codeError = computed(() => code.errors.code ?? '')
+
+function confirmCode(): void {
+    code.clearErrors()
+    code.post('/admin/anmelden/code', { onFinish: () => code.reset('code') })
+}
+
+function useRecovery(on: boolean): void {
+    recovery.value = on
+    code.reset('code')
+    code.clearErrors()
+}
 
 function submit(): void {
     form.transform((data) => ({ ...data, password: data.password }))
@@ -58,23 +75,45 @@ function submit(): void {
 
                 <template v-if="stage === 'totp'">
                     <h1 class="t-h1">Bestätigung in zwei Schritten</h1>
-                    <p class="t-body login__sub">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
+                    <p class="t-body login__sub">
+                        {{ recovery
+                            ? 'Gib einen deiner Wiederherstellungscodes ein. Jeder gilt nur einmal.'
+                            : 'Gib den 6-stelligen Code aus deiner Authenticator-App ein.' }}
+                    </p>
 
-                    <form class="login__fields" @submit.prevent>
+                    <form class="login__fields" @submit.prevent="confirmCode">
+                        <p v-if="codeError" class="login__error" role="alert">{{ codeError }}</p>
+
                         <div>
-                            <label class="field-label" for="lg-totp">Bestätigungscode</label>
+                            <label class="field-label" for="lg-totp">{{ recovery ? 'Wiederherstellungscode' : 'Bestätigungscode' }}</label>
+                            <!-- eslint-disable-next-line vuejs-accessibility/no-autofocus -->
                             <input
                                 id="lg-totp"
+                                :key="recovery ? 'recovery' : 'totp'"
+                                v-model="code.code"
                                 class="field field--key"
-                                inputmode="numeric"
-                                maxlength="6"
-                                autocomplete="one-time-code"
+                                :class="{ 'field--error': codeError }"
+                                :inputmode="recovery ? 'text' : 'numeric'"
+                                :maxlength="recovery ? 16 : 6"
+                                :autocomplete="recovery ? 'off' : 'one-time-code'"
+                                :spellcheck="false"
+                                autocapitalize="off"
+                                autofocus
+                                required
+                                :aria-invalid="codeError ? 'true' : undefined"
                             />
                         </div>
-                        <button class="btn btn--primary btn--block btn--lg" type="submit" :disabled="busy">
-                            {{ busy ? 'Wird geprüft …' : 'Code bestätigen' }}
+                        <button class="btn btn--primary btn--block btn--lg" type="submit" :disabled="code.processing">
+                            {{ code.processing ? 'Wird geprüft …' : 'Code bestätigen' }}
                         </button>
                     </form>
+
+                    <div class="login__ways">
+                        <button class="login__link" type="button" @click="useRecovery(!recovery)">
+                            {{ recovery ? 'Code aus der App verwenden' : 'Telefon nicht zur Hand? Wiederherstellungscode verwenden' }}
+                        </button>
+                        <Link class="login__link" href="/admin/anmelden?neu=1">Mit einem anderen Konto anmelden</Link>
+                    </div>
                 </template>
 
                 <template v-else>
@@ -180,6 +219,28 @@ function submit(): void {
     display: grid;
     gap: var(--space-4);
     margin-top: var(--space-6);
+}
+
+.login__ways {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-2);
+    margin-top: var(--space-5);
+}
+
+/* Two quiet ways out of the second step: text links, never a second primary button. */
+.login__link {
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--blue);
+    font: inherit;
+    font-size: var(--text-small);
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
 }
 
 .login__check {

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { expect, test, type APIRequestContext, type Page } from '../fixtures'
 import { REVIEW_PASSWORD } from '../support'
+import { answerSecondStep } from '../totp'
 import { ABNAHME, consent } from './support'
 
 /*
@@ -49,6 +50,8 @@ async function admin(page: Page): Promise<void> {
     await page.fill('#lg-mail', 'admin@rimify.test')
     await page.fill('#lg-pass', REVIEW_PASSWORD)
     await page.locator('button[type=submit]').first().click()
+    // The Admin review account is a Super-Admin: its second step (D-514), with the development key.
+    await answerSecondStep(page)
     await page.waitForURL(/\/admin(\?.*)?$/, { timeout: 30_000 })
 }
 

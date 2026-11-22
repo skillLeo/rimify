@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { expect, test as setup } from '@playwright/test'
 import { open } from './fixtures'
+import { answerSecondStep } from '../../e2e/totp'
 import { ROLES, hasCredentials, statePath, type Role } from './instance'
 
 /*
@@ -23,6 +24,12 @@ for (const role of Object.keys(ROLES) as Role[]) {
         await page.getByLabel('E-Mail').fill(process.env[ROLES[role].email] as string)
         await page.getByLabel('Passwort').fill(process.env[ROLES[role].password] as string)
         await page.getByRole('button', { name: 'Anmelden' }).click()
+        // An account with a second factor (the Super-Admin's is required, D-514): its key from the environment, as the
+        // password — RIMIFY_TOTP_KEY, RIMIFY_TOTP_KEY_SHOP, … —, never printed.
+        const key = process.env[`${ROLES[role].email.replace('EMAIL', 'TOTP_KEY')}`]
+        if (key) {
+            await answerSecondStep(page, key)
+        }
         await expect(page.getByRole('heading', { name: 'Übersicht', level: 1 })).toBeVisible()
         await page.context().storageState({ path: statePath(role) })
     })
