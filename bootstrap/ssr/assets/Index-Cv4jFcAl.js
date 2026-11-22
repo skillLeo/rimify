@@ -1,0 +1,269 @@
+import { n as AdminLayout_default, t as AdminPage_default } from "./AdminPage-BA7BbMo6.js";
+import { a as link_default, d as vue_exports, l as router } from "../ssr.js";
+import { t as server_renderer_exports } from "./server-renderer-BdAJibZ6.js";
+import { t as _plugin_vue_export_helper_default } from "./_plugin-vue_export-helper-BOaGB7Aw.js";
+import { n as decimal } from "./format-6R0uUMt3.js";
+import { t as AdminState_default } from "./AdminState-DSdumcrf.js";
+import { t as ListPager_default } from "./ListPager-hhLv_mA9.js";
+import { n as hintColourLabel, t as HINT_COLOURS } from "./hintColour-DMvuo_px.js";
+//#region resources/js/Pages/Admin/Auflagen/Index.vue?vue&type=script&setup=true&lang.ts
+var Index_vue_vue_type_script_setup_true_lang_default = /*@__PURE__*/ (0, vue_exports.defineComponent)({
+	layout: AdminLayout_default,
+	inheritAttrs: false,
+	__name: "Index",
+	__ssrInlineRender: true,
+	props: {
+		documents: {},
+		found: {},
+		farbe: {},
+		canColour: { type: Boolean },
+		pagination: {}
+	},
+	setup(__props) {
+		/**
+		* Gutachten › Auflagen — every document's own Auflagenverzeichnis, one after the other, to read (the
+		* corrections memo §1). There is no catalogue shared between documents any more: `A01` of one Gutachten and
+		* `A01` of another are two entries, each with its own sentence. A list is written on its Gutachten, while it
+		* is a draft; this page shows them — and the codes a document's rows carry that it does not define, which keep
+		* those rows „Noch nicht bestätigt“ and the document unreleased. Here each code's shop colour is seen, filtered and
+		* changed, so it can be found (the client's item 23).
+		*/
+		const props = __props;
+		const context = (0, vue_exports.computed)(() => props.found === 1 ? "1 Gutachten" : `${decimal(props.found, 0)} Gutachten`);
+		const STATUS = {
+			draft: "Entwurf",
+			published: "Freigegeben",
+			superseded: "Ersetzt",
+			withdrawn: "Zurückgezogen"
+		};
+		function filterColour(value) {
+			router.get("/admin/auflagen", value === "" ? {} : { farbe: value }, {
+				preserveState: true,
+				preserveScroll: true
+			});
+		}
+		function setColour(doc, c, target) {
+			router.put(`/admin/gutachten/${doc.id}/auflagen/${c.id}/farbe`, { shop_colour: target.value }, {
+				preserveScroll: true,
+				preserveState: true,
+				onError: () => {
+					target.value = c.shopColour;
+				}
+			});
+		}
+		/** The parameter a filter or tyre kind carries, as the admin entered it. */
+		function parameter(c) {
+			if (c.bodyForms.length) return `Nur ${c.bodyForms.join(", ")}`;
+			if (c.drive) return `${c.drive.mode === "only" ? "Nur mit" : "Nicht mit"} ${c.drive.drive}`;
+			if (c.maxAxleLoadKg !== null) return `Bis ${decimal(c.maxAxleLoadKg, 0)} kg Achslast`;
+			if (c.axle) return c.axle === "FRONT" ? "Nur Vorderachse" : "Nur Hinterachse";
+			return "";
+		}
+		return (_ctx, _push, _parent, _attrs) => {
+			_push((0, server_renderer_exports.ssrRenderComponent)(AdminPage_default, (0, vue_exports.mergeProps)({
+				title: "Auflagen",
+				context: context.value
+			}, _attrs), {
+				default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+					if (_push) {
+						_push(`<p class="adm-note al-intro" data-v-49d3c2f0${_scopeId}> Jedes Gutachten hat sein eigenes Auflagenverzeichnis; derselbe Code kann in zwei Gutachten Verschiedenes bedeuten. Geschrieben wird es beim Gutachten selbst, solange es ein Entwurf ist. </p><div class="form-field al-filter" data-v-49d3c2f0${_scopeId}><label class="form-field__label" for="al-farbe" data-v-49d3c2f0${_scopeId}>Farbe im Shop</label><select id="al-farbe" class="input"${(0, server_renderer_exports.ssrRenderAttr)("value", __props.farbe ?? "")} data-v-49d3c2f0${_scopeId}><option value="" data-v-49d3c2f0${_scopeId}>Alle Farben</option><!--[-->`);
+						(0, server_renderer_exports.ssrRenderList)((0, vue_exports.unref)(HINT_COLOURS), (colour) => {
+							_push(`<option${(0, server_renderer_exports.ssrRenderAttr)("value", colour.value)} data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(colour.label)}</option>`);
+						});
+						_push(`<!--]--></select></div>`);
+						if (__props.documents.length === 0 && __props.farbe) _push((0, server_renderer_exports.ssrRenderComponent)(AdminState_default, {
+							kind: "empty",
+							text: "Kein Code in dieser Farbe."
+						}, null, _parent, _scopeId));
+						else if (__props.documents.length === 0) _push((0, server_renderer_exports.ssrRenderComponent)(AdminState_default, {
+							kind: "empty",
+							text: "Hier steht das Auflagenverzeichnis jedes Gutachtens, sobald das erste einen Code hat."
+						}, null, _parent, _scopeId));
+						else _push(`<!---->`);
+						_push(`<!--[-->`);
+						(0, server_renderer_exports.ssrRenderList)(__props.documents, (doc) => {
+							_push(`<section class="adm-section al-doc"${(0, server_renderer_exports.ssrRenderAttr)("aria-labelledby", `al-doc-${doc.id}`)} data-v-49d3c2f0${_scopeId}><div class="adm-section__head" data-v-49d3c2f0${_scopeId}><h2${(0, server_renderer_exports.ssrRenderAttr)("id", `al-doc-${doc.id}`)} class="adm-section__title" data-v-49d3c2f0${_scopeId}>`);
+							_push((0, server_renderer_exports.ssrRenderComponent)((0, vue_exports.unref)(link_default), { href: doc.href }, {
+								default: (0, vue_exports.withCtx)((_, _push, _parent, _scopeId) => {
+									if (_push) _push(`${(0, server_renderer_exports.ssrInterpolate)(doc.label)}`);
+									else return [(0, vue_exports.createTextVNode)((0, vue_exports.toDisplayString)(doc.label), 1)];
+								}),
+								_: 2
+							}, _parent, _scopeId));
+							_push(`</h2><span class="al-status" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(STATUS[doc.status])}</span></div>`);
+							if (doc.unresolved.length) _push(`<p class="adm-alert" role="status" data-v-49d3c2f0${_scopeId}> Nicht im Auflagenverzeichnis: ${(0, server_renderer_exports.ssrInterpolate)(doc.unresolved.map((u) => `${u.code} (${u.rows === 1 ? "1 Zeile" : `${(0, vue_exports.unref)(decimal)(u.rows, 0)} Zeilen`})`).join(", "))}. Diese Zeilen bleiben „Noch nicht bestätigt“, bis der Code dort steht. </p>`);
+							else _push(`<!---->`);
+							if (doc.conditions.length) {
+								_push(`<div class="adm-panel" data-v-49d3c2f0${_scopeId}><table class="adm-table al-table" data-v-49d3c2f0${_scopeId}><caption class="visually-hidden" data-v-49d3c2f0${_scopeId}>Auflagenverzeichnis von ${(0, server_renderer_exports.ssrInterpolate)(doc.label)}</caption><colgroup data-v-49d3c2f0${_scopeId}><col class="al-col-code" data-v-49d3c2f0${_scopeId}><col class="al-col-kind" data-v-49d3c2f0${_scopeId}><col data-v-49d3c2f0${_scopeId}><col class="al-col-colour" data-v-49d3c2f0${_scopeId}><col class="al-col-num" data-v-49d3c2f0${_scopeId}><col class="al-col-num" data-v-49d3c2f0${_scopeId}></colgroup><thead data-v-49d3c2f0${_scopeId}><tr data-v-49d3c2f0${_scopeId}><th scope="col" data-v-49d3c2f0${_scopeId}>Code</th><th scope="col" data-v-49d3c2f0${_scopeId}>Art</th><th scope="col" data-v-49d3c2f0${_scopeId}>Satz aus dem Gutachten</th><th scope="col" data-v-49d3c2f0${_scopeId}>Farbe im Shop</th><th scope="col" class="num" data-v-49d3c2f0${_scopeId}>Seite</th><th scope="col" class="num" data-v-49d3c2f0${_scopeId}>Verwendet</th></tr></thead><tbody data-v-49d3c2f0${_scopeId}><!--[-->`);
+								(0, server_renderer_exports.ssrRenderList)(doc.conditions, (c) => {
+									_push(`<tr data-v-49d3c2f0${_scopeId}><td data-label="Code" data-v-49d3c2f0${_scopeId}><span class="adm-table__key" translate="no" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(c.code)}</span></td><td data-label="Art" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(c.kindLabel)} `);
+									if (parameter(c)) _push(`<span class="adm-table__sub" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(parameter(c))}</span>`);
+									else _push(`<!---->`);
+									_push(`</td><td data-label="Satz" class="al-text" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(c.text)}</td><td data-label="Farbe im Shop" data-v-49d3c2f0${_scopeId}>`);
+									if (__props.canColour) {
+										_push(`<span class="al-colourline" data-v-49d3c2f0${_scopeId}><span class="${(0, server_renderer_exports.ssrRenderClass)([`al-dot--${c.shopColour}`, "al-dot"])}" aria-hidden="true" data-v-49d3c2f0${_scopeId}></span><select${(0, server_renderer_exports.ssrRenderAttr)("id", `al-colour-${c.id}`)} class="input al-colour"${(0, server_renderer_exports.ssrRenderAttr)("value", c.shopColour)}${(0, server_renderer_exports.ssrRenderAttr)("aria-label", `Farbe von Code ${c.code} im Shop`)} data-v-49d3c2f0${_scopeId}><!--[-->`);
+										(0, server_renderer_exports.ssrRenderList)((0, vue_exports.unref)(HINT_COLOURS), (colour) => {
+											_push(`<option${(0, server_renderer_exports.ssrRenderAttr)("value", colour.value)} data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(colour.label)}</option>`);
+										});
+										_push(`<!--]--></select></span>`);
+									} else _push(`<span class="al-colourline" data-v-49d3c2f0${_scopeId}><span class="${(0, server_renderer_exports.ssrRenderClass)([`al-dot--${c.shopColour}`, "al-dot"])}" aria-hidden="true" data-v-49d3c2f0${_scopeId}></span> ${(0, server_renderer_exports.ssrInterpolate)((0, vue_exports.unref)(hintColourLabel)(c.shopColour))}</span>`);
+									_push(`</td><td data-label="Seite" class="num" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(c.page ?? "–")}</td><td data-label="Verwendet" class="num" data-phone="hide" data-v-49d3c2f0${_scopeId}>${(0, server_renderer_exports.ssrInterpolate)(c.uses === 0 ? "–" : (0, vue_exports.unref)(decimal)(c.uses, 0))}</td></tr>`);
+								});
+								_push(`<!--]--></tbody></table></div>`);
+							} else _push(`<!---->`);
+							_push(`</section>`);
+						});
+						_push(`<!--]-->`);
+						_push((0, server_renderer_exports.ssrRenderComponent)(ListPager_default, {
+							pagination: __props.pagination,
+							label: "Seiten der Auflagenverzeichnisse"
+						}, null, _parent, _scopeId));
+					} else return [
+						(0, vue_exports.createVNode)("p", { class: "adm-note al-intro" }, " Jedes Gutachten hat sein eigenes Auflagenverzeichnis; derselbe Code kann in zwei Gutachten Verschiedenes bedeuten. Geschrieben wird es beim Gutachten selbst, solange es ein Entwurf ist. "),
+						(0, vue_exports.createVNode)("div", { class: "form-field al-filter" }, [(0, vue_exports.createVNode)("label", {
+							class: "form-field__label",
+							for: "al-farbe"
+						}, "Farbe im Shop"), (0, vue_exports.createVNode)("select", {
+							id: "al-farbe",
+							class: "input",
+							value: __props.farbe ?? "",
+							onChange: ($event) => filterColour($event.target.value)
+						}, [(0, vue_exports.createVNode)("option", { value: "" }, "Alle Farben"), ((0, vue_exports.openBlock)(true), (0, vue_exports.createBlock)(vue_exports.Fragment, null, (0, vue_exports.renderList)((0, vue_exports.unref)(HINT_COLOURS), (colour) => {
+							return (0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("option", {
+								key: colour.value,
+								value: colour.value
+							}, (0, vue_exports.toDisplayString)(colour.label), 9, ["value"]);
+						}), 128))], 40, ["value", "onChange"])]),
+						__props.documents.length === 0 && __props.farbe ? ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)(AdminState_default, {
+							key: 0,
+							kind: "empty",
+							text: "Kein Code in dieser Farbe."
+						})) : __props.documents.length === 0 ? ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)(AdminState_default, {
+							key: 1,
+							kind: "empty",
+							text: "Hier steht das Auflagenverzeichnis jedes Gutachtens, sobald das erste einen Code hat."
+						})) : (0, vue_exports.createCommentVNode)("", true),
+						((0, vue_exports.openBlock)(true), (0, vue_exports.createBlock)(vue_exports.Fragment, null, (0, vue_exports.renderList)(__props.documents, (doc) => {
+							return (0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("section", {
+								key: doc.id,
+								class: "adm-section al-doc",
+								"aria-labelledby": `al-doc-${doc.id}`
+							}, [
+								(0, vue_exports.createVNode)("div", { class: "adm-section__head" }, [(0, vue_exports.createVNode)("h2", {
+									id: `al-doc-${doc.id}`,
+									class: "adm-section__title"
+								}, [(0, vue_exports.createVNode)((0, vue_exports.unref)(link_default), { href: doc.href }, {
+									default: (0, vue_exports.withCtx)(() => [(0, vue_exports.createTextVNode)((0, vue_exports.toDisplayString)(doc.label), 1)]),
+									_: 2
+								}, 1032, ["href"])], 8, ["id"]), (0, vue_exports.createVNode)("span", { class: "al-status" }, (0, vue_exports.toDisplayString)(STATUS[doc.status]), 1)]),
+								doc.unresolved.length ? ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("p", {
+									key: 0,
+									class: "adm-alert",
+									role: "status"
+								}, " Nicht im Auflagenverzeichnis: " + (0, vue_exports.toDisplayString)(doc.unresolved.map((u) => `${u.code} (${u.rows === 1 ? "1 Zeile" : `${(0, vue_exports.unref)(decimal)(u.rows, 0)} Zeilen`})`).join(", ")) + ". Diese Zeilen bleiben „Noch nicht bestätigt“, bis der Code dort steht. ", 1)) : (0, vue_exports.createCommentVNode)("", true),
+								doc.conditions.length ? ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("div", {
+									key: 1,
+									class: "adm-panel"
+								}, [(0, vue_exports.createVNode)("table", { class: "adm-table al-table" }, [
+									(0, vue_exports.createVNode)("caption", { class: "visually-hidden" }, "Auflagenverzeichnis von " + (0, vue_exports.toDisplayString)(doc.label), 1),
+									(0, vue_exports.createVNode)("colgroup", null, [
+										(0, vue_exports.createVNode)("col", { class: "al-col-code" }),
+										(0, vue_exports.createVNode)("col", { class: "al-col-kind" }),
+										(0, vue_exports.createVNode)("col"),
+										(0, vue_exports.createVNode)("col", { class: "al-col-colour" }),
+										(0, vue_exports.createVNode)("col", { class: "al-col-num" }),
+										(0, vue_exports.createVNode)("col", { class: "al-col-num" })
+									]),
+									(0, vue_exports.createVNode)("thead", null, [(0, vue_exports.createVNode)("tr", null, [
+										(0, vue_exports.createVNode)("th", { scope: "col" }, "Code"),
+										(0, vue_exports.createVNode)("th", { scope: "col" }, "Art"),
+										(0, vue_exports.createVNode)("th", { scope: "col" }, "Satz aus dem Gutachten"),
+										(0, vue_exports.createVNode)("th", { scope: "col" }, "Farbe im Shop"),
+										(0, vue_exports.createVNode)("th", {
+											scope: "col",
+											class: "num"
+										}, "Seite"),
+										(0, vue_exports.createVNode)("th", {
+											scope: "col",
+											class: "num"
+										}, "Verwendet")
+									])]),
+									(0, vue_exports.createVNode)("tbody", null, [((0, vue_exports.openBlock)(true), (0, vue_exports.createBlock)(vue_exports.Fragment, null, (0, vue_exports.renderList)(doc.conditions, (c) => {
+										return (0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("tr", { key: c.id }, [
+											(0, vue_exports.createVNode)("td", { "data-label": "Code" }, [(0, vue_exports.createVNode)("span", {
+												class: "adm-table__key",
+												translate: "no"
+											}, (0, vue_exports.toDisplayString)(c.code), 1)]),
+											(0, vue_exports.createVNode)("td", { "data-label": "Art" }, [(0, vue_exports.createTextVNode)((0, vue_exports.toDisplayString)(c.kindLabel) + " ", 1), parameter(c) ? ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("span", {
+												key: 0,
+												class: "adm-table__sub"
+											}, (0, vue_exports.toDisplayString)(parameter(c)), 1)) : (0, vue_exports.createCommentVNode)("", true)]),
+											(0, vue_exports.createVNode)("td", {
+												"data-label": "Satz",
+												class: "al-text"
+											}, (0, vue_exports.toDisplayString)(c.text), 1),
+											(0, vue_exports.createVNode)("td", { "data-label": "Farbe im Shop" }, [__props.canColour ? ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("span", {
+												key: 0,
+												class: "al-colourline"
+											}, [(0, vue_exports.createVNode)("span", {
+												class: ["al-dot", `al-dot--${c.shopColour}`],
+												"aria-hidden": "true"
+											}, null, 2), (0, vue_exports.createVNode)("select", {
+												id: `al-colour-${c.id}`,
+												class: "input al-colour",
+												value: c.shopColour,
+												"aria-label": `Farbe von Code ${c.code} im Shop`,
+												onChange: ($event) => setColour(doc, c, $event.target)
+											}, [((0, vue_exports.openBlock)(true), (0, vue_exports.createBlock)(vue_exports.Fragment, null, (0, vue_exports.renderList)((0, vue_exports.unref)(HINT_COLOURS), (colour) => {
+												return (0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("option", {
+													key: colour.value,
+													value: colour.value
+												}, (0, vue_exports.toDisplayString)(colour.label), 9, ["value"]);
+											}), 128))], 40, [
+												"id",
+												"value",
+												"aria-label",
+												"onChange"
+											])])) : ((0, vue_exports.openBlock)(), (0, vue_exports.createBlock)("span", {
+												key: 1,
+												class: "al-colourline"
+											}, [(0, vue_exports.createVNode)("span", {
+												class: ["al-dot", `al-dot--${c.shopColour}`],
+												"aria-hidden": "true"
+											}, null, 2), (0, vue_exports.createTextVNode)(" " + (0, vue_exports.toDisplayString)((0, vue_exports.unref)(hintColourLabel)(c.shopColour)), 1)]))]),
+											(0, vue_exports.createVNode)("td", {
+												"data-label": "Seite",
+												class: "num"
+											}, (0, vue_exports.toDisplayString)(c.page ?? "–"), 1),
+											(0, vue_exports.createVNode)("td", {
+												"data-label": "Verwendet",
+												class: "num",
+												"data-phone": "hide"
+											}, (0, vue_exports.toDisplayString)(c.uses === 0 ? "–" : (0, vue_exports.unref)(decimal)(c.uses, 0)), 1)
+										]);
+									}), 128))])
+								])])) : (0, vue_exports.createCommentVNode)("", true)
+							], 8, ["aria-labelledby"]);
+						}), 128)),
+						(0, vue_exports.createVNode)(ListPager_default, {
+							pagination: __props.pagination,
+							label: "Seiten der Auflagenverzeichnisse"
+						}, null, 8, ["pagination"])
+					];
+				}),
+				_: 1
+			}, _parent));
+		};
+	}
+});
+//#endregion
+//#region resources/js/Pages/Admin/Auflagen/Index.vue
+var _sfc_setup = Index_vue_vue_type_script_setup_true_lang_default.setup;
+Index_vue_vue_type_script_setup_true_lang_default.setup = (props, ctx) => {
+	const ssrContext = (0, vue_exports.useSSRContext)();
+	(ssrContext.modules || (ssrContext.modules = /* @__PURE__ */ new Set())).add("resources/js/Pages/Admin/Auflagen/Index.vue");
+	return _sfc_setup ? _sfc_setup(props, ctx) : void 0;
+};
+var Index_default = /*#__PURE__*/ _plugin_vue_export_helper_default(Index_vue_vue_type_script_setup_true_lang_default, [["__scopeId", "data-v-49d3c2f0"]]);
+//#endregion
+export { Index_default as default };
