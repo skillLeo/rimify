@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\AdminUser;
+use App\Support\Auth\Totp;
 use Database\Seeders\AccessSeeder;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -25,7 +26,7 @@ function seededAdmin(string $role = 'super-admin'): AdminUser
 }
 
 it('lets a seeded admin in and lands them on the panel', function (): void {
-    $admin = seededAdmin();
+    $admin = seededAdmin('accountant');
 
     $this->post('/admin/anmelden', [
         'email' => $admin->email,
@@ -34,6 +35,16 @@ it('lets a seeded admin in and lands them on the panel', function (): void {
 
     expect(auth('admin')->check())->toBeTrue()
         ->and(auth('admin')->id())->toBe($admin->getKey());
+});
+
+it('lets the seeded Super-Admin in only with its second step (D-514)', function (): void {
+    $admin = seededAdmin();
+
+    $this->post('/admin/anmelden', ['email' => $admin->email, 'password' => 'rimify-dev-2026'])->assertRedirect('/admin/anmelden');
+    expect(auth('admin')->check())->toBeFalse();
+
+    $this->post('/admin/anmelden/code', ['code' => Totp::codeAt(AccessSeeder::DEMO_TOTP_KEY, Totp::stepAt(time()))])->assertRedirect('/admin');
+    expect(auth('admin')->id())->toBe($admin->getKey());
 });
 
 it('refuses a wrong password without saying which half was wrong', function (): void {

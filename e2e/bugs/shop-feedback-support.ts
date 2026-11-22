@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { DEV, REVIEW_PASSWORD } from '../support';
 import { waitForApp } from './faq-support';
+import { answerSecondStep } from '../totp';
 
 /*
  * Shared steps of the shop-feedback bug tests of 03.10.2026 (docs/qa/BUGS.md, SHOP-FEEDBACK-xx;
@@ -39,6 +40,8 @@ export async function signIn(page: Page): Promise<void> {
     await page.fill('#lg-mail', REVIEWER.email);
     await page.fill('#lg-pass', REVIEWER.password);
     await page.locator('button[type=submit]').first().click();
+    // The Super-Admin review account's second step (D-514); nothing for an account without one.
+    await answerSecondStep(page);
     await page.waitForURL(/\/admin(\?.*)?$/, { waitUntil: 'domcontentloaded', timeout: 30_000 });
 }
 

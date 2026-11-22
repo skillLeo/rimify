@@ -28,6 +28,9 @@ use Spatie\Permission\Models\Role;
  */
 class AccessSeeder extends Seeder
 {
+    /** The development accounts' second factor (D-514): local and testing databases only, as their password. */
+    public const DEMO_TOTP_KEY = 'JBSWY3DPEHPK3PXP';
+
     private const GUARD = 'admin';
 
     /**
@@ -222,8 +225,9 @@ class AccessSeeder extends Seeder
 
     /**
      * One account per role, all sharing a development password — local and testing databases only
-     * (run() decides). Super Admin carries a confirmed TOTP secret because two-factor is meant to be
-     * mandatory for that role; the sign-in does not ask for it yet (AdminLoginController).
+     * (run() decides). Super Admin carries a confirmed TOTP secret because two-factor is mandatory for
+     * that role (D-514): DEMO_TOTP_KEY, printed in every authenticator's documentation — a development
+     * key, as the password is a development password, so the suites can make its codes.
      */
     private function seedUser(Role $role, string $slug, string $person): void
     {
@@ -233,7 +237,7 @@ class AccessSeeder extends Seeder
                 'name' => $person,
                 'password' => Hash::make('rimify-dev-2026'),
                 'status' => AdminUserStatus::Active->value,
-                'totp_secret' => $slug === 'super-admin' ? 'JBSWY3DPEHPK3PXP' : null,
+                'totp_secret' => $slug === 'super-admin' ? self::DEMO_TOTP_KEY : null,
                 'totp_confirmed_at' => $slug === 'super-admin' ? now() : null,
             ],
         );

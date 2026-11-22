@@ -9,6 +9,7 @@ use App\Models\AdminUser;
 use App\Models\AuditLog;
 use App\Models\Vehicle;
 use App\Services\Admin\AdminNavigation;
+use App\Support\Auth\Totp;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Support\Facades\DB;
@@ -467,8 +468,11 @@ describe('signing in', function (): void {
         expect(auth('admin')->check())->toBeFalse();
     });
 
-    it('notes when an account last signed in', function (): void {
+    it('notes when an account last signed in — once the second step is passed, not before (D-514)', function (): void {
         $this->post('/admin/anmelden', ['email' => 'super-admin@rimify.test', 'password' => 'rimify-dev-2026']);
+        expect(shellAdmin()->last_login_at)->toBeNull();
+
+        $this->post('/admin/anmelden/code', ['code' => Totp::codeAt(AccessSeeder::DEMO_TOTP_KEY, Totp::stepAt(time()))]);
 
         expect(shellAdmin()->last_login_at)->not->toBeNull();
     });

@@ -11,8 +11,8 @@ test.beforeEach(async ({ context }) => {
     await consent(context, ABNAHME)
 })
 
-const FRONT = /Vorne\s2\s×\s8,5\s×\s18\sET\s35/
-const REAR = /Hinten\s2\s×\s8,5\s×\s19\sET\s35/
+const FRONT = /Vorne\s2\s×\s8,5J\s×\s18\sET\s35/
+const REAR = /Hinten\s2\s×\s8,5J\s×\s19\sET\s35/
 
 test('the product page offers the set, names both axles, prices it two and two, and has no chip for either version', { tag: '@kunde-20' }, async ({ page }) => {
     await withCar(page, 'f30', PRODUCT)

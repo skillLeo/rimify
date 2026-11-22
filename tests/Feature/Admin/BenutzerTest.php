@@ -611,7 +611,7 @@ describe('changing a role', function (): void {
 
     it('will not move the last account that can edit roles to a role without it', function (): void {
         $owner = benutzerAdmin();
-        $second = AdminUser::factory()->create(['email' => 'zweite@rimify.test']);
+        $second = AdminUser::factory()->withTwoFactor()->create(['email' => 'zweite@rimify.test']);
         $second->syncRoles(['super-admin']);
 
         benutzerActorFallsAwayOn($second, 'insert into `model_has_roles`');
@@ -729,7 +729,7 @@ describe('suspending and reactivating', function (): void {
 
     it('will not suspend the last account that can edit roles', function (): void {
         $owner = benutzerAdmin();
-        $second = AdminUser::factory()->create(['email' => 'zweite@rimify.test']);
+        $second = AdminUser::factory()->withTwoFactor()->create(['email' => 'zweite@rimify.test']);
         $second->syncRoles(['super-admin']);
 
         benutzerActorFallsAwayOn($second, 'update `admin_users`');

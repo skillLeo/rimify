@@ -251,6 +251,8 @@ return [
     'RIMIFY_SWITCH_D6_DROPDOWNS' => null,
     'RIMIFY_SWITCH_SCOPED_AUFLAGEN' => null,
     'RIMIFY_SWITCH_TEILEGUTACHTEN_ABNAHME' => null,
+    // A second-step code is taken once in every test (D-514); only the browser suite's servers switch that off.
+    'RIMIFY_TOTP_SINGLE_USE' => null,
     'RIMIFY_TPMS_DEFAULT_PRICE_CENTS' => null,
     'SESSION_CONNECTION' => null,
     'SESSION_COOKIE' => null,

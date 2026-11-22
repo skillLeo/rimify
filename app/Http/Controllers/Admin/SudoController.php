@@ -47,6 +47,9 @@ class SudoController extends Controller
             str_starts_with($path, '/admin/einstellungen/e-mail'),
             str_starts_with($path, '/admin/einstellungen/speicher') => 'Hier stehen die Zugangsschlüssel des Shops.',
             str_starts_with($path, '/admin/system/zuruecksetzen') => 'Hier wird die Testumgebung zurückgesetzt.',
+            // The second factor's changes are sent from Profil (D-514).
+            str_starts_with($path, '/admin/profil'),
+            str_starts_with($path, '/admin/zwei-faktor') => 'Hier richtest du die Bestätigung in zwei Schritten ein oder änderst sie.',
             default => 'Dieser Bereich ist besonders geschützt.',
         };
     }
