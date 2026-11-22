@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './fixtures'
 import { waitForApp } from './bugs/faq-support'
 import { DEV, REVIEW_PASSWORD, consentGiven } from './support'
+import { answerSecondStep } from './totp'
 
 /*
  * D-142: the review's feedback button on the shop's own pages, where the client spends his review — for a signed-in
@@ -16,6 +17,8 @@ async function signIn(page: Page): Promise<void> {
     await page.fill('#lg-mail', 'verkauf@rimify.test')
     await page.fill('#lg-pass', REVIEW_PASSWORD)
     await page.locator('button[type=submit]').first().click()
+    // The Super-Admin review account's second step (D-514); nothing for an account without one.
+    await answerSecondStep(page)
     await page.waitForURL(/\/admin(\?.*)?$/, { waitUntil: 'domcontentloaded', timeout: 30_000 })
 }
 

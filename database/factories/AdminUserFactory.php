@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\AdminUserStatus;
 use App\Models\AdminUser;
+use App\Support\Auth\Totp;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -32,7 +33,8 @@ class AdminUserFactory extends Factory
     public function withTwoFactor(): static
     {
         return $this->state(fn (): array => [
-            'totp_secret' => Str::random(32),
+            // A key an app could hold (base32), so a test can make its codes (Totp::codeAt).
+            'totp_secret' => Totp::newSecret(),
             'totp_confirmed_at' => now(),
         ]);
     }

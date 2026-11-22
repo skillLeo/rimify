@@ -426,6 +426,16 @@ describe('putting every entry into words', function (): void {
                 [],
             ],
             'admin.password_changed' => [[], 'Das eigene Passwort wurde geändert.', []],
+            'admin.two_factor_enabled' => [[], 'Die Bestätigung in zwei Schritten wurde eingerichtet.', []],
+            'admin.two_factor_replaced' => [[], 'Die Bestätigung in zwei Schritten wurde auf ein neues Gerät übertragen.', []],
+            'admin.two_factor_disabled' => [[], 'Die Bestätigung in zwei Schritten wurde ausgeschaltet.', []],
+            'admin.two_factor_recovery_renewed' => [[], 'Für die Bestätigung in zwei Schritten wurden neue Wiederherstellungscodes erzeugt.', []],
+            'admin.two_factor_recovery_used' => [['left' => 7], 'Die Anmeldung wurde mit einem Wiederherstellungscode bestätigt; 7 sind noch übrig.', []],
+            'admin.two_factor_reset' => [
+                ['user_id' => 9, 'email' => 'neu@rimify.test', 'reason' => 'Telefon und Codes verloren.'],
+                'Für das Konto neu@rimify.test wurde die Bestätigung in zwei Schritten entfernt; es wurde auf allen Geräten abgemeldet. Grund: Telefon und Codes verloren.',
+                [],
+            ],
             'permission.denied' => [
                 ['ability' => 'delete', 'route' => 'admin.wuchtgewichte.destroy'],
                 'Der Versuch, auf der Seite „Zubehörpreise › Wuchtgewichte“ etwas zu löschen, wurde abgelehnt, weil die Berechtigung dafür fehlte.',

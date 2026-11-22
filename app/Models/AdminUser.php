@@ -26,6 +26,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property AdminUserStatus $status
  * @property string|null $totp_secret
  * @property CarbonImmutable|null $totp_confirmed_at
+ * @property string|null $totp_recovery_codes JSON list of SHA-256 hashes (TwoFactor, D-514)
+ * @property int|null $totp_last_step
  * @property CarbonImmutable|null $locked_until
  * @property CarbonImmutable|null $last_login_at
  * @property int $failed_login_count
@@ -47,7 +49,7 @@ class AdminUser extends Authenticatable
     ];
 
     /** @var list<string> */
-    protected $hidden = ['password', 'remember_token', 'totp_secret'];
+    protected $hidden = ['password', 'remember_token', 'totp_secret', 'totp_recovery_codes', 'totp_last_step'];
 
     /** @return array<string, string> */
     protected function casts(): array
@@ -57,6 +59,7 @@ class AdminUser extends Authenticatable
             // Encrypted at rest: a leaked database row must not hand over a second factor.
             'totp_secret' => 'encrypted',
             'totp_confirmed_at' => 'immutable_datetime',
+            'totp_last_step' => 'integer',
             'last_login_at' => 'immutable_datetime',
             'locked_until' => 'immutable_datetime',
             'failed_login_count' => 'integer',

@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\Route;
 const OWN_ACCOUNT = [
     'admin.anmelden.store', 'admin.abmelden', 'admin.einladung.annehmen', 'admin.bestaetigen.store', 'admin.profil.passwort',
     'admin.benachrichtigungen.alle-gelesen', 'admin.benachrichtigungen.gelesen', 'admin.benachrichtigungen.einstellungen', 'admin.ansicht',
+    // The second step of the sign-in and your own second factor (D-514): tests/Feature/Admin/ZweiFaktorTest.php.
+    'admin.anmelden.code', 'admin.zwei-faktor.bestaetigen', 'admin.zwei-faktor.codes', 'admin.zwei-faktor.aus',
 ];
 
 beforeEach(function (): void {

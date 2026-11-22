@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { test, type Page } from '../fixtures'
 import { REVIEW_PASSWORD } from '../support'
+import { answerSecondStep } from '../totp'
 import { ABNAHME, consent } from './support'
 
 /*
@@ -19,6 +20,8 @@ async function signIn(page: Page, email: string): Promise<void> {
     await page.fill('#lg-mail', email)
     await page.fill('#lg-pass', REVIEW_PASSWORD)
     await page.locator('button[type=submit]').first().click()
+    // The Admin review account is a Super-Admin: its second step (D-514), with the development key.
+    await answerSecondStep(page)
     await page.waitForURL(/\/admin(\?.*)?$/, { timeout: 30_000 })
 }
 

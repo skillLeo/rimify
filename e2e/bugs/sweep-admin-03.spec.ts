@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '../fixtures'
 import { REVIEW_PASSWORD } from '../support'
 import { waitForApp } from './faq-support'
+import { answerSecondStep } from '../totp'
 
 /*
  * SWEEP-ADMIN-03 (S2) — an order's Prüfnachweis links Verkauf to the Gutachten, which Verkauf may not open
@@ -27,6 +28,8 @@ async function signInAsVerkauf(page: Page): Promise<void> {
     await page.fill('#lg-mail', 'verkauf@rimify.test')
     await page.fill('#lg-pass', reviewPassword())
     await page.locator('button[type=submit]').first().click()
+    // The Super-Admin review account's second step (D-514); nothing for an account without one.
+    await answerSecondStep(page)
     await page.waitForURL(/\/admin$/, { waitUntil: 'domcontentloaded', timeout: 30_000 })
     await waitForApp(page)
 }
