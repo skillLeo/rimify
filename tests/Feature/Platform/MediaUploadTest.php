@@ -89,6 +89,52 @@ describe('an image through the app', function (): void {
         @unlink($copy);
     });
 
+    // D-513: what the two heavy photographs on the preview were — a lossless PNG at full camera size — is stored light.
+    it('brings a large photograph down to 2000 px and keeps a PNG as WebP, transparency included', function (): void {
+        $bucket = uploadBucket();
+
+        // A PNG with a photograph's noise and a transparent corner, 3000 × 1500.
+        $image = imagecreatetruecolor(3000, 1500);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        mt_srand(513);
+        for ($y = 0; $y < 1500; $y += 2) {
+            for ($x = 0; $x < 3000; $x += 2) {
+                imagefilledrectangle($image, $x, $y, $x + 1, $y + 1, (int) imagecolorallocatealpha($image, mt_rand(60, 200), mt_rand(60, 200), mt_rand(60, 200), 0));
+            }
+        }
+        imagefilledrectangle($image, 0, 0, 299, 149, (int) imagecolorallocatealpha($image, 0, 0, 0, 127));
+        $source = tempnam(sys_get_temp_dir(), 'rimify-big-').'.png';
+        imagepng($image, $source);
+
+        $stored = app(ImageUpload::class)->store(new UploadedFile($source, 'felge.png', 'image/png', null, true), 'media_products', 'wheels/linea', true);
+        $object = $bucket->objects['product-images/'.$stored['path']];
+        $copy = imagecreatefromstring($object);
+
+        expect($stored)->toMatchArray(['mime' => 'image/webp', 'width' => 2000, 'height' => 1000])
+            ->and($stored['path'])->toMatch('#^wheels/linea/[0-9a-z]{26}-2000\.webp$#')
+            ->and((new finfo(FILEINFO_MIME_TYPE))->buffer($object))->toBe('image/webp')
+            ->and($bucket->sent[0]['params']['ContentType'])->toBe('image/webp')
+            ->and($stored['bytes'])->toBeLessThan((int) filesize($source) / 4)
+            ->and($copy)->not->toBeFalse()
+            // The transparent corner is still transparent; the photograph beside it is not.
+            ->and((imagecolorat($copy, 10, 10) >> 24) & 0x7F)->toBe(127)
+            ->and((imagecolorat($copy, 1000, 600) >> 24) & 0x7F)->toBe(0);
+
+        // A JPEG keeps its type and is brought down the same way; one already small enough is left at its size.
+        $jpeg = imagecreatetruecolor(2600, 1300);
+        $path = tempnam(sys_get_temp_dir(), 'rimify-jpg-').'.jpg';
+        imagejpeg($jpeg, $path);
+        $small = app(ImageUpload::class)->store(new UploadedFile(uploadPng(640, 480), 'klein.png', 'image/png', null, true), 'media_products', 'wheels/linea');
+
+        expect(app(ImageUpload::class)->store(new UploadedFile($path, 'felge.jpg', 'image/jpeg', null, true), 'media_products', 'wheels/linea'))
+            ->toMatchArray(['mime' => 'image/jpeg', 'width' => 2000, 'height' => 1000])
+            ->and($small)->toMatchArray(['width' => 640, 'height' => 480]);
+
+        @unlink($source);
+        @unlink($path);
+    });
+
     it('reads the type from the bytes, not from the name', function (): void {
         $path = tempnam(sys_get_temp_dir(), 'rimify-txt-');
         file_put_contents($path, 'kein Bild, nur Text');

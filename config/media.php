@@ -50,6 +50,9 @@ return [
         'image_max_px' => 8000,
         // Decoded, an image takes four bytes a pixel: 40 MP is 160 MB, the most one upload may cost.
         'image_max_megapixels' => 40,
+        // What is stored: the longer side at most this many pixels (D-513). The product gallery at 1440 shows a
+        // photograph 806 px wide — 1,612 on a 2× screen; the enlarged view a little more.
+        'image_store_px' => 2000,
         'pdf_max_mb' => 200,
         'presign_minutes' => 10,
     ],
