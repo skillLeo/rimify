@@ -415,14 +415,14 @@ describe('the product page', function (): void {
         $black = $sets->firstWhere('frontId', $wheel['front']->id);
 
         expect($sets)->toHaveCount(2)
-            ->and($plain($black['label']))->toBe('Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35')
+            ->and($plain($black['label']))->toBe('Vorne 2 × 8,5J × 18 ET 35 · Hinten 2 × 8,5J × 19 ET 35')
             ->and($black['rearId'])->toBe($wheel['rear']->id)
             ->and($black['finishId'])->toBe($wheel['front']->wheel_finish_id)
             ->and($black['priceCents'])->toBe(99_600)
             ->and($plain($black['price']))->toBe('996,00 €')
             ->and($plain($black['priceNote']))->toBe('2 × 229,00 € + 2 × 269,00 €')
             ->and($plain($black['bolt']))->toBe('Lochkreis 5 × 120')
-            ->and(array_map($plain, $black['axles']))->toBe(['Vorne 2 × 8,5 × 18 ET 35', 'Hinten 2 × 8,5 × 19 ET 35'])
+            ->and(array_map($plain, $black['axles']))->toBe(['Vorne 2 × 8,5J × 18 ET 35', 'Hinten 2 × 8,5J × 19 ET 35'])
             ->and($black['inStock'])->toBeTrue()
             ->and($black['verdict']['status'])->toBe(app(WheelSets::class)->find($car->id, $wheel['front']->id, $wheel['rear']->id)->status()->value);
 

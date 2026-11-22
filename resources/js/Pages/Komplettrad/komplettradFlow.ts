@@ -234,9 +234,9 @@ export function offerOf(config: ProduktConfig, photos: Record<string, ImageManif
  * What the product page and the RIMIFY-Check say of a version's Komplettrad before its steps: whether there is one, why not, and from
  * what price — the server's lowest figure, per wheel, or the lowest 2 + 2 where only pairs stand.
  */
-export function setSummary(config: ProduktConfig | null): { ready: boolean; refusal: string | null; refusalCode: string | null; from: string | null; fromUnit: string; priceOpen: boolean } {
+export function setSummary(config: ProduktConfig | null): { ready: boolean; refusal: string | null; refusalCode: string | null; from: string | null; fromUnit: string; fromForFour: string | null; priceOpen: boolean } {
     if (config === null) {
-        return { ready: false, refusal: null, refusalCode: null, from: null, fromUnit: 'pro Rad', priceOpen: false }
+        return { ready: false, refusal: null, refusalCode: null, from: null, fromUnit: 'pro Rad', fromForFour: null, priceOpen: false }
     }
 
     const offer = offerOf(config, {})
@@ -250,6 +250,8 @@ export function setSummary(config: ProduktConfig | null): { ready: boolean; refu
         refusalCode: offer.refusalCode,
         from: same?.perWheel ?? pair?.forFour ?? null,
         fromUnit: same !== null ? 'pro Rad' : 'für 2 + 2',
+        // The lowest set of four, whichever kind: where versions stand side by side, one unit for all (A1, D-515).
+        fromForFour: lowest([same, pair].filter((card): card is TyreCardView => card !== null))?.forFour ?? null,
         // The fee nobody has named: the page then promises no mounting in its figure.
         priceOpen: offer.priceOpen,
     }

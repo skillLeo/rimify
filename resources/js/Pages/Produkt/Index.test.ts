@@ -1233,8 +1233,12 @@ describe('A1: one dropdown of dimensions and combinations, behind the D6 switch 
         await nextTick()
 
         expect(wrapper.find('[data-d6-select] label').text()).toBe('Kombination')
-        expect(groups(wrapper).map(([label]) => label)).toEqual(['Vier gleiche Räder', 'Vorne und hinten verschieden'])
+        expect(groups(wrapper).map(([label]) => label)).toEqual(['19 Zoll · vier gleiche Räder', 'Vorne und hinten verschieden'])
         expect(groups(wrapper)[0]?.[1][0]?.text).toMatch(/^4 × Breite 8,5J · ET 45/)
+        // One unit in one list (D-515): never „für 2 + 2“ beside „pro Rad“; a set of two versions waits for its tyres.
+        const texts = groups(wrapper).flatMap(([, options]) => options.map((o) => o.text))
+        expect(texts.filter((t) => /pro Rad|2 \+ 2/.test(t))).toEqual([])
+        expect(groups(wrapper)[1]?.[1][0]?.text).toBe('Vorne 2 × 8,5J × 19 ET 45 · Hinten 2 × 9,5J × 19 ET 40 · Preis nach der Reifenwahl')
     })
 
     it('keeps a version the car may not have in the list, disabled, with its reason', () => {
@@ -1244,6 +1248,6 @@ describe('A1: one dropdown of dimensions and combinations, behind the D6 switch 
         const last = groups(wrapper).at(-1)
 
         expect(last?.[0]).toBe('Nicht für dein Fahrzeug')
-        expect(last?.[1]).toEqual([{ text: 'Breite 9J · ET 30 · Lochkreis 5 × 112 – nicht freigegeben', disabled: true }])
+        expect(last?.[1]).toEqual([{ text: '20 Zoll · Breite 9J · ET 30 · Lochkreis 5 × 112 – nicht freigegeben', disabled: true }])
     })
 })

@@ -309,8 +309,11 @@ const d6 = computed(() => shared.value.switches?.d6 === true)
 const d6Value = computed(() => (chosenSet.value !== null ? `s:${chosenSet.value.key}` : selected.value !== null ? `v:${selected.value.id}` : null))
 const d6Groups = computed<DimensionGroupView[]>(() => {
     const marks = (inStock: boolean, unconfirmed: boolean): string[] => [inStock ? '' : 'auf Anfrage', unconfirmed ? 'noch nicht bestätigt' : ''].filter((m) => m !== '')
-    const struck = config.dimensions.value.flatMap((group) => group.others).map((v) => ({ value: `v:${v.id}`, text: `${v.label} – ${v.standing ? STANDING_WORD[v.standing] : 'nicht wählbar'}`, disabled: true }))
-    const sets = config.sets.value.map((set) => ({ value: `s:${set.key}`, text: [set.label, isSet.value ? 'Komplettrad 2 + 2' : `${set.price} für 4 Felgen`, ...marks(set.inStock, false)].join(' · ') }))
+    // Their own group across every diameter: each names its diameter, as the groups above do.
+    const struck = config.dimensions.value.flatMap((group) => group.others.map((v) => ({ value: `v:${v.id}`, text: `${group.label} Zoll · ${v.label} – ${v.standing ? STANDING_WORD[v.standing] : 'nicht wählbar'}`, disabled: true })))
+    // One unit in one list (D-515): Nur Felgen prices a rim and a set its four rims; a Komplettrad option its lowest four
+    // wheels, and a set of two versions — priced only with its tyres — says so instead of a unit of its own.
+    const sets = config.sets.value.map((set) => ({ value: `s:${set.key}`, text: [set.label, isSet.value ? 'Preis nach der Reifenwahl' : `${set.price} für 4 Felgen`, ...marks(set.inStock, false)].join(' · ') }))
     const groups: DimensionGroupView[] = []
 
     if (!isSet.value) {
@@ -320,14 +323,17 @@ const d6Groups = computed<DimensionGroupView[]>(() => {
             }
         }
     } else {
-        const four = config.dimensions.value.flatMap((group) => group.versions).map((v) => {
-            const offer = setSummary(v.config)
+        // By diameter, as Nur Felgen: a version is named by its width, ET and Lochkreis, and its diameter is the group's.
+        for (const group of config.dimensions.value) {
+            const four = group.versions.map((v) => {
+                const offer = setSummary(v.config)
 
-            return { value: `v:${v.id}`, text: [`4 × ${v.label}`, offer.from !== null ? `ab ${offer.from} ${offer.fromUnit}` : offer.refusal !== null ? 'kein Komplettrad' : '', ...marks(v.config.inStock, v.unconfirmed)].filter((t) => t !== '').join(' · ') }
-        })
+                return { value: `v:${v.id}`, text: [`4 × ${v.label}`, offer.fromForFour !== null ? `ab ${offer.fromForFour} für 4 Räder` : offer.refusal !== null ? 'kein Komplettrad' : '', ...marks(v.config.inStock, v.unconfirmed)].filter((t) => t !== '').join(' · ') }
+            })
 
-        if (four.length > 0) {
-            groups.push({ label: 'Vier gleiche Räder', options: four })
+            if (four.length > 0) {
+                groups.push({ label: `${group.label} Zoll · vier gleiche Räder`, options: four })
+            }
         }
     }
 

@@ -1,7 +1,10 @@
 # The three switches of Part A (brief of 22.11.2026)
 
-All three are built, tested and **off**. They live on the branch `part-a` and reach no release until the operator writes
-„release A1“, „release A2“ or „release A4“. Each is one line in the host's `.env`, read through `App\Support\Switches`.
+All three are built and tested. They reach no release until the operator writes „release A1“, „release A2“ or „release A4“.
+Each is one line in the host's `.env`, read through `App\Support\Switches`.
+
+**State (22.11.2026, release 52):** A1 **on** on the preview — the operator's answer of 22.11.2026 (the client asked for
+it); A2 and A4 **off** until the client answers.
 
 | Switch | `.env` line to turn it on | Decision | Test files |
 |---|---|---|---|
@@ -24,7 +27,7 @@ All three are built, tested and **off**. They live on the branch `part-a` and re
 **What changes for the customer.** On a wheel's page the diameter chips, the version tiles and the set tiles become one
 list. Under „Nur Felgen“ it is called „Ausführung“ and holds every size of the colour, grouped by diameter, each with its
 price per rim, and the front/rear sets with their price for four. Under „Kompletträder“ it is called „Kombination“ and holds
-four alike, then the front/rear sets. A version the car may not have stays in the list, greyed, with the reason. Everything
+four alike by diameter, each with its lowest price for four wheels, then the front/rear sets („Preis nach der Reifenwahl“). A version the car may not have stays in the list, greyed, with the reason. Everything
 after the choice — the RIMIFY-Check box, the amount, the price, the basket, the Komplettrad steps, the PDFs — is unchanged.
 
 **Proof.** 5 component tests (off by default; every diameter listed and chosen as a chip would; a set listed whole with
@@ -33,13 +36,16 @@ both axles and never one half alone; „Kombination“ in Komplettrad mode; a re
 on the preview's data copy, switch on and off, at 1440 and 390: `resume/r51/a1/shots/` (not in git).
 
 **What is awkward.**
-- A closed dropdown cuts a long set label at 390 („Vorne 2 × 8,5 × 18 ET 25 · Hinten 2 × 8,5 × 1…“). The two lines under it
-  and the price bar say the whole set, but the list itself is hard to scan on a phone.
-- In „Kompletträder“, a four-alike version whose Komplettrad is one of the paper's tyre combinations reads „ab 2.410,00 € für
-  2 + 2“ while others read „pro Rad“ — the same unit problem the tiles have, made more visible in one list.
-- A set in „Kompletträder“ shows no price in the list: its price exists only once the tyres are chosen.
-- The set labels come from the server as „8,5 × 18“, the versions as „Breite 8,5J“: two notations in one list.
+- A closed dropdown cuts a long set label at 390 („Vorne 2 × 8,5J × 18 ET 25 · Hinten 2 × 8,5J × 1…“). The two lines under
+  it and the price bar say the whole set, but the list itself is hard to scan on a phone.
+- A set in „Kompletträder“ shows no price in the list: its price exists only once the tyres are chosen. The line says so.
 - A native dropdown cannot show the RIMIFY-Check colour or a „Auf Anfrage“ tag beside an entry; they are words in the line.
+
+**Fixed before release 52 (D-515, the operator's answer of 22.11.2026).**
+- One width notation everywhere: the sets read „Vorne 2 × 8,5J × 18 ET 35“ like every other label (R-10) — in the list, on
+  the set tiles, in the basket and the Kasse. Orders placed before keep the label they were sold with.
+- One unit in one list: every Komplettrad option says „ab … € für 4 Räder“ — never „für 2 + 2“ beside „pro Rad“. Each
+  option names its diameter, and so does each refused version.
 
 ## A2 · a Teilegutachten states the Abnahme (option Q)
 

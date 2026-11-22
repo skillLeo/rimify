@@ -416,7 +416,7 @@ export interface ProduktSet {
     rearId: number
     finishId: number
     diameters: number[]
-    /** `Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35`, formatted on the server (R-10). */
+    /** `Vorne 2 × 8,5J × 18 ET 35 · Hinten 2 × 8,5J × 19 ET 35`, formatted on the server (R-10). */
     label: string
     /** The same, one row per axle. */
     axles: string[]

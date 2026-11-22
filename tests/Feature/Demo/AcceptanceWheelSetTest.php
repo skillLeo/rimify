@@ -100,7 +100,7 @@ it('gives the shop what the mockup shows: a set for the car, sold, and tyres acr
     $sets = collect($page['props']['wheelSets']);
 
     expect($sets)->toHaveCount(2)
-        ->and(str_replace("\u{00A0}", ' ', (string) $sets->first()['label']))->toBe('Vorne 2 × 8,5 × 18 ET 35 · Hinten 2 × 8,5 × 19 ET 35');
+        ->and(str_replace("\u{00A0}", ' ', (string) $sets->first()['label']))->toBe('Vorne 2 × 8,5J × 18 ET 35 · Hinten 2 × 8,5J × 19 ET 35');
 });
 
 it('goes with the rest of the demo data, and comes back on the same car', function (): void {
