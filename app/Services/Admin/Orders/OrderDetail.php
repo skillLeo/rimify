@@ -194,7 +194,7 @@ final class OrderDetail
 
         $document = $verdict->document;
         $kind = $document === null ? null : (ApprovalKind::tryFrom($document->kind)?->labelDe() ?? $document->kind);
-        $groups = SetAnswerFloor::groups($verdict, $tyreSize, $axle, $partner);
+        $groups = SetAnswerFloor::frozenGroups($verdict, $tyreSize, $axle, $partner);
 
         return $base + [
             'readable' => true,

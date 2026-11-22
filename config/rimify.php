@@ -250,6 +250,13 @@ return [
         // and a car typed from a Gutachten has no key numbers. `on` and `off` force it. While it is closed, the path
         // says so in one sentence and the server answers no lookup (the operator's brief of 05.10.2026, §8).
         'key_numbers' => env('RIMIFY_FEATURE_KEY_NUMBERS', 'auto'),
+        // The three switches of the operator's brief of 22.11.2026, Part A (App\Support\Switches, docs/launch/SWITCHES.md).
+        // Off until the operator writes „release A1“ / „A2“ / „A4“. A1 — one dropdown of dimensions / combinations (D6).
+        'd6_dropdowns' => filter_var(env('RIMIFY_SWITCH_D6_DROPDOWNS', false), FILTER_VALIDATE_BOOL),
+        // A2 — option Q: a Teilegutachten states the Abnahme on every row unless a Prüfer excepts it. Its sentence is a placeholder.
+        'teilegutachten_abnahme' => filter_var(env('RIMIFY_SWITCH_TEILEGUTACHTEN_ABNAHME', false), FILTER_VALIDATE_BOOL),
+        // A4 — a Komplettrad's Auflagen scoped to the sizes chosen (the reverse of D-501's floor). Less strict; the client decides.
+        'scoped_auflagen' => filter_var(env('RIMIFY_SWITCH_SCOPED_AUFLAGEN', false), FILTER_VALIDATE_BOOL),
     ],
 
     /*

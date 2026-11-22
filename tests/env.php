@@ -247,6 +247,10 @@ return [
     'RIMIFY_SSR_PAUSE' => null,
     'RIMIFY_SSR_SOCKET' => null,
     'RIMIFY_SSR_TIMEOUT' => null,
+    // The three switches of the brief of 22.11.2026, Part A — off in every test unless a test turns one on (D-505, D-506).
+    'RIMIFY_SWITCH_D6_DROPDOWNS' => null,
+    'RIMIFY_SWITCH_SCOPED_AUFLAGEN' => null,
+    'RIMIFY_SWITCH_TEILEGUTACHTEN_ABNAHME' => null,
     'RIMIFY_TPMS_DEFAULT_PRICE_CENTS' => null,
     'SESSION_CONNECTION' => null,
     'SESSION_COOKIE' => null,
