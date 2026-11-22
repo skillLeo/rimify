@@ -1,9 +1,30 @@
 # RIMIFY — go-live runbook
 
-Follow it top to bottom, in one SSH session on the Hostinger account. Every step has the exact command, what a
-correct result looks like, and what to do when it is not that. Nothing here is run by the build; you run it.
+Follow it top to bottom, in one SSH session on the Hostinger account. Every step gives the exact command, what a
+correct result looks like, and what to do when the result is different. The build runs nothing on this page; you do.
 
-**Do not start** until these are true (`docs/launch/BLOCKED.md` has the owners):
+**Part A** (rewritten 22.11.2026, D-507) is the launch day in order:
+- who does what;
+- the DNS at ionos;
+- the production values, by name;
+- SSL and redirects;
+- Stripe and Brevo going live;
+- the host's background work;
+- the first 24 hours.
+
+**Part B** (§0–§10) is the release itself: backup, preflight, maintenance, deploy, smoke, cron and rollback. Its substance
+is unchanged, and it has been rehearsed on the preview.
+
+No secret is written in this file, in the repository or in a chat. Where a value is secret, this page gives its
+**name** and says who types it. The value itself is typed once, in the place that uses it.
+
+---
+
+# Part A · Launch day, in order
+
+## A0 · Do not start until
+
+**Do not start** until all of these are true (`docs/launch/BLOCKED.md` has the owners):
 
 - The production domain points at this Hostinger account, and hPanel shows a valid SSL certificate for it.
 - The cars the released Gutachten name are in — typed from the Gutachten themselves („Fahrzeug aus diesem
@@ -14,18 +35,199 @@ correct result looks like, and what to do when it is not that. Nothing here is r
 - The real catalogue is in and **at least one wheel is published with a freigegebenes Gutachten** for a car. The
   example catalogue never reaches production, so without one real wheel the smoke test (§5) cannot pass —
   and a shop without a wheel is not ready to open.
-- Mail goes through Amazon SES (`eu-north-1`, D-182): the key is in Einstellungen › E-Mail, the account has production
-  access, and `rimify:go-live-check` shows „E-Mail-Versand über Amazon SES“ and „Absenderdomain: SPF, DKIM und DMARC“
-  as erfüllt — `docs/ops/MAIL-SES.md` has every step and the deliverability test.
+- Mail goes through Brevo (the client's choice of 08.11, D-450). Amazon SES is still possible (`docs/ops/MAIL-SES.md`).
+  - The SMTP login and key are in Einstellungen › E-Mail.
+  - The domain is authenticated in Brevo (A3, A6, `docs/launch/BREVO.md`).
+  - `rimify:go-live-check` shows the mail rows as erfüllt.
 - The media bucket's key is at hand for Einstellungen › Medien und Speicher (or already entered).
-- The rollback has been rehearsed on staging and timed (§7.4) — done on the preview on 2026-09-29: 14,4 s.
+- The rollback has been rehearsed on staging and timed (§7.4): done on the preview on 2026-09-29, 14,4 s. The preview's
+  backup was last restored into a scratch database on 2026-11-22: 11,1 s, 97 tables, 28 triggers, both append-only
+  triggers refusing.
+- Payments: production opens with `RIMIFY_PAYMENTS=stripe` and the client's live keys in the admin (A5, §4.3).
+  Until he has entered them, the Kasse refuses orders with a sentence. It never falls back to the Testzahlung.
 
-Payments: this release opens the shop with `RIMIFY_PAYMENTS=none` — it shows every wheel and its verdict and
-refuses orders with a sentence, until the payments brief lands (Stripe, entered in the admin by hand).
+## A1 · Who does what
 
-**Staging (the review preview) runs this same runbook** with three differences, found on its first run
-(2026-09-29, see „Where this runbook was wrong“ at the end): `TARGET_ENV=staging` in §4.2, the preflight rows
-that are production's only (§2), and a smoke test whose product rows wait for a released, priced real wheel (§5).
+| Step | Who | Where | When |
+|---|---|---|---|
+| Legal texts (Impressum, AGB, Datenschutz, Widerruf), with no „Platzhalter“ left | the client, with his lawyer | Admin › Inhalte › Seiten (the legal pages) | before A4. Until then robots.txt turns every crawler away and the Kasse takes no real payment (D-168, D-319). |
+| Seller details and shipping | the client | Admin › Einstellungen › Verkäufer, and › Versand | before A4 |
+| Brevo account, verified sender domain, SMTP key | the client | brevo.com, then Admin › Einstellungen › E-Mail (`docs/launch/BREVO.md`) | the DNS part (A3) at least a day before |
+| DNS records at ionos | the client, with his ionos login | ionos › Domains & SSL › the domain › DNS | A3, in the order given there |
+| Stripe live keys and webhook secret | the client | Admin › Einstellungen › Zahlung, **on the production site only** (R-16) | A5 |
+| First invoice number and first credit note number | the client | Admin › Einstellungen › Zahlung › Rechnungsnummern (cannot be undone) | A5 |
+| Backup, deploy, smoke, cron, rollback point | we | SSH on the production Hostinger account (Part B) | A4 |
+| The first real order and its refund | the client pays, we watch | the live shop, with his own card | A5 |
+| The 24-hour watch | we | A8 | from A4 on |
+
+## A2 · Production `.env`, by name only
+
+We write `.env` on the host from `.env.example`. It is never copied from the preview, and it is **never committed,
+printed or sent in a chat**.
+
+Values marked **client** are not in `.env` at all. The client types them in the admin, which stores them encrypted and
+only ever shows their last four characters.
+
+| Name | Production value (described, not given) | Typed by |
+|---|---|---|
+| `APP_ENV` | `production` | we |
+| `APP_DEBUG` | `false` | we |
+| `APP_KEY` | generated once on the host (`artisan key:generate`), never the preview's | we |
+| `APP_URL` | `https://<domain>`, the one canonical address (without `www`) | we |
+| `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | a new production database from hPanel › Datenbanken, never the preview's | we |
+| `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | a fallback only, used until the admin's mail page is saved. The Brevo login and key are **not** here. | we |
+| Brevo SMTP login and key | Admin › Einstellungen › E-Mail | **client** |
+| `RIMIFY_PAYMENTS` | `stripe`. Never `sandbox`: preflight refuses it in production. | we |
+| `STRIPE_MODE`, `STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET` | **not in `.env`**. The live keys go into Admin › Einstellungen › Zahlung, and preflight refuses a live key it finds in `.env`. | **client** |
+| `RIMIFY_REVIEW` | not set (off): no review feedback tools and no Testzahlung | we |
+| `RIMIFY_RESET_ERLAUBT` | **not set**. Any line here, whatever its value, is a defect (§4.4). | — |
+| `RIMIFY_ADMIN_ENABLED` | not set, or `true` | we |
+| `RIMIFY_OPERATOR_*`, `RIMIFY_SELLER_*`, `RIMIFY_SHIPPING_*`, `RIMIFY_DELIVERY_TIME` | read only while the admin pages have never been saved. The client's entries in Einstellungen win. | client (in the admin) |
+| `RIMIFY_CONTACT_EMAIL`, `RIMIFY_CONTACT_HOURS` | the client's address and hours (on record: `info@…`, Mo–Fr 9–17) | we |
+| `RIMIFY_S3_KEY`, `RIMIFY_S3_SECRET`, `RIMIFY_S3_REGION`, `RIMIFY_S3_BUCKET`, `RIMIFY_S3_URL`, `RIMIFY_S3_ENDPOINT` | the production bucket, or entered in Admin › Einstellungen › Medien und Speicher | we |
+| `RIMIFY_FEATURE_KEY_NUMBERS` | not set, or `auto` | we |
+| `RIMIFY_SWITCH_*` (Part A of the brief of 22.11.2026) | **not set**. These switches are not in any release yet. | — |
+| `QUEUE_CONNECTION`, `SESSION_DRIVER`, `CACHE_STORE` | written by `deploy/remote.sh` (`sync` for the queue on this host) | the script |
+
+## A3 · DNS at ionos: order and waiting times
+
+The domain stays registered at ionos; only its records change.
+- **Hostinger's address:** shown under hPanel › Websites › the production site › Domains. It is an A record, plus an
+  AAAA record if hPanel shows one.
+- **Brevo's values:** shown under Brevo › Senders, Domains & Dedicated IPs › Domains. Copy them exactly; never type them
+  from this page.
+
+| # | When | Record (ionos: Hostname · Typ · Wert) | Why | Wait before the next step |
+|---|---|---|---|---|
+| 1 | 2 days before | every record below that already exists: set its TTL to the lowest value ionos offers | changes then spread in minutes, and so does a way back | the old TTL (often 1 hour, at most 1 day) |
+| 2 | 1–2 days before | `@` · TXT · the `brevo-code:…` value Brevo shows | Brevo's proof that the domain is the client's | none |
+| 3 | same day | the two DKIM records Brevo shows (CNAME `brevo1._domainkey` and `brevo2._domainkey`, or one TXT, as Brevo gives them) | signs every mail | none |
+| 4 | same day | `@` · TXT · **one** SPF record: `v=spf1 include:spf.brevo.com <the mailbox provider's include> ~all`. If ionos already has an SPF record (for the `info@` mailbox), **add** Brevo's include to it. Never create a second `v=spf1` record: two records break both. | names the servers that may send for the domain | none |
+| 5 | same day | `_dmarc` · TXT · `v=DMARC1; p=none; rua=mailto:<an address the client reads>`, or Brevo's own value if it shows one | sends reports, and blocks nothing at first | until Brevo shows the domain as authenticated: usually under an hour, at most about 48 hours |
+| 6 | launch day, after §4.2 succeeds | `@` · A (and AAAA) · Hostinger's address; `www` · CNAME · `<domain>` | the shop answers on the domain | 5–60 minutes with the lowered TTL. Check with `dig +short <domain>` from two networks. |
+| 7 | a week after launch | TTLs back to their normal values | fewer lookups | — |
+| 8 | two weeks after launch | `_dmarc`: `p=quarantine`, once the reports show only Brevo and the mailbox provider sending | protects the domain from spoofing | — |
+
+**Never touch the MX records** (the client's mailbox) unless he moves his mail. Write down every record's old value
+before changing it: that list is the DNS rollback.
+
+## A4 · The release, SSL, redirects, and what must be off
+
+1. **Release:** run Part B §1–§5 on the production account: backup, preflight, maintenance, deploy
+   (`TARGET_ENV=production`) and smoke.
+   - The production database starts empty: reference data only, and no demo row (`demo:assert-clean` → `No demo data.`).
+2. **Cars and catalogue:** the vehicle import and the Gutachten are entered and released on production itself. The
+   preview's are never copied over, because its database holds test orders and demo rows.
+3. **DNS and SSL:** do DNS step 6 (A3). Then hPanel › Websites › Sicherheit › SSL › install the free certificate for
+   `<domain>` and `www.<domain>`.
+   - The certificate is issued once the DNS answers with Hostinger's address: minutes, sometimes an hour.
+   - Check: `curl -sI https://<domain> | head -1` → `HTTP/2 200`.
+4. **http → https, and www → the bare domain:**
+   - Switch on hPanel's „HTTPS erzwingen“ for the site.
+   - Add the www redirect at the top of `public/.htaccess`, **on the production host only**:
+     ```
+     RewriteEngine On
+     RewriteCond %{HTTP_HOST} ^www\.<domain-with-escaped-dots>$ [NC]
+     RewriteRule ^ https://<domain>%{REQUEST_URI} [L,R=301]
+     ```
+     The file belongs to the release, so these lines must be added again after every deploy, until they ship in the
+     release behind a host condition (open item).
+   - Check: `curl -sI http://<domain>/felgen` → `301` to `https://<domain>/felgen`.
+   - Check: `curl -sI https://www.<domain>/felgen` → `301` to `https://<domain>/felgen`.
+   - Each must be one hop, never a loop.
+5. **Vorschau ribbon and test mode:** both switch off by themselves in production. Check them anyway; never assume.
+   - The ribbon „Vorschau — Testumgebung …“ shows only where `APP_ENV=staging` (PreviewRibbon). A private window on the
+     home page must show none.
+   - No Testzahlung: `RIMIFY_PAYMENTS=stripe`, and the Kasse's last step shows Stripe's fields, never the „Zahlung
+     erfolgreich / fehlgeschlagen“ buttons.
+   - No review tools: `RIMIFY_REVIEW` is not set.
+6. **robots.txt and the sitemap:**
+   - `curl -s https://<domain>/robots.txt` must read `Disallow:` (empty) and name
+     `Sitemap: https://<domain>/sitemap.xml`.
+   - It does so only in production, **and** only once no legal text is a placeholder and the Impressum is complete
+     (SecurityHeaders::hidden, D-319).
+   - If it still reads `Disallow: /`, a legal text is still open; `rimify:go-live-check` names it.
+   - `curl -s https://<domain>/sitemap.xml | head` lists the shop's public pages.
+7. **Search engines, only now:**
+   - Add the property `https://<domain>` in Google Search Console and in Bing Webmaster Tools.
+   - Verify it with a DNS TXT record at ionos: the client adds it, or adds what we send him.
+   - Submit the sitemap.
+   - Never do this for the preview, which stays out of every index (`X-Robots-Tag: noindex`, D-088).
+
+## A5 · Stripe: from sandbox to live, and the first real order
+
+1. **Activate the account.** The client, in the **live** Stripe dashboard: company, bank account and identity, following
+   Stripe's own checklist under „Konto aktivieren“.
+2. **Add the webhook.** The client, under Stripe › Entwickler › Webhooks › Endpunkt hinzufügen:
+   - endpoint `https://<domain>/webhooks/stripe`;
+   - the events `StripeGateway::EVENTS` names (Admin › Einstellungen › Zahlung shows them beside the field).
+   Stripe then shows the endpoint's signing secret (`whsec_…`).
+3. **Enter the keys.** The client, in Admin › Einstellungen › Zahlung on the production site:
+   - switch on Livemodus and enter the publishable key, the secret key and the webhook's signing secret;
+   - „Verbindung testen“ must name his account;
+   - then **Rechnungsnummern eröffnen** (§4.3 step 5).
+4. **Apple Pay domain** (§4.3 step 3): optional on day one.
+5. **The first real order, small.** The client buys the cheapest item the shop sells with his own card. Instead, he can
+   buy a 1,00 € test product made for this and unpublished afterwards. Check, in this order:
+   - the order page turns „bezahlt“ within a minute (the webhook arrived), and Stripe › Webhooks shows a `200`;
+   - the confirmation mail arrives with the invoice and the legal PDFs (A6);
+   - Admin › Verkauf › Bestellungen shows the order, with its frozen verdict if it is a wheel;
+   - the stock went down by the amount bought.
+6. **Its refund.** Admin › the order › „Erstatten“, the whole amount. Check:
+   - Stripe shows the refund;
+   - the order shows „Erstattet“;
+   - the credit note (Gutschrift) is issued with the first GS number;
+   - the stock is back.
+   The money reaches the card in 5–10 days; that timing is Stripe's, not ours.
+7. **If anything in steps 5–6 fails:** switch Livemodus off in Admin › Einstellungen › Zahlung (orders are then refused
+   with a sentence) and tell us. A payment setting needs no rollback of the release.
+
+## A6 · Brevo: sender verified, one real mail, one order confirmation
+
+1. Brevo shows the domain as **authenticated** (A3 steps 2–5), and the sender address as verified.
+2. The client, in Admin › Einstellungen › E-Mail: choose Anbieter Brevo, enter the sender, the SMTP login and the SMTP
+   key, then Speichern. „Verbindung“ must turn green.
+3. **One real test mail to the client:** „Test-E-Mail senden“ to his own address.
+   - It must arrive in the inbox (not in spam), from `…@<domain>`.
+   - The mail's header must show `dkim=pass` and `spf=pass` (in Gmail: „Original anzeigen“).
+4. **One order confirmation:** the order from A5 step 5.
+   - The mail carries the invoice, the AGB, the Widerrufsbelehrung and the Muster-Widerrufsformular as PDFs.
+   - Its links open the production site, never the preview.
+5. Brevo › Transactional › Logs shows both mails as delivered.
+
+Nothing else is sent to anyone on launch day: no newsletter, and no import of addresses.
+
+## A7 · On the production host: scheduler, queue, failed jobs, the host's indexes
+
+| What | How it runs here | Check | If not |
+|---|---|---|---|
+| Scheduler | the cron line `artisan schedule:run`, every minute (§6) | Admin › System, row „Zeitplan“, green within a minute; `crontab -l` | add the line in hPanel › Cron-Jobs (§6) |
+| Renderer (SSR) | the cron line `ssr-watch.sh`, every minute (§6) | row „Server-Rendering“ green | §6 |
+| Queue | `QUEUE_CONNECTION=sync`: jobs run at once inside the request. There is **no worker** to start or watch. | row „Warteschlange“: no failed jobs | a failed job is written to the Protokoll as an alert; read it there |
+| Failed jobs | `php artisan queue:failed` | empty | read the job's error, fix the cause, and only then `queue:retry <id>` |
+| Unpaid orders | `orders:expire`, every ten minutes (scheduler) | an unpaid order older than 24 h reads „abgelaufen“ | the scheduler line is missing |
+| Demo rows | `demo:assert-clean`, every day at 04:30 | `No demo data.` | §2, row Demodaten |
+| The host's own `wdbi_` indexes | Hostinger's MariaDB adds an index about 20 minutes after any statement slower than 3 s (D-476) | `php artisan rimify:host-indizes` lists none | `rimify:host-indizes --entfernen`, which logs each index with its columns; `deploy/remote.sh` also runs it before every migration. Ask Hostinger to switch the automatic indexing off for the production database too. |
+
+## A8 · The first 24 hours
+
+| When | What | Correct | If not |
+|---|---|---|---|
+| every 10 min, first hour | §8's table: errors, SSR, queue, slow queries, renderer, a real visit | as described there | as described there |
+| +1 h | the first order (A5): paid, mailed, refunded | all three done | switch Livemodus off and tell us |
+| +1 h | `curl -sI` on `http://`, on `www.`, on a product page, `/robots.txt` and `/sitemap.xml` | 301 to the https bare domain; 200; robots open; the sitemap lists pages | A4 steps 4–6 |
+| +2 h | Brevo › Logs | every order mail delivered, no bounce | run the mail page's test; Brevo's log names the reason |
+| +4 h | Stripe › Webhooks, and Admin › Bestellungen | every delivery `200`; no order „offen“ after its payment went through | a `4xx` means the signing secret is not the live endpoint's (A5 step 3) |
+| +4 h | `rimify:host-indizes` | none listed | `--entfernen` |
+| +8 h and +24 h | `tail -100 storage/logs/laravel-$(date +%F).log`, Admin › System, Admin › Protokoll | no `ERROR` from a shop page; System green | a repeated error on a shop page → roll back (§7) |
+| +24 h | `rimify:preflight`, `rimify:smoke`, `demo:assert-clean`, `rimify:append-only-check` | `GO.`; every row ok; no demo data; append-only holds | the failing row says what is wrong |
+| +24 h | verdict spot check: three cars from the import, one wheel each, compared with the Gutachten's page | the shop says the same as the page | **take the wheel offline** (Katalog › Felgen › the model › Entwurf) and tell us. A wrong answer is never left online (CLAUDE.md §2). |
+| +24 h | Search Console | the sitemap has been read; no crawl errors on shop pages | A4 step 7 |
+| +24 h | the backups from §1 and the DNS list from A3 | both still kept | — |
+
+---
+
+# Part B · The release
 
 ---
 
@@ -137,7 +339,7 @@ expected there, each NO-GO in production.
 | Adresse | GO · `https://<domain>` | `APP_URL` in `.env` |
 | Server-Rendering | GO · Renderer antwortet … heute N Seiten ohne | start it: `bash deploy/ssr-watch.sh`, wait 5 s, run again |
 | E-Mail | GO · `smtp, Absender …@<domain>` | `MAIL_MAILER=smtp` and the account's `MAIL_*` values; a sender on another domain is a warning — fix it, or mail lands in spam |
-| Zahlung | Warnung · kein Zahlungsanbieter (BLOCKED #3) | expected until the payments brief; **`sandbox` here is NO-GO** |
+| Zahlung | GO · Stripe im Livemodus — after A5; before it a warning, kein Zahlungsanbieter | **`sandbox` here is NO-GO** |
 | Zahlungsschlüssel | – · keine Schlüssel in .env | a refused key fails this row (a live key in `.env`, a key of the other mode): take it out of `.env` |
 | Datenbank / Migrationen | GO / GO · alle ausgeführt | `ausstehend` before the deploy is normal on a release that brings migrations; after §4 it must read `alle ausgeführt` |
 | Demodaten | GO · keine | `$PHP artisan demo:purge --force`, then find how they got there — production never holds demo rows (R-12) |
@@ -251,7 +453,7 @@ A person, on the production site, never through the repository (R-16, `docs/dev/
    Stripe offers at `public/.well-known/apple-developer-merchantid-domain-association` and press „Verifizieren“.
 4. `.env`: `RIMIFY_PAYMENTS=stripe` — and `RIMIFY_SELLER_SMALL_BUSINESS` stays `false` (the client: normal VAT,
    30.09.2026); `php artisan config:cache`. The seller and the shipping (BLOCKED 19, 20) are entered by the client
-   in **Einstellungen › Verkäufer & Versand**, with no box ticked as „Platzhalter“; the `RIMIFY_SELLER_*` and
+   in **Einstellungen › Verkäufer** and **› Versand**, with no box ticked as „Platzhalter“; the `RIMIFY_SELLER_*` and
    shipping lines in `.env` only answer while that page was never saved.
 5. **Einstellungen › Zahlung › Rechnungsnummern**, once and for good: the first invoice number and the first credit
    note number the client's own accounting will issue next, the check box, „Rechnungsnummern eröffnen“. The page
@@ -486,7 +688,7 @@ window has to be planned around it.
 
 ---
 
-## 8 · The first hour
+## 8 · The first hour (the first 24 hours: A8)
 
 Every ten minutes for the first hour, then at the end of the day:
 
@@ -508,11 +710,11 @@ are the tracker until one is chosen.
 
 - [ ] `grep -E '^APP_(ENV|DEBUG)=' .env` → `APP_ENV=production` and `APP_DEBUG=false`; `grep RIMIFY_ADMIN_ENABLED .env` → nothing, or `true`
 - [ ] `$PHP artisan demo:assert-clean` → `No demo data.`
-- [ ] `$PHP artisan rimify:mail-test <your address> --anhaenge` → `Sent via ses-v2 …, with two PDF attachments` — and it
-      arrives, from `…@<domain>`, in the inbox, both PDFs open; the deliverability test of `docs/ops/MAIL-SES.md` (Gmail,
-      Outlook, GMX) recorded there with its date
+- [ ] `$PHP artisan rimify:mail-test <your address> --anhaenge` → sent through Brevo, with two PDF attachments — and it
+      arrives, from `…@<domain>`, in the inbox, both PDFs open, `dkim=pass` and `spf=pass` in its header (A6)
 - [ ] `$PHP artisan rimify:append-only-check` → „Protokoll und Prüfnachweise lehnen jede Änderung ab.“
-- [ ] `grep -E '^RIMIFY_PAYMENTS=' .env` → `RIMIFY_PAYMENTS=none` (never `sandbox` on the live shop). Where the
+- [ ] `grep -E '^RIMIFY_PAYMENTS=' .env` → `RIMIFY_PAYMENTS=stripe` (never `sandbox` on the live shop), and the first
+      real order and its refund done (A5). Where the
       sandbox is on (staging), every test order carries the tag „Testbestellung“ in Verkauf › Bestellungen and, on its page, „Testbestellung über die Testzahlung – dabei fließt kein Geld …“
 - [ ] `$PHP artisan rimify:preflight` → `GO.`
 - [ ] `$PHP artisan rimify:smoke` → every row ok
