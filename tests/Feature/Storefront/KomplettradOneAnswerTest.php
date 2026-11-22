@@ -12,10 +12,13 @@ use App\Models\OrderLineFitment;
 use App\Models\WheelModel;
 use App\Services\Admin\Orders\OrderDetail;
 use App\Services\Commerce\KomplettradSettings;
+use App\Services\Storage\DocumentFiles;
+use App\Services\Storage\StorageSettings;
 use App\Services\Storefront\Basket;
 use App\Support\CatalogueVersion;
 use Database\Seeders\CommerceSeeder;
 use Database\Seeders\KomplettradOptionsSeeder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Storefront\KomplettradFixture;
 
@@ -103,4 +106,24 @@ it('leaves a plain answer plain: no Auflage on the row, „Keine Auflagen.“ in
     expect($props['config']['verdict']['status'])->toBe('PERMITTED')
         ->and($offered['answer']['standing'])->toBe('keine')
         ->and($offered['answer']['combination'])->toBe([]);
+});
+
+it('keeps the Auflagen in the mail when a link to the Gutachten cannot be built (D-510)', function (): void {
+    $this->withCookies($this->fx->cookies())->from('/komplettraeder')->post('/warenkorb', ['kind' => 'WHEEL', 'wheelConfigId' => $this->fx->config->id, 'tyreVariantId' => $this->tyre->id, 'rdks' => 'nein', 'quantity' => 4])->assertSessionHasNoErrors();
+    $this->withCookies($this->fx->cookies())->from('/kasse')->post('/kasse', ['email' => 'test@beispiel.de', 'phone' => '', 'name' => 'Erika Mustermann', 'street' => 'Hauptstraße', 'houseNumber' => '12', 'zip' => '50667', 'city' => 'Köln', 'billingSame' => true, 'shipping' => 'standard', 'rdks' => 'nein'])->assertSessionHasNoErrors();
+    $order = Order::query()->latest('id')->firstOrFail();
+
+    // The storage unreadable for a moment: a key stored under another APP_KEY, as on a copy of the database.
+    DB::table('approval_documents')->where('id', $this->fx->document->id)->update(['pdf_key' => 'gutachten/probe.pdf']);
+    DB::table('storage_settings')->insert(['state' => 'active', 'provider' => 's3', 'region' => 'eu-central-1', 'bucket' => 'probe', 'access_key' => 'nicht-entschluesselbar', 'secret' => 'nicht-entschluesselbar', 'created_at' => now(), 'updated_at' => now()]);
+    // The settings are read once per process (a singleton): the next read is a fresh one, as in a new request.
+    app()->forgetInstance(StorageSettings::class);
+    app()->forgetInstance(DocumentFiles::class);
+    Cache::flush();
+
+    $mail = collect((new OrderConfirmationMail($order->fresh(), null))->content()->with['lines'])->first();
+
+    expect($mail['conditions'])->toContain('Braucht eine Abnahme.')
+        ->and($mail['verdict'])->toBe('Für dein Fahrzeug freigegeben, mit Auflagen.')
+        ->and($mail['document'] ?? null)->toBeNull();
 });
