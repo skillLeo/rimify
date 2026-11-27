@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Http\Requests\Admin\VehicleFromDocumentRequest;
 use App\Models\AdminUser;
 use App\Models\ApprovalDocument;
 use App\Models\AuditLog;
 use App\Models\Vehicle;
+use App\Services\Admin\AuditDescriber;
 use App\Support\GermanFormat;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
@@ -141,7 +143,10 @@ it('refuses, in words, what the document cannot have said', function (array $ove
 })->with([
     'no maker' => [['make' => ''], 'make', 'Trag den Hersteller ein, so wie das Gutachten ihn nennt.'],
     'no type' => [['type_designation' => ''], 'type_designation', 'Trag den Fahrzeugtyp ein, etwa „3C“.'],
-    'an HSN instead of an EG number' => [['eg_number' => '0005'], 'eg_number', 'So sieht eine EG-Typgenehmigungsnummer nicht aus. Sie beginnt mit e und der Länderziffer, etwa e1*2007/46*0316*..'],
+    'no number' => [['eg_number' => ''], 'eg_number', 'Trag die EG-Typgenehmigungsnummer ein, mit der Erweiterung.'],
+    // D-521: any form is taken, but one not in the EU form is asked about first — nothing will ever join on it.
+    'an HSN, not asked about' => [['eg_number' => '0005'], 'ohne_eu_format', VehicleFromDocumentRequest::NOT_EU],
+    'a national number, not asked about' => [['eg_number' => 'G731*'], 'ohne_eu_format', VehicleFromDocumentRequest::NOT_EU],
     'a page past the end' => [['source_page' => 14], 'source_page', 'Das Gutachten hat nur 13 Seiten.'],
     'no page' => [['source_page' => null], 'source_page', 'Auf welcher Seite des Gutachtens steht das Fahrzeug?'],
     'a body style no document uses' => [['body_form' => 'Panzer'], 'body_form', 'Wähl eine Karosserie aus der Liste oder „Nennt das Gutachten nicht“.'],
@@ -173,4 +178,60 @@ it('never lets a car hold one key number without the other, nor an imported car 
 
     expect(fn () => DB::table('vehicles')->insert([...$base, 'source' => 'import_kba', 'source_vehicle_id' => null, 'hsn' => '0005', 'tsn' => 'BGU']))
         ->toThrow(QueryException::class);
+});
+
+// D-521: field K in any form. In the EU form nothing is asked (above); in another form the person says so, and the car keeps the
+// number as printed — joined to a stored car only by a person ticking it in the search, never by the merge.
+it('stores a car with a number in another form once the person says so, and records that it joins nothing by itself', function (): void {
+    $document = vfdDraft();
+    $car = vfdCar(['make' => 'Alfa Romeo', 'model' => '145/146', 'type_designation' => '930', 'eg_number' => '  G731*  ', 'body_form' => '']);
+
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", $car)
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.ohne_eu_format.0', VehicleFromDocumentRequest::NOT_EU)
+        ->assertJsonMissingPath('errors.eg_number');
+    expect(Vehicle::query()->count())->toBe(0);
+
+    $response = $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$car, 'ohne_eu_format' => true])
+        ->assertCreated();
+
+    $vehicle = Vehicle::query()->findOrFail($response->json('id'));
+    $log = AuditLog::query()->where('description', 'vehicle.created_from_document')->sole();
+
+    expect($vehicle->getAttribute('eg_nummer_raw'))->toBe('G731*')
+        // The copy for matching only, as every field K is normalised: no case, no spaces, no closing asterisk.
+        ->and($vehicle->getAttribute('eg_nummer_norm'))->toBe('g731')
+        ->and(data_get($vehicle->raw, 'gutachten.eu_form'))->toBeFalse()
+        ->and($log->properties?->get('eu_form'))->toBeFalse()
+        ->and(app(AuditDescriber::class)->describe($log)['sentence'])->toContain('mit der Nummer „G731*“ (nicht im EU-Format, wird nie von selbst zusammengeführt)')
+        ->and($vehicle->hsn)->toBeNull()
+        ->and($vehicle->needs_review)->toBeTrue();
+
+    // The stored car is found by its name, as the person is sent to look for it.
+    $this->actingAs(vfdAdmin(), 'admin')->getJson('/admin/gutachten/suche/fahrzeuge?q='.rawurlencode('Alfa 145'))
+        ->assertOk()
+        ->assertJsonPath('items.0.id', $vehicle->id);
+});
+
+it('takes a number in the EU form without asking, as before', function (): void {
+    $this->actingAs(vfdAdmin(), 'admin')->postJson('/admin/gutachten/'.vfdDraft()->id.'/fahrzeuge', vfdCar(['ohne_eu_format' => false]))
+        ->assertCreated();
+
+    expect(data_get(Vehicle::query()->sole()->raw, 'gutachten.eu_form'))->toBeTrue();
+});
+
+it('knows the same car by a number in another form only when it reads the same — never by likeness', function (): void {
+    $document = vfdDraft();
+    $car = vfdCar(['make' => 'Alfa Romeo', 'model' => '145/146', 'type_designation' => '930', 'eg_number' => 'G731*', 'body_form' => '', 'ohne_eu_format' => true]);
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", $car)->assertCreated();
+
+    // Case, spaces and the closing asterisk aside, the same text and name: the car that is there.
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$car, 'eg_number' => 'g731 '])
+        ->assertUnprocessable()
+        ->assertJsonPath('errors.eg_number.0', 'Dieses Fahrzeug gibt es schon: Alfa Romeo 145/146 930. Such es in der Liste oben und wähl es dort.');
+
+    // Another text is another car — no prefix, no range, no guess.
+    $this->actingAs(vfdAdmin(), 'admin')->postJson("/admin/gutachten/{$document->id}/fahrzeuge", [...$car, 'eg_number' => 'G7311*'])->assertCreated();
+
+    expect(Vehicle::query()->where('source', 'gutachten')->count())->toBe(2);
 });

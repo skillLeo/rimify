@@ -1,0 +1,1 @@
+import{P as e,b as t,c as n,u as r}from"./runtime-core.esm-bundler-CGb40_6e.js";import{r as i}from"./Icon-1rB938RQ.js";import{t as a}from"./Svg-qxy-OFyO.js";var o=t({__name:`Icon`,props:{name:{},size:{default:20},label:{default:void 0}},setup(t){let o=t,s=n(()=>i(o.name,{size:o.size,label:o.label}));return(t,n)=>(e(),r(a,{markup:s.value},null,8,[`markup`]))}});export{o as t};

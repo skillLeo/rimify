@@ -27,8 +27,10 @@ class GutachtenFahrzeugController extends Controller
     {
         $car = $request->car();
         $admin = $request->admin();
+        // A number in another form joins nothing by itself (D-521): the record says the person chose to store it so.
+        $euForm = $request->euForm();
 
-        $vehicle = DB::transaction(static function () use ($car, $document, $admin): Vehicle {
+        $vehicle = DB::transaction(static function () use ($car, $document, $admin, $euForm): Vehicle {
             $vehicle = Vehicle::query()->create([
                 ...$car,
                 'source' => VehicleSource::Gutachten->value,
@@ -41,7 +43,7 @@ class GutachtenFahrzeugController extends Controller
                 'max_speed_kmh' => null,
                 'needs_review' => true,
                 // What was typed, as typed: the record of where this car came from.
-                'raw' => ['gutachten' => ['document' => FitmentRows::label($document), 'page' => $car['source_page'], 'typed' => $car]],
+                'raw' => ['gutachten' => ['document' => FitmentRows::label($document), 'page' => $car['source_page'], 'typed' => $car, 'eu_form' => $euForm]],
             ]);
 
             AuditTrail::record($admin, 'vehicle.created_from_document', [
@@ -49,6 +51,7 @@ class GutachtenFahrzeugController extends Controller
                 'document' => FitmentRows::label($document),
                 'page' => $car['source_page'],
                 'eg' => $car['eg_nummer_raw'],
+                'eu_form' => $euForm,
             ], $vehicle);
 
             return $vehicle;

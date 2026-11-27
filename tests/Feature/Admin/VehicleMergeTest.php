@@ -222,3 +222,21 @@ it('finds for a batch of dataset cars, in one query, exactly the cars it finds a
         // And it found something to compare: two cars for the first two (ambiguous), the F33 range taken in once.
         ->and(array_column($together, 'status'))->toBe([VehicleMerge::AMBIGUOUS, VehicleMerge::AMBIGUOUS, VehicleMerge::NEW, VehicleMerge::MATCHED, VehicleMerge::NEW, VehicleMerge::NEW]);
 });
+
+// D-521: a Gutachten car whose number is not in the EU form is joined by a person picking the stored car, never by the merge —
+// not even to a dataset car that prints the very same text.
+it('never joins a car whose number is not in the EU form, however exactly the dataset repeats it', function (string $printed, string $dataset): void {
+    $car = mergeCar(['eg_nummer_raw' => $printed, 'type_designation' => '930', 'variant' => '930', 'model' => '145/146', 'make' => 'Alfa Romeo']);
+
+    [$entry] = app(VehicleMerge::class)->plan([datasetRow(['eg_nummer' => $dataset, 'fahrzeugtyp' => '930', 'hersteller' => 'Alfa Romeo', 'handelsname' => '145/146'])]);
+
+    expect($entry['status'])->toBe(VehicleMerge::NEW)
+        ->and($entry['vehicle'])->toBeNull()
+        ->and($entry['fills'])->toBe([])
+        ->and($car->fresh()?->hsn)->toBeNull();
+})->with([
+    'the same national number' => ['G731*', 'G731*'],
+    'the same number, other spacing' => ['g731 *', 'G731*'],
+    'an ABE number' => ['ABE 55255', 'ABE 55255'],
+    'a car in another form, a dataset car in the EU form' => ['G731*', 'e3*96/27*0029*'],
+]);

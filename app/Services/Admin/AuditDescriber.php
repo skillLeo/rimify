@@ -825,7 +825,11 @@ final class AuditDescriber
             'vehicle.confirmed_by_hand' => ['Die Daten von '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurden im Gutachten '.self::q(self::text($p, 'document') ?? 'ohne Nummer').' von Hand als geprüft bestätigt.', []],
             'vehicle.created_from_document' => [
                 'Das Fahrzeug '.self::q(self::text($p, 'vehicle') ?? 'ohne Namen').' wurde aus '.self::q(self::text($p, 'document') ?? 'ohne Nummer')
-                    .(self::text($p, 'page') === null ? '' : ', Seite '.self::text($p, 'page')).' angelegt, mit der EG-Typgenehmigungsnummer '.self::q(self::text($p, 'eg') ?? '–').'; ohne HSN und TSN.',
+                    .(self::text($p, 'page') === null ? '' : ', Seite '.self::text($p, 'page')).' angelegt, '
+                    // D-521: a number in another form, stored as the person chose; nothing joins on it by itself.
+                    .(($p['eu_form'] ?? true) === false
+                        ? 'mit der Nummer '.self::q(self::text($p, 'eg') ?? '–').' (nicht im EU-Format, wird nie von selbst zusammengeführt)'
+                        : 'mit der EG-Typgenehmigungsnummer '.self::q(self::text($p, 'eg') ?? '–')).'; ohne HSN und TSN.',
                 [],
             ],
             'vehicle.legal_data_updated' => [
