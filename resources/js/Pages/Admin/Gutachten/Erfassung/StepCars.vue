@@ -173,6 +173,14 @@ async function remove(car: CarView): Promise<void> {
 function created(vehicle: VehicleHit): void {
     void add({ vehicle_ids: [vehicle.id] })
 }
+
+/* A number not in the EU form (D-521): the person looks for the stored car here, by its name, and ticks it. */
+function searchFor(term: string): void {
+    query.value = term
+    const field = document.getElementById('ef-cars-q')
+    field?.scrollIntoView({ block: 'center' })
+    field?.focus({ preventScroll: true })
+}
 </script>
 
 <template>
@@ -214,7 +222,7 @@ function created(vehicle: VehicleHit): void {
 
                 <p v-else-if="searched && !searching" class="adm-note">Kein Fahrzeug gefunden. Steht es so im Gutachten, leg es unten an.</p>
 
-                <VehicleFromDocument v-if="state.editable" :document-id="state.documentId" :page-count="pageCount" :body-forms="page.props.choices.bodyForms" :drives="page.props.choices.drives" @created="created" />
+                <VehicleFromDocument v-if="state.editable" :document-id="state.documentId" :page-count="pageCount" :body-forms="page.props.choices.bodyForms" :drives="page.props.choices.drives" @created="created" @search="searchFor" />
             </div>
 
             <aside class="ef-cars__side" aria-labelledby="ef-chosen-h">

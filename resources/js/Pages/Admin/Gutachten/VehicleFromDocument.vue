@@ -9,9 +9,12 @@
  * shop's tyre answer stays open until the customer's papers give them (R-03).
  *
  * Sent as JSON to the document's own endpoint; the new car comes back ready to tick in the list above.
+ *
+ * The number is taken in any form (D-521). One not in the EU form joins nothing by itself, ever: the server asks first, and
+ * the person either searches the stored car above (HSN/TSN or name) or stores the car as the document names it.
  */
 
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import Icon from '../../../Components/Admin/AdminIcon.vue'
 import { useFocusAfter } from '../../../composables/admin/useFocusAfter'
 import { xsrfToken } from '../../../composables/admin/preferences'
@@ -24,7 +27,7 @@ const props = defineProps<{
     drives: string[]
 }>()
 
-const emit = defineEmits<{ created: [vehicle: VehicleHit] }>()
+const emit = defineEmits<{ created: [vehicle: VehicleHit]; search: [term: string] }>()
 
 const focus = useFocusAfter()
 const open = ref(false)
@@ -32,8 +35,24 @@ const busy = ref(false)
 const failed = ref('')
 const errors = ref<Record<string, string>>({})
 
-const blank = () => ({ make: '', model: '', variant: '', type_designation: '', eg_number: '', body_form: '', drive_axle: '', source_page: '' as number | '' })
+const blank = () => ({ make: '', model: '', variant: '', type_designation: '', eg_number: '', body_form: '', drive_axle: '', source_page: '' as number | '', ohne_eu_format: false })
 const form = reactive(blank())
+/* The server's question about a number not in the EU form, kept until the number changes. */
+const notEu = ref('')
+
+watch(
+    () => form.eg_number,
+    () => {
+        notEu.value = ''
+        form.ohne_eu_format = false
+    },
+)
+
+/* „Oben suchen“: the car's name goes into the search above, where the stored cars are ticked. */
+function searchAbove(): void {
+    const term = [form.make, form.model].map((part) => part.trim()).filter(Boolean).join(' ')
+    emit('search', term === '' ? form.eg_number.trim() : term)
+}
 
 const DRIVE_AXLES = computed(() => props.drives.filter((d) => d !== 'Allradlenkung'))
 
@@ -46,6 +65,8 @@ function close(): void {
     open.value = false
     errors.value = {}
     failed.value = ''
+    notEu.value = ''
+    form.ohne_eu_format = false
     focus.request('vfd-open')
 }
 
@@ -69,6 +90,14 @@ async function save(): Promise<void> {
             const body = (await response.json()) as { errors?: Record<string, string[]> }
             errors.value = Object.fromEntries(Object.entries(body.errors ?? {}).map(([key, list]) => [key, list[0] ?? '']))
             const first = ['make', 'model', 'type_designation', 'eg_number', 'body_form', 'drive_axle', 'source_page'].find((key) => errors.value[key])
+
+            if (!first && errors.value.ohne_eu_format) {
+                notEu.value = errors.value.ohne_eu_format
+                focus.request('vfd-not-eu')
+
+                return
+            }
+
             focus.request(first ? `vfd-${first.replace(/_/g, '-')}` : 'vfd-make')
 
             return
@@ -84,6 +113,7 @@ async function save(): Promise<void> {
         const vehicle = (await response.json()) as VehicleHit
         errors.value = {}
         Object.assign(form, blank())
+        notEu.value = ''
         open.value = false
         emit('created', vehicle)
         // The form gives way to its button again: the keyboard goes there, never to the page (C-03).
@@ -124,9 +154,9 @@ async function save(): Promise<void> {
                     <p id="vfd-type-designation-err" class="form-field__error">{{ errors.type_designation }}</p>
                 </div>
                 <div class="form-field vfd-wide">
-                    <label class="form-field__label" for="vfd-eg-number">EG-Typgenehmigungsnummer</label>
+                    <label class="form-field__label" for="vfd-eg-number">Typgenehmigungsnummer</label>
                     <input id="vfd-eg-number" v-model="form.eg_number" class="input" type="text" maxlength="64" spellcheck="false" placeholder="e1*2007/46*0316*.." :aria-invalid="errors.eg_number ? 'true' : undefined" aria-describedby="vfd-eg-number-help vfd-eg-number-err">
-                    <p id="vfd-eg-number-help" class="form-field__help">Mit der Erweiterung, so wie gedruckt – auch als Bereich: e1*2001/116*0287*00-09 oder …*04-... Über sie findet der spätere Fahrzeugdaten-Import dieses Fahrzeug wieder.</p>
+                    <p id="vfd-eg-number-help" class="form-field__help">So wie gedruckt, mit der Erweiterung – auch als Bereich: e1*2001/116*0287*00-09 oder …*04-... Nur über eine Nummer in dieser EU-Form findet der spätere Fahrzeugdaten-Import das Fahrzeug wieder.</p>
                     <p id="vfd-eg-number-err" class="form-field__error">{{ errors.eg_number }}</p>
                 </div>
                 <div class="form-field">
@@ -155,9 +185,17 @@ async function save(): Promise<void> {
                     <p id="vfd-source-page-err" class="form-field__error">{{ errors.source_page }}</p>
                 </div>
             </div>
+            <div v-if="notEu" id="vfd-not-eu" class="vfd-not-eu" tabindex="-1" role="group" aria-labelledby="vfd-not-eu-text">
+                <p id="vfd-not-eu-text" class="vfd-not-eu__text">{{ notEu }}</p>
+                <button class="btn btn--secondary" type="button" @click="searchAbove">Oben suchen</button>
+                <label class="vfd-not-eu__choice">
+                    <input id="vfd-ohne-eu-format" v-model="form.ohne_eu_format" type="checkbox">
+                    So anlegen, wie es im Gutachten steht
+                </label>
+            </div>
             <p v-if="failed" class="adm-alert" role="alert">{{ failed }}</p>
             <div class="vfd-actions">
-                <button id="vfd-save" class="btn btn--primary" type="submit" :disabled="busy" :aria-busy="busy ? 'true' : undefined">Fahrzeug anlegen</button>
+                <button id="vfd-save" class="btn btn--primary" type="submit" :disabled="busy || (notEu !== '' && !form.ohne_eu_format)" :aria-busy="busy ? 'true' : undefined">Fahrzeug anlegen</button>
                 <button class="btn btn--ghost" type="button" :disabled="busy" @click="close">Abbrechen</button>
             </div>
         </form>
@@ -215,6 +253,30 @@ async function save(): Promise<void> {
 
 .vfd-form .form-field__error:empty {
     display: none;
+}
+
+.vfd-not-eu {
+    display: grid;
+    gap: var(--sp-8);
+    justify-items: start;
+    padding: var(--sp-12);
+    border-radius: var(--r-control);
+    background: var(--c-surface);
+}
+
+.vfd-not-eu__text {
+    margin: 0;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
+    color: var(--c-ink);
+}
+
+.vfd-not-eu__choice {
+    display: flex;
+    gap: var(--sp-8);
+    align-items: center;
+    font-size: var(--fs-small);
+    line-height: var(--lh-small);
 }
 
 .vfd-actions {

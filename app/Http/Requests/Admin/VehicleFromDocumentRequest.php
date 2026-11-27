@@ -25,15 +25,14 @@ use Illuminate\Validation\Validator;
  * name name that car, and the person is sent to it (twin()). Two cars a document keeps apart under one
  * approval — BMW X3 and X4 — are two; the later merge then leaves the choice to a person
  * (docs/specs/vehicles-and-tyres.md, C8).
+ *
+ * The number is taken as printed, in any form (D-521). In the EU form it is what the later merge joins the car on, as
+ * before. In any other form — an old national number, an ABE number — nothing joins on it, ever: the person is told so
+ * and either picks the stored car from the search above (HSN/TSN or name) or says, with `ohne_eu_format`, that the car
+ * is to be stored as the document names it.
  */
 class VehicleFromDocumentRequest extends FormRequest
 {
-    /**
-     * `e1*2007/46*0316*..`, `e1*2001/116*0447*11`, `e1*2001/116*0287*00-09`, `e1*2007/46*0273*04-..` — country,
-     * directive, number, and the extensions as the document prints them (EgNumber).
-     */
-    public const EG_NUMBER = EgNumber::PATTERN;
-
     public function authorize(): bool
     {
         $user = $this->user('admin');
@@ -52,7 +51,8 @@ class VehicleFromDocumentRequest extends FormRequest
             'model' => ['required', 'string', 'max:80'],
             'variant' => ['nullable', 'string', 'max:80'],
             'type_designation' => ['required', 'string', 'max:32'],
-            'eg_number' => ['required', 'string', 'max:64', 'regex:'.self::EG_NUMBER],
+            'eg_number' => ['required', 'string', 'max:64'],
+            'ohne_eu_format' => ['sometimes', 'boolean'],
             'body_form' => ['nullable', 'string', Rule::in(DocumentConditions::BODY_FORMS)],
             'drive_axle' => ['nullable', 'string', Rule::in(array_values(array_diff(DocumentConditions::DRIVES, ['Allradlenkung'])))],
             'source_page' => ['required', 'integer', 'min:1', ...($document->page_count === null ? [] : ['max:'.$document->page_count])],
@@ -67,7 +67,7 @@ class VehicleFromDocumentRequest extends FormRequest
             'model.required' => 'Trag die Handelsbezeichnung ein, so wie das Gutachten sie nennt.',
             'type_designation.required' => 'Trag den Fahrzeugtyp ein, etwa „3C“.',
             'eg_number.required' => 'Trag die EG-Typgenehmigungsnummer ein, mit der Erweiterung.',
-            'eg_number.regex' => 'So sieht eine EG-Typgenehmigungsnummer nicht aus. Sie beginnt mit e und der Länderziffer, etwa e1*2007/46*0316*..',
+            'ohne_eu_format.boolean' => 'Bitte ja oder nein.',
             'body_form.in' => 'Wähl eine Karosserie aus der Liste oder „Nennt das Gutachten nicht“.',
             'drive_axle.in' => 'Wähl einen Antrieb aus der Liste oder „Nennt das Gutachten nicht“.',
             'source_page.required' => 'Auf welcher Seite des Gutachtens steht das Fahrzeug?',
@@ -78,10 +78,25 @@ class VehicleFromDocumentRequest extends FormRequest
         ];
     }
 
+    /** Why a number in another form is asked about before the car is stored (D-521). */
+    public const NOT_EU = 'Diese Nummer hat nicht die Form einer EG-Typgenehmigungsnummer (etwa e1*2007/46*0316*..). Darüber findet der Fahrzeugdaten-Import das Fahrzeug nie von selbst. Such es oben nach HSN/TSN oder Name und hak es an – oder leg es so an, wie es im Gutachten steht.';
+
+    public function euForm(): bool
+    {
+        return EgNumber::parse(trim($this->string('eg_number')->toString())) !== null;
+    }
+
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
             if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            // Not in the EU form: no merge will ever find this car by its number. The person decides, never the shop (D-521).
+            if (! $this->euForm() && ! $this->boolean('ohne_eu_format')) {
+                $validator->errors()->add('ohne_eu_format', self::NOT_EU);
+
                 return;
             }
 
@@ -105,12 +120,8 @@ class VehicleFromDocumentRequest extends FormRequest
      */
     private function twin(): ?Vehicle
     {
-        $number = EgNumber::parse($this->string('eg_number')->toString());
-
-        if ($number === null) {
-            return null;
-        }
-
+        $raw = trim($this->string('eg_number')->toString());
+        $number = EgNumber::parse($raw);
         $type = trim($this->string('type_designation')->toString());
         $variant = trim($this->string('variant')->toString());
         $name = self::named([
@@ -120,6 +131,16 @@ class VehicleFromDocumentRequest extends FormRequest
             $this->string('body_form')->toString(),
             $this->string('drive_axle')->toString(),
         ]);
+
+        // A number in another form is the same only when it reads the same, normalised (D-521): never a range, never a guess.
+        if ($number === null) {
+            return Vehicle::query()
+                ->where('eg_nummer_norm', Vehicle::normaliseEcNumber($raw))
+                ->where('type_designation', $type)
+                ->where('source', '!=', VehicleSource::Entwicklung->value)
+                ->get()
+                ->first(static fn (Vehicle $v): bool => self::named([$v->make, $v->model, (string) $v->variant, (string) $v->body_form, (string) $v->drive_axle]) === $name);
+        }
 
         // The same Fahrzeugtyp under a range of the same approval that shares an extension with this one is
         // the same car: `…*0287*00-09` and `…*0287*05` are one, `…*0287*00-09` and `…*0287*10-..` two.
