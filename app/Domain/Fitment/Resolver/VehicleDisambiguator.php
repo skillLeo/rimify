@@ -108,9 +108,13 @@ final readonly class VehicleDisambiguator
     {
         return match ($attribute) {
             'build_period' => $vehicle->periodLabel(),
-            'power' => $vehicle->powerKw === null && $vehicle->powerPs === null
-                ? '—'
-                : sprintf('%s%skW (%s%sPS)', $vehicle->powerKw ?? '?', GermanFormat::NBSP, $vehicle->powerPs ?? '?', GermanFormat::NBSP),
+            // What the record holds, and only that: `85 kW (116 PS)`, `85 kW` — never a „?“ for a figure we do not have.
+            'power' => match (true) {
+                $vehicle->powerKw !== null && $vehicle->powerPs !== null => sprintf('%d%skW (%d%sPS)', $vehicle->powerKw, GermanFormat::NBSP, $vehicle->powerPs, GermanFormat::NBSP),
+                $vehicle->powerKw !== null => $vehicle->powerKw.GermanFormat::NBSP.'kW',
+                $vehicle->powerPs !== null => $vehicle->powerPs.GermanFormat::NBSP.'PS',
+                default => '—',
+            },
             'body_form' => $vehicle->bodyForm ?? '—',
             'max_speed' => $vehicle->maxSpeedKmh === null
                 ? '—'

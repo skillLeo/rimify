@@ -167,13 +167,15 @@ const backLabel = computed(() => {
  * A record's line (D-517): HSN, TSN, VSN, the power — and, where two records read the same in every one of these, the
  * dataset's own number, small and grey. Two options nobody can tell apart are never shown as such.
  */
-const KW_PER_PS = 0.73549875
-
 function power(v: VariantOption): string | null {
-    const kw = typeof v.powerKw === 'number' ? v.powerKw : v.powerPs !== null ? Math.round(v.powerPs * KW_PER_PS) : null
-    const ps = v.powerPs ?? (typeof v.powerKw === 'number' ? Math.round(v.powerKw / KW_PER_PS) : null)
+    const kw = typeof v.powerKw === 'number' ? v.powerKw : null
 
-    return kw === null ? null : `${kw}\u00A0kW (${ps}\u00A0PS)`
+    // What the record holds, never a figure worked out from another (D-517).
+    if (kw !== null && v.powerPs !== null) {
+        return `${kw}\u00A0kW (${v.powerPs}\u00A0PS)`
+    }
+
+    return kw !== null ? `${kw}\u00A0kW` : v.powerPs !== null ? `${v.powerPs}\u00A0PS` : null
 }
 
 const lineOf = (v: VariantOption): string =>

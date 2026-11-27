@@ -228,3 +228,17 @@ it('names a car typed from a Gutachten by model and type, and never repeats the 
 
     expect($car->label())->toBe('BMW 1er-Reihe 187');
 });
+
+// D-517: power is always shown in the chooser, so a figure the record lacks is left out — never a „?“.
+it('shows the power the record holds, and never a question mark', function (): void {
+    $car = static fn (?int $kw, ?int $ps): VehicleRecord => new VehicleRecord(
+        id: 9, hsn: '1742', tsn: 'AAZ', vsn: '00001', make: 'Alfa Romeo', model: 'Giulia', variant: '2.9 V6', typeDesignation: '952',
+        buildWindow: BuildWindow::unbounded(), axleLoadFrontKg: null, axleLoadRearKg: null, maxSpeedKmh: null,
+        powerKw: $kw, powerPs: $ps,
+    );
+
+    expect(VehicleDisambiguator::value($car(375, 510), 'power'))->toBe("375\u{00A0}kW (510\u{00A0}PS)")
+        ->and(VehicleDisambiguator::value($car(375, null), 'power'))->toBe("375\u{00A0}kW")
+        ->and(VehicleDisambiguator::value($car(null, 510), 'power'))->toBe("510\u{00A0}PS")
+        ->and(VehicleDisambiguator::value($car(null, null), 'power'))->toBe('—');
+});
