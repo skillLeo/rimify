@@ -43,7 +43,7 @@ class GutachtenSucheController extends Controller
                 'hsnTsn' => $v->hsn === null ? null : GermanFormat::keyNumbers($v->hsn, $v->tsn),
                 'kw' => $v->getAttribute('power_kw'),
                 'k' => $v->getAttribute('eg_nummer_raw'),
-                'window' => GermanFormat::buildPeriod($v->build_from, $v->build_to),
+                'window' => $v->periodLabel(),
                 'needsReview' => $v->needs_review,
             ], $found),
             'total' => $total,

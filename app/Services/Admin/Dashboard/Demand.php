@@ -186,7 +186,7 @@ final class Demand
         $vehicles = DB::table('vehicles')
             ->whereNull('deleted_at')
             ->whereIn('id', array_diff($ids, $covered))
-            ->get(['id', 'make', 'model', 'variant', 'type_designation', 'hsn', 'tsn', 'build_from', 'build_to', 'power_kw']);
+            ->get(['id', 'make', 'model', 'variant', 'type_designation', 'hsn', 'tsn', 'build_from', 'build_to', 'build_from_year', 'build_from_month', 'build_to_year', 'build_to_month', 'power_kw']);
 
         $gaps = [];
 
@@ -196,10 +196,7 @@ final class Demand
             $people = $waiting[(int) $vehicle->id] ?? 0;
             $name = self::vehicleName((string) $vehicle->make, (string) $vehicle->model, (string) $vehicle->variant);
             $keys = GermanFormat::keyNumbers((string) $vehicle->hsn, (string) $vehicle->tsn);
-            $built = GermanFormat::buildPeriod(
-                $vehicle->build_from === null ? null : CarbonImmutable::parse((string) $vehicle->build_from),
-                $vehicle->build_to === null ? null : CarbonImmutable::parse((string) $vehicle->build_to),
-            );
+            $built = GermanFormat::vehiclePeriod($vehicle);
 
             $facts = array_filter([
                 'Fahrzeug' => $name,

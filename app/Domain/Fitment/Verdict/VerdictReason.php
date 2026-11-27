@@ -35,6 +35,12 @@ final readonly class VerdictReason
 
     public const OUTSIDE_BUILD_WINDOW = 'OUTSIDE_BUILD_WINDOW';
 
+    /**
+     * The car's record knows the build year, not the month, and the answer depends on it (D-516): a row reaches the car in
+     * some months of that year and not in others. „Noch nicht bestätigt“ — never a yes, never a no on a month we invented.
+     */
+    public const BUILD_MONTH_UNKNOWN = 'BUILD_MONTH_UNKNOWN';
+
     public const WIDTH_OR_ET_OUTSIDE_RANGE = 'WIDTH_OR_ET_OUTSIDE_RANGE';
 
     public const NO_TYRE_SIZE = 'NO_TYRE_SIZE';
@@ -137,6 +143,7 @@ final readonly class VerdictReason
             self::ANNEX_MISSING => 'Für dieses Fahrzeug liegt uns die passende Anlage des Gutachtens noch nicht vor – sag uns dein Auto, und wir holen sie.',
             self::COVERAGE_UNCONFIRMED => 'Dein Fahrzeug ist zu diesem Gutachten bei uns noch nicht erfasst. Sag uns dein Auto, und wir prüfen, ob das Gutachten es nennt.',
             self::OUTSIDE_BUILD_WINDOW => 'Das Gutachten gilt nicht für den Bauzeitraum dieses Fahrzeugs.',
+            self::BUILD_MONTH_UNKNOWN => 'Ob die Freigabe für dein Fahrzeug gilt, hängt vom Baumonat ab. Unsere Fahrzeugdaten kennen nur das Baujahr – schreib uns, wann dein Auto gebaut wurde, und wir prüfen es.',
             self::WIDTH_OR_ET_OUTSIDE_RANGE => 'Breite oder Einpresstiefe liegen außerhalb der Freigabe.',
             self::NO_TYRE_SIZE => 'Für diese Kombination ist keine Reifengröße freigegeben.',
             self::TYRE_SIZES_NOT_RECORDED => 'Zu diesem Gutachten haben wir die Reifengrößen für dein Fahrzeug noch nicht erfasst. Bis dahin können wir die Freigabe nicht bestätigen.',

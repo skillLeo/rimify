@@ -135,6 +135,18 @@ it('takes field K as printed — on an older car, its national ABE number @admin
     expect(Vehicle::query()->where('make', 'Testmarke')->sole()->getAttribute('eg_nummer_raw'))->toBe('A 333');
 });
 
+// D-520, the client's question of 26.11.2026: field K is text — any form, only trimmed, and it may be empty.
+it('takes field K in any form, trimmed, and none at all', function (string $typed, ?string $stored): void {
+    $this->actingAs(manualAdmin(), 'admin')->post('/admin/fahrzeuge', manualCar(['eg_number' => $typed]))
+        ->assertSessionHasNoErrors();
+
+    expect(Vehicle::query()->where('make', 'Testmarke')->sole()->getAttribute('eg_nummer_raw'))->toBe($stored);
+})->with([
+    'another shape' => ['2001/116/0287', '2001/116/0287'],
+    'an old national number' => [' G731* ', 'G731*'],
+    'nothing' => ['', null],
+]);
+
 it('refuses what does not read, each in its own sentence', function (array $typed, string $field, string $sentence): void {
     $this->actingAs(manualAdmin(), 'admin')->post('/admin/fahrzeuge', manualCar($typed))
         ->assertSessionHasErrors([$field => $sentence]);
@@ -143,7 +155,6 @@ it('refuses what does not read, each in its own sentence', function (array $type
 })->with([
     'an HSN of letters' => [['hsn' => 'ABCD'], 'hsn', 'Die HSN hat vier Ziffern, mit führenden Nullen: 0005.'],
     'a TSN of four' => [['tsn' => 'AFDE'], 'tsn', 'Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben, etwa AFD.'],
-    'field K in another shape' => [['eg_number' => '2001/116/0287'], 'eg_number', 'So sieht Feld K nicht aus. Eine EG-Typgenehmigungsnummer beginnt mit e und der Länderziffer, etwa e1*2007/46*0316*12; bei älteren Fahrzeugen steht dort eine nationale ABE-Nummer aus Buchstaben und Ziffern, etwa A 333.'],
     'a build window the wrong way round' => [['build_to' => '01.2004'], 'build_to', 'Das Bauende liegt vor dem Baubeginn.'],
     'a month that is no month' => [['build_from' => '13.2005'], 'build_from', 'Bitte Monat und Jahr, etwa 06.2014.'],
     'a year no car was built in' => [['build_to' => '06.2061'], 'build_to', 'Bitte ein Jahr zwischen 1900 und '.(now()->year + 2).'.'],

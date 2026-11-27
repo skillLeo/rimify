@@ -36,6 +36,8 @@ class VehicleImportRow extends Model
     public const CELLS = [
         'hsn', 'tsn', 'hersteller', 'handelsname', 'variante', 'fahrzeugtyp', 'eg_nummer', 'leistung_kw', 'baubeginn', 'bauende',
         'karosserie', 'antrieb', 'achslast_vorn_kg', 'achslast_hinten_kg', 'hoechstgeschwindigkeit_kmh', 'gesamtmasse_kg', 'fahrzeug_id',
+        // D-516, D-517: the period's year and month columns as the file writes them, and the VSN.
+        'bauvon_jahr', 'bauvon_monat', 'bauende_jahr', 'bauende_monat', 'vsn',
     ];
 
     /** While the Probelauf runs: read and not refused by itself; past the cars; matched to a car from a Gutachten. */

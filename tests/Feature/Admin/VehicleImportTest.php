@@ -198,9 +198,9 @@ it('refuses a row whose build window does not read — never an open window, a c
     $reasons = collect($import->planEntries())->pluck('reason', 'line');
 
     expect($import->summary)->toMatchArray([VehicleImporter::REFUSED => 4, VehicleImporter::CREATE => 0])
-        ->and($reasons['2'])->toBe('Der Baubeginn ist nicht lesbar: „201503“. Bitte Monat und Jahr, etwa 03.2015.')
-        ->and($reasons['3'])->toBe('Der Baubeginn fehlt. Bitte Monat und Jahr, etwa 03.2015.')
-        ->and($reasons['4'])->toBe('Das Bauende ist nicht lesbar: „Dez 19“. Bitte Monat und Jahr, etwa 12.2019 – oder leer, wenn es noch gebaut wird.')
+        ->and($reasons['2'])->toBe('Der Baubeginn ist nicht lesbar: „201503“. Erwartet wird ein Jahr, etwa 2015, gern mit Monat.')
+        ->and($reasons['3'])->toBe('Baubeginn ohne Jahr.')
+        ->and($reasons['4'])->toBe('Das Bauende ist nicht lesbar: „Dez 19“. Erwartet wird ein Jahr, etwa 2019, gern mit Monat – oder leer, wenn es noch gebaut wird.')
         ->and($reasons['5'])->toBe('Das Bauende liegt vor dem Baubeginn.');
 });
 
@@ -261,7 +261,7 @@ it('refuses a row twice in the file and says which figures it could not read @ad
     $import = vehicleProbelauf($this, vehicleFile([datasetLine(), datasetLine(), datasetLine(['tsn' => 'ZA2', 'variant' => '2.0 Touring', 'front' => 'viel'])]));
     $plan = collect($import->planEntries());
 
-    expect($plan->firstWhere('line', '3')['reason'])->toBe('Doppelt in der Datei – gleiche HSN, TSN und Variante wie Zeile 2.')
+    expect($plan->firstWhere('line', '3')['reason'])->toBe('Doppelt in der Datei – gleiche HSN, TSN, Variante und VSN wie Zeile 2.')
         ->and($plan->firstWhere('line', '4')['notes'])->toBe(['Achslast vorn in kg (8.1) nicht lesbar: „viel“']);
 });
 
@@ -307,10 +307,11 @@ it('counts what the file lacks over all its rows, as counts and as shares of the
         // Refused for want of key numbers, and counted all the same: the file lacks what it lacks.
         datasetLine(['hsn' => '', 'tsn' => '', 'variant' => '2.0 D', 'eg' => '']),
         // A top speed of 0 is a number, just not a top speed: implausible, the third state, not counted as missing (D-318).
+        // Field K in another form than the EU one is field K all the same: kept as text, not counted as missing (D-520).
         datasetLine(['tsn' => 'ZB5', 'variant' => '2.0 E', 'eg' => 'e1-falsch', 'speed' => '0']),
     ]));
 
-    expect($import->summary)->toMatchArray(['rows' => 5, 'refused' => 1, 'without_speed' => 1, 'without_axle' => 1, 'without_keys' => 1, 'without_eg' => 2]);
+    expect($import->summary)->toMatchArray(['rows' => 5, 'refused' => 1, 'without_speed' => 1, 'without_axle' => 1, 'without_keys' => 1, 'without_eg' => 1]);
 
     $percent = static fn (string $figure): string => $figure."\u{00A0}%";
 
@@ -321,7 +322,7 @@ it('counts what the file lacks over all its rows, as counts and as shares of the
             ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
             ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
             ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
-            ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 2, 'share' => $percent('40'), 'unmapped' => null],
+            ['key' => 'without_eg', 'label' => 'Feld K (EG- oder ABE-Nummer)', 'count' => 1, 'share' => $percent('20'), 'unmapped' => null],
         ]));
 
     $mapped = ['hoechstgeschwindigkeit_kmh' => 'T', 'achslast_vorn_kg' => 'V', 'achslast_hinten_kg' => 'H', 'hsn' => 'HSN', 'tsn' => 'TSN', 'eg_nummer' => 'K'];
@@ -355,7 +356,7 @@ it('names a field without a column „Keine Spalte zugeordnet“ and counts noth
             ['key' => 'without_speed', 'label' => 'Höchstgeschwindigkeit (T)', 'count' => null, 'share' => null, 'unmapped' => 'Keine Spalte zugeordnet'],
             ['key' => 'without_axle', 'label' => 'Achslast vorn oder hinten (8.1 oder 8.2)', 'count' => null, 'share' => null, 'unmapped' => 'Keine Spalte für Feld 8.2 zugeordnet'],
             ['key' => 'without_keys', 'label' => 'HSN oder TSN (2.1 oder 2.2)', 'count' => 0, 'share' => "0\u{00A0}%", 'unmapped' => null],
-            ['key' => 'without_eg', 'label' => 'EG-Typgenehmigungsnummer (K)', 'count' => 1, 'share' => "50\u{00A0}%", 'unmapped' => null],
+            ['key' => 'without_eg', 'label' => 'Feld K (EG- oder ABE-Nummer)', 'count' => 1, 'share' => "50\u{00A0}%", 'unmapped' => null],
         ]));
 });
 

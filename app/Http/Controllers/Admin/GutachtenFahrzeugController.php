@@ -11,7 +11,6 @@ use App\Models\ApprovalDocument;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\FitmentRows;
 use App\Services\Admin\AuditTrail;
-use App\Support\GermanFormat;
 use App\Support\VehicleName;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +57,7 @@ class GutachtenFahrzeugController extends Controller
         return response()->json([
             'id' => (int) $vehicle->id,
             'label' => GutachtenController::vehicleLabel($vehicle),
-            'window' => GermanFormat::buildPeriod($vehicle->build_from, $vehicle->build_to),
+            'window' => $vehicle->periodLabel(),
             'needsReview' => true,
         ], 201);
     }

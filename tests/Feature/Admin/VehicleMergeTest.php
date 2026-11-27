@@ -59,6 +59,8 @@ it('matches on EG number and Fahrzeugtyp and, in a dry run, only says what it wo
             'hsn' => '0005', 'tsn' => 'CDA', 'axle_load_front_kg' => 1100, 'axle_load_rear_kg' => 1180,
             // The last month built is built whole: a build end given as a month ends on its last day (R-02, D-297).
             'max_speed_kmh' => 236, 'build_from' => '2013-07-01', 'build_to' => '2020-06-30', 'power_kw' => 135,
+            // The period as the file states it comes with its dates (D-516).
+            'build_from_year' => 2013, 'build_from_month' => 7, 'build_to_year' => 2020, 'build_to_month' => 6,
         ])
         ->and($car->fresh()?->toArray())->toBe($before);
 });

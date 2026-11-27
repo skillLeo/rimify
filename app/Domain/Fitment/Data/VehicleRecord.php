@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Fitment\Data;
 
+use App\Domain\Fitment\Support\BuildPeriod;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Support\VehicleName;
 
@@ -64,7 +65,27 @@ final readonly class VehicleRecord
          * that can only raise it, read only where the car's axle loads and top speed are known (R-03).
          */
         public ?PapersIndex $papersIndex = null,
+        /**
+         * The build period as the car's record states it (D-516), months possibly unknown. `buildWindow` is its certain
+         * part; where a row reaches the car only through a month the record does not know, the answer is „Noch nicht
+         * bestätigt“ (FitmentResolver). Null for a car the engine was given without one: its window is all it has.
+         */
+        public ?BuildPeriod $buildPeriod = null,
+        /** The dataset's own number of the car (D-517): what tells two otherwise identical records apart in a chooser. */
+        public ?int $datasetNumber = null,
     ) {}
+
+    /** The window a row may reach whatever the unknown months are — the certain one where no month is unknown. */
+    public function possibleWindow(): BuildWindow
+    {
+        return $this->buildPeriod?->hasUnknownMonth() === true ? $this->buildPeriod->possibleWindow() : $this->buildWindow;
+    }
+
+    /** `12/1999 – 01/2004`, `seit 2020`: the period as the record states it (D-516). */
+    public function periodLabel(): string
+    {
+        return $this->buildPeriod?->label() ?? BuildPeriod::fromDates($this->buildWindow->from, $this->buildWindow->to)->label();
+    }
 
     /** This car with its body style and drive as given, and where each came from (VehicleBuild::overlay()). */
     public function withBuild(?string $bodyForm, ?string $bodyFormSource, ?string $driveAxle, ?string $driveAxleSource): self
@@ -94,6 +115,8 @@ final readonly class VehicleRecord
             bodyFormSource: $bodyFormSource,
             driveAxleSource: $driveAxleSource,
             papersIndex: $this->papersIndex,
+            buildPeriod: $this->buildPeriod,
+            datasetNumber: $this->datasetNumber,
         );
     }
 
@@ -137,10 +160,10 @@ final readonly class VehicleRecord
         return $type === '' || str_starts_with(trim($this->variant), $type) ? $label : $label.' ('.$type.')';
     }
 
-    /** `Audi RS 4 Avant Quattro (B9), 03/2018–11/2019` — what the chooser shows. */
+    /** `Audi RS 4 Avant Quattro (B9), 03/2018 – 11/2019` — what the chooser shows. */
     public function labelWithPeriod(): string
     {
-        return $this->label().', '.$this->buildWindow->labelDe();
+        return $this->label().', '.$this->periodLabel();
     }
 
     /** `0005/BGU`, or null while no source has given the key numbers. */

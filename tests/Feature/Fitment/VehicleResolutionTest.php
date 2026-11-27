@@ -157,5 +157,5 @@ it('carries an open-ended build window through to the engine unchanged', functio
 
     expect($facelift->buildWindow->isOpenEnded())->toBeTrue()
         ->and($facelift->buildWindow->to)->toBeNull()
-        ->and($facelift->buildWindow->labelDe())->toBe("12/2019\u{2013}heute");
+        ->and($facelift->buildWindow->labelDe())->toBe('seit 12/2019');
 });

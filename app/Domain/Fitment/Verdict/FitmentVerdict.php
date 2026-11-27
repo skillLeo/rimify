@@ -457,7 +457,7 @@ final readonly class FitmentVerdict
                 'hsn' => $this->vehicle->hsn,
                 'tsn' => $this->vehicle->tsn,
                 'vsn' => $this->vehicle->vsn,
-                'buildWindow' => $this->buildWindowLabel ?? $this->vehicle->buildWindow->labelDe(),
+                'buildWindow' => $this->buildWindowLabel ?? $this->vehicle->periodLabel(),
                 'maxSpeedKmh' => $this->vehicle->maxSpeedKmh,
                 'axleLoadFrontKg' => $this->vehicle->axleLoadFrontKg,
                 'axleLoadRearKg' => $this->vehicle->axleLoadRearKg,

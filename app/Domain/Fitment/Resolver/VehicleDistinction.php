@@ -20,7 +20,7 @@ final readonly class VehicleDistinction
 {
     /**
      * @param  list<string>  $attributes  attribute keys, in display order
-     * @param  list<array{id: int, label: string, vsn: string|null, values: array<string, string>}>  $rows
+     * @param  list<array{id: int, label: string, vsn: string|null, values: array<string, string>, number: int|null}>  $rows
      */
     public function __construct(
         public array $attributes,
@@ -44,7 +44,7 @@ final readonly class VehicleDistinction
      *     indistinguishable: bool,
      *     attributes: list<string>,
      *     labels: array<string, string>,
-     *     rows: list<array{id: int, label: string, vsn: string|null, values: array<string, string>}>
+     *     rows: list<array{id: int, label: string, vsn: string|null, values: array<string, string>, number: int|null}>
      * }
      */
     public function toArray(): array
@@ -73,6 +73,7 @@ final readonly class VehicleDistinction
                 'label' => $v->labelWithPeriod(),
                 'vsn' => $v->vsn,
                 'values' => [],
+                'number' => null,
             ],
             $candidates,
         ), false);

@@ -38,11 +38,17 @@ export interface VariantOption {
     hsn: string
     tsn: string
     vsn: string | null
+    /** `12/1999 – 01/2004`, `1999 – 2004`, `seit 2020` — as the record states it (D-516). */
     buildWindow: string
     /** Whether `buildWindow` names one; beside a Feld K line an unknown one is left out. */
     buildKnown?: boolean
+    powerKw?: number | null
     powerPs: number | null
     bodyForm: string | null
+    /** The dataset's own form name („Wohnmobil“), the selector's grouping (D-519). */
+    form?: string | null
+    /** The dataset's own number of the car, shown only where two records would otherwise read the same (D-517). */
+    number?: number | null
     /** Shown, never hidden: an incomplete row is named as incomplete rather than guessed at. */
     needsReview: boolean
     /** `Feld K: e1*2007/46*0283, ab *04` — a car without key numbers, told apart from its twin by its papers. */
@@ -320,6 +326,8 @@ export interface LookupResult {
             label: string
             vsn: string | null
             values: Record<string, string>
+            /** The dataset's number, where two records read the same in every line shown (D-517). */
+            number?: number | null
         }[]
     }
 }

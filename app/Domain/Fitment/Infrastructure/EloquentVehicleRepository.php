@@ -6,8 +6,10 @@ namespace App\Domain\Fitment\Infrastructure;
 
 use App\Domain\Fitment\Contracts\VehicleRepository;
 use App\Domain\Fitment\Data\VehicleRecord;
+use App\Domain\Fitment\Support\BuildPeriod;
 use App\Domain\Fitment\Support\BuildWindow;
 use App\Models\Vehicle;
+use DateTimeImmutable;
 use Illuminate\Support\Collection;
 
 /**
@@ -29,7 +31,10 @@ final readonly class EloquentVehicleRepository implements VehicleRepository
         return Vehicle::query()
             ->where('hsn', $hsn)
             ->where('tsn', $tsn)
-            ->orderBy('build_from')
+            // Every car under the pair, also where HSN, TSN and VSN repeat (D-517): name, then build start, then power.
+            ->orderBy('variant')
+            ->orderByRaw('build_from IS NULL, build_from')
+            ->orderBy('power_kw')
             ->orderBy('id')
             ->get()
             ->map(self::toRecord(...))
@@ -54,7 +59,11 @@ final readonly class EloquentVehicleRepository implements VehicleRepository
             model: $vehicle->model,
             variant: $vehicle->variant,
             typeDesignation: $vehicle->type_designation,
-            buildWindow: BuildWindow::fromDates($vehicle->build_from, $vehicle->build_to),
+            // The stored dates are the certain window (D-516) — a day typed by hand stays that day.
+            buildWindow: BuildWindow::core(
+                $vehicle->build_from === null ? null : DateTimeImmutable::createFromInterface($vehicle->build_from),
+                $vehicle->build_to === null ? null : DateTimeImmutable::createFromInterface($vehicle->build_to),
+            ),
             axleLoadFrontKg: $vehicle->axle_load_front_kg,
             axleLoadRearKg: $vehicle->axle_load_rear_kg,
             maxSpeedKmh: $vehicle->max_speed_kmh,
@@ -68,6 +77,26 @@ final readonly class EloquentVehicleRepository implements VehicleRepository
             // SoftDeletes already excludes these from the query; the flag is carried so a record
             // fetched withTrashed() elsewhere still reports the truth about itself.
             isDeleted: $vehicle->trashed(),
+            buildPeriod: self::period($vehicle),
+            datasetNumber: $vehicle->getAttribute('source_vehicle_id') === null ? null : (int) $vehicle->getAttribute('source_vehicle_id'),
+        );
+    }
+
+    /**
+     * The period as the car's record states it (D-516). A car whose year columns are empty has its dates only — typed by
+     * hand, from a Gutachten, or stored before D-516 —, read as known months.
+     */
+    public static function period(Vehicle $vehicle): BuildPeriod
+    {
+        $from = $vehicle->build_from === null ? null : DateTimeImmutable::createFromInterface($vehicle->build_from);
+        $to = $vehicle->build_to === null ? null : DateTimeImmutable::createFromInterface($vehicle->build_to);
+        $dates = BuildPeriod::fromDates($from, $to);
+
+        return new BuildPeriod(
+            $vehicle->build_from_year ?? $dates->fromYear,
+            $vehicle->build_from_year === null ? $dates->fromMonth : $vehicle->build_from_month,
+            $vehicle->build_to_year ?? $dates->toYear,
+            $vehicle->build_to_year === null ? $dates->toMonth : $vehicle->build_to_month,
         );
     }
 }

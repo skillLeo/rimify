@@ -121,20 +121,20 @@ it('accepts any DateTimeInterface, including Carbon', function (): void {
         ->toBe('21.11.2025');
 });
 
-it('formats a build period, and says heute rather than inventing an end date', function (): void {
+it('formats a build period, and says seit rather than inventing an end date', function (): void {
     $from = new DateTimeImmutable('2018-03-01');
     $to = new DateTimeImmutable('2019-11-30');
 
-    expect(GermanFormat::buildPeriod($from, $to))->toBe("03/2018\u{2013}11/2019")
-        // An open end is the model still being built. Writing today's date here would be the
+    expect(GermanFormat::buildPeriod($from, $to))->toBe("03/2018\u{00A0}\u{2013} 11/2019")
+        // An open end is the model still being built (D-516: `seit`). Writing today's date here would be the
         // same mistake as coercing a NULL build_to, and it would be a lie.
-        ->and(GermanFormat::buildPeriod(new DateTimeImmutable('2019-12-01'), null))->toBe("12/2019\u{2013}heute")
+        ->and(GermanFormat::buildPeriod(new DateTimeImmutable('2019-12-01'), null))->toBe('seit 12/2019')
         ->and(GermanFormat::buildPeriod(null, $to))->toBe('bis 11/2019')
         ->and(GermanFormat::buildPeriod(null, null))->toBe('Bauzeitraum unbekannt');
 });
 
 it('uses an en dash in a build period, not a hyphen', function (): void {
-    expect(GermanFormat::buildPeriod(new DateTimeImmutable('2018-03-01'), null))
+    expect(GermanFormat::buildPeriod(new DateTimeImmutable('2018-03-01'), new DateTimeImmutable('2019-11-30')))
         ->toContain("\u{2013}")
         ->not->toContain('-');
 });

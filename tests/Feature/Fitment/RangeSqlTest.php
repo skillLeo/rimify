@@ -119,9 +119,9 @@ it('reports an open-ended window in German without inventing an end date', funct
     $open = new BuildWindow(new DateTimeImmutable('2019-12-01'), null);
     $closed = new BuildWindow(new DateTimeImmutable('2018-03-01'), new DateTimeImmutable('2019-11-30'));
 
-    expect($open->labelDe())->toBe("12/2019\u{2013}heute")
+    expect($open->labelDe())->toBe('seit 12/2019')
         ->and($open->isOpenEnded())->toBeTrue()
-        ->and($closed->labelDe())->toBe("03/2018\u{2013}11/2019")
+        ->and($closed->labelDe())->toBe("03/2018\u{00A0}\u{2013} 11/2019")
         ->and(BuildWindow::unbounded()->labelDe())->toBe('Bauzeitraum unbekannt')
         ->and(BuildWindow::unbounded()->isUnbounded())->toBeTrue();
 });
