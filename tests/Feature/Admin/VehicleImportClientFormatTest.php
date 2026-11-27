@@ -8,6 +8,7 @@ use App\Models\VehicleImport;
 use App\Services\Admin\Vehicles\Import\ImportUpload;
 use App\Services\Admin\Vehicles\Import\VehicleImportWork;
 use App\Services\Admin\Vehicles\VehicleImporter;
+use App\Support\EgNumber;
 use Database\Seeders\AccessSeeder;
 use Database\Seeders\ReferenceDataSeeder;
 use Illuminate\Http\UploadedFile;
@@ -153,14 +154,17 @@ it('imports every car of his CSV as he writes it — CRLF, bare NULL, split buil
     expect($a)->toHaveCount(2)
         ->and([$a[0]->make, $a[0]->model, $a[0]->variant, $a[0]->eg_nummer_raw, $a[0]->axle_load_front_kg, $a[0]->axle_load_rear_kg, $a[0]->max_speed_kmh, $a[0]->drive_axle, $a[0]->body_form])
         ->toBe(['Testmarke', 'Alpha', 'Alpha Avant Quattro', 'e1*2001/116*0447*11', 1210, 1235, 210, 'Allrad', 'Kombi'])
-        // The second of the pair is told apart by its VSN, in the variant.
-        ->and($a[1]->variant)->toBe('Alpha Avant Quattro (VSN 00017)')
+        // The second of the pair is told apart by its VSN, its own column (D-517) — the name stays the dataset's.
+        ->and([$a[1]->variant, $a[1]->vsn])->toBe(['Alpha Avant Quattro', '00017'])
         ->and($a[1]->build_to)->toBeNull();
 
-    // Month NULL: the window is never wider than the file says — the start in December, the end in January.
+    // Month NULL (D-516): stored as unknown, never a month put in its place. The certain window, which every comparison
+    // reads, is still never wider than the file says — from the latest start (December) to the earliest end (January).
     $beta = Vehicle::query()->where('hsn', '7118')->sole();
-    expect([$beta->build_from?->toDateString(), $beta->build_to?->toDateString(), $beta->variant, $beta->drive_axle, $beta->eg_nummer_raw])
-        ->toBe(['1982-12-01', '1987-01-31', 'Beta 1.6 (VSN 002)', 'Hinterachse', null]);
+    expect([$beta->build_from?->toDateString(), $beta->build_to?->toDateString(), $beta->variant, $beta->vsn, $beta->drive_axle, $beta->eg_nummer_raw])
+        ->toBe(['1982-12-01', '1987-01-31', 'Beta 1.6', '002', 'Hinterachse', 'C640*'])
+        ->and([$beta->build_from_year, $beta->build_from_month, $beta->build_to_year, $beta->build_to_month])->toBe([1982, null, 1987, null])
+        ->and($beta->periodLabel())->toBe("1982\u{00A0}– 1987");
     // March 2018 to November 2019, whole months.
     expect([$a[0]->build_from?->toDateString(), $a[0]->build_to?->toDateString()])->toBe(['2018-03-01', '2019-11-30']);
 
@@ -314,8 +318,10 @@ it('keeps field K\'s national ABE number on the car, and no EG number is made of
     $beta = Vehicle::query()->where('variant', 'like', 'Beta 1.6%')->firstOrFail();
     $alpha = Vehicle::query()->where('variant', 'Alpha Avant Quattro')->where('hsn', '1860')->orderBy('id')->firstOrFail();
 
+    // Field K is kept as the file writes it (D-520); it matches no Gutachten, being no EG number in the EU form.
     expect($beta->abe_nummer_raw)->toBe('C640*')
-        ->and($beta->eg_nummer_raw)->toBeNull()
+        ->and($beta->eg_nummer_raw)->toBe('C640*')
+        ->and(EgNumber::parse($beta->eg_nummer_norm))->toBeNull()
         ->and($alpha->abe_nummer_raw)->toBeNull()
         ->and($alpha->eg_nummer_raw)->toBe('e1*2001/116*0447*11');
 });

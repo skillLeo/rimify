@@ -1113,6 +1113,15 @@ final readonly class FitmentResolver
             );
         }
 
+        // A row the car's certain window misses but its possible one reaches (D-516): the record knows the year and not the
+        // month, and the month decides. Neither a yes nor a no on a month nobody knows — „Noch nicht bestätigt“.
+        foreach ($allRows as $row) {
+            if (! $row->windowCovers($vehicle->buildWindow) && $row->windowCovers($vehicle->possibleWindow())
+                && ($wheel === null || $row->permitsGeometry($wheel->widthIn, $wheel->etMm))) {
+                return $this->negative(VerdictStatus::Unknown, $vehicle, $wheel, VerdictReason::of(VerdictReason::BUILD_MONTH_UNKNOWN), $row->document);
+            }
+        }
+
         // Rows exist for this vehicle, so the document knows the car — the reason it failed is
         // either the build window or the geometry, and the customer deserves to be told which.
         $reasonCode = VerdictReason::NOT_COVERED;

@@ -65,11 +65,14 @@ final readonly class VehicleDisambiguator
         }
 
         $rows = [];
+        // Build period and power are always shown beside the name and VSN (the client's message of 26.11.2026, D-517):
+        // they are what an owner finds in the papers, even where they do not differ.
+        $shown = array_values(array_unique(['build_period', 'power', ...$differing]));
 
         foreach ($list as $vehicle) {
             $values = [];
 
-            foreach ($differing as $attribute) {
+            foreach ($shown as $attribute) {
                 $values[$attribute] = self::value($vehicle, $attribute);
             }
 
@@ -78,10 +81,22 @@ final readonly class VehicleDisambiguator
                 'label' => $vehicle->label(),
                 'vsn' => $vehicle->vsn,
                 'values' => $values,
+                'number' => null,
             ];
         }
 
-        return new VehicleDistinction($differing, $rows, $differing === []);
+        // Records that read the same in every line shown — the dataset lists one car twice, under two numbers — are told
+        // apart by that number, small and grey: never two options a customer cannot tell from each other.
+        $looks = array_map(static fn (array $row): string => json_encode([$row['label'], $row['vsn'], $row['values']]) ?: '', $rows);
+        $counts = array_count_values($looks);
+
+        foreach ($rows as $i => $row) {
+            if (($counts[$looks[$i]] ?? 0) > 1) {
+                $rows[$i]['number'] = $list[$i]->datasetNumber;
+            }
+        }
+
+        return new VehicleDistinction($shown, $rows, $differing === []);
     }
 
     /**
@@ -92,7 +107,7 @@ final readonly class VehicleDisambiguator
     public static function value(VehicleRecord $vehicle, string $attribute): string
     {
         return match ($attribute) {
-            'build_period' => $vehicle->buildWindow->labelDe(),
+            'build_period' => $vehicle->periodLabel(),
             'power' => $vehicle->powerKw === null && $vehicle->powerPs === null
                 ? '—'
                 : sprintf('%s%skW (%s%sPS)', $vehicle->powerKw ?? '?', GermanFormat::NBSP, $vehicle->powerPs ?? '?', GermanFormat::NBSP),

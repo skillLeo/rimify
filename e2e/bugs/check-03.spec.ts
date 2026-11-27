@@ -48,7 +48,8 @@ test('CHECK-03 a double-click on a model does not choose the variant that appear
     // The first press of the double-click opens the model …
     await page.mouse.click(x, y);
     // … its variants arrive before the second press, as they do on a quick connection …
-    await expect(title, 'precondition: the model opens no variant step').toHaveText('Variante wählen');
+    // Inside a model the next step is its forms, its names or its cars (D-519) — whichever has more than one entry.
+    await expect(title, 'precondition: the model opens no step inside it').toHaveText(/^(Fahrzeugform wählen|Typ wählen|Variante wählen)$/);
     // … and the second press of the same double-click lands where the model was.
     await page.mouse.down({ clickCount: 2 });
     await page.mouse.up({ clickCount: 2 });

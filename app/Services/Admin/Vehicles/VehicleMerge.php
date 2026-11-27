@@ -286,6 +286,18 @@ final class VehicleMerge
             unset($fills['hsn'], $fills['tsn']);
         }
 
+        // A date the dataset fills comes with its period as the file states it (D-516) — a month it does not know stays
+        // unknown, never the one the certain window stands on.
+        if (array_key_exists('build_from', $fills)) {
+            $fills['build_from_year'] = $row->buildFromYear;
+            $fills['build_from_month'] = $row->buildFromMonth;
+        }
+
+        if (array_key_exists('build_to', $fills)) {
+            $fills['build_to_year'] = $row->buildToYear;
+            $fills['build_to_month'] = $row->buildToMonth;
+        }
+
         return [$fills, $kept];
     }
 
@@ -316,6 +328,17 @@ final class VehicleMerge
                 // Read again under a lock: a person may have filled a field since the dry run.
                 $fresh = Vehicle::query()->lockForUpdate()->findOrFail($vehicle->id);
                 $fills = array_filter($entry['fills'], static fn (string $column): bool => $fresh->getAttribute($column) === null, ARRAY_FILTER_USE_KEY);
+
+                // The period's parts go with their date, or not at all (D-516).
+                foreach (['build_from' => ['build_from_year', 'build_from_month'], 'build_to' => ['build_to_year', 'build_to_month']] as $date => $parts) {
+                    foreach ($parts as $part) {
+                        if (array_key_exists($date, $fills)) {
+                            $fills[$part] = $entry['fills'][$part] ?? null;
+                        } else {
+                            unset($fills[$part]);
+                        }
+                    }
+                }
 
                 if (array_key_exists('hsn', $fills) !== array_key_exists('tsn', $fills)) {
                     unset($fills['hsn'], $fills['tsn']);

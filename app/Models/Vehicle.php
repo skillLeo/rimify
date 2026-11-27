@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Fitment\Infrastructure\EloquentVehicleRepository;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,6 +29,11 @@ use Illuminate\Support\Carbon;
  * @property string $variant
  * @property Carbon|null $build_from
  * @property Carbon|null $build_to
+ * @property int|null $build_from_year the period as the record states it (D-516): a month the record does not know is null
+ * @property int|null $build_from_month
+ * @property int|null $build_to_year null: still built (R-02)
+ * @property int|null $build_to_month
+ * @property string|null $body_form_raw the dataset's own form name, for the selector only (D-519)
  * @property int|null $axle_load_front_kg
  * @property int|null $axle_load_rear_kg
  * @property int|null $max_speed_kmh
@@ -47,7 +53,8 @@ class Vehicle extends Model
 
     protected $fillable = [
         'source_vehicle_id', 'hsn', 'tsn', 'vsn', 'make', 'model', 'variant', 'type_designation',
-        'eg_nummer_raw', 'abe_nummer_raw', 'body_form', 'drive_axle', 'build_from', 'build_to',
+        'eg_nummer_raw', 'abe_nummer_raw', 'body_form', 'body_form_raw', 'drive_axle', 'build_from', 'build_to',
+        'build_from_year', 'build_from_month', 'build_to_year', 'build_to_month',
         'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh',
         'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
         'needs_review', 'raw', 'imported_at',
@@ -55,12 +62,41 @@ class Vehicle extends Model
         'source', 'is_demo', 'demo_ref', 'source_document_id', 'source_page',
     ];
 
+    /**
+     * A car saved with dates and no period of its own — typed by hand, from a Gutachten, by a seeder — gets the period its
+     * dates say, months known (D-516). The import sets the period itself, months as the file has them.
+     */
+    protected static function booted(): void
+    {
+        static::saving(static function (Vehicle $vehicle): void {
+            if ($vehicle->isDirty('build_from') && ! $vehicle->isDirty(['build_from_year', 'build_from_month'])) {
+                $vehicle->build_from_year = $vehicle->build_from === null ? null : (int) $vehicle->build_from->format('Y');
+                $vehicle->build_from_month = $vehicle->build_from === null ? null : (int) $vehicle->build_from->format('n');
+            }
+
+            if ($vehicle->isDirty('build_to') && ! $vehicle->isDirty(['build_to_year', 'build_to_month'])) {
+                $vehicle->build_to_year = $vehicle->build_to === null ? null : (int) $vehicle->build_to->format('Y');
+                $vehicle->build_to_month = $vehicle->build_to === null ? null : (int) $vehicle->build_to->format('n');
+            }
+        });
+    }
+
+    /** `12/1999 – 01/2004`, `1999 – 2004`, `seit 2020` — the period as the record states it (D-516). */
+    public function periodLabel(): string
+    {
+        return EloquentVehicleRepository::period($this)->label();
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'build_from' => 'immutable_date',
             'build_to' => 'immutable_date',
+            'build_from_year' => 'integer',
+            'build_from_month' => 'integer',
+            'build_to_year' => 'integer',
+            'build_to_month' => 'integer',
             'axle_load_front_kg' => 'integer',
             'axle_load_rear_kg' => 'integer',
             'max_speed_kmh' => 'integer',

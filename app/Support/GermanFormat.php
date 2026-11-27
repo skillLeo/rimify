@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Domain\Fitment\Support\BuildPeriod;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -311,25 +312,45 @@ final class GermanFormat
     }
 
     /**
-     * `03/2018–11/2019`, or `12/2019–heute` where the model is still in production.
+     * `03/2018 – 11/2019`, or `seit 12/2019` where it is still built (D-516): from two dates, months known. A car's period
+     * as its record states it — a month possibly unknown — is BuildPeriod's, through Vehicle::periodLabel().
      *
-     * An open end is "heute", never a date: writing today's date here is the same mistake as
-     * coercing a NULL build_to, and it would tell the customer something false.
+     * An open end is never a date: writing today's date here is the same mistake as coercing a NULL build_to, and it would
+     * tell the customer something false (R-02).
      */
     public static function buildPeriod(?DateTimeInterface $from, ?DateTimeInterface $to): string
     {
-        $start = self::monthYear($from);
-        $end = self::monthYear($to);
+        return BuildPeriod::fromDates(
+            $from === null ? null : DateTimeImmutable::createFromInterface($from),
+            $to === null ? null : DateTimeImmutable::createFromInterface($to),
+        )->label();
+    }
 
-        if ($start === null && $end === null) {
-            return 'Bauzeitraum unbekannt';
-        }
+    /**
+     * A car's period from its row as read without the model (`DB::table('vehicles')`): its year and month columns, or —
+     * where those are empty, a car stored before D-516 — its dates.
+     */
+    public static function vehiclePeriod(object $row): string
+    {
+        // isset() is false for a null as well: one check per column.
+        $from = isset($row->build_from) ? new DateTimeImmutable((string) $row->build_from) : null;
+        $to = isset($row->build_to) ? new DateTimeImmutable((string) $row->build_to) : null;
+        $dates = BuildPeriod::fromDates($from, $to);
+        $own = isset($row->build_from_year);
+        $ownEnd = isset($row->build_to_year);
 
-        if ($start === null) {
-            return 'bis '.$end;
-        }
+        return (new BuildPeriod(
+            $own ? (int) $row->build_from_year : $dates->fromYear,
+            $own ? (isset($row->build_from_month) ? (int) $row->build_from_month : null) : $dates->fromMonth,
+            $ownEnd ? (int) $row->build_to_year : $dates->toYear,
+            $ownEnd ? (isset($row->build_to_month) ? (int) $row->build_to_month : null) : $dates->toMonth,
+        ))->label();
+    }
 
-        return $start.self::ENDASH.($end ?? 'heute');
+    /** `12/1999 – 01/2004`, `1999 – 2004`, `seit 2020`: a period as year and month, a month possibly unknown (D-516). */
+    public static function buildPeriodParts(?int $fromYear, ?int $fromMonth, ?int $toYear, ?int $toMonth): string
+    {
+        return (new BuildPeriod($fromYear, $fromMonth, $toYear, $toMonth))->label();
     }
 
     /**

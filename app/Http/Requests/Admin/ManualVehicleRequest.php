@@ -7,10 +7,8 @@ namespace App\Http\Requests\Admin;
 use App\Models\AdminUser;
 use App\Models\Vehicle;
 use App\Services\Admin\Approvals\DocumentConditions;
-use App\Support\EgNumber;
 use App\Support\VehicleName;
 use Carbon\CarbonImmutable;
-use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -36,14 +34,6 @@ class ManualVehicleRequest extends FormRequest
 
     /** The first year a build window may name; the last is two years ahead — a model announced, never a typo's 2041. */
     public const FIRST_YEAR = 1900;
-
-    /**
-     * Field K on an older car: a national ABE number of letters and digits — `A 333`, as the vehicle datasets carry them
-     * (`A333*`). Kept as typed; only an EG type-approval number (EgNumber) is ever matched to a Gutachten by the merge.
-     */
-    public const NATIONAL_ABE = '/^[A-Z]{1,3} ?\d{1,6}(?:\*\d{0,4})?$/i';
-
-    public const FIELD_K_REFUSED = 'So sieht Feld K nicht aus. Eine EG-Typgenehmigungsnummer beginnt mit e und der Länderziffer, etwa e1*2007/46*0316*12; bei älteren Fahrzeugen steht dort eine nationale ABE-Nummer aus Buchstaben und Ziffern, etwa A 333.';
 
     public function authorize(): bool
     {
@@ -89,13 +79,10 @@ class ManualVehicleRequest extends FormRequest
             'type_designation' => ['nullable', 'string', 'max:32'],
             'hsn' => ['required', 'string', 'regex:/^\d{4}$/'],
             'tsn' => ['required', 'string', 'regex:/^[0-9A-Z]{3}$/'],
-            'eg_number' => ['required', 'string', 'max:64', static function (string $attribute, mixed $value, Closure $fail): void {
-                $printed = trim((string) $value);
-
-                if (preg_match(EgNumber::PATTERN, $printed) !== 1 && preg_match(self::NATIONAL_ABE, $printed) !== 1) {
-                    $fail(self::FIELD_K_REFUSED);
-                }
-            }],
+            // Field K as the papers print it, whatever its form (D-520, the client's question of 26.11.2026): text, only
+            // trimmed, and it may be empty. Only an EG number in the EU form ever matches a Gutachten (EgNumber), which
+            // needs no rule here — any other text simply matches nothing.
+            'eg_number' => ['nullable', 'string', 'max:64'],
             'power_kw' => ['required', 'integer', 'min:10', 'max:1000'],
             'build_from' => ['required', 'string', 'regex:'.self::MONTH],
             'build_to' => ['nullable', 'string', 'regex:'.self::MONTH],
@@ -118,7 +105,6 @@ class ManualVehicleRequest extends FormRequest
             'hsn.regex' => 'Die HSN hat vier Ziffern, mit führenden Nullen: 0005.',
             'tsn.required' => 'Trag die TSN ein: die ersten drei Zeichen aus Feld 2.2.',
             'tsn.regex' => 'Die TSN sind die ersten drei Zeichen aus Feld 2.2 – Ziffern oder Buchstaben, etwa AFD.',
-            'eg_number.required' => 'Trag die Nummer aus Feld K ein.',
             'power_kw.required' => 'Trag die Leistung in kW ein (Feld P.2, die erste Zahl).',
             'power_kw.*' => 'Die Leistung bitte als ganze Zahl in kW, zwischen 10 und 1.000 (Feld P.2).',
             'build_from.required' => 'Trag ein, ab wann das Fahrzeug in dieser Variante gebaut wird: Monat und Jahr, etwa 06.2014.',
@@ -181,7 +167,7 @@ class ManualVehicleRequest extends FormRequest
     /**
      * The car as the row stores it.
      *
-     * @return array{make: string, model: string, variant: string, type_designation: string|null, hsn: string, tsn: string, eg_nummer_raw: string, power_kw: int, build_from: string, build_to: string|null, body_form: string|null, drive_axle: string|null, axle_load_front_kg: int|null, axle_load_rear_kg: int|null, max_speed_kmh: int|null}
+     * @return array{make: string, model: string, variant: string, type_designation: string|null, hsn: string, tsn: string, eg_nummer_raw: string|null, power_kw: int, build_from: string, build_to: string|null, body_form: string|null, drive_axle: string|null, axle_load_front_kg: int|null, axle_load_rear_kg: int|null, max_speed_kmh: int|null}
      */
     public function car(): array
     {
@@ -195,7 +181,7 @@ class ManualVehicleRequest extends FormRequest
             'type_designation' => $text('type_designation'),
             'hsn' => str_pad((string) $text('hsn'), 4, '0', STR_PAD_LEFT),
             'tsn' => mb_strtoupper((string) $text('tsn')),
-            'eg_nummer_raw' => (string) $text('eg_number'),
+            'eg_nummer_raw' => $text('eg_number'),
             'power_kw' => (int) $int('power_kw'),
             'build_from' => (string) $this->month('build_from', false)?->toDateString(),
             'build_to' => $this->month('build_to', true)?->toDateString(),

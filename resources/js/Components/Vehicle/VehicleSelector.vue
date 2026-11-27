@@ -4,8 +4,13 @@
  * so what is seen first is what Tab and a screen reader reach first.
  *
  * Two routes in, because the two halves of this audience are genuinely different. Someone who
- * knows their car picks Marke → Modell → Variante; someone holding their Fahrzeugschein types four
- * characters and three, which is faster — and is also the only route that can resolve to two cars.
+ * knows their car picks Marke → Modell → Fahrzeugform → Fahrzeugname → the car (the client's message of
+ * 26.11.2026, D-519); someone holding their Fahrzeugschein types four characters and three, which is faster.
+ * Both can end on several cars with one name — HSN, TSN and even VSN repeat in the vehicle data —, and both
+ * then show what tells them apart: never one picked silently (D-517).
+ *
+ * Marke and Modell are server-driven (a shareable URL, Back works); the model's cars come in one answer, and
+ * Fahrzeugform and Fahrzeugname group them here — a level with one entry is skipped.
  *
  * Three outcomes, and none of them is a dead end (R-09):
  *   one match       → the vehicle is written and the listing opens;
@@ -91,20 +96,98 @@ const missHref = computed(() => {
 /* An empty list with nothing typed: no car at all to choose from yet. */
 const emptyHref = computed(() => contactHref({ subject: 'Mein Fahrzeug ist nicht dabei', from: page.url }))
 
-const level = computed<'make' | 'model' | 'variant'>(() => {
+/*
+ * Inside a model (D-519): the form chosen, then the name. Kept here, not in the address — the model's cars are all on
+ * the page already — and cleared whenever the model changes.
+ */
+const chosenForm = ref<string | null>(null)
+const chosenName = ref<string | null>(null)
+const NO_FORM = 'Ohne Angabe'
+const formOf = (v: VariantOption): string => (typeof v.form === 'string' && v.form.trim() !== '' ? v.form : NO_FORM)
+
+watch(
+    () => [props.selectedMake, props.selectedModel],
+    () => {
+        chosenForm.value = null
+        chosenName.value = null
+    },
+)
+
+/* The forms of the model, in the data's own words; one form is no step. */
+const forms = computed(() => [...new Set(props.variants.map(formOf))].sort((a, b) => a.localeCompare(b, 'de')))
+const inForm = computed(() => (forms.value.length > 1 && chosenForm.value !== null ? props.variants.filter((v) => formOf(v) === chosenForm.value) : props.variants))
+const names = computed(() => [...new Set(inForm.value.map((v) => v.variant))])
+const inName = computed(() => (chosenName.value === null ? inForm.value : inForm.value.filter((v) => v.variant === chosenName.value)))
+
+const level = computed<'make' | 'model' | 'form' | 'name' | 'variant'>(() => {
     if (props.selectedMake === null) {
         return 'make'
     }
 
-    return props.selectedModel === null ? 'model' : 'variant'
+    if (props.selectedModel === null) {
+        return 'model'
+    }
+
+    if (forms.value.length > 1 && chosenForm.value === null) {
+        return 'form'
+    }
+
+    // One record in the form: no name to choose between, the record itself is shown.
+    if (inForm.value.length > 1 && names.value.length > 1 && chosenName.value === null) {
+        return 'name'
+    }
+
+    return 'variant'
 })
 
 const stepLabel = computed(() => {
-    if (level.value === 'make') {
-        return 'Marke wählen'
+    return {
+        make: 'Marke wählen',
+        model: 'Modell wählen',
+        form: 'Fahrzeugform wählen',
+        name: 'Typ wählen',
+        variant: 'Variante wählen',
+    }[level.value]
+})
+
+/* What the back link names: the step it goes back to. */
+const backLabel = computed(() => {
+    if (level.value === 'variant' && chosenName.value !== null) {
+        return chosenForm.value ?? props.selectedModel ?? 'Zurück'
     }
 
-    return level.value === 'model' ? 'Modell wählen' : 'Variante wählen'
+    if ((level.value === 'variant' || level.value === 'name') && chosenForm.value !== null) {
+        return props.selectedModel ?? 'Zurück'
+    }
+
+    return level.value === 'model' ? 'Zurück' : (props.selectedMake ?? 'Zurück')
+})
+
+/*
+ * A record's line (D-517): HSN, TSN, VSN, the power — and, where two records read the same in every one of these, the
+ * dataset's own number, small and grey. Two options nobody can tell apart are never shown as such.
+ */
+const KW_PER_PS = 0.73549875
+
+function power(v: VariantOption): string | null {
+    const kw = typeof v.powerKw === 'number' ? v.powerKw : v.powerPs !== null ? Math.round(v.powerPs * KW_PER_PS) : null
+    const ps = v.powerPs ?? (typeof v.powerKw === 'number' ? Math.round(v.powerKw / KW_PER_PS) : null)
+
+    return kw === null ? null : `${kw}\u00A0kW (${ps}\u00A0PS)`
+}
+
+const lineOf = (v: VariantOption): string =>
+    [v.hsn ? `HSN ${v.hsn}` : null, v.tsn ? `TSN ${v.tsn}` : null, v.vsn ? `VSN ${v.vsn}` : null, power(v)].filter(Boolean).join(' · ')
+
+const twins = computed(() => {
+    const seen = new Map<string, number>()
+
+    for (const v of inName.value) {
+        const look = `${v.variant}|${lineOf(v)}|${v.buildWindow}`
+        seen.set(look, (seen.get(look) ?? 0) + 1)
+    }
+
+    return seen
 })
 
 const rows = computed(() => {
@@ -119,6 +202,7 @@ const rows = computed(() => {
                 sub: null,
                 note: anzahl(m.models, 'Modell', 'Modelle'),
                 blocked: false,
+                number: null as number | null,
             }))
     }
 
@@ -129,24 +213,57 @@ const rows = computed(() => {
                 key: m.model,
                 label: m.model,
                 sub: null,
-                note: anzahl(m.variants, 'Variante', 'Varianten'),
+                note: anzahl(m.variants, 'Fahrzeug', 'Fahrzeuge'),
                 blocked: false,
+                number: null as number | null,
             }))
     }
 
-    return props.variants
-        .filter((v) => needle === '' || v.variant.toLowerCase().includes(needle))
+    if (level.value === 'form') {
+        return forms.value
+            .filter((f) => needle === '' || f.toLowerCase().includes(needle))
+            .map((f) => ({
+                key: `form:${f}`,
+                label: f,
+                sub: null,
+                note: anzahl(props.variants.filter((v) => formOf(v) === f).length, 'Fahrzeug', 'Fahrzeuge'),
+                blocked: false,
+                number: null as number | null,
+            }))
+    }
+
+    if (level.value === 'name') {
+        return names.value
+            .filter((n) => needle === '' || n.toLowerCase().includes(needle))
+            .map((n) => {
+                const cars = inForm.value.filter((v) => v.variant === n)
+
+                return {
+                    key: `name:${n}`,
+                    label: n,
+                    sub: null,
+                    // One car under the name: its period here already, and a tap chooses it.
+                    note: cars.length === 1 ? cars[0]!.buildWindow : anzahl(cars.length, 'Variante', 'Varianten'),
+                    blocked: cars.length === 1 && cars[0]!.needsReview,
+                    number: null as number | null,
+                }
+            })
+    }
+
+    return inName.value
+        .filter((v) => needle === '' || `${v.variant} ${lineOf(v)} ${v.buildWindow}`.toLowerCase().includes(needle))
         .map((v) => ({
             key: String(v.id),
             label: v.variant,
             // Feld K tells apart the halves a Gutachten splits one car into, where no key numbers do yet: its own
-            // line under the name, never squeezed beside it.
-            sub: v.approval ?? null,
+            // line under the name, never squeezed beside it. Else the key numbers, VSN and power (D-517).
+            sub: v.approval ?? (lineOf(v) || null),
             // Beside Feld K an unknown build window says nothing, and at 375 px it squeezed the number.
             note: v.approval && v.buildKnown === false ? '' : v.buildWindow,
             // A vehicle we could not characterise can never produce a positive verdict, so it is
             // offered but named as incomplete rather than silently leading to UNKNOWN (R-03).
             blocked: v.needsReview,
+            number: (twins.value.get(`${v.variant}|${lineOf(v)}|${v.buildWindow}`) ?? 0) > 1 && typeof v.number === 'number' ? v.number : null,
         }))
 })
 
@@ -188,6 +305,30 @@ function step(key: string, event?: MouseEvent): void {
         return
     }
 
+    if (level.value === 'form') {
+        chosenForm.value = key.slice('form:'.length)
+        query.value = ''
+
+        return
+    }
+
+    if (level.value === 'name') {
+        const name = key.slice('name:'.length)
+        const cars = inForm.value.filter((v) => v.variant === name)
+
+        // One car under the name: chosen at once — its line already showed its period.
+        if (cars.length === 1) {
+            pick(cars[0]!.id)
+
+            return
+        }
+
+        chosenName.value = name
+        query.value = ''
+
+        return
+    }
+
     pick(Number(key))
 }
 
@@ -199,7 +340,22 @@ function pick(vehicleId: number): void {
 }
 
 function back(): void {
-    if (level.value === 'variant') {
+    query.value = ''
+
+    // Inside the model first: the name, then the form (D-519).
+    if (level.value === 'variant' && chosenName.value !== null) {
+        chosenName.value = null
+
+        return
+    }
+
+    if ((level.value === 'variant' || level.value === 'name') && chosenForm.value !== null) {
+        chosenForm.value = null
+
+        return
+    }
+
+    if (level.value === 'variant' || level.value === 'name' || level.value === 'form') {
         router.get(props.basePath, drill({ marke: props.selectedMake }), { preserveScroll: true })
 
         return
@@ -344,6 +500,7 @@ function onTsn(event: Event): void {
                             </template>
                             <template v-if="row.vsn"> VSN {{ row.vsn }}</template>
                         </span>
+                        <span v-if="row.number" class="data vsel__number">Datensatz-Nr. {{ row.number }}</span>
                     </span>
                     <span class="btn btn--secondary btn--sm vsel__candidate-cta">Das ist meins</span>
                 </button>
@@ -400,12 +557,12 @@ function onTsn(event: Event): void {
             <div class="vsel__head">
                 <button v-if="level !== 'make'" class="vsel__back" type="button" @click="back">
                     <Icon name="chevron-right" :size="20" />
-                    {{ level === 'variant' ? selectedMake : 'Zurück' }}
+                    {{ backLabel }}
                 </button>
                 <component :is="`h${headingLevel}`" id="vsel-drill-title" class="t-h3 vsel__title">{{ stepLabel }}</component>
             </div>
 
-            <label class="visually-hidden" :for="`vsel-q-${basePath}`">Marke oder Modell suchen</label>
+            <label class="visually-hidden" :for="`vsel-q-${basePath}`">{{ stepLabel }}: suchen</label>
             <div class="vsel__search">
                 <Icon name="search" :size="20" />
                 <input
@@ -435,6 +592,7 @@ function onTsn(event: Event): void {
                             </span>
                         </span>
                         <span v-if="row.sub" class="data vsel__sub">{{ row.sub }}</span>
+                        <span v-if="row.number" class="data vsel__number">Datensatz-Nr. {{ row.number }}</span>
                     </span>
                     <span v-if="row.note" class="data vsel__note">{{ row.note }}</span>
                 </button>
@@ -539,6 +697,15 @@ function onTsn(event: Event): void {
 
 .vsel__main .vsel__label {
     max-width: 100%;
+}
+
+/* Two records that read the same in every line shown (D-517): the dataset's number, small and grey. */
+.vsel__number {
+    display: block;
+    font-size: var(--fs-small);
+    font-weight: 400;
+    line-height: var(--lh-small);
+    color: var(--c-ink-3);
 }
 
 .vsel__sub {

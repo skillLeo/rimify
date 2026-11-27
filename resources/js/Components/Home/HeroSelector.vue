@@ -186,12 +186,20 @@ watch(model, async (value) => {
     }
 })
 
-/** `320i · 125 kW · 09/2001–02/2005`; an incomplete row says so (R-03). */
-function variantLabel(v: VariantOption): string {
+/**
+ * `320i · 125 kW · VSN 005 · 09/2001 – 02/2005`; an incomplete row says so (R-03). Two records that would read the same
+ * — the vehicle data lists one car twice — carry the dataset's number at the end (D-517): never two equal lines.
+ */
+function variantLine(v: VariantOption): string {
     const parts = [v.variant]
+    const kw = typeof v.powerKw === 'number' ? v.powerKw : v.powerPs !== null ? Math.round(v.powerPs * KW_PER_PS) : null
 
-    if (v.powerPs !== null) {
-        parts.push(withUnit(Math.round(v.powerPs * KW_PER_PS), 'kW'))
+    if (kw !== null) {
+        parts.push(withUnit(kw, 'kW'))
+    }
+
+    if (v.vsn) {
+        parts.push(`VSN ${v.vsn}`)
     }
 
     // Feld K's range tells apart the halves a Gutachten splits one car into, where no key numbers do yet; in
@@ -203,6 +211,22 @@ function variantLabel(v: VariantOption): string {
     }
 
     return parts.join(' · ') + (v.needsReview ? ' (unvollständige Daten)' : '')
+}
+
+const variantLines = computed(() => {
+    const counts = new Map<string, number>()
+
+    for (const v of variants.value) {
+        counts.set(variantLine(v), (counts.get(variantLine(v)) ?? 0) + 1)
+    }
+
+    return counts
+})
+
+function variantLabel(v: VariantOption): string {
+    const line = variantLine(v)
+
+    return (variantLines.value.get(line) ?? 0) > 1 && typeof v.number === 'number' ? `${line} · Nr. ${v.number}` : line
 }
 
 function variantDisplay(value: unknown): string {

@@ -109,6 +109,7 @@ return array(
     'App\\Domain\\Fitment\\Resolver\\WheelSetOffer' => $baseDir . '/app/Domain/Fitment/Resolver/WheelSetOffer.php',
     'App\\Domain\\Fitment\\Resolver\\WheelSets' => $baseDir . '/app/Domain/Fitment/Resolver/WheelSets.php',
     'App\\Domain\\Fitment\\Rules\\TeilegutachtenAbnahme' => $baseDir . '/app/Domain/Fitment/Rules/TeilegutachtenAbnahme.php',
+    'App\\Domain\\Fitment\\Support\\BuildPeriod' => $baseDir . '/app/Domain/Fitment/Support/BuildPeriod.php',
     'App\\Domain\\Fitment\\Support\\BuildWindow' => $baseDir . '/app/Domain/Fitment/Support/BuildWindow.php',
     'App\\Domain\\Fitment\\Support\\RangeSql' => $baseDir . '/app/Domain/Fitment/Support/RangeSql.php',
     'App\\Domain\\Fitment\\Tyres\\AxleVerdict' => $baseDir . '/app/Domain/Fitment/Tyres/AxleVerdict.php',

@@ -72,7 +72,7 @@ const warning = computed(() => {
  * without the question and each field says what it needs — the empty form asked about axle loads first, and named
  * Hersteller, HSN … only after „Ohne Achslasten anlegen“ (the admin audit's F-02).
  */
-const REQUIRED = ['make', 'model', 'variant', 'hsn', 'tsn', 'eg_number', 'power_kw', 'build_from'] as const
+const REQUIRED = ['make', 'model', 'variant', 'hsn', 'tsn', 'power_kw', 'build_from'] as const
 
 const requiredEmpty = computed(() => REQUIRED.some((field) => form[field].trim() === ''))
 
@@ -168,9 +168,9 @@ function onWarnClosed(event: Event): void {
                         </div>
                     </div>
                     <div class="form-field">
-                        <label class="form-field__label" for="fn-eg">EG-Typgenehmigungsnummer <span class="fn-field">(Feld K)</span></label>
+                        <label class="form-field__label" for="fn-eg">EG-Typgenehmigungs- oder ABE-Nummer <span class="fn-field">(Feld K)</span></label>
                         <input id="fn-eg" v-model="form.eg_number" class="input num" type="text" maxlength="64" spellcheck="false" autocomplete="off" placeholder="e1*2007/46*0316*12" :aria-invalid="errors.eg_number ? 'true' : undefined" aria-describedby="fn-eg-help fn-eg-err">
-                        <p id="fn-eg-help" class="form-field__help">Bei älteren Fahrzeugen steht hier eine nationale ABE-Nummer. Über die Nummer und den Fahrzeugtyp findest du das Fahrzeug, wenn du die Zeilen eines Gutachtens erfasst.</p>
+                        <p id="fn-eg-help" class="form-field__help">Wie es in den Papieren steht – bei älteren Fahrzeugen eine nationale ABE-Nummer. Leer lassen, wenn dort nichts steht.</p>
                         <p id="fn-eg-err" class="form-field__error">{{ errors.eg_number }}</p>
                     </div>
                 </div>

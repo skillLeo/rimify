@@ -268,6 +268,15 @@ const COLUMN: Record<string, string> = {
     max_speed_kmh: 'Höchstgeschwindigkeit',
     hsn: 'HSN',
     tsn: 'TSN',
+    // D-516, D-517: the name and VSN may change now that the dataset's number is the key; the period reads as one.
+    variant: 'Name',
+    vsn: 'VSN',
+    abe_nummer_raw: 'Feld K (ABE)',
+    body_form_raw: 'Fahrzeugform',
+    build_from_year: 'Bauzeitraum',
+    build_from_month: 'Bauzeitraum',
+    build_to_year: 'Bauzeitraum',
+    build_to_month: 'Bauzeitraum',
 }
 
 function detail(row: PlanRow): string[] {
@@ -278,7 +287,7 @@ function detail(row: PlanRow): string[] {
     }
 
     if (row.changes.length) {
-        lines.push(`${row.status === 'merge' ? 'Füllt' : 'Ändert'}: ${row.changes.map((c) => COLUMN[c] ?? c).join(', ')}`)
+        lines.push(`${row.status === 'merge' ? 'Füllt' : 'Ändert'}: ${[...new Set(row.changes.map((c) => COLUMN[c] ?? c))].join(', ')}`)
     }
 
     return [...lines, ...row.notes]

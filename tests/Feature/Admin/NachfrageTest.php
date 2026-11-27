@@ -157,7 +157,7 @@ describe('the ranking', function (): void {
         $mail = app(Demand::class)->ranked(Period::preset('30'), 'offen', 'Dr. Mirjam Halbach')['rows'][0]['mail'];
 
         expect($mail['subject'])->toBe('Gutachten-Anfrage: BMW X3 M40i')
-            ->and($mail['body'])->toContain("Fahrzeug: BMW X3 M40i\nTyp: G01\nHSN/TSN: 0005 / BLX\nBauzeitraum: 11/2017–heute\nLeistung: 260 kW")
+            ->and($mail['body'])->toContain("Fahrzeug: BMW X3 M40i\nTyp: G01\nHSN/TSN: 0005 / BLX\nBauzeitraum: seit 11/2017\nLeistung: 260 kW")
             ->and($mail['body'])->toContain('(ABE, Teilegutachten oder ECE)')
             ->and($mail['body'])->toEndWith("Mit freundlichen Grüßen\nDr. Mirjam Halbach\nRIMIFY");
     });

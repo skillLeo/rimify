@@ -425,7 +425,7 @@ test('a vehicle dataset: the Probelauf counts before anything is written, then t
     await expect(gap('Höchstgeschwindigkeit (T)')).toContainText('33,3 %')
     await expect(gap('Achslast vorn oder hinten (8.1 oder 8.2)')).toContainText('2 von 3')
     await expect(gap('HSN oder TSN (2.1 oder 2.2)')).toContainText('1 von 3')
-    await expect(gap('EG-Typgenehmigungsnummer (K)')).toContainText('1 von 3')
+    await expect(gap('Feld K (EG- oder ABE-Nummer)')).toContainText('1 von 3')
 
     // Read, but not as what the field can be: said as what was read and what was expected (D-318).
     const odd = page.locator('.fr-odd__check').filter({ hasText: 'Höchstgeschwindigkeit (T)' })

@@ -90,7 +90,7 @@ describe('Fahrzeuge › Import › Probelauf', () => {
             { key: 'without_speed', label: 'Höchstgeschwindigkeit (T)', count: 2, share: `66,7${NBSP}%`, unmapped: null },
             { key: 'without_axle', label: 'Achslast vorn oder hinten (8.1 oder 8.2)', count: 2, share: `66,7${NBSP}%`, unmapped: null },
             { key: 'without_keys', label: 'HSN oder TSN (2.1 oder 2.2)', count: 1, share: `33,3${NBSP}%`, unmapped: null },
-            { key: 'without_eg', label: 'EG-Typgenehmigungsnummer (K)', count: 0, share: `0${NBSP}%`, unmapped: null },
+            { key: 'without_eg', label: 'Feld K (EG- oder ABE-Nummer)', count: 0, share: `0${NBSP}%`, unmapped: null },
         ])
         const rows = wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))
 
@@ -99,7 +99,7 @@ describe('Fahrzeuge › Import › Probelauf', () => {
             ['Höchstgeschwindigkeit (T)', '2 von 3', `66,7${NBSP}%`],
             ['Achslast vorn oder hinten (8.1 oder 8.2)', '2 von 3', `66,7${NBSP}%`],
             ['HSN oder TSN (2.1 oder 2.2)', '1 von 3', `33,3${NBSP}%`],
-            ['EG-Typgenehmigungsnummer (K)', '0 von 3', `0${NBSP}%`],
+            ['Feld K (EG- oder ABE-Nummer)', '0 von 3', `0${NBSP}%`],
         ])
         // A field every row carries is quiet, as a nought among the counts is.
         expect(wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.classes('fr-gap--none'))).toEqual([false, false, false, true])
@@ -113,7 +113,7 @@ describe('Fahrzeuge › Import › Probelauf', () => {
             { key: 'without_speed', label: 'Höchstgeschwindigkeit (T)', count: null, share: null, unmapped: 'Keine Spalte zugeordnet' },
             { key: 'without_axle', label: 'Achslast vorn oder hinten (8.1 oder 8.2)', count: null, share: null, unmapped: 'Keine Spalte für Feld 8.2 zugeordnet' },
             { key: 'without_keys', label: 'HSN oder TSN (2.1 oder 2.2)', count: 0, share: `0${NBSP}%`, unmapped: null },
-            { key: 'without_eg', label: 'EG-Typgenehmigungsnummer (K)', count: 1, share: `33,3${NBSP}%`, unmapped: null },
+            { key: 'without_eg', label: 'Feld K (EG- oder ABE-Nummer)', count: 1, share: `33,3${NBSP}%`, unmapped: null },
         ])
         const rows = wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.findAll('td').map((td) => td.text()))
 
@@ -121,7 +121,7 @@ describe('Fahrzeuge › Import › Probelauf', () => {
             ['Höchstgeschwindigkeit (T)', 'Keine Spalte zugeordnet', '–'],
             ['Achslast vorn oder hinten (8.1 oder 8.2)', 'Keine Spalte für Feld 8.2 zugeordnet', '–'],
             ['HSN oder TSN (2.1 oder 2.2)', '0 von 3', `0${NBSP}%`],
-            ['EG-Typgenehmigungsnummer (K)', '1 von 3', `33,3${NBSP}%`],
+            ['Feld K (EG- oder ABE-Nummer)', '1 von 3', `33,3${NBSP}%`],
         ])
         expect(wrapper.findAll('.fr-gaps tbody tr').map((tr) => tr.classes('fr-gap--unmapped'))).toEqual([true, true, false, false])
     })

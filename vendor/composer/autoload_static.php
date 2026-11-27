@@ -898,6 +898,7 @@ class ComposerStaticIniteeed489f1af532083a85282d6942e8c5
         'App\\Domain\\Fitment\\Resolver\\WheelSetOffer' => __DIR__ . '/../..' . '/app/Domain/Fitment/Resolver/WheelSetOffer.php',
         'App\\Domain\\Fitment\\Resolver\\WheelSets' => __DIR__ . '/../..' . '/app/Domain/Fitment/Resolver/WheelSets.php',
         'App\\Domain\\Fitment\\Rules\\TeilegutachtenAbnahme' => __DIR__ . '/../..' . '/app/Domain/Fitment/Rules/TeilegutachtenAbnahme.php',
+        'App\\Domain\\Fitment\\Support\\BuildPeriod' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/BuildPeriod.php',
         'App\\Domain\\Fitment\\Support\\BuildWindow' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/BuildWindow.php',
         'App\\Domain\\Fitment\\Support\\RangeSql' => __DIR__ . '/../..' . '/app/Domain/Fitment/Support/RangeSql.php',
         'App\\Domain\\Fitment\\Tyres\\AxleVerdict' => __DIR__ . '/../..' . '/app/Domain/Fitment/Tyres/AxleVerdict.php',

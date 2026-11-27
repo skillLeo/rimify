@@ -24,14 +24,25 @@ final readonly class BuildWindow
     public function __construct(
         public ?DateTimeImmutable $from = null,
         public ?DateTimeImmutable $to = null,
+        bool $core = false,
     ) {
-        if ($from !== null && $to !== null && $from > $to) {
+        if (! $core && $from !== null && $to !== null && $from > $to) {
             throw new InvalidArgumentException(sprintf(
                 'A build window cannot end before it starts: [%s] to [%s].',
                 $from->format('Y-m-d'),
                 $to->format('Y-m-d'),
             ));
         }
+    }
+
+    /**
+     * A car's certain window (BuildPeriod, D-516): from the latest start to the earliest end its record allows. With months
+     * unknown inside one year it may start after it ends — nothing is certain then — and overlaps() still answers exactly
+     * „overlaps whatever the months are“: each bound is compared on its own. Only a car's window is ever made this way.
+     */
+    public static function core(?DateTimeImmutable $latestStart, ?DateTimeImmutable $earliestEnd): self
+    {
+        return new self($latestStart, $earliestEnd, true);
     }
 
     /** Both sides unbounded: the document does not scope the fitment by build window at all. */
@@ -74,18 +85,9 @@ final readonly class BuildWindow
         return $this->from === null && $this->to === null;
     }
 
-    /** `03/2018–11/2019` · `12/2019–heute` — the customer-facing form. */
+    /** `03/2018 – 11/2019` · `seit 12/2019` — the customer-facing form, through BuildPeriod's one label (D-516). */
     public function labelDe(): string
     {
-        if ($this->from === null && $this->to === null) {
-            return 'Bauzeitraum unbekannt';
-        }
-
-        if ($this->from === null) {
-            // Both-null is handled above, so `to` is non-null here.
-            return 'bis '.$this->to->format('m/Y');
-        }
-
-        return $this->from->format('m/Y')."\u{2013}".($this->to?->format('m/Y') ?? 'heute');
+        return BuildPeriod::fromDates($this->from, $this->to)->label();
     }
 }

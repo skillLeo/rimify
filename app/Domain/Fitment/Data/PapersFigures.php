@@ -109,6 +109,8 @@ final readonly class PapersFigures
             bodyFormSource: $vehicle->bodyFormSource,
             driveAxleSource: $vehicle->driveAxleSource,
             papersIndex: $this->index,
+            buildPeriod: $vehicle->buildPeriod,
+            datasetNumber: $vehicle->datasetNumber,
         );
     }
 }

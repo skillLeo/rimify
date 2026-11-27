@@ -115,8 +115,9 @@ it('hides a soft-deleted vehicle from resolution', function (): void {
 it('shows only the attributes that actually differ', function (): void {
     $distinction = (new VehicleDisambiguator)->distinguish($this->resolver->byKeyNumbers('1860', 'AAS'));
 
-    // Identical across both candidates, so shown in neither row: power, body, doors, seats, drive.
-    expect($distinction->attributes)->not->toContain('power')
+    // Identical across both candidates, so shown in neither row: body, doors, seats, drive. Build period and power are
+    // always shown beside the name and VSN (D-517): what an owner finds in the papers.
+    expect($distinction->attributes)->toContain('power')
         ->not->toContain('body_form')
         ->not->toContain('doors')
         ->not->toContain('seats')
@@ -156,9 +157,9 @@ it('renders each candidate row with the differing values and its VSN', function 
         ->and($second['vsn'])->toBe('00017')
         ->and($first['values']['max_speed'])->toBe("280\u{00A0}km/h")
         ->and($second['values']['max_speed'])->toBe("290\u{00A0}km/h")
-        ->and($first['values']['build_period'])->toBe("03/2018\u{2013}11/2019")
+        ->and($first['values']['build_period'])->toBe("03/2018\u{00A0}\u{2013} 11/2019")
         // Still in production — never a coerced end date.
-        ->and($second['values']['build_period'])->toBe("12/2019\u{2013}heute")
+        ->and($second['values']['build_period'])->toBe('seit 12/2019')
         ->and($first['values']['axle_load_front'])->toBe("1.210\u{00A0}kg")
         ->and($second['values']['axle_load_front'])->toBe("1.225\u{00A0}kg");
 });
@@ -184,7 +185,7 @@ it('flags candidates that differ in nothing displayable instead of choosing one'
     $distinction = (new VehicleDisambiguator)->distinguish(VehicleFixtures::indistinguishablePair());
 
     expect($distinction->indistinguishable)->toBeTrue()
-        ->and($distinction->attributes)->toBe([])
+        ->and($distinction->attributes)->toBe(['build_period', 'power'])
         ->and($distinction->isRequired())->toBeTrue()
         ->and($distinction->rows)->toHaveCount(2)
         // The VSN is the only separator, and it is not in what the customer typed.
@@ -214,7 +215,7 @@ it('reports a needs_review vehicle as unusable before any fitment question is as
 it('labels a vehicle the way the chooser and the header show it', function (): void {
     expect(VehicleFixtures::rs4First()->label())->toBe('Audi RS 4 Avant Quattro (B9)')
         ->and(VehicleFixtures::rs4Second()->labelWithPeriod())
-        ->toBe("Audi RS 4 Avant Quattro (B9), 12/2019\u{2013}heute")
+        ->toBe('Audi RS 4 Avant Quattro (B9), seit 12/2019')
         ->and(VehicleFixtures::bmw3er()->keyNumbers())->toBe('0005/582');
 });
 

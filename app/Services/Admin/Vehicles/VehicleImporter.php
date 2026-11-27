@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Admin\Vehicles;
 
 use App\Domain\Fitment\Data\PapersFigures;
+use App\Domain\Fitment\Support\BuildPeriod;
 use App\Enums\VehicleSource;
 use App\Models\AdminUser;
 use App\Models\Vehicle;
@@ -25,20 +26,24 @@ use Illuminate\Validation\ValidationException;
 /**
  * Fahrzeuge › Import (his admin item 2, D-297): a vehicle dataset into the shop — the file, its columns, the Probelauf,
  * the import — built on his demo data's promise that the dataset carries the axle loads. Each row is one car, and the
- * key that keeps cars apart is the one the shop's selector and the operator's brief name: **HSN, TSN and variant**.
+ * key that keeps cars apart is **the dataset's own number of the car** (D-517, the client's list v12): HSN and TSN are
+ * never unique — two rows of one HSN, TSN and VSN are two cars when their numbers differ. A file without numbers is
+ * matched by HSN, TSN, variant and VSN.
  *
  * What a row becomes, decided in the Probelauf and nowhere else:
  * - **neu** — no car carries its key, and none from a Gutachten fits it: created, stamped with the import's source
  *   (`import_kba`, `import_tecdoc` or `import_dat`), never `entwicklung`;
- * - **geändert** / **unverändert** — a car from an earlier import of the same source carries its key: what the file says
- *   otherwise is written (a figure the file leaves empty never empties one), or nothing differs;
+ * - **geändert** / **unverändert** — a car from an earlier import of the same source carries its number: what the file
+ *   says otherwise is written and shown field by field (a figure the file leaves empty never empties one; the build period
+ *   is the file's as a whole), or nothing differs. A number that now names another maker or other key numbers is refused;
  * - **ergänzt** — a car typed from a Gutachten fits it by EG number and Fahrzeugtyp (VehicleMerge): its empty fields
  *   are filled — HSN and TSN among them —, nothing a person entered is overwritten, and no second car is made of it
  *   (a second one would have the key numbers and none of the Gutachten's rows). A car that carries key numbers takes
  *   in only a row under the same ones: another HSN or TSN is another car, and becomes one;
  * - **bleibt** — a car a person checked or typed from a Gutachten, a removed car (R-04), or a car of another source
  *   carries its key: nothing is written, and the source is never changed;
- * - **abgelehnt** — no key numbers, no name, a row twice in the file, or two Gutachten cars it could be: said why.
+ * - **abgelehnt** — no key numbers, no name, no build year (the client's rules, D-516), a number twice in the file, a
+ *   number that now names another car, or two Gutachten cars it could be: said why.
  *
  * A figure that cannot be read is stored as nothing, never guessed, and the row says which (R-03): a car without its
  * axle loads or top speed waits under „Zur Prüfung“. Lochkreis is not asked for — a verdict comes from the Gutachten
@@ -103,12 +108,13 @@ final class VehicleImporter
         // Read for one check only — 8.1 and 8.2 against the car's own total mass (D-318) — and never stored.
         'gesamtmasse_kg' => ['label' => 'Zulässige Gesamtmasse in kg (F.2)', 'required' => false, 'hint' => 'Wird nur zum Abgleich mit 8.1 und 8.2 gelesen und nicht gespeichert.', 'headers' => ['gesamtmassekg', 'gesamtmasse', 'zulaessigegesamtmasse', 'zulgesamtmasse', 'gesamtgewicht', 'zulaessigesgesamtgewicht', 'zulgesamtgewicht', 'fahrzeugzulgesamtgewicht', 'f2', 'feldf2']],
         // His dataset (pkwliste_demo, 19.11.2026) names the build window as four columns — month and year, from and to — and a month
-        // may be NULL. They are put together into Gebaut ab / Gebaut bis by mapped(), D-478; a VSN other than the first is part of the variant.
-        'bauvon_monat' => ['label' => 'Gebaut ab: Monat', 'required' => false, 'hint' => 'Nur zusammen mit „Gebaut ab: Jahr“. Ohne Monat gilt der späteste: Dezember.', 'headers' => ['fahrzeugprodmonatvon', 'baumonatvon', 'bauvonmonat']],
+        // may be NULL: read as they are, a month the file leaves empty stays unknown (D-516, replacing D-478's December and January).
+        'bauvon_monat' => ['label' => 'Gebaut ab: Monat', 'required' => false, 'hint' => 'Nur zusammen mit „Gebaut ab: Jahr“. Ohne Monat bleibt der Monat unbekannt.', 'headers' => ['fahrzeugprodmonatvon', 'baumonatvon', 'bauvonmonat']],
         'bauvon_jahr' => ['label' => 'Gebaut ab: Jahr', 'required' => false, 'hint' => 'Ersetzt „Gebaut ab“, wenn die Datei Monat und Jahr getrennt führt.', 'headers' => ['fahrzeugprodjahrvon', 'bauvonjahr']],
-        'bauende_monat' => ['label' => 'Gebaut bis: Monat', 'required' => false, 'hint' => 'Nur zusammen mit „Gebaut bis: Jahr“. Ohne Monat gilt der früheste: Januar.', 'headers' => ['fahrzeugprodmonatbis', 'baumonatbis', 'bauendemonat']],
+        'bauende_monat' => ['label' => 'Gebaut bis: Monat', 'required' => false, 'hint' => 'Nur zusammen mit „Gebaut bis: Jahr“. Ohne Monat bleibt der Monat unbekannt.', 'headers' => ['fahrzeugprodmonatbis', 'baumonatbis', 'bauendemonat']],
         'bauende_jahr' => ['label' => 'Gebaut bis: Jahr', 'required' => false, 'hint' => 'Ersetzt „Gebaut bis“, wenn die Datei Monat und Jahr getrennt führt. Leer: noch gebaut.', 'headers' => ['fahrzeugprodjahrbis', 'bauendejahr']],
-        'vsn' => ['label' => 'VSN (Variantenschlüssel)', 'required' => false, 'hint' => 'Zwei Fahrzeuge mit gleicher HSN, TSN und Bezeichnung bleiben so auseinander: eine VSN außer 001 steht in Klammern hinter der Variante.', 'headers' => ['vsn', 'fahrzeugvsn', 'variantenschluessel']],
+        'vsn' => ['label' => 'VSN (Variantenschlüssel)', 'required' => false, 'hint' => 'Wird beim Fahrzeug gespeichert und bei der Auswahl gezeigt.', 'headers' => ['vsn', 'fahrzeugvsn', 'variantenschluessel']],
+        // The dataset's own number of the car: where a file has it, it is the key of the car (D-517).
         'fahrzeug_id' => ['label' => 'Nummer des Fahrzeugs im Datensatz', 'required' => false, 'headers' => ['fahrzeugid', 'datensatzid', 'id']],
     ];
 
@@ -122,7 +128,8 @@ final class VehicleImporter
         'without_speed' => 'Höchstgeschwindigkeit (T)',
         'without_axle' => 'Achslast vorn oder hinten (8.1 oder 8.2)',
         'without_keys' => 'HSN oder TSN (2.1 oder 2.2)',
-        'without_eg' => 'EG-Typgenehmigungsnummer (K)',
+        // Field K empty — in whatever form it is written, it counts as given (D-520).
+        'without_eg' => 'Feld K (EG- oder ABE-Nummer)',
     ];
 
     /**
@@ -155,13 +162,21 @@ final class VehicleImporter
     private const COLUMNS = [
         'make' => 'make',
         'model' => 'model',
+        // The dataset's number is the key now (D-517): its name and VSN are what the car is called, and a file may change them.
+        'variant' => 'variant',
+        'vsn' => 'vsn',
         'type_designation' => 'typeDesignation',
         'eg_nummer_raw' => 'egNumber',
         'abe_nummer_raw' => 'abeNumber',
         'power_kw' => 'powerKw',
         'build_from' => 'buildFrom',
         'build_to' => 'buildTo',
+        'build_from_year' => 'buildFromYear',
+        'build_from_month' => 'buildFromMonth',
+        'build_to_year' => 'buildToYear',
+        'build_to_month' => 'buildToMonth',
         'body_form' => 'bodyForm',
+        'body_form_raw' => 'bodyFormRaw',
         'drive_axle' => 'driveAxle',
         'axle_load_front_kg' => 'axleLoadFrontKg',
         'axle_load_rear_kg' => 'axleLoadRearKg',
@@ -184,8 +199,8 @@ final class VehicleImporter
      */
     public const FINGERPRINT_COLUMNS = [
         'id', 'source_vehicle_id', 'source', 'source_document_id', 'source_page', 'hsn', 'tsn', 'vsn', 'make', 'model', 'variant',
-        'type_designation', 'eg_nummer_raw', 'eg_nummer_norm', 'abe_nummer_raw', 'body_form', 'drive_axle', 'build_from', 'build_to',
-        'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh', 'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
+        'type_designation', 'eg_nummer_raw', 'eg_nummer_norm', 'abe_nummer_raw', 'body_form', 'body_form_raw', 'drive_axle', 'build_from', 'build_to',
+        'build_from_year', 'build_from_month', 'build_to_year', 'build_to_month', 'axle_load_front_kg', 'axle_load_rear_kg', 'max_speed_kmh', 'power_kw', 'power_ps', 'displacement_ccm', 'doors', 'seats',
         'needs_review', 'imported_at', 'created_at', 'updated_at', 'deleted_at', 'is_demo', 'demo_ref',
     ];
 
@@ -278,43 +293,15 @@ final class VehicleImporter
     }
 
     /**
-     * What a file that names the build window as month and year columns, and a VSN beside the variant, says in the
-     * contract's own fields (D-478). A month that is NULL is read against the car — the later start, the earlier end —, so
-     * the window is never wider than the file says: a missed sale rather than a wrong approval (R-02, governing rule).
+     * A row as the importer reads it. Nothing is put together any more (D-516, D-517): the build period's year and month
+     * columns are read as they are by DatasetVehicle — a month the file leaves empty stays unknown —, and the VSN is its
+     * own column, no longer in brackets behind the variant (D-478 did both; the dataset's number is the key now).
      *
      * @param  array<string, string>  $row
      * @return array<string, string>
      */
     private static function composed(array $row): array
     {
-        $year = static fn (string $v): ?int => preg_match('/^\d{4}$/', $v) === 1 ? (int) $v : null;
-        $month = static fn (string $v): ?int => preg_match('/^\d{1,2}$/', $v) === 1 && (int) $v >= 1 && (int) $v <= 12 ? (int) $v : null;
-
-        if ($row['baubeginn'] === '' && $row['bauvon_jahr'] !== '') {
-            $y = $year($row['bauvon_jahr']);
-            // Not readable stays as typed, so the row's reason can name it.
-            $row['baubeginn'] = $y === null ? $row['bauvon_jahr'] : sprintf('%02d.%04d', $month($row['bauvon_monat']) ?? 12, $y);
-        }
-
-        if ($row['bauende'] === '' && $row['bauende_jahr'] !== '') {
-            $y = $year($row['bauende_jahr']);
-            $row['bauende'] = $y === null ? $row['bauende_jahr'] : sprintf('%02d.%04d', $month($row['bauende_monat']) ?? 1, $y);
-        }
-
-        // A year alone in the one date column (his full list, run 4 of 14.11.2026: every row refused) reads the same way.
-        if (preg_match('/^\d{4}$/', $row['baubeginn']) === 1) {
-            $row['baubeginn'] = '12.'.$row['baubeginn'];
-        }
-
-        if (preg_match('/^\d{4}$/', $row['bauende']) === 1) {
-            $row['bauende'] = '01.'.$row['bauende'];
-        }
-
-        // A VSN other than 001 keeps two cars of one HSN, TSN and name apart — in the variant, which is the shop's key.
-        if ($row['vsn'] !== '' && preg_match('/^0*1$/', $row['vsn']) !== 1) {
-            $row['variante'] = trim(($row['variante'] !== '' ? $row['variante'] : $row['handelsname']).' (VSN '.$row['vsn'].')');
-        }
-
         return $row;
     }
 
@@ -347,7 +334,28 @@ final class VehicleImporter
             return [...$entry, 'status' => self::REFUSED, 'reason' => $reason];
         }
 
-        return [...$entry, 'dup_key' => sha1($car->hsn.'|'.$car->tsn.'|'.mb_strtolower($car->variant))];
+        return [...$entry, 'dup_key' => self::dupKey($car)];
+    }
+
+    /**
+     * What makes two rows of one file the same car (D-517): the dataset's own number, where the file has one — two rows of
+     * one HSN, TSN and VSN are two cars when their numbers differ (the client's message of 26.11.2026: 2.363 such rows in
+     * v12, every one shown). Without a number, HSN, TSN, variant and VSN, whatever their case.
+     */
+    public static function dupKey(DatasetVehicle $car): string
+    {
+        return $car->sourceVehicleId !== null
+            ? sha1('n|'.$car->sourceVehicleId)
+            : sha1($car->hsn.'|'.$car->tsn.'|'.mb_strtolower($car->variant).'|'.self::vsnKey($car->vsn));
+    }
+
+    /** A VSN as compared: without the leading zeros a spreadsheet takes off (`002` is `2`, D-518). */
+    public static function vsnKey(?string $vsn): string
+    {
+        $vsn = mb_strtoupper(trim((string) $vsn));
+        $bare = ltrim($vsn, '0');
+
+        return $vsn === '' ? '' : ($bare === '' ? '0' : $bare);
     }
 
     /**
@@ -378,7 +386,10 @@ final class VehicleImporter
             }
 
             if (isset($seen[$key])) {
-                $rows[$i] = [...$row, 'status' => self::REFUSED, 'reason' => 'Doppelt in der Datei – gleiche HSN, TSN und Variante wie Zeile '.$seen[$key].'.'];
+                $number = $row['number'] ?? null;
+                $rows[$i] = [...$row, 'status' => self::REFUSED, 'reason' => $number !== null
+                    ? 'Die Nummer '.$number.' aus dem Datensatz steht zweimal in der Datei, auch in Zeile '.$seen[$key].'.'
+                    : 'Doppelt in der Datei – gleiche HSN, TSN, Variante und VSN wie Zeile '.$seen[$key].'.'];
 
                 continue;
             }
@@ -435,8 +446,12 @@ final class VehicleImporter
     }
 
     /**
-     * Rows against the shop's cars: a car carrying the row's key decides it (against()); without one, the dataset's own
-     * number of the car must be free — in the shop, and among the rows before it.
+     * Rows against the shop's cars (D-517). Where the row has the dataset's own number, that number is the key: the car of
+     * this source under it is the same car — unchanged, or changed and shown field by field —, whatever else the row now
+     * says of its name or VSN. Only a row whose number now names a clearly different car (another maker, other key numbers)
+     * is refused, with both versions. A row without a number is matched by HSN, TSN, variant and VSN, as before.
+     *
+     * Cars a released Gutachten or an order refers to are changed only as the Probelauf shows it: the row says so.
      *
      * @param  list<VehicleImportRow>  $rows  in the file's order
      * @return int the rows that go on to the cars from a Gutachten
@@ -449,47 +464,104 @@ final class VehicleImporter
             $cars[$row->id] = DatasetVehicle::fromRow(['quelle' => $source->value, ...VehicleImportRow::fields($row->cells, $row->line)]);
         }
 
-        $existing = self::carriers($cars);
-        $numbers = array_values(array_unique(array_filter(array_map(static fn (DatasetVehicle $car): ?int => $car->sourceVehicleId, array_diff_key($cars, $existing)))));
+        $numbered = array_filter($cars, static fn (DatasetVehicle $car): bool => $car->sourceVehicleId !== null);
+        $numbers = array_values(array_unique(array_map(static fn (DatasetVehicle $car): int => (int) $car->sourceVehicleId, $numbered)));
         $holders = $numbers === [] ? collect() : Vehicle::withTrashed()->where('source', $source->value)->whereIn('source_vehicle_id', $numbers)->get()->keyBy('source_vehicle_id');
-        /** @var array<int, int> $earlier the dataset numbers rows before this batch claimed, and where */
-        $earlier = $numbers === [] ? [] : $import->lines()->where('status', VehicleImportRow::OPEN)->whereIn('number', $numbers)
-            ->groupBy('number')->selectRaw('number, MIN(line) AS first_line')->pluck('first_line', 'number')
-            ->mapWithKeys(static fn (mixed $line, mixed $number): array => [(int) $number => (int) $line])->all();
+        // Every row without a car under its number is also asked by HSN, TSN, variant and VSN: a car a person checked or typed
+        // from a Gutachten, or one of another source, under that key keeps the row out (KEPT) — never a second car beside it.
+        $existing = self::carriers(array_filter($cars, static fn (DatasetVehicle $car): bool => $car->sourceVehicleId === null || ! $holders->has($car->sourceVehicleId)));
         $updates = [];
 
         foreach ($rows as $row) {
             $car = $cars[$row->id];
 
-            if (isset($existing[$row->id])) {
-                $updates[$row->id] = self::against($existing[$row->id], $car, $source);
-
-                continue;
-            }
-
-            // The dataset's own number of the car: one car per number within its source, in the shop as in the file
-            // (uq_vehicle_source_number) — another dataset counts its own cars.
             if ($car->sourceVehicleId !== null) {
                 $holder = $holders->get($car->sourceVehicleId);
 
-                if ($holder !== null || isset($earlier[$car->sourceVehicleId])) {
-                    $updates[$row->id] = ['status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'reason' => $holder !== null
-                        ? 'Die Nummer '.$car->sourceVehicleId.' aus dem Datensatz trägt schon ein Fahrzeug: '.self::name($holder).'.'
-                        : 'Die Nummer '.$car->sourceVehicleId.' aus dem Datensatz steht zweimal in der Datei, auch in Zeile '.$earlier[$car->sourceVehicleId].'.'];
+                if ($holder === null) {
+                    $carrier = $existing[$row->id] ?? null;
+                    // A car of this same list under the key and another number is another car of the list (the Giulia pair).
+                    // Else a car typed from a Gutachten may be this one (VehicleMerge decides), or it is new.
+                    $updates[$row->id] = $carrier !== null && $carrier->source !== $source->value
+                        ? self::against($carrier, $car, $source)
+                        : ['status' => VehicleImportRow::OPEN, 'vehicle' => null, 'changes' => [], 'reason' => null];
 
                     continue;
                 }
 
-                $earlier[$car->sourceVehicleId] = $row->line;
+                $conflict = self::conflict($holder, $car);
+                $updates[$row->id] = $conflict !== null
+                    ? ['status' => self::REFUSED, 'vehicle' => null, 'changes' => [], 'reason' => $conflict]
+                    : self::against($holder, $car, $source);
+
+                continue;
             }
 
-            // No car carries the key: a car typed from a Gutachten may be this one (VehicleMerge decides), else it is new.
-            $updates[$row->id] = ['status' => VehicleImportRow::OPEN, 'vehicle' => null, 'changes' => [], 'reason' => null];
+            $updates[$row->id] = isset($existing[$row->id])
+                ? self::against($existing[$row->id], $car, $source)
+                : ['status' => VehicleImportRow::OPEN, 'vehicle' => null, 'changes' => [], 'reason' => null];
         }
 
-        self::write($updates);
+        self::write(self::referred($updates));
 
         return count(array_filter($updates, static fn (array $u): bool => $u['status'] === VehicleImportRow::OPEN));
+    }
+
+    /**
+     * A number that now names a clearly different car (D-517): another maker, or other key numbers. Said with both versions
+     * and what to do; null where it is the same car — a name or a VSN written differently is a change, not another car.
+     */
+    public static function conflict(Vehicle $holder, DatasetVehicle $car): ?string
+    {
+        $sameMaker = mb_strtolower(trim((string) $holder->make)) === mb_strtolower(trim($car->make));
+        $sameKeys = $car->hsn === null || ((string) $holder->hsn === $car->hsn && mb_strtoupper((string) $holder->tsn) === $car->tsn);
+
+        if ($sameMaker && $sameKeys) {
+            return null;
+        }
+
+        $ours = self::name($holder).' ('.GermanFormat::keyNumbers((string) $holder->hsn, (string) $holder->tsn).')';
+        $theirs = trim($car->make.' '.$car->model.' '.$car->variant).($car->hsn === null ? '' : ' ('.GermanFormat::keyNumbers($car->hsn, (string) $car->tsn).')');
+
+        return 'Die Nummer '.$car->sourceVehicleId.' aus dem Datensatz gehört im Shop zu '.$ours.', in der Datei aber zu '.$theirs.'. '
+            .'Die Zeile wird nicht importiert. Prüf, ob die Datei aus demselben Datensatz stammt – ist es dieselbe Quelle, schreib uns.';
+    }
+
+    /**
+     * The changes of cars something rests on, said in the row (D-517): a released Gutachten that names the car — its answers
+     * follow the change —, and orders, which keep what was sold (their copy of the car is frozen).
+     *
+     * @param  array<int, array{status: string, vehicle: int|null, changes: list<string>, reason: string|null}>  $updates
+     * @return array<int, array{status: string, vehicle: int|null, changes: list<string>, reason: string|null}>
+     */
+    private static function referred(array $updates): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map(static fn (array $u): ?int => $u['status'] === self::UPDATE ? $u['vehicle'] : null, $updates))));
+
+        if ($ids === []) {
+            return $updates;
+        }
+
+        $papers = array_flip(DB::table('fitments')->where('status', 'published')->whereIn('vehicle_id', $ids)->distinct()->pluck('vehicle_id')->map(static fn (mixed $id): int => (int) $id)->all());
+        $orders = array_flip(DB::table('orders')->whereIn('vehicle_id', $ids)->distinct()->pluck('vehicle_id')->map(static fn (mixed $id): int => (int) $id)->all());
+
+        foreach ($updates as $rowId => $update) {
+            $id = $update['vehicle'];
+
+            if ($update['status'] !== self::UPDATE || $id === null || (! isset($papers[$id]) && ! isset($orders[$id]))) {
+                continue;
+            }
+
+            $updates[$rowId]['reason'] = trim(implode(' ', array_filter([
+                isset($papers[$id]) ? 'Ein freigegebenes Gutachten nennt dieses Fahrzeug – seine Antworten folgen der Änderung.' : null,
+                isset($orders[$id]) ? 'Bestellungen behalten die Angaben vom Kauf.' : null,
+                $update['reason'],
+            ])));
+            // The column holds a thousand characters.
+            $updates[$rowId]['reason'] = mb_substr((string) $updates[$rowId]['reason'], 0, 1000);
+        }
+
+        return $updates;
     }
 
     /**
@@ -511,13 +583,16 @@ final class VehicleImporter
         $bindings = [];
 
         foreach ($cars as $id => $car) {
-            $keys[] = 'SELECT ? AS n, ? AS hsn, ? AS tsn, ? AS variant';
-            array_push($bindings, $id, (string) $car->hsn, (string) $car->tsn, $car->variant);
+            $keys[] = 'SELECT ? AS n, ? AS hsn, ? AS tsn, ? AS variant, ? AS vsn';
+            array_push($bindings, $id, (string) $car->hsn, (string) $car->tsn, $car->variant, self::vsnKey($car->vsn));
         }
 
+        // The VSN as vsnKey() compares it, without leading zeros (D-517, D-518). Where either side has none — a car typed by
+        // hand, a file without the column — HSN, TSN and variant decide, as they always did.
         $found = DB::select(
             'SELECT k.n AS n, MIN(v.id) AS id FROM ('.implode(' UNION ALL ', $keys).') AS k'
             .' JOIN vehicles AS v ON v.hsn = k.hsn COLLATE '.$collate['hsn'].' AND v.tsn = k.tsn COLLATE '.$collate['tsn'].' AND v.variant = k.variant COLLATE '.$collate['variant']
+            ." AND (k.vsn = '' OR COALESCE(v.vsn, '') = '' OR (CASE WHEN TRIM(LEADING '0' FROM v.vsn) = '' THEN '0' ELSE UPPER(TRIM(LEADING '0' FROM v.vsn)) END) = k.vsn COLLATE ".ColumnCollation::of('vehicles', 'vsn').')'
             .' GROUP BY k.n',
             $bindings,
         );
@@ -768,11 +843,41 @@ final class VehicleImporter
             });
         }
 
-        $changes = array_keys(self::changes($vehicle, $car));
+        $changes = self::changes($vehicle, $car);
 
         return $changes === []
             ? ['status' => self::UNCHANGED, 'vehicle' => (int) $vehicle->id, 'changes' => [], 'reason' => null]
-            : ['status' => self::UPDATE, 'vehicle' => (int) $vehicle->id, 'changes' => $changes, 'reason' => null];
+            : ['status' => self::UPDATE, 'vehicle' => (int) $vehicle->id, 'changes' => array_keys($changes), 'reason' => self::diffText($vehicle, $car, $changes)];
+    }
+
+    /**
+     * What an update changes, from what to what, as the Probelauf shows it (D-517): „Bauzeitraum: 01/2001 – 11/2004 →
+     * 2001 – 11/2004 · VSN: – → 002“. The build period as one line, in the words the shop shows it in.
+     *
+     * @param  array<string, mixed>  $changes
+     */
+    private static function diffText(Vehicle $vehicle, DatasetVehicle $car, array $changes): string
+    {
+        $labels = [
+            'make' => 'Hersteller', 'model' => 'Modell', 'variant' => 'Name', 'vsn' => 'VSN', 'type_designation' => 'Fahrzeugtyp',
+            'eg_nummer_raw' => 'Feld K', 'abe_nummer_raw' => 'Feld K (ABE)', 'power_kw' => 'Leistung in kW', 'body_form' => 'Karosserie',
+            'body_form_raw' => 'Fahrzeugform', 'drive_axle' => 'Antrieb', 'axle_load_front_kg' => 'Achslast vorn', 'axle_load_rear_kg' => 'Achslast hinten',
+            'max_speed_kmh' => 'Höchstgeschwindigkeit',
+        ];
+        $shown = static fn (mixed $v): string => $v === null || $v === '' ? '–' : ($v instanceof DateTimeInterface ? $v->format('d.m.Y') : (string) $v);
+        $lines = [];
+
+        if (array_intersect(array_keys($changes), ['build_from', 'build_to', 'build_from_year', 'build_from_month', 'build_to_year', 'build_to_month']) !== []) {
+            $lines[] = 'Bauzeitraum: '.$vehicle->periodLabel().' → '.(new BuildPeriod($car->buildFromYear, $car->buildFromMonth, $car->buildToYear, $car->buildToMonth))->label();
+        }
+
+        foreach ($changes as $column => $value) {
+            if (isset($labels[$column])) {
+                $lines[] = $labels[$column].': '.$shown($vehicle->getAttribute($column)).' → '.$shown($value);
+            }
+        }
+
+        return mb_substr(implode(' · ', $lines), 0, 700);
     }
 
     /**
@@ -783,16 +888,24 @@ final class VehicleImporter
     private static function changes(Vehicle $vehicle, DatasetVehicle $car): array
     {
         $changes = [];
+        $period = ['build_from', 'build_to', 'build_from_year', 'build_from_month', 'build_to_year', 'build_to_month'];
 
         foreach (self::row($car) as $column => $value) {
-            if ($value === null) {
+            // The build period is the file's as a whole (D-516): an empty month is unknown, an empty end year still built —
+            // both are statements, written like any other. Every other figure the file leaves empty never empties one.
+            if ($value === null && ! in_array($column, $period, true)) {
                 continue;
             }
 
             $ours = $vehicle->getAttribute($column);
             $ours = $ours instanceof DateTimeInterface ? $ours->format('Y-m-d') : $ours;
 
-            if ((string) $ours !== (string) $value) {
+            // A VSN that lost its leading zeros in a spreadsheet is the same VSN (D-518): kept as it is.
+            if ($column === 'vsn' && self::vsnKey(is_string($ours) ? $ours : null) === self::vsnKey(is_string($value) ? $value : null)) {
+                continue;
+            }
+
+            if (($ours === null) !== ($value === null) || (string) $ours !== (string) $value) {
                 $changes[$column] = $value;
             }
         }
@@ -834,6 +947,15 @@ final class VehicleImporter
             'hoechstgeschwindigkeit_kmh' => $car->maxSpeedKmh,
         ];
         $notes = [];
+
+        // A month that does not read leaves the month unknown, and is said (D-516): it never refuses the row.
+        foreach (['bauvon_monat' => [$car->buildFromYear, $car->buildFromMonth], 'bauende_monat' => [$car->buildToYear, $car->buildToMonth]] as $field => [$year, $month]) {
+            $typed = trim((string) ($row[$field] ?? ''));
+
+            if ($typed !== '' && $year !== null && $month === null) {
+                $notes[] = self::FIELDS[$field]['label'].' nicht lesbar: „'.mb_substr($typed, 0, 20).'“ – der Monat bleibt unbekannt';
+            }
+        }
 
         foreach ($read as $field => $value) {
             if (trim((string) ($row[$field] ?? '')) === '' || $value !== null) {
@@ -1172,21 +1294,33 @@ final class VehicleImporter
     }
 
     /**
-     * Why a row's build window refuses it, or null: the start missing or unread, the end given but unread, or the end
-     * before the start. Stored, any of them would be an open window — a car built at any time (R-02) —, the opposite of
-     * failing closed.
+     * Why a row's build period refuses it, or null — the client's rules of 26.11.2026 (D-516), exactly:
+     *
+     *   start: no year → refused, with or without a month; a year without a month → accepted, the month unknown;
+     *   end:   neither → accepted, still built; a year without a month → accepted, the month unknown;
+     *          a month without a year → refused.
+     *
+     * A year that does not read is refused with what was read („20194“); an end that is certainly before the start too. A
+     * month that does not read is unknown, and the row says so (unread()) — a missing or odd month never refuses a row.
      *
      * @param  array<string, string>  $row
      */
     private static function windowRefused(array $row, DatasetVehicle $car): ?string
     {
         $typed = static fn (string $field): string => mb_substr(trim((string) ($row[$field] ?? '')), 0, 40);
+        $columns = static fn (string $year, string $month): bool => $typed($year) !== '' || $typed($month) !== '';
+        $startText = $columns('bauvon_jahr', 'bauvon_monat') ? $typed('bauvon_jahr') : $typed('baubeginn');
+        $endText = $columns('bauende_jahr', 'bauende_monat') ? $typed('bauende_jahr') : $typed('bauende');
+        $endMonthOnly = $typed('bauende_jahr') === '' && $typed('bauende_monat') !== '' && $typed('bauende') === '';
+        $period = new BuildPeriod($car->buildFromYear, $car->buildFromMonth, $car->buildToYear, $car->buildToMonth);
 
         return match (true) {
-            $car->buildFrom === null && $typed('baubeginn') === '' => 'Der Baubeginn fehlt. Bitte Monat und Jahr, etwa 03.2015.',
-            $car->buildFrom === null => 'Der Baubeginn ist nicht lesbar: „'.$typed('baubeginn').'“. Bitte Monat und Jahr, etwa 03.2015.',
-            $car->buildTo === null && $typed('bauende') !== '' => 'Das Bauende ist nicht lesbar: „'.$typed('bauende').'“. Bitte Monat und Jahr, etwa 12.2019 – oder leer, wenn es noch gebaut wird.',
-            $car->buildTo !== null && $car->buildTo < $car->buildFrom => 'Das Bauende liegt vor dem Baubeginn.',
+            $startText === '' => 'Baubeginn ohne Jahr.',
+            $car->buildFromYear === null => 'Der Baubeginn ist nicht lesbar: „'.$startText.'“. Erwartet wird ein Jahr, etwa 2015, gern mit Monat.',
+            $endMonthOnly => 'Bauende ohne Jahr.',
+            $endText !== '' && $car->buildToYear === null => 'Das Bauende ist nicht lesbar: „'.$endText.'“. Erwartet wird ein Jahr, etwa 2019, gern mit Monat – oder leer, wenn es noch gebaut wird.',
+            $period->possibleTo() !== null && $period->possibleFrom() !== null && $period->possibleTo() < $period->possibleFrom(),
+            $car->buildTo !== null && $car->buildFrom !== null && $car->buildFromMonth !== null && $car->buildToMonth !== null && $car->buildTo < $car->buildFrom => 'Das Bauende liegt vor dem Baubeginn.',
             default => null,
         };
     }
