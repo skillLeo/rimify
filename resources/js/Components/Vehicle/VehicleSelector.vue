@@ -493,14 +493,13 @@ function onTsn(event: Event): void {
                     <span class="vsel__candidate-text">
                         <span class="vsel__candidate-name">{{ row.label }}</span>
                         <span class="data vsel__candidate-values">
-                            <template
+                            <!-- Each attribute its own item: bare text in this flex row ran together („05/2023Leistung“ at 390). -->
+                            <span
                                 v-for="attribute in lookup.distinction.attributes"
                                 :key="attribute"
-                            >
-                                {{ lookup.distinction.labels[attribute] }}:
-                                {{ row.values[attribute] }}
-                            </template>
-                            <template v-if="row.vsn"> VSN {{ row.vsn }}</template>
+                                class="vsel__candidate-value"
+                            >{{ lookup.distinction.labels[attribute] }}: {{ row.values[attribute] }}</span>
+                            <span v-if="row.vsn" class="vsel__candidate-value">VSN {{ row.vsn }}</span>
                         </span>
                         <span v-if="row.number" class="data vsel__number">Datensatz-Nr. {{ row.number }}</span>
                     </span>

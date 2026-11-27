@@ -332,3 +332,22 @@ describe('VehicleSelector — a model’s cars by form, by name, then the record
         expect(inModel([variants[4]!]).find('#vsel-drill-title').text()).toBe('Variante wählen')
     })
 })
+
+describe('VehicleSelector — the key-number chooser', () => {
+    it('gives each attribute of a candidate its own item, so none runs into the next (D-517)', () => {
+        const lookup: LookupResult = {
+            status: 'ambiguous', hsn: '1742', tsn: 'AAZ',
+            distinction: {
+                required: true, indistinguishable: false, attributes: ['build_period', 'power'], labels: { build_period: 'Bauzeitraum', power: 'Leistung' },
+                rows: [
+                    { id: 1, label: 'Alfa Romeo 2.9 V6 (952)', vsn: '00001', values: { build_period: '06/2016 – 05/2023', power: '375 kW' }, number: null },
+                    { id: 2, label: 'Alfa Romeo 2.9 V6 (952)', vsn: '00001', values: { build_period: 'seit 06/2016', power: '375 kW' }, number: null },
+                ],
+            },
+        }
+        const wrapper = mountSelector({ lookup })
+        const first = wrapper.findAll('.vsel__candidate')[0]!
+
+        expect(first.findAll('.vsel__candidate-value').map((v) => v.text())).toEqual(['Bauzeitraum: 06/2016 – 05/2023', 'Leistung: 375 kW', 'VSN 00001'])
+    })
+})
