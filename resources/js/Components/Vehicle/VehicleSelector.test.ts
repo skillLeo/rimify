@@ -252,3 +252,83 @@ describe('VehicleSelector — no vehicle dataset yet', () => {
         expect(wrapper.find('.vsel__col--keys form').exists()).toBe(true)
     })
 })
+/*
+ * „Fahrzeug wählen“ (the client's message of 26.11.2026, D-517, D-519): Marke → Modell → Fahrzeugform → Fahrzeugname →
+ * the records, each with HSN, TSN, VSN and the period; a level with one entry is skipped; two records that read the same
+ * in every line carry the dataset's number.
+ */
+describe('VehicleSelector — a model’s cars by form, by name, then the records', () => {
+    const car = (id: number, over: Record<string, unknown>) => ({
+        id, variant: '316Ci', typeDesignation: 'E46', keyNumbers: '0005 / 582', hsn: '0005', tsn: '582', vsn: '001',
+        buildWindow: '12/1999 – 01/2004', buildKnown: true, powerKw: 85, powerPs: 116, bodyForm: 'Coupe', form: 'Coupe',
+        number: 1000 + id, needsReview: false, approval: null, approvalShort: null, ...over,
+    })
+    const variants = [
+        car(1, {}),
+        car(2, {}),
+        car(3, { vsn: '005', buildWindow: '12/2004 – 01/2007' }),
+        car(4, { variant: '318Ci', vsn: '002' }),
+        car(5, { variant: '320d', form: 'Kombi', bodyForm: 'Kombi', tsn: '600', vsn: null, buildWindow: 'seit 2020' }),
+    ]
+
+    function inModel(list = variants): VueWrapper {
+        current.props = {}
+        const wrapper = mount(VehicleSelector, {
+            props: { makes: [], models: [], variants: list, selectedMake: 'BMW', selectedModel: '3er' },
+            global: { stubs: { DocFacsimile: true } },
+        })
+        mounted.push(wrapper)
+
+        return wrapper
+    }
+
+    const labels = (w: VueWrapper) => w.findAll('.vsel__rows .row-item .vsel__label').map((r) => r.text())
+
+    it('asks for the form first, in the data’s own words, then the name, then shows the records with what tells them apart', async () => {
+        const wrapper = inModel()
+
+        expect(wrapper.find('#vsel-drill-title').text()).toBe('Fahrzeugform wählen')
+        expect(labels(wrapper)).toEqual(['Coupe', 'Kombi'])
+
+        await wrapper.findAll('.vsel__rows .row-item')[0]!.trigger('click')
+        expect(wrapper.find('#vsel-drill-title').text()).toBe('Typ wählen')
+        expect(labels(wrapper)).toEqual(['316Ci', '318Ci'])
+        expect(wrapper.find('.vsel__back').text()).toBe('3er')
+
+        await wrapper.findAll('.vsel__rows .row-item')[0]!.trigger('click')
+        expect(wrapper.find('#vsel-drill-title').text()).toBe('Variante wählen')
+
+        const rows = wrapper.findAll('.vsel__rows .row-item')
+        expect(rows).toHaveLength(3)
+        expect(rows[0]!.find('.vsel__sub').text()).toBe('HSN 0005 · TSN 582 · VSN 001 · 85 kW (116 PS)')
+        expect(rows[2]!.find('.vsel__note').text()).toBe('12/2004 – 01/2007')
+        // The two that read the same in every line carry the dataset's number; the one told apart by its VSN does not.
+        expect(rows.map((r) => r.find('.vsel__number').exists() ? r.find('.vsel__number').text() : null)).toEqual(['Datensatz-Nr. 1001', 'Datensatz-Nr. 1002', null])
+
+        // Back: the names, then the forms.
+        await wrapper.find('.vsel__back').trigger('click')
+        expect(wrapper.find('#vsel-drill-title').text()).toBe('Typ wählen')
+        await wrapper.find('.vsel__back').trigger('click')
+        expect(wrapper.find('#vsel-drill-title').text()).toBe('Fahrzeugform wählen')
+    })
+
+    it('chooses a name with one record at once — its period already on the line', async () => {
+        const wrapper = inModel()
+        await wrapper.findAll('.vsel__rows .row-item')[0]!.trigger('click')
+
+        const one = wrapper.findAll('.vsel__rows .row-item')[1]!
+        expect(one.find('.vsel__note').text()).toBe('12/1999 – 01/2004')
+        await one.trigger('click')
+
+        const choice = forms.filter((f) => 'fahrzeug' in f).at(-1)!
+        expect(choice.fahrzeug).toBe(4)
+        expect(choice.post).toHaveBeenCalledWith('/fahrzeug', expect.anything())
+    })
+
+    it('skips a level with one entry: one form goes straight to the names, one record to the record', () => {
+        const coupes = variants.filter((v) => v.form === 'Coupe')
+
+        expect(inModel(coupes).find('#vsel-drill-title').text()).toBe('Typ wählen')
+        expect(inModel([variants[4]!]).find('#vsel-drill-title').text()).toBe('Variante wählen')
+    })
+})

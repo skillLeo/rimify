@@ -84,11 +84,15 @@ final readonly class VehicleTree
             ->whereNull('deleted_at')
             ->where('make', $make)
             ->where('model', $model)
+            // Name, then build start, then power (the client's message of 26.11.2026, D-519).
             ->orderBy('variant')
             ->orderByRaw('build_from IS NULL, build_from')
+            ->orderBy('power_kw')
+            ->orderBy('id')
             ->get([
-                'id', 'variant', 'type_designation', 'hsn', 'tsn', 'vsn',
-                'build_from', 'build_to', 'power_ps', 'body_form', 'needs_review', 'eg_nummer_raw',
+                'id', 'variant', 'type_designation', 'hsn', 'tsn', 'vsn', 'source_vehicle_id',
+                'build_from', 'build_to', 'build_from_year', 'build_from_month', 'build_to_year', 'build_to_month',
+                'power_kw', 'power_ps', 'body_form', 'body_form_raw', 'needs_review', 'eg_nummer_raw',
             ]);
 
         $out = [];
@@ -102,14 +106,17 @@ final readonly class VehicleTree
                 'hsn' => (string) $row->hsn,
                 'tsn' => (string) $row->tsn,
                 'vsn' => $row->vsn,
-                'buildWindow' => GermanFormat::buildPeriod(
-                    $row->build_from === null ? null : new \DateTimeImmutable((string) $row->build_from),
-                    $row->build_to === null ? null : new \DateTimeImmutable((string) $row->build_to),
-                ),
+                // As the record states it (D-516): `12/1999 – 01/2004`, `1999 – 2004`, `seit 2020`.
+                'buildWindow' => GermanFormat::vehiclePeriod($row),
                 // Whether the window above says anything: beside a Feld K line an unknown one is left out.
                 'buildKnown' => $row->build_from !== null || $row->build_to !== null,
+                'powerKw' => $row->power_kw === null ? null : (int) $row->power_kw,
                 'powerPs' => $row->power_ps === null ? null : (int) $row->power_ps,
                 'bodyForm' => $row->body_form,
+                // The selector's grouping (D-519): the dataset's own form name, as written; else the shop's own word.
+                'form' => $row->body_form_raw ?? $row->body_form,
+                // The dataset's own number: shown, small, only where two records would otherwise read the same (D-517).
+                'number' => $row->source_vehicle_id === null ? null : (int) $row->source_vehicle_id,
                 // Shown, not hidden: the customer is told plainly that this row is incomplete,
                 // rather than being given a confident answer derived from missing data (R-03).
                 'needsReview' => (bool) $row->needs_review,
